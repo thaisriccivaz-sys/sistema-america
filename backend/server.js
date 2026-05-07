@@ -64,14 +64,14 @@ async function sendMailHelper(opts) {
 const db = require('./database');
 
 // AUTO-PATCH: Corrige OSs importadas sem data_os (ex: Entrega/Retirada da primeira importação noturna)
-db.run("UPDATE os_logistica SET data_os = date('now') WHERE data_os IS NULL");
+db.run("UPDATE os_logistica SET data_os = date('now') WHERE data_os IS NULL", err => {});
 
 // Excluir Contrato Academia de teste do Abner Abrahão
-db.run("DELETE FROM documentos WHERE document_type = 'Contrato Academia' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Abner Abrahão%')");
+db.run("DELETE FROM documentos WHERE document_type = 'Contrato Academia' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Abner Abrahão%')", err => {});
 // Excluir Contrato Faculdade de teste da Debora
-db.run("DELETE FROM documentos WHERE document_type = 'Contrato Faculdade' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Débora%')");
+db.run("DELETE FROM documentos WHERE document_type = 'Contrato Faculdade' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Débora%')", err => {});
 // Excluir Contrato Faculdade de teste da Eduarda
-db.run("DELETE FROM documentos WHERE document_type = 'Contrato Faculdade' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Eduarda%')");
+db.run("DELETE FROM documentos WHERE document_type = 'Contrato Faculdade' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Eduarda%')", err => {});
 
 db.run("DELETE FROM geradores WHERE nome = 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'");
 db.run("DELETE FROM geradores WHERE nome = 'Termo de Responsabilidade de Chaves'");
