@@ -44,11 +44,11 @@ function _eq_fotoSrc(m) {
   return null;
 }
 
-window.initEquipes = async function () {
+window.initEquipes = async function (showSkeleton = true) {
   const el = document.getElementById('equipes-container');
   if (!el) return;
   _renderAll(el);
-  _mostrarSkeleton();
+  if (showSkeleton) _mostrarSkeleton();
   try {
     [_equipes, _semEquipe] = await Promise.all([
       _eq_get('/equipes'),
@@ -91,7 +91,7 @@ function _renderAll(el) {
     .eq-btn-primary:hover { background:#1e293b; }
     .eq-btn-sec { height:38px; padding:0 1.1rem; background:#fff; color:#334155; border:1.5px solid #e2e8f0; border-radius:8px; font-weight:600; font-size:.85rem; cursor:pointer; display:flex; align-items:center; gap:6px; transition:border-color .15s; }
     .eq-btn-sec:hover { border-color:#94a3b8; }
-    #equipes-board { display:flex; gap:1rem; overflow-y:auto; overflow-x:hidden; flex-wrap:wrap; padding-bottom:1rem; flex:1; min-height:0; align-items:flex-start; align-content:flex-start; }
+    #equipes-board { display:flex; gap:1.25rem; overflow-y:auto; overflow-x:hidden; flex-wrap:wrap; padding-bottom:1rem; flex:1; min-height:0; align-items:flex-start; align-content:flex-start; }
     #equipes-board::-webkit-scrollbar { width:6px; }
     #equipes-board::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
     .eq-col { width:200px; min-width:200px; background:#f8fafc; border-radius:14px; border:1.5px solid #e2e8f0; display:flex; flex-direction:column; flex-shrink:0; max-height:calc(100vh - 180px); }
@@ -401,16 +401,16 @@ window._eqCardDrop = async function(event, alvoId, alvoEquipeId) {
       if ((isMot1 && isMot2) || (!isMot1 && !isMot2)) {
          if (typeof window.showToast === 'function') window.showToast('Reordenando equipe...', 'info');
          await _eq_patch('/equipes/trocar', { membro_id: membroId, alvo_id: alvoId });
-         await window.initEquipes();
+         await window.initEquipes(false);
       } else {
          if (typeof window.showToast === 'function') window.showToast('Trocando funções...', 'info');
          await _eq_patch('/equipes/trocar', { membro_id: membroId, alvo_id: alvoId });
-         await window.initEquipes();
+         await window.initEquipes(false);
       }
     } else {
       if (typeof window.showToast === 'function') window.showToast('Trocando posições...', 'info');
       await _eq_patch('/equipes/trocar', { membro_id: membroId, alvo_id: alvoId });
-      await window.initEquipes();
+      await window.initEquipes(false);
     }
   } catch(e) {
     alert('Erro ao trocar: ' + e.message);
@@ -433,12 +433,12 @@ window._eqEmptySlotDrop = async function(event, equipeId, funcao, ordem) {
         const payload = eq.membros.map(x => ({ colaborador_id: x.colaborador_id||x.id, funcao: x.funcao, ordem: x.ordem }));
         if (typeof window.showToast === 'function') window.showToast('Reposicionando...', 'info');
         await _eq_patch('/equipes/reordenar', { equipe_id: equipeId, membros_ids: payload });
-        await window.initEquipes();
+        await window.initEquipes(false);
       }
     } else {
       if (typeof window.showToast === 'function') window.showToast('Adicionando na posição...', 'info');
       await _eq_patch('/equipes/mover', { colaborador_id: membroId, equipe_origem_id: origemEquipeId, equipe_destino_id: equipeId, funcao, ordem });
-      await window.initEquipes();
+      await window.initEquipes(false);
     }
   } catch(e) {
     alert('Erro: ' + e.message);
@@ -570,11 +570,11 @@ function _renderParesHtml(membros, b, isEquipePadrao = false) {
     html += `<div style="display:flex; gap:4px; margin-bottom:2px;${isEquipePadrao ? ' width: calc(50% - 2px);' : ''}">`;
     
     html += `<div style="flex:1; min-width:0;" ondragover="event.preventDefault();" ondrop="window._eqEmptySlotDrop(event, ${eqId}, 'motorista', ${i})">`;
-    html += motoristasMap[i] ? _renderCard(motoristasMap[i]) : `<div class="eq-empty" style="height:100%;min-height:38px;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.65rem;font-weight:700;">S/ Motorista</div>`;
+    html += motoristasMap[i] ? _renderCard(motoristasMap[i]) : `<div class="eq-empty" style="height:46px;box-sizing:border-box;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.65rem;font-weight:700;">S/ Motorista</div>`;
     html += '</div>';
 
     html += `<div style="flex:1; min-width:0;" ondragover="event.preventDefault();" ondrop="window._eqEmptySlotDrop(event, ${eqId}, 'ajudante', ${i})">`;
-    html += ajudantesMap[i] ? _renderCard(ajudantesMap[i]) : `<div class="eq-empty" style="height:100%;min-height:38px;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.65rem;font-weight:700;">S/ Ajudante</div>`;
+    html += ajudantesMap[i] ? _renderCard(ajudantesMap[i]) : `<div class="eq-empty" style="height:46px;box-sizing:border-box;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.65rem;font-weight:700;">S/ Ajudante</div>`;
     html += '</div>';
 
     html += '</div>';
