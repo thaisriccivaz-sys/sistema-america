@@ -12,9 +12,11 @@ const COLUNAS_DEFAULT = [
 ];
 
 let _equipes = [];
+let _semEquipe = [];   // colaboradores fora de qualquer equipe
 let _busca = '';
 
 // ── Drag state ───────────────────────────────────────────────────────────────
+// equipeId = 0 significa coluna "Fora de Equipe"
 let _drag = { membroId: null, origemEquipeId: null };
 
 // ── API helpers ───────────────────────────────────────────────────────────────
@@ -46,12 +48,13 @@ function _eq_fotoSrc(m) {
 window.initEquipes = async function () {
   const el = document.getElementById('equipes-container');
   if (!el) return;
-  // Render skeleton first
   _renderAll(el);
   _mostrarSkeleton();
   try {
-    _equipes = await _eq_get('/equipes');
-    // Se não houver equipes, criar as padrão no backend
+    [_equipes, _semEquipe] = await Promise.all([
+      _eq_get('/equipes'),
+      _eq_get('/equipes/colaboradores-sem-equipe')
+    ]);
     if (_equipes.length === 0) {
       const defaults = [
         { nome: 'Equipe 07h', horario: 'Entra às 07h', cor: '#2563eb', ordem: 1 },
@@ -69,9 +72,10 @@ window.initEquipes = async function () {
   } catch(e) {
     console.error('[EQUIPES]', e);
     _equipes = JSON.parse(JSON.stringify(COLUNAS_DEFAULT));
+    _semEquipe = [];
   }
   const board = document.getElementById('equipes-board');
-  if (board) board.innerHTML = _renderBoard();
+  if (board) board.innerHTML = _renderFora() + _renderBoard();
 };
 
 function _renderAll(el) {
@@ -162,6 +166,43 @@ function _eqStatus(membros) {
   if (temMotorista && temAjudante) return { cor: '#22c55e', label: 'Completa' };
   if (temMotorista || temAjudante) return { cor: '#f59e0b', label: 'Atenção' };
   return { cor: '#ef4444', label: 'Incompleta' };
+}
+
+function _renderFora() {
+  const b = _busca.toLowerCase();
+  const lista = b ? _semEquipe.filter(m => (m.nome_completo||'').toLowerCase().includes(b)) : _semEquipe;
+  const cards = lista.map(m => {
+    const iniciais = (m.nome_completo||'?').split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase();
+    const avatarBg = ['#94a3b8','#64748b','#78716c','#6b7280','#71717a','#737373'][m.id % 6];
+    const fotoSrc = m.foto_base64 ? 'data:image/jpeg;base64,'+m.foto_base64 : null;
+    const avatarHtml = fotoSrc
+      ? `<img class="eq-avatar" src="${fotoSrc}" alt="${m.nome_completo}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="eq-avatar-placeholder" style="background:${avatarBg};display:none;">${iniciais}</div>`
+      : `<div class="eq-avatar-placeholder" style="background:${avatarBg};">${iniciais}</div>`;
+    return `<div class="eq-card" data-membro-id="${m.id}" data-equipe-id="0"
+      draggable="true"
+      ondragstart="window._eqDragStart(event,${m.id},0)"
+      ondragend="window._eqDragEnd(event)"
+      style="opacity:.85;">
+      ${avatarHtml}
+      <div class="eq-card-info">
+        <div class="eq-card-name">${m.nome_completo||'?'}</div>
+        <span class="eq-card-func" style="background:#f1f5f9;color:#64748b;">${m.cargo||'Operacional'}</span>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="eq-col" data-equipe-id="0" style="border:2px dashed #cbd5e1;background:#f8fafc;">
+    <div class="eq-col-header" style="background:#64748b;">
+      <div class="eq-col-title"><span class="eq-indicator" style="background:#94a3b8;border:2px solid rgba(255,255,255,.4);"></span> Fora de Equipe</div>
+      <div class="eq-col-sub"><span>Sem equipe definida</span><span class="eq-badge">${lista.length}</span></div>
+    </div>
+    <div class="eq-col-body" id="eq-body-0"
+      ondragover="event.preventDefault();window._eqDragOver(event,0)"
+      ondragleave="window._eqDragLeave(event)"
+      ondrop="window._eqDrop(event,0)">
+      ${cards || '<div class="eq-empty"><i class="ph ph-check-circle" style="font-size:1.5rem;display:block;margin-bottom:4px;color:#22c55e;"></i>Todos em equipes!</div>'}
+    </div>
+    <div class="eq-col-footer"><div style="text-align:center;font-size:.72rem;color:#94a3b8;padding:.25rem;">Arraste para uma equipe</div></div>
+  </div>`;
 }
 
 function _renderBoard(busca) {
@@ -340,63 +381,112 @@ window._eqDrop = async function(ev, equipeDestinoId) {
   if (body) body.classList.remove('drag-over');
 
   const { membroId, origemEquipeId } = _drag;
-  if (!membroId || equipeDestinoId === origemEquipeId) return;
+  if (!membroId) return;
+  if (equipeDestinoId === origemEquipeId) return;
 
+  // ── Soltar em "Fora de Equipe" (id=0) → remover da equipe ──
+  if (equipeDestinoId === 0) {
+    const origem = _equipes.find(e => e.id === origemEquipeId);
+    if (!origem) return;
+    const idx = origem.membros.findIndex(m => (m.colaborador_id||m.id) === membroId);
+    if (idx === -1) return;
+    const [membro] = origem.membros.splice(idx, 1);
+    _semEquipe.push({ id: membro.colaborador_id||membro.id, nome_completo: membro.nome_completo||membro.nome, cargo: membro.cargo||'', foto_base64: membro.foto_base64||null });
+    _reRenderFora();
+    _reRenderColuna(origemEquipeId);
+    try {
+      await _eq_del(`/equipes/${origemEquipeId}/membros/${membro.colaborador_id||membro.id}`);
+      if (typeof window.showToast === 'function') window.showToast(`${membro.nome_completo||membro.nome} movido para Fora de Equipe`, 'success');
+    } catch(e) { console.error('[EQUIPES] Erro ao remover:', e); }
+    _drag = { membroId: null, origemEquipeId: null };
+    return;
+  }
+
+  // ── Soltar em equipe vindo de "Fora de Equipe" (id=0) → adicionar à equipe ──
+  if (origemEquipeId === 0) {
+    const destino = _equipes.find(e => e.id === equipeDestinoId);
+    if (!destino) return;
+    const idx = _semEquipe.findIndex(m => m.id === membroId);
+    if (idx === -1) return;
+    const [colab] = _semEquipe.splice(idx, 1);
+    const novoMembro = { colaborador_id: colab.id, nome_completo: colab.nome_completo, cargo: colab.cargo, foto_base64: colab.foto_base64, funcao: 'ajudante', escala: '', equipe_id: equipeDestinoId };
+    destino.membros.push(novoMembro);
+    _reRenderFora();
+    _reRenderColuna(equipeDestinoId);
+    try {
+      await _eq_post(`/equipes/${equipeDestinoId}/membros`, { colaborador_id: colab.id, funcao: 'ajudante' });
+      if (typeof window.showToast === 'function') window.showToast(`${colab.nome_completo} adicionado a ${destino.nome}`, 'success');
+    } catch(e) { console.error('[EQUIPES] Erro ao adicionar:', e); }
+    _drag = { membroId: null, origemEquipeId: null };
+    return;
+  }
+
+  // ── Mover entre equipes ──
   const origem = _equipes.find(e => e.id === origemEquipeId);
   const destino = _equipes.find(e => e.id === equipeDestinoId);
   if (!origem || !destino) return;
-
   const idx = origem.membros.findIndex(m => (m.colaborador_id||m.id) === membroId);
   if (idx === -1) return;
-
   const [membro] = origem.membros.splice(idx, 1);
   membro.equipe_id = equipeDestinoId;
   destino.membros.push(membro);
-
   _reRenderColuna(origemEquipeId);
   _reRenderColuna(equipeDestinoId);
-
-  // Salvar no backend
   try {
-    await _eq_patch('/equipes/mover', {
-      colaborador_id: membro.colaborador_id || membro.id,
-      equipe_origem_id: origemEquipeId,
-      equipe_destino_id: equipeDestinoId,
-      funcao: membro.funcao
-    });
+    await _eq_patch('/equipes/mover', { colaborador_id: membro.colaborador_id||membro.id, equipe_origem_id: origemEquipeId, equipe_destino_id: equipeDestinoId, funcao: membro.funcao });
     if (typeof window.showToast === 'function') window.showToast(`${membro.nome_completo||membro.nome} movido para ${destino.nome}`, 'success');
   } catch(e) {
-    console.error('[EQUIPES] Erro ao mover:', e);
-    // Reverter
     destino.membros.splice(destino.membros.findIndex(m => (m.colaborador_id||m.id) === membroId), 1);
     membro.equipe_id = origemEquipeId;
     origem.membros.push(membro);
     _reRenderColuna(origemEquipeId);
     _reRenderColuna(equipeDestinoId);
   }
-
   _drag = { membroId: null, origemEquipeId: null };
 };
 
 function _reRenderColuna(equipeId) {
+  if (equipeId === 0) { _reRenderFora(); return; }
   const eq = _equipes.find(e => e.id === equipeId);
   if (!eq) return;
-  // Atualiza o badge de contagem no header
+  const { cor: indicadorCor } = _eqStatus(eq.membros);
   const badge = document.querySelector(`[data-equipe-id="${equipeId}"] .eq-badge`);
   if (badge) badge.textContent = eq.membros.length;
-  // Atualiza o indicador de completude
-  const completa = eq.membros.some(m => m.funcao === 'motorista') && eq.membros.some(m => m.funcao === 'ajudante');
-  const indicadorCor = eq.membros.length === 0 ? '#ef4444' : completa ? '#22c55e' : '#f59e0b';
   const indicator = document.querySelector(`[data-equipe-id="${equipeId}"] .eq-indicator`);
   if (indicator) indicator.style.background = indicadorCor;
-  // Re-renderiza o corpo
   const body = document.getElementById(`eq-body-${equipeId}`);
   if (!body) return;
   const b = _busca.toLowerCase();
-  const membros = b ? eq.membros.filter(m => m.nome.toLowerCase().includes(b)) : eq.membros;
+  const membros = b ? eq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(b)) : eq.membros;
   body.innerHTML = membros.length
     ? membros.map(m => _renderCard(m)).join('')
     : '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>';
+}
+
+function _reRenderFora() {
+  const foraCol = document.querySelector('.eq-col[data-equipe-id="0"]');
+  if (!foraCol) return;
+  const badge = foraCol.querySelector('.eq-badge');
+  if (badge) badge.textContent = _semEquipe.length;
+  const body = document.getElementById('eq-body-0');
+  if (!body) return;
+  const b = _busca.toLowerCase();
+  const lista = b ? _semEquipe.filter(m => (m.nome_completo||'').toLowerCase().includes(b)) : _semEquipe;
+  body.innerHTML = lista.map(m => {
+    const iniciais = (m.nome_completo||'?').split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase();
+    const avatarBg = ['#94a3b8','#64748b','#78716c','#6b7280','#71717a','#737373'][m.id % 6];
+    const fotoSrc = m.foto_base64 ? 'data:image/jpeg;base64,'+m.foto_base64 : null;
+    const avatarHtml = fotoSrc
+      ? `<img class="eq-avatar" src="${fotoSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="eq-avatar-placeholder" style="background:${avatarBg};display:none;">${iniciais}</div>`
+      : `<div class="eq-avatar-placeholder" style="background:${avatarBg};">${iniciais}</div>`;
+    return `<div class="eq-card" data-membro-id="${m.id}" data-equipe-id="0" draggable="true"
+      ondragstart="window._eqDragStart(event,${m.id},0)" ondragend="window._eqDragEnd(event)" style="opacity:.85;">
+      ${avatarHtml}
+      <div class="eq-card-info">
+        <div class="eq-card-name">${m.nome_completo||'?'}</div>
+        <span class="eq-card-func" style="background:#f1f5f9;color:#64748b;">${m.cargo||'Operacional'}</span>
+      </div></div>`;
+  }).join('') || '<div class="eq-empty"><i class="ph ph-check-circle" style="font-size:1.5rem;display:block;margin-bottom:4px;color:#22c55e;"></i>Todos em equipes!</div>';
 }
 
 window._equipesAdicionarMembro = async function(equipeId) {
@@ -452,14 +542,21 @@ window._eqConfirmarAdicionar = async function(equipeId) {
 };
 
 window._eqRemoverMembro = async function(colaboradorId, equipeId) {
-  if (!confirm('Remover colaborador desta equipe?')) return;
+  if (!confirm('Mover colaborador para Fora de Equipe?')) return;
   try {
     await _eq_del(`/equipes/${equipeId}/membros/${colaboradorId}`);
-    _equipes = await _eq_get('/equipes');
-    const board = document.getElementById('equipes-board');
-    if (board) board.innerHTML = _renderBoard();
-    if (typeof window.showToast === 'function') window.showToast('Colaborador removido da equipe', 'success');
-  } catch(e) { alert('Erro ao remover: ' + e.message); }
+    const eq = _equipes.find(e => e.id === equipeId);
+    if (eq) {
+      const idx = eq.membros.findIndex(m => (m.colaborador_id||m.id) === colaboradorId);
+      if (idx !== -1) {
+        const [m] = eq.membros.splice(idx, 1);
+        _semEquipe.push({ id: colaboradorId, nome_completo: m.nome_completo||m.nome, cargo: m.cargo||'', foto_base64: m.foto_base64||null });
+      }
+    }
+    _reRenderFora();
+    _reRenderColuna(equipeId);
+    if (typeof window.showToast === 'function') window.showToast('Colaborador movido para Fora de Equipe', 'success');
+  } catch(e) { alert('Erro: ' + e.message); }
 };
 
 function _mostrarSkeleton() {
