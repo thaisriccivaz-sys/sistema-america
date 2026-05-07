@@ -92,6 +92,9 @@ function _renderAll(el) {
     .eq-btn-sec { height:38px; padding:0 1.1rem; background:#fff; color:#334155; border:1.5px solid #e2e8f0; border-radius:8px; font-weight:600; font-size:.85rem; cursor:pointer; display:flex; align-items:center; gap:6px; transition:border-color .15s; }
     .eq-btn-sec:hover { border-color:#94a3b8; }
     #equipes-board { display:flex; gap:2rem; overflow-y:auto; overflow-x:hidden; flex-wrap:wrap; padding-bottom:1rem; flex:1; min-height:0; align-items:flex-start; align-content:flex-start; }
+    #equipes-main { display:flex; flex:1; gap:2rem; min-height:0; overflow:hidden; }
+    #equipes-sidebar { display:flex; flex-direction:column; gap:.5rem; flex-shrink:0; overflow-y:auto; }
+    #equipes-cols { display:flex; gap:2rem; overflow-y:auto; overflow-x:hidden; flex-wrap:wrap; flex:1; min-height:0; align-items:flex-start; align-content:flex-start; }
     #equipes-board::-webkit-scrollbar { width:6px; }
     #equipes-board::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
     .eq-col { width:200px; min-width:200px; background:#f8fafc; border-radius:14px; border:1.5px solid #e2e8f0; display:flex; flex-direction:column; flex-shrink:0; max-height:calc(100vh - 180px); }
@@ -118,6 +121,11 @@ function _renderAll(el) {
     .eq-add-btn { width:100%; background:transparent; border:1.5px dashed #cbd5e1; border-radius:8px; color:#94a3b8; font-size:.8rem; padding:.5rem; cursor:pointer; transition:all .15s; display:flex; align-items:center; justify-content:center; gap:5px; }
     .eq-add-btn:hover { border-color:#6366f1; color:#6366f1; background:#f5f3ff; }
     .eq-indicator { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:4px; }
+    .eq-card.drag-swap-over { box-shadow:0 0 0 2px #6366f1; }
+    .eq-card.drag-add-over  { box-shadow:0 0 0 2px #22c55e; }
+    .eq-drag-icon { position:absolute; right:-8px; top:-8px; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.75rem; pointer-events:none; z-index:10; }
+    .eq-drag-icon-swap { background:#6366f1; color:#fff; }
+    .eq-drag-icon-add  { background:#22c55e; color:#fff; }
   </style>
   <div id="equipes-wrapper">
     <div id="equipes-header">
@@ -128,7 +136,10 @@ function _renderAll(el) {
         <button class="eq-btn-primary" onclick="window._equipesSalvar()"><i class="ph ph-floppy-disk"></i> Salvar alterações</button>
       </div>
     </div>
-    <div id="equipes-board">${_renderBoard()}</div>
+    <div id="equipes-main">
+      <div id="equipes-sidebar"></div>
+      <div id="equipes-board">${_renderBoard()}</div>
+    </div>
     <div id="equipes-summary"></div>
   </div>
 
@@ -185,7 +196,7 @@ function _renderFora() {
       </div>
     </div>`;
   }).join('');
-  return `<div class="eq-col" data-equipe-id="0" style="border:2px dashed #cbd5e1;background:#f8fafc;">
+  const foraHtml = `<div class="eq-col" data-equipe-id="0" style="border:2px dashed #cbd5e1;background:#f8fafc;">
     <div class="eq-col-header" style="background:#64748b;">
       <div class="eq-col-title">
         <div style="display:flex; align-items:center; gap:6px;">
@@ -202,6 +213,37 @@ function _renderFora() {
     </div>
     <div class="eq-col-footer"><div style="text-align:center;font-size:.72rem;color:#94a3b8;padding:.25rem;">Arraste para uma equipe</div></div>
   </div>`;
+  // Renderiza na sidebar: Fora de Equipe + Equipe Reserva empilhados
+  const sidebar = document.getElementById('equipes-sidebar');
+  if (sidebar) {
+    const reservaEq = _equipes.find(e => e.nome === 'Equipe Reserva');
+    let sidebarHtml = foraHtml;
+    if (reservaEq) {
+      const membrosRes = _busca ? reservaEq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(_busca.toLowerCase())) : reservaEq.membros;
+      const { cor: indRes } = _eqStatus(membrosRes);
+      const cardsRes = membrosRes.map(m => _renderCard(m)).join('');
+      sidebarHtml += `<div class="eq-col" data-equipe-id="${reservaEq.id}" style="flex:1;">
+        <div class="eq-col-header" style="background:${reservaEq.cor};">
+          <div class="eq-col-title">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="eq-indicator" style="background:${indRes};border:2px solid rgba(255,255,255,.5);"></span> ${reservaEq.nome}
+            </div>
+            <span class="eq-badge">${membrosRes.length}</span>
+          </div>
+        </div>
+        <div class="eq-col-body" id="eq-body-${reservaEq.id}"
+          ondragover="event.preventDefault();window._eqDragOver(event,${reservaEq.id})"
+          ondragleave="window._eqDragLeave(event)"
+          ondrop="window._eqDrop(event,${reservaEq.id})">
+          ${cardsRes || '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>'}
+        </div>
+        <div class="eq-col-footer">
+          <button class="eq-add-btn" onclick="window._equipesAdicionarMembro(${reservaEq.id})"><i class="ph ph-plus"></i> Adicionar</button>
+        </div>
+      </div>`;
+    }
+    sidebar.innerHTML = sidebarHtml;
+  }
 }
 
 function _renderBoard(busca) {
@@ -226,7 +268,7 @@ function _renderBoard(busca) {
       </div>`;
   }
 
-  return _equipes.map(eq => {
+  return _equipes.filter(eq => eq.nome !== 'Equipe Reserva').map(eq => {
     const membros = b ? eq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(b)) : eq.membros;
     const { cor: indicadorCor } = _eqStatus(membros);
     const alertas = _eqAlertas(membros);
@@ -304,8 +346,9 @@ function _renderCard(m) {
     ondragstart="window._eqDragStart(event,${m.colaborador_id||m.id},${m.equipe_id})"
     ondragend="window._eqDragEnd(event)"
     ondrop="window._eqCardDrop(event,${m.colaborador_id||m.id},${m.equipe_id})"
-    ondragover="event.preventDefault();"
-    style="${borderStyle}">
+    ondragover="window._eqCardDragOver(event,this,true)"
+    ondragleave="window._eqCardDragLeave(event,this)"
+    style="position:relative;${borderStyle}">
     ${avatarHtml}
     <div class="eq-card-info">
       <div class="eq-card-name">${nome}${emExp?` <span style="font-size:.58rem;background:#fde68a;color:#92400e;border-radius:3px;padding:0 3px;font-weight:800;">EXP</span>`:''}</div>
@@ -367,6 +410,37 @@ window._eqDragStart = function(ev, membroId, equipeId) {
 window._eqDragEnd = function(ev) {
   document.querySelectorAll('.eq-card.dragging').forEach(el => el.classList.remove('dragging'));
   document.querySelectorAll('.eq-col-body.drag-over').forEach(el => el.classList.remove('drag-over'));
+  document.querySelectorAll('.eq-card.drag-swap-over').forEach(el => el.classList.remove('drag-swap-over'));
+  document.querySelectorAll('.eq-card.drag-add-over').forEach(el => el.classList.remove('drag-add-over'));
+  document.querySelectorAll('.eq-drag-icon').forEach(el => el.remove());
+};
+
+window._eqCardDragOver = function(ev, el, isOccupied) {
+  ev.preventDefault();
+  ev.stopPropagation();
+  if (!_drag.membroId || el.dataset.membroId == _drag.membroId) return;
+  document.querySelectorAll('.eq-card.drag-swap-over,.eq-card.drag-add-over').forEach(x => { x.classList.remove('drag-swap-over','drag-add-over'); });
+  document.querySelectorAll('.eq-drag-icon').forEach(x => x.remove());
+  if (isOccupied) {
+    el.classList.add('drag-swap-over');
+    const icon = document.createElement('div');
+    icon.className = 'eq-drag-icon eq-drag-icon-swap';
+    icon.textContent = '\u21c4';
+    el.appendChild(icon);
+  } else {
+    el.classList.add('drag-add-over');
+    const icon = document.createElement('div');
+    icon.className = 'eq-drag-icon eq-drag-icon-add';
+    icon.textContent = '+';
+    el.appendChild(icon);
+  }
+};
+
+window._eqCardDragLeave = function(ev, el) {
+  if (el && !el.contains(ev.relatedTarget)) {
+    el.classList.remove('drag-swap-over','drag-add-over');
+    el.querySelectorAll('.eq-drag-icon').forEach(x => x.remove());
+  }
 };
 
 window._eqDragOver = function(ev, equipeId) {
@@ -569,12 +643,12 @@ function _renderParesHtml(membros, b, isEquipePadrao = false) {
   for (let i = 0; i < rows; i++) {
     html += `<div style="display:flex; gap:4px; margin-bottom:2px;${isEquipePadrao ? ' width: calc(50% - 2px);' : ''}">`;
     
-    html += `<div style="flex:1; min-width:0;" ondragover="event.preventDefault();" ondrop="window._eqEmptySlotDrop(event, ${eqId}, 'motorista', ${i})">`;
-    html += motoristasMap[i] ? _renderCard(motoristasMap[i]) : `<div class="eq-empty" style="height:46px;box-sizing:border-box;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.65rem;font-weight:700;">S/ Motorista</div>`;
+    html += `<div style="flex:1; min-width:0;" ondragover="window._eqCardDragOver(event,this.querySelector('.eq-empty'),false)" ondragleave="window._eqCardDragLeave(event,this.querySelector('.eq-empty'))" ondrop="window._eqEmptySlotDrop(event, ${eqId}, 'motorista', ${i})">`;
+    html += motoristasMap[i] ? _renderCard(motoristasMap[i]) : `<div class="eq-empty" style="position:relative;height:46px;box-sizing:border-box;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.65rem;font-weight:700;">S/ Motorista</div>`;
     html += '</div>';
 
-    html += `<div style="flex:1; min-width:0;" ondragover="event.preventDefault();" ondrop="window._eqEmptySlotDrop(event, ${eqId}, 'ajudante', ${i})">`;
-    html += ajudantesMap[i] ? _renderCard(ajudantesMap[i]) : `<div class="eq-empty" style="height:46px;box-sizing:border-box;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.65rem;font-weight:700;">S/ Ajudante</div>`;
+    html += `<div style="flex:1; min-width:0;" ondragover="window._eqCardDragOver(event,this.querySelector('.eq-empty'),false)" ondragleave="window._eqCardDragLeave(event,this.querySelector('.eq-empty'))" ondrop="window._eqEmptySlotDrop(event, ${eqId}, 'ajudante', ${i})">`;
+    html += ajudantesMap[i] ? _renderCard(ajudantesMap[i]) : `<div class="eq-empty" style="position:relative;height:46px;box-sizing:border-box;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.65rem;font-weight:700;">S/ Ajudante</div>`;
     html += '</div>';
 
     html += '</div>';
