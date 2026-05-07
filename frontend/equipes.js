@@ -57,7 +57,7 @@ window.initEquipes = async function () {
     ]);
     if (_equipes.length === 0) {
       const defaults = [
-        { nome: 'Equipe 07h', horario: 'Entra às 07h', cor: '#2563eb', ordem: 1 },
+        { nome: 'Equipe 07h', descricao: 'Entra às 07h', cor: '#2563eb', ordem: 1 },
         { nome: 'Equipe 09h', horario: 'Entra às 09h', cor: '#7c3aed', ordem: 2 },
         { nome: 'Noturno',    horario: '20h às 05h',   cor: '#0f172a', ordem: 3 },
         { nome: 'Reserva',    horario: 'Conforme escala', cor: '#db2777', ordem: 4 },
@@ -242,7 +242,7 @@ function _renderBoard(busca) {
           ${eq.nome}
         </div>
         <div class="eq-col-sub">
-          <span>${eq.horario}</span>
+          <span>${eq.descricao || ''}</span>
           <span class="eq-badge">${membros.length}</span>
         </div>
       </div>
@@ -297,7 +297,8 @@ function _renderCard(m) {
     <div class="eq-card-info">
       <div class="eq-card-name">${nome}${emExp?` <span style="font-size:.58rem;background:#fde68a;color:#92400e;border-radius:3px;padding:0 3px;font-weight:800;">EXP</span>`:''}</div>
       <span class="eq-card-func" style="background:${fs.bg};color:${fs.color};">${fs.label}</span>
-      ${m.escala ? `<div class="eq-card-escala">${m.escala}</div>` : (m.cargo ? `<div class="eq-card-escala">${m.cargo}</div>` : '')}
+      ${m.escala ? `<div class="eq-card-escala">${m.escala}</div>` : ''}
+      ${m.cargo ? `<div class="eq-card-escala">${m.cargo}${m.cargo.toLowerCase().includes('motorista') && m.cnh_categoria ? ` (${m.cnh_categoria})` : ''}</div>` : ''}
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
       <div class="eq-status-dot" title="${m.status||'ativo'}" style="background:${sc};"></div>
@@ -389,7 +390,7 @@ window._eqDrop = async function(ev, equipeDestinoId) {
     const idx = origem.membros.findIndex(m => (m.colaborador_id||m.id) === membroId);
     if (idx === -1) return;
     const [membro] = origem.membros.splice(idx, 1);
-    _semEquipe.push({ id: membro.colaborador_id||membro.id, nome_completo: membro.nome_completo||membro.nome, cargo: membro.cargo||'', foto_base64: membro.foto_base64||null });
+    _semEquipe.push({ ...membro, id: membro.colaborador_id||membro.id });
     _reRenderFora();
     _reRenderColuna(origemEquipeId);
     try {
@@ -407,7 +408,7 @@ window._eqDrop = async function(ev, equipeDestinoId) {
     const idx = _semEquipe.findIndex(m => m.id === membroId);
     if (idx === -1) return;
     const [colab] = _semEquipe.splice(idx, 1);
-    const novoMembro = { colaborador_id: colab.id, nome_completo: colab.nome_completo, cargo: colab.cargo, foto_base64: colab.foto_base64, funcao: 'ajudante', escala: '', equipe_id: equipeDestinoId };
+    const novoMembro = { ...colab, colaborador_id: colab.id, funcao: 'ajudante', escala: '', equipe_id: equipeDestinoId };
     destino.membros.push(novoMembro);
     _reRenderFora();
     _reRenderColuna(equipeDestinoId);
@@ -480,7 +481,7 @@ function _reRenderFora() {
       ${avatarHtml}
       <div class="eq-card-info">
         <div class="eq-card-name">${m.nome_completo||'?'}</div>
-        <span class="eq-card-func" style="background:#f1f5f9;color:#64748b;">${m.cargo||'Operacional'}</span>
+        <span class="eq-card-func" style="background:#f1f5f9;color:#64748b;">${m.cargo ? m.cargo + (m.cargo.toLowerCase().includes('motorista') && m.cnh_categoria ? ` (${m.cnh_categoria})` : '') : 'Operacional'}</span>
       </div></div>`;
   }).join('') || '<div class="eq-empty"><i class="ph ph-check-circle" style="font-size:1.5rem;display:block;margin-bottom:4px;color:#22c55e;"></i>Todos em equipes!</div>';
 }
