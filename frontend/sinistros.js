@@ -649,12 +649,67 @@ window.abrirModalAssinaturaTestemunhasSinistro = async function(sinId, colabId) 
     // Configura Canvas de Assinatura - implementação própria
     setTimeout(() => {
         ['sin-canvas-t1', 'sin-canvas-t2'].forEach(id => window._sinSetupCanvas(id));
+        if (typeof window._renderSinPdfs === 'function') window._renderSinPdfs(document.getElementById('sin-doc-container'));
     }, 200);
 };
 
 // =========================================================
-// CANVAS DE ASSINATURA - implementação própria do módulo Sinistros
-// =========================================================
+// CANVAS DE ASSINATURA - implementação própria// =====================================================================
+// PDF.js client-side renderer para anexos de PDF nos sinistros
+// =====================================================================
+(function() {
+    var CDNJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    var WRKR  = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    var _loading = false;
+
+    window._renderSinPdfs = async function(rootEl) {
+        var root = rootEl || document;
+        var containers = root.querySelectorAll('.sin-pdf-render[data-pdf-b64]:not([data-rendered])');
+        if (!containers.length) return;
+
+        // Carrega PDF.js se ainda não está disponível
+        if (typeof pdfjsLib === 'undefined') {
+            if (_loading) { setTimeout(() => window._renderSinPdfs(rootEl), 500); return; }
+            _loading = true;
+            await new Promise((res, rej) => {
+                var sc = document.createElement('script');
+                sc.src = CDNJS;
+                sc.onload = () => { _loading = false; pdfjsLib.GlobalWorkerOptions.workerSrc = WRKR; res(); };
+                sc.onerror = rej;
+                document.head.appendChild(sc);
+            });
+        }
+        pdfjsLib.GlobalWorkerOptions.workerSrc = WRKR;
+
+        for (var i = 0; i < containers.length; i++) {
+            var c = containers[i];
+            var b64 = c.getAttribute('data-pdf-b64');
+            if (!b64) continue;
+            c.setAttribute('data-rendered', '1');
+            var wrap = c.querySelector('.sin-pdf-pages');
+            if (wrap) wrap.innerHTML = '';
+            try {
+                var raw = atob(b64), arr = new Uint8Array(raw.length);
+                for (var j = 0; j < raw.length; j++) arr[j] = raw.charCodeAt(j);
+                var pdf = await pdfjsLib.getDocument({data: arr}).promise;
+                for (var p = 1; p <= pdf.numPages; p++) {
+                    var pg = await pdf.getPage(p);
+                    var vp = pg.getViewport({scale: 1.5});
+                    var ca = document.createElement('canvas');
+                    ca.className = 'sin-pdf-canvas';
+                    ca.width = vp.width; ca.height = vp.height;
+                    ca.style.cssText = 'width:100%;display:block;' + (p > 1 ? 'margin-top:4px;page-break-before:always;' : '');
+                    (wrap || c).appendChild(ca);
+                    await pg.render({canvasContext: ca.getContext('2d'), viewport: vp}).promise;
+                }
+            } catch(e) {
+                console.warn('[PDF.js render]', e);
+                if (wrap) wrap.innerHTML = '<p style="color:#c00;text-align:center;padding:1rem;">Erro ao renderizar PDF: ' + e.message + '</p>';
+            }
+        }
+    };
+})();
+
 window._sinSetupCanvas = function(canvasId) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -986,10 +1041,13 @@ window._abrirTelaAssinaturaSinistro = async function(sinId, colabId, docHtml, s)
     const modal = document.createElement('div');
     modal.id = 'modal-finalizar-sinistro';
     modal.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.7);display:flex;align-items:stretch;';
-    // IMPORTANTE: salva o docHtml para uso no _finSalvarTestemunhas
+    // IMPORTANTE: salva o docHtml para uso no _finSalvarTestemunhas e _finFinalizar
     window._finalizarSinistroDocHtml = docHtml;
     modal.innerHTML = `
-        <div style="width:100%;height:100vh;display:flex;flex-direction:column;background:#0f172a;overflow:hidden;">
+        <div style="width:100%;height:100vh;display:flex;flex-direction:column;background:#0f172a;overflow:hidden;">`;
+    document.body.appendChild(modal);
+    // Injeta o HTML interno separadamente para evitar problemas com template literals grandes
+    modal.querySelector('div').innerHTML = `
             <div style="flex-shrink:0;background:linear-gradient(90deg,#7c3aed,#4f46e5);padding:0.9rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
                 <div style="display:flex;align-items:center;gap:10px;">
                     <i class="ph ph-flag-checkered" style="font-size:1.4rem;color:#fff;"></i>
@@ -1003,7 +1061,6 @@ window._abrirTelaAssinaturaSinistro = async function(sinId, colabId, docHtml, s)
             <div style="flex:1;display:flex;overflow:hidden;">
                 <div style="flex:1;overflow-y:auto;background:#e2e8f0;padding:1.5rem;">
                     <div id="fin-doc-preview" style="background:white;margin:0 auto;width:21cm;min-height:29.7cm;padding:0;box-shadow:0 4px 24px rgba(0,0,0,0.18);border:1px solid #ddd;overflow:hidden;">
-                        ${docHtml}
                     </div>
                 </div>
                 <div style="width:380px;flex-shrink:0;background:#1e293b;overflow-y:auto;display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,0.08);">
@@ -1012,16 +1069,18 @@ window._abrirTelaAssinaturaSinistro = async function(sinId, colabId, docHtml, s)
                         <div style="background:#0f172a;border-radius:10px;padding:1rem;">
                             <label style="color:#94a3b8;font-size:0.75rem;display:block;margin-bottom:4px;">Testemunha 1 *</label>
                             <select id="fin-t1-nome" class="form-control" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;margin-bottom:6px;width:100%;"><option value="">Selecione...</option></select>
+                            <p style="color:#64748b;font-size:0.7rem;margin:0 0 4px;">Assinatura da Testemunha 1:</p>
                             <div style="border:1px dashed #475569;border-radius:6px;background:#fff;overflow:hidden;">
-                                <canvas id="fin-canvas-t1" style="width:100%;height:400px;cursor:crosshair;display:block;" height="400"></canvas>
+                                <canvas id="fin-canvas-t1" style="width:100%;height:180px;cursor:crosshair;display:block;" height="180"></canvas>
                             </div>
                             <button onclick="window._sinLimparCanvas('fin-canvas-t1')" style="margin-top:4px;background:transparent;border:1px solid #475569;color:#94a3b8;border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;"><i class="ph ph-eraser"></i> Limpar</button>
                         </div>
                         <div style="background:#0f172a;border-radius:10px;padding:1rem;">
                             <label style="color:#94a3b8;font-size:0.75rem;display:block;margin-bottom:4px;">Testemunha 2 <span style="color:#475569;">(opcional)</span></label>
                             <select id="fin-t2-nome" class="form-control" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;margin-bottom:6px;width:100%;"><option value="">Selecione...</option></select>
+                            <p style="color:#64748b;font-size:0.7rem;margin:0 0 4px;">Assinatura da Testemunha 2:</p>
                             <div style="border:1px dashed #475569;border-radius:6px;background:#fff;overflow:hidden;">
-                                <canvas id="fin-canvas-t2" style="width:100%;height:400px;cursor:crosshair;display:block;" height="400"></canvas>
+                                <canvas id="fin-canvas-t2" style="width:100%;height:180px;cursor:crosshair;display:block;" height="180"></canvas>
                             </div>
                             <button onclick="window._sinLimparCanvas('fin-canvas-t2')" style="margin-top:4px;background:transparent;border:1px solid #475569;color:#94a3b8;border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;"><i class="ph ph-eraser"></i> Limpar</button>
                         </div>
@@ -1040,20 +1099,23 @@ window._abrirTelaAssinaturaSinistro = async function(sinId, colabId, docHtml, s)
                         <p style="color:#94a3b8;font-size:0.75rem;font-weight:700;text-transform:uppercase;margin:0;">✍️ Assinatura do Condutor</p>
                         <div style="background:#0f172a;border-radius:10px;padding:1rem;">
                             <label style="color:#e2e8f0;font-size:0.85rem;font-weight:600;display:block;margin-bottom:8px;">Assinatura de: <span style="color:#f59e0b;">${colabName}</span></label>
-                            <div style="border:2px dashed #f59e0b;border-radius:8px;overflow:hidden;">
-                                <canvas id="fin-canvas-condutor" style="width:100%;height:350px;cursor:crosshair;display:block;background:#fff;" height="350"></canvas>
+                            <p style="color:#64748b;font-size:0.7rem;margin:0 0 4px;">Assinatura do Condutor/Colaborador:</p>
+                            <div style="border:1px dashed #475569;border-radius:6px;background:#fff;overflow:hidden;">
+                                <canvas id="fin-canvas-condutor" style="width:100%;height:200px;cursor:crosshair;display:block;" height="200"></canvas>
                             </div>
-                            <button onclick="window._sinLimparCanvas('fin-canvas-condutor')" style="margin-top:6px;background:transparent;border:1px solid #475569;color:#94a3b8;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;"><i class="ph ph-eraser"></i> Limpar</button>
+                            <button onclick="window._sinLimparCanvasFinalizar()" style="margin-top:4px;background:transparent;border:1px solid #475569;color:#94a3b8;border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;"><i class="ph ph-eraser"></i> Limpar</button>
                         </div>
-                        <button id="btn-fin-condutor" onclick="window._finFinalizar(${sinId},${colabId},true)" style="padding:1rem;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;border-radius:12px;font-weight:700;font-size:1rem;cursor:pointer;"><i class="ph ph-check-circle"></i> Confirmar e Finalizar Sinistro</button>
+                        <button id="btn-fin-condutor" onclick="window._finFinalizar(${sinId},${colabId},true)" style="padding:0.9rem;background:#059669;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;"><i class="ph ph-check-circle"></i> Confirmar e Finalizar Sinistro</button>
                     </div>
                 </div>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-    window._finalizarSinistroDocHtml = docHtml;
+            </div>`;
 
+    // Popula o preview e inicia o PDF.js
+    const previewEl = modal.querySelector('#fin-doc-preview');
+    if (previewEl) previewEl.innerHTML = docHtml;
+    document.body.appendChild(modal);
+    // Chama PDF.js para renderizar os anexos
+    setTimeout(() => window._renderSinPdfs(modal), 200);
     try {
         const colabs = await apiGet('/colaboradores') || [];
         const outros = colabs.filter(c => String(c.id) !== String(colabId));
@@ -1110,7 +1172,21 @@ window._finSalvarTestemunhas = async function(sinId, colabId, finalizarSemCondut
     if (previewDiv) docHtml = previewDiv.innerHTML;
     // Flatten canvases PDF → img (para integridade do documento salvo)
     docHtml = window._flattenDocHtmlPdfCanvases(docHtml);
-    const injectTest = `<div style="margin-top:16px;padding:10px;border-top:2px solid #e2e8f0;"><p style="font-weight:700;font-size:11px;">ASSINATURAS DAS TESTEMUNHAS:</p><div style="display:flex;gap:20px;"><div style="text-align:center;"><img src="${t1Ass}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;"><p style="font-size:10px;margin:2px 0;">${t1Nome}</p></div>${t2Ass&&t2Nome?`<div style="text-align:center;"><img src="${t2Ass}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;"><p style="font-size:10px;margin:2px 0;">${t2Nome}</p></div>`:''}</div></div>`;
+    const injectTest = `<div style="margin-top:20px;padding:12px 10px;border-top:2px solid #e2e8f0;">
+        <p style="font-weight:700;font-size:12px;margin-bottom:10px;">ASSINATURAS DAS TESTEMUNHAS:</p>
+        <div style="display:flex;gap:30px;flex-wrap:wrap;">
+            <div style="text-align:center;">
+                <p style="font-size:10px;color:#666;margin:0 0 2px;">Assinatura da Testemunha 1</p>
+                <img src="${t1Ass}" style="width:220px;height:90px;object-fit:contain;border-bottom:1px solid #000;display:block;">
+                <p style="font-size:11px;font-weight:600;margin:3px 0;">${t1Nome}</p>
+            </div>
+            ${t2Ass&&t2Nome?`<div style="text-align:center;">
+                <p style="font-size:10px;color:#666;margin:0 0 2px;">Assinatura da Testemunha 2</p>
+                <img src="${t2Ass}" style="width:220px;height:90px;object-fit:contain;border-bottom:1px solid #000;display:block;">
+                <p style="font-size:11px;font-weight:600;margin:3px 0;">${t2Nome}</p>
+            </div>`:''}
+        </div>
+    </div>`;
     docHtml = docHtml.includes('</body>') ? docHtml.replace('</body>', injectTest + '</body>') : docHtml + injectTest;
     window._finalizarSinistroDocHtml = docHtml;
     const btn = document.getElementById('btn-fin-testemunhas');
@@ -1147,13 +1223,24 @@ window._finMostrarAssinaturaCondutor = function() {
 
 window._finFinalizar = async function(sinId, colabId, comCondutor) {
     const colabName = viewedColaborador?.nome_completo || 'Colaborador';
+    // Usa o HTML do preview ao vivo para capturar estado atual (com canvases PDF já renderizados)
     let docHtml = window._finalizarSinistroDocHtml || '';
+    const previewDiv = document.getElementById('fin-doc-preview');
+    if (previewDiv) docHtml = window._flattenDocHtmlPdfCanvases(previewDiv.innerHTML);
     let assinaturaBase64 = null;
     if (comCondutor) {
         if (!window._sinCanvasTemConteudo('fin-canvas-condutor')) return alert('O colaborador precisa assinar.');
         assinaturaBase64 = document.getElementById('fin-canvas-condutor').toDataURL('image/png');
-        const inj = `<div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;"><p style="font-weight:700;font-size:11px;">ASSINATURA DO CONDUTOR:</p><div style="text-align:center;width:200px;"><img src="${assinaturaBase64}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;"><p style="font-size:10px;margin:2px 0;">${colabName}</p></div></div>`;
-        docHtml = docHtml.replace('</body>', inj + '</body>');
+        const inj = `<div style="margin-top:20px;padding:12px 10px;border-top:2px solid #e2e8f0;">
+            <p style="font-weight:700;font-size:12px;margin-bottom:10px;">ASSINATURA DO CONDUTOR:</p>
+            <div style="text-align:center;display:inline-block;">
+                <p style="font-size:10px;color:#666;margin:0 0 2px;">Assinatura do Condutor/Colaborador</p>
+                <img src="${assinaturaBase64}" style="width:220px;height:90px;object-fit:contain;border-bottom:1px solid #000;display:block;">
+                <p style="font-size:11px;font-weight:600;margin:3px 0;">${colabName}</p>
+            </div>
+        </div>`;
+        // Injeta no HTML — sem </body> quando vem de innerHTML
+        docHtml = docHtml.includes('</body>') ? docHtml.replace('</body>', inj + '</body>') : docHtml + inj;
     }
     const btn = document.getElementById('btn-fin-condutor');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Finalizando...'; }

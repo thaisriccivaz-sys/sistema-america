@@ -3676,44 +3676,12 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 return buf ? buf.toString('base64') : null;
             };
 
-            // Helper: PDF → client-side rendering via PDF.js (sem custo de memória no servidor)
-            // O browser renderiza cada página do PDF em canvas e depois converte para imagem JPEG
-            const _pdfJsScript = `<script>
-(function(){
-  var CDNJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-  var WRKR='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  function run(){
-    pdfjsLib.GlobalWorkerOptions.workerSrc=WRKR;
-    document.querySelectorAll('.sin-pdf-render[data-pdf-b64]').forEach(async function(c){
-      var b64=c.getAttribute('data-pdf-b64'); if(!b64||c.dataset.rendered)return;
-      c.dataset.rendered='1';
-      var wrap=c.querySelector('.sin-pdf-pages'); if(wrap)wrap.innerHTML='';
-      var raw=atob(b64),arr=new Uint8Array(raw.length);
-      for(var i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);
-      try{
-        var pdf=await pdfjsLib.getDocument({data:arr}).promise;
-        for(var p=1;p<=pdf.numPages;p++){
-          var pg=await pdf.getPage(p),vp=pg.getViewport({scale:1.5});
-          var ca=document.createElement('canvas');
-          ca.className='sin-pdf-canvas';
-          ca.width=vp.width;ca.height=vp.height;
-          ca.style.cssText='width:100%;display:block;'+(p>1?'margin-top:4px;':'');
-          if(wrap)wrap.appendChild(ca);else c.appendChild(ca);
-          await pg.render({canvasContext:ca.getContext('2d'),viewport:vp}).promise;
-        }
-      }catch(e){console.warn('[PDF.js]',e);}
-    });
-  }
-  if(typeof pdfjsLib!=='undefined'){run();}
-  else{var sc=document.createElement('script');sc.src=CDNJS;sc.onload=run;document.head.appendChild(sc);}
-})();
-<\/script>`;
-
+            // Helper: PDF → client-side rendering via PDF.js
+            // O servidor gera um div com data-pdf-b64; o browser chama window._renderSinPdfs() para converter em imagens
             let _pdfJsInjected = false;
             const pdfBufToImgHtml = async (buf, label) => {
                 const b64 = buf.toString('base64');
-                const script = _pdfJsInjected ? '' : (()=>{ _pdfJsInjected=true; return _pdfJsScript; })();
-                return `<div class="sin-pdf-render" data-pdf-b64="${b64}" style="page-break-before:always;width:100%;margin-bottom:0;">${script}<p style="font-size:0.85rem;font-weight:700;color:#333;margin:6px 0;text-align:center;">${label}</p><div class="sin-pdf-pages" style="width:100%;min-height:200px;"><p style="text-align:center;color:#888;padding:2rem;font-size:0.8rem;">Carregando PDF...</p></div></div>`;
+                return `<div class="sin-pdf-render" data-pdf-b64="${b64}" style="page-break-before:always;width:100%;margin-bottom:0;"><p style="font-size:0.85rem;font-weight:700;color:#333;margin:6px 0;text-align:center;">${label}</p><div class="sin-pdf-pages" style="width:100%;min-height:200px;"><p style="text-align:center;color:#888;padding:2rem;font-size:0.8rem;">&#x1F4C4; Carregando PDF...</p></div></div>`;
             };
 
             // 0) Boletim de Ocorrência (PDF do OneDrive)
