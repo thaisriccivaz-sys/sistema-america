@@ -286,7 +286,9 @@ function _renderCard(m) {
   const borderStyle = afastado ? 'border-color:#fca5a5;background:#fff5f5;' : emExp ? 'border-color:#fde68a;background:#fffbeb;' : '';
   const avatarBorder = afastado ? 'border-color:#ef4444;border-width:2px;' : emExp ? 'border-color:#f59e0b;border-width:2px;' : '';
   const isMotorista = (m.cargo || '').toLowerCase().includes('motorista');
-  const labelText = m.cargo ? `${m.cargo}${isMotorista && m.cnh_categoria ? ` (${m.cnh_categoria})` : ''}` : (m.funcao === 'motorista' ? 'Motorista' : 'Ajudante');
+  let baseCargo = m.cargo || (m.funcao === 'motorista' ? 'Motorista' : 'Ajudante');
+  baseCargo = baseCargo.replace(/Motorista/i, 'Mot.').replace(/Ajudante/i, 'Aj.');
+  const labelText = `${baseCargo}${isMotorista && m.cnh_categoria && !baseCargo.includes('(') ? ` (${m.cnh_categoria})` : ''}`;
   const badgeBg = isMotorista ? '#dbeafe' : '#f1f5f9';
   const badgeColor = isMotorista ? '#1d4ed8' : '#475569';
 
@@ -397,16 +399,16 @@ window._eqCardDrop = async function(event, alvoId, alvoEquipeId) {
       if ((isMot1 && isMot2) || (!isMot1 && !isMot2)) {
          if (typeof window.showToast === 'function') window.showToast('Reordenando equipe...', 'info');
          await _eq_patch('/equipes/trocar', { membro_id: membroId, alvo_id: alvoId });
-         await window._loadEquipes();
+         await window.initEquipes();
       } else {
          if (typeof window.showToast === 'function') window.showToast('Trocando funções...', 'info');
          await _eq_patch('/equipes/trocar', { membro_id: membroId, alvo_id: alvoId });
-         await window._loadEquipes();
+         await window.initEquipes();
       }
     } else {
       if (typeof window.showToast === 'function') window.showToast('Trocando posições...', 'info');
       await _eq_patch('/equipes/trocar', { membro_id: membroId, alvo_id: alvoId });
-      await window._loadEquipes();
+      await window.initEquipes();
     }
   } catch(e) {
     alert('Erro ao trocar: ' + e.message);
@@ -429,12 +431,12 @@ window._eqEmptySlotDrop = async function(event, equipeId, funcao, ordem) {
         const payload = eq.membros.map(x => ({ colaborador_id: x.colaborador_id||x.id, funcao: x.funcao, ordem: x.ordem }));
         if (typeof window.showToast === 'function') window.showToast('Reposicionando...', 'info');
         await _eq_patch('/equipes/reordenar', { equipe_id: equipeId, membros_ids: payload });
-        await window._loadEquipes();
+        await window.initEquipes();
       }
     } else {
       if (typeof window.showToast === 'function') window.showToast('Adicionando na posição...', 'info');
       await _eq_patch('/equipes/mover', { colaborador_id: membroId, equipe_origem_id: origemEquipeId, equipe_destino_id: equipeId, funcao, ordem });
-      await window._loadEquipes();
+      await window.initEquipes();
     }
   } catch(e) {
     alert('Erro: ' + e.message);
