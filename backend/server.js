@@ -12894,3 +12894,275 @@ db.serialize(() => {
 });
 
 }, 3000);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MÔNACO WEBHOOK INTEGRATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+// MIGRATION: Criar tabela multas_monaco
+db.run(`CREATE TABLE IF NOT EXISTS multas_monaco (
+    id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid                        TEXT UNIQUE,
+    tipo_evento                 TEXT NOT NULL DEFAULT 'notificacao',
+    placa                       TEXT,
+    renavam                     TEXT,
+    fleet_id                    TEXT,
+    numero_frota                TEXT,
+    gestor                      TEXT,
+    condutor                    TEXT,
+    enquadramento               TEXT,
+    descricao                   TEXT,
+    numero_ait                  TEXT,
+    pontos                      INTEGER,
+    gravidade                   TEXT,
+    artigo_ctb                  TEXT,
+    cod_orgao                   TEXT,
+    orgao_autuador              TEXT,
+    data_da_infracao            TEXT,
+    hora_da_infracao            TEXT,
+    local_infracao              TEXT,
+    cidade                      TEXT,
+    valor_da_infracao           REAL,
+    valor_com_desconto          REAL,
+    valor_pago                  REAL,
+    data_emissao                TEXT,
+    vencimento_multa            TEXT,
+    data_pagamento_da_multa     TEXT,
+    prazo_identificacao_condutor TEXT,
+    retorno_condutor            TEXT,
+    controle_notificacao        TEXT,
+    controle_da_multa           TEXT,
+    status_notificacao          TEXT,
+    velocidade_permitida        REAL,
+    velocidade_aferida          REAL,
+    velocidade_considerada      REAL,
+    multa_originaria_enquadramento TEXT,
+    fator_multiplicador         INTEGER,
+    ait_originaria              TEXT,
+    data_multa_originaria       TEXT,
+    arquivos_json               TEXT DEFAULT '[]',
+    visualizada                 INTEGER DEFAULT 0,
+    observacao_interna          TEXT,
+    created_at                  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at                  DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => {
+    if (err) console.error('[MONACO] Erro ao criar tabela multas_monaco:', err.message);
+    else console.log('[MONACO] Tabela multas_monaco OK.');
+});
+
+// Credenciais Monaco (username/password que você definirá e enviará à Mônaco)
+const MONACO_USERNAME = process.env.MONACO_USERNAME || 'america_rental';
+const MONACO_PASSWORD = process.env.MONACO_PASSWORD || 'Monaco@AmericaRental2025!';
+
+// ── POST /api/monaco/token ─────────────────────────────────────────────────
+app.post('/api/monaco/token', (req, res) => {
+    const { username, password } = req.body || {};
+    if (username !== MONACO_USERNAME || password !== MONACO_PASSWORD) {
+        return res.status(401).json({ codError: 401, message: 'Credenciais inválidas' });
+    }
+    const token = jwt.sign({ source: 'monaco', username }, SECRET_KEY, { expiresIn: '30d' });
+    res.json({ type: 'Bearer', access_token: token });
+});
+
+// Middleware de autenticação Monaco
+function monacoAuth(req, res, next) {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.replace(/^(Bearer|Basic|Token)\s+/i, '');
+    if (!token) return res.status(401).json({ codError: 401, message: 'Token ausente' });
+    try {
+        const decoded = jwt.verify(token, SECRET_KEY);
+        if (decoded.source !== 'monaco') throw new Error('Token inválido para Monaco');
+        next();
+    } catch (e) {
+        return res.status(401).json({ codError: 401, message: 'Token inválido ou expirado' });
+    }
+}
+
+// Helper para salvar/atualizar um registro Monaco
+function upsertMonaco(uuid, tipoEvento, payload, res) {
+    // Serializar arquivos
+    const arquivosJson = JSON.stringify(payload.arquivos || []);
+
+    // Verificar se já existe
+    db.get('SELECT id, tipo_evento FROM multas_monaco WHERE uuid = ?', [uuid], (err, existing) => {
+        if (err) {
+            console.error('[MONACO] Erro ao buscar uuid:', err);
+            return res.status(500).json({ codError: 500, message: 'Erro interno' });
+        }
+
+        const now = new Date().toISOString();
+
+        if (existing) {
+            // Atualizar (não resetar visualizada se já foi vista e só veio status novo)
+            db.run(`UPDATE multas_monaco SET
+                tipo_evento = ?, placa = ?, renavam = ?, fleet_id = ?, numero_frota = ?,
+                gestor = ?, condutor = ?, enquadramento = ?, descricao = ?, numero_ait = ?,
+                pontos = ?, gravidade = ?, artigo_ctb = ?, cod_orgao = ?, orgao_autuador = ?,
+                data_da_infracao = ?, hora_da_infracao = ?, local_infracao = ?, cidade = ?,
+                valor_da_infracao = ?, valor_com_desconto = ?, valor_pago = ?,
+                data_emissao = ?, vencimento_multa = ?, data_pagamento_da_multa = ?,
+                prazo_identificacao_condutor = ?, controle_notificacao = ?, controle_da_multa = ?,
+                status_notificacao = ?, velocidade_permitida = ?, velocidade_aferida = ?,
+                velocidade_considerada = ?, multa_originaria_enquadramento = ?,
+                fator_multiplicador = ?, ait_originaria = ?, data_multa_originaria = ?,
+                arquivos_json = ?, visualizada = 0, updated_at = ?
+                WHERE uuid = ?`,
+                [
+                    tipoEvento, payload.placa, payload.renavam, payload.fleet_id, payload.numero_frota,
+                    payload.gestor, payload.condutor, payload.enquadramento, payload.descricao, payload.numero_ait,
+                    payload.pontos, payload.gravidade, payload.artigo_ctb, payload.cod_orgao, payload.orgao_autuador,
+                    payload.data_da_infracao, payload.hora_da_infracao, payload.local || payload.local_infracao, payload.cidade,
+                    payload.valor_da_infracao, payload.valor_com_desconto, payload.valor_pago,
+                    payload.data_emissao, payload.vencimento_multa, payload.data_pagamento_da_multa,
+                    payload.prazo_identificacao_condutor, payload.controle_notificacao, payload.controle_da_multa,
+                    payload.status_notificacao, payload.velocidade_permitida, payload.velocidade_aferida,
+                    payload.velocidade_considerada, payload.multa_originaria_enquadramento,
+                    payload.fator_multiplicador, payload.ait_originaria, payload.data_multa_originaria,
+                    arquivosJson, now, uuid
+                ], (err2) => {
+                    if (err2) {
+                        console.error('[MONACO] Erro ao atualizar:', err2);
+                        return res.status(500).json({ codError: 500, message: 'Erro ao atualizar' });
+                    }
+                    console.log(`[MONACO] Atualizado uuid=${uuid} tipo=${tipoEvento}`);
+                    res.status(200).json({ mensagem: 'Registro atualizado com sucesso', uuid });
+                });
+        } else {
+            // Inserir novo — sempre visualizada=0 (NOVA)
+            db.run(`INSERT INTO multas_monaco (
+                uuid, tipo_evento, placa, renavam, fleet_id, numero_frota,
+                gestor, condutor, enquadramento, descricao, numero_ait,
+                pontos, gravidade, artigo_ctb, cod_orgao, orgao_autuador,
+                data_da_infracao, hora_da_infracao, local_infracao, cidade,
+                valor_da_infracao, valor_com_desconto, valor_pago,
+                data_emissao, vencimento_multa, data_pagamento_da_multa,
+                prazo_identificacao_condutor, controle_notificacao, controle_da_multa,
+                status_notificacao, velocidade_permitida, velocidade_aferida,
+                velocidade_considerada, multa_originaria_enquadramento,
+                fator_multiplicador, ait_originaria, data_multa_originaria,
+                arquivos_json, visualizada, created_at, updated_at
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?)`,
+                [
+                    uuid, tipoEvento, payload.placa, payload.renavam, payload.fleet_id, payload.numero_frota,
+                    payload.gestor, payload.condutor, payload.enquadramento, payload.descricao, payload.numero_ait,
+                    payload.pontos, payload.gravidade, payload.artigo_ctb, payload.cod_orgao, payload.orgao_autuador,
+                    payload.data_da_infracao, payload.hora_da_infracao, payload.local || payload.local_infracao, payload.cidade,
+                    payload.valor_da_infracao, payload.valor_com_desconto, payload.valor_pago,
+                    payload.data_emissao, payload.vencimento_multa, payload.data_pagamento_da_multa,
+                    payload.prazo_identificacao_condutor, payload.controle_notificacao, payload.controle_da_multa,
+                    payload.status_notificacao, payload.velocidade_permitida, payload.velocidade_aferida,
+                    payload.velocidade_considerada, payload.multa_originaria_enquadramento,
+                    payload.fator_multiplicador, payload.ait_originaria, payload.data_multa_originaria,
+                    arquivosJson, now, now
+                ], function(err2) {
+                    if (err2) {
+                        console.error('[MONACO] Erro ao inserir:', err2);
+                        return res.status(500).json({ codError: 500, message: 'Erro ao inserir' });
+                    }
+                    console.log(`[MONACO] Inserido id=${this.lastID} uuid=${uuid} tipo=${tipoEvento}`);
+                    res.status(200).json({ mensagem: 'Registro recebido com sucesso', uuid });
+                });
+        }
+    });
+}
+
+// ── POST /api/monaco/notificacao ──────────────────────────────────────────────
+app.post('/api/monaco/notificacao', monacoAuth, (req, res) => {
+    const payload = req.body || {};
+    const uuid = payload.uuid;
+    if (!uuid) return res.status(400).json({ codError: 400, message: 'Campo uuid obrigatório' });
+    upsertMonaco(uuid, 'notificacao', payload, res);
+});
+
+// ── POST /api/monaco/multa ────────────────────────────────────────────────────
+app.post('/api/monaco/multa', monacoAuth, (req, res) => {
+    const payload = req.body || {};
+    const uuid = payload.uuid;
+    if (!uuid) return res.status(400).json({ codError: 400, message: 'Campo uuid obrigatório' });
+    upsertMonaco(uuid, 'multa', payload, res);
+});
+
+// ── POST /api/monaco/remulta ──────────────────────────────────────────────────
+app.post('/api/monaco/remulta', monacoAuth, (req, res) => {
+    const payload = req.body || {};
+    const uuid = payload.uuid;
+    if (!uuid) return res.status(400).json({ codError: 400, message: 'Campo uuid obrigatório' });
+    upsertMonaco(uuid, 'remulta', payload, res);
+});
+
+// ── POST /api/monaco/multa-paga ───────────────────────────────────────────────
+app.post('/api/monaco/multa-paga', monacoAuth, (req, res) => {
+    const payload = req.body || {};
+    const uuid = payload.uuid;
+    if (!uuid) return res.status(400).json({ codError: 400, message: 'Campo uuid obrigatório' });
+    upsertMonaco(uuid, 'multa-paga', payload, res);
+});
+
+// ── POST /api/monaco/retornoCondutor ─────────────────────────────────────────
+app.post('/api/monaco/retornoCondutor', monacoAuth, (req, res) => {
+    const { uuid, numero_ait, retorno_condutor } = req.body || {};
+    if (!uuid) return res.status(400).json({ codError: 400, message: 'Campo uuid obrigatório' });
+    db.run(`UPDATE multas_monaco SET retorno_condutor = ?, updated_at = datetime('now') WHERE uuid = ?`,
+        [retorno_condutor, uuid], function(err) {
+            if (err) return res.status(500).json({ codError: 500, message: 'Erro interno' });
+            if (this.changes === 0) return res.status(404).json({ codError: 404, message: 'UUID não encontrado' });
+            res.status(200).json({ mensagem: 'Status enviado com sucesso' });
+        });
+});
+
+// ── GET /api/monaco/multas ────────────────────────────────────────────────────
+// Lista todas as multas Monaco (para o frontend)
+app.get('/api/monaco/multas', authenticateToken, (req, res) => {
+    const { tipo, placa, visualizada, limit = 200, offset = 0 } = req.query;
+    let where = [];
+    let params = [];
+
+    if (tipo) { where.push('tipo_evento = ?'); params.push(tipo); }
+    if (placa) { where.push('placa LIKE ?'); params.push(`%${placa}%`); }
+    if (visualizada !== undefined && visualizada !== '') {
+        where.push('visualizada = ?');
+        params.push(parseInt(visualizada));
+    }
+
+    const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
+    db.all(`SELECT * FROM multas_monaco ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+        [...params, parseInt(limit), parseInt(offset)],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            // Count total
+            db.get(`SELECT COUNT(*) as total, SUM(CASE WHEN visualizada = 0 THEN 1 ELSE 0 END) as novas
+                FROM multas_monaco ${whereClause}`, params, (e2, counts) => {
+                res.json({ multas: rows || [], total: counts?.total || 0, novas: counts?.novas || 0 });
+            });
+        });
+});
+
+// ── PATCH /api/monaco/multas/:id/visualizar ───────────────────────────────────
+app.patch('/api/monaco/multas/:id/visualizar', authenticateToken, (req, res) => {
+    db.run(`UPDATE multas_monaco SET visualizada = 1, updated_at = datetime('now') WHERE id = ?`,
+        [req.params.id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ sucesso: true });
+        });
+});
+
+// ── PATCH /api/monaco/multas/:id/observacao ───────────────────────────────────
+app.patch('/api/monaco/multas/:id/observacao', authenticateToken, (req, res) => {
+    const { observacao_interna } = req.body || {};
+    db.run(`UPDATE multas_monaco SET observacao_interna = ?, updated_at = datetime('now') WHERE id = ?`,
+        [observacao_interna, req.params.id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ sucesso: true });
+        });
+});
+
+// ── GET /api/monaco/multas/count/novas ───────────────────────────────────────
+// Retorna apenas o count de novas (para badge no menu)
+app.get('/api/monaco/multas/count/novas', authenticateToken, (req, res) => {
+    db.get('SELECT COUNT(*) as novas FROM multas_monaco WHERE visualizada = 0', [], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ novas: row?.novas || 0 });
+    });
+});
+
+console.log('[MONACO] Endpoints webhook registrados: /token /notificacao /multa /remulta /multa-paga /retornoCondutor');

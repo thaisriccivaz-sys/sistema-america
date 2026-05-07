@@ -114,6 +114,7 @@
                     <a href="#" class="nav-item" data-target="logistica-resumo-rota" onclick="navigateTo('logistica-resumo-rota'); return false;"><i class="ph ph-list-bullets"></i> Resumo de Rota</a>
                     <a href="#" class="nav-item" data-target="logistica-agenda" onclick="navigateTo('logistica-agenda'); return false;"><i class="ph ph-calendar-check"></i> Agenda</a>
                     <a href="#" class="nav-item" data-target="logistica-multas" onclick="navigateTo('logistica-multas'); return false;"><i class="ph ph-receipt"></i> Multas</a>
+                    <a href="#" class="nav-item" data-target="logistica-multas-monaco" onclick="navigateTo('logistica-multas-monaco'); return false;" style="position:relative;"><i class="ph ph-car"></i> Multas M&ocirc;naco <span id="monaco-badge" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:#ef4444;color:#fff;border-radius:10px;padding:0 6px;font-size:0.68rem;font-weight:800;min-width:18px;height:18px;align-items:center;justify-content:center;"></span></a>
                     <a href="#" class="nav-item" data-target="logistica-frota" onclick="navigateTo('logistica-frota'); return false;"><i class="ph ph-truck"></i> Frota</a>
                     <a href="#" class="nav-item" data-target="logistica-credenciamento" onclick="navigateTo('logistica-credenciamento'); return false;"><i class="ph ph-identification-card"></i> Credenciamento</a>
                     <a href="#" class="nav-item" data-target="logistica-senhas" onclick="navigateTo('logistica-senhas'); return false;"><i class="ph ph-lock-key"></i> Cofre de Senhas</a>
@@ -2562,6 +2563,11 @@
                     <div id="multas-logistica-container"></div>
                 </section>
 
+                <!-- VIEW: LOGISTICA MULTAS MONACO -->
+                <section id="view-logistica-multas-monaco" class="content-view" style="padding:1.5rem; background:#f1f5f9;">
+                    <div id="multas-monaco-container"></div>
+                </section>
+
                 <!-- VIEW: LOGISTICA SENHAS -->
                 <section id="view-logistica-senhas" class="content-view" style="padding:1.5rem; background:#f1f5f9;">
                     <div id="logistica-senhas-container"></div>
@@ -3415,6 +3421,7 @@
     <script src="pipeline.js?v=1777778840432"></script>
     <script src="clientes_itinerantes.js?v=1"></script>
     <script src="multas_logistica.js?v=30"></script>
+    <script src="multas_monaco.js?v=1"></script>
     <script src="frota.js?v=4"></script>
     <script src="logistica_senhas.js?v=13"></script>
     <script src="credenciamento.js"></script>
