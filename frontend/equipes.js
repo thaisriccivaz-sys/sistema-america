@@ -237,7 +237,8 @@ function _renderBoard(busca) {
     ).join('');
 
     const emPares = ['Equipe Padrão', 'Equipe folga 2d semana', 'Equipe Noturna'].includes(eq.nome);
-    const colWidth = emPares ? 'width: 300px; min-width: 300px;' : '';
+    const isEquipePadrao = eq.nome === 'Equipe Padrão';
+    const colWidth = isEquipePadrao ? 'width: 610px; min-width: 610px;' : (emPares ? 'width: 300px; min-width: 300px;' : '');
 
     return `<div class="eq-col" data-equipe-id="${eq.id}" style="${colWidth}">
       <div class="eq-col-header" style="background:${eq.cor};">
@@ -249,11 +250,12 @@ function _renderBoard(busca) {
         </div>
       </div>
       ${alertasHtml}
-    <div class="eq-col-body" id="eq-body-${eq.id}"
-      ondragover="event.preventDefault();window._eqDragOver(event,${eq.id})"
-      ondragleave="window._eqDragLeave(event)"
-      ondrop="window._eqDrop(event,${eq.id})">
-        ${emPares ? _renderParesHtml(membros, b) : (membros.length ? membros.map(m => _renderCard(m)).join('') : '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>')}
+      <div class="eq-col-body" id="eq-body-${eq.id}"
+        ondragover="event.preventDefault();window._eqDragOver(event,${eq.id})"
+        ondragleave="window._eqDragLeave(event)"
+        ondrop="window._eqDrop(event,${eq.id})"
+        style="${isEquipePadrao ? 'flex-direction:row; flex-wrap:wrap; align-content:flex-start;' : ''}">
+        ${emPares ? _renderParesHtml(membros, b, isEquipePadrao) : (membros.length ? membros.map(m => _renderCard(m)).join('') : '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>')}
       </div>
       <div class="eq-col-footer">
         <button class="eq-add-btn" onclick="window._equipesAdicionarMembro(${eq.id})">
@@ -527,15 +529,16 @@ function _reRenderColuna(equipeId) {
   const b = _busca.toLowerCase();
   const membros = b ? eq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(b)) : eq.membros;
   const emPares = ['Equipe Padrão', 'Equipe folga 2d semana', 'Equipe Noturna'].includes(eq.nome);
+  const isEquipePadrao = eq.nome === 'Equipe Padrão';
 
   body.innerHTML = emPares 
-    ? _renderParesHtml(membros, b)
+    ? _renderParesHtml(membros, b, isEquipePadrao)
     : (membros.length
         ? membros.map(m => _renderCard(m)).join('')
         : '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>');
 }
 
-function _renderParesHtml(membros, b) {
+function _renderParesHtml(membros, b, isEquipePadrao = false) {
   if (!membros.length) return '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>';
   if (b) return membros.map(m => _renderCard(m)).join('');
 
@@ -564,7 +567,7 @@ function _renderParesHtml(membros, b) {
   const rows = Math.max(maxOrdem + 1, 1) + 1;
   let html = '';
   for (let i = 0; i < rows; i++) {
-    html += '<div style="display:flex; gap:4px; margin-bottom:2px;">';
+    html += `<div style="display:flex; gap:4px; margin-bottom:2px;${isEquipePadrao ? ' width: calc(50% - 2px);' : ''}">`;
     
     html += `<div style="flex:1; min-width:0;" ondragover="event.preventDefault();" ondrop="window._eqEmptySlotDrop(event, ${eqId}, 'motorista', ${i})">`;
     html += motoristasMap[i] ? _renderCard(motoristasMap[i]) : `<div class="eq-empty" style="height:100%;min-height:48px;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.65rem;font-weight:700;">S/ Motorista</div>`;
