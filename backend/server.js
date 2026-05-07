@@ -9704,6 +9704,7 @@ cron.schedule('0 8 * * *', () => {
 cron.schedule('1 0 * * *', () => {
     console.log('[CRON 00:01] Verificando atestados vencidos na virada do dia...');
     verificarAtestadosVencidos();
+    verificarFeriasEquipes();
 }, { timezone: 'America/Sao_Paulo' });
 
 // Endpoint para forçar envio em lote (botão "Disparar E-mails")

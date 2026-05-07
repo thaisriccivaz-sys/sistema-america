@@ -12166,6 +12166,8 @@ async function checkUserNotificacoes() {
                     } else {
                         bg = '#fffbeb'; color = '#d97706'; icon = 'ph-warning'; titulo = 'Aviso de Falta'; navTarget = 'colaboradores';
                     }
+                } else if (notif.tipo === 'aviso_equipes') {
+                    bg = '#fee2e2'; color = '#ef4444'; icon = 'ph-users-three'; titulo = 'Equipe Desfalcada'; navTarget = 'equipes';
                 } else if (notif.tipo === 'licenca_vencida') {
                     bg = '#fef2f2'; color = '#ef4444'; icon = 'ph-warning-circle'; titulo = 'Licença Vencida'; navTarget = 'admin'; // Navigates to admin panel or wherever licencas are managed
                 } else if (notif.tipo === 'formulario_experiencia') {
@@ -12195,6 +12197,16 @@ async function checkUserNotificacoes() {
                         </div>
                         <div style="color:#0f172a;font-weight:600;font-size:1rem;margin-bottom:4px;">${nomeColab}</div>
                         <div style="color:#64748b;font-size:0.85rem;"><i class="ph ph-calendar"></i> Data: ${dataFaltaFmt}</div>
+                    `;
+                } else if (notif.tipo === 'aviso_equipes') {
+                    const eqNome = dados.equipe_nome || 'Equipe Desconhecida';
+                    const colabNome = dados.colab_nome || 'Colaborador';
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#0f172a;font-weight:600;font-size:1rem;margin-bottom:4px;">${eqNome}</div>
+                        <div style="color:#64748b;font-size:0.85rem;">O colaborador <b>${colabNome}</b> entrou de férias e foi retirado da equipe, deixando a equipe desfalcada com apenas 1 membro.</div>
                     `;
                 } else if (notif.tipo === 'licenca_vencida') {
                     const nomeLicenca = dados.nome_licenca || 'Licença desconhecida';
