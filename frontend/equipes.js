@@ -214,26 +214,6 @@ function _renderAll(el) {
   }
 }
 
-// Mapa de nomes de escala
-const _ESCALA_NOMES = {
-  'padrao_sab_alternado': 'Padrão - Sáb. Alternado',
-  'padrao': 'Padrão (Seg-Sex)',
-  'padrao_sab': 'Padrão (Seg-Sáb)',
-  '5x1': '5x1',
-  '5x2': '5x2',
-  '6x1': '6x1',
-  '12x36': '12x36',
-  '24x48': '24x48',
-  '4x3': '4x3',
-  'seg_sex': 'Segunda à Sexta',
-  'seg_sab': 'Segunda ao Sábado',
-  'variavel': 'Variável',
-};
-function _fmtEscala(v) {
-  if (!v) return '';
-  return _ESCALA_NOMES[v] || v.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
-}
-
 // Store de dados dos membros por id
 let _eqCardData = {};
 
@@ -241,13 +221,15 @@ window._eqShowTooltip = function(ev, membId) {
   const m = _eqCardData[membId];
   const tt = document.getElementById('eq-tooltip');
   if (!tt || !m) return;
-  const escala = _fmtEscala(m.escala_tipo);
+  const escala = (m.escala_tipo || '').trim();
+  const folgas = (m.escala_folgas || '').trim();
   const horario = m.horario_entrada && m.horario_saida
     ? `${m.horario_entrada} – ${m.horario_saida}`
     : m.horario_entrada ? m.horario_entrada : '';
-  if (!escala && !horario) return;
+  if (!escala && !horario && !folgas) return;
   let html = '';
   if (escala) html += `<div class="eq-tt-row"><i class="ph ph-calendar-check eq-tt-icon" style="color:#7dd3fc;"></i><span>${escala}</span></div>`;
+  if (folgas) html += `<div class="eq-tt-row"><i class="ph ph-moon eq-tt-icon" style="color:#c4b5fd;"></i><span>Folga: ${folgas}</span></div>`;
   if (horario) html += `<div class="eq-tt-row"><i class="ph ph-clock eq-tt-icon" style="color:#86efac;"></i><span>${horario}</span></div>`;
   tt.innerHTML = html;
   tt.style.display = 'block';
