@@ -329,6 +329,7 @@ window.rrCarregarHistorico = async function(id) {
         _rrCurrentId = null;
         window._rrOriginalFileBase64 = null;
         window._rrOriginalFileName   = null;
+        window._rrDataRotaAtual = null;
         _rrRenderCorpo();
         if (btnExportar) btnExportar.style.display = 'none';
         if (btnOrig)     btnOrig.style.display = 'none';
@@ -352,16 +353,58 @@ window.rrCarregarHistorico = async function(id) {
             window._rrOriginalFileName   = dadosObj.originalFileName   || null;
         }
 
+        // Limpa disponibilidade antiga (pode estar desatualizada se o resumo é de outro dia)
+        _rrVeiculos.forEach(v => { v._dispMotorista = null; v._dispAjudante = null; });
+
+        // Tenta extrair a data do nome (formato "DD-MM-YYYY ...") para re-consultar disponibilidade
+        const nomeResumo = data.nome || '';
+        const mData = nomeResumo.match(/(\d{2})-(\d{2})-(\d{4})/);
+        const dataHistorico = mData ? `${mData[3]}-${mData[2]}-${mData[1]}` : null;
+        window._rrDataRotaAtual = dataHistorico;
+
         _rrCurrentId = data.id;
-        _rrRenderCorpo();
+        _rrRenderCorpo(); // renderiza sem disp (limpo)
         if (btnExportar) btnExportar.style.display = 'flex';
         if (btnOrig) btnOrig.style.display = window._rrOriginalFileBase64 ? 'flex' : 'none';
+
+        // Re-consulta disponibilidade em background se tiver data detectada
+        if (dataHistorico) {
+            const nomesRota = new Set();
+            _rrVeiculos.forEach(v => {
+                if (v.motorista && v.motorista.trim()) nomesRota.add(v.motorista.trim());
+                if (v.ajudante  && v.ajudante.trim())  nomesRota.add(v.ajudante.trim());
+            });
+            if (nomesRota.size > 0) {
+                try {
+                    const nomesParam = Array.from(nomesRota).join(',');
+                    const resDisp = await fetch(
+                        `/api/logistica/disponibilidade-rota?data=${dataHistorico}&nomes=${encodeURIComponent(nomesParam)}`,
+                        { headers: _rrAuthHeaders() }
+                    );
+                    if (resDisp.ok) {
+                        const dispMap = await resDisp.json();
+                        _rrVeiculos.forEach(v => {
+                            const motKey = (v.motorista || '').trim().toLowerCase();
+                            const ajuKey = (v.ajudante  || '').trim().toLowerCase();
+                            v._dispMotorista = dispMap[motKey] || null;
+                            v._dispAjudante  = dispMap[ajuKey] || null;
+                        });
+                        _rrRenderCorpo(); // re-renderiza com disponibilidade atualizada
+                    }
+                } catch(e) {
+                    console.warn('[RR] Não foi possível verificar disponibilidade no histórico:', e.message);
+                }
+            }
+        }
+
         showToast('Resumo carregado!', 'success');
     } catch (e) {
         console.error('[RR] Erro ao carregar histórico:', e);
         showToast('Erro ao carregar resumo: ' + e.message, 'error');
     }
 };
+
+
 
 window.rrBaixarOriginal = function() {
     if (!window._rrOriginalFileBase64) {
