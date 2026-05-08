@@ -161,6 +161,9 @@ function _renderAll(el) {
     .eq-drag-icon { position:absolute; right:-8px; top:-8px; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.75rem; pointer-events:none; z-index:10; }
     .eq-drag-icon-swap { background:#6366f1; color:#fff; }
     .eq-drag-icon-add  { background:#22c55e; color:#fff; }
+    #eq-tooltip { position:fixed; z-index:99999; background:#1e293b; color:#f8fafc; border-radius:10px; padding:8px 12px; font-size:.75rem; line-height:1.7; pointer-events:none; box-shadow:0 4px 20px rgba(0,0,0,.25); max-width:220px; display:none; }
+    #eq-tooltip .eq-tt-row { display:flex; align-items:center; gap:6px; }
+    #eq-tooltip .eq-tt-icon { font-size:.9rem; flex-shrink:0; }
   </style>
   <div id="equipes-wrapper">
     <div id="equipes-header">
@@ -203,7 +206,60 @@ function _renderAll(el) {
     </div>
   </div>
   `;
+  // Cria o tooltip global se nao existir
+  if (!document.getElementById('eq-tooltip')) {
+    const tt = document.createElement('div');
+    tt.id = 'eq-tooltip';
+    document.body.appendChild(tt);
+  }
 }
+
+// Mapa de nomes de escala
+const _ESCALA_NOMES = {
+  'padrao_sab_alternado': 'Padrão - Sáb. Alternado',
+  'padrao': 'Padrão (Seg-Sex)',
+  'padrao_sab': 'Padrão (Seg-Sáb)',
+  '5x1': '5x1',
+  '5x2': '5x2',
+  '6x1': '6x1',
+  '12x36': '12x36',
+  '24x48': '24x48',
+  '4x3': '4x3',
+  'seg_sex': 'Segunda à Sexta',
+  'seg_sab': 'Segunda ao Sábado',
+  'variavel': 'Variável',
+};
+function _fmtEscala(v) {
+  if (!v) return '';
+  return _ESCALA_NOMES[v] || v.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Store de dados dos membros por id
+let _eqCardData = {};
+
+window._eqShowTooltip = function(ev, membId) {
+  const m = _eqCardData[membId];
+  const tt = document.getElementById('eq-tooltip');
+  if (!tt || !m) return;
+  const escala = _fmtEscala(m.escala_tipo);
+  const horario = m.horario_entrada && m.horario_saida
+    ? `${m.horario_entrada} – ${m.horario_saida}`
+    : m.horario_entrada ? m.horario_entrada : '';
+  if (!escala && !horario) return;
+  let html = '';
+  if (escala) html += `<div class="eq-tt-row"><i class="ph ph-calendar-check eq-tt-icon" style="color:#7dd3fc;"></i><span>${escala}</span></div>`;
+  if (horario) html += `<div class="eq-tt-row"><i class="ph ph-clock eq-tt-icon" style="color:#86efac;"></i><span>${horario}</span></div>`;
+  tt.innerHTML = html;
+  tt.style.display = 'block';
+  const x = Math.min(ev.clientX + 12, window.innerWidth - 240);
+  const y = Math.min(ev.clientY + 12, window.innerHeight - 80);
+  tt.style.left = x + 'px';
+  tt.style.top = y + 'px';
+};
+window._eqHideTooltip = function() {
+  const tt = document.getElementById('eq-tooltip');
+  if (tt) tt.style.display = 'none';
+};
 
 function _eqAlertas(membros) {
   // Usuário solicitou remoção de alertas de "Sem motorista" / "Excesso"
@@ -397,6 +453,8 @@ function _renderCard(m) {
     ? `<img class="eq-avatar" src="${_eq_fotoSrc(m)}" alt="${nome}" style="${avatarBorder}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
        <div class="eq-avatar-placeholder" style="background:${avatarBg};display:none;">${iniciais}</div>`
     : `<div class="eq-avatar-placeholder" style="background:${avatarBg};${avatarBorder}">${iniciais}</div>`;
+  // Guarda dados para tooltip
+  _eqCardData[m.colaborador_id||m.id] = m;
   return `
   <div class="eq-card" data-membro-id="${m.colaborador_id||m.id}" data-equipe-id="${m.equipe_id}"
     draggable="true"
@@ -405,7 +463,8 @@ function _renderCard(m) {
     ondrop="window._eqCardDrop(event,${m.colaborador_id||m.id},${m.equipe_id})"
     ondragover="window._eqCardDragOver(event,this,true)"
     ondragleave="window._eqCardDragLeave(event,this)"
-    title="${[m.escala_tipo ? 'Escala: ' + m.escala_tipo : '', m.horario_entrada && m.horario_saida ? 'Horário: ' + m.horario_entrada + ' – ' + m.horario_saida : m.horario_entrada ? 'Entrada: ' + m.horario_entrada : ''].filter(Boolean).join(' | ') || ''}"
+    onmouseenter="window._eqShowTooltip(event,${m.colaborador_id||m.id})"
+    onmouseleave="window._eqHideTooltip()"
     style="position:relative;${borderStyle}">
     ${avatarHtml}
     <div class="eq-card-info">
