@@ -1328,38 +1328,47 @@ console.log('[POLL-ADMISSAO] Job de polling configurado (a cada 30 segundos).');
 
 // Endpoint de alertas realtime: retorna documentos de admissão e prontuário assinados nas últimas 24h
 app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, res) => {
-    db.all(`
-        SELECT * FROM (
-            SELECT max(unq_id) as unq_id, max(id) as id, nome_documento, max(assinado_em) as assinado_em, colaborador_id,
-                   colaborador_nome, source, assinafy_id
-            FROM (
-                SELECT ('admissao_' || aa.id) AS unq_id, aa.id, aa.nome_documento, aa.assinado_em, aa.colaborador_id,
-                       c.nome_completo AS colaborador_nome, 'admissao' as source, aa.assinafy_id
-                FROM admissao_assinaturas aa
-                LEFT JOIN colaboradores c ON c.id = aa.colaborador_id
-                WHERE aa.assinafy_status = 'Assinado'
-                  AND aa.assinado_em IS NOT NULL
-                  AND datetime(aa.assinado_em) >= datetime('now', '-24 hours')
+    const userId = req.user && req.user.id;
+    if (!userId) return res.json([]);
 
-                UNION ALL
+    // Verifica se este usuário está habilitado para receber notif de 'documentos_assinados'
+    db.get(`SELECT 1 FROM config_notificacoes WHERE tipo = 'documentos_assinados' AND usuario_id = ?`, [userId], (errPref, rowPref) => {
+        if (errPref || !rowPref) return res.json([]); // Usuário não configurado — silencioso
 
-                SELECT ('doc_' || d.id) AS unq_id, d.id, d.document_type AS nome_documento, d.assinafy_signed_at AS assinado_em, d.colaborador_id,
-                       c.nome_completo AS colaborador_nome, 'documentos' as source, d.assinafy_id
-                FROM documentos d
-                LEFT JOIN colaboradores c ON c.id = d.colaborador_id
-                WHERE d.assinafy_status = 'Assinado'
-                  AND d.assinafy_signed_at IS NOT NULL
-                  AND datetime(d.assinafy_signed_at) >= datetime('now', '-24 hours')
+        db.all(`
+            SELECT * FROM (
+                SELECT max(unq_id) as unq_id, max(id) as id, nome_documento, max(assinado_em) as assinado_em, colaborador_id,
+                       colaborador_nome, source, assinafy_id
+                FROM (
+                    SELECT ('admissao_' || aa.id) AS unq_id, aa.id, aa.nome_documento, aa.assinado_em, aa.colaborador_id,
+                           c.nome_completo AS colaborador_nome, 'admissao' as source, aa.assinafy_id
+                    FROM admissao_assinaturas aa
+                    LEFT JOIN colaboradores c ON c.id = aa.colaborador_id
+                    WHERE aa.assinafy_status = 'Assinado'
+                      AND aa.assinado_em IS NOT NULL
+                      AND datetime(aa.assinado_em) >= datetime('now', '-24 hours')
+
+                    UNION ALL
+
+                    SELECT ('doc_' || d.id) AS unq_id, d.id, d.document_type AS nome_documento, d.assinafy_signed_at AS assinado_em, d.colaborador_id,
+                           c.nome_completo AS colaborador_nome, 'documentos' as source, d.assinafy_id
+                    FROM documentos d
+                    LEFT JOIN colaboradores c ON c.id = d.colaborador_id
+                    WHERE d.assinafy_status = 'Assinado'
+                      AND d.assinafy_signed_at IS NOT NULL
+                      AND datetime(d.assinafy_signed_at) >= datetime('now', '-24 hours')
+                )
+                GROUP BY COALESCE(assinafy_id, unq_id)
             )
-            GROUP BY COALESCE(assinafy_id, unq_id)
-        )
-        ORDER BY assinado_em DESC
-        LIMIT 30
-    `, [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows || []);
+            ORDER BY assinado_em DESC
+            LIMIT 30
+        `, [], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows || []);
+        });
     });
 });
+
 
 // Endpoint: Reenviar/Recuperar Link de Assinatura
 app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
