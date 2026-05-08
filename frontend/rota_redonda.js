@@ -2897,12 +2897,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 const qtd = parseInt(document.getElementById('rr-prod-qtd')?.value) || 1;
                 if (!descRaw) return;
                 
-                // Remove ícones se vieram do dropdown
-                let descLimpa = descRaw;
-                for (const key in EQUIPAMENTOS_DICT) {
-                    if (descRaw.includes(key)) {
-                        descLimpa = key;
-                        break;
+                // Remove ícones se vieram do dropdown e normaliza para o código correto
+                // Estratégia 1: strip do emoji/espaço do início → match exato na chave do dicionário
+                let descLimpa = descRaw.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE00-\uFEFF\s]+/gu, '').trim();
+                if (!EQUIPAMENTOS_DICT[descLimpa]) {
+                    // Estratégia 2: busca por substring mas ordenada por tamanho DECRESCENTE
+                    // (garante que 'ELX OBRA' seja encontrado antes de 'LX OBRA')
+                    const sortedKeys = Object.keys(EQUIPAMENTOS_DICT).sort((a, b) => b.length - a.length);
+                    for (const key of sortedKeys) {
+                        if (descRaw.includes(key)) {
+                            descLimpa = key;
+                            break;
+                        }
                     }
                 }
                 
