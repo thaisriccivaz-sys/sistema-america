@@ -2300,6 +2300,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
                     uniq.sort((a, b) => dist(a) - dist(b));
 
+                    const _eH = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
                     sugg.innerHTML = uniq.map((d, i) => {
                         const a = d.address || {};
                         const logr   = a.road || a.pedestrian || d.display_name.split(',')[0].trim();
@@ -2308,15 +2309,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         const city   = a.city || a.town || a.municipality || '';
                         const uf     = (a.state || '').length === 2 ? a.state : '';
                         const cep    = a.postcode || '';
-                        const linha1 = [logr, num].filter(Boolean).join(', ');
-                        const linha2 = [bairro, city, uf ? `- ${uf}` : ''].filter(Boolean).join(', ') + (cep ? `, ${cep}` : '');
+                        const linha1 = _eH([logr, num].filter(Boolean).join(', '));
+                        const linha2 = _eH([bairro, city, uf ? `- ${uf}` : ''].filter(Boolean).join(', ') + (cep ? `, ${cep}` : ''));
                         return `<div data-idx="${i}" style="padding:7px 11px;cursor:pointer;border-bottom:1px solid #f1f5f9;font-size:0.78rem;transition:background 0.1s;"
                             onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''"
                             onclick="window._endSuggSelect(${i})">
-                            <div style="font-weight:600;color:#1e293b;">&#128205; ${linha1 || d.display_name.split(',')[0]}</div>
+                            <div style="font-weight:600;color:#1e293b;">&#128205; ${linha1 || _eH(d.display_name.split(',')[0])}</div>
                             <div style="color:#64748b;font-size:0.71rem;">${linha2}</div>
                         </div>`;
                     }).join('');
+
 
                     window._endSuggData = uniq;
                     window._endSuggSelect = (idx) => {
@@ -4121,18 +4123,31 @@ function _rrMontarDrawerHistorico() {
             }).join('') + `</div>`;
         };
 
-        // Correção de encoding: converte mojibake Latin-1→UTF-8 (problema recorrente no banco)
+        // Sanitiza caracteres especiais de HTML para uso seguro em title= e innerHTML
+        const escHtml = s => (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+        // Corrige mojibake Latin-1→UTF-8 sem usar escape() obsoleto
+        // Técnica moderna: TextDecoder/TextEncoder ou fallback seguro
         const _fc = s => {
             if (!s || typeof s !== 'string') return s || '';
-            try { return decodeURIComponent(escape(s)); } catch(e) { return s; }
+            // Verifica se tem caracteres típicos de mojibake (Ã, Â, etc. seguidos de chars estranhos)
+            if (!/[\xC0-\xCF]/.test(s)) return s; // Nenhum char suspeito → retorna original
+            try {
+                // Converte string (latin-1 misinterpretada) para bytes e decodifica como UTF-8
+                const bytes = new Uint8Array(s.length);
+                for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i) & 0xFF;
+                const decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+                return decoded;
+            } catch (e) { return s; } // Não era mojibake → retorna original
         };
 
         tbody.innerHTML = lista.map((os, i) => {
             const est = ESTILO_SVC(os.tipo_servico);
             const bgRow = i % 2 === 0 ? '#fff' : '#fafafa';
-            const cli = _fc(os.cliente || '—');
-            const end = _fc(os.endereco || '—');
-            const svc = _fc(os.tipo_servico || '—');
+            const cli = escHtml(_fc(os.cliente || '—'));
+            const end = escHtml(_fc(os.endereco || '—'));
+            const svc = escHtml(_fc(os.tipo_servico || '—'));
+
             const tur = _fc(os.turno || '');
             const tip = _fc(os.tipo_os || '');
             return `<tr style="background:${bgRow}; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.1s;"
