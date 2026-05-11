@@ -79,6 +79,7 @@ function pipelineGetIconServico(tipoServico) {
     if (t.includes('manutencao') || t.includes('manutenção')) return '';
     if (t.includes('vac'))                 return '🏗️';
     if (t.includes('succao') || t.includes('sucção')) return '💧';
+    if (t.includes('compras'))             return '💳';
     if (t.includes('entrega'))             return '🚛';
     return '';
 }

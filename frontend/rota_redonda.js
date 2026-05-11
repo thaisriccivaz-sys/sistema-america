@@ -87,7 +87,8 @@ const TIPOS_SERVICO_OS = [
     'ENTREGA OBRA', 'RETIRADA OBRA TOTAL', 'RETIRADA OBRA PARCIAL', 'MANUTENCAO OBRA', 'MANUTENCAO AVULSA OBRA',
     'REPARO EQUIPAMENTO OBRA', 'VISITA TECNICA OBRA', 'LIMPA FOSSA OBRA',
     'ENTREGA EVENTO', 'RETIRADA EVENTO TOTAL', 'RETIRADA EVENTO PARCIAL', 'MANUTENCAO EVENTO', 'MANUTENCAO AVULSA EVENTO', 'SUCCAO EVENTO',
-    'REPARO EQUIPAMENTO EVENTO', 'VISITA TECNICA EVENTO', 'LIMPA FOSSA EVENTO'
+    'REPARO EQUIPAMENTO EVENTO', 'VISITA TECNICA EVENTO', 'LIMPA FOSSA EVENTO',
+    'COMPRAS AMERICA'
 ];
 const HABILIDADES = ['TANQUE', 'CARGA', 'VAC', 'UTILITARIO', 'TECNICO', 'CARRETINHA', 'CARROCERIA', 'TANQUE GRANDE'];
 const ACOES_DICT = {
@@ -108,9 +109,9 @@ const ACOES = Object.keys(ACOES_DICT);
 function calcularTempo() {
     const tipoServico = (document.getElementById('rr-tipo-servico')?.value || '').trim().toUpperCase();
 
-    // Base: 10 min para entregas/retiradas/visitas, 0 para manutenção
+    // Base: 10 min para entregas/retiradas/visitas, 0 para manutencao e compras
     let baseMin = 10;
-    if (tipoServico.includes('MANUTENCAO')) baseMin = 0;
+    if (tipoServico.includes('MANUTENCAO') || tipoServico.includes('COMPRAS')) baseMin = 0;
 
     // Soma total de quantidades (igual ao Flutter: int totalItens = 0; for produto in produtosLogistica)
     const totalItens = osState.produtos.reduce((acc, p) => acc + (parseInt(p.qtd) || 0), 0);
