@@ -75,6 +75,7 @@ function _rrTipoServico(s) {
     if (u.includes('RETIRADA'))  return 'RETIRADA';
     if (u.includes('MANUTENCAO AVULSA') || u.includes('MANUTENÇÃO AVULSA')) return 'AVULSA';
     if (u.includes('MANUTENCAO') || u.includes('MANUTENÇÃO')) return 'MANUTENCAO';
+    if (u.includes('COMPRAS'))   return 'COMPRAS';
     return 'OUTROS';
 }
 
@@ -109,6 +110,7 @@ function _rrParseNotas(notas) {
         // Linha de tipo de serviço
         if (upLinha.includes('ENTREGA')  || upLinha.includes('RETIRADA') ||
             upLinha.includes('MANUTENCAO') || upLinha.includes('MANUTENÇÃO') ||
+            upLinha.includes('COMPRAS')  ||
             upLinha.includes('VISITA')   || upLinha.includes('LIMPA FOSSA') ||
             upLinha.includes('SUCCAO')   || upLinha.includes('SUCÇÃO')) {
             if (!servico) servico = linha;
@@ -209,6 +211,17 @@ function _rrMontarColB(v) {
         lines.push(`MANUTENCAO ${_rrTipoObraEvento(manut)}:`);
         for (const [nome, { qtd, icon }] of Object.entries(ag))
             lines.push(`   ${qtd} × ${nome}`);
+        lines.push('');
+    }
+
+    // 6. COMPRAS (sem produto / sem capacidade)
+    const compras = v.os.filter(o => o.tipo === 'COMPRAS');
+    if (compras.length) {
+        lines.push('💳Compras América:');
+        compras.forEach(o => {
+            const cliente = (o.cliente || '').substring(0, 25).trim();
+            if (cliente) lines.push(`   ${cliente}`);
+        });
         lines.push('');
     }
 
@@ -583,7 +596,11 @@ window.rrImportarPlanilha = async function(input) {
         if (!v._temCadastroCarga) return; // Sem capacidade cadastrada no sistema, sem verificação
 
         let totalEntregas = 0;
-        v.os.forEach(os => { if (os.tipo === 'ENTREGA') totalEntregas += _rrSomaProdutos(os); });
+        v.os.forEach(os => {
+            // COMPRAS não ocupa capacidade e não gera tempo de serviço
+            if (os.tipo === 'COMPRAS') return;
+            if (os.tipo === 'ENTREGA') totalEntregas += _rrSomaProdutos(os);
+        });
 
         let cargaAtual = totalEntregas;
         let sobrecarga = false;
