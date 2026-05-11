@@ -504,7 +504,7 @@ window.rrImportarPlanilha = async function(input) {
         });
     });
 
-    _rrVeiculos  = Object.values(map);
+    _rrVeiculos  = Object.values(map).sort((a, b) => (a.veiculo || '').localeCompare(b.veiculo || '', 'pt-BR', { sensitivity: 'base' }));
     _rrCurrentId = null;
 
     // --- DETECTAR DATA DA ROTA (col 25 = "Data agendada" na planilha do SimpliRoute) ---
@@ -981,7 +981,10 @@ async function _rrGerarExcel() {
     });
     hdr1.height = 22;
 
-    _rrVeiculos.forEach((v, i) => {
+    // Ordena veículos em ordem alfabética na planilha
+    const veiculosOrdenados = [..._rrVeiculos].sort((a, b) => (a.veiculo || '').localeCompare(b.veiculo || '', 'pt-BR', { sensitivity: 'base' }));
+
+    veiculosOrdenados.forEach((v, i) => {
         const colB = v.colBEditado || _rrMontarColB(v);
         const nLines = (colB.match(/\n/g) || []).length + 1;
         const rowH   = Math.max(20, nLines * 14);
