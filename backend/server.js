@@ -956,7 +956,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V48_OUTROS_CONTRATOS_FIX' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V49_FIX_CONTRATO_ONEDRIVE' }));
 
 app.get('/api/debug-pfx3', async (req, res) => {
     try {
@@ -1236,24 +1236,23 @@ async function pollAdmissaoAssinaturas() {
                         const isAtestado = (doc.tab_name === 'Atestados');
                         const docYear = doc.year && doc.year !== 'null' && doc.year !== '' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
                         let cloudName;
+                        let targetDir; // declarado localmente para evitar contaminação entre iterações do loop
                         if (doc.source === 'documento') {
                             const safeTab = doc.tab_name ? tabToOneDrivePath(doc.tab_name) : 'DOCUMENTOS';
+                            const isContratos = doc.tab_name === 'CONTRATOS';
                             const isContratosAvulso = doc.tab_name === 'CONTRATOS_AVULSOS';
 
-                            if (doc.tab_name === 'CONTRATOS' || doc.tab_name === 'CONTRATOS_AVULSOS') {
+                            if (isContratos || isContratosAvulso) {
+                                // CONTRATOS e CONTRATOS_AVULSOS: ambos vão para pasta CONTRATOS/ sem subpasta de ano
+                                // Usando o file_name original para sobrescrever o documento não-assinado com o assinado
                                 cloudName = doc.file_name;
+                                targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
+                                await onedrive.ensurePath(targetDir);
+                                console.log(`[POLL-ASSINATURAS] Contrato assinado: sobrescrevendo ${cloudName} em ${targetDir}`);
                             } else {
                                 cloudName = isAtestado
                                     ? (doc.file_name || 'Atestado.pdf').replace(/_\d{8}_\d{6}(\.\w+)$/, '$1')
                                     : `${formatarPasta(doc.nome_documento || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
-                            }
-                            if (isContratosAvulso) {
-                                // Contratos avulsos vão em CONTRATOS/outros/
-                                const contratosDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
-                                targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
-                                await onedrive.ensurePath(contratosDir);
-                                await onedrive.ensurePath(targetDir);
-                            } else {
                                 // Montar o targetDir com mês para Pagamentos
                                 targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
                                 if (safeTab === 'PAGAMENTOS' && doc.month && doc.month !== 'null' && doc.month !== '') {
