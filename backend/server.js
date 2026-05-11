@@ -7441,9 +7441,7 @@ app.post('/api/epi-fichas/:id/save-onedrive', authenticateToken, async (req, res
             db.get('SELECT * FROM colaboradores WHERE id=?', [colaborador_id], (e, r) => e ? reject(e) : resolve(r))
         );
         if (!colab) return res.status(404).json({ error: 'Colaborador nao encontrado.' });
-        const safeNome = (colab.nome_completo || 'Colaborador')
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-            .replace(/[^a-zA-Z0-9_]/g, '_').replace(/__+/g, '_').trim();
+        const safeNome = formatarNome(colab.nome_completo || 'Colaborador');
         const base64Data = pdf_base64.includes('base64,') ? pdf_base64.split('base64,')[1] : pdf_base64;
         const pdfBuffer = Buffer.from(base64Data, 'base64');
         const onedriveBase = `${process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema'}/${safeNome}`;
