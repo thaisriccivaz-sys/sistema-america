@@ -5739,6 +5739,7 @@ window.renderASOTab = function(container, filteredDocs) {
                         <option value="Demissional">Demissional</option>
                         <option value="Retorno ao trabalho">Retorno ao trabalho</option>
                         <option value="Periódico">Periódico</option>
+                        <option value="Troca de Função">Troca de Função</option>
                     </select>
                 </div>
                 <div class="input-group" style="flex:1; min-width:200px; margin-bottom:0;">
