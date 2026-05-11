@@ -956,7 +956,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V49_FIX_CONTRATO_ONEDRIVE' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V50_EXCLUIR_CONTRATOS' }));
 
 app.get('/api/debug-pfx3', async (req, res) => {
     try {
@@ -5823,6 +5823,18 @@ app.post('/api/admissao-assinaturas/sync-status', authenticateToken, (req, res) 
         [status, status, assinafy_id], function (err) {
             res.json({ ok: true, changes: this.changes });
         });
+});
+
+// DELETE: excluir registro de admissão-assinatura (mesmo quando assinado — senha verificada no frontend)
+app.delete('/api/admissao-assinaturas/:id', authenticateToken, (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'ID inválido' });
+    db.run('DELETE FROM admissao_assinaturas WHERE id = ?', [id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Registro não encontrado' });
+        console.log(`[CONTRATO-DEL] admissao_assinaturas id=${id} excluído por ${req.user?.username || 'unknown'}`);
+        res.json({ ok: true, deleted: id });
+    });
 });
 
 // MIGRATION / STRUCT: Garantir que a tabela geradores exista

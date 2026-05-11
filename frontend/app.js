@@ -8789,6 +8789,16 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
         const borderColor = isSigned ? '#bbf7d0' : isPending ? '#bfdbfe' : (naoExige || isAnexado) ? '#e9d5ff' : '#f1f5f9';
         const bgColor     = isSigned ? '#f0fdf4'  : isPending ? '#eff6ff'  : (naoExige || isAnexado) ? '#faf5ff'  : '#fff';
 
+        // Botão excluir: usa id do doc (admissao_assinaturas) ou docEquivalente (documentos)
+        const _assId   = ass && ass.id ? ass.id : null;
+        const _docEqId = docEquivalente && docEquivalente.id ? docEquivalente.id : null;
+        let admDelBtn = '';
+        if (_assId) {
+            admDelBtn = `<button onclick="window.excluirContratoComSenha(${_assId}, 'admissao')" style="border:none;background:none;cursor:pointer;color:#dc2626;" title="Excluir Contrato"><i class="ph ph-trash" style="font-size:1.4rem;"></i></button>`;
+        } else if (_docEqId) {
+            admDelBtn = `<button onclick="window.excluirContratoComSenha(${_docEqId}, 'documento')" style="border:none;background:none;cursor:pointer;color:#dc2626;" title="Excluir Contrato"><i class="ph ph-trash" style="font-size:1.4rem;"></i></button>`;
+        }
+
         return `
             <label class="doc-check-item" style="display:flex; align-items:center; gap:0.6rem; padding:1.1rem 1.25rem; border:1px solid ${borderColor}; border-radius:8px; background:${bgColor}; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.2s; justify-content:space-between; margin-bottom:12px;">
                 <div style="display:flex; align-items:center; gap:12px; flex:1;">
@@ -8801,6 +8811,7 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
                 </div>
                 <div style="display:flex; align-items:center; gap:12px;">
                     ${dynamicControls}
+                    ${admDelBtn}
                     ${eyeBtn}
                 </div>
             </label>
@@ -9832,6 +9843,7 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
         }
 
         const eyeBtn = `<button onclick="window.openContratoViewerById(${doc.id})" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>`;
+        const delBtn = `<button onclick="window.excluirContratoComSenha(${doc.id}, 'documento')" style="border:none;background:none;cursor:pointer;color:#dc2626;" title="Excluir Contrato"><i class="ph ph-trash" style="font-size:1.4rem;"></i></button>`;
 
         html += `
         <div class="doc-check-item" style="display:flex; align-items:center; gap:0.6rem; padding:1.1rem 1.25rem; ${borderBgColor}; border-radius:8px; cursor:default; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.2s; justify-content:space-between; margin-bottom:12px;">
@@ -9846,11 +9858,49 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
             <div style="display:flex; align-items:center; gap:12px;">
                 ${actionUX}
                 ${sendBtn}
+                ${delBtn}
                 ${eyeBtn}
             </div>
         </div>`;
     });
     return html;
+};
+
+// Excluir contrato com proteção por senha (funciona para assinados e não-assinados)
+window.excluirContratoComSenha = async function(docId, tipo) {
+    const senha = prompt('⚠️ Esta ação é irreversível.\n\nDigite a senha para excluir o contrato:');
+    if (senha === null) return; // cancelado
+    if (senha !== 'EXc2499!') {
+        alert('Senha incorreta. Exclusão cancelada.');
+        return;
+    }
+    if (!confirm('Confirmar exclusão do contrato? Esta ação não pode ser desfeita.')) return;
+
+    try {
+        let res;
+        if (tipo === 'admissao') {
+            // Exclui da tabela admissao_assinaturas via endpoint próprio
+            res = await fetch(`${API_URL}/admissao-assinaturas/${docId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + currentToken }
+            });
+        } else {
+            // Exclui da tabela documentos
+            res = await fetch(`${API_URL}/documentos/${docId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + currentToken }
+            });
+        }
+        if (res.ok) {
+            if (typeof showToast !== 'undefined') showToast('Contrato excluído com sucesso.', 'success');
+            await window._reloadContratosContainer();
+        } else {
+            const d = await res.json().catch(() => ({}));
+            alert('Erro ao excluir: ' + (d.error || res.statusText));
+        }
+    } catch(e) {
+        alert('Erro ao excluir: ' + e.message);
+    }
 };
 
 window.toggleAcaoDocumentoAvulso = function(docId, exige, docType) {
