@@ -6630,7 +6630,7 @@ window.renderPagamentosCompetencia = function() {
     subContainer.innerHTML = '';
 
     const docs = currentDocs.filter(d => d.tab_name === 'Pagamentos' && d.year == y && d.month == m);
-    ['Ponto', 'Holerite', 'Recibo Combustível', 'Recibo Alimentação'].forEach(type => {
+    ['Ponto', 'Holerite Pagamento', 'Holerite Adiantamento', 'Recibo Combustível', 'Recibo Alimentação', 'Outros'].forEach(type => {
         const d = docs.find(x => x.document_type === type);
         subContainer.appendChild(createDocSlot('Pagamentos', type, d, `'${y}'`, `'${m}'`));
     });
