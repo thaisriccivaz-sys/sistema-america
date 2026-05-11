@@ -3037,13 +3037,13 @@ function renderTabelaColaboradores(lista) {
                                 
                                 let textPart = [];
                                 if (years > 0) textPart.push(`${years} ano${years > 1 ? 's' : ''}`);
-                                if (months > 0) textPart.push(`${months} mês${months > 1 ? 'es' : ''}`);
+                                if (months > 0) textPart.push(`${months} mes${months > 1 ? 'es' : ''}`);
                                 
                                 if (textPart.length > 0) {
                                     expInfoHtml += `<div style="font-size:0.75rem; font-weight:700; margin-top:2px; color: ${badgeColor};">${textPart.join(' e ')}</div>`;
                                 } else if (years === 0 && months === 0) {
                                     // acabou de entrar
-                                    expInfoHtml += `<div style="font-size:0.75rem; font-weight:700; margin-top:2px; color: ${badgeColor};">Menos de 1 mês</div>`;
+                                    expInfoHtml += `<div style="font-size:0.75rem; font-weight:700; margin-top:2px; color: ${badgeColor};">Menos de 1 mes</div>`;
                                 }
                             }
                         }
