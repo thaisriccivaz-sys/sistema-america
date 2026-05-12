@@ -304,12 +304,12 @@ function abrirModalNovaMulta() {
     modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:9999;';
     
     modal.innerHTML = `
-        <div style="background:#fff; width:800px; max-width:95%; border-radius:10px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
-            <div style="background:#f8fafc; padding:1.2rem 1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+        <div style="background:#fff; width:800px; max-width:95%; max-height:95vh; display:flex; flex-direction:column; border-radius:10px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+            <div style="background:#f8fafc; padding:1.2rem 1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
                 <h3 style="margin:0; color:#0f172a; font-size:1.2rem;">&#128196; Nova Multa</h3>
                 <button onclick="this.closest('#modal-nova-multa').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
             </div>
-            <div style="padding:1.5rem;">
+            <div style="padding:1.5rem; overflow-y:auto; flex:1;">
                 <form id="form-nova-multa" onsubmit="salvarNovaMultaLogistica(event)">
 
                     <!-- ABAS: PDF ou Colar Texto -->
