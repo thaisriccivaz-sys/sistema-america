@@ -9718,6 +9718,43 @@ function enviarEmailAlertaCRLV(v) {
 // CRON JOBS — Agendamento robusto com node-cron
 // =====================================================================
 
+// ── ATIVAR COLABORADORES NA DATA DE ADMISSÃO ──────────────────────────────────
+// Quando a data_admissao chega, muda status de 'Aguardando início' / 'Processo iniciado' → 'Ativo'
+function ativarColaboradoresPorAdmissao() {
+    const hoje = new Date();
+    const hojeStr = hoje.toISOString().split('T')[0]; // YYYY-MM-DD
+    console.log(`[CRON-ADMISSAO] Verificando colaboradores com admissao <= ${hojeStr}...`);
+
+    db.all(
+        `SELECT id, nome_completo, data_admissao, status FROM colaboradores
+         WHERE status IN ('Aguardando início', 'Processo iniciado')
+           AND data_admissao IS NOT NULL
+           AND data_admissao != ''
+           AND data_admissao <= ?`,
+        [hojeStr],
+        (err, rows) => {
+            if (err) { console.error('[CRON-ADMISSAO] Erro ao buscar:', err.message); return; }
+            if (!rows || rows.length === 0) {
+                console.log('[CRON-ADMISSAO] Nenhum colaborador para ativar.');
+                return;
+            }
+            rows.forEach(colab => {
+                db.run(
+                    `UPDATE colaboradores SET status = 'Ativo' WHERE id = ? AND status IN ('Aguardando início', 'Processo iniciado')`,
+                    [colab.id],
+                    function(updateErr) {
+                        if (updateErr) {
+                            console.error(`[CRON-ADMISSAO] Erro ao ativar colab ${colab.id}:`, updateErr.message);
+                        } else if (this.changes > 0) {
+                            console.log(`[CRON-ADMISSAO] ✅ Colaborador ativado: ${colab.nome_completo} (admissao: ${colab.data_admissao}, era: ${colab.status})`);
+                        }
+                    }
+                );
+            });
+        }
+    );
+}
+
 // Variavel para rastrear a ultima execucao do cron
 let _cronUltimaExecucao = null;
 
@@ -9725,6 +9762,7 @@ let _cronUltimaExecucao = null;
 cron.schedule('0 8 * * *', () => {
     console.log('[CRON] Iniciando verificações diárias de 08:00...');
     _cronUltimaExecucao = new Date().toISOString();
+    ativarColaboradoresPorAdmissao();
     verificarExperienciasVencendo();
     verificarAtestadosVencidos();
     verificarCRLVVencidoCron();
@@ -9735,9 +9773,13 @@ cron.schedule('0 8 * * *', () => {
 // Garante que o colaborador volta a Ativo logo na virada do dia
 cron.schedule('1 0 * * *', () => {
     console.log('[CRON 00:01] Verificando atestados vencidos na virada do dia...');
+    ativarColaboradoresPorAdmissao();
     verificarAtestadosVencidos();
     verificarFeriasEquipes();
 }, { timezone: 'America/Sao_Paulo' });
+
+// Executa na inicialização para cobrir casos em que o servidor estava offline na data de admissão
+setImmediate(() => ativarColaboradoresPorAdmissao());
 
 // Endpoint para forçar envio em lote (botão "Disparar E-mails")
 app.post('/api/experiencia/cron/forcar', authenticateToken, async (req, res) => {
