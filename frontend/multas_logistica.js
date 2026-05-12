@@ -312,14 +312,26 @@ function abrirModalNovaMulta() {
             <div style="padding:1.5rem;">
                 <form id="form-nova-multa" onsubmit="salvarNovaMultaLogistica(event)">
 
-                    <!-- CAMPO PDF NO TOPO -->
-                    <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe); border:1.5px dashed #3b82f6; border-radius:8px; padding:1rem 1.2rem; margin-bottom:1.3rem;">
-                        <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.5rem;">
-                            <span style="font-size:1.3rem;">&#129302;</span>
-                            <span style="font-weight:700; color:#1d4ed8; font-size:0.92rem;">Preenchimento Automático via PDF</span>
+                    <!-- ABAS: PDF ou Colar Texto -->
+                    <div style="margin-bottom:1.3rem;">
+                        <div style="display:flex; border-bottom:2px solid #e2e8f0; margin-bottom:0;">
+                            <button type="button" id="nm-tab-pdf" onclick="_nmAba('pdf')" style="padding:0.5rem 1.1rem; border:none; background:#dbeafe; color:#1d4ed8; font-weight:700; font-size:0.85rem; border-radius:6px 6px 0 0; cursor:pointer; border-bottom:2px solid #2563eb; margin-bottom:-2px;">&#129302; Anexar PDF</button>
+                            <button type="button" id="nm-tab-texto" onclick="_nmAba('texto')" style="padding:0.5rem 1.1rem; border:none; background:transparent; color:#64748b; font-weight:600; font-size:0.85rem; border-radius:6px 6px 0 0; cursor:pointer; margin-left:4px;">&#128203; Colar Texto</button>
                         </div>
-                        <p style="margin:0 0 0.7rem; color:#475569; font-size:0.82rem;">Anexe o documento da multa e os campos abaixo serão preenchidos automaticamente: Data, Hora, Número AIT, Motivo, Valor, Pontuação e Data Limite.</p>
-                        <input type="file" id="nm-doc" accept=".pdf" onchange="processarPDFMulta(this)" style="width:100%; padding:0.4rem 0.5rem; border:1px solid #bfdbfe; border-radius:5px; background:white; font-size:0.85rem; cursor:pointer;">
+
+                        <!-- ABA PDF -->
+                        <div id="nm-painel-pdf" style="background:linear-gradient(135deg,#eff6ff,#dbeafe); border:1.5px dashed #3b82f6; border-radius:0 6px 6px 6px; padding:1rem 1.2rem;">
+                            <p style="margin:0 0 0.7rem; color:#475569; font-size:0.82rem;">Anexe o documento da multa e os campos serão preenchidos automaticamente: Data, Hora, Número AIT, Motivo, Valor, Pontuação e Data Limite.</p>
+                            <input type="file" id="nm-doc" accept=".pdf" onchange="processarPDFMulta(this)" style="width:100%; padding:0.4rem 0.5rem; border:1px solid #bfdbfe; border-radius:5px; background:white; font-size:0.85rem; cursor:pointer;">
+                        </div>
+
+                        <!-- ABA TEXTO -->
+                        <div id="nm-painel-texto" style="display:none; background:linear-gradient(135deg,#f0fdf4,#dcfce7); border:1.5px dashed #22c55e; border-radius:0 6px 6px 6px; padding:1rem 1.2rem;">
+                            <p style="margin:0 0 0.7rem; color:#166534; font-size:0.82rem;">Cole abaixo o texto da notificação de multa. O sistema reconhece os campos automaticamente.</p>
+                            <textarea id="nm-texto-bruto" rows="9" placeholder="Placa:\nSWF2H28\nAIT:\n1VA2535356\nDescrição:\nTRANSITAR EM VELOCIDADE...\nEndereço da Infração:\nSp 021 Km 095 M 700\nData e Hora da Infração:\n23/03/2026 19:11\nPontuação:\n4\nPrazo Indicação de Condutor:\n01/05/2026\nValor da Infração:\nR$ 130,16" style="width:100%; padding:0.6rem; border:1px solid #86efac; border-radius:5px; font-family:monospace; font-size:0.8rem; resize:vertical; box-sizing:border-box;"></textarea>
+                            <button type="button" onclick="interpretarTextoMulta()" style="margin-top:0.6rem; padding:0.5rem 1.2rem; background:#16a34a; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:700; font-size:0.85rem;">&#9889; Preencher Campos</button>
+                            <span id="nm-texto-status" style="margin-left:0.8rem; font-size:0.82rem; color:#166534;"></span>
+                        </div>
                     </div>
 
                     <div style="display:flex; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;">
@@ -377,6 +389,124 @@ function abrirModalNovaMulta() {
         </div>
     `;
     document.body.appendChild(modal);
+}
+
+// Controla a aba ativa no modal Nova Multa
+function _nmAba(aba) {
+    const painelPdf   = document.getElementById('nm-painel-pdf');
+    const painelTexto = document.getElementById('nm-painel-texto');
+    const tabPdf      = document.getElementById('nm-tab-pdf');
+    const tabTexto    = document.getElementById('nm-tab-texto');
+    if (!painelPdf) return;
+    const ativo   = 'padding:0.5rem 1.1rem; border:none; background:#dbeafe; color:#1d4ed8; font-weight:700; font-size:0.85rem; border-radius:6px 6px 0 0; cursor:pointer; border-bottom:2px solid #2563eb; margin-bottom:-2px;';
+    const inativo = 'padding:0.5rem 1.1rem; border:none; background:transparent; color:#64748b; font-weight:600; font-size:0.85rem; border-radius:6px 6px 0 0; cursor:pointer; margin-left:4px;';
+    if (aba === 'pdf') {
+        painelPdf.style.display   = 'block';
+        painelTexto.style.display = 'none';
+        tabPdf.style.cssText      = ativo;
+        tabTexto.style.cssText    = inativo;
+    } else {
+        painelPdf.style.display   = 'none';
+        painelTexto.style.display = 'block';
+        tabPdf.style.cssText      = inativo.replace('margin-left:4px;', '');
+        tabTexto.style.cssText    = ativo;
+    }
+}
+
+// Parseia o texto colado e preenche os campos do formulário
+function interpretarTextoMulta() {
+    const texto = (document.getElementById('nm-texto-bruto')?.value || '').trim();
+    if (!texto) { mostrarToastAviso('Cole o texto da notificação antes de clicar em Preencher.'); return; }
+
+    // Normaliza quebras de linha e divide por linhas
+    const linhas = texto.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(l => l.trim());
+
+    // Mapa de campos: [aliases do label] → [id do input]
+    const mapa = [
+        { labels: ['placa'],                                   campo: 'nm-placa'      },
+        { labels: ['ait', 'auto de infração', 'numero ait'],   campo: 'nm-ait'        },
+        { labels: ['descrição', 'descricao', 'enquadramento',
+                   'enquadramento/descrição', 'descrição da infração',
+                   'motivo', 'infração'],                      campo: 'nm-motivo'     },
+        { labels: ['endereço da infração', 'endereco da infracao',
+                   'endereço', 'local', 'local da infração'],  campo: 'nm-local'      },
+        { labels: ['pontuação', 'pontuacao', 'pontos'],        campo: 'nm-pontos'     },
+        { labels: ['prazo indicação', 'prazo indicacao',
+                   'prazo de indicação', 'data limite',
+                   'prazo indicação de condutor',
+                   'prazo defesa'],                            campo: 'nm-data-limite', tipo: 'data_br' },
+        { labels: ['valor da infração', 'valor da infracao',
+                   'valor', 'valor da multa'],                 campo: 'nm-valor',       tipo: 'valor'  },
+        { labels: ['data e hora', 'data da infração',
+                   'data/hora', 'data e hora da infração'],    campo: 'nm-data',        tipo: 'dataHora'},
+    ];
+
+    function normLabel(s) {
+        return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').trim();
+    }
+    function dataBrToIso(s) {
+        // 23/03/2026 → 2026-03-23
+        const m = s.match(/(\d{1,2})[\\/\-](\d{1,2})[\\/\-](\d{4})/);
+        if (!m) return '';
+        return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    }
+    function extrairValor(s) {
+        // "R$ 130,16" → "130,16"
+        return s.replace(/R\$\s*/i, '').trim();
+    }
+
+    let preenchidos = [];
+    let i = 0;
+    while (i < linhas.length) {
+        const linha = linhas[i];
+        const linhaNorm = normLabel(linha.replace(/:$/, ''));
+
+        // Verifica se a linha é um label conhecido
+        const campo = mapa.find(m => m.labels.some(l => normLabel(l) === linhaNorm));
+        if (campo) {
+            // Valor está na próxima linha não vazia
+            let valor = '';
+            let j = i + 1;
+            while (j < linhas.length && linhas[j].trim() === '') j++;
+            if (j < linhas.length) valor = linhas[j].trim();
+
+            const el = document.getElementById(campo.campo);
+            if (el && valor) {
+                if (campo.tipo === 'dataHora') {
+                    // "23/03/2026 19:11" → data e hora separados
+                    const partes = valor.split(' ');
+                    const dataIso = dataBrToIso(partes[0] || '');
+                    const hora    = (partes[1] || '').substring(0, 5);
+                    if (dataIso) {
+                        document.getElementById('nm-data').value = dataIso;
+                        if (hora) document.getElementById('nm-hora').value = hora;
+                        preenchidos.push('Data/Hora');
+                    }
+                } else if (campo.tipo === 'data_br') {
+                    const dataIso = dataBrToIso(valor);
+                    if (dataIso) { el.value = dataIso; preenchidos.push(campo.campo); }
+                } else if (campo.tipo === 'valor') {
+                    el.value = extrairValor(valor);
+                    preenchidos.push(campo.campo);
+                } else {
+                    el.value = valor;
+                    preenchidos.push(campo.campo);
+                }
+            }
+            i = j + 1;
+        } else {
+            i++;
+        }
+    }
+
+    const status = document.getElementById('nm-texto-status');
+    if (preenchidos.length > 0) {
+        if (status) status.textContent = `✅ ${preenchidos.length} campo(s) preenchido(s)!`;
+        mostrarToastSucesso(`✅ ${preenchidos.length} campo(s) preenchido(s) com sucesso!`);
+    } else {
+        if (status) status.textContent = '⚠️ Nenhum campo reconhecido.';
+        mostrarToastAviso('Nenhum campo foi reconhecido. Verifique o formato do texto.');
+    }
 }
 
 async function salvarNovaMultaLogistica(e) {
