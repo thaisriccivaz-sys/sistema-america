@@ -15699,13 +15699,20 @@ window.renderMultasMotoristaTab = async function (container) {
         try { multas = await apiGet(`/colaboradores/${colab.id}/multas`) || []; } catch (_) { }
     }
 
+    // ── Apenas multas com status Indicado ou Multa NIC aparecem no prontuário ──
+    const multasVisiveis = multas.filter(m => m.status === 'Indicado' || m.status === 'Multa NIC');
+
     container.innerHTML = '';
     container.appendChild(aviso);
 
-    if (multas.length === 0) {
+    if (multasVisiveis.length === 0) {
         const vazio = document.createElement('div');
         vazio.className = 'alert alert-info';
-        vazio.innerHTML = '<i class="ph ph-warning"></i> Nenhuma multa registrada para este colaborador.';
+        if (multas.length > 0) {
+            vazio.innerHTML = '<i class="ph ph-clock"></i> Este colaborador possui multas em processo de análise. Elas aparecerão aqui quando atingirem o status <strong>Indicado</strong> ou <strong>Multa NIC</strong>.';
+        } else {
+            vazio.innerHTML = '<i class="ph ph-warning"></i> Nenhuma multa registrada para este colaborador.';
+        }
         container.appendChild(vazio);
         return;
     }
@@ -15719,6 +15726,7 @@ window.renderMultasMotoristaTab = async function (container) {
     };
 
     multas.forEach((m, idx) => {
+        if (m.status !== 'Indicado' && m.status !== 'Multa NIC') return; // só exibe visíveis
         const dataFmt = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
         const bgStatus = STATUS_COLOR[m.status] || '#e2e8f0';
         const uid = `multa-det-${m.id || idx}`;
@@ -15726,8 +15734,8 @@ window.renderMultasMotoristaTab = async function (container) {
         // Parcelas
         const parcelas = m.parcelas ? `${m.parcelas}x` : '1x';
 
-        // Quem incluiu
-        const quemIncluiu = m.motorista_nome && m.motorista_nome !== 'null' ? m.motorista_nome : (m.created_by || '—');
+        // Quem incluiu: prioriza created_by_nome (usuário do sistema)
+        const quemIncluiu = m.created_by_nome || m.created_by || '—';
 
         // Data limite / prazo indicação
         const prazoFmt = m.data_limite ? m.data_limite.split('-').reverse().join('/') : '—';

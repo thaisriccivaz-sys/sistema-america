@@ -4499,7 +4499,6 @@ app.get('/api/logistica/multas', authenticateToken, (req, res) => {
     });
 });
 
-// MIGRATION: coluna para armazenar PDF como base64 no banco (evita perda no filesystem efêmero do Render)
 db.run("ALTER TABLE multas_logistica ADD COLUMN documento_base64 TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION multas_logistica documento_base64]', err.message);
 });
@@ -4528,11 +4527,14 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
     }
 
     const finalStatus = status || 'Conferência';
+    // Captura usuário logado
+    const createdById = req.user ? req.user.id : null;
+    const createdByNome = req.user ? (req.user.nome || req.user.username || null) : null;
 
     db.run(
-        `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite, status, documento_nome, documento_base64, motorista_id, motorista_nome, parcelas)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || 0, placa || null, local_infracao || null, data_limite || null, finalStatus, documento_nome, documento_base64, motorista_id || null, motorista_nome || null, parcelas || 1],
+        `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite, status, documento_nome, documento_base64, motorista_id, motorista_nome, parcelas, created_by_id, created_by_nome)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || 0, placa || null, local_infracao || null, data_limite || null, finalStatus, documento_nome, documento_base64, motorista_id || null, motorista_nome || null, parcelas || 1, createdById, createdByNome],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, ok: true });
@@ -4541,28 +4543,27 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
 });
 
 
-async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dataInfracao, numAit) {
+async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dataInfracao, numAit, multaExtra) {
     return new Promise((resolve, reject) => {
         if (!motoristaId) return reject(new Error('Motorista não informado. Não é possível notificar o RH.'));
         db.get('SELECT * FROM colaboradores WHERE id = ?', [motoristaId], async (err, colab) => {
             if (err || !colab) return reject(new Error('Motorista não encontrado no banco de dados.'));
-            const nodemailer = require('nodemailer');
-            const transporter = nodemailer.createTransport(SMTP_CONFIG);
-            const numericStr = (valorMultaStr || "0").toString().replace(/[^\d,-]/g, '').replace(',', '.');
-            let valorOriginal = parseFloat(numericStr) || 0;
-            let multiplicador = (status === 'Multa NIC') ? 3 : 1;
-            let valorTotalNum = valorOriginal * multiplicador;
-            let p = parseInt(parcelas) || 1;
-            let valorParcelaNum = valorTotalNum / p;
+
+            const numericStr = (valorMultaStr || '0').toString().replace(/[^\d,-]/g, '').replace(',', '.');
+            const valorOriginal = parseFloat(numericStr) || 0;
+            const multiplicador = (status === 'Multa NIC') ? 3 : 1;
+            const valorTotalNum = valorOriginal * multiplicador;
+            const p = parseInt(parcelas) || 1;
+            const valorParcelaNum = valorTotalNum / p;
             const fmt = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
             const [y, m, d] = (dataInfracao || '').split('-');
             const dataInfracaoFmt = d ? `${d}/${m}/${y}` : 'Não informada';
+
+            const extra = multaExtra || {};
+            const prazoFmt = extra.data_limite ? extra.data_limite.split('-').reverse().join('/') : '—';
+
             const htmlContent = `
-                <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <img src="cid:empresa-logo" style="max-height: 80px;">
-                    </div>
                     <h2 style="color: #2c3e50; border-bottom: 2px solid #ea580c; padding-bottom: 10px;">Desconto Financeiro - Multa de Trânsito</h2>
                     <p>Olá RH, favor realizar o desconto financeiro referente à multa de trânsito abaixo:</p>
                     <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
@@ -4600,7 +4601,7 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
 app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
     const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, parcelas, placa, local_infracao, data_limite } = req.body;
 
-    db.get('SELECT status, valor_multa, data_infracao, numero_ait, motorista_id, parcelas FROM multas_logistica WHERE id = ?', [req.params.id], (err, oldData) => {
+    db.get('SELECT * FROM multas_logistica WHERE id = ?', [req.params.id], (err, oldData) => {
         if (err || !oldData) return res.status(404).json({ error: 'Multa não encontrada' });
 
         if (oldData.status === 'Indicado' || oldData.status === 'Multa NIC') {
@@ -4633,21 +4634,23 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 if (errUpdate) return res.status(500).json({ error: errUpdate.message });
                 if (this.changes === 0) return res.status(404).json({ error: 'Multa não atualizada' });
 
-                // Automatic Email Trigger
                 if (status && (status === 'Indicado' || status === 'Multa NIC')) {
                     const finalMotorista = motorista_id || oldData.motorista_id;
                     const finalValor = valor_multa || oldData.valor_multa;
                     const finalData = data_infracao || oldData.data_infracao;
                     const finalAit = numero_ait || oldData.numero_ait;
                     const finalParcelas = parcelas || oldData.parcelas || 1;
-
-                    notificarRHAuto(finalMotorista, status, finalParcelas, finalValor, finalData, finalAit)
-                        .then(() => {
-                            res.json({ ok: true, emailEnviado: true });
-                        })
-                        .catch(errEmail => {
-                            res.status(500).json({ error: 'Salvo, mas o e-mail não foi enviado: ' + errEmail.message });
-                        });
+                    const multaExtra = {
+                        placa: placa || oldData.placa,
+                        hora_infracao: hora_infracao || oldData.hora_infracao,
+                        local_infracao: local_infracao || oldData.local_infracao,
+                        motivo: motivo || oldData.motivo,
+                        pontuacao: pontuacao || oldData.pontuacao,
+                        data_limite: data_limite || oldData.data_limite,
+                    };
+                    notificarRHAuto(finalMotorista, status, finalParcelas, finalValor, finalData, finalAit, multaExtra)
+                        .then((result) => { res.json({ ok: true, emailEnviado: true }); })
+                        .catch(errEmail => { res.status(500).json({ error: 'Salvo, mas o e-mail não foi enviado: ' + errEmail.message }); });
                 } else {
                     res.json({ ok: true });
                 }

@@ -8,7 +8,8 @@ const TIPOS_NOTIFICACAO = [
     { id: 'aviso_equipes', nome: 'Aviso de Equipe Desfalcada', icone: 'ph-users-three' },
     { id: 'formulario_experiencia', nome: 'Formulário de Experiência Preenchido', icone: 'ph-clipboard-text' },
     { id: 'licenca_vencida', nome: 'Aviso de Licença Vencida', icone: 'ph-warning-circle' },
-    { id: 'novo_sinistro', nome: 'Novo Sinistro Registrado', icone: 'ph-warning' }
+    { id: 'novo_sinistro', nome: 'Novo Sinistro Registrado', icone: 'ph-warning' },
+    { id: 'nova_multa_prontuario', nome: 'Nova Multa no Prontuário', icone: 'ph-traffic-cone' }
 ];
 
 let globalUsuariosConfig = [];

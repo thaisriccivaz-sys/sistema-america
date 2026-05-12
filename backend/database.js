@@ -491,6 +491,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('parcelas')) db.run("ALTER TABLE multas_logistica ADD COLUMN parcelas INTEGER DEFAULT 1");
                     if (!cols.includes('placa')) db.run("ALTER TABLE multas_logistica ADD COLUMN placa TEXT");
                     if (!cols.includes('local_infracao')) db.run("ALTER TABLE multas_logistica ADD COLUMN local_infracao TEXT");
+                    if (!cols.includes('created_by_id')) db.run("ALTER TABLE multas_logistica ADD COLUMN created_by_id INTEGER");
+                    if (!cols.includes('created_by_nome')) db.run("ALTER TABLE multas_logistica ADD COLUMN created_by_nome TEXT");
                 });
 
                 // Avaliacoes (Migracao estrutural para Drop and Recreate caso a tabela antiga nao tenha 'tipo')
