@@ -380,9 +380,46 @@ function abrirModalNovaMulta() {
                         <input type="date" id="nm-data-limite" style="width:100%; padding:0.6rem; border:1px solid #fed7aa; border-radius:4px; font-size:0.9rem;">
                     </div>
 
+                    <!-- NOVOS CAMPOS: Motorista e Resolução -->
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem 1.2rem; margin-bottom:1.3rem;">
+                        <h4 style="margin:0 0 1rem; color:#334155; font-size:0.95rem;">&#128100; Vínculo e Resolução (Opcional)</h4>
+                        
+                        <div style="display:flex; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;">
+                            <div style="flex:2; min-width:200px;">
+                                <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Motorista</label>
+                                <select id="nm-motorista" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                                    <option value="">-- Selecione o Motorista (Deixe em branco se não souber) --</option>
+                                    <option value="-1">Ex Colaborador</option>
+                                    ${(window.colaboradoresMultas || []).map(c => `<option value="${c.id}">${c.nome_completo || c.nome}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+                            <div style="flex:2; min-width:200px;">
+                                <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Forma de Resolução</label>
+                                <select id="nm-status" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                                    <option value="Conferência">Em Conferência (Padrão)</option>
+                                    <option value="Indicado">📋 Seguiu com a Indicação</option>
+                                    <option value="Multa NIC">💳 Optou por Pagar Multa NIC</option>
+                                    <option value="Conferido">Conferido</option>
+                                    <option value="Não Se Aplica">Não Se Aplica</option>
+                                </select>
+                            </div>
+                            <div style="flex:1; min-width:120px;">
+                                <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Parcelas</label>
+                                <select id="nm-parcelas" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                                    <option value="1">1x</option>
+                                    <option value="2">2x</option>
+                                    <option value="3">3x</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
                     <div style="display:flex; justify-content:flex-end; gap:1rem;">
                         <button type="button" onclick="this.closest('#modal-nova-multa').remove()" style="padding:0.6rem 1.2rem; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; font-weight:600; color:#475569;">Cancelar</button>
-                        <button type="submit" style="padding:0.6rem 1.2rem; background:#2563eb; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:600;">Iniciar Processo</button>
+                        <button type="submit" style="padding:0.6rem 1.2rem; background:#2563eb; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:600;">Salvar Multa</button>
                     </div>
                 </form>
             </div>
@@ -547,6 +584,21 @@ async function salvarNovaMultaLogistica(e) {
     formData.append('local_infracao', document.getElementById('nm-local').value);
     formData.append('pontuacao', document.getElementById('nm-pontos').value);
     formData.append('data_limite', document.getElementById('nm-data-limite')?.value || '');
+
+    const motoristaId = document.getElementById('nm-motorista')?.value || '';
+    if (motoristaId) {
+        formData.append('motorista_id', motoristaId);
+        if (motoristaId === '-1') {
+            formData.append('motorista_nome', 'Ex Colaborador');
+        } else {
+            const mSel = document.getElementById('nm-motorista');
+            formData.append('motorista_nome', mSel.options[mSel.selectedIndex].text);
+        }
+    }
+    const statusVal = document.getElementById('nm-status')?.value || '';
+    if (statusVal) formData.append('status', statusVal);
+    const parcVal = document.getElementById('nm-parcelas')?.value || '';
+    if (parcVal) formData.append('parcelas', parcVal);
 
     try {
         btn.textContent = 'Salvando...';

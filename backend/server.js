@@ -4397,7 +4397,7 @@ db.run("ALTER TABLE multas_logistica ADD COLUMN documento_base64 TEXT", (err) =>
 // POST /api/logistica/multas — cria nova multa
 const multaUploadMiddleware = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.single('documento'), (req, res) => {
-    const { data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite } = req.body;
+    const { data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite, motorista_id, motorista_nome, status, parcelas } = req.body;
 
     let documento_base64 = null;
     let documento_nome = null;
@@ -4406,7 +4406,6 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
         try {
             documento_base64 = req.file.buffer.toString('base64');
             // Corrige mojibake: multer recebe o filename como Latin-1 mas o browser envia UTF-8
-            // Buffer.from(str, 'latin1').toString('utf8') reinterpreta os bytes corretamente
             try {
                 const nomeBruto = req.file.originalname || '';
                 documento_nome = Buffer.from(nomeBruto, 'latin1').toString('utf8');
@@ -4418,16 +4417,19 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
         }
     }
 
+    const finalStatus = status || 'Conferência';
+
     db.run(
-        `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite, status, documento_nome, documento_base64)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Conferência', ?, ?)`,
-        [data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || 0, placa || null, local_infracao || null, data_limite || null, documento_nome, documento_base64],
+        `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite, status, documento_nome, documento_base64, motorista_id, motorista_nome, parcelas)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || 0, placa || null, local_infracao || null, data_limite || null, finalStatus, documento_nome, documento_base64, motorista_id || null, motorista_nome || null, parcelas || 1],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, ok: true });
         }
     );
 });
+
 
 async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dataInfracao, numAit) {
     return new Promise((resolve, reject) => {
@@ -8654,7 +8656,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
         const colab = await new Promise((resolve, reject) =>
             db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (e, r) => e ? reject(e) : resolve(r)));
         const multa = await new Promise((resolve, reject) =>
-            db.get('SELECT * FROM multas_logistica WHERE id = ?', [multaId], (e, r) => e ? reject(e) : resolve(r)));
+            db.get('SELECT * FROM multas WHERE id = ?', [multaId], (e, r) => e ? reject(e) : resolve(r)));
         if (!colab || !multa) return res.status(404).json({ error: !colab ? 'Colaborador não encontrado.' : 'Multa não encontrada.' });
 
 
