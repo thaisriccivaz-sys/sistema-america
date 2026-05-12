@@ -529,13 +529,18 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
     // Documentos extras já salvos
     let docsExtras = [];
     try { docsExtras = JSON.parse(multa.documentos_extras || '[]'); } catch(_) {}
-    const docsHtml = docsExtras.map((d, i) => `
+    const docsHtml = docsExtras.map((d, i) => {
+        // Corrige mojibake em nomes ja armazenados com encoding errado
+        let nomeExibir = d.nome || 'Documento ' + (i + 1);
+        try { nomeExibir = decodeURIComponent(escape(nomeExibir)); } catch(_) {}
+        return `
         <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; margin-bottom:6px;">
             <i class="ph ph-file" style="color:#64748b;"></i>
-            <span style="flex:1; font-size:0.8rem; color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${d.nome || 'Documento ' + (i+1)}</span>
+            <span style="flex:1; font-size:0.8rem; color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${nomeExibir}</span>
             <button type="button" onclick="visualizarDocExtra(${id}, ${i}); event.stopPropagation();" title="Visualizar" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-eye"></i></button>
             ${modoLeitura ? '' : `<button type="button" onclick="excluirDocExtra(${id}, ${i}); event.stopPropagation();" title="Excluir Anexo" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-trash"></i></button>`}
-        </div>`).join('');
+        </div>`;
+    }).join('');
 
     modal.innerHTML = `
         <div style="background:#fff; width:95vw; height:95vh; max-width:1400px; display:flex; flex-direction:column; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.2); overflow:hidden;">
@@ -644,7 +649,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
 
                     <!-- DOCUMENTOS EXTRAS -->
                     <div style="border-top:1px solid #e2e8f0; padding-top:1.2rem; margin-top:0.5rem;">
-                        <label style="display:block; margin-bottom:0.6rem; font-size:0.85rem; font-weight:600; color:#dc2626;">&#128206; Documentos Obrigatórios (Necessário anexar 2 arquivos)</label>
+                        <label style="display:block; margin-bottom:0.6rem; font-size:0.85rem; font-weight:600; color:#2563eb;">&#128206; Documentos Anexados</label>
                         <div id="gm-docs-lista">${docsHtml || '<p style="font-size:0.8rem;color:#94a3b8;margin:0 0 0.5rem;">Nenhum documento anexado.</p>'}</div>
                         <div style="border:1.5px dashed #cbd5e1; border-radius:8px; padding:0.75rem 1rem; background:#f8fafc; margin-top:4px;">
                             <div style="display:flex; align-items:center; gap:8px;">
@@ -889,10 +894,8 @@ async function salvarGerenciamentoMulta(e, id) {
     if (m) {
         try { docsEx = JSON.parse(m.documentos_extras || '[]'); } catch(err){}
     }
-    if (docsEx.length < 2) {
-        mostrarToastAviso('É obrigatório anexar os 2 documentos da multa antes de salvar.');
-        return;
-    }
+    // Documentos são opcionais — sem validação de quantidade mínima
+
 
     const btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true;

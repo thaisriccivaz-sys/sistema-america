@@ -4405,7 +4405,14 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
     if (req.file) {
         try {
             documento_base64 = req.file.buffer.toString('base64');
-            documento_nome = req.file.originalname;
+            // Corrige mojibake: multer recebe o filename como Latin-1 mas o browser envia UTF-8
+            // Buffer.from(str, 'latin1').toString('utf8') reinterpreta os bytes corretamente
+            try {
+                const nomeBruto = req.file.originalname || '';
+                documento_nome = Buffer.from(nomeBruto, 'latin1').toString('utf8');
+            } catch (_) {
+                documento_nome = req.file.originalname;
+            }
         } catch (fileErr) {
             console.error('[MULTA-UPLOAD] Erro ao converter PDF:', fileErr.message);
         }
@@ -4605,8 +4612,12 @@ app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaEx
         let extras = [];
         try { extras = JSON.parse(row.documentos_extras || '[]'); } catch (_) { }
 
+        // Corrige mojibake no nome do arquivo
+        let nomeArquivo = req.file.originalname || '';
+        try { nomeArquivo = Buffer.from(nomeArquivo, 'latin1').toString('utf8'); } catch(_) {}
+
         const novoDoc = {
-            nome: req.file.originalname,
+            nome: nomeArquivo,
             tipo: req.file.mimetype,
             base64: req.file.buffer.toString('base64'),
             adicionado_em: new Date().toISOString()
