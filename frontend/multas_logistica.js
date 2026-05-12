@@ -383,11 +383,30 @@ async function salvarNovaMulta(e) {
     e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true;
-    btn.textContent = 'Salvando...';
+    btn.textContent = 'Conectando...';
 
     const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
 
-    // 1ª etapa: Salva os dados textuais (sem PDF para evitar timeout/limite de tamanho)
+    // Helper: aguardar N milissegundos
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    // Helper: fetch com retry automático (acorda o servidor Render se estiver dormindo)
+    async function fetchComRetry(url, options, tentativas = 3, delayMs = 2000) {
+        for (let i = 0; i < tentativas; i++) {
+            try {
+                const resp = await fetch(url, options);
+                return resp;
+            } catch (err) {
+                if (i === tentativas - 1) throw err; // última tentativa: propaga o erro
+                console.warn(`[fetchComRetry] Tentativa ${i + 1} falhou (${err.message}). Aguardando ${delayMs}ms...`);
+                btn.textContent = `Reconectando (${i + 2}/${tentativas})...`;
+                await sleep(delayMs);
+                delayMs = Math.min(delayMs * 2, 8000); // delay progressivo: 2s, 4s, 8s
+            }
+        }
+    }
+
+    // Dados textuais (sem PDF — enviado separadamente para evitar timeout)
     const formData = new FormData();
     formData.append('data_infracao', document.getElementById('nm-data').value);
     formData.append('hora_infracao', document.getElementById('nm-hora').value);
@@ -398,10 +417,10 @@ async function salvarNovaMulta(e) {
     formData.append('local_infracao', document.getElementById('nm-local').value);
     formData.append('pontuacao', document.getElementById('nm-pontos').value);
     formData.append('data_limite', document.getElementById('nm-data-limite')?.value || '');
-    // Não envia o PDF aqui — será enviado separadamente
 
     try {
-        const response = await fetch('/api/logistica/multas', {
+        btn.textContent = 'Salvando...';
+        const response = await fetchComRetry('/api/logistica/multas', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
             body: formData
@@ -422,17 +441,17 @@ async function salvarNovaMulta(e) {
             try {
                 const fdDoc = new FormData();
                 fdDoc.append('documento', fileInput.files[0]);
-                const docResp = await fetch(`/api/logistica/multas/${novoId}/documento-extra`, {
+                const docResp = await fetchComRetry(`/api/logistica/multas/${novoId}/documento-extra`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
                     body: fdDoc
                 });
                 if (!docResp.ok) {
-                    mostrarToastAviso('Multa criada, mas falha ao anexar PDF. Anexe manualmente pelo ⋮ Gerenciar.');
+                    mostrarToastAviso('Multa criada, mas falha ao anexar PDF. Anexe pelo ✏️ Gerenciar.');
                 }
             } catch (docErr) {
                 console.warn('[salvarNovaMulta] Erro ao enviar PDF:', docErr.message);
-                mostrarToastAviso('Multa criada, mas falha ao anexar PDF. Anexe manualmente pelo ⋮ Gerenciar.');
+                mostrarToastAviso('Multa criada, mas falha ao anexar PDF. Anexe pelo ✏️ Gerenciar.');
             }
         }
 
@@ -444,9 +463,10 @@ async function salvarNovaMulta(e) {
         console.error('[salvarNovaMulta]', err);
         btn.disabled = false;
         btn.textContent = 'Iniciar Processo';
-        mostrarToastErro('Erro ao salvar multa: ' + err.message);
+        mostrarToastErro('Erro ao salvar: ' + err.message + ' — Tente novamente.');
     }
 }
+
 
 function abrirModalGerenciarMulta(id, focoMotorista = false) {
     const multa = multasLogistica.find(m => m.id === id);
