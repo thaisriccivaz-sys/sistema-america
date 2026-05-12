@@ -9365,36 +9365,22 @@ window._abrirPopupVT = function (geradorId, geradorNome) {
 
         <!-- Seção SIM: endereço + linhas -->
         <div id="vt-secao-sim" style="display:none;">
-          <!-- Endereço Residencial -->
-          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:1rem;margin-bottom:1rem;">
+          <!-- Endereço Residencial — oculto conforme solicitado -->
+          <div style="display:none;">
             <p style="margin:0 0 0.7rem;font-weight:700;color:#15803d;font-size:0.9rem;">📍 Endereço Residencial Atual</p>
             <div style="display:grid;grid-template-columns:1fr 100px;gap:0.6rem;margin-bottom:0.6rem;">
               <div>
-                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:2px;">Rua/Avenida</label>
-                <input id="vt-end" type="text" value="${endComp}" placeholder="Ex: Rua das Flores" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.88rem;box-sizing:border-box;">
+                <input id="vt-end" type="text" value="${endComp}">
               </div>
               <div>
-                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:2px;">Número</label>
-                <input id="vt-num" type="text" placeholder="123" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.88rem;box-sizing:border-box;">
+                <input id="vt-num" type="text">
               </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 130px 70px 130px;gap:0.6rem;">
-              <div>
-                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:2px;">Bairro</label>
-                <input id="vt-bairro" type="text" placeholder="Bairro" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.88rem;box-sizing:border-box;">
-              </div>
-              <div>
-                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:2px;">Cidade</label>
-                <input id="vt-cidade" type="text" value="Guarulhos" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.88rem;box-sizing:border-box;">
-              </div>
-              <div>
-                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:2px;">UF</label>
-                <input id="vt-uf" type="text" value="SP" maxlength="2" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.88rem;box-sizing:border-box;">
-              </div>
-              <div>
-                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:2px;">CEP</label>
-                <input id="vt-cep" type="text" placeholder="00000-000" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.88rem;box-sizing:border-box;">
-              </div>
+            <div>
+              <input id="vt-bairro" type="text">
+              <input id="vt-cidade" type="text" value="Guarulhos">
+              <input id="vt-uf" type="text" value="SP">
+              <input id="vt-cep" type="text">
             </div>
           </div>
 
