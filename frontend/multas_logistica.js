@@ -385,6 +385,9 @@ async function salvarNovaMulta(e) {
     btn.disabled = true;
     btn.textContent = 'Salvando...';
 
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+
+    // 1ª etapa: Salva os dados textuais (sem PDF para evitar timeout/limite de tamanho)
     const formData = new FormData();
     formData.append('data_infracao', document.getElementById('nm-data').value);
     formData.append('hora_infracao', document.getElementById('nm-hora').value);
@@ -395,39 +398,53 @@ async function salvarNovaMulta(e) {
     formData.append('local_infracao', document.getElementById('nm-local').value);
     formData.append('pontuacao', document.getElementById('nm-pontos').value);
     formData.append('data_limite', document.getElementById('nm-data-limite')?.value || '');
-
-    const fileInput = document.getElementById('nm-doc');
-    if (fileInput && fileInput.files.length > 0) {
-        formData.append('documento', fileInput.files[0]);
-    }
-
-    let settled = false;
-    const fecharEAtualizar = async (msg, tipo = 'sucesso') => {
-        if (settled) return;
-        settled = true;
-        document.getElementById('modal-nova-multa')?.remove();
-        await carregarMultasLogistica();
-        if (tipo === 'sucesso') mostrarToastSucesso(msg);
-        else mostrarToastAviso(msg);
-    };
-
-    const timeoutId = setTimeout(() => {
-        fecharEAtualizar('Multa salva! Lista atualizada.', 'sucesso');
-    }, 9000);
+    // Não envia o PDF aqui — será enviado separadamente
 
     try {
-        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
         const response = await fetch('/api/logistica/multas', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
             body: formData
         });
-        clearTimeout(timeoutId);
-        await fecharEAtualizar('Multa cadastrada e processo iniciado!');
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error || `Erro HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        const novoId = result.id;
+
+        // 2ª etapa: se há PDF, envia separadamente via /documento-extra
+        const fileInput = document.getElementById('nm-doc');
+        if (novoId && fileInput && fileInput.files.length > 0) {
+            btn.textContent = 'Anexando PDF...';
+            try {
+                const fdDoc = new FormData();
+                fdDoc.append('documento', fileInput.files[0]);
+                const docResp = await fetch(`/api/logistica/multas/${novoId}/documento-extra`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: fdDoc
+                });
+                if (!docResp.ok) {
+                    mostrarToastAviso('Multa criada, mas falha ao anexar PDF. Anexe manualmente pelo ⋮ Gerenciar.');
+                }
+            } catch (docErr) {
+                console.warn('[salvarNovaMulta] Erro ao enviar PDF:', docErr.message);
+                mostrarToastAviso('Multa criada, mas falha ao anexar PDF. Anexe manualmente pelo ⋮ Gerenciar.');
+            }
+        }
+
+        document.getElementById('modal-nova-multa')?.remove();
+        await carregarMultasLogistica();
+        mostrarToastSucesso('✅ Multa cadastrada com sucesso!');
+
     } catch (err) {
-        clearTimeout(timeoutId);
         console.error('[salvarNovaMulta]', err);
-        await fecharEAtualizar('Multa salva! Lista atualizada.', 'sucesso');
+        btn.disabled = false;
+        btn.textContent = 'Iniciar Processo';
+        mostrarToastErro('Erro ao salvar multa: ' + err.message);
     }
 }
 
