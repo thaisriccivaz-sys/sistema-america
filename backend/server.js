@@ -7275,6 +7275,15 @@ app.get('/avaliacao-publica.html', (req, res) => {
 });
 
 // --- SERVIR ARQUIVOS ESTÁTICOS ---
+// JS e HTML nunca são cacheados (garantia de que o browser sempre usa a versão mais recente)
+app.use((req, res, next) => {
+    if (req.path.endsWith('.js') || req.path.endsWith('.html') || req.path === '/') {
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+    }
+    next();
+});
 app.use(express.static(path.join(__dirname, '../frontend')));
 app.use('/files', express.static(path.join(__dirname, '..', '..')));
 
