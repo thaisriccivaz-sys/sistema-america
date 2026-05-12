@@ -196,18 +196,23 @@ function calcularCargaTotalFromLista() {
         }
 
         if (isManutencao || tipoServico.includes('RETIRADA') || tipoServico.includes('TROCA')) {
+            const isRetiradaEvento = tipoServico.includes('RETIRADA') && tipoServico.includes('EVENTO');
             if (equipamento.includes('EVENTO')) {
-                switch (equipamento) {
-                    case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO':
-                    case 'PCD EVENTO': case 'CHUVEIRO EVENTO': case 'HIDRÁULICO EVENTO':
-                        cargaTanq = 5 * quantidade; break;
-                    case 'MICTÓRIO EVENTO':
-                        cargaTanq = 10 * quantidade; break;
-                    case 'PIA II EVENTO': case 'PIA III EVENTO':
-                        cargaTanq = 1 * quantidade; break;
-                    default:
-                        cargaTanq = quantidade;
+                // RETIRADA EVENTO: tanque = 0 (evento não gera carga de tanque em retirada)
+                if (!isRetiradaEvento) {
+                    switch (equipamento) {
+                        case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO':
+                        case 'PCD EVENTO': case 'CHUVEIRO EVENTO': case 'HIDRÁULICO EVENTO':
+                            cargaTanq = 5 * quantidade; break;
+                        case 'MICTÓRIO EVENTO':
+                            cargaTanq = 10 * quantidade; break;
+                        case 'PIA II EVENTO': case 'PIA III EVENTO':
+                            cargaTanq = 1 * quantidade; break;
+                        default:
+                            cargaTanq = quantidade;
+                    }
                 }
+                // Se isRetiradaEvento: cargaTanq permanece 0
             } else if (equipamento.includes('OBRA') || equipamento.includes('AVULSA')) {
                 switch (equipamento) {
                     case 'STD OBRA': case 'LX OBRA': case 'ELX OBRA':

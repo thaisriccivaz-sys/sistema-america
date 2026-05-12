@@ -641,16 +641,21 @@ async function pipelineExportarExcel(registrosOverride) {
             }
 
             if (ts.includes('manut') || ts.includes('manutenção') || ts.includes('retirada') || ts.includes('troca')) {
+                const isRetiradaEvento = (ts.includes('retirada') || ts.includes('troca')) && ts.includes('evento');
                 if (equipamento.includes('EVENTO')) {
-                    if (['STD EVENTO', 'LX EVENTO', 'EXL EVENTO', 'PCD EVENTO', 'CHUVEIRO EVENTO', 'HIDRÁULICO EVENTO'].includes(equipamento)) {
-                        cargaTanq = 5 * quantidade;
-                    } else if (equipamento === 'MICTÓRIO EVENTO') {
-                        cargaTanq = 10 * quantidade;
-                    } else if (['PIA II EVENTO', 'PIA III EVENTO'].includes(equipamento)) {
-                        cargaTanq = 1 * quantidade;
-                    } else {
-                        cargaTanq = quantidade;
+                    // RETIRADA EVENTO: tanque = 0 (evento não gera carga de tanque em retirada)
+                    if (!isRetiradaEvento) {
+                        if (['STD EVENTO', 'LX EVENTO', 'EXL EVENTO', 'PCD EVENTO', 'CHUVEIRO EVENTO', 'HIDRÁULICO EVENTO'].includes(equipamento)) {
+                            cargaTanq = 5 * quantidade;
+                        } else if (equipamento === 'MICTÓRIO EVENTO') {
+                            cargaTanq = 10 * quantidade;
+                        } else if (['PIA II EVENTO', 'PIA III EVENTO'].includes(equipamento)) {
+                            cargaTanq = 1 * quantidade;
+                        } else {
+                            cargaTanq = quantidade;
+                        }
                     }
+                    // Se isRetiradaEvento: cargaTanq permanece 0
                 } else if (equipamento.includes('OBRA') || equipamento.includes('AVULSA')) {
                     if (['STD OBRA', 'LX OBRA', 'EXL OBRA', 'PBII OBRA', 'PBIII OBRA', 'CHUVEIRO OBRA', 'HIDRÁULICO OBRA'].includes(equipamento)) {
                         cargaTanq = 1 * quantidade;
