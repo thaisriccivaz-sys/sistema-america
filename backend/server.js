@@ -956,7 +956,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V50_EXCLUIR_CONTRATOS' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V51_FIX_CONTRATOS_AVULSOS_PATH' }));
 
 app.get('/api/debug-pfx3', async (req, res) => {
     try {
@@ -1243,12 +1243,19 @@ async function pollAdmissaoAssinaturas() {
                             const isContratosAvulso = doc.tab_name === 'CONTRATOS_AVULSOS';
 
                             if (isContratos || isContratosAvulso) {
-                                // CONTRATOS e CONTRATOS_AVULSOS: ambos vão para pasta CONTRATOS/ sem subpasta de ano
-                                // Usando o file_name original para sobrescrever o documento não-assinado com o assinado
-                                cloudName = doc.file_name;
+                                // Ambos vão para pasta CONTRATOS/ no OneDrive
                                 targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
+                                if (isContratosAvulso) {
+                                    // Contratos Avulsos: sufixo _ASSINADO para nao sobrepor o original pendente
+                                    const ext = doc.file_name ? (doc.file_name.match(/\.[^.]+$/) || [''])[0] : '.pdf';
+                                    const baseName = doc.file_name ? doc.file_name.replace(/\.[^.]+$/, '') : `Contrato_${safeColab}`;
+                                    cloudName = `${baseName}_ASSINADO${ext}`;
+                                } else {
+                                    // Contratos de Admissao: mesmo nome para sobrescrever o original
+                                    cloudName = doc.file_name;
+                                }
                                 await onedrive.ensurePath(targetDir);
-                                console.log(`[POLL-ASSINATURAS] Contrato assinado: sobrescrevendo ${cloudName} em ${targetDir}`);
+                                console.log(`[POLL-ASSINATURAS] Contrato assinado (${doc.tab_name}): salvando como ${cloudName} em ${targetDir}`);
                             } else {
                                 cloudName = isAtestado
                                     ? (doc.file_name || 'Atestado.pdf').replace(/_\d{8}_\d{6}(\.\w+)$/, '$1')
