@@ -9317,8 +9317,53 @@ window.uploadContratoPerfilNaoAssinado = async function (input, geradorNome) {
 // ═══════════════════════════════════════════════════════════
 window._abrirPopupVT = function (geradorId, geradorNome) {
     const c = viewedColaborador || {};
-    // Tenta extrair partes do endereço já cadastrado
-    const endComp = c.endereco || '';
+
+    // ── Parser de endereço do colaborador ──────────────────────────────────
+    // O campo `endereco` pode ser uma string composta. Tenta extrair as partes.
+    const endFull = c.endereco || '';
+
+    // Se o colaborador tiver campos separados (endereco, bairro, cidade, cep, etc.) usa-os
+    // Caso contrário, tenta fazer o parse da string completa
+    let vtRua    = c.vt_rua    || c.end_rua    || '';
+    let vtNumero = c.vt_numero || c.end_numero || '';
+    let vtBairro = c.vt_bairro || c.end_bairro || c.bairro || '';
+    let vtCidade = c.vt_cidade || c.end_cidade || c.cidade || 'Guarulhos';
+    let vtUF     = c.vt_uf    || c.end_uf     || c.uf     || 'SP';
+    let vtCEP    = c.vt_cep   || c.end_cep    || c.cep    || '';
+
+    if (!vtRua && endFull) {
+        // Padrão comum: "Rua das Flores, 123, Bairro, Guarulhos - SP, 00000-000"
+        // Tenta extrair por vírgulas
+        const partes = endFull.split(',').map(p => p.trim());
+        vtRua    = partes[0] || '';
+        // Número pode ser 2ª parte numérica ou embutido na rua ("Rua X 123")
+        if (partes[1] && /^\d/.test(partes[1])) {
+            vtNumero = partes[1];
+            vtBairro = vtBairro || partes[2] || '';
+            const cidadeUF = partes[3] || '';
+            if (cidadeUF.includes('-')) {
+                const [cid, uf] = cidadeUF.split('-').map(x => x.trim());
+                if (!vtCidade || vtCidade === 'Guarulhos') vtCidade = cid || vtCidade;
+                if (!vtUF || vtUF === 'SP') vtUF = uf || vtUF;
+            } else if (cidadeUF) {
+                if (!vtCidade || vtCidade === 'Guarulhos') vtCidade = cidadeUF;
+            }
+            // CEP costuma ser a última parte numérica
+            const cepParte = partes[partes.length - 1] || '';
+            if (/\d{5}-?\d{3}/.test(cepParte) && !vtCEP) vtCEP = cepParte.match(/\d{5}-?\d{3}/)[0];
+        } else {
+            // Tenta extrair número embutido na string da rua: "Rua das Flores 123"
+            const mNum = vtRua.match(/^(.+?)\s+(\d+[A-Za-z]?)$/);
+            if (mNum) { vtRua = mNum[1]; vtNumero = mNum[2]; }
+            vtBairro = vtBairro || partes[1] || '';
+        }
+    }
+
+    // CEP: tenta extrair do campo endFull como fallback
+    if (!vtCEP && endFull) {
+        const mCEP = endFull.match(/\d{5}-?\d{3}/);
+        if (mCEP) vtCEP = mCEP[0];
+    }
 
     const modalId = 'modal-popup-vt';
     const prev = document.getElementById(modalId);
@@ -9365,22 +9410,14 @@ window._abrirPopupVT = function (geradorId, geradorNome) {
 
         <!-- Seção SIM: endereço + linhas -->
         <div id="vt-secao-sim" style="display:none;">
-          <!-- Endereço Residencial — oculto conforme solicitado -->
+          <!-- Endereço Residencial — oculto, preenchido automaticamente do cadastro -->
           <div style="display:none;">
-            <p style="margin:0 0 0.7rem;font-weight:700;color:#15803d;font-size:0.9rem;">📍 Endereço Residencial Atual</p>
-            <div style="display:grid;grid-template-columns:1fr 100px;gap:0.6rem;margin-bottom:0.6rem;">
-              <div>
-                <input id="vt-end" type="text" value="${endComp}">
-              </div>
-              <div>
-                <input id="vt-num" type="text">
-              </div>
-            </div>
-            <div>
-              <input id="vt-bairro" type="text">
-              <input id="vt-cidade" type="text" value="Guarulhos">
-              <input id="vt-uf" type="text" value="SP">
-              <input id="vt-cep" type="text">
+            <input id="vt-end"    type="text" value="${vtRua}">
+            <input id="vt-num"    type="text" value="${vtNumero}">
+            <input id="vt-bairro" type="text" value="${vtBairro}">
+            <input id="vt-cidade" type="text" value="${vtCidade}">
+            <input id="vt-uf"     type="text" value="${vtUF}">
+            <input id="vt-cep"    type="text" value="${vtCEP}">
             </div>
           </div>
 
