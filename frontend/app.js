@@ -9038,6 +9038,7 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                 { nome: 'Recebimento de Regimento Interno', cond: true },
                 { nome: 'Regras Sorteio Final de Ano', cond: true },
                 { nome: 'Termo de Confidencialidade', cond: true },
+                { nome: 'Solicitação de VT', cond: true },
             ];
             autoGeradores = LEGACY_MAP
                 .filter(m => m.cond)
@@ -9311,7 +9312,234 @@ window.uploadContratoPerfilNaoAssinado = async function (input, geradorNome) {
     }
 };
 
+// ═══════════════════════════════════════════════════════════
+// POPUP ESPECIAL: Solicitação de Vale Transporte (VT)
+// ═══════════════════════════════════════════════════════════
+window._abrirPopupVT = function (geradorId, geradorNome) {
+    const c = viewedColaborador || {};
+    // Tenta extrair partes do endereço já cadastrado
+    const endComp = c.endereco || '';
+
+    const modalId = 'modal-popup-vt';
+    const prev = document.getElementById(modalId);
+    if (prev) prev.remove();
+
+    const el = document.createElement('div');
+    el.id = modalId;
+    el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.75);display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto;';
+    el.innerHTML = `
+    <div style="background:#fff;border-radius:14px;width:100%;max-width:700px;box-shadow:0 25px 80px rgba(0,0,0,0.35);max-height:92vh;display:flex;flex-direction:column;">
+      <!-- Header -->
+      <div style="background:#0f172a;padding:1.1rem 1.5rem;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:36px;height:36px;background:rgba(245,3,197,0.2);border-radius:9px;display:flex;align-items:center;justify-content:center;">
+            <i class="ph ph-bus" style="color:#f503c5;font-size:1.2rem;"></i>
+          </div>
+          <div>
+            <h3 style="margin:0;color:#f1f5f9;font-size:1rem;font-weight:700;">Solicitação de Vale Transporte</h3>
+            <p style="margin:0;color:#94a3b8;font-size:0.75rem;">${c.nome_completo || ''}</p>
+          </div>
+        </div>
+        <button onclick="document.getElementById('${modalId}').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#94a3b8;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">&times;</button>
+      </div>
+
+      <!-- Body -->
+      <div style="overflow-y:auto;flex:1;padding:1.5rem;">
+
+        <!-- Opção VT -->
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:1.2rem;margin-bottom:1.2rem;">
+          <p style="margin:0 0 0.8rem;font-weight:700;color:#334155;font-size:0.95rem;">O colaborador opta pela utilização do Vale Transporte?</p>
+          <div style="display:flex;gap:2rem;">
+            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:1rem;font-weight:600;color:#16a34a;">
+              <input type="radio" name="vt-opcao" value="sim" id="vt-opcao-sim"
+                onchange="document.getElementById('vt-secao-sim').style.display='block';document.getElementById('vt-secao-nao').style.display='none';">
+              ✅ Sim — Opto pelo Vale Transporte
+            </label>
+            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:1rem;font-weight:600;color:#dc2626;">
+              <input type="radio" name="vt-opcao" value="nao" id="vt-opcao-nao"
+                onchange="document.getElementById('vt-secao-sim').style.display='none';document.getElementById('vt-secao-nao').style.display='block';">
+              ❌ Não — Não opto pelo Vale Transporte
+            </label>
+          </div>
+        </div>
+
+        <!-- Seção SIM: endereço + linhas -->
+        <div id="vt-secao-sim" style="display:none;">
+          <!-- Endereço Residencial -->
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:1rem;margin-bottom:1rem;">
+            <p style="margin:0 0 0.7rem;font-weight:700;color:#15803d;font-size:0.9rem;">📍 Endereço Residencial Atual</p>
+            <div style="display:grid;grid-template-columns:1fr 100px;gap:0.6rem;margin-bottom:0.6rem;">
+              <div>
+                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:2px;">Rua/Avenida</label>
+                <input id="vt-end" type="text" value="${endComp}" placeholder="Ex: Rua das Flores" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.88rem;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:2px;">Número</label>
+                <input id="vt-num" type="text" placeholder="123" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.88rem;box-sizing:border-box;">
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 130px 70px 130px;gap:0.6rem;">
+              <div>
+                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:2px;">Bairro</label>
+                <input id="vt-bairro" type="text" placeholder="Bairro" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.88rem;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:2px;">Cidade</label>
+                <input id="vt-cidade" type="text" value="Guarulhos" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.88rem;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:2px;">UF</label>
+                <input id="vt-uf" type="text" value="SP" maxlength="2" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.88rem;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:2px;">CEP</label>
+                <input id="vt-cep" type="text" placeholder="00000-000" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.88rem;box-sizing:border-box;">
+              </div>
+            </div>
+          </div>
+
+          <!-- Linhas de Transporte Residência→Trabalho -->
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:1rem;margin-bottom:0.8rem;">
+            <p style="margin:0 0 0.6rem;font-weight:700;color:#1d4ed8;font-size:0.9rem;">🚌 Residência → Trabalho</p>
+            <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+              <thead><tr style="background:#dbeafe;">
+                <th style="border:1px solid #bfdbfe;padding:5px 8px;text-align:center;width:40px;">#</th>
+                <th style="border:1px solid #bfdbfe;padding:5px 8px;text-align:left;">Empresa Transportadora</th>
+                <th style="border:1px solid #bfdbfe;padding:5px 8px;text-align:center;width:110px;">Tarifa R$</th>
+              </tr></thead>
+              <tbody id="vt-linhas-rt">
+                ${[1,2,3,4,5,6].map(i => `<tr>
+                  <td style="border:1px solid #bfdbfe;padding:4px 8px;text-align:center;color:#64748b;">${i}</td>
+                  <td style="border:1px solid #bfdbfe;padding:3px 6px;"><input type="text" placeholder="Nome da linha/empresa" style="width:100%;border:none;outline:none;font-size:0.83rem;background:transparent;" id="vt-rt-emp-${i}"></td>
+                  <td style="border:1px solid #bfdbfe;padding:3px 6px;"><input type="text" placeholder="0,00" style="width:100%;border:none;outline:none;font-size:0.83rem;background:transparent;text-align:center;" id="vt-rt-tar-${i}"></td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Linhas de Transporte Trabalho→Residência -->
+          <div style="background:#fdf4ff;border:1px solid #f0abfc;border-radius:10px;padding:1rem;">
+            <p style="margin:0 0 0.6rem;font-weight:700;color:#c026d3;font-size:0.9rem;">🚌 Trabalho → Residência</p>
+            <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+              <thead><tr style="background:#fae8ff;">
+                <th style="border:1px solid #f0abfc;padding:5px 8px;text-align:center;width:40px;">#</th>
+                <th style="border:1px solid #f0abfc;padding:5px 8px;text-align:left;">Empresa Transportadora</th>
+                <th style="border:1px solid #f0abfc;padding:5px 8px;text-align:center;width:110px;">Tarifa R$</th>
+              </tr></thead>
+              <tbody id="vt-linhas-tr">
+                ${[1,2,3,4,5,6].map(i => `<tr>
+                  <td style="border:1px solid #f0abfc;padding:4px 8px;text-align:center;color:#64748b;">${i}</td>
+                  <td style="border:1px solid #f0abfc;padding:3px 6px;"><input type="text" placeholder="Nome da linha/empresa" style="width:100%;border:none;outline:none;font-size:0.83rem;background:transparent;" id="vt-tr-emp-${i}"></td>
+                  <td style="border:1px solid #f0abfc;padding:3px 6px;"><input type="text" placeholder="0,00" style="width:100%;border:none;outline:none;font-size:0.83rem;background:transparent;text-align:center;" id="vt-tr-tar-${i}"></td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Seção NÃO -->
+        <div id="vt-secao-nao" style="display:none;">
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:1.2rem;text-align:center;">
+            <i class="ph ph-x-circle" style="font-size:2rem;color:#dc2626;"></i>
+            <p style="margin:0.5rem 0 0;color:#b91c1c;font-weight:600;">O colaborador não optou pelo Vale Transporte.</p>
+            <p style="margin:0.3rem 0 0;color:#64748b;font-size:0.85rem;">O documento será gerado com a opção "Não opto" marcada e enviado para assinatura.</p>
+          </div>
+        </div>
+
+      </div><!-- /body -->
+
+      <!-- Footer -->
+      <div style="padding:1rem 1.5rem;background:#f8fafc;border-top:1px solid #e2e8f0;border-radius:0 0 14px 14px;display:flex;justify-content:flex-end;gap:0.75rem;flex-shrink:0;">
+        <button onclick="document.getElementById('${modalId}').remove()" style="padding:0.6rem 1.4rem;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer;font-weight:600;color:#475569;">Cancelar</button>
+        <button id="vt-btn-gerar" onclick="window._gerarVTConfirmado('${geradorId}', '${geradorNome.replace(/'/g, "\\'")}')"
+          style="padding:0.6rem 1.6rem;background:#9333ea;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;">
+          <i class="ph ph-file-arrow-down"></i> Gerar Documento
+        </button>
+      </div>
+    </div>`;
+
+    document.body.appendChild(el);
+};
+
+window._gerarVTConfirmado = async function (geradorId, geradorNome) {
+    const opcao = document.querySelector('input[name="vt-opcao"]:checked');
+    if (!opcao) { alert('Selecione se o colaborador opta ou não pelo Vale Transporte.'); return; }
+
+    const vtOpcao = opcao.value; // 'sim' | 'nao'
+    const btn = document.getElementById('vt-btn-gerar');
+    if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...'; btn.disabled = true; }
+
+    const body = {
+        colaborador_id: viewedColaborador.id,
+        colabId: viewedColaborador.id,
+        vt_opcao: vtOpcao,
+        vt_endereco: document.getElementById('vt-end')?.value || '',
+        vt_numero: document.getElementById('vt-num')?.value || '',
+        vt_bairro: document.getElementById('vt-bairro')?.value || '',
+        vt_cidade: document.getElementById('vt-cidade')?.value || 'Guarulhos',
+        vt_uf: document.getElementById('vt-uf')?.value || 'SP',
+        vt_cep: document.getElementById('vt-cep')?.value || '',
+    };
+
+    // Montar linhas RT e TR
+    const rt = [], tr = [];
+    for (let i = 1; i <= 6; i++) {
+        const empRT = document.getElementById(`vt-rt-emp-${i}`)?.value || '';
+        const tarRT = document.getElementById(`vt-rt-tar-${i}`)?.value || '';
+        rt.push({ empresa: empRT, tarifa: tarRT });
+        const empTR = document.getElementById(`vt-tr-emp-${i}`)?.value || '';
+        const tarTR = document.getElementById(`vt-tr-tar-${i}`)?.value || '';
+        tr.push({ empresa: empTR, tarifa: tarTR });
+    }
+    body.vt_linhas_rt = JSON.stringify(rt);
+    body.vt_linhas_tr = JSON.stringify(tr);
+
+    try {
+        const res = await fetch(`${API_URL}/geradores/${geradorId}/gerar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao gerar documento');
+
+        // Fecha popup VT
+        const modalVT = document.getElementById('modal-popup-vt');
+        if (modalVT) modalVT.remove();
+
+        window._perfilGeradorIdCtx = geradorId;
+        window._perfilGeradorNomeCtx = geradorNome;
+
+        window.abrirPreviewDocumento(data);
+
+        setTimeout(() => {
+            const previewBtns = document.getElementById('preview-doc-buttons');
+            if (previewBtns) {
+                previewBtns.innerHTML = `
+                    <button class="btn btn-secondary" onclick="window.fecharPreviewEHabitarEnvio()">
+                        <i class="ph ph-x"></i> Fechar Prévia
+                    </button>
+                    <button id="btn-anexar-prontuario" class="btn" onclick="window.anexarAoProntuarioPerfil(this)"
+                        style="background:#7c3aed;color:#fff;border-color:#7c3aed;display:inline-flex;align-items:center;gap:6px;font-weight:600;">
+                        <i class="ph ph-paperclip"></i> Anexar ao Prontuário
+                    </button>
+                `;
+            }
+        }, 150);
+    } catch (e) {
+        if (btn) { btn.innerHTML = '<i class="ph ph-file-arrow-down"></i> Gerar Documento'; btn.disabled = false; }
+        Swal.fire('Erro', e.message, 'error');
+    }
+};
+
 window.previewContratoPerfilAssinado = async function (geradorId, geradorNome) {
+    // ── Intercepção especial para Solicitação de VT ────────────────────────────
+    if ((geradorNome || '').toLowerCase().includes('solicita') && (geradorNome || '').toLowerCase().includes('vt')) {
+        window._abrirPopupVT(geradorId, geradorNome);
+        return;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     Swal.fire({ title: 'Gerando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
         const res = await fetch(`${API_URL}/geradores/${geradorId}/gerar`, {
@@ -10567,6 +10795,7 @@ window.initAdmissaoWorkflow = async function (colabId, step, silent) {
                     { nome: 'Recebimento de Regimento Interno', cond: true },
                     { nome: 'Regras Sorteio Final de Ano', cond: true },
                     { nome: 'Termo de Confidencialidade', cond: true },
+                    { nome: 'Solicitação de VT', cond: true },
                 ];
                 autoGeradores = LEGACY_MAP.filter(m => m.cond).map(m => geradoresElegiveis.find(g => deNorm(g.nome) === deNorm(m.nome))).filter(Boolean);
             }

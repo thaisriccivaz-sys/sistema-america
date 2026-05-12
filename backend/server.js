@@ -558,6 +558,116 @@ GERADORES_PERFIL.forEach(nome => {
     );
 })();
 
+// MIGRATION: Seed do gerador "Solicitação de VT"
+(function seedSolicitacaoVT() {
+    const nomeGerador = 'Solicitação de VT';
+    const conteudoHTML = `
+<div style="font-family:Arial,sans-serif;font-size:11px;color:#000;max-width:720px;margin:0 auto;padding:10px;">
+  <table style="width:100%;border-collapse:collapse;border:2px solid #000;margin-bottom:0;">
+    <tr><td colspan="3" style="text-align:center;font-weight:bold;font-size:14px;border:1px solid #000;padding:6px 0;">SOLICITAÇÃO DO VALE - TRANSPORTE</td></tr>
+    <tr>
+      <td style="border:1px solid #000;padding:5px 8px;" colspan="2"><b>Nome Empregado:</b> \${NOME_COMPLETO}</td>
+      <td style="border:1px solid #000;padding:5px 8px;white-space:nowrap;"><b>Nº Reg.:</b> \${ID}</td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #000;padding:5px 8px;"><b>Função:</b> \${CARGO}</td>
+      <td style="border:1px solid #000;padding:5px 8px;"><b>CTPS Nº:</b> \${CTPS}</td>
+      <td style="border:1px solid #000;padding:5px 8px;"><b>Série:</b></td>
+    </tr>
+  </table>
+  <table style="width:100%;border-collapse:collapse;border:2px solid #000;border-top:none;margin-bottom:0;">
+    <tr>
+      <td style="border:1px solid #000;padding:5px 8px;" colspan="3">À</td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #000;padding:5px 8px;" colspan="3"><b>Empresa:</b> AMERICA RENTAL EQUIPAMENTOS LTDA</td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #000;padding:5px 8px;" colspan="2"><b>Endereço:</b> SALTO DA DIVISA, 97</td>
+      <td style="border:1px solid #000;padding:5px 8px;white-space:nowrap;"><b>Cidade:</b> GUARULHOS &nbsp; <b>UF:</b> SP</td>
+    </tr>
+  </table>
+  <table style="width:100%;border-collapse:collapse;border:2px solid #000;border-top:none;margin-bottom:0;">
+    <tr>
+      <td style="border:2px solid #000;padding:8px 12px;width:50%;font-size:11px;">
+        <span style="display:inline-block;width:18px;height:18px;border:2px solid #000;text-align:center;line-height:16px;margin-right:6px;font-weight:bold;">\${VT_OPTA_SIM}</span>
+        Opto pela utilização do Vale - Transporte
+      </td>
+      <td style="border:2px solid #000;padding:8px 12px;width:50%;font-size:11px;">
+        <span style="display:inline-block;width:18px;height:18px;border:2px solid #000;text-align:center;line-height:16px;margin-right:6px;font-weight:bold;">\${VT_OPTA_NAO}</span>
+        Não opto pela utilização do Vale - Transporte
+      </td>
+    </tr>
+  </table>
+  <table style="width:100%;border-collapse:collapse;border:2px solid #000;border-top:none;margin-bottom:0;">
+    <tr>
+      <td style="padding:8px 8px;font-size:10.5px;line-height:1.6;" colspan="3">
+        Nos termos do artigo 7º do Decreto Nº 95.247 de 17 de novembro de 1987 solicito receber o Vale - Transporte e comprometo-me:<br>
+        a) a utilizá-lo exclusivamente para meu efetivo deslocamento residência - trabalho e vice-versa;<br>
+        b) a renovar anualmente ou sempre que ocorrer alteração no meu endereço residencial ou dos serviços e meios de transporte mais adequados ao meu deslocamento residência/trabalho e vice-versa;<br>
+        c) autorizo a descontar até 6% ( seis por cento ) do meu salário básico mensal para concorrer ao custeio do Vale-Transporte (conforme o artigo 9º do Decreto nº 95.247/87).<br>
+        d) declaro estar ciente de que a declaração falsa ou o uso indevido do Vale - Transporte constituem falta grave (conforme o parágrafo 3º do artigo 7º do Decreto nº 95.247/87).
+      </td>
+    </tr>
+  </table>
+  <table style="width:100%;border-collapse:collapse;border:2px solid #000;border-top:none;margin-bottom:0;">
+    <tr><td style="padding:6px 8px;font-size:11px;" colspan="5"><b>Minha Residência Atual:</b></td></tr>
+    <tr>
+      <td style="border:1px solid #000;padding:5px 8px;" colspan="3"><b>Rua/Av.:</b> \${VT_ENDERECO}</td>
+      <td style="border:1px solid #000;padding:5px 8px;" colspan="2"><b>Nº:</b> \${VT_NUMERO}</td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #000;padding:5px 8px;"><b>Bairro:</b> \${VT_BAIRRO}</td>
+      <td style="border:1px solid #000;padding:5px 8px;"><b>Cidade:</b> \${VT_CIDADE}</td>
+      <td style="border:1px solid #000;padding:5px 8px;"><b>U.F.:</b> \${VT_UF}</td>
+      <td style="border:1px solid #000;padding:5px 8px;" colspan="2"><b>CEP:</b> \${VT_CEP}</td>
+    </tr>
+  </table>
+  <table style="width:100%;border-collapse:collapse;border:2px solid #000;border-top:none;">
+    <tr><td colspan="3" style="text-align:center;font-weight:bold;padding:5px;border:1px solid #000;font-size:12px;">MEIO DE TRANSPORTE</td></tr>
+    <tr>
+      <td style="border:1px solid #000;padding:4px 6px;width:30px;"></td>
+      <td style="border:1px solid #000;padding:4px 8px;text-align:center;font-weight:bold;">EMPRESA TRANSPORTADORA</td>
+      <td style="border:1px solid #000;padding:4px 8px;text-align:center;font-weight:bold;white-space:nowrap;">TARIFA R$</td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #000;padding:3px 5px;text-align:center;font-size:9px;writing-mode:vertical-rl;transform:rotate(180deg);font-weight:bold;" rowspan="6">RESIDÊNCIA/TRABALHO</td>
+      \${VT_LINHAS_RESIDENCIA_TRABALHO}
+    </tr>
+    <tr>
+      <td style="border:1px solid #000;padding:3px 5px;text-align:center;font-size:9px;writing-mode:vertical-rl;transform:rotate(180deg);font-weight:bold;" rowspan="6">TRABALHO/RESIDÊNCIA</td>
+      \${VT_LINHAS_TRABALHO_RESIDENCIA}
+    </tr>
+  </table>
+  <table style="width:100%;border-collapse:collapse;margin-top:30px;">
+    <tr>
+      <td style="text-align:center;padding:10px;width:50%;border-top:1px solid #000;">Assinatura do Empregado<br><b>\${NOME_COMPLETO}</b></td>
+      <td style="text-align:center;padding:10px;width:50%;border-top:1px solid #000;">Guarulhos, \${DATA_HOJE}<br>Recursos Humanos</td>
+    </tr>
+  </table>
+</div>`;
+
+    db.run("UPDATE geradores SET conteudo = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [conteudoHTML, nomeGerador]);
+
+    db.get("SELECT nome FROM geradores_excluidos WHERE nome = ?", [nomeGerador], (e, excluido) => {
+        if (excluido) return;
+        db.get("SELECT id FROM geradores WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [nomeGerador], (err, existing) => {
+            if (!existing) {
+                db.run("INSERT INTO geradores (nome, conteudo, tipo) VALUES (?, ?, 'html')", [nomeGerador, conteudoHTML],
+                    (err) => { if (err && !err.message.includes('UNIQUE')) console.error(`Erro ao criar gerador "${nomeGerador}":`, err); else console.log(`[SEED] Gerador "${nomeGerador}" criado com sucesso.`); }
+                );
+            }
+        });
+    });
+
+    // Visível para todos os colaboradores automaticamente na aba Contratos
+    db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
+        [JSON.stringify({ dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null }), nomeGerador]
+    );
+})();
+
+
+
 // MIGRATION: Inserir ou atualizar relação exata de Cargos x Departamentos solicitada
 const cargosDeptosSync = [
     ['Aux. Administrativo', 'Administrativo'], ['Ass. Administrativo 1', 'Administrativo'],
@@ -6113,7 +6223,44 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                     mapping['PARCELA_1'] = p === 1 ? 'X' : '&nbsp;&nbsp;';
                     mapping['PARCELA_2'] = p === 2 ? 'X' : '&nbsp;&nbsp;';
                     mapping['PARCELA_3'] = p === 3 ? 'X' : '&nbsp;&nbsp;';
+
+                    // ── Variáveis para Solicitação de VT ──────────────────────────
+                    const vtOpcao = (req.body.vt_opcao || '').toLowerCase(); // 'sim' | 'nao'
+                    mapping['VT_OPTA_SIM'] = vtOpcao === 'sim' ? '&#10003;' : '&nbsp;&nbsp;';
+                    mapping['VT_OPTA_NAO'] = vtOpcao === 'nao' ? '&#10003;' : '&nbsp;&nbsp;';
+
+                    // Linhas de transporte: array [{empresa, tarifa}] x2 (residencia_trabalho + trabalho_residencia)
+                    let vtLinhasRT = [];
+                    let vtLinhasTR = [];
+                    try { vtLinhasRT = JSON.parse(req.body.vt_linhas_rt || '[]'); } catch(e) {}
+                    try { vtLinhasTR = JSON.parse(req.body.vt_linhas_tr || '[]'); } catch(e) {}
+                    const buildRows = (linhas) => {
+                        let rows = '';
+                        for (let i = 0; i < 6; i++) {
+                            const l = linhas[i] || {};
+                            rows += `<tr><td style="border:1px solid #000; padding:3px 6px; text-align:center;">${i+1}</td><td style="border:1px solid #000; padding:3px 6px;">${l.empresa || ''}</td><td style="border:1px solid #000; padding:3px 6px; text-align:center;">${l.tarifa || ''}</td></tr>`;
+                        }
+                        return rows;
+                    };
+                    mapping['VT_LINHAS_RESIDENCIA_TRABALHO'] = buildRows(vtLinhasRT);
+                    mapping['VT_LINHAS_TRABALHO_RESIDENCIA'] = buildRows(vtLinhasTR);
+
+                    // Endereço residencial (campos individuais)
+                    const end = req.body.vt_endereco || '';
+                    const endNum = req.body.vt_numero || '';
+                    const endBairro = req.body.vt_bairro || '';
+                    const endCidade = req.body.vt_cidade || 'Guarulhos';
+                    const endUF = req.body.vt_uf || 'SP';
+                    const endCEP = req.body.vt_cep || '';
+                    mapping['VT_ENDERECO'] = end || (colaborador.endereco || '');
+                    mapping['VT_NUMERO'] = endNum;
+                    mapping['VT_BAIRRO'] = endBairro;
+                    mapping['VT_CIDADE'] = endCidade;
+                    mapping['VT_UF'] = endUF;
+                    mapping['VT_CEP'] = endCEP;
+                    // ─────────────────────────────────────────────────────────────
                 }
+
 
                 // Substituição bruta (suporta tanto ${CHAVE} quanto {CHAVE})
                 Object.keys(mapping).forEach(key => {
