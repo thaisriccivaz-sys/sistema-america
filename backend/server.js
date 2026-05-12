@@ -64,14 +64,14 @@ async function sendMailHelper(opts) {
 const db = require('./database');
 
 // AUTO-PATCH: Corrige OSs importadas sem data_os (ex: Entrega/Retirada da primeira importação noturna)
-db.run("UPDATE os_logistica SET data_os = date('now') WHERE data_os IS NULL", err => {});
+db.run("UPDATE os_logistica SET data_os = date('now') WHERE data_os IS NULL", err => { });
 
 // Excluir Contrato Academia de teste do Abner Abrahão
-db.run("DELETE FROM documentos WHERE document_type = 'Contrato Academia' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Abner Abrahão%')", err => {});
+db.run("DELETE FROM documentos WHERE document_type = 'Contrato Academia' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Abner Abrahão%')", err => { });
 // Excluir Contrato Faculdade de teste da Debora
-db.run("DELETE FROM documentos WHERE document_type = 'Contrato Faculdade' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Débora%')", err => {});
+db.run("DELETE FROM documentos WHERE document_type = 'Contrato Faculdade' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Débora%')", err => { });
 // Excluir Contrato Faculdade de teste da Eduarda
-db.run("DELETE FROM documentos WHERE document_type = 'Contrato Faculdade' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Eduarda%')", err => {});
+db.run("DELETE FROM documentos WHERE document_type = 'Contrato Faculdade' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Eduarda%')", err => { });
 
 db.run("DELETE FROM geradores WHERE nome = 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'");
 db.run("DELETE FROM geradores WHERE nome = 'Termo de Responsabilidade de Chaves'");
@@ -103,9 +103,9 @@ db.run(`
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
 `, () => {
-    db.run("ALTER TABLE logistica_senhas ADD COLUMN owner_id INTEGER;", (err) => {});
-    db.run("ALTER TABLE logistica_senhas ADD COLUMN tipo TEXT DEFAULT 'compartilhada';", (err) => {});
-    db.run("ALTER TABLE logistica_senhas ADD COLUMN nome TEXT;", (err) => {});
+    db.run("ALTER TABLE logistica_senhas ADD COLUMN owner_id INTEGER;", (err) => { });
+    db.run("ALTER TABLE logistica_senhas ADD COLUMN tipo TEXT DEFAULT 'compartilhada';", (err) => { });
+    db.run("ALTER TABLE logistica_senhas ADD COLUMN nome TEXT;", (err) => { });
 });
 
 // Migração: Histórico de Alterações do Cofre de Senhas
@@ -274,13 +274,13 @@ db.run(`CREATE TABLE IF NOT EXISTS sinistros (
     usuario_abertura TEXT,
     midias_paths TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)`, (err) => { 
+)`, (err) => {
     if (err) console.error('Erro tabela sinistros:', err);
     else {
-        db.run('ALTER TABLE sinistros ADD COLUMN data_assinatura_condutor DATETIME', (e) => {});
-        db.run('ALTER TABLE sinistros ADD COLUMN usuario_abertura TEXT', (e) => {});
-        db.run('ALTER TABLE sinistros ADD COLUMN midias_paths TEXT', (e) => {});
-        db.run('ALTER TABLE sinistros ADD COLUMN valor_total TEXT', (e) => {});
+        db.run('ALTER TABLE sinistros ADD COLUMN data_assinatura_condutor DATETIME', (e) => { });
+        db.run('ALTER TABLE sinistros ADD COLUMN usuario_abertura TEXT', (e) => { });
+        db.run('ALTER TABLE sinistros ADD COLUMN midias_paths TEXT', (e) => { });
+        db.run('ALTER TABLE sinistros ADD COLUMN valor_total TEXT', (e) => { });
     }
 });
 
@@ -1816,12 +1816,12 @@ app.get('/api/dashboard', authenticateToken, (req, res) => {
             if (effectiveStatus === 'Ativo' || effectiveStatus === 'Férias') {
                 const ini1 = row.ferias_programadas_inicio;
                 const fim1 = row.ferias_programadas_fim;
-                const em1  = ini1 && fim1 && today >= ini1 && today <= fim1;
+                const em1 = ini1 && fim1 && today >= ini1 && today <= fim1;
 
                 const usaFrac2 = row.ferias_fracionadas === 'Sim' && row.ferias_fracionadas_tipo === 'Tirada';
                 const ini2 = usaFrac2 ? row.ferias_fracionadas_inicio2 : null;
                 const fim2 = usaFrac2 ? row.ferias_fracionadas_fim2 : null;
-                const em2  = ini2 && fim2 && today >= ini2 && today <= fim2;
+                const em2 = ini2 && fim2 && today >= ini2 && today <= fim2;
 
                 if (em1 || em2) {
                     effectiveStatus = 'Férias';
@@ -2191,7 +2191,7 @@ app.post('/api/equipes', authenticateToken, (req, res) => {
     const { nome, tipo = 'rota', cor = '#2563eb', icone = 'ph-users', descricao = '', ordem = 0 } = req.body;
     if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
     db.run(`INSERT INTO equipes (nome, tipo, cor, icone, descricao, ordem) VALUES (?,?,?,?,?,?)`,
-        [nome, tipo, cor, icone, descricao, ordem], function(err) {
+        [nome, tipo, cor, icone, descricao, ordem], function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, nome, tipo, cor, icone, descricao, ordem, membros: [] });
         });
@@ -2203,7 +2203,7 @@ app.put('/api/equipes/:id', authenticateToken, (req, res) => {
     db.run(`UPDATE equipes SET nome=COALESCE(?,nome), tipo=COALESCE(?,tipo), cor=COALESCE(?,cor),
         icone=COALESCE(?,icone), descricao=COALESCE(?,descricao), ordem=COALESCE(?,ordem),
         updated_at=datetime('now') WHERE id=?`,
-        [nome, tipo, cor, icone, descricao, ordem, req.params.id], function(err) {
+        [nome, tipo, cor, icone, descricao, ordem, req.params.id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ sucesso: true });
         });
@@ -2212,7 +2212,7 @@ app.put('/api/equipes/:id', authenticateToken, (req, res) => {
 // ── DELETE /api/equipes/:id ───────────────────────────────────────────────────
 app.delete('/api/equipes/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM equipes_membros WHERE equipe_id = ?', [req.params.id], () => {
-        db.run('UPDATE equipes SET ativa = 0 WHERE id = ?', [req.params.id], function(err) {
+        db.run('UPDATE equipes SET ativa = 0 WHERE id = ?', [req.params.id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ sucesso: true });
         });
@@ -2227,7 +2227,7 @@ app.post('/api/equipes/:id/membros', authenticateToken, (req, res) => {
     db.get('SELECT tipo FROM equipes WHERE id = ?', [req.params.id], (err, eq) => {
         db.run(`INSERT OR REPLACE INTO equipes_membros (equipe_id, colaborador_id, funcao, escala, observacao, ordem)
             VALUES (?,?,?,?,?,?)`, [req.params.id, colaborador_id, funcao, escala, observacao, ordem],
-            function(err2) {
+            function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
                 res.json({ sucesso: true, id: this.lastID });
             });
@@ -2237,7 +2237,7 @@ app.post('/api/equipes/:id/membros', authenticateToken, (req, res) => {
 // ── DELETE /api/equipes/:id/membros/:colaborador_id ───────────────────────────
 app.delete('/api/equipes/:id/membros/:colaborador_id', authenticateToken, (req, res) => {
     db.run('DELETE FROM equipes_membros WHERE equipe_id = ? AND colaborador_id = ?',
-        [req.params.id, req.params.colaborador_id], function(err) {
+        [req.params.id, req.params.colaborador_id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ sucesso: true });
         });
@@ -2247,30 +2247,30 @@ app.delete('/api/equipes/:id/membros/:colaborador_id', authenticateToken, (req, 
 // Troca dois colaboradores de lugar (incluindo função e ordem)
 app.patch('/api/equipes/trocar', authenticateToken, (req, res) => {
     const { membro_id, alvo_id } = req.body;
-    if (!membro_id || !alvo_id) return res.status(400).json({error: 'IDs inválidos'});
+    if (!membro_id || !alvo_id) return res.status(400).json({ error: 'IDs inválidos' });
 
     db.get('SELECT equipe_id, funcao, escala, observacao, ordem FROM equipes_membros WHERE colaborador_id = ?', [membro_id], (err, m1) => {
         const _m1 = m1 || { equipe_id: null, funcao: 'ajudante', escala: '', observacao: '', ordem: 0 };
-        
+
         db.get('SELECT equipe_id, funcao, escala, observacao, ordem FROM equipes_membros WHERE colaborador_id = ?', [alvo_id], (err2, m2) => {
             const _m2 = m2 || { equipe_id: null, funcao: 'ajudante', escala: '', observacao: '', ordem: 0 };
-            
+
             db.serialize(() => {
                 // Delete both from current teams to avoid UNIQUE constraint errors
                 db.run('DELETE FROM equipes_membros WHERE colaborador_id IN (?, ?)', [membro_id, alvo_id]);
-                
+
                 // Insert m1 into m2's spot
                 if (_m2.equipe_id) {
-                    db.run('INSERT INTO equipes_membros (equipe_id, colaborador_id, funcao, escala, observacao, ordem) VALUES (?, ?, ?, ?, ?, ?)', 
+                    db.run('INSERT INTO equipes_membros (equipe_id, colaborador_id, funcao, escala, observacao, ordem) VALUES (?, ?, ?, ?, ?, ?)',
                         [_m2.equipe_id, membro_id, _m2.funcao, _m2.escala, _m2.observacao, _m2.ordem]);
                 }
-                
+
                 // Insert m2 into m1's spot
                 if (_m1.equipe_id) {
-                    db.run('INSERT INTO equipes_membros (equipe_id, colaborador_id, funcao, escala, observacao, ordem) VALUES (?, ?, ?, ?, ?, ?)', 
+                    db.run('INSERT INTO equipes_membros (equipe_id, colaborador_id, funcao, escala, observacao, ordem) VALUES (?, ?, ?, ?, ?, ?)',
                         [_m1.equipe_id, alvo_id, _m1.funcao, _m1.escala, _m1.observacao, _m1.ordem]);
                 }
-                
+
                 res.json({ success: true });
             });
         });
@@ -2280,15 +2280,15 @@ app.patch('/api/equipes/trocar', authenticateToken, (req, res) => {
 // ── PATCH /api/equipes/reordenar ──────────────────────────────────────────────
 app.patch('/api/equipes/reordenar', authenticateToken, (req, res) => {
     const { equipe_id, membros_ids } = req.body;
-    if (!equipe_id || !Array.isArray(membros_ids)) return res.status(400).json({error: 'Dados inválidos'});
-    
+    if (!equipe_id || !Array.isArray(membros_ids)) return res.status(400).json({ error: 'Dados inválidos' });
+
     db.serialize(() => {
         const stmt = db.prepare('UPDATE equipes_membros SET ordem=?, funcao=? WHERE equipe_id=? AND colaborador_id=?');
         membros_ids.forEach(m => {
             stmt.run([m.ordem, m.funcao, equipe_id, m.colaborador_id]);
         });
         stmt.finalize((err) => {
-            if (err) return res.status(500).json({error: err.message});
+            if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true });
         });
     });
@@ -2303,7 +2303,7 @@ app.patch('/api/equipes/mover', authenticateToken, (req, res) => {
     const doMove = () => {
         db.run(`INSERT OR REPLACE INTO equipes_membros (equipe_id, colaborador_id, funcao, escala, observacao, ordem)
             VALUES (?,?,?,?,?,?)`, [equipe_destino_id, colaborador_id, funcao || 'motorista', escala || '', observacao || '', ordem || 0],
-            function(err2) {
+            function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
                 res.json({ sucesso: true });
             });
@@ -2322,7 +2322,7 @@ app.patch('/api/equipes/:id/membros/:colaborador_id', authenticateToken, (req, r
     const { funcao, escala, observacao } = req.body;
     db.run(`UPDATE equipes_membros SET funcao=COALESCE(?,funcao), escala=COALESCE(?,escala),
         observacao=COALESCE(?,observacao) WHERE equipe_id=? AND colaborador_id=?`,
-        [funcao, escala, observacao, req.params.id, req.params.colaborador_id], function(err) {
+        [funcao, escala, observacao, req.params.id, req.params.colaborador_id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ sucesso: true });
         });
@@ -2588,13 +2588,13 @@ app.get('/api/onedrive/download', authenticateToken, async (req, res) => {
     try {
         const path = req.query.path;
         if (!path) return res.status(400).json({ error: 'Caminho não fornecido' });
-        
+
         if (typeof onedrive === 'undefined') return res.status(500).json({ error: 'Módulo onedrive não inicializado' });
-        
+
         const downloadUrl = await onedrive.getDownloadUrl(path);
-        
+
         if (!downloadUrl) throw new Error('Não foi possível gerar a URL de download para este arquivo.');
-        
+
         res.redirect(downloadUrl);
     } catch (e) {
         res.status(500).send('Erro ao abrir arquivo: ' + e.message);
@@ -2800,7 +2800,7 @@ async function checkColaboradorDesligado(colaboradorId) {
             html: htmlContent,
             attachments
         });
-                console.log(`[checkColaboradorDesligado] E-mail enviado para ${emailsUnicos.join(', ')} — ${deptos.length} departamento(s) afetado(s)`);
+        console.log(`[checkColaboradorDesligado] E-mail enviado para ${emailsUnicos.join(', ')} — ${deptos.length} departamento(s) afetado(s)`);
     } catch (err) {
         console.error('[checkColaboradorDesligado] ERRO FATAL:', err.message, err.stack || '');
     }
@@ -3299,7 +3299,7 @@ app.get('/api/colaboradores/:id/admissao-assinaturas', authenticateToken, (req, 
 app.get('/api/colaboradores/:id/documentos', authenticateToken, (req, res) => {
     db.all('SELECT * FROM documentos WHERE colaborador_id = ? ORDER BY tab_name, year, month', [req.params.id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        
+
         db.all('SELECT * FROM colaborador_epi_fichas WHERE colaborador_id = ? AND status = "ativa" ORDER BY id DESC LIMIT 1', [req.params.id], (err2, epis) => {
             if (!err2 && epis && epis.length > 0) {
                 rows.push({
@@ -3414,7 +3414,7 @@ app.get('/api/colaboradores/:id/admissao-assinaturas', authenticateToken, (req, 
 app.get('/api/colaboradores/:id/documentos', authenticateToken, (req, res) => {
     db.all('SELECT * FROM documentos WHERE colaborador_id = ? ORDER BY tab_name, year, month', [req.params.id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        
+
         db.all('SELECT * FROM colaborador_epi_fichas WHERE colaborador_id = ? AND status = "ativa" ORDER BY id DESC LIMIT 1', [req.params.id], (err2, epis) => {
             if (!err2 && epis && epis.length > 0) {
                 rows.push({
@@ -3674,8 +3674,8 @@ app.post('/api/sinistros/:id/midia', authenticateToken, uploadMediaFile.single('
         let midias = [];
         try {
             if (sinistro.midias_paths) midias = JSON.parse(sinistro.midias_paths);
-        } catch (e) {}
-        
+        } catch (e) { }
+
         midias.push({
             url: publicUrl,
             nome: req.file.originalname,
@@ -3684,12 +3684,12 @@ app.post('/api/sinistros/:id/midia', authenticateToken, uploadMediaFile.single('
         });
 
         db.run('UPDATE sinistros SET midias_paths = ? WHERE id = ?', [JSON.stringify(midias), sinId], (err) => {
-            require('fs').unlink(req.file.path, () => {});
+            require('fs').unlink(req.file.path, () => { });
             if (err) return res.status(500).json({ error: err.message });
             res.json({ sucesso: true, url: publicUrl });
         });
     } catch (e) {
-        if (req.file && req.file.path) require('fs').unlink(req.file.path, () => {});
+        if (req.file && req.file.path) require('fs').unlink(req.file.path, () => { });
         res.status(500).json({ error: e.message });
     }
 });
@@ -3960,15 +3960,15 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                         anxsHtml += await pdfBufToImgHtml(buf, 'BOLETIM DE OCORRÊNCIA');
                         added = true;
                     }
-                } catch(e) { console.error('[Anexo BO]', e.message); }
+                } catch (e) { console.error('[Anexo BO]', e.message); }
             }
 
             // 1) Orçamentos: armazenados como paths do OneDrive (strings)
-            let orcs = []; try { orcs = JSON.parse(sin.orcamentos_paths || '[]'); } catch(e) {}
+            let orcs = []; try { orcs = JSON.parse(sin.orcamentos_paths || '[]'); } catch (e) { }
             for (let p of orcs) {
                 if (!p || typeof p !== 'string') continue;
                 const ext = (p.split('.').pop() || '').toLowerCase().split('?')[0];
-                if (['jpg','jpeg','png','webp','gif'].includes(ext)) {
+                if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) {
                     try {
                         const b64 = await downloadToB64(p);
                         if (b64) {
@@ -3976,7 +3976,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                             anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;"><p style="font-size:0.8rem;color:#666;margin-bottom:4px;">Orçamento</p><img src="data:${mime};base64,${b64}" style="max-width:100%;max-height:900px;object-fit:contain;border:1px solid #ccc;"/></div>`;
                             added = true;
                         }
-                    } catch(e) { console.error('[Anexo ORC imagem]', e.message); }
+                    } catch (e) { console.error('[Anexo ORC imagem]', e.message); }
                 } else if (ext === 'pdf') {
                     try {
                         const buf = await downloadToBuffer(p);
@@ -3984,19 +3984,19 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                             anxsHtml += await pdfBufToImgHtml(buf, `Orçamento`);
                             added = true;
                         }
-                    } catch(e) { console.error('[Anexo ORC PDF]', e.message); }
+                    } catch (e) { console.error('[Anexo ORC PDF]', e.message); }
                 }
             }
 
             // 2) Mídias: armazenadas como objetos {url, tipo, nome} com URL pública do R2
-            let mids = []; try { mids = JSON.parse(sin.midias_paths || '[]'); } catch(e) {}
+            let mids = []; try { mids = JSON.parse(sin.midias_paths || '[]'); } catch (e) { }
             for (let m of mids) {
                 if (!m) continue;
                 const url = typeof m === 'string' ? m : m.url;
                 const tipo = typeof m === 'object' ? (m.tipo || '') : '';
                 if (!url) continue;
                 const ext = (url.split('.').pop() || '').toLowerCase().split('?')[0];
-                const isImage = tipo.startsWith('image/') || ['jpg','jpeg','png','webp','gif'].includes(ext);
+                const isImage = tipo.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext);
                 const isVideo = tipo.startsWith('video/');
                 if (isImage) {
                     try {
@@ -4007,7 +4007,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                             anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;"><p style="font-size:0.8rem;color:#666;margin-bottom:4px;">Foto do dano${m.nome ? ' — ' + m.nome : ''}</p><img src="data:${mime};base64,${b64}" style="max-width:100%;max-height:900px;object-fit:contain;border:1px solid #ccc;"/></div>`;
                             added = true;
                         }
-                    } catch(e) { console.error('[Anexo MIDIA R2]', e.message); }
+                    } catch (e) { console.error('[Anexo MIDIA R2]', e.message); }
                 } else if (isVideo) {
                     anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;padding:1rem;border:1px solid #ccc;background:#f9f9f9;"><p><strong>Vídeo do dano${m.nome ? ' — ' + m.nome : ''}:</strong> disponível em <a href="${url}" target="_blank">${url}</a></p></div>`;
                     added = true;
@@ -4022,7 +4022,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                     htmlFinal += sectionHtml;
                 }
             }
-        } catch(e) { console.error('[Anexar imagens sinistro]', e.message); }
+        } catch (e) { console.error('[Anexar imagens sinistro]', e.message); }
 
         // Salvar HTML
         db.run('UPDATE sinistros SET documento_html = ? WHERE id = ?', [htmlFinal, sin.id]);
@@ -4116,7 +4116,7 @@ app.put('/api/colaboradores/:id/sinistros/:sinistroId/dados-financeiros', authen
                 err => err ? reject(err) : resolve())
         );
         res.json({ sucesso: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', authenticateToken, async (req, res) => {
@@ -4255,10 +4255,10 @@ app.get('/api/logistica/senhas', authenticateToken, (req, res) => {
 
 app.post('/api/logistica/senhas', authenticateToken, (req, res) => {
     const { nome, servico, link, usuario, senha, tipo } = req.body;
-    
+
     const tipoVal = tipo === 'pessoal' ? 'pessoal' : 'compartilhada';
     const senhaEncriptada = senha ? encryptPassword(senha) : '';
-    db.run("INSERT INTO logistica_senhas (nome, servico, link, usuario, senha_encriptada, owner_id, tipo) VALUES (?, ?, ?, ?, ?, ?, ?)", [nome || '', servico || '', link || '', usuario || '', senhaEncriptada, req.user.id, tipoVal], function(err) {
+    db.run("INSERT INTO logistica_senhas (nome, servico, link, usuario, senha_encriptada, owner_id, tipo) VALUES (?, ?, ?, ?, ?, ?, ?)", [nome || '', servico || '', link || '', usuario || '', senhaEncriptada, req.user.id, tipoVal], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         const newId = this.lastID;
         // Registra no histórico
@@ -4273,24 +4273,24 @@ app.put('/api/logistica/senhas/:id', authenticateToken, (req, res) => {
     const updates = [];
     const params = [];
     const senhaId = req.params.id;
-    
+
     if (nome !== undefined) { updates.push("nome = ?"); params.push(nome); }
     if (servico !== undefined) { updates.push("servico = ?"); params.push(servico); }
     if (link !== undefined) { updates.push("link = ?"); params.push(link); }
     if (usuario !== undefined) { updates.push("usuario = ?"); params.push(usuario); }
     if (tipo !== undefined) { updates.push("tipo = ?"); params.push(tipo === 'pessoal' ? 'pessoal' : 'compartilhada'); }
-    if (senha !== undefined) { 
-        updates.push("senha_encriptada = ?"); 
-        params.push(senha ? encryptPassword(senha) : ''); 
+    if (senha !== undefined) {
+        updates.push("senha_encriptada = ?");
+        params.push(senha ? encryptPassword(senha) : '');
     }
-    
+
     if (updates.length === 0) return res.status(400).json({ error: 'Nenhum dado para atualizar.' });
     updates.push("updated_at = CURRENT_TIMESTAMP");
     params.push(senhaId);
-    
+
     // Buscar dados antes de alterar para logar
     db.get("SELECT * FROM logistica_senhas WHERE id = ?", [senhaId], (err, oldRow) => {
-        db.run(`UPDATE logistica_senhas SET ${updates.join(', ')} WHERE id = ?`, params, function(err) {
+        db.run(`UPDATE logistica_senhas SET ${updates.join(', ')} WHERE id = ?`, params, function (err) {
             if (err) return res.status(500).json({ error: err.message });
             // Registra campos alterados no histórico
             const camposAlterados = [];
@@ -4311,7 +4311,7 @@ app.put('/api/logistica/senhas/:id', authenticateToken, (req, res) => {
 
 app.delete('/api/logistica/senhas/:id', authenticateToken, (req, res) => {
     db.get("SELECT * FROM logistica_senhas WHERE id = ?", [req.params.id], (err, row) => {
-        db.run("DELETE FROM logistica_senhas WHERE id = ?", [req.params.id], function(err) {
+        db.run("DELETE FROM logistica_senhas WHERE id = ?", [req.params.id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
             // Registra exclusão no histórico (mantém registro orphan)
             db.run("INSERT INTO logistica_senhas_historico (senha_id, acao, campo_alterado, valor_anterior, valor_novo, usuario_id, usuario_nome) VALUES (?, 'exclusao', 'servico', ?, null, ?, ?)",
@@ -4365,16 +4365,16 @@ app.post('/api/logistica/resumo-rota', authenticateToken, (req, res) => {
     const dadosStr = typeof dados === 'string' ? dados : JSON.stringify(dados);
 
     if (id) {
-        db.run("UPDATE logistica_resumo_rota SET dados = ? WHERE id = ?", [dadosStr, id], function(err) {
+        db.run("UPDATE logistica_resumo_rota SET dados = ? WHERE id = ?", [dadosStr, id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true, id: id });
         });
     } else {
         db.run("INSERT INTO logistica_resumo_rota (nome, dados, usuario_id, usuario_nome) VALUES (?, ?, ?, ?)",
-            [nome, dadosStr, req.user.id, req.user.nome || req.user.username], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, id: this.lastID });
-        });
+            [nome, dadosStr, req.user.id, req.user.nome || req.user.username], function (err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ success: true, id: this.lastID });
+            });
     }
 });
 
@@ -5836,7 +5836,7 @@ app.post('/api/admissao-assinaturas/sync-status', authenticateToken, (req, res) 
 app.delete('/api/admissao-assinaturas/:id', authenticateToken, (req, res) => {
     const id = parseInt(req.params.id, 10);
     if (!id) return res.status(400).json({ error: 'ID inválido' });
-    db.run('DELETE FROM admissao_assinaturas WHERE id = ?', [id], function(err) {
+    db.run('DELETE FROM admissao_assinaturas WHERE id = ?', [id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'Registro não encontrado' });
         console.log(`[CONTRATO-DEL] admissao_assinaturas id=${id} excluído por ${req.user?.username || 'unknown'}`);
@@ -6173,7 +6173,7 @@ app.post('/api/faltas', authenticateToken, (req, res) => {
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             const insertedId = this.lastID;
-            
+
             // Logica de disparo de popup
             db.get("SELECT nome_completo FROM colaboradores WHERE id = ?", [colaborador_id], (errC, rowC) => {
                 const nomeColab = rowC && rowC.nome_completo ? rowC.nome_completo : 'Colaborador não identificado';
@@ -6181,9 +6181,9 @@ app.post('/api/faltas', authenticateToken, (req, res) => {
                     if (!errConfig && rowsConfig && rowsConfig.length > 0) {
                         const msg = `O colaborador ${nomeColab} teve uma falta adicionada no dia ${data_falta.split('-').reverse().join('/')}.`;
                         const dados = JSON.stringify({ colaborador_id, data_falta, id: insertedId, nome_colab: nomeColab });
-                        
+
                         rowsConfig.forEach(cfg => {
-                            db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", 
+                            db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
                                 [cfg.usuario_id, 'aviso_faltas', msg, dados]);
                         });
                     }
@@ -6352,11 +6352,11 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
 
             db.run('UPDATE colaboradores SET aso_email_enviado = ?, aso_exame_data = ? WHERE id = ?', [dataEnvioStr, dataAgendadaStr, colaborador_id], (err) => {
                 if (err) console.error('Erro ao salvar aso_email_enviado/aso_exame_data:', err);
-                
+
                 const tipoASO = `ASO ${tipoExameStr}`;
                 db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, year) VALUES (?, ?, ?, ?)`,
                     [colaborador_id, 'ASO', tipoASO, y],
-                    function(insertErr) {
+                    function (insertErr) {
                         if (insertErr) console.error('Erro ao inserir documento ASO:', insertErr);
                         const newDoc = {
                             id: this.lastID,
@@ -7275,15 +7275,6 @@ app.get('/avaliacao-publica.html', (req, res) => {
 });
 
 // --- SERVIR ARQUIVOS ESTÁTICOS ---
-// JS e HTML nunca são cacheados (garantia de que o browser sempre usa a versão mais recente)
-app.use((req, res, next) => {
-    if (req.path.endsWith('.js') || req.path.endsWith('.html') || req.path === '/') {
-        res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-        res.set('Pragma', 'no-cache');
-        res.set('Expires', '0');
-    }
-    next();
-});
 app.use(express.static(path.join(__dirname, '../frontend')));
 app.use('/files', express.static(path.join(__dirname, '..', '..')));
 
@@ -7598,11 +7589,11 @@ app.get('/api/config-notificacoes', authenticateToken, (req, res) => {
 app.post('/api/config-notificacoes', authenticateToken, (req, res) => {
     const { tipo, usuarios } = req.body; // usuarios = array of usuario_id
     if (!tipo || !Array.isArray(usuarios)) return res.status(400).json({ error: 'Dados inválidos' });
-    
+
     db.serialize(() => {
         db.run('DELETE FROM config_notificacoes WHERE tipo = ?', [tipo], (err) => {
             if (err) return res.status(500).json({ error: err.message });
-            
+
             if (usuarios.length > 0) {
                 const placeholders = usuarios.map(() => '(?, ?)').join(',');
                 const values = [];
@@ -8644,11 +8635,17 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
         const { id, multaId } = req.params;
         const { tipo } = req.body; // 'indicacao' | 'nic'
 
+        // Valida se o id do colaborador é válido (pode vir como 'undefined' do frontend)
+        if (!id || id === 'undefined' || id === 'null' || isNaN(Number(id))) {
+            return res.status(400).json({ error: 'Nenhum colaborador vinculado a esta multa. Vincule um motorista antes de iniciar o processo.' });
+        }
+
         const colab = await new Promise((resolve, reject) =>
             db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (e, r) => e ? reject(e) : resolve(r)));
         const multa = await new Promise((resolve, reject) =>
-            db.get('SELECT * FROM multas WHERE id = ?', [multaId], (e, r) => e ? reject(e) : resolve(r)));
-        if (!colab || !multa) return res.status(404).json({ error: 'Não encontrado.' });
+            db.get('SELECT * FROM multas_logistica WHERE id = ?', [multaId], (e, r) => e ? reject(e) : resolve(r)));
+        if (!colab || !multa) return res.status(404).json({ error: !colab ? 'Colaborador não encontrado.' : 'Multa não encontrada.' });
+
 
         const parcelas = multa.parcelas || 1;
         const check1x = parcelas === 1 ? 'X' : '&nbsp;';
@@ -8897,10 +8894,10 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
 // Migration: Excluir cargo genérico 'Manutenção' e adicionar cargos específicos de manutenção
 db.serialize(() => {
     db.run("DELETE FROM cargos WHERE LOWER(TRIM(nome)) = 'manutencao' OR LOWER(TRIM(nome)) = 'manutenção'");
-    
+
     // Inserir Manutenção apenas se não foi excluído
     db.run("INSERT INTO departamentos (nome) SELECT 'Manutenção' WHERE NOT EXISTS (SELECT 1 FROM departamentos WHERE nome='Manutenção') AND NOT EXISTS (SELECT 1 FROM departamentos_excluidos WHERE nome='Manutenção')");
-    
+
     const cargosManut = [
         'Aux. de Manutenção',
         'Ass. de Manutenção 1',
@@ -8998,9 +8995,9 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
         // Auditoria
         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
             [loggedUser, 'Dissídio', `Reajuste: ${cargo}`,
-             `Média antes: ${formatBRL(mediaAntes)} (${atualizados} colab.)`,
-             `Novo salário: ${salNewStr} | Reajuste: ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`,
-             0]);
+                `Média antes: ${formatBRL(mediaAntes)} (${atualizados} colab.)`,
+                `Novo salário: ${salNewStr} | Reajuste: ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`,
+                0]);
 
         res.json({ ok: true, atualizados, cargo, novo_salario: targetSalary, percentual: pct });
     } catch (e) {
@@ -9058,10 +9055,10 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_notificacoes (
             lida INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );`, () => {
-            db.run("ALTER TABLE comercial_notificacoes ADD COLUMN dados TEXT", () => {});
-        });
+    db.run("ALTER TABLE comercial_notificacoes ADD COLUMN dados TEXT", () => { });
+});
 
-    db.run(`CREATE TABLE IF NOT EXISTS logistica_notificacoes_pendentes (
+db.run(`CREATE TABLE IF NOT EXISTS logistica_notificacoes_pendentes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tipo TEXT,
     dados TEXT,
@@ -9751,7 +9748,7 @@ function ativarColaboradoresPorAdmissao() {
                 db.run(
                     `UPDATE colaboradores SET status = 'Ativo' WHERE id = ? AND status IN ('Aguardando início', 'Processo iniciado')`,
                     [colab.id],
-                    function(updateErr) {
+                    function (updateErr) {
                         if (updateErr) {
                             console.error(`[CRON-ADMISSAO] Erro ao ativar colab ${colab.id}:`, updateErr.message);
                         } else if (this.changes > 0) {
@@ -10017,7 +10014,7 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
             [token, shortCode, os_id || null, numero_os || null, req.file.originalname, req.file.mimetype, req.file.size, cloudinaryUrl],
             function (err) {
                 if (err) console.error('[OS Videos] Erro ao registrar vídeo no banco:', err.message);
-                
+
                 if (numero_os) {
                     db.get('SELECT link_video FROM os_logistica WHERE numero_os = ?', [numero_os], (errSelect, row) => {
                         let newLinks = [cloudinaryUrl];
@@ -10026,9 +10023,9 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
                                 const parsed = JSON.parse(row.link_video);
                                 if (Array.isArray(parsed)) newLinks = [...parsed, cloudinaryUrl];
                                 else newLinks = [row.link_video, cloudinaryUrl];
-                            } catch(e) {
+                            } catch (e) {
                                 if (row.link_video.trim() !== '') {
-                                    newLinks = row.link_video.split(',').map(s=>s.trim()).filter(Boolean);
+                                    newLinks = row.link_video.split(',').map(s => s.trim()).filter(Boolean);
                                     newLinks.push(cloudinaryUrl);
                                 }
                             }
@@ -10043,9 +10040,9 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
                                 const parsed = JSON.parse(row.link_video);
                                 if (Array.isArray(parsed)) newLinks = [...parsed, cloudinaryUrl];
                                 else newLinks = [row.link_video, cloudinaryUrl];
-                            } catch(e) {
+                            } catch (e) {
                                 if (row.link_video.trim() !== '') {
-                                    newLinks = row.link_video.split(',').map(s=>s.trim()).filter(Boolean);
+                                    newLinks = row.link_video.split(',').map(s => s.trim()).filter(Boolean);
                                     newLinks.push(cloudinaryUrl);
                                 }
                             }
@@ -10467,7 +10464,7 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
                         if (oldRow.telefone !== telefone) changes.push({ campo: 'Telefone', old: oldRow.telefone || '', new: telefone || '' });
                         if (oldRow.observacoes !== observacoes) changes.push({ campo: 'Observações', old: oldRow.observacoes || '', new: observacoes || '' });
                         if (oldRow.turno !== turno) changes.push({ campo: 'Turno', old: oldRow.turno || '', new: turno || '' });
-                        if (oldRow.hora_inicio !== hora_inicio || oldRow.hora_fim !== hora_fim) changes.push({ campo: 'Horário', old: `${oldRow.hora_inicio||''}-${oldRow.hora_fim||''}`, new: `${hora_inicio||''}-${hora_fim||''}` });
+                        if (oldRow.hora_inicio !== hora_inicio || oldRow.hora_fim !== hora_fim) changes.push({ campo: 'Horário', old: `${oldRow.hora_inicio || ''}-${oldRow.hora_fim || ''}`, new: `${hora_inicio || ''}-${hora_fim || ''}` });
                         if (changes.length === 0) changes.push({ campo: 'Atualização', old: '', new: `OS ${numero_os} | ${cliente}` });
                         changes.forEach(c => {
                             db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -10490,10 +10487,10 @@ app.patch('/api/logistica/os/:id/observacoes', authenticateToken, (req, res) => 
 
     db.get(`SELECT observacoes, numero_os, cliente FROM os_logistica WHERE id = ?`, [osId], (errOld, oldRow) => {
         if (errOld || !oldRow) return res.status(500).json({ error: 'OS não encontrada.' });
-        
-        db.run(`UPDATE os_logistica SET observacoes = ?, atualizado_em = datetime('now') WHERE id = ?`, [observacoes, osId], function(err) {
+
+        db.run(`UPDATE os_logistica SET observacoes = ?, atualizado_em = datetime('now') WHERE id = ?`, [observacoes, osId], function (err) {
             if (err) return res.status(500).json({ error: err.message });
-            
+
             if (oldRow.observacoes !== observacoes) {
                 db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
                     [loggedUser, 'OS Logística', 'Observações (Pipeline)', oldRow.observacoes || '', observacoes || '', osId]);
@@ -10632,7 +10629,7 @@ app.post('/api/logistica/importar-excel', authenticateToken, multerMemory.single
         const wb = xlsx.read(req.file.buffer, { type: 'buffer' });
         const sheetName = wb.SheetNames.includes('OS') ? 'OS' : wb.SheetNames[0];
         data = xlsx.utils.sheet_to_json(wb.Sheets[sheetName]);
-    } catch(e) {
+    } catch (e) {
         return res.status(400).json({ error: 'Erro ao ler o arquivo Excel: ' + e.message });
     }
 
@@ -10670,16 +10667,16 @@ app.post('/api/logistica/importar-excel', authenticateToken, multerMemory.single
 
         // Remove emojis do título
         let cliente = (r['Titulo'] || r['Nome'] || '').replace(/[\u{1F300}-\u{1F9FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}]/gu, '').trim();
-        const endereco   = r['Endereço completo'] || r['Endereco completo'] || '';
-        const lat        = r['Latitude'] || null;
-        const lng        = r['Longitude'] || null;
-        const data_os    = r['Janela de data inicial'] || r['Data'] || new Date().toISOString().split('T')[0];
+        const endereco = r['Endereço completo'] || r['Endereco completo'] || '';
+        const lat = r['Latitude'] || null;
+        const lng = r['Longitude'] || null;
+        const data_os = r['Janela de data inicial'] || r['Data'] || new Date().toISOString().split('T')[0];
         const hora_inicio = r['Janela de horário inicial'] || r['Janela de horario inicial'] || (turno === 'Noturno' ? '18:00' : '07:00');
-        const hora_fim   = r['Janela de horário final']   || r['Janela de horario final']   || (turno === 'Noturno' ? '05:00' : '18:00');
-        const obs_int    = r['Observacoes_Internas'] || '';
-        const telefone   = r['Telefone de contato'] || '';
-        const email      = r['Correio eletrônico de contato'] || r['Correio eletronico de contato'] || '';
-        const tipo_serv  = r['Tipo de visita'] || '';
+        const hora_fim = r['Janela de horário final'] || r['Janela de horario final'] || (turno === 'Noturno' ? '05:00' : '18:00');
+        const obs_int = r['Observacoes_Internas'] || '';
+        const telefone = r['Telefone de contato'] || '';
+        const email = r['Correio eletrônico de contato'] || r['Correio eletronico de contato'] || '';
+        const tipo_serv = r['Tipo de visita'] || '';
 
         // Produtos — agrega todas as linhas do mesmo ID
         const prodMap = {};
@@ -10706,7 +10703,7 @@ app.post('/api/logistica/importar-excel', authenticateToken, multerMemory.single
 
         stmt.run(id, tipo_serv, cliente, endereco, lat, lng, turno, data_os, hora_inicio, hora_fim,
             obs_int, telefone, email, tipo_serv, diasJson, finalProdutos, 'ativo',
-            function(err) {
+            function (err) {
                 if (err) { console.error('[ImportarExcel] Erro OS', id, err.message); erros++; }
                 else inseridos++;
                 done++;
@@ -10725,7 +10722,7 @@ app.delete('/api/logistica/pipeline/excluir-selecionadas', authenticateToken, ex
     if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Nenhum ID fornecido.' });
 
     const placeholders = ids.map(() => '?').join(',');
-    db.run(`DELETE FROM os_logistica WHERE id IN (${placeholders})`, ids, function(err) {
+    db.run(`DELETE FROM os_logistica WHERE id IN (${placeholders})`, ids, function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: `${this.changes} OS(s) removida(s) com sucesso.`, changes: this.changes });
     });
@@ -10734,10 +10731,10 @@ app.delete('/api/logistica/pipeline/excluir-selecionadas', authenticateToken, ex
 // DELETE /api/logistica/pipeline/limpar - Remove todas as OS
 app.delete('/api/logistica/pipeline/limpar', authenticateToken, (req, res) => {
     // ATENÇÃO: Isso vai remover permanentemente TODAS as OS da base
-    db.run(`DELETE FROM os_logistica`, [], function(err) {
+    db.run(`DELETE FROM os_logistica`, [], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         const changes = this.changes;
-        db.run(`DELETE FROM os_videos`, [], function(err2) {
+        db.run(`DELETE FROM os_videos`, [], function (err2) {
             res.json({ message: `Todas as ${changes} OS foram removidas permanentemente.`, changes });
         });
     });
@@ -10809,7 +10806,7 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
                 let dias = [];
                 try { dias = JSON.parse(r.dias_semana || '[]'); } catch (e) { }
 
-                const normalizeDay = (d) => d.toLowerCase().replace('-feira', '').normalize('NFD').replace(/[\u0300-\u036f]/g, "").substring(0,3);
+                const normalizeDay = (d) => d.toLowerCase().replace('-feira', '').normalize('NFD').replace(/[\u0300-\u036f]/g, "").substring(0, 3);
 
                 if (diaFiltroStr) {
                     return dias.some(d => normalizeDay(d).startsWith(diaFiltroStr));
@@ -11049,13 +11046,13 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
 
             const novoId = this.lastID;
-            
+
             // Inserir notificação para a Logística
-            db.run(`INSERT INTO logistica_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`, 
-                ['nova_solicitacao', JSON.stringify({ 
-                    cliente_nome, 
-                    os, 
-                    solicitante: req.user ? req.user.username : 'Comercial' 
+            db.run(`INSERT INTO logistica_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`,
+                ['nova_solicitacao', JSON.stringify({
+                    cliente_nome,
+                    os,
+                    solicitante: req.user ? req.user.username : 'Comercial'
                 })]
             );
 
@@ -11086,30 +11083,30 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
 
                 if (emails.size > 0) enviarEmailLogistica([...emails]);
 
-                    function enviarEmailLogistica(destinatarios) {
-                        const baseUrl = process.env.PUBLIC_URL || 'https://sistema-america-homologacao.onrender.com';
-                        const dtLimite = data_limite_envio ? new Date(data_limite_envio).toLocaleDateString('pt-BR') : 'Não informada';
-                        
-                        // Agrupar licenças por empresa
-                        const licGroups = {};
-                        (licencas || []).forEach(l => {
-                            const comp = l.empresa || 'Outras';
-                            if (!licGroups[comp]) licGroups[comp] = [];
-                            licGroups[comp].push(l.nome);
-                        });
-                        const licNames = Object.keys(licGroups).length > 0 
-                            ? Object.entries(licGroups).map(([comp, nomes]) => `• ${comp}: ${nomes.join(' - ')}`).join('<br>')
-                            : 'Nenhuma';
-                            
-                        const docNamesMap = {
-                            'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
-                            'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
-                            'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
-                        };
-                        const docsArr = (docs_exigidos || []).map(d => docNamesMap[d] || d);
-                        const docsList = docsArr.join(' - ') || 'Nenhum';
-                        const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-                        const htmlMail = `
+                function enviarEmailLogistica(destinatarios) {
+                    const baseUrl = process.env.PUBLIC_URL || 'https://sistema-america-homologacao.onrender.com';
+                    const dtLimite = data_limite_envio ? new Date(data_limite_envio).toLocaleDateString('pt-BR') : 'Não informada';
+
+                    // Agrupar licenças por empresa
+                    const licGroups = {};
+                    (licencas || []).forEach(l => {
+                        const comp = l.empresa || 'Outras';
+                        if (!licGroups[comp]) licGroups[comp] = [];
+                        licGroups[comp].push(l.nome);
+                    });
+                    const licNames = Object.keys(licGroups).length > 0
+                        ? Object.entries(licGroups).map(([comp, nomes]) => `• ${comp}: ${nomes.join(' - ')}`).join('<br>')
+                        : 'Nenhuma';
+
+                    const docNamesMap = {
+                        'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
+                        'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
+                        'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
+                    };
+                    const docsArr = (docs_exigidos || []).map(d => docNamesMap[d] || d);
+                    const docsList = docsArr.join(' - ') || 'Nenhum';
+                    const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                    const htmlMail = `
                         <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 0; border-radius: 8px; overflow: hidden;">
                             <div style="text-align: center; background: #fff; border-bottom: 1px solid #eee;">
                                 <img src="cid:empresa-logo" alt="América Rental" style="width: 100%; max-width: 600px; height: auto; display: block;">
@@ -11140,18 +11137,18 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                             </div>
                         </div>`;
 
-                        sendMailHelper({
-                            to: destinatarios.join(', '),
-                            subject: `📋 Nova Solicitação de Credenciamento - ${cliente_nome}`,
-                            html: htmlMail,
-                            attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
-                        }).then(() => {
-                            console.log('[Credenciamento Comercial] E-mail de notificação enviado para Logística:', destinatarios.join(', '));
-                        }).catch(emailErr => {
-                            console.error('[Credenciamento Comercial] Erro ao enviar e-mail para Logística:', emailErr.message);
-                        });
-                    }
+                    sendMailHelper({
+                        to: destinatarios.join(', '),
+                        subject: `📋 Nova Solicitação de Credenciamento - ${cliente_nome}`,
+                        html: htmlMail,
+                        attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
+                    }).then(() => {
+                        console.log('[Credenciamento Comercial] E-mail de notificação enviado para Logística:', destinatarios.join(', '));
+                    }).catch(emailErr => {
+                        console.error('[Credenciamento Comercial] Erro ao enviar e-mail para Logística:', emailErr.message);
+                    });
                 }
+            }
             );
 
             // --- Enviar e-mail de confirmação para o CLIENTE ---
@@ -11169,7 +11166,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                     if (!licGroups[comp]) licGroups[comp] = [];
                     licGroups[comp].push(l.nome);
                 });
-                
+
                 const dtLimCliente = data_limite_envio ? new Date(data_limite_envio).toLocaleDateString('pt-BR') : null;
 
                 const docsHtml = docsArr.length > 0
@@ -11323,7 +11320,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                 });
 
                 db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística enviou o credenciamento da OS ${cred.os} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
-         res.json({ message: 'E-mail de credenciamento enviado com sucesso.', link });
+                res.json({ message: 'E-mail de credenciamento enviado com sucesso.', link });
             }
         );
     });
@@ -11542,7 +11539,7 @@ app.get('/api/comercial/notificacoes/pendentes', authenticateToken, (req, res) =
     });
 });
 app.put('/api/comercial/notificacoes/:id/lida', authenticateToken, (req, res) => {
-    db.run('UPDATE comercial_notificacoes SET lida = 1 WHERE id = ?', [req.params.id], function(err) {
+    db.run('UPDATE comercial_notificacoes SET lida = 1 WHERE id = ?', [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
     });
@@ -11552,21 +11549,21 @@ app.post('/api/credenciamentos/:id/reenviar', authenticateToken, (req, res) => {
     db.get('SELECT * FROM credenciamentos WHERE id = ?', [req.params.id], (err, cred) => {
         if (err || !cred) return res.status(500).json({ error: 'Credenciamento não encontrado' });
         if (!cred.token) return res.status(400).json({ error: 'Este credenciamento ainda não possui um link gerado pela logística.' });
-        
+
         const { novoEmail } = req.body || {};
         const emailToUse = novoEmail ? novoEmail.trim() : cred.cliente_email;
 
         if (novoEmail && novoEmail.trim() !== cred.cliente_email) {
-            db.run('UPDATE credenciamentos SET cliente_email = ? WHERE id = ?', [emailToUse, cred.id], () => {});
+            db.run('UPDATE credenciamentos SET cliente_email = ? WHERE id = ?', [emailToUse, cred.id], () => { });
             cred.cliente_email = emailToUse;
         }
 
         const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
         const link = `${baseUrl}/credenciamento-publico.html?token=${cred.token}`;
         const logoUrl = `${baseUrl}/assets/logo-header.png`;
-        
+
         const validUntil = new Date(cred.valid_until);
-        
+
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: emailToUse,
@@ -11587,14 +11584,14 @@ app.post('/api/credenciamentos/:id/reenviar', authenticateToken, (req, res) => {
                             <i>Este link expira automaticamente em ${validUntil.toLocaleDateString('pt-BR')}.</i>
                         </p>
                     </div>`,
-                    attachments: [
-                        { filename: 'logo.png', path: logoPath, cid: 'cred-logo' }
-                    ]
+            attachments: [
+                { filename: 'logo.png', path: logoPath, cid: 'cred-logo' }
+            ]
         };
-        
-        db.run('UPDATE credenciamentos SET enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ? WHERE id = ?', [req.user.id, req.params.id], function(errUpdate) {
+
+        db.run('UPDATE credenciamentos SET enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ? WHERE id = ?', [req.user.id, req.params.id], function (errUpdate) {
             if (errUpdate) console.error("Erro ao atualizar dados de reenvio:", errUpdate);
-            
+
             sendMailHelper(mailOptions).then(() => {
                 res.json({ message: 'E-mail reenviado com sucesso e dados de envio atualizados.' });
             }).catch(e => res.status(500).json({ error: e.message }));
@@ -12059,7 +12056,7 @@ app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), asy
             rawPreview: JSON.stringify(parsed).substring(0, 500)
         } : null;
 
-        console.log('[Itinerantes] Tags encontradas:', tags.length, debugInfo ? '| Debug:' + JSON.stringify(debugInfo).substring(0,200) : '');
+        console.log('[Itinerantes] Tags encontradas:', tags.length, debugInfo ? '| Debug:' + JSON.stringify(debugInfo).substring(0, 200) : '');
 
         res.json({ tags, total: tags.length, atualizado: new Date().toISOString(), debug: debugInfo });
 
@@ -12095,8 +12092,8 @@ db.run(`CREATE TABLE IF NOT EXISTS logistica_agenda (
 // Auto-migrate: adicionar colunas novas se tabela já existe
 setTimeout(() => {
     ['ALTER TABLE logistica_agenda ADD COLUMN horario TEXT DEFAULT \'\';',
-     'ALTER TABLE logistica_agenda ADD COLUMN referente_ids TEXT DEFAULT \'[]\';'
-    ].forEach(q => db.run(q, () => {}));
+        'ALTER TABLE logistica_agenda ADD COLUMN referente_ids TEXT DEFAULT \'[]\';'
+    ].forEach(q => db.run(q, () => { }));
 }, 1500);
 
 // GET – lista cards do mês
@@ -12109,8 +12106,8 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
         params.push(inicio, fim);
     } else if (ano && mes) {
         const anoN = parseInt(ano), mesN = parseInt(mes);
-        const dInicio = `${anoN}-${String(mesN).padStart(2,'0')}-01`;
-        const dFim = `${anoN}-${String(mesN).padStart(2,'0')}-31`;
+        const dInicio = `${anoN}-${String(mesN).padStart(2, '0')}-01`;
+        const dFim = `${anoN}-${String(mesN).padStart(2, '0')}-31`;
         where += ' AND data >= ? AND data <= ?';
         params.push(dInicio, dFim);
     }
@@ -12119,13 +12116,13 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         db.all(`SELECT id, nome_completo, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores WHERE status IN ('Ativo', 'Afastado', 'Férias') AND departamento NOT IN ('ESCRITÓRIO', 'RH', 'Comercial', 'Financeiro', 'Administrativo', 'Diretoria') AND ferias_programadas_inicio IS NOT NULL AND ferias_programadas_fim IS NOT NULL AND ferias_programadas_inicio != ''`, [], (errColab, colabs) => {
             if (errColab) return res.json(rows || []);
-            
+
             const feriasCards = [];
             (colabs || []).forEach(c => {
                 let current = new Date(c.ferias_programadas_inicio + 'T12:00:00');
                 const end = new Date(c.ferias_programadas_fim + 'T12:00:00');
                 if (isNaN(current.getTime()) || isNaN(end.getTime())) return;
-                
+
                 while (current <= end) {
                     const dataStr = current.toISOString().split('T')[0];
                     feriasCards.push({
@@ -12144,7 +12141,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                     current.setDate(current.getDate() + 1);
                 }
             });
-            
+
             db.all(`SELECT d.colaborador_id, d.atestado_inicio, d.atestado_fim, c.nome_completo 
                     FROM documentos d 
                     JOIN colaboradores c ON d.colaborador_id = c.id
@@ -12154,14 +12151,14 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                     AND d.atestado_fim IS NOT NULL
                     AND c.status IN ('Ativo', 'Afastado', 'Férias')
                     AND c.departamento NOT IN ('ESCRITÓRIO', 'RH', 'Comercial', 'Financeiro', 'Administrativo', 'Diretoria')`, [], (errAtest, atestados) => {
-                
+
                 const afastadoCards = [];
                 if (!errAtest) {
                     (atestados || []).forEach(a => {
                         let current = new Date(a.atestado_inicio + 'T12:00:00');
                         const end = new Date(a.atestado_fim + 'T12:00:00');
                         if (isNaN(current.getTime()) || isNaN(end.getTime())) return;
-                        
+
                         while (current <= end) {
                             const dataStr = current.toISOString().split('T')[0];
                             afastadoCards.push({
@@ -12181,7 +12178,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                         }
                     });
                 }
-                
+
                 db.all(`SELECT id, nome_completo, aso_exame_data FROM colaboradores WHERE status IN ('Ativo', 'Afastado', 'Férias') AND departamento NOT IN ('ESCRITÓRIO', 'RH', 'Comercial', 'Financeiro', 'Administrativo', 'Diretoria') AND aso_exame_data IS NOT NULL AND aso_exame_data != ''`, [], (errAso, asoColabs) => {
                     const asoCards = [];
                     if (!errAso) {
@@ -12240,7 +12237,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                                 try {
                                     const refs = JSON.parse(card.referente_ids || '[]');
                                     refs.forEach(cid => faltaKeysManuais.add(String(cid) + '_' + card.data));
-                                } catch(e) {}
+                                } catch (e) { }
                             }
                         });
                         const faltaCardsDedup = faltaCards.filter(fc => {
@@ -12335,13 +12332,13 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
             db.all(`SELECT colaborador_id, data_falta FROM faltas
                     WHERE colaborador_id IN (${ph}) AND data_falta >= ? AND data_falta <= ?`,
                 [...ids, inicio, fim], (e, rows) => {
-                const ausFaltasSet = {};
-                (rows || []).forEach(r => {
-                    if (!ausFaltasSet[r.colaborador_id]) ausFaltasSet[r.colaborador_id] = {};
-                    ausFaltasSet[r.colaborador_id][r.data_falta] = 'falta';
+                    const ausFaltasSet = {};
+                    (rows || []).forEach(r => {
+                        if (!ausFaltasSet[r.colaborador_id]) ausFaltasSet[r.colaborador_id] = {};
+                        ausFaltasSet[r.colaborador_id][r.data_falta] = 'falta';
+                    });
+                    resolve(ausFaltasSet);
                 });
-                resolve(ausFaltasSet);
-            });
         }));
 
         Promise.all(promises).then(([ferSet, atestSet, faltSet]) => {
@@ -12380,7 +12377,7 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                     folgasExplicitas = Array.isArray(parsed)
                         ? parsed.map(f => String(f).trim().toLowerCase())
                         : [String(parsed).trim().toLowerCase()];
-                } catch(e) {
+                } catch (e) {
                     folgasExplicitas = (c.escala_folgas || '').split(/[,;]+/).map(f => f.trim().toLowerCase()).filter(Boolean);
                 }
                 const folgasDow = folgasExplicitas.map(f => DIA_MAP[f]).filter(v => v !== undefined);
@@ -12528,7 +12525,7 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
         try {
             const parsed = JSON.parse(c.escala_folgas || '[]');
             folgasExplicitas = Array.isArray(parsed) ? parsed.map(f => String(f).trim().toLowerCase()) : [String(parsed).trim().toLowerCase()];
-        } catch(e2) {
+        } catch (e2) {
             folgasExplicitas = (c.escala_folgas || '').split(/[,;]+/).map(f => f.trim().toLowerCase()).filter(Boolean);
         }
         const folgasDow = folgasExplicitas.map(f => DIA_MAP[f]).filter(v => v !== undefined);
@@ -12575,112 +12572,112 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                    ferias_programadas_inicio, ferias_programadas_fim
             FROM colaboradores WHERE LOWER(TRIM(nome_completo)) IN (${nomesArr.map(() => '?').join(',')})`,
         nomesArr, (err, colabs) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!colabs || !colabs.length) return res.json({});
+            if (err) return res.status(500).json({ error: err.message });
+            if (!colabs || !colabs.length) return res.json({});
 
-        const ids = colabs.map(c => c.id);
-        const ph = ids.map(() => '?').join(',');
+            const ids = colabs.map(c => c.id);
+            const ph = ids.map(() => '?').join(',');
 
-        const pAtestado = new Promise(resolve => {
-            db.all(`SELECT colaborador_id, atestado_inicio, atestado_fim FROM documentos
+            const pAtestado = new Promise(resolve => {
+                db.all(`SELECT colaborador_id, atestado_inicio, atestado_fim FROM documentos
                     WHERE colaborador_id IN (${ph})
                     AND (tab_name LIKE '%ATESTADO%' OR document_type LIKE '%Atestado%' OR tab_name = 'Atestados')
                     AND atestado_inicio <= ? AND atestado_fim >= ?`, [...ids, data, data], (e, rows) => {
-                const set = {};
-                // Guarda o atestado_fim para mostrar no badge
-                (rows || []).forEach(r => { set[r.colaborador_id] = r.atestado_fim || null; });
-                resolve(set);
-            });
-        });
-
-        const pFalta = new Promise(resolve => {
-            db.all(`SELECT colaborador_id FROM faltas WHERE colaborador_id IN (${ph}) AND data_falta = ?`,
-                [...ids, data], (e, rows) => {
-                const set = {};
-                (rows || []).forEach(r => { set[r.colaborador_id] = true; });
-                resolve(set);
-            });
-        });
-
-        // Agenda: falta/ausencia marcada na agenda da logística para essa data referente ao colaborador
-        const pAgenda = new Promise(resolve => {
-            db.all(`SELECT referente_ids, tipo FROM logistica_agenda WHERE data = ? AND tipo IN ('falta','afastado','ferias')`, [data], (e, rows) => {
-                const agendaMap = new Map(); // id -> tipo
-                (rows || []).forEach(r => {
-                    try {
-                        const refs = JSON.parse(r.referente_ids || '[]');
-                        refs.forEach(rid => {
-                            const idNum = Number(rid);
-                            // Prioridade: falta > afastado > ferias
-                            const prev = agendaMap.get(idNum);
-                            if (!prev || r.tipo === 'falta' || (r.tipo === 'afastado' && prev === 'ferias')) {
-                                agendaMap.set(idNum, r.tipo);
-                            }
-                        });
-                    } catch(ex) {}
+                    const set = {};
+                    // Guarda o atestado_fim para mostrar no badge
+                    (rows || []).forEach(r => { set[r.colaborador_id] = r.atestado_fim || null; });
+                    resolve(set);
                 });
-                resolve(agendaMap);
             });
-        });
 
-        Promise.all([pAtestado, pFalta, pAgenda]).then(([atestSet, faltSet, agendaMap]) => {
-            const result = {};
-            colabs.forEach(c => {
-                const nomeKey = (c.nome_completo || '').toLowerCase().trim();
-                let status = 'disponivel';
-                let motivo = '';
-                let data_fim = null;
+            const pFalta = new Promise(resolve => {
+                db.all(`SELECT colaborador_id FROM faltas WHERE colaborador_id IN (${ph}) AND data_falta = ?`,
+                    [...ids, data], (e, rows) => {
+                        const set = {};
+                        (rows || []).forEach(r => { set[r.colaborador_id] = true; });
+                        resolve(set);
+                    });
+            });
 
-                // Status do sistema (Férias, Afastado no campo status)
-                const statusSistema = (c.status || '').toLowerCase();
-                if (statusSistema === 'férias' || statusSistema === 'ferias') {
-                    status = 'ferias';
-                    motivo = 'Em Férias (status cadastro)';
-                } else if (statusSistema === 'afastado') {
-                    status = 'afastado';
-                    motivo = 'Afastado (status cadastro)';
-                }
+            // Agenda: falta/ausencia marcada na agenda da logística para essa data referente ao colaborador
+            const pAgenda = new Promise(resolve => {
+                db.all(`SELECT referente_ids, tipo FROM logistica_agenda WHERE data = ? AND tipo IN ('falta','afastado','ferias')`, [data], (e, rows) => {
+                    const agendaMap = new Map(); // id -> tipo
+                    (rows || []).forEach(r => {
+                        try {
+                            const refs = JSON.parse(r.referente_ids || '[]');
+                            refs.forEach(rid => {
+                                const idNum = Number(rid);
+                                // Prioridade: falta > afastado > ferias
+                                const prev = agendaMap.get(idNum);
+                                if (!prev || r.tipo === 'falta' || (r.tipo === 'afastado' && prev === 'ferias')) {
+                                    agendaMap.set(idNum, r.tipo);
+                                }
+                            });
+                        } catch (ex) { }
+                    });
+                    resolve(agendaMap);
+                });
+            });
 
-                // Férias programadas por período
-                if (c.ferias_programadas_inicio && c.ferias_programadas_fim) {
-                    if (data >= c.ferias_programadas_inicio && data <= c.ferias_programadas_fim) {
+            Promise.all([pAtestado, pFalta, pAgenda]).then(([atestSet, faltSet, agendaMap]) => {
+                const result = {};
+                colabs.forEach(c => {
+                    const nomeKey = (c.nome_completo || '').toLowerCase().trim();
+                    let status = 'disponivel';
+                    let motivo = '';
+                    let data_fim = null;
+
+                    // Status do sistema (Férias, Afastado no campo status)
+                    const statusSistema = (c.status || '').toLowerCase();
+                    if (statusSistema === 'férias' || statusSistema === 'ferias') {
                         status = 'ferias';
-                        motivo = 'Férias programadas';
+                        motivo = 'Em Férias (status cadastro)';
+                    } else if (statusSistema === 'afastado') {
+                        status = 'afastado';
+                        motivo = 'Afastado (status cadastro)';
                     }
-                }
 
-                // Atestado no período (armazena a data fim para exibição)
-                if (atestSet[c.id] !== undefined && atestSet[c.id] !== null) {
-                    const fimAtestado = atestSet[c.id];
-                    const fimFmt = fimAtestado
-                        ? new Date(fimAtestado + 'T12:00:00').toLocaleDateString('pt-BR')
-                        : null;
-                    status = 'afastado';
-                    motivo = fimFmt ? `Afastado até ${fimFmt}` : 'Afastado / Atestado';
-                    data_fim = fimAtestado || null;
-                }
+                    // Férias programadas por período
+                    if (c.ferias_programadas_inicio && c.ferias_programadas_fim) {
+                        if (data >= c.ferias_programadas_inicio && data <= c.ferias_programadas_fim) {
+                            status = 'ferias';
+                            motivo = 'Férias programadas';
+                        }
+                    }
 
-                // Falta registrada na tabela de faltas
-                if (faltSet[c.id]) { status = 'falta'; motivo = 'Falta registrada no dia'; }
+                    // Atestado no período (armazena a data fim para exibição)
+                    if (atestSet[c.id] !== undefined && atestSet[c.id] !== null) {
+                        const fimAtestado = atestSet[c.id];
+                        const fimFmt = fimAtestado
+                            ? new Date(fimAtestado + 'T12:00:00').toLocaleDateString('pt-BR')
+                            : null;
+                        status = 'afastado';
+                        motivo = fimFmt ? `Afastado até ${fimFmt}` : 'Afastado / Atestado';
+                        data_fim = fimAtestado || null;
+                    }
 
-                // Agenda logística — respeita o tipo do card (falta, afastado ou ferias)
-                if (agendaMap.has(c.id)) {
-                    const tipoAgenda = agendaMap.get(c.id);
-                    if (tipoAgenda === 'falta') { status = 'falta'; motivo = 'Ausência lançada na Agenda'; }
-                    else if (tipoAgenda === 'afastado') { status = 'afastado'; motivo = 'Ausência lançada na Agenda'; }
-                    else if (tipoAgenda === 'ferias' && status === 'disponivel') { status = 'ferias'; motivo = 'Férias lançadas na Agenda Logística'; }
-                }
+                    // Falta registrada na tabela de faltas
+                    if (faltSet[c.id]) { status = 'falta'; motivo = 'Falta registrada no dia'; }
 
-                // Folga da escala (só se ainda disponível)
-                if (status === 'disponivel') {
-                    if (calcFolga(c, data)) { status = 'folga'; motivo = 'Dia de folga (escala)'; }
-                }
+                    // Agenda logística — respeita o tipo do card (falta, afastado ou ferias)
+                    if (agendaMap.has(c.id)) {
+                        const tipoAgenda = agendaMap.get(c.id);
+                        if (tipoAgenda === 'falta') { status = 'falta'; motivo = 'Ausência lançada na Agenda'; }
+                        else if (tipoAgenda === 'afastado') { status = 'afastado'; motivo = 'Ausência lançada na Agenda'; }
+                        else if (tipoAgenda === 'ferias' && status === 'disponivel') { status = 'ferias'; motivo = 'Férias lançadas na Agenda Logística'; }
+                    }
 
-                result[nomeKey] = { status, motivo, nome: c.nome_completo, data_fim };
+                    // Folga da escala (só se ainda disponível)
+                    if (status === 'disponivel') {
+                        if (calcFolga(c, data)) { status = 'folga'; motivo = 'Dia de folga (escala)'; }
+                    }
+
+                    result[nomeKey] = { status, motivo, nome: c.nome_completo, data_fim };
+                });
+                res.json(result);
             });
-            res.json(result);
         });
-    });
 });
 
 // POST – criar card
@@ -12691,12 +12688,12 @@ app.post('/api/logistica/agenda', authenticateToken, express.json(), (req, res) 
     db.run(`INSERT INTO logistica_agenda (setor, titulo, descricao, data, horario, tipo, responsaveis, referente_ids, acoes, criado_por, criado_em, atualizado_em)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'), datetime('now','localtime'))`,
         [setor || 'logistica', titulo || '', descricao || '', data, horario || '', tipo || 'aviso',
-         JSON.stringify(responsaveis || []), JSON.stringify(referente_ids || []), JSON.stringify(acoes || []), criado_por],
-        function(err) {
+        JSON.stringify(responsaveis || []), JSON.stringify(referente_ids || []), JSON.stringify(acoes || []), criado_por],
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
             const insertedId = this.lastID;
             db.get('SELECT * FROM logistica_agenda WHERE id = ?', [insertedId], (e2, row) => {
-                if (row) dispararAcoesAgenda(row).catch(()=>{});
+                if (row) dispararAcoesAgenda(row).catch(() => { });
             });
             db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
                 [criado_por, 'Agenda Logística', 'Criação de Card', null, `Card: ${titulo || ''} (${data})`, insertedId]);
@@ -12711,9 +12708,9 @@ app.put('/api/logistica/agenda/:id', authenticateToken, express.json(), (req, re
     db.run(`UPDATE logistica_agenda SET titulo=?, descricao=?, data=?, horario=?, tipo=?, responsaveis=?, referente_ids=?, acoes=?, setor=?,
             atualizado_em=datetime('now','localtime') WHERE id=?`,
         [titulo || '', descricao || '', data, horario || '', tipo || 'aviso',
-         JSON.stringify(responsaveis || []), JSON.stringify(referente_ids || []), JSON.stringify(acoes || []),
-         setor || 'logistica', req.params.id],
-        function(err) {
+        JSON.stringify(responsaveis || []), JSON.stringify(referente_ids || []), JSON.stringify(acoes || []),
+        setor || 'logistica', req.params.id],
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
             db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
                 [req.user ? req.user.username : '', 'Agenda Logística', 'Edição de Card', null, `Editou o card: ${titulo || ''}`, req.params.id]);
@@ -12724,7 +12721,7 @@ app.put('/api/logistica/agenda/:id', authenticateToken, express.json(), (req, re
 
 // DELETE – excluir card
 app.delete('/api/logistica/agenda/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM logistica_agenda WHERE id = ?', [req.params.id], function(err) {
+    db.run('DELETE FROM logistica_agenda WHERE id = ?', [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
             [req.user ? req.user.username : '', 'Agenda Logística', 'Exclusão de Card', null, `Excluiu o card ID: ${req.params.id}`, req.params.id]);
@@ -12735,10 +12732,10 @@ app.delete('/api/logistica/agenda/:id', authenticateToken, (req, res) => {
 // Helper: disparar ações (e-mail) de um card da agenda
 async function dispararAcoesAgenda(card) {
     let acoes = [];
-    try { acoes = JSON.parse(card.acoes || '[]'); } catch(e) {}
+    try { acoes = JSON.parse(card.acoes || '[]'); } catch (e) { }
     let referente_ids = [];
-    try { referente_ids = JSON.parse(card.referente_ids || '[]'); } catch(e) {}
-    
+    try { referente_ids = JSON.parse(card.referente_ids || '[]'); } catch (e) { }
+
     // Notificação de Aviso de Falta (para o RH) - Regra Absoluta da Tela de Notificações e Inserção no Prontuário
     if (card.tipo === 'falta' && referente_ids.length > 0) {
         // 1. Inserir a falta no prontuário do RH (apenas se ainda não existir para a mesma data)
@@ -12747,7 +12744,7 @@ async function dispararAcoesAgenda(card) {
                 if (errChk || existente) return; // já existe, não duplicar
                 db.run('INSERT INTO faltas (colaborador_id, data_falta, turno, observacao, avisado_previamente) VALUES (?, ?, ?, ?, ?)',
                     [colab_id, card.data, 'Dia todo', card.descricao || 'Falta registrada via Agenda da Logística', 'Não'],
-                    function(errFalta) {
+                    function (errFalta) {
                         if (errFalta) console.error("Erro ao inserir falta via Agenda:", errFalta.message);
                     }
                 );
@@ -12776,7 +12773,7 @@ async function dispararAcoesAgenda(card) {
     if (!acoes.includes('enviar_email')) return;
 
     let responsaveisIds = [];
-    try { responsaveisIds = JSON.parse(card.responsaveis || '[]'); } catch(e) {}
+    try { responsaveisIds = JSON.parse(card.responsaveis || '[]'); } catch (e) { }
     if (responsaveisIds.length === 0) return;
 
     const placeholders = responsaveisIds.map(() => '?').join(',');
@@ -12784,7 +12781,7 @@ async function dispararAcoesAgenda(card) {
         responsaveisIds, async (err, colabs) => {
             if (err || !colabs || colabs.length === 0) return;
 
-            const tipo_label = {aviso:'Aviso Geral',falta:'Aviso de Falta',reuniao:'Reunião',tarefa:'Tarefa',email:'Envio de E-mail',outro:'Outro'}[card.tipo] || card.tipo;
+            const tipo_label = { aviso: 'Aviso Geral', falta: 'Aviso de Falta', reuniao: 'Reunião', tarefa: 'Tarefa', email: 'Envio de E-mail', outro: 'Outro' }[card.tipo] || card.tipo;
             const dataFmt = card.data ? card.data.split('-').reverse().join('/') : '';
             const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
@@ -12813,10 +12810,10 @@ async function dispararAcoesAgenda(card) {
                         to: c.email_corporativo,
                         subject: `[Agenda ${dataFmt}] ${card.titulo || tipo_label}`,
                         html,
-                        attachments: [{ filename:'logo.png', path: logoPath, cid:'logo-agenda' }]
+                        attachments: [{ filename: 'logo.png', path: logoPath, cid: 'logo-agenda' }]
                     });
                     console.log(`[Agenda] E-mail enviado para ${c.email_corporativo}`);
-                } catch(e2) {
+                } catch (e2) {
                     console.error('[Agenda] Erro ao enviar e-mail:', e2.message);
                 }
             }
@@ -13042,7 +13039,7 @@ app.get('/api/licencas/:id/view', authenticateToken, (req, res) => {
 // Excluir link_video de uma OS (por numero_os)
 app.delete('/api/logistica/os/:numero_os/link-video', authenticateToken, (req, res) => {
     const { numero_os } = req.params;
-    db.run('UPDATE os_logistica SET link_video = NULL WHERE numero_os = ?', [numero_os], function(err) {
+    db.run('UPDATE os_logistica SET link_video = NULL WHERE numero_os = ?', [numero_os], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'OS não encontrada.' });
         res.json({ ok: true });
@@ -13197,31 +13194,31 @@ async function dispararEmailLicenca(lic, diffDias, emailDestino) {
 // AUTO-MIGRATION PARA CREDENCIAMENTOS COMERCIAL
 // =====================================================================
 setTimeout(() => {
-db.serialize(() => {
-    const columns = [
-        "ALTER TABLE credenciamentos ADD COLUMN os TEXT DEFAULT '';",
-        "ALTER TABLE credenciamentos ADD COLUMN observacoes TEXT DEFAULT '';",
-        "ALTER TABLE credenciamentos ADD COLUMN licencas_ids TEXT;",
-        "ALTER TABLE credenciamentos ADD COLUMN endereco_instalacao TEXT;",
-        "ALTER TABLE credenciamentos ADD COLUMN acessado_em DATETIME;",
-        "ALTER TABLE credenciamentos ADD COLUMN status TEXT DEFAULT 'enviado';",
-        "ALTER TABLE credenciamentos ADD COLUMN qtd_max_colaboradores INTEGER DEFAULT 0;",
-        "ALTER TABLE credenciamentos ADD COLUMN qtd_max_veiculos INTEGER DEFAULT 0;",
-        "ALTER TABLE credenciamentos ADD COLUMN data_limite_envio DATETIME;"
-    ];
+    db.serialize(() => {
+        const columns = [
+            "ALTER TABLE credenciamentos ADD COLUMN os TEXT DEFAULT '';",
+            "ALTER TABLE credenciamentos ADD COLUMN observacoes TEXT DEFAULT '';",
+            "ALTER TABLE credenciamentos ADD COLUMN licencas_ids TEXT;",
+            "ALTER TABLE credenciamentos ADD COLUMN endereco_instalacao TEXT;",
+            "ALTER TABLE credenciamentos ADD COLUMN acessado_em DATETIME;",
+            "ALTER TABLE credenciamentos ADD COLUMN status TEXT DEFAULT 'enviado';",
+            "ALTER TABLE credenciamentos ADD COLUMN qtd_max_colaboradores INTEGER DEFAULT 0;",
+            "ALTER TABLE credenciamentos ADD COLUMN qtd_max_veiculos INTEGER DEFAULT 0;",
+            "ALTER TABLE credenciamentos ADD COLUMN data_limite_envio DATETIME;"
+        ];
 
-    columns.forEach(query => {
-        db.run(query, (err) => {
-            if (err) {
-                // Ignore duplicate column errors
-            } else {
-                console.log("Coluna adicionada em prod:", query);
-            }
+        columns.forEach(query => {
+            db.run(query, (err) => {
+                if (err) {
+                    // Ignore duplicate column errors
+                } else {
+                    console.log("Coluna adicionada em prod:", query);
+                }
+            });
         });
-    });
 
-    db.run("UPDATE credenciamentos SET status = 'enviado' WHERE status IS NULL", (err) => { });
-});
+        db.run("UPDATE credenciamentos SET status = 'enviado' WHERE status IS NULL", (err) => { });
+    });
 
 }, 3000);
 
@@ -13384,7 +13381,7 @@ function upsertMonaco(uuid, tipoEvento, payload, res) {
                     payload.velocidade_considerada, payload.multa_originaria_enquadramento,
                     payload.fator_multiplicador, payload.ait_originaria, payload.data_multa_originaria,
                     arquivosJson, now, now
-                ], function(err2) {
+                ], function (err2) {
                     if (err2) {
                         console.error('[MONACO] Erro ao inserir:', err2);
                         return res.status(500).json({ codError: 500, message: 'Erro ao inserir' });
@@ -13433,7 +13430,7 @@ app.post('/api/monaco/retornoCondutor', monacoAuth, (req, res) => {
     const { uuid, numero_ait, retorno_condutor } = req.body || {};
     if (!uuid) return res.status(400).json({ codError: 400, message: 'Campo uuid obrigatório' });
     db.run(`UPDATE multas_monaco SET retorno_condutor = ?, updated_at = datetime('now') WHERE uuid = ?`,
-        [retorno_condutor, uuid], function(err) {
+        [retorno_condutor, uuid], function (err) {
             if (err) return res.status(500).json({ codError: 500, message: 'Erro interno' });
             if (this.changes === 0) return res.status(404).json({ codError: 404, message: 'UUID não encontrado' });
             res.status(200).json({ mensagem: 'Status enviado com sucesso' });
@@ -13470,7 +13467,7 @@ app.get('/api/monaco/multas', authenticateToken, (req, res) => {
 // ── PATCH /api/monaco/multas/:id/visualizar ───────────────────────────────────
 app.patch('/api/monaco/multas/:id/visualizar', authenticateToken, (req, res) => {
     db.run(`UPDATE multas_monaco SET visualizada = 1, updated_at = datetime('now') WHERE id = ?`,
-        [req.params.id], function(err) {
+        [req.params.id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ sucesso: true });
         });
@@ -13480,7 +13477,7 @@ app.patch('/api/monaco/multas/:id/visualizar', authenticateToken, (req, res) => 
 app.patch('/api/monaco/multas/:id/observacao', authenticateToken, (req, res) => {
     const { observacao_interna } = req.body || {};
     db.run(`UPDATE multas_monaco SET observacao_interna = ?, updated_at = datetime('now') WHERE id = ?`,
-        [observacao_interna, req.params.id], function(err) {
+        [observacao_interna, req.params.id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ sucesso: true });
         });

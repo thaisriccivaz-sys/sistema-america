@@ -8,7 +8,7 @@ function showToast(msg, type) {
         const toastBody = toast.querySelector('.toast-body');
         if (toastBody) toastBody.textContent = msg;
         toast.className = 'toast align-items-center border-0 ' + (type === 'error' ? 'bg-danger text-white' : 'bg-success text-white');
-        try { new bootstrap.Toast(toast, { delay: 3000 }).show(); return; } catch(e) {}
+        try { new bootstrap.Toast(toast, { delay: 3000 }).show(); return; } catch (e) { }
     }
     const div = document.createElement('div');
     div.style = 'position:fixed;bottom:24px;right:24px;z-index:99999;background:' + (type === 'error' ? '#dc2626' : '#16a34a') + ';color:#fff;padding:12px 20px;border-radius:10px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,0.2);';
@@ -24,25 +24,25 @@ let currentDocs = [];
 let viewedColaborador = null;
 
 // Helper global para PDF
-window.gerarPDFBlob = async function(element, filename = 'documento.pdf') {
+window.gerarPDFBlob = async function (element, filename = 'documento.pdf') {
     return new Promise((resolve, reject) => {
         if (typeof html2pdf === 'undefined') return reject(new Error('Biblioteca html2pdf não carregada'));
 
         // Salvar estilo original
-        const origWidth    = element.style.width;
+        const origWidth = element.style.width;
         const origMaxWidth = element.style.maxWidth;
-        const origMinH     = element.style.minHeight;
-        const origBorder   = element.style.border;
-        const origShadow   = element.style.boxShadow;
-        const origMargin   = element.style.margin;
+        const origMinH = element.style.minHeight;
+        const origBorder = element.style.border;
+        const origShadow = element.style.boxShadow;
+        const origMargin = element.style.margin;
 
         // Limpar estilo para não vazar bordas (evita 2a pagina vazia)
-        element.style.width     = '794px';
-        element.style.maxWidth  = '794px';
+        element.style.width = '794px';
+        element.style.maxWidth = '794px';
         element.style.minHeight = '0';
-        element.style.border    = 'none';
+        element.style.border = 'none';
         element.style.boxShadow = 'none';
-        element.style.margin    = '0';
+        element.style.margin = '0';
 
         // Salvar e zerar rolagem da janela e de qualquer container pai para evitar branco no topo
         const origWinScrollY = window.scrollY;
@@ -73,23 +73,23 @@ window.gerarPDFBlob = async function(element, filename = 'documento.pdf') {
             .from(element)
             .output('blob')
             .then(blob => {
-                element.style.width     = origWidth;
-                element.style.maxWidth  = origMaxWidth;
+                element.style.width = origWidth;
+                element.style.maxWidth = origMaxWidth;
                 element.style.minHeight = origMinH;
-                element.style.border    = origBorder;
+                element.style.border = origBorder;
                 element.style.boxShadow = origShadow;
-                element.style.margin    = origMargin;
+                element.style.margin = origMargin;
                 parentScrolls.forEach(s => s.el.scrollTop = s.top);
                 window.scrollTo(origWinScrollX, origWinScrollY);
                 resolve(blob);
             })
             .catch(err => {
-                element.style.width     = origWidth;
-                element.style.maxWidth  = origMaxWidth;
+                element.style.width = origWidth;
+                element.style.maxWidth = origMaxWidth;
                 element.style.minHeight = origMinH;
-                element.style.border    = origBorder;
+                element.style.border = origBorder;
                 element.style.boxShadow = origShadow;
-                element.style.margin    = origMargin;
+                element.style.margin = origMargin;
                 parentScrolls.forEach(s => s.el.scrollTop = s.top);
                 window.scrollTo(origWinScrollX, origWinScrollY);
                 reject(err);
@@ -100,14 +100,14 @@ window.gerarPDFBlob = async function(element, filename = 'documento.pdf') {
 // --- INICIALIZAÇÃO E ROTAS BÁSICAS ---
 
 const DOCS_DISPONIVEIS = [
-    "Acordo Individual Benefícios", "Autorização Uso de Imagem", "Auxílio Combustível", 
-    "Coca Cola Desconto", "Contrato Academia", "Contrato Faculdade", "Descrição de cargos", 
-    "EPI", "Gerador Bloqueio Farmacia e mercado", "Gerador Desconto folha", 
-    "Gerador Sorteio", "Intermitente", "NR01", "NR18", "Pedido Abertura de Conta", 
-    "Terapia", "Termo de Acordo de Desligamento", "Termo de Confidencialidade", 
-    "Termo de Responsabilidade Bilhete unico", "Termo de Responsabilidade Cracha", 
-    "Termo de Responsabilidade de Celulares", "Termo de Responsabilidade de Chaves", 
-    "Termo de Responsabilidade de Notebook", "Termo de Responsabilidade entrega de kit veicular", 
+    "Acordo Individual Benefícios", "Autorização Uso de Imagem", "Auxílio Combustível",
+    "Coca Cola Desconto", "Contrato Academia", "Contrato Faculdade", "Descrição de cargos",
+    "EPI", "Gerador Bloqueio Farmacia e mercado", "Gerador Desconto folha",
+    "Gerador Sorteio", "Intermitente", "NR01", "NR18", "Pedido Abertura de Conta",
+    "Terapia", "Termo de Acordo de Desligamento", "Termo de Confidencialidade",
+    "Termo de Responsabilidade Bilhete unico", "Termo de Responsabilidade Cracha",
+    "Termo de Responsabilidade de Celulares", "Termo de Responsabilidade de Chaves",
+    "Termo de Responsabilidade de Notebook", "Termo de Responsabilidade entrega de kit veicular",
     "Termo de Responsabilidade Veículo"
 ];
 
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check for public form token
     const urlParams = new URLSearchParams(window.location.search);
     const expPublicToken = urlParams.get('exp_public_token');
-    
+
     if (expPublicToken) {
         window.location.href = `/avaliacao-publica.html?token=${expPublicToken}`;
         return; // Stop normal boot
@@ -123,15 +123,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setupNavigation();
     setupGeradores();
-    
+
     const savedToken = localStorage.getItem('erp_token');
     const savedUser = localStorage.getItem('erp_user');
-    
+
     if (savedToken && savedUser) {
         currentToken = savedToken;
         window.currentToken = currentToken;
         currentUser = JSON.parse(savedUser);
-        
+
         const nameEl = document.getElementById('logged-user-name');
         if (nameEl) nameEl.textContent = currentUser.username;
 
@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── LEMBRAR USUÁRIO: preencher campos se houver dados salvos ──
-(function() {
+(function () {
     const saved = localStorage.getItem('erp_remember');
     if (saved) {
         try {
@@ -170,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (u) u.value = username || '';
             if (p) p.value = password || '';
             if (c) c.checked = true;
-        } catch(e) {}
+        } catch (e) { }
     }
 })();
 
@@ -180,7 +180,7 @@ if (formLogin) {
         e.preventDefault();
         const usernameInp = document.getElementById('login-user').value.trim();
         const passwordInp = document.getElementById('login-pass').value;
-        const rememberMe  = document.getElementById('login-remember')?.checked;
+        const rememberMe = document.getElementById('login-remember')?.checked;
         const errorMsg = document.getElementById('login-error');
         if (errorMsg) errorMsg.textContent = '';
 
@@ -190,7 +190,7 @@ if (formLogin) {
         } else {
             localStorage.removeItem('erp_remember');
         }
-        
+
         const btnSubmit = formLogin.querySelector('button[type="submit"]');
         const oldText = btnSubmit.innerHTML;
         btnSubmit.innerHTML = 'Entrando...';
@@ -209,11 +209,11 @@ if (formLogin) {
             currentToken = data.token;
             currentUser = data.user;
             window.currentToken = currentToken;
-            
+
             localStorage.setItem('erp_token', currentToken);
             localStorage.setItem('erp_user', JSON.stringify(currentUser));
             localStorage.setItem('erp_login_time', Date.now().toString());
-            
+
             const nameEl = document.getElementById('logged-user-name');
             if (nameEl) nameEl.textContent = currentUser.username;
 
@@ -250,7 +250,7 @@ if (btnLogout) {
 }
 
 // ── Sessão automática: logout após 5 horas ─────────────────────────────
-(function() {
+(function () {
     const SESSION_MS = 5 * 60 * 60 * 1000; // 5 horas em ms
 
     function sessaoExpirada() {
@@ -281,7 +281,7 @@ if (btnLogout) {
                 </div>
             </div>`;
         document.body.appendChild(ov);
-        document.getElementById('btn-sessao-ok').addEventListener('click', function() {
+        document.getElementById('btn-sessao-ok').addEventListener('click', function () {
             localStorage.removeItem('erp_token');
             localStorage.removeItem('erp_user');
             localStorage.removeItem('erp_login_time');
@@ -296,7 +296,7 @@ if (btnLogout) {
 
     // Verificar ao carregar (caso o usuário reabra após 5h)
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() { setTimeout(verificarSessao, 3000); });
+        document.addEventListener('DOMContentLoaded', function () { setTimeout(verificarSessao, 3000); });
     } else {
         setTimeout(verificarSessao, 3000);
     }
@@ -306,12 +306,12 @@ if (btnLogout) {
 })();
 
 
-window.navigateInitialPage = function() {
+window.navigateInitialPage = function () {
     if (window.isTopAdmin) {
         navigateTo('dashboard');
         return;
     }
-    
+
     if (window.activeUserPerms) {
         if (window.activeUserPerms['dashboard']) {
             navigateTo('dashboard');
@@ -332,7 +332,7 @@ window.navigateInitialPage = function() {
             return;
         }
     }
-    
+
     // Fallback
     navigateTo('dashboard');
 };
@@ -352,22 +352,22 @@ async function carregarFotoUsuarioTopbar() {
         if (!resUsuarios.ok) return;
         const usuarios = await resUsuarios.json();
         const usuarioAtual = usuarios.find(u => u.username === currentUser.username);
-        
+
         if (!usuarioAtual || !usuarioAtual.nome) return;
-        
+
         // Busca colaboradores para encontrar o que tem o mesmo nome
         const resColabs = await fetch(`${API_URL}/colaboradores`, {
             headers: { Authorization: `Bearer ${currentToken}` }
         });
         if (!resColabs.ok) return;
         const colaboradores = await resColabs.json();
-        const colaborador = colaboradores.find(c => 
-            c.nome_completo && usuarioAtual.nome && 
+        const colaborador = colaboradores.find(c =>
+            c.nome_completo && usuarioAtual.nome &&
             c.nome_completo.toLowerCase().trim() === usuarioAtual.nome.toLowerCase().trim()
         );
-        
+
         if (!colaborador || !colaborador.id) return;
-        
+
         // Tenta carregar foto via base64 ou via URL
         if (colaborador.foto_base64) {
             imgEl.src = colaborador.foto_base64;
@@ -380,7 +380,7 @@ async function carregarFotoUsuarioTopbar() {
             imgEl.onload = () => { imgEl.style.display = 'block'; iconEl.style.display = 'none'; };
             imgEl.onerror = () => { imgEl.style.display = 'none'; iconEl.style.display = ''; };
         }
-    } catch(e) {
+    } catch (e) {
         console.log('[Avatar] Foto de usuario nao carregada:', e.message);
     }
 }
@@ -409,77 +409,77 @@ const BREADCRUMB_MAP = {
     // Telas principais
     'integracao': { path: 'Integração', code: 'RHAD06' },
     'assinaturas-digitais': { path: 'Assinaturas Digitais', code: 'RHAD07' },
-    'dashboard':          { path: 'Dashboard',                                                    code: 'RH001' },
-    'colaboradores':      { path: 'Colaboradores',                                                code: 'RHCL00' },
-    'form-colaborador':   { path: 'Colaboradores → Cadastro / Edição'                             },
-    'cargos':             { path: 'Cargos',                                                       code: 'RHAD01' },
-    'departamentos':      { path: 'Departamentos',                                                code: 'RHAD02' },
-    'faculdade':          { path: 'Faculdade',                                                    code: 'RHAD03' },
-    'chaves':             { path: 'Chaves',                                                       code: 'RHAD04' },
-    'geradores':          { path: 'Geradores',                                                    code: 'RHDOC01' },
-    'admissao':           { path: 'Admissão',                                                     code: 'RHAD05' },
-    'ficha-epi':          { path: 'Ficha EPI',                                                    code: 'RHEPI01' },
-    'avaliacoes':         { path: 'Avaliações',                                                   code: 'RHAV01' },
-    'gerenciar-avaliacoes': { path: 'Gerenciar Avaliações',                                       code: 'RHAV02' },
-    'usuarios-permissoes':  { path: 'Diretoria → Usuários e Permissões',                          code: 'DIR001' },
-    'form-usuario':         { path: 'Diretoria → Usuários e Permissões → Cadastro',               code: 'DIR002' },
-    'certificado-digital':  { path: 'Diretoria → Certificado Digital',                            code: 'DIR003' },
-    'licencas':             { path: 'Licenças',                                                   code: 'ADM001' },
+    'dashboard': { path: 'Dashboard', code: 'RH001' },
+    'colaboradores': { path: 'Colaboradores', code: 'RHCL00' },
+    'form-colaborador': { path: 'Colaboradores → Cadastro / Edição' },
+    'cargos': { path: 'Cargos', code: 'RHAD01' },
+    'departamentos': { path: 'Departamentos', code: 'RHAD02' },
+    'faculdade': { path: 'Faculdade', code: 'RHAD03' },
+    'chaves': { path: 'Chaves', code: 'RHAD04' },
+    'geradores': { path: 'Geradores', code: 'RHDOC01' },
+    'admissao': { path: 'Admissão', code: 'RHAD05' },
+    'ficha-epi': { path: 'Ficha EPI', code: 'RHEPI01' },
+    'avaliacoes': { path: 'Avaliações', code: 'RHAV01' },
+    'gerenciar-avaliacoes': { path: 'Gerenciar Avaliações', code: 'RHAV02' },
+    'usuarios-permissoes': { path: 'Diretoria → Usuários e Permissões', code: 'DIR001' },
+    'form-usuario': { path: 'Diretoria → Usuários e Permissões → Cadastro', code: 'DIR002' },
+    'certificado-digital': { path: 'Diretoria → Certificado Digital', code: 'DIR003' },
+    'licencas': { path: 'Licenças', code: 'ADM001' },
     // Sub-telas (Prontuário Digital - abas)
-    'tab:00. CheckList':          { path: 'Colaboradores → Prontuário Digital → 00. CheckList',          },
-    'tab:01_FICHA_CADASTRAL':     { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral',        },
-    'tab:Ficha Cadastral':        { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral',        },
-    'tab:Pagamentos':             { path: 'Colaboradores → Prontuário Digital → Pagamentos',             },
-    'tab:ASO':                    { path: 'Colaboradores → Prontuário Digital → ASO',                    },
-    'tab:Ficha de EPI':           { path: 'Colaboradores → Prontuário Digital → Ficha de EPI',           },
-    'tab:Atestados':              { path: 'Colaboradores → Prontuário Digital → Atestados',              },
-    'tab:Faltas':                 { path: 'Colaboradores → Prontuário Digital → Faltas',                 },
-    'tab:Contratos':              { path: 'Colaboradores → Prontuário Digital → Contratos',              },
-    'tab:Avaliação':              { path: 'Colaboradores → Prontuário Digital → Avaliação',              },
-    'tab:Avaliações':             { path: 'Colaboradores → Prontuário Digital → Avaliações',             },
-    'tab:Advertências':           { path: 'Colaboradores → Prontuário Digital → Ocorrências',           },
-    'tab:Faculdade':              { path: 'Colaboradores → Prontuário Digital → Faculdade',              },
-    'tab:Boletim de ocorrência':  { path: 'Colaboradores → Prontuário Digital → Boletim de Ocorrência',  },
-    'tab:Certificados':           { path: 'Colaboradores → Prontuário Digital → Certificados',           },
-    'tab:Conjuge':                { path: 'Colaboradores → Prontuário Digital → Conjuge',                },
-    'tab:Dependentes':            { path: 'Colaboradores → Prontuário Digital → Dependentes',            },
-    'tab:Fotos':                  { path: 'Colaboradores → Prontuário Digital → Fotos',                  },
-    'tab:Multas':                 { path: 'Colaboradores → Prontuário Digital → Multas',                 },
-    'tab:NRs':                    { path: 'Colaboradores → Prontuário Digital → NRs',                    },
-    'tab:Terapia':                { path: 'Colaboradores → Prontuário Digital → Terapia',                },
-    'tab:Treinamento':            { path: 'Colaboradores → Prontuário Digital → Treinamento',            },
-    'tab:Documentos':             { path: 'Colaboradores → Prontuário Digital → Documentos',             },
-    'tab:Afastamentos':           { path: 'Colaboradores → Prontuário Digital → Afastamentos',           },
-    'tab:Chaves':                 { path: 'Colaboradores → Prontuário Digital → Chaves',                 },
-    'tab:Prontuário Digital':     { path: 'Colaboradores → Prontuário Digital',                          },
+    'tab:00. CheckList': { path: 'Colaboradores → Prontuário Digital → 00. CheckList', },
+    'tab:01_FICHA_CADASTRAL': { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral', },
+    'tab:Ficha Cadastral': { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral', },
+    'tab:Pagamentos': { path: 'Colaboradores → Prontuário Digital → Pagamentos', },
+    'tab:ASO': { path: 'Colaboradores → Prontuário Digital → ASO', },
+    'tab:Ficha de EPI': { path: 'Colaboradores → Prontuário Digital → Ficha de EPI', },
+    'tab:Atestados': { path: 'Colaboradores → Prontuário Digital → Atestados', },
+    'tab:Faltas': { path: 'Colaboradores → Prontuário Digital → Faltas', },
+    'tab:Contratos': { path: 'Colaboradores → Prontuário Digital → Contratos', },
+    'tab:Avaliação': { path: 'Colaboradores → Prontuário Digital → Avaliação', },
+    'tab:Avaliações': { path: 'Colaboradores → Prontuário Digital → Avaliações', },
+    'tab:Advertências': { path: 'Colaboradores → Prontuário Digital → Ocorrências', },
+    'tab:Faculdade': { path: 'Colaboradores → Prontuário Digital → Faculdade', },
+    'tab:Boletim de ocorrência': { path: 'Colaboradores → Prontuário Digital → Boletim de Ocorrência', },
+    'tab:Certificados': { path: 'Colaboradores → Prontuário Digital → Certificados', },
+    'tab:Conjuge': { path: 'Colaboradores → Prontuário Digital → Conjuge', },
+    'tab:Dependentes': { path: 'Colaboradores → Prontuário Digital → Dependentes', },
+    'tab:Fotos': { path: 'Colaboradores → Prontuário Digital → Fotos', },
+    'tab:Multas': { path: 'Colaboradores → Prontuário Digital → Multas', },
+    'tab:NRs': { path: 'Colaboradores → Prontuário Digital → NRs', },
+    'tab:Terapia': { path: 'Colaboradores → Prontuário Digital → Terapia', },
+    'tab:Treinamento': { path: 'Colaboradores → Prontuário Digital → Treinamento', },
+    'tab:Documentos': { path: 'Colaboradores → Prontuário Digital → Documentos', },
+    'tab:Afastamentos': { path: 'Colaboradores → Prontuário Digital → Afastamentos', },
+    'tab:Chaves': { path: 'Colaboradores → Prontuário Digital → Chaves', },
+    'tab:Prontuário Digital': { path: 'Colaboradores → Prontuário Digital', },
     // Módulos adicionais
-    'dissidio':               { path: 'Dissídio',                                                  code: 'RHDIS01' },
-    'ferias':                 { path: 'Controle de Férias',                                        code: 'RHFER01' },
+    'dissidio': { path: 'Dissídio', code: 'RHDIS01' },
+    'ferias': { path: 'Controle de Férias', code: 'RHFER01' },
     // Logística
-    'logistica-dashboard':    { path: 'Dashboard Logística',                                        code: 'LOG000' },
-    'logistica-sinistros':     { path: 'Sinistros Logística',                                        code: 'LOG010' },
-    'logistica-rota-redonda': { path: 'Rota Redonda',                                              code: 'LOG001' },
-    'logistica-frota-resumo': { path: 'Resumo de Frota',                                            code: 'LOG002' },
-    'logistica-pipeline':     { path: 'Pipeline OS',                                               code: 'LOG003' },
-    'logistica-multas':       { path: 'Multas',                                                    code: 'LOG004' },
-    'logistica-multas-monaco': { path: 'Multas Mônaco',                                             code: 'LOG012' },
-    'logistica-equipes':       { path: 'Equipes',                                                    code: 'LOG013' },
-    'logistica-frota':        { path: 'Frota',                                                     code: 'LOG005' },
-    'logistica-credenciamento': { path: 'Credenciamento',                                          code: 'LOG006' },
-    'logistica-senhas':       { path: 'Cofre de Senhas',                                           code: 'LOG007' },
-    'logistica-resumo-rota':  { path: 'Resumo de Rota',                                            code: 'LOG008' },
-    'logistica-itinerantes':  { path: 'Clientes Itinerantes',                                      code: 'LOG009' },
-    'logistica-agenda':       { path: 'Agenda Logística',                                           code: 'LOG011' },
+    'logistica-dashboard': { path: 'Dashboard Logística', code: 'LOG000' },
+    'logistica-sinistros': { path: 'Sinistros Logística', code: 'LOG010' },
+    'logistica-rota-redonda': { path: 'Rota Redonda', code: 'LOG001' },
+    'logistica-frota-resumo': { path: 'Resumo de Frota', code: 'LOG002' },
+    'logistica-pipeline': { path: 'Pipeline OS', code: 'LOG003' },
+    'logistica-multas': { path: 'Multas', code: 'LOG004' },
+    'logistica-multas-monaco': { path: 'Multas Mônaco', code: 'LOG012' },
+    'logistica-equipes': { path: 'Equipes', code: 'LOG013' },
+    'logistica-frota': { path: 'Frota', code: 'LOG005' },
+    'logistica-credenciamento': { path: 'Credenciamento', code: 'LOG006' },
+    'logistica-senhas': { path: 'Cofre de Senhas', code: 'LOG007' },
+    'logistica-resumo-rota': { path: 'Resumo de Rota', code: 'LOG008' },
+    'logistica-itinerantes': { path: 'Clientes Itinerantes', code: 'LOG009' },
+    'logistica-agenda': { path: 'Agenda Logística', code: 'LOG011' },
     // Comercial
-    'comercial-credenciamento': { path: 'Solicitar Credencial',                                    code: 'COM001' },
+    'comercial-credenciamento': { path: 'Solicitar Credencial', code: 'COM001' },
 };
 
-window.carregarPermissoesOnline = async function() {
+window.carregarPermissoesOnline = async function () {
     if (!currentUser || !currentToken) return;
 
     // Define quem é super admin e pode ver tudo por padrão (Apenas Diretoria!)
     // Verifica: role do banco, departamento OU nome do grupo de permissão
-    const isTopAdmin = currentUser.role === 'Diretoria' 
+    const isTopAdmin = currentUser.role === 'Diretoria'
         || currentUser.departamento === 'Diretoria'
         || (currentUser.grupo_nome && currentUser.grupo_nome.toLowerCase() === 'diretoria');
     window.isTopAdmin = isTopAdmin;
@@ -526,7 +526,7 @@ window.carregarPermissoesOnline = async function() {
         // Percorre todos os botões de navegação (.nav-item)
         document.querySelectorAll('.nav-item[data-target]').forEach(link => {
             const pathId = link.getAttribute('data-target');
-            
+
             // Hardcode: módulos "Em breve" nunca devem aparecer para usuários comuns, 
             // mesmo que marcados sem querer no banco.
             if (pathId && pathId.includes('em-breve')) {
@@ -548,12 +548,12 @@ window.carregarPermissoesOnline = async function() {
         deptSubmenus.forEach(submenu => {
             const navItems = Array.from(submenu.querySelectorAll('.nav-item[data-target]'));
             const headerObj = submenu.parentElement; // o `.dept-item` é o pai
-            
+
             if (navItems.length > 0) {
                 // Checa diretamente no mapa de permissões se o cara tem algo liberado aqui!
                 const isAnyVisible = navItems.some(i => mapPerms[i.getAttribute('data-target')] === true);
                 if (!isAnyVisible) {
-                    headerObj.style.cssText = 'display: none !important;'; 
+                    headerObj.style.cssText = 'display: none !important;';
                 } else {
                     headerObj.style.display = '';
                 }
@@ -562,7 +562,7 @@ window.carregarPermissoesOnline = async function() {
                 headerObj.style.cssText = 'display: none !important;';
             }
         });
-        
+
         // Sempre garantimos que o ícone de SAIR apareça então não há risco.
 
     } catch (err) {
@@ -586,7 +586,7 @@ function updateBreadcrumb(key) {
         if (deptItem) {
             const cssColor = deptItem.style.getPropertyValue('--dept-color').trim();
             if (cssColor) pageColor = cssColor;
-            
+
             const iconEl = deptItem.querySelector('.dept-btn i');
             if (iconEl) {
                 deptIconHTML = `<i class="${iconEl.className}" style="margin-right:6px; color:#fff; font-size:1.1rem; vertical-align:text-bottom; filter: brightness(1.2);"></i>`;
@@ -613,12 +613,12 @@ function updateBreadcrumb(key) {
             starBtn.style.display = 'none';
         }
     }
-    
+
     if (typeof renderBookmarks === 'function') setTimeout(renderBookmarks, 50); // Força render com o novo key
     if (!bar) return;
     const entry = BREADCRUMB_MAP[key] || { path: key };
     const parts = entry.path.split('→').map(p => p.trim());
-    
+
     // Assegurar que 'Diretoria' ou 'RH' não se duplique se colocarmos o ícone,
     // mas o usuário pediu "icones dos setores e o código" (talvez "nome"?). Vamos por o ícone:
     bar.innerHTML = `${deptIconHTML}<span style="opacity:0.7;margin-right:4px;">Caminho:</span>` +
@@ -633,52 +633,52 @@ let appOpenTabs = [];
 // ── METADADOS DE ABAS: cor, ícone e módulo por tela ─────────────────────────
 const TAB_META = {
     // RH - Rosa
-    'dashboard':              { color: '#f503c5', icon: 'ph-squares-four',    title: 'Dashboard' },
-    'colaboradores':          { color: '#f503c5', icon: 'ph-address-book',    title: 'Colaboradores' },
-    'form-colaborador':       { color: '#f503c5', icon: 'ph-user-plus',       title: 'Cadastro Colaborador' },
-    'prontuario':             { color: '#f503c5', icon: 'ph-folder-open',     title: 'Prontuário Digital' },
-    'admissao':               { color: '#f503c5', icon: 'ph-list-checks',     title: 'Admissão' },
-    'integracao':             { color: '#f503c5', icon: 'ph-users-three',     title: 'Integração' },
-    'cargos':                 { color: '#f503c5', icon: 'ph-briefcase',       title: 'Cargos' },
-    'departamentos':          { color: '#f503c5', icon: 'ph-buildings',       title: 'Departamentos' },
-    'faculdade':              { color: '#f503c5', icon: 'ph-graduation-cap',  title: 'Faculdade' },
-    'geradores':              { color: '#f503c5', icon: 'ph-file-text',       title: 'Geradores' },
-    'ficha-epi':              { color: '#f503c5', icon: 'ph-shield-check',    title: 'Ficha EPI' },
-    'gerenciar-avaliacoes':   { color: '#f503c5', icon: 'ph-clipboard-text',  title: 'Avaliações' },
-    'assinaturas-digitais':   { color: '#f503c5', icon: 'ph-signature',       title: 'Assinaturas' },
-    'dissidio':               { color: '#f503c5', icon: 'ph-trend-up',        title: 'Dissídio' },
-    'ferias':                 { color: '#f503c5', icon: 'ph-airplane-tilt',   title: 'Férias' },
-    'experiencia':            { color: '#f503c5', icon: 'ph-user-check',      title: 'Experiência' },
+    'dashboard': { color: '#f503c5', icon: 'ph-squares-four', title: 'Dashboard' },
+    'colaboradores': { color: '#f503c5', icon: 'ph-address-book', title: 'Colaboradores' },
+    'form-colaborador': { color: '#f503c5', icon: 'ph-user-plus', title: 'Cadastro Colaborador' },
+    'prontuario': { color: '#f503c5', icon: 'ph-folder-open', title: 'Prontuário Digital' },
+    'admissao': { color: '#f503c5', icon: 'ph-list-checks', title: 'Admissão' },
+    'integracao': { color: '#f503c5', icon: 'ph-users-three', title: 'Integração' },
+    'cargos': { color: '#f503c5', icon: 'ph-briefcase', title: 'Cargos' },
+    'departamentos': { color: '#f503c5', icon: 'ph-buildings', title: 'Departamentos' },
+    'faculdade': { color: '#f503c5', icon: 'ph-graduation-cap', title: 'Faculdade' },
+    'geradores': { color: '#f503c5', icon: 'ph-file-text', title: 'Geradores' },
+    'ficha-epi': { color: '#f503c5', icon: 'ph-shield-check', title: 'Ficha EPI' },
+    'gerenciar-avaliacoes': { color: '#f503c5', icon: 'ph-clipboard-text', title: 'Avaliações' },
+    'assinaturas-digitais': { color: '#f503c5', icon: 'ph-signature', title: 'Assinaturas' },
+    'dissidio': { color: '#f503c5', icon: 'ph-trend-up', title: 'Dissídio' },
+    'ferias': { color: '#f503c5', icon: 'ph-airplane-tilt', title: 'Férias' },
+    'experiencia': { color: '#f503c5', icon: 'ph-user-check', title: 'Experiência' },
     // Diretoria - Laranja
-    'usuarios-permissoes':    { color: '#d9480f', icon: 'ph-users-three',     title: 'Usuários e Permissões' },
-    'certificado-digital':    { color: '#d9480f', icon: 'ph-certificate',     title: 'Certificado Digital' },
-    'chaves':                 { color: '#d9480f', icon: 'ph-key',             title: 'Chaves' },
-    'form-usuario':           { color: '#d9480f', icon: 'ph-user-gear',      title: 'Cadastro de Usuário' },
+    'usuarios-permissoes': { color: '#d9480f', icon: 'ph-users-three', title: 'Usuários e Permissões' },
+    'certificado-digital': { color: '#d9480f', icon: 'ph-certificate', title: 'Certificado Digital' },
+    'chaves': { color: '#d9480f', icon: 'ph-key', title: 'Chaves' },
+    'form-usuario': { color: '#d9480f', icon: 'ph-user-gear', title: 'Cadastro de Usuário' },
     // Logística - Verde
-    'logistica-em-breve':     { color: '#2d9e5f', icon: 'ph-truck',          title: 'Logística' },
-    'logistica-dashboard':    { color: '#2d9e5f', icon: 'ph-chart-bar',      title: 'Dashboard Logística' },
-    'logistica-sinistros':     { color: '#059669', icon: 'ph-warning',      title: 'Sinistros Logística' },
-    'logistica-rota-redonda': { color: '#2d9e5f', icon: 'ph-map-trifold',   title: 'Rota Redonda' },
-    'logistica-resumo-rota':  { color: '#2d9e5f', icon: 'ph-list-bullets',  title: 'Resumo de Rota' },
-    'logistica-frota-resumo':  { color: '#1e3a5f', icon: 'ph-truck',          title: 'Resumo de Frota' },
-    'logistica-pipeline':    { color: '#2d9e5f', icon: 'ph-kanban',       title: 'Pipeline' },
-    'logistica-entregas':             { color: '#2d9e5f', icon: 'ph-package',       title: 'Entregas' },
-    'logistica-multas':      { color: '#2d9e5f', icon: 'ph-receipt',      title: 'Multas' },
-    'logistica-multas-monaco': { color: '#dc2626', icon: 'ph-car',         title: 'Multas Mônaco' },
-    'logistica-equipes':        { color: '#6366f1', icon: 'ph-users-three', title: 'Equipes' },
-    'logistica-frota':       { color: '#2d9e5f', icon: 'ph-truck',        title: 'Frota' },
+    'logistica-em-breve': { color: '#2d9e5f', icon: 'ph-truck', title: 'Logística' },
+    'logistica-dashboard': { color: '#2d9e5f', icon: 'ph-chart-bar', title: 'Dashboard Logística' },
+    'logistica-sinistros': { color: '#059669', icon: 'ph-warning', title: 'Sinistros Logística' },
+    'logistica-rota-redonda': { color: '#2d9e5f', icon: 'ph-map-trifold', title: 'Rota Redonda' },
+    'logistica-resumo-rota': { color: '#2d9e5f', icon: 'ph-list-bullets', title: 'Resumo de Rota' },
+    'logistica-frota-resumo': { color: '#1e3a5f', icon: 'ph-truck', title: 'Resumo de Frota' },
+    'logistica-pipeline': { color: '#2d9e5f', icon: 'ph-kanban', title: 'Pipeline' },
+    'logistica-entregas': { color: '#2d9e5f', icon: 'ph-package', title: 'Entregas' },
+    'logistica-multas': { color: '#2d9e5f', icon: 'ph-receipt', title: 'Multas' },
+    'logistica-multas-monaco': { color: '#dc2626', icon: 'ph-car', title: 'Multas Mônaco' },
+    'logistica-equipes': { color: '#6366f1', icon: 'ph-users-three', title: 'Equipes' },
+    'logistica-frota': { color: '#2d9e5f', icon: 'ph-truck', title: 'Frota' },
     'logistica-credenciamento': { color: '#2d9e5f', icon: 'ph-identification-card', title: 'Credenciamento' },
-    'logistica-senhas':       { color: '#2d9e5f', icon: 'ph-lock-key',             title: 'Cofre de Senhas' },
-    'logistica-itinerantes':  { color: '#2d9e5f', icon: 'ph-map-pin-line',         title: 'Clientes Itinerantes' },
-    'logistica-agenda':       { color: '#2d9e5f', icon: 'ph-calendar-check',       title: 'Agenda' },
+    'logistica-senhas': { color: '#2d9e5f', icon: 'ph-lock-key', title: 'Cofre de Senhas' },
+    'logistica-itinerantes': { color: '#2d9e5f', icon: 'ph-map-pin-line', title: 'Clientes Itinerantes' },
+    'logistica-agenda': { color: '#2d9e5f', icon: 'ph-calendar-check', title: 'Agenda' },
     // Financeiro - Azul
-    'financeiro-em-breve':    { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
+    'financeiro-em-breve': { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
     // Comercial - Roxo
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
-    'comercial-em-breve':     { color: '#7048e8', icon: 'ph-handshake',      title: 'Comercial' },
+    'comercial-em-breve': { color: '#7048e8', icon: 'ph-handshake', title: 'Comercial' },
     // Administrativo - Amarelo
-    'admin-em-breve':         { color: '#e67700', icon: 'ph-gear',           title: 'Administrativo' },
-    'licencas':               { color: '#e67700', icon: 'ph-certificate',    title: 'Licenças' },
+    'admin-em-breve': { color: '#e67700', icon: 'ph-gear', title: 'Administrativo' },
+    'licencas': { color: '#e67700', icon: 'ph-certificate', title: 'Licenças' },
 };
 
 function getTabMeta(target) {
@@ -723,7 +723,7 @@ function renderAppTabs() {
 }
 
 // Navegar para uma aba existente pelo seu tabId único
-window.navigateToTab = function(tabId) {
+window.navigateToTab = function (tabId) {
     const tab = appOpenTabs.find(t => t.tabId === tabId);
     if (!tab) return;
     appOpenTabs.forEach(t => t.active = (t.tabId === tabId));
@@ -737,7 +737,7 @@ window.navigateToTab = function(tabId) {
     // Restaurar o estado da view correspondente
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    
+
     if (tab.target !== 'logistica-pipeline') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (typeof window._pipelineScrollY !== 'undefined') {
@@ -749,43 +749,43 @@ window.navigateToTab = function(tabId) {
     const targetNavObj = document.querySelector(`[data-target="${tab.target}"]`);
     if (targetNavObj) targetNavObj.classList.add('active');
     updateBreadcrumb(tab.target);
-      // Module-specific render hooks
-      if (tab.target === 'logistica-dashboard' && typeof window.renderLogisticaDashboard === 'function') {
-          setTimeout(() => window.renderLogisticaDashboard(), 80);
-      }
-      if (tab.target === 'logistica-sinistros' && typeof window.renderLogisticaSinistros === 'function') {
-          setTimeout(() => window.renderLogisticaSinistros(), 80);
-      }
-      if (tab.target === 'logistica-frota-resumo' && typeof renderFrotaResumo === 'function') {
-          setTimeout(() => renderFrotaResumo(), 50);
-      }
-      if (tab.target === 'logistica-pipeline' && typeof renderPipelinePage === 'function') {
-          setTimeout(() => renderPipelinePage(), 80);
-      }
-      if (tab.target === 'logistica-frota' && typeof window.initFrotaVeiculos === 'function') {
-          setTimeout(() => window.initFrotaVeiculos(), 80);
-      }
-      if (tab.target === 'logistica-credenciamento' && typeof window.carregarHistoricoCredenciamento === 'function') {
-          setTimeout(() => window.carregarHistoricoCredenciamento(), 80);
-      }
-      if (tab.target === 'logistica-itinerantes' && typeof window.renderItinerantesPage === 'function') {
-          setTimeout(() => window.renderItinerantesPage(), 80);
-      }
-      if (tab.target === 'logistica-agenda' && typeof window.renderAgendaLogistica === 'function') {
-          setTimeout(() => window.renderAgendaLogistica(), 80);
-      }
+    // Module-specific render hooks
+    if (tab.target === 'logistica-dashboard' && typeof window.renderLogisticaDashboard === 'function') {
+        setTimeout(() => window.renderLogisticaDashboard(), 80);
+    }
+    if (tab.target === 'logistica-sinistros' && typeof window.renderLogisticaSinistros === 'function') {
+        setTimeout(() => window.renderLogisticaSinistros(), 80);
+    }
+    if (tab.target === 'logistica-frota-resumo' && typeof renderFrotaResumo === 'function') {
+        setTimeout(() => renderFrotaResumo(), 50);
+    }
+    if (tab.target === 'logistica-pipeline' && typeof renderPipelinePage === 'function') {
+        setTimeout(() => renderPipelinePage(), 80);
+    }
+    if (tab.target === 'logistica-frota' && typeof window.initFrotaVeiculos === 'function') {
+        setTimeout(() => window.initFrotaVeiculos(), 80);
+    }
+    if (tab.target === 'logistica-credenciamento' && typeof window.carregarHistoricoCredenciamento === 'function') {
+        setTimeout(() => window.carregarHistoricoCredenciamento(), 80);
+    }
+    if (tab.target === 'logistica-itinerantes' && typeof window.renderItinerantesPage === 'function') {
+        setTimeout(() => window.renderItinerantesPage(), 80);
+    }
+    if (tab.target === 'logistica-agenda' && typeof window.renderAgendaLogistica === 'function') {
+        setTimeout(() => window.renderAgendaLogistica(), 80);
+    }
     // Se a aba tem dados de colaborador (prontuário ou form), restaura o viewedColaborador
     if (tab._colaboradorData) {
         viewedColaborador = tab._colaboradorData;
     }
 };
 
-window.closeAppTab = function(tabId) {
+window.closeAppTab = function (tabId) {
     const idx = appOpenTabs.findIndex(t => t.tabId === tabId);
     if (idx === -1) return;
     const wasActive = appOpenTabs[idx].active;
     appOpenTabs.splice(idx, 1);
-    
+
     if (wasActive) {
         if (appOpenTabs.length > 0) {
             navigateToTab(appOpenTabs[appOpenTabs.length - 1].tabId);
@@ -811,8 +811,8 @@ function navigateTo(target) {
         renderAppTabs();
     }
     const isTopAdmin = currentUser && (
-        currentUser.role === 'Diretoria' 
-        || currentUser.role === 'Administrador' 
+        currentUser.role === 'Diretoria'
+        || currentUser.role === 'Administrador'
         || currentUser.departamento === 'Diretoria'
         || (currentUser.grupo_nome && currentUser.grupo_nome.toLowerCase() === 'diretoria')
     );
@@ -833,16 +833,16 @@ function navigateTo(target) {
 
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    
+
     if (target !== 'logistica-pipeline') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (typeof window._pipelineScrollY !== 'undefined') {
         window.scrollTo({ top: window._pipelineScrollY, behavior: 'instant' });
     }
-    
+
     const targetView = document.getElementById(`view-${target}`);
     if (targetView) targetView.classList.add('active');
-    
+
     const targetNavObj = document.querySelector(`[data-target="${target}"]`);
     if (targetNavObj) targetNavObj.classList.add('active');
 
@@ -917,11 +917,11 @@ function navigateTo(target) {
 
 // Abre uma aba de CADASTRO de colaborador, nomeada com o colaborador.
 // Se já existir aba para esse colaborador, apenas ativa. Novo colaborador usa tabId 'form-colaborador-novo'.
-window._openColaboradorTab = function(colabId, nomeColab) {
+window._openColaboradorTab = function (colabId, nomeColab) {
     const tabId = colabId ? `form-colaborador-${colabId}` : 'form-colaborador-novo';
     const label = nomeColab ? `Cadastro: ${nomeColab.split(' ')[0]}` : 'Novo Colaborador';
     const meta = getTabMeta('form-colaborador');
-    
+
     const existingTab = appOpenTabs.find(t => t.tabId === tabId);
     if (!existingTab) {
         appOpenTabs.push({ tabId, target: 'form-colaborador', title: label, color: meta.color, icon: meta.icon, active: true });
@@ -941,7 +941,7 @@ window._openColaboradorTab = function(colabId, nomeColab) {
 };
 
 // Abre uma aba de PRONTUÁRIO, nomeada com o colaborador.
-window._openProntuarioTab = function(colabId, nomeColab, colaboradorData) {
+window._openProntuarioTab = function (colabId, nomeColab, colaboradorData) {
     const tabId = `prontuario-${colabId}`;
     const firstName = (nomeColab || '').split(' ')[0];
     const label = `Prontuário: ${firstName}`;
@@ -988,7 +988,7 @@ function setupNavigation() {
             window._openColaboradorTab(null, null);
         });
     }
-    
+
     const btnNovoColab = document.getElementById('btn-novo-colab');
     if (btnNovoColab) {
         btnNovoColab.addEventListener('click', () => {
@@ -1037,7 +1037,7 @@ async function apiGet(endpoint) {
         });
         if (!res.ok) throw new Error('Falha na requisição');
         return res.json();
-    } catch(e) {
+    } catch (e) {
         console.error(e);
         return null;
     }
@@ -1047,7 +1047,7 @@ async function apiPost(endpoint, data, options = {}) {
     const { headers: customHeaders, ...restOptions } = options;
     const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
-        headers: { 
+        headers: {
             'Authorization': `Bearer ${currentToken}`,
             'Content-Type': 'application/json',
             ...(customHeaders || {})
@@ -1055,7 +1055,7 @@ async function apiPost(endpoint, data, options = {}) {
         body: JSON.stringify(data),
         ...restOptions
     });
-    
+
     // Check if response is JSON
     const contentType = res.headers.get("content-type");
     if (contentType && contentType.indexOf("application/json") !== -1) {
@@ -1070,7 +1070,7 @@ async function apiPost(endpoint, data, options = {}) {
 async function apiPut(endpoint, data) {
     const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'PUT',
-        headers: { 
+        headers: {
             'Authorization': `Bearer ${currentToken}`,
             'Content-Type': 'application/json'
         },
@@ -1101,7 +1101,7 @@ async function loadCargos() {
     window.allCargosCache = cargos;
     const tbody = document.getElementById('table-cargos-body');
     if (!tbody || !cargos) return;
-    
+
     tbody.innerHTML = '';
     cargos.forEach(c => {
         tbody.innerHTML += `
@@ -1133,7 +1133,7 @@ async function loadCargos() {
     }
 }
 
-window.deleteCargo = async function(id, nome) {
+window.deleteCargo = async function (id, nome) {
     if (!confirm(`Excluir permanentemente o cargo "${nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
     try {
         const res = await fetch(`${API_URL}/cargos/${id}`, {
@@ -1147,13 +1147,13 @@ window.deleteCargo = async function(id, nome) {
         }
         // Recarrega a lista
         await loadCargos();
-    } catch(e) {
+    } catch (e) {
         alert('Erro ao excluir cargo: ' + e.message);
     }
 };
 
 // Filtra as linhas da tabela de cargos pelo texto digitado
-window.filtrarListaCargos = function(query) {
+window.filtrarListaCargos = function (query) {
     const q = (query || '').toLowerCase().trim();
     document.querySelectorAll('#table-cargos-body tr').forEach(row => {
         const nome = (row.cells[1]?.textContent || '').toLowerCase();
@@ -1162,7 +1162,7 @@ window.filtrarListaCargos = function(query) {
 };
 
 // Filtra as linhas da tabela de departamentos pelo texto digitado
-window.filtrarListaDepartamentos = function(query) {
+window.filtrarListaDepartamentos = function (query) {
     const q = (query || '').toLowerCase().trim();
     document.querySelectorAll('#table-departamentos tr').forEach(row => {
         const nome = (row.cells[1]?.textContent || '').toLowerCase();
@@ -1170,28 +1170,28 @@ window.filtrarListaDepartamentos = function(query) {
     });
 };
 
-window.toggleCargoView = async function(mode, id = null) {
+window.toggleCargoView = async function (mode, id = null) {
     const listContainer = document.getElementById('cargo-list-container');
     const formContainer = document.getElementById('cargo-form-container');
     const headerActions = document.getElementById('cargo-header-actions');
     const btnDelete = document.getElementById('btn-cargo-delete');
-    
+
     // Esconder/Mostrar Containers
     if (mode === 'list') {
-        if(listContainer) listContainer.style.display = 'block';
-        if(formContainer) formContainer.style.display = 'none';
-        if(headerActions) headerActions.style.display = 'none'; // Esconde botões no topo ao ver a lista
+        if (listContainer) listContainer.style.display = 'block';
+        if (formContainer) formContainer.style.display = 'none';
+        if (headerActions) headerActions.style.display = 'none'; // Esconde botões no topo ao ver a lista
         loadCargos();
     } else {
-        if(listContainer) listContainer.style.display = 'none';
-        if(formContainer) formContainer.style.display = 'block';
-        if(headerActions) headerActions.style.display = 'flex'; // Mostra botões no topo ao editar/criar
-        
+        if (listContainer) listContainer.style.display = 'none';
+        if (formContainer) formContainer.style.display = 'block';
+        if (headerActions) headerActions.style.display = 'flex'; // Mostra botões no topo ao editar/criar
+
         if (mode === 'new') {
             document.getElementById('manage-cargo-id').value = '';
             document.getElementById('cargo-input-name').value = '';
             document.getElementById('cargo-form-label').textContent = 'Novo Cargo';
-            if(btnDelete) btnDelete.style.display = 'none';
+            if (btnDelete) btnDelete.style.display = 'none';
             renderCargoChecklist(null);  // null = sem cargo ainda, checkboxes desabilitados
             document.getElementById('cargo-input-name').focus();
             // Garantir que o dropdown de departamentos esteja populado
@@ -1199,13 +1199,13 @@ window.toggleCargoView = async function(mode, id = null) {
         } else if (mode === 'edit' && id) {
             document.getElementById('manage-cargo-id').value = id;
             document.getElementById('cargo-form-label').textContent = 'Editar Cargo';
-            if(btnDelete) btnDelete.style.display = 'block';
-            
+            if (btnDelete) btnDelete.style.display = 'block';
+
             await populateCargoDeptoSelect();
             const res = await fetch(`${API_URL}/cargos`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
             const cargos = await res.json();
             const cargo = (cargos || []).find(c => c.id == id);
-            
+
             if (cargo) {
                 document.getElementById('cargo-input-name').value = cargo.nome;
                 if (cargo.departamento) document.getElementById('cargo-input-departamento').value = cargo.departamento;
@@ -1228,7 +1228,7 @@ async function renderCargoChecklist(cargoId) {
                 headers: { 'Authorization': `Bearer ${currentToken}` }
             });
             documentosSalvos = await res.json();
-        } catch(e) { console.error('Erro ao carregar documentos:', e); }
+        } catch (e) { console.error('Erro ao carregar documentos:', e); }
     }
 
     checklist.innerHTML = '';
@@ -1238,8 +1238,8 @@ async function renderCargoChecklist(cargoId) {
         const cbId = `cb-doc-${doc.replace(/[^a-zA-Z0-9]/g, '_')}`;
         const label = document.createElement('label');
         label.style.cssText = 'display:flex; align-items:center; gap:8px; font-size:0.82rem; cursor:pointer; padding:0.35rem; border-radius:4px; border:1px solid transparent; transition:all 0.2s;';
-        label.onmouseover = () => { label.style.background='#edf2f7'; label.style.borderColor='#cbd5e0'; };
-        label.onmouseout = () => { label.style.background='transparent'; label.style.borderColor='transparent'; };
+        label.onmouseover = () => { label.style.background = '#edf2f7'; label.style.borderColor = '#cbd5e0'; };
+        label.onmouseout = () => { label.style.background = 'transparent'; label.style.borderColor = 'transparent'; };
         const cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.id = cbId;
@@ -1247,7 +1247,7 @@ async function renderCargoChecklist(cargoId) {
         cb.value = doc;
         if (checked) cb.checked = true;
         if (disabled) cb.disabled = true;
-        cb.onchange = async function() {
+        cb.onchange = async function () {
             const currentCargoId = document.getElementById('manage-cargo-id').value;
             if (!currentCargoId) return;
             if (this.checked) {
@@ -1300,30 +1300,30 @@ async function handleCargoFormSubmit() {
         }
         alert('Nome do cargo salvo!');
         toggleCargoView('list');
-    } catch(err) {
+    } catch (err) {
         console.error('Erro ao salvar cargo:', err);
         alert('Erro de conexão ao salvar cargo.');
     }
 }
 
-window.saveCargoConfig = async function() {
+window.saveCargoConfig = async function () {
     console.log('saveCargoConfig called');
     await handleCargoFormSubmit();
 };
 
-window.handleDeleteCargoUI = async function() {
+window.handleDeleteCargoUI = async function () {
     const id = document.getElementById('manage-cargo-id').value;
     const nome = document.getElementById('cargo-input-name').value;
-    if(!id) return;
+    if (!id) return;
 
-    if(nome.toUpperCase() === 'MOTORISTA') {
+    if (nome.toUpperCase() === 'MOTORISTA') {
         alert('O cargo MOTORISTA é essencial para o sistema e não pode ser excluído.');
         return;
     }
 
-    if(confirm('Tem certeza que deseja excluir este cargo?')) {
+    if (confirm('Tem certeza que deseja excluir este cargo?')) {
         const res = await apiDelete(`/cargos/${id}`);
-        if(res && res.error) alert(res.error);
+        if (res && res.error) alert(res.error);
         else {
             toggleCargoView('list');
         }
@@ -1331,7 +1331,7 @@ window.handleDeleteCargoUI = async function() {
 }
 
 // Excluir cargo diretamente da listagem (sem precisar abrir o formulário de edição)
-window.deletarCargoDireto = async function(id, nome) {
+window.deletarCargoDireto = async function (id, nome) {
     if (nome.toUpperCase() === 'MOTORISTA') {
         alert('O cargo MOTORISTA é essencial para o sistema e não pode ser excluído.');
         return;
@@ -1347,14 +1347,14 @@ window.deletarCargoDireto = async function(id, nome) {
 
 // ─── CERTIFICADO DIGITAL PÓS-ASSINATURA ───────────────────────────────────────
 // Aplica o certificado A1 da empresa no PDF após o colaborador assinar no Assinafy
-window.assinarComCertificado = async function(assId, event) {
+window.assinarComCertificado = async function (assId, event) {
     if (event) { event.preventDefault(); event.stopPropagation(); }
     const btn = event?.currentTarget || event?.target;
     const originalText = btn ? btn.innerHTML : '';
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Assinando...'; }
 
     try {
-        const res  = await fetch(`${API_URL}/admissao-assinaturas/${assId}/assinar-certificado`, {
+        const res = await fetch(`${API_URL}/admissao-assinaturas/${assId}/assinar-certificado`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' }
         });
@@ -1376,7 +1376,7 @@ window.assinarComCertificado = async function(assId, event) {
         if (typeof showToast === 'function') showToast('✅ ' + data.mensagem, 'success');
         else alert('✅ ' + data.mensagem);
 
-    } catch(e) {
+    } catch (e) {
         if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
         if (typeof showToast === 'function') showToast('❌ ' + e.message, 'error');
         else alert('❌ ' + e.message);
@@ -1386,11 +1386,11 @@ window.assinarComCertificado = async function(assId, event) {
 async function carregarOpcoesResponsavel(selectElementId, responsavelId) {
     const select = document.getElementById(selectElementId);
     if (!select) return;
-    
+
     // Buscar colaboradores
     const colabs = await apiGet('/colaboradores');
     select.innerHTML = '<option value="">Nenhum</option>';
-    
+
     if (colabs) {
         colabs.forEach(c => {
             if (c.status === 'Desligado') return;
@@ -1409,9 +1409,9 @@ async function loadDepartamentos() {
     const tbody = document.getElementById('table-departamentos');
     if (!tbody || !deptos) return;
     tbody.innerHTML = '';
-    
+
     carregarOpcoesResponsavel('novo-departamento-responsavel');
-    
+
     deptos.forEach(d => {
         const responsavel = d.responsavel_nome ? d.responsavel_nome : '<span style="color:#94a3b8;font-style:italic;">Não definido</span>';
         const tipo = d.tipo || 'Operacional';
@@ -1424,10 +1424,10 @@ async function loadDepartamentos() {
             <td><span style="${badgeColor}font-size:0.75rem;padding:2px 10px;border-radius:999px;font-weight:600;">${tipo}</span></td>
             <td>${responsavel}</td>
             <td style="text-align: right; display:flex; gap:0.4rem; justify-content:flex-end; align-items:center;">
-                <button type="button" class="btn btn-primary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome.replace(/'/g,"\\'")}','${tipo}','${d.responsavel_id || ''}')" title="Editar">
+                <button type="button" class="btn btn-primary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome.replace(/'/g, "\\'")}','${tipo}','${d.responsavel_id || ''}')" title="Editar">
                     <i class="ph ph-note-pencil"></i> Editar
                 </button>
-                <button type="button" class="btn btn-danger btn-sm" onclick="deleteDepartamento(${d.id}, '${d.nome.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')" title="Excluir" style="background:#e03131; border-color:#e03131;">
+                <button type="button" class="btn btn-danger btn-sm" onclick="deleteDepartamento(${d.id}, '${d.nome.replace(/'/g, "\\'").replace(/"/g, "&quot;")}')" title="Excluir" style="background:#e03131; border-color:#e03131;">
                     <i class="ph ph-trash"></i> Excluir
                 </button>
             </td>
@@ -1435,7 +1435,7 @@ async function loadDepartamentos() {
     });
 }
 
-window.editDepartamento = async function(id, nomeAtual, tipoAtual, responsavelIdAtual) {
+window.editDepartamento = async function (id, nomeAtual, tipoAtual, responsavelIdAtual) {
     document.getElementById('edit-departamento-id').value = id;
     document.getElementById('edit-departamento-nome').value = nomeAtual;
     document.getElementById('edit-departamento-tipo').value = tipoAtual || 'Operacional';
@@ -1451,7 +1451,7 @@ document.getElementById('form-editar-departamento')?.addEventListener('submit', 
     const selectResp = document.getElementById('edit-departamento-responsavel');
     const responsavel_id = selectResp.value || null;
     const responsavel_nome = selectResp.options[selectResp.selectedIndex]?.dataset.nome || null;
-    
+
     const res = await fetch(`${API_URL}/departamentos/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
@@ -1459,16 +1459,16 @@ document.getElementById('form-editar-departamento')?.addEventListener('submit', 
     });
     const data = await res.json();
     if (data.error) alert(data.error);
-    
+
     document.getElementById('modal-editar-departamento').style.display = 'none';
     loadDepartamentos();
 });
 
-window.deleteDepartamento = async function(id, nome) {
+window.deleteDepartamento = async function (id, nome) {
     const msg = nome ? `Tem certeza que deseja excluir o departamento "${nome}"?` : 'Tem certeza que deseja excluir este departamento?';
-    if(confirm(msg)) {
+    if (confirm(msg)) {
         const res = await apiDelete(`/departamentos/${id}`);
-        if(res && res.error) alert(res.error);
+        if (res && res.error) alert(res.error);
         loadDepartamentos();
     }
 }
@@ -1480,7 +1480,7 @@ document.getElementById('form-departamento')?.addEventListener('submit', async (
     const selectResp = document.getElementById('novo-departamento-responsavel');
     const responsavel_id = selectResp.value || null;
     const responsavel_nome = selectResp.options[selectResp.selectedIndex]?.dataset.nome || null;
-    
+
     if (!nome) return;
     await apiPost('/departamentos', { nome, tipo, responsavel_id, responsavel_nome });
     document.getElementById('novo-departamento-nome').value = '';
@@ -1501,46 +1501,46 @@ document.getElementById('form-chaves')?.addEventListener('submit', async (e) => 
 
 
 // --- HELPER PARA ESCALAS NO FORMULÁRIO ---
-window.toggleFormEscalaTipo = function() {
+window.toggleFormEscalaTipo = function () {
     const tipo = document.getElementById('colab-escala-padrao').value;
     const boxFolgas = document.getElementById('colab-box-folgas');
     const boxSabado = document.getElementById('colab-box-sabado');
-    const outSaida  = document.getElementById('colab-saida');
+    const outSaida = document.getElementById('colab-saida');
 
     const boxUmaFolga = document.getElementById('colab-box-uma-folga');
     const boxCiclo = document.getElementById('colab-box-ciclo-domingo');
 
     if (tipo === 'escala_uma_folga') {
-        if(boxUmaFolga) boxUmaFolga.style.display = 'block';
-        if(boxFolgas) boxFolgas.style.display = 'none';
-        if(boxCiclo) { boxCiclo.style.display = 'block'; atualizarLabelCiclo('folga'); }
+        if (boxUmaFolga) boxUmaFolga.style.display = 'block';
+        if (boxFolgas) boxFolgas.style.display = 'none';
+        if (boxCiclo) { boxCiclo.style.display = 'block'; atualizarLabelCiclo('folga'); }
         document.querySelectorAll('.cb-folga-colab').forEach(cb => cb.checked = false);
     } else if (tipo === 'escala_duas_folgas') {
-        if(boxFolgas) boxFolgas.style.display = 'block';
-        if(boxUmaFolga) boxUmaFolga.style.display = 'none';
-        if(boxCiclo) { boxCiclo.style.display = 'block'; atualizarLabelCiclo('folga'); }
+        if (boxFolgas) boxFolgas.style.display = 'block';
+        if (boxUmaFolga) boxUmaFolga.style.display = 'none';
+        if (boxCiclo) { boxCiclo.style.display = 'block'; atualizarLabelCiclo('folga'); }
         document.querySelectorAll('.cb-uma-folga-colab').forEach(cb => cb.checked = false);
     } else if (tipo === 'escala_12x36') {
-        if(boxFolgas) boxFolgas.style.display = 'none';
-        if(boxUmaFolga) boxUmaFolga.style.display = 'none';
-        if(boxCiclo) { boxCiclo.style.display = 'block'; atualizarLabelCiclo('12x36'); }
+        if (boxFolgas) boxFolgas.style.display = 'none';
+        if (boxUmaFolga) boxUmaFolga.style.display = 'none';
+        if (boxCiclo) { boxCiclo.style.display = 'block'; atualizarLabelCiclo('12x36'); }
         document.querySelectorAll('.cb-folga-colab').forEach(cb => cb.checked = false);
         document.querySelectorAll('.cb-uma-folga-colab').forEach(cb => cb.checked = false);
     } else if (tipo === 'padrao_sab_alternado') {
-        if(boxFolgas) boxFolgas.style.display = 'none';
-        if(boxUmaFolga) boxUmaFolga.style.display = 'none';
-        if(boxCiclo) { boxCiclo.style.display = 'block'; atualizarLabelCiclo('sab_alternado'); }
+        if (boxFolgas) boxFolgas.style.display = 'none';
+        if (boxUmaFolga) boxUmaFolga.style.display = 'none';
+        if (boxCiclo) { boxCiclo.style.display = 'block'; atualizarLabelCiclo('sab_alternado'); }
         document.querySelectorAll('.cb-folga-colab').forEach(cb => cb.checked = false);
         document.querySelectorAll('.cb-uma-folga-colab').forEach(cb => cb.checked = false);
     } else {
-        if(boxFolgas) boxFolgas.style.display = 'none';
-        if(boxUmaFolga) boxUmaFolga.style.display = 'none';
-        if(boxCiclo) boxCiclo.style.display = 'none';
+        if (boxFolgas) boxFolgas.style.display = 'none';
+        if (boxUmaFolga) boxUmaFolga.style.display = 'none';
+        if (boxCiclo) boxCiclo.style.display = 'none';
         document.querySelectorAll('.cb-folga-colab').forEach(cb => cb.checked = false);
         document.querySelectorAll('.cb-uma-folga-colab').forEach(cb => cb.checked = false);
     }
 
-    if(boxSabado) {
+    if (boxSabado) {
         if (tipo === 'padrao_sab_4h' || tipo === 'padrao_sab_alternado') {
             boxSabado.style.display = 'block';
         } else {
@@ -1569,7 +1569,7 @@ window.toggleFormEscalaTipo = function() {
 }
 
 // Atualiza o título e descrição do bloco de ciclo conforme o tipo de escala
-window.atualizarLabelCiclo = function(modo) {
+window.atualizarLabelCiclo = function (modo) {
     const lbl = document.querySelector('#colab-box-ciclo-domingo label');
     const small = document.querySelector('#colab-box-ciclo-domingo small');
     if (!lbl || !small) return;
@@ -1593,7 +1593,7 @@ window.atualizarLabelCiclo = function(modo) {
 };
 
 
-window.toggleTipoDocumento = function() {
+window.toggleTipoDocumento = function () {
     const sel = document.getElementById('colab-rg-tipo');
     const rgInput = document.getElementById('colab-rg');
     const cpfInput = document.getElementById('colab-cpf');
@@ -1607,14 +1607,14 @@ window.toggleTipoDocumento = function() {
             rgInput.value = cpfInput.value;
             rgInput.setAttribute('readonly', 'true');
             rgInput.style.backgroundColor = '#e9ecef';
-            if(boxOrgao) boxOrgao.style.display = 'none';
-            if(boxData) boxData.style.display = 'none';
+            if (boxOrgao) boxOrgao.style.display = 'none';
+            if (boxData) boxData.style.display = 'none';
         } else {
             lbl.textContent = 'Número (RG)';
             rgInput.removeAttribute('readonly');
             rgInput.style.backgroundColor = '';
-            if(boxOrgao) boxOrgao.style.display = 'block';
-            if(boxData) boxData.style.display = 'block';
+            if (boxOrgao) boxOrgao.style.display = 'block';
+            if (boxData) boxData.style.display = 'block';
             // Limpa apenas se estiver igual ao CPF (foi preenchido por CIN)
             if (rgInput.value === cpfInput.value) {
                 rgInput.value = '';
@@ -1624,7 +1624,7 @@ window.toggleTipoDocumento = function() {
 };
 
 
-window.toggleFormacaoFields = function(val) {
+window.toggleFormacaoFields = function (val) {
     const section = document.getElementById('section-formacao');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
@@ -1639,7 +1639,7 @@ window.toggleFormacaoFields = function(val) {
     }
 };
 
-window.toggleAcademiaFields = function(val) {
+window.toggleAcademiaFields = function (val) {
     const section = document.getElementById('section-academia');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
@@ -1650,7 +1650,7 @@ window.toggleAcademiaFields = function(val) {
     }
 };
 
-window.toggleTerapiaFields = function(val) {
+window.toggleTerapiaFields = function (val) {
     const section = document.getElementById('section-terapia');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
@@ -1661,7 +1661,7 @@ window.toggleTerapiaFields = function(val) {
     }
 };
 
-window.toggleCelularFields = function(val) {
+window.toggleCelularFields = function (val) {
     const section = document.getElementById('section-celular');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
@@ -1672,7 +1672,7 @@ window.toggleCelularFields = function(val) {
     }
 };
 
-window.toggleChavesColabFields = function(val) {
+window.toggleChavesColabFields = function (val) {
     const section = document.getElementById('section-chaves-colab');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
@@ -1688,7 +1688,7 @@ window.toggleChavesColabFields = function(val) {
     }
 };
 
-window.toggleBrigadistaFields = function(val) {
+window.toggleBrigadistaFields = function (val) {
     const section = document.getElementById('section-brigadista');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
@@ -1699,7 +1699,7 @@ window.toggleBrigadistaFields = function(val) {
     }
 };
 
-window.addNewChaveRow = async function(selectedChaveId = null, selectedDate = null) {
+window.addNewChaveRow = async function (selectedChaveId = null, selectedDate = null) {
     try {
         const rows = await apiGet('/chaves');
         const container = document.getElementById('colab-chaves-rows-container');
@@ -1711,7 +1711,7 @@ window.addNewChaveRow = async function(selectedChaveId = null, selectedDate = nu
         const rowDiv = document.createElement('div');
         rowDiv.className = 'chave-entry-row';
         rowDiv.style = "display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.75rem; align-items: flex-end; background: #fff; padding: 0.4rem 0.75rem; border-radius: 8px; border: 1px solid #f1f5f9; animation: fadeIn 0.3s ease; margin-bottom: 0.5rem;";
-        
+
         rowDiv.innerHTML = `
             <div class="input-group" style="margin: 0;">
                 <label style="color: #64748b; font-size: 0.75rem; margin-bottom: 2px; font-weight:700;">Data de Entrega</label>
@@ -1737,7 +1737,7 @@ window.addNewChaveRow = async function(selectedChaveId = null, selectedDate = nu
     } catch (e) { console.error(e); }
 };
 
-window.removeChaveRow = function(btn) {
+window.removeChaveRow = function (btn) {
     const row = btn.closest('.chave-entry-row');
     row.remove();
     // Reexibir o botão + na nova "última linha"
@@ -1772,10 +1772,10 @@ async function loadFaculdadeCursosDropdown() {
                 select.innerHTML += `<option value="${c.id}">${c.nome_curso} - ${c.instituicao}${tempoFormatado}</option>`;
             });
         }
-    } catch(e) { console.error('Erro ao carregar cursos para dropdown:', e); }
+    } catch (e) { console.error('Erro ao carregar cursos para dropdown:', e); }
 }
 
-window.toggleTransporteValor = function(val) {
+window.toggleTransporteValor = function (val) {
     const group = document.getElementById('group-valor-transporte');
     const input = document.getElementById('colab-valor-transporte');
     if (group) {
@@ -1828,7 +1828,7 @@ window.toggleTransporteValor = function(val) {
 };
 
 // Recalcula VT em tempo real ao editar o salário (chamado pelo onkeyup do campo salário)
-window.atualizarVTSeSelecionado = function() {
+window.atualizarVTSeSelecionado = function () {
     const meioEl = document.getElementById('colab-meio-transporte');
     if (!meioEl || meioEl.value !== 'Vale Transporte (VT)') return;
     const salarioEl = document.getElementById('colab-salario');
@@ -1843,7 +1843,7 @@ window.atualizarVTSeSelecionado = function() {
     }
 };
 
-window.calcularHorarioSaida = function() {
+window.calcularHorarioSaida = function () {
     const tipo = document.getElementById('colab-escala-padrao').value;
     const entrada = document.getElementById('colab-entrada').value;
     const intEntrada = document.getElementById('colab-intervalo-entrada').value;
@@ -1860,18 +1860,18 @@ window.calcularHorarioSaida = function() {
             const saidaMins = entradaMins + 12 * 60;
             const hSaida = Math.floor(saidaMins / 60) % 24;
             const mSaida = saidaMins % 60;
-            if (outSaida) outSaida.value = `${String(hSaida).padStart(2,'0')}:${String(mSaida).padStart(2,'0')}`;
+            if (outSaida) outSaida.value = `${String(hSaida).padStart(2, '0')}:${String(mSaida).padStart(2, '0')}`;
 
             // Pausa = 1h a partir de 6h após entrada (editável — só preenche se estiver vazio)
             if (!intEntrada && !intSaida) {
                 const pausaInicioMins = entradaMins + 6 * 60;
-                const pausaFimMins   = pausaInicioMins + 60;
+                const pausaFimMins = pausaInicioMins + 60;
                 const hPI = Math.floor(pausaInicioMins / 60) % 24;
                 const mPI = pausaInicioMins % 60;
                 const hPF = Math.floor(pausaFimMins / 60) % 24;
                 const mPF = pausaFimMins % 60;
-                document.getElementById('colab-intervalo-entrada').value = `${String(hPI).padStart(2,'0')}:${String(mPI).padStart(2,'0')}`;
-                document.getElementById('colab-intervalo-saida').value   = `${String(hPF).padStart(2,'0')}:${String(mPF).padStart(2,'0')}`;
+                document.getElementById('colab-intervalo-entrada').value = `${String(hPI).padStart(2, '0')}:${String(mPI).padStart(2, '0')}`;
+                document.getElementById('colab-intervalo-saida').value = `${String(hPF).padStart(2, '0')}:${String(mPF).padStart(2, '0')}`;
             }
         } else if (outSaida) {
             outSaida.value = '';
@@ -1904,7 +1904,7 @@ window.calcularHorarioSaida = function() {
         let almoçoPadraoMin = 0;
         if (workMins >= (6 * 60)) {
             almoçoPadraoMin = 60; // 1 hora de almoço
-            
+
             // Se os campos de intervalo estiverem em branco, preenchemos com um padrão inteligente
             if (!intEntrada && !intSaida) {
                 const [he, me] = entrada.split(':').map(Number);
@@ -1912,11 +1912,11 @@ window.calcularHorarioSaida = function() {
                 let tempEntradaAlmoco = (he * 60 + me) + (4 * 60);
                 const hEntAlmoco = Math.floor(tempEntradaAlmoco / 60) % 24;
                 const mEntAlmoco = tempEntradaAlmoco % 60;
-                
+
                 let tempSaidaAlmoco = tempEntradaAlmoco + almoçoPadraoMin;
                 const hSaiAlmoco = Math.floor(tempSaidaAlmoco / 60) % 24;
                 const mSaiAlmoco = tempSaidaAlmoco % 60;
-                
+
                 document.getElementById('colab-intervalo-entrada').value = `${String(hEntAlmoco).padStart(2, '0')}:${String(mEntAlmoco).padStart(2, '0')}`;
                 document.getElementById('colab-intervalo-saida').value = `${String(hSaiAlmoco).padStart(2, '0')}:${String(mSaiAlmoco).padStart(2, '0')}`;
                 intervaloMins = almoçoPadraoMin;
@@ -1928,7 +1928,7 @@ window.calcularHorarioSaida = function() {
             let totalMins = (he * 60 + me) + workMins + intervaloMins; // O total do dia no relógio é o trabalho + o intervalo
             const hFinal = Math.floor(totalMins / 60) % 24;
             const mFinal = totalMins % 60;
-            if(outSaida) outSaida.value = `${String(hFinal).padStart(2, '0')}:${String(mFinal).padStart(2, '0')}`;
+            if (outSaida) outSaida.value = `${String(hFinal).padStart(2, '0')}:${String(mFinal).padStart(2, '0')}`;
         } else if (outSaida) {
             outSaida.value = '';
         }
@@ -1964,7 +1964,7 @@ async function populateCargoDeptoSelect(selectedValue = '') {
             if (selectedValue && d.nome === selectedValue) opt.selected = true;
             selectCargoDepto.appendChild(opt);
         });
-    } catch(e) { console.error('Erro ao carregar departamentos:', e); }
+    } catch (e) { console.error('Erro ao carregar departamentos:', e); }
 }
 
 async function loadSelects() {
@@ -1978,11 +1978,11 @@ async function loadSelects() {
     loadFaculdadeCursosDropdown();
 }
 
-window.autoFillDepartamento = function() {
+window.autoFillDepartamento = function () {
     const selectCargo = document.getElementById('colab-cargo');
     const inputDepto = document.getElementById('colab-departamento');
     if (!selectCargo || !inputDepto || !window.allCargosCache) return;
-    
+
     const cargoName = selectCargo.value;
     const desc = window.allCargosCache.find(c => c.nome === cargoName);
     if (desc && desc.departamento) {
@@ -1992,18 +1992,18 @@ window.autoFillDepartamento = function() {
     }
 }
 
-window.updateVacationInfo = function(admissaoStr) {
-    const aqField    = document.getElementById('ferias-periodo-aquisitivo');
-    const concField  = document.getElementById('ferias-periodo-concessivo');
-    const indicator  = document.getElementById('ferias-concessivo-indicator');
+window.updateVacationInfo = function (admissaoStr) {
+    const aqField = document.getElementById('ferias-periodo-aquisitivo');
+    const concField = document.getElementById('ferias-periodo-concessivo');
+    const indicator = document.getElementById('ferias-concessivo-indicator');
 
     // Tenta ler do campo do formulário se admissaoStr vazio
     if (!admissaoStr) admissaoStr = document.getElementById('colab-admissao')?.value || '';
 
     if (!admissaoStr || !aqField || !concField) {
-        if (aqField)    aqField.value = '-';
+        if (aqField) aqField.value = '-';
         if (concField) { concField.value = '-'; concField.style.color = '#495057'; }
-        if (indicator)  indicator.style.display = 'none';
+        if (indicator) indicator.style.display = 'none';
         return;
     }
 
@@ -2051,19 +2051,19 @@ window.updateVacationInfo = function(admissaoStr) {
                 return;
             }
             const ult = info.periodos[info.periodos.length - 1];
-            aqField.value   = fmt(ult.fim);       // início do concessivo
+            aqField.value = fmt(ult.fim);       // início do concessivo
             concField.value = fmt(ult.prazoGozo); // prazo limite
 
             const diasParaVencimento = Math.floor((new Date(ult.prazoGozo + 'T12:00:00') - today) / 86400000);
             const concStart = new Date(ult.fim + 'T12:00:00');
-            const concEnd   = new Date(ult.prazoGozo + 'T12:00:00');
+            const concEnd = new Date(ult.prazoGozo + 'T12:00:00');
 
             const fInicioEl = document.getElementById('colab-ferias-programadas-inicio');
-            const fFimEl    = document.getElementById('colab-ferias-programadas-fim');
+            const fFimEl = document.getElementById('colab-ferias-programadas-fim');
             let feriasValidas = false;
             if (fInicioEl?.value && fFimEl?.value) {
                 const fI = new Date(fInicioEl.value + 'T12:00:00');
-                const fF = new Date(fFimEl.value   + 'T12:00:00');
+                const fF = new Date(fFimEl.value + 'T12:00:00');
                 feriasValidas = fI <= concEnd && fF >= concStart;
             }
 
@@ -2087,7 +2087,7 @@ window.updateVacationInfo = function(admissaoStr) {
         }
 
         // ─── Fallback: cálculo interno (mesmo algoritmo do ferias.js) ───
-        const diasTotal     = Math.floor((today - adm) / 86400000);
+        const diasTotal = Math.floor((today - adm) / 86400000);
         const anosCompletos = Math.floor(diasTotal / 365);
         if (anosCompletos < 1) {
             aqField.value = 'Em aquisição'; concField.value = '-';
@@ -2096,8 +2096,8 @@ window.updateVacationInfo = function(admissaoStr) {
             return;
         }
         const concStart = new Date(adm); concStart.setFullYear(adm.getFullYear() + anosCompletos);
-        const concEnd   = new Date(adm); concEnd.setFullYear(adm.getFullYear() + anosCompletos + 1);
-        aqField.value   = concStart.toLocaleDateString('pt-BR');
+        const concEnd = new Date(adm); concEnd.setFullYear(adm.getFullYear() + anosCompletos + 1);
+        aqField.value = concStart.toLocaleDateString('pt-BR');
         concField.value = concEnd.toLocaleDateString('pt-BR');
         const diasParaVencimento = Math.floor((concEnd - today) / 86400000);
         const emConcessivo = today >= concStart;
@@ -2114,7 +2114,7 @@ window.updateVacationInfo = function(admissaoStr) {
 
 
 
-window.calculateVacationDays = function() {
+window.calculateVacationDays = function () {
     const inicioStr = document.getElementById('colab-ferias-programadas-inicio').value;
     const fimStr = document.getElementById('colab-ferias-programadas-fim').value;
     const totalField = document.getElementById('colab-ferias-total-dias');
@@ -2147,7 +2147,7 @@ window.calculateVacationDays = function() {
 }
 
 // === FÉRIAS FRACIONADAS ===
-window.toggleFeriasFracionadas = function(val) {
+window.toggleFeriasFracionadas = function (val) {
     const sec = document.getElementById('section-ferias-fracionadas');
     if (!sec) return;
     sec.style.display = val === 'Sim' ? 'block' : 'none';
@@ -2161,7 +2161,7 @@ window.toggleFeriasFracionadas = function(val) {
     }
 };
 
-window.toggleFeriasFracionadasTipo = function(val) {
+window.toggleFeriasFracionadasTipo = function (val) {
     const sec2 = document.getElementById('section-ferias-segunda-data');
     if (!sec2) return;
     sec2.style.display = val === 'Tirada' ? 'block' : 'none';
@@ -2175,7 +2175,7 @@ window.toggleFeriasFracionadasTipo = function(val) {
     }
 };
 
-window.calcularTotalFeriasFracionadas = function() {
+window.calcularTotalFeriasFracionadas = function () {
     const i2 = document.getElementById('colab-ferias-fracionadas-inicio2')?.value;
     const f2 = document.getElementById('colab-ferias-fracionadas-fim2')?.value;
     const d2 = document.getElementById('colab-ferias-fracionadas-dias2');
@@ -2195,22 +2195,22 @@ async function loadDashboard() {
     if (stats) {
         const totalEl = document.getElementById('stat-total');
         if (totalEl) totalEl.textContent = stats.total || 0;
-        
+
         const aguardandoEl = document.getElementById('stat-aguardando');
         if (aguardandoEl) aguardandoEl.textContent = stats.aguardando || 0;
-        
+
         const iniciadoEl = document.getElementById('stat-iniciado');
         if (iniciadoEl) iniciadoEl.textContent = stats.iniciado || 0;
 
         const ativosEl = document.getElementById('stat-ativos');
         if (ativosEl) ativosEl.textContent = stats.ativos || 0;
-        
+
         const feriasEl = document.getElementById('stat-ferias');
         if (feriasEl) feriasEl.textContent = stats.ferias || 0;
-        
+
         const afastadosEl = document.getElementById('stat-afastados');
         if (afastadosEl) afastadosEl.textContent = stats.afastados || 0;
-        
+
         const desligadosEl = document.getElementById('stat-desligados');
         if (desligadosEl) desligadosEl.textContent = stats.desligados || 0;
     }
@@ -2221,7 +2221,7 @@ async function loadDashboard() {
         const ctxAtestados = document.getElementById('chart-atestados');
         if (ctxAtestados) {
             if (chartAtestadosInst) chartAtestadosInst.destroy();
-            
+
             const labelsMeses = (chartsData.faltasAgrupadasMes || []).map(d => {
                 const parts = d.mes.split('-');
                 return parts.length === 2 ? `${parts[1]}/${parts[0]}` : d.mes;
@@ -2234,18 +2234,18 @@ async function loadDashboard() {
                 data: {
                     labels: labelsMeses.length ? labelsMeses : ['Sem dados'],
                     datasets: [
-                    {
-                        label: 'Faltas Injustificadas',
-                        data: dataFaltas.length ? dataFaltas : [0],
-                        backgroundColor: '#fa5252',
-                        borderRadius: 4
-                    },
-                    {
-                        label: 'Atestados',
-                        data: dataAtestados.length ? dataAtestados : [0],
-                        backgroundColor: '#228be6',
-                        borderRadius: 4
-                    }]
+                        {
+                            label: 'Faltas Injustificadas',
+                            data: dataFaltas.length ? dataFaltas : [0],
+                            backgroundColor: '#fa5252',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Atestados',
+                            data: dataAtestados.length ? dataAtestados : [0],
+                            backgroundColor: '#228be6',
+                            borderRadius: 4
+                        }]
                 },
                 options: {
                     responsive: true,
@@ -2261,7 +2261,7 @@ async function loadDashboard() {
         if (ctxFaltas) {
             if (chartFaltasInst) chartFaltasInst.destroy();
             const ranking = chartsData.faltasRanking;
-            
+
             chartFaltasInst = new Chart(ctxFaltas, {
                 type: 'bar',
                 data: {
@@ -2297,7 +2297,7 @@ async function loadDashboard() {
             if (!chartsData.feriasVencendo || chartsData.feriasVencendo.length === 0) {
                 tbFerias.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;font-style:italic;">Nenhuma férias a vencer em 90 dias com agendamento.</td></tr>';
             } else {
-                    chartsData.feriasVencendo.forEach(f => {
+                chartsData.feriasVencendo.forEach(f => {
                     const cfPts = f.concessivo_fim.split('-');
                     const cfmt = `${cfPts[2]}/${cfPts[1]}/${cfPts[0]}`;
 
@@ -2375,7 +2375,7 @@ async function loadDashboard() {
                     if (a.aso_exame_data) {
                         agendadoDisplay = `<span style="color:#166534;font-weight:600;"><i class="ph ph-calendar-check"></i> ${a.aso_exame_data}</span>`;
                     }
-                    
+
                     const dtParts = a.vencimento ? a.vencimento.split('-') : [];
                     const vencfmt = dtParts.length === 3 ? `${dtParts[2]}/${dtParts[1]}/${dtParts[0]}` : a.vencimento;
 
@@ -2424,7 +2424,7 @@ async function loadColaboradores() {
 
         renderColaboradores(_todosColaboradores);
         aplicarFiltrosColaboradores();
-    } catch(err) {
+    } catch (err) {
         console.error(err);
         const wrapper = document.querySelector('#view-colaboradores .card');
         if (wrapper) wrapper.innerHTML = `<div style="text-align:center; padding: 3rem; color: var(--danger-color);"><i class="ph ph-warning" style="font-size:2.5rem;"></i><p class="mt-3">Erro ao carregar colaboradores.</p></div>`;
@@ -2434,7 +2434,7 @@ async function loadColaboradores() {
 window._colabSortCol = 'nome';
 window._colabSortDir = 'asc';
 
-window.colabToggleSort = function(col) {
+window.colabToggleSort = function (col) {
     if (window._colabSortCol === col) {
         window._colabSortDir = window._colabSortDir === 'asc' ? 'desc' : 'asc';
     } else {
@@ -2460,63 +2460,63 @@ function aplicarFiltrosColaboradores() {
     };
 
     const f = {
-        nome:        (document.getElementById('f-nome')?.value || '').toLowerCase().trim(),
-        cpf:         (document.getElementById('f-cpf')?.value || '').replace(/\D/g, ''),
-        nascIni:     document.getElementById('f-nasc-ini')?.value || '',
-        nascFim:     document.getElementById('f-nasc-fim')?.value || '',
+        nome: (document.getElementById('f-nome')?.value || '').toLowerCase().trim(),
+        cpf: (document.getElementById('f-cpf')?.value || '').replace(/\D/g, ''),
+        nascIni: document.getElementById('f-nasc-ini')?.value || '',
+        nascFim: document.getElementById('f-nasc-fim')?.value || '',
         estadoCivil: (document.getElementById('f-estado-civil')?.value || '').toLowerCase().trim(),
-        sexo:        (document.getElementById('f-sexo')?.value || '').toLowerCase().trim(),
+        sexo: (document.getElementById('f-sexo')?.value || '').toLowerCase().trim(),
         tipoDepartamento: (document.getElementById('f-tipo-departamento')?.value || '').toLowerCase().trim(),
-        departamento:(document.getElementById('f-departamento')?.value || '').toLowerCase().trim(),
-        cargo:       (document.getElementById('f-cargo')?.value || '').toLowerCase().trim(),
+        departamento: (document.getElementById('f-departamento')?.value || '').toLowerCase().trim(),
+        cargo: (document.getElementById('f-cargo')?.value || '').toLowerCase().trim(),
         experiencia: document.getElementById('f-experiencia')?.value || '',
-        tipoCadastro:document.getElementById('f-tipo-cadastro-hidden')?.value || '',
-        salMin:      parseCurrency(document.getElementById('f-sal-min')?.value) || null,
-        salMax:      parseCurrency(document.getElementById('f-sal-max')?.value) || null,
-        escala:      document.getElementById('f-escala')?.value || '',
+        tipoCadastro: document.getElementById('f-tipo-cadastro-hidden')?.value || '',
+        salMin: parseCurrency(document.getElementById('f-sal-min')?.value) || null,
+        salMax: parseCurrency(document.getElementById('f-sal-max')?.value) || null,
+        escala: document.getElementById('f-escala')?.value || '',
         dependentes: document.getElementById('f-dependentes')?.value || '',
-        beneficios:  [...(document.querySelectorAll('.f-beneficios-chk:checked') || [])].map(cb => cb.value),
+        beneficios: [...(document.querySelectorAll('.f-beneficios-chk:checked') || [])].map(cb => cb.value),
         tamCamiseta: document.getElementById('f-tam-camiseta')?.value || '',
-        tamCalca:    document.getElementById('f-tam-calca')?.value || '',
-        tamCalcado:  document.getElementById('f-tam-calcado')?.value || '',
+        tamCalca: document.getElementById('f-tam-calca')?.value || '',
+        tamCalcado: document.getElementById('f-tam-calcado')?.value || '',
         aptoSorteio: document.getElementById('f-apto-sorteio')?.value || ''
     };
 
     const lista = _todosColaboradores.filter(c => {
         if (f.nome && !(c.nome_completo || '').toLowerCase().includes(f.nome)) return false;
-        if (f.cpf  && !(c.cpf || '').replace(/\D/g,'').includes(f.cpf)) return false;
+        if (f.cpf && !(c.cpf || '').replace(/\D/g, '').includes(f.cpf)) return false;
         if (f.nascIni && c.data_nascimento && c.data_nascimento < f.nascIni) return false;
         if (f.nascFim && c.data_nascimento && c.data_nascimento > f.nascFim) return false;
-        
+
         if (f.estadoCivil && (!c.estado_civil || c.estado_civil.toLowerCase().trim() !== f.estadoCivil)) return false;
         if (f.sexo && (!c.sexo || c.sexo.toLowerCase().trim() !== f.sexo)) return false;
-        
+
         if (f.tipoDepartamento && !(c.departamento_tipo || '').toLowerCase().includes(f.tipoDepartamento)) return false;
         if (f.departamento && !(c.departamento || '').toLowerCase().includes(f.departamento)) return false;
         if (f.cargo && !(c.cargo || '').toLowerCase().includes(f.cargo)) return false;
-        
+
         if (f.experiencia === 'sim') {
             if (!c.data_admissao) return false;
             const dias = Math.floor((new Date() - new Date(c.data_admissao + 'T12:00:00')) / 86400000);
             if (dias > 90 || dias < 0) return false;
         }
-        
+
         if (f.tipoCadastro && getEffectiveStatus(c) !== f.tipoCadastro) return false;
 
         // Ocultar Desligados por padrão — só aparecem se o filtro de status for explicitamente 'Desligado'
         if (!f.tipoCadastro && getEffectiveStatus(c) === 'Desligado') return false;
-        
+
         const salColab = parseCurrency(c.salario);
         if (f.salMin !== null && salColab < f.salMin) return false;
         if (f.salMax !== null && salColab > f.salMax) return false;
-        
+
         if (f.escala && c.escala_tipo !== f.escala) return false;
-        
+
         // Verifica dependentes (pode estar como "Sim", "Não", true, false, etc.)
         const temDep = c.tem_dependentes === 'Sim' || c.tem_dependentes === 'true' || c.tem_dependentes === true;
         if (f.dependentes === 'sim' && !temDep) return false;
         if (f.dependentes === 'nao' && temDep) return false;
-        
+
         if (f.beneficios.length > 0) {
             if (f.beneficios.includes('Faculdade') && c.faculdade_participa !== 'Sim') return false;
             if (f.beneficios.includes('Academia') && c.academia_participa !== 'Sim') return false;
@@ -2546,13 +2546,13 @@ function aplicarFiltrosColaboradores() {
             }
             const tc = (c.tipo_contrato || '').toLowerCase();
             const isCLT = tc === '' || tc.includes('clt');
-            
-            const isApto = (faltas <= 3) && 
-                           (punicoes === 0) &&
-                           (['Ativo', 'Afastado', 'Férias'].includes(statusEf)) &&
-                           (admDias >= 90) &&
-                           isCLT;
-            
+
+            const isApto = (faltas <= 3) &&
+                (punicoes === 0) &&
+                (['Ativo', 'Afastado', 'Férias'].includes(statusEf)) &&
+                (admDias >= 90) &&
+                isCLT;
+
             if (f.aptoSorteio === 'sim' && !isApto) return false;
             if (f.aptoSorteio === 'nao' && isApto) return false;
         }
@@ -2563,13 +2563,13 @@ function aplicarFiltrosColaboradores() {
     if (window._colabSortCol) {
         lista.sort((a, b) => {
             let valA, valB;
-            switch(window._colabSortCol) {
-                case 'nome': valA = (a.nome_completo||'').toLowerCase(); valB = (b.nome_completo||'').toLowerCase(); break;
-                case 'departamento': valA = (a.departamento||'').toLowerCase(); valB = (b.departamento||'').toLowerCase(); break;
-                case 'cargo': valA = (a.cargo||'').toLowerCase(); valB = (b.cargo||'').toLowerCase(); break;
-                case 'admissao': 
-                    valA = a.data_admissao ? new Date(a.data_admissao).getTime() : 0; 
-                    valB = b.data_admissao ? new Date(b.data_admissao).getTime() : 0; 
+            switch (window._colabSortCol) {
+                case 'nome': valA = (a.nome_completo || '').toLowerCase(); valB = (b.nome_completo || '').toLowerCase(); break;
+                case 'departamento': valA = (a.departamento || '').toLowerCase(); valB = (b.departamento || '').toLowerCase(); break;
+                case 'cargo': valA = (a.cargo || '').toLowerCase(); valB = (b.cargo || '').toLowerCase(); break;
+                case 'admissao':
+                    valA = a.data_admissao ? new Date(a.data_admissao).getTime() : 0;
+                    valB = b.data_admissao ? new Date(b.data_admissao).getTime() : 0;
                     break;
                 default: valA = ''; valB = '';
             }
@@ -2587,16 +2587,16 @@ function aplicarFiltrosColaboradores() {
 }
 
 function limparFiltrosColaboradores() {
-    ['f-nome','f-cpf','f-nasc-ini','f-nasc-fim','f-estado-civil','f-sexo', 'f-tipo-departamento', 'f-departamento',
-     'f-cargo','f-experiencia','f-sal-min','f-sal-max',
-     'f-escala','f-dependentes','f-tipo-cadastro-hidden',
-     'f-tam-camiseta','f-tam-calca','f-tam-calcado','f-apto-sorteio'
+    ['f-nome', 'f-cpf', 'f-nasc-ini', 'f-nasc-fim', 'f-estado-civil', 'f-sexo', 'f-tipo-departamento', 'f-departamento',
+        'f-cargo', 'f-experiencia', 'f-sal-min', 'f-sal-max',
+        'f-escala', 'f-dependentes', 'f-tipo-cadastro-hidden',
+        'f-tam-camiseta', 'f-tam-calca', 'f-tam-calcado', 'f-apto-sorteio'
     ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    
+
     // Atualizar botões visuais de tipo cadastro
     document.querySelectorAll('.btn-tipo-cadastro').forEach(btn => {
         btn.style.opacity = '0.5';
-        if(btn.dataset.status === ''){
+        if (btn.dataset.status === '') {
             btn.style.opacity = '1';
         }
     });
@@ -2607,7 +2607,7 @@ function limparFiltrosColaboradores() {
     aplicarFiltrosColaboradores();
 }
 
-window.openFiltroSidebar = function() {
+window.openFiltroSidebar = function () {
     const sidebar = document.getElementById('filtro-sidebar');
     const backdrop = document.getElementById('filtro-backdrop');
     if (sidebar) sidebar.style.right = '0';
@@ -2617,7 +2617,7 @@ window.openFiltroSidebar = function() {
     }
 };
 
-window.closeFiltroSidebar = function() {
+window.closeFiltroSidebar = function () {
     const sidebar = document.getElementById('filtro-sidebar');
     const backdrop = document.getElementById('filtro-backdrop');
     if (sidebar) sidebar.style.right = '-400px';
@@ -2627,7 +2627,7 @@ window.closeFiltroSidebar = function() {
     }
 };
 
-window.selecionarTipoCadastro = function(btnElement, status) {
+window.selecionarTipoCadastro = function (btnElement, status) {
     document.getElementById('f-tipo-cadastro-hidden').value = status;
     document.querySelectorAll('.btn-tipo-cadastro').forEach(btn => {
         btn.style.opacity = '0.5';
@@ -2638,12 +2638,12 @@ window.selecionarTipoCadastro = function(btnElement, status) {
     aplicarFiltrosColaboradores();
 };
 
-window.exportarColaboradoresXLSX = async function() {
+window.exportarColaboradoresXLSX = async function () {
     if (!window._listaColaboradoresFiltrada || window._listaColaboradoresFiltrada.length === 0) {
         alert('Nenhum colaborador para exportar.');
         return;
     }
-    
+
     // Preparar os dados
     const colaboradores = window._listaColaboradoresFiltrada;
 
@@ -2665,7 +2665,7 @@ window.exportarColaboradoresXLSX = async function() {
                 reader.readAsDataURL(blob);
             });
         }
-    } catch(e) {
+    } catch (e) {
         console.warn("Erro ao carregar logo:", e);
     }
 
@@ -2766,7 +2766,7 @@ window.exportarColaboradoresXLSX = async function() {
             c.tamanho_calca || '',
             c.tamanho_calcado || ''
         ]);
-        
+
         row.eachCell({ includeEmpty: true }, (cell) => {
             cell.alignment = { vertical: 'middle', horizontal: 'left' };
         });
@@ -2783,13 +2783,13 @@ window.exportarColaboradoresXLSX = async function() {
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    
+
     const d = new Date();
     const dia = String(d.getDate()).padStart(2, '0');
     const mes = String(d.getMonth() + 1).padStart(2, '0');
     const ano = String(d.getFullYear()).slice(-2);
     const ms = d.getMilliseconds();
-    
+
     saveAs(blob, `${dia}${mes}${ano}_Colaboradores${ms}.xlsx`);
 };
 
@@ -2798,11 +2798,11 @@ function renderColaboradores(lista) {
     if (!wrapper) return;
 
     // Função auxiliar para escalar tipo "padrao_seis_dias" -> "Padrao Seis Dias"
-    const formatEscala = (e) => (e||'').replace(/_/g, ' ').replace(/\b\w/g, c=>c.toUpperCase());
+    const formatEscala = (e) => (e || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
     // Coletar opções únicas para os selects dos filtros
-    const deptos  = [...new Set(_todosColaboradores.map(c => c.departamento).filter(Boolean))].sort();
-    const cargos  = [...new Set(_todosColaboradores.map(c => c.cargo).filter(Boolean))].sort();
+    const deptos = [...new Set(_todosColaboradores.map(c => c.departamento).filter(Boolean))].sort();
+    const cargos = [...new Set(_todosColaboradores.map(c => c.cargo).filter(Boolean))].sort();
     const escalas = [...new Set(_todosColaboradores.map(c => c.escala_tipo).filter(Boolean))].sort();
     const beneficiosList = ['Faculdade', 'Academia', 'Terapia', 'Celulares', 'Chaves', 'Brigadista'];
 
@@ -2903,13 +2903,13 @@ function renderColaboradores(lista) {
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Departamento</label>
                     <select id="f-departamento" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                        <option value="">Todos</option>${deptos.map(d=>`<option>${d}</option>`).join('')}
+                        <option value="">Todos</option>${deptos.map(d => `<option>${d}</option>`).join('')}
                     </select>
                 </div>
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Cargo</label>
                     <select id="f-cargo" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                        <option value="">Todos</option>${cargos.map(c=>`<option>${c}</option>`).join('')}
+                        <option value="">Todos</option>${cargos.map(c => `<option>${c}</option>`).join('')}
                     </select>
                 </div>
                 <div>
@@ -2931,7 +2931,7 @@ function renderColaboradores(lista) {
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Escala de Trabalho</label>
                     <select id="f-escala" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                        <option value="">Todas</option>${escalas.map(e=>`<option value="${e}">${formatEscala(e)}</option>`).join('')}
+                        <option value="">Todas</option>${escalas.map(e => `<option value="${e}">${formatEscala(e)}</option>`).join('')}
                     </select>
                 </div>
                 <div>
@@ -2943,7 +2943,7 @@ function renderColaboradores(lista) {
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Benefícios</label>
                     <div style="display:flex; flex-direction:column; gap:0.5rem; padding:0.5rem; border:1px solid #e2e8f0; border-radius:6px; max-height:150px; overflow-y:auto; background:#f8fafc;">
-                        ${beneficiosList.map(b=>`
+                        ${beneficiosList.map(b => `
                             <label style="font-size:0.85rem; color:#334155; display:flex; align-items:center; gap:6px; cursor:pointer;">
                                 <input type="checkbox" class="f-beneficios-chk" value="${b}" onchange="aplicarFiltrosColaboradores()" style="width:16px;height:16px;cursor:pointer;"> ${b}
                             </label>
@@ -2966,7 +2966,7 @@ function renderColaboradores(lista) {
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Tamanho Calçado</label>
                     <select id="f-tam-calcado" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                         <option value="">Todos</option>
-                        ${Array.from({length: 14}, (_, i) => 33 + i).map(size => `<option value="${size}">${size}</option>`).join('')}
+                        ${Array.from({ length: 14 }, (_, i) => 33 + i).map(size => `<option value="${size}">${size}</option>`).join('')}
                     </select>
                 </div>
             </div>
@@ -3012,86 +3012,86 @@ function renderTabelaColaboradores(lista) {
                 </tr></thead>
                 <tbody>
                     ${lista.map(c => {
-                        const d = c.data_admissao ? new Date(c.data_admissao.includes('T') ? c.data_admissao : c.data_admissao + 'T12:00:00').toLocaleDateString('pt-BR') : '-';
-                        expInfoHtml = `<div style="font-size:0.95rem; color:#334155; font-weight:500;">${d}</div>`;
-                        if (c.data_admissao) {
-                            const admDate = new Date(c.data_admissao + 'T12:00:00');
-                            const today = new Date();
-                            if (today >= admDate) {
-                                let years = today.getFullYear() - admDate.getFullYear();
-                                let months = today.getMonth() - admDate.getMonth();
-                                if (today.getDate() < admDate.getDate()) {
-                                    months--;
-                                }
-                                if (months < 0) {
-                                    years--;
-                                    months += 12;
-                                }
-                                
-                                let badgeColor = '';
-                                if (years === 0) badgeColor = '#eab308'; // amarelo
-                                else if (years >= 1 && years < 3) badgeColor = '#f97316'; // laranja
-                                else if (years >= 3 && years < 5) badgeColor = '#3b82f6'; // azul
-                                else if (years >= 5 && years < 10) badgeColor = '#059669'; // verde escuro
-                                else if (years >= 10) badgeColor = '#8b5cf6'; // roxo
-                                
-                                let textPart = [];
-                                if (years > 0) textPart.push(`${years} ano${years > 1 ? 's' : ''}`);
-                                if (months > 0) textPart.push(`${months} mes${months > 1 ? 'es' : ''}`);
-                                
-                                if (textPart.length > 0) {
-                                    expInfoHtml += `<div style="font-size:0.75rem; font-weight:700; margin-top:2px; color: ${badgeColor};">${textPart.join(' e ')}</div>`;
-                                } else if (years === 0 && months === 0) {
-                                    // acabou de entrar
-                                    expInfoHtml += `<div style="font-size:0.75rem; font-weight:700; margin-top:2px; color: ${badgeColor};">Menos de 1 mes</div>`;
-                                }
-                            }
-                        }
-                        let probationDatesHtml = '';
-                        if (c.data_admissao) {
-                            const adm = new Date(c.data_admissao + 'T12:00:00');
-                            const d45 = new Date(adm); d45.setDate(adm.getDate() + 45);
-                            const d90 = new Date(adm); d90.setDate(adm.getDate() + 90);
-                            probationDatesHtml = `<div style="font-size:7pt;color:#94a3b8;line-height:1.1;margin-top:2px;">1º: ${d45.toLocaleDateString('pt-BR')}<br>2º: ${d90.toLocaleDateString('pt-BR')}</div>`;
-                        }
-                        let statusHtml = '';
-                        const effectiveStatus = getEffectiveStatus(c);
-                        if (effectiveStatus === 'Aguardando início') statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
-                        else if (effectiveStatus === 'Processo iniciado') statusHtml = `<div style="background:#e7f5ff;color:#1864ab;border:2px solid #1864ab;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-play-circle"></i> Iniciado</div>`;
-                        else if (effectiveStatus === 'Ativo') statusHtml = `<div style="background:#e8f5e9;color:#196b36;border:2px solid #196b36;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-check-circle"></i> Ativo</div>`;
-                        else if (effectiveStatus === 'Férias') statusHtml = `<div style="background:#ffedd5;color:#c2410c;border:2px solid #c2410c;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-airplane-tilt"></i> Férias</div>`;
-                        else if (effectiveStatus === 'Afastado') statusHtml = `<div style="background:#faeed9;color:#eaa15f;border:2px solid #eaa15f;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-first-aid"></i> Afastado</div>`;
-                        else if (effectiveStatus === 'Desligado') statusHtml = `<div style="background:#fceeee;color:#ba7881;border:2px solid #ba7881;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-x-circle"></i> Desligado</div>`;
-                        else if (effectiveStatus === 'Incompleto') statusHtml = `<div style="background:#f8f9fa;color:#6c757d;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-pencil-simple"></i> Incompleto</div>`;
-                        else statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
+        const d = c.data_admissao ? new Date(c.data_admissao.includes('T') ? c.data_admissao : c.data_admissao + 'T12:00:00').toLocaleDateString('pt-BR') : '-';
+        expInfoHtml = `<div style="font-size:0.95rem; color:#334155; font-weight:500;">${d}</div>`;
+        if (c.data_admissao) {
+            const admDate = new Date(c.data_admissao + 'T12:00:00');
+            const today = new Date();
+            if (today >= admDate) {
+                let years = today.getFullYear() - admDate.getFullYear();
+                let months = today.getMonth() - admDate.getMonth();
+                if (today.getDate() < admDate.getDate()) {
+                    months--;
+                }
+                if (months < 0) {
+                    years--;
+                    months += 12;
+                }
 
-                        let experienceUnderName = '';
-                        if (c.data_admissao) {
-                            const adm = new Date(c.data_admissao + 'T12:00:00');
-                            const today = new Date(); today.setHours(12,0,0,0);
-                            const diffDays = Math.floor((today - adm) / (1000 * 60 * 60 * 24));
-                            if (diffDays >= 0 && diffDays <= 90) {
-                                const d45 = new Date(adm); d45.setDate(adm.getDate() + 45);
-                                const d90 = new Date(adm); d90.setDate(adm.getDate() + 90);
-                                let tagHtml = diffDays <= 45
-                                    ? `<span class="probation-badge" style="font-size:0.6rem;padding:0.15rem 0.4rem;border-radius:4px;white-space:nowrap;">1º 45</span>`
-                                    : `<span class="probation-badge second" style="font-size:0.6rem;padding:0.15rem 0.4rem;border-radius:4px;white-space:nowrap;">2º 45</span>`;
-                                let vigenciaHtml = diffDays <= 45
-                                    ? `<span style="font-size:0.65rem;color:#64748b;white-space:nowrap;font-weight:600;">1º: ${d45.toLocaleDateString('pt-BR')}</span>`
-                                    : `<span style="font-size:0.65rem;color:#64748b;white-space:nowrap;font-weight:600;">2º: ${d90.toLocaleDateString('pt-BR')}</span>`;
-                                experienceUnderName = `<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">${tagHtml}${vigenciaHtml}</div>`;
-                            }
-                        }
+                let badgeColor = '';
+                if (years === 0) badgeColor = '#eab308'; // amarelo
+                else if (years >= 1 && years < 3) badgeColor = '#f97316'; // laranja
+                else if (years >= 3 && years < 5) badgeColor = '#3b82f6'; // azul
+                else if (years >= 5 && years < 10) badgeColor = '#059669'; // verde escuro
+                else if (years >= 10) badgeColor = '#8b5cf6'; // roxo
 
-                        const photoUrl = `${API_URL}/colaboradores/foto/${c.id}?t=${Date.now()}`;
-                        const fallbackIcon = `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNjYmQ1ZTEiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMCAyMWE4IDggMCAwMC0xNiAwIi8+PGNpcmNsZSBjeD0iMTIiIGN5PSI3IiByPSI0Ii8+PC9zdmc+`;
+                let textPart = [];
+                if (years > 0) textPart.push(`${years} ano${years > 1 ? 's' : ''}`);
+                if (months > 0) textPart.push(`${months} mes${months > 1 ? 'es' : ''}`);
 
-                        let cargoDisplay = c.cargo || '-';
-                        if (cargoDisplay.toLowerCase().includes('motorista') && c.cnh_categoria) {
-                            cargoDisplay += ` (${c.cnh_categoria})`;
-                        }
+                if (textPart.length > 0) {
+                    expInfoHtml += `<div style="font-size:0.75rem; font-weight:700; margin-top:2px; color: ${badgeColor};">${textPart.join(' e ')}</div>`;
+                } else if (years === 0 && months === 0) {
+                    // acabou de entrar
+                    expInfoHtml += `<div style="font-size:0.75rem; font-weight:700; margin-top:2px; color: ${badgeColor};">Menos de 1 mes</div>`;
+                }
+            }
+        }
+        let probationDatesHtml = '';
+        if (c.data_admissao) {
+            const adm = new Date(c.data_admissao + 'T12:00:00');
+            const d45 = new Date(adm); d45.setDate(adm.getDate() + 45);
+            const d90 = new Date(adm); d90.setDate(adm.getDate() + 90);
+            probationDatesHtml = `<div style="font-size:7pt;color:#94a3b8;line-height:1.1;margin-top:2px;">1º: ${d45.toLocaleDateString('pt-BR')}<br>2º: ${d90.toLocaleDateString('pt-BR')}</div>`;
+        }
+        let statusHtml = '';
+        const effectiveStatus = getEffectiveStatus(c);
+        if (effectiveStatus === 'Aguardando início') statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
+        else if (effectiveStatus === 'Processo iniciado') statusHtml = `<div style="background:#e7f5ff;color:#1864ab;border:2px solid #1864ab;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-play-circle"></i> Iniciado</div>`;
+        else if (effectiveStatus === 'Ativo') statusHtml = `<div style="background:#e8f5e9;color:#196b36;border:2px solid #196b36;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-check-circle"></i> Ativo</div>`;
+        else if (effectiveStatus === 'Férias') statusHtml = `<div style="background:#ffedd5;color:#c2410c;border:2px solid #c2410c;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-airplane-tilt"></i> Férias</div>`;
+        else if (effectiveStatus === 'Afastado') statusHtml = `<div style="background:#faeed9;color:#eaa15f;border:2px solid #eaa15f;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-first-aid"></i> Afastado</div>`;
+        else if (effectiveStatus === 'Desligado') statusHtml = `<div style="background:#fceeee;color:#ba7881;border:2px solid #ba7881;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-x-circle"></i> Desligado</div>`;
+        else if (effectiveStatus === 'Incompleto') statusHtml = `<div style="background:#f8f9fa;color:#6c757d;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-pencil-simple"></i> Incompleto</div>`;
+        else statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
 
-                        return `<tr>
+        let experienceUnderName = '';
+        if (c.data_admissao) {
+            const adm = new Date(c.data_admissao + 'T12:00:00');
+            const today = new Date(); today.setHours(12, 0, 0, 0);
+            const diffDays = Math.floor((today - adm) / (1000 * 60 * 60 * 24));
+            if (diffDays >= 0 && diffDays <= 90) {
+                const d45 = new Date(adm); d45.setDate(adm.getDate() + 45);
+                const d90 = new Date(adm); d90.setDate(adm.getDate() + 90);
+                let tagHtml = diffDays <= 45
+                    ? `<span class="probation-badge" style="font-size:0.6rem;padding:0.15rem 0.4rem;border-radius:4px;white-space:nowrap;">1º 45</span>`
+                    : `<span class="probation-badge second" style="font-size:0.6rem;padding:0.15rem 0.4rem;border-radius:4px;white-space:nowrap;">2º 45</span>`;
+                let vigenciaHtml = diffDays <= 45
+                    ? `<span style="font-size:0.65rem;color:#64748b;white-space:nowrap;font-weight:600;">1º: ${d45.toLocaleDateString('pt-BR')}</span>`
+                    : `<span style="font-size:0.65rem;color:#64748b;white-space:nowrap;font-weight:600;">2º: ${d90.toLocaleDateString('pt-BR')}</span>`;
+                experienceUnderName = `<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">${tagHtml}${vigenciaHtml}</div>`;
+            }
+        }
+
+        const photoUrl = `${API_URL}/colaboradores/foto/${c.id}?t=${Date.now()}`;
+        const fallbackIcon = `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNjYmQ1ZTEiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMCAyMWE4IDggMCAwMC0xNiAwIi8+PGNpcmNsZSBjeD0iMTIiIGN5PSI3IiByPSI0Ii8+PC9zdmc+`;
+
+        let cargoDisplay = c.cargo || '-';
+        if (cargoDisplay.toLowerCase().includes('motorista') && c.cnh_categoria) {
+            cargoDisplay += ` (${c.cnh_categoria})`;
+        }
+
+        return `<tr>
                             <td style="padding-left:1rem;"><div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:1px solid #e2e8f0;background:#f8fafc;"><img src="${photoUrl}" onerror="this.src='${fallbackIcon}'" style="width:100%;height:100%;object-fit:cover;"></div></td>
                             <td><div style="display:flex;flex-direction:column;"><strong style="color:#334155;font-size:0.95rem;">${c.nome_completo || 'Sem Nome'}</strong>${experienceUnderName}</div></td>
                             <td style="color:#64748b;font-size:0.85rem;white-space:nowrap;">${c.cpf || '-'}</td>
@@ -3102,41 +3102,41 @@ function renderTabelaColaboradores(lista) {
                             <td style="text-align:right;padding-right:1rem;">
                                 <div style="display:flex;gap:0.4rem;justify-content:flex-end;">
                                     <button class="btn btn-warning btn-sm" onclick="editColaborador(${c.id})" title="Editar" style="padding:0.4rem;width:32px;height:32px;justify-content:center;"><i class="ph ph-pencil-simple"></i></button>
-                                    <button class="btn btn-primary btn-sm" onclick="openProntuario(${c.id},'${(c.nome_completo||'').replace(/'/g,"\\'")}','${(c.cargo||'').replace(/'/g,"\\'")}','${c.cpf||''}','${c.sexo||''}','${c.data_admissao||''}','${c.status||''}','${c.rg_tipo||'RG'}')" title="Prontuário" style="padding:0.4rem;width:32px;height:32px;justify-content:center;background:#2563eb;"><i class="ph ph-folder-open"></i></button>
+                                    <button class="btn btn-primary btn-sm" onclick="openProntuario(${c.id},'${(c.nome_completo || '').replace(/'/g, "\\'")}','${(c.cargo || '').replace(/'/g, "\\'")}','${c.cpf || ''}','${c.sexo || ''}','${c.data_admissao || ''}','${c.status || ''}','${c.rg_tipo || 'RG'}')" title="Prontuário" style="padding:0.4rem;width:32px;height:32px;justify-content:center;background:#2563eb;"><i class="ph ph-folder-open"></i></button>
                                     
                                 </div>
                             </td>
                         </tr>`;
-                    }).join('')}
+    }).join('')}
         </tbody>
         </table>
     `;
 }
 
-window.deleteColaborador = async function(id, isStatusIncompleto = false) {
+window.deleteColaborador = async function (id, isStatusIncompleto = false) {
     let msg = '🚨 ATENÇÃO: Tem certeza que deseja inativar este colaborador?\n\nO status dele(a) será alterado para "Desligado" mantendo todos os arquivos intactos.';
     if (isStatusIncompleto) {
         msg = '🚨 ATENÇÃO: Este colaborador está INCOMPLETO. A exclusão irá DELETAR PERMANENTEMENTE todos os dados e eventuais arquivos já enviados. Deseja prosseguir?';
     }
-    if(!confirm(msg)) return;
+    if (!confirm(msg)) return;
     try {
         const res = await fetch(`${API_URL}/colaboradores/${id}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${currentToken}` }
         });
-        if(res.ok) {
+        if (res.ok) {
             loadColaboradores();
             loadDashboard();
         } else {
             alert('Falha ao inativar/excluir colaborador do sistema.');
         }
-    } catch(e) { console.error(e); }
+    } catch (e) { console.error(e); }
 }
 
-window.resetFormColaborador = function() {
+window.resetFormColaborador = function () {
     const form = document.getElementById('form-colaborador');
     if (form) form.reset();
-    
+
     document.getElementById('colab-id').value = '';
     document.getElementById('form-colab-title').textContent = 'Cadastrar Colaborador';
     document.getElementById('conjuge-id').value = '';
@@ -3145,10 +3145,10 @@ window.resetFormColaborador = function() {
     // CNH reset
     const sectionCnh = document.getElementById('section-cnh');
     if (sectionCnh) sectionCnh.style.display = 'none';
-    if(document.getElementById('colab-cnh-numero')) document.getElementById('colab-cnh-numero').value = '';
-    if(document.getElementById('colab-cnh-vencimento')) document.getElementById('colab-cnh-vencimento').value = '';
-    if(document.getElementById('colab-cnh-categoria')) document.getElementById('colab-cnh-categoria').value = '';
-    
+    if (document.getElementById('colab-cnh-numero')) document.getElementById('colab-cnh-numero').value = '';
+    if (document.getElementById('colab-cnh-vencimento')) document.getElementById('colab-cnh-vencimento').value = '';
+    if (document.getElementById('colab-cnh-categoria')) document.getElementById('colab-cnh-categoria').value = '';
+
     const novosCamposIds = [
         'colab-matricula-esocial', 'colab-numero-registro', 'colab-local-nascimento', 'colab-rg-orgao', 'colab-rg-data',
         'colab-titulo', 'colab-titulo-zona', 'colab-titulo-secao',
@@ -3164,7 +3164,7 @@ window.resetFormColaborador = function() {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
-    
+
     // Reset Férias Info
     if (document.getElementById('ferias-periodo-aquisitivo')) document.getElementById('ferias-periodo-aquisitivo').value = '-';
     if (document.getElementById('ferias-periodo-concessivo')) document.getElementById('ferias-periodo-concessivo').value = '-';
@@ -3179,7 +3179,7 @@ window.resetFormColaborador = function() {
     if (document.getElementById('colab-ferias-fracionadas-inicio2')) document.getElementById('colab-ferias-fracionadas-inicio2').value = '';
     if (document.getElementById('colab-ferias-fracionadas-fim2')) document.getElementById('colab-ferias-fracionadas-fim2').value = '';
     if (document.getElementById('colab-ferias-fracionadas-dias2')) document.getElementById('colab-ferias-fracionadas-dias2').value = '-';
-    
+
     // Reset Alergias e novos campos
     if (document.getElementById('colab-alergias')) document.getElementById('colab-alergias').value = '';
     const radA = document.querySelector('input[name="alergia_check"][value="Não"]');
@@ -3192,10 +3192,10 @@ window.resetFormColaborador = function() {
     if (document.getElementById('colab-adiantamento-valor')) document.getElementById('colab-adiantamento-valor').value = '';
 
     const radioInN = document.querySelector('input[name="insalubridade_check"][value="Não"]');
-    if(radioInN) radioInN.checked = true;
-    if(document.getElementById('colab-insalubridade-valor')) document.getElementById('colab-insalubridade-valor').value = '';
+    if (radioInN) radioInN.checked = true;
+    if (document.getElementById('colab-insalubridade-valor')) document.getElementById('colab-insalubridade-valor').value = '';
     if (typeof window.toggleInsalubridade === 'function') window.toggleInsalubridade('Não');
-    
+
     if (document.getElementById('colab-rg-tipo')) {
         document.getElementById('colab-rg-tipo').value = 'RG';
         if (typeof toggleTipoDocumento === 'function') toggleTipoDocumento();
@@ -3203,7 +3203,7 @@ window.resetFormColaborador = function() {
 
     const titleEl = document.getElementById('form-colab-title');
     if (titleEl) titleEl.textContent = 'Cadastrar Colaborador';
-    
+
     // Reset status badges (no longer used, but good to clean if they were there)
     const statusContainer = document.getElementById('status-chips-container');
     if (statusContainer) {
@@ -3217,18 +3217,18 @@ window.resetFormColaborador = function() {
         document.getElementById('colab-escala-padrao').value = '';
         if (typeof toggleFormEscalaTipo === 'function') toggleFormEscalaTipo();
     }
-    
+
     document.querySelectorAll('.cb-folga-colab').forEach(cb => cb.checked = false);
-    
+
     if (document.getElementById('colab-cnh-documento')) document.getElementById('colab-cnh-documento').value = '';
     if (document.getElementById('colab-cnh-doc-id')) document.getElementById('colab-cnh-doc-id').value = '';
     if (document.getElementById('cnh-status-text')) document.getElementById('cnh-status-text').style.display = 'none';
     if (document.getElementById('cnh-btn-label')) document.getElementById('cnh-btn-label').textContent = 'Escolher arquivo...';
-    
+
     if (document.getElementById('conjuge-documento')) document.getElementById('conjuge-documento').value = '';
     if (document.getElementById('conjuge-status-text')) document.getElementById('conjuge-status-text').style.display = 'none';
     if (document.getElementById('conjuge-btn-label')) document.getElementById('conjuge-btn-label').textContent = 'Escolher arquivo...';
-    
+
     // Dependentes reset
     const depContainer = document.getElementById('dependentes-container');
     if (depContainer) depContainer.innerHTML = '';
@@ -3237,53 +3237,53 @@ window.resetFormColaborador = function() {
 
     // Refresh Dynamic Selects
     loadSelects();
-    
+
     // Foto reset
     const stateNew = document.getElementById('photo-state-new');
     const stateUploadable = document.getElementById('photo-state-uploadable');
     const stateSaved = document.getElementById('photo-state-saved');
     const fotoPreview = document.getElementById('colab-foto-preview');
     const fotoInput = document.getElementById('colab-foto-input');
-    
+
     if (stateNew) stateNew.style.display = 'flex';
     if (stateUploadable) stateUploadable.style.display = 'none';
     if (stateSaved) stateSaved.style.display = 'none';
     if (fotoPreview) { fotoPreview.style.display = 'none'; fotoPreview.src = ''; }
     if (fotoInput) fotoInput.disabled = true;
-    
+
     checkQuickDocsState();
     const errorCpf = document.getElementById('cpf-error');
-    if(errorCpf) errorCpf.style.display = 'none';
+    if (errorCpf) errorCpf.style.display = 'none';
 
     const radioFacNao = document.querySelector('input[name="faculdade_participa"][value="Não"]');
     if (radioFacNao) { radioFacNao.checked = true; toggleFormacaoFields('Não'); }
-    
+
     const radioAcadNao = document.querySelector('input[name="academia_participa"][value="Não"]');
     if (radioAcadNao) { radioAcadNao.checked = true; toggleAcademiaFields('Não'); }
-    
+
     const radioTeraNao = document.querySelector('input[name="terapia_participa"][value="Não"]');
     if (radioTeraNao) { radioTeraNao.checked = true; toggleTerapiaFields('Não'); }
-    
+
     const radioCeluNao = document.querySelector('input[name="celular_participa"][value="Não"]');
     if (radioCeluNao) { radioCeluNao.checked = true; toggleCelularFields('Não'); }
-    
+
     const radioChavesNao = document.querySelector('input[name="chaves_participa"][value="Não"]');
     if (radioChavesNao) { radioChavesNao.checked = true; toggleChavesColabFields('Não'); }
 };
 
-window.editColaborador = async function(id) {
+window.editColaborador = async function (id) {
     // Botão de sincronização manual ocultado (a automação já faz isso ao salvar)
     const formSyncBtn = document.getElementById('btn-form-sync-onedrive');
     if (formSyncBtn) {
         formSyncBtn.style.display = 'none';
-        formSyncBtn.onclick = function() { window.syncOneDriveManual(id, this); };
+        formSyncBtn.onclick = function () { window.syncOneDriveManual(id, this); };
     }
 
     try {
         await loadSelects();
         const c = await apiGet(`/colaboradores/${id}`);
         if (!c) return;
-        
+
         const docs = await apiGet(`/colaboradores/${id}/documentos`);
         currentDocs = docs || [];
 
@@ -3296,19 +3296,19 @@ window.editColaborador = async function(id) {
         document.getElementById('colab-nome').value = c.nome_completo || '';
         document.getElementById('colab-cpf').value = c.cpf || '';
         if (document.getElementById('colab-rg')) document.getElementById('colab-rg').value = c.rg || '';
-        
+
         const rgTipoEl = document.getElementById('colab-rg-tipo');
         if (rgTipoEl) {
             rgTipoEl.value = c.rg_tipo || 'RG';
             if (typeof toggleTipoDocumento === 'function') toggleTipoDocumento();
         }
-        
+
         const _safeDate = (dStr) => {
             if (!dStr) return '';
             try { const d = new Date(dStr); return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0]; }
-            catch(e) { return ''; }
+            catch (e) { return ''; }
         };
-        
+
         document.getElementById('colab-nascimento').value = _safeDate(c.data_nascimento);
 
         document.getElementById('colab-estadocivil').value = c.estado_civil || '';
@@ -3343,7 +3343,7 @@ window.editColaborador = async function(id) {
         } else {
             document.getElementById('colab-salario').value = '';
         }
-        
+
         if (document.getElementById('colab-matricula-esocial')) document.getElementById('colab-matricula-esocial').value = c.matricula_esocial || '';
         if (document.getElementById('colab-numero-registro')) document.getElementById('colab-numero-registro').value = c.numero_registro || '';
         if (document.getElementById('colab-local-nascimento')) document.getElementById('colab-local-nascimento').value = c.local_nascimento || '';
@@ -3357,7 +3357,7 @@ window.editColaborador = async function(id) {
         if (document.getElementById('colab-ctps-uf')) document.getElementById('colab-ctps-uf').value = c.ctps_uf || '';
         if (document.getElementById('colab-ctps-data')) document.getElementById('colab-ctps-data').value = _safeDate(c.ctps_data_expedicao);
         // Auto-preencher CTPS a partir do CPF
-        (function() {
+        (function () {
             const cpfDigits = (c.cpf || '').replace(/\D/g, '');
             const ctpsEl = document.getElementById('colab-ctps');
             const serieEl = document.getElementById('colab-ctps-serie');
@@ -3366,17 +3366,17 @@ window.editColaborador = async function(id) {
         })();;
         if (document.getElementById('colab-pis')) document.getElementById('colab-pis').value = c.pis || '';
         if (document.getElementById('colab-cor-raca')) document.getElementById('colab-cor-raca').value = c.cor_raca || '';
-        
+
         if (document.getElementById('tamanho_camiseta')) document.getElementById('tamanho_camiseta').value = c.tamanho_camiseta || '';
         if (document.getElementById('tamanho_calca')) document.getElementById('tamanho_calca').value = c.tamanho_calca || '';
         if (document.getElementById('tamanho_calcado')) document.getElementById('tamanho_calcado').value = c.tamanho_calcado || '';
-        
+
         if (document.getElementById('colab-sexo')) {
             document.getElementById('colab-sexo').value = c.sexo || '';
             if (typeof toggleCertificadoMilitar === 'function') toggleCertificadoMilitar(c.sexo || '');
         }
         if (document.getElementById('colab-grau-instrucao')) document.getElementById('colab-grau-instrucao').value = c.grau_instrucao || '';
-        
+
         const cboFull = c.cbo || '';
         const cboParts = cboFull.match(/^(\S+)\s*-\s*(.+)$/);
         let cboCode = cboParts ? cboParts[1] : cboFull;
@@ -3388,7 +3388,7 @@ window.editColaborador = async function(id) {
         }
         if (document.getElementById('colab-cbo-codigo')) document.getElementById('colab-cbo-codigo').value = cboCode;
         if (document.getElementById('colab-cbo')) document.getElementById('colab-cbo').value = cboDesc;
-        
+
         if (document.getElementById('colab-militar')) document.getElementById('colab-militar').value = c.certificado_militar || '';
         if (document.getElementById('colab-militar-categoria')) document.getElementById('colab-militar-categoria').value = c.militar_categoria || '';
         if (document.getElementById('colab-deficiencia')) document.getElementById('colab-deficiencia').value = c.deficiencia || '';
@@ -3429,12 +3429,12 @@ window.editColaborador = async function(id) {
 
         if (document.getElementById('colab-escala-padrao')) {
             document.getElementById('colab-escala-padrao').value = c.escala_tipo || '';
-            if(document.getElementById('colab-entrada')) document.getElementById('colab-entrada').value = c.horario_entrada || '';
-            if(document.getElementById('colab-saida')) document.getElementById('colab-saida').value = c.horario_saida || '';
-            if(document.getElementById('colab-intervalo-entrada')) document.getElementById('colab-intervalo-entrada').value = c.intervalo_entrada || '';
-            if(document.getElementById('colab-intervalo-saida')) document.getElementById('colab-intervalo-saida').value = c.intervalo_saida || '';
-            if(document.getElementById('colab-sabado-entrada')) document.getElementById('colab-sabado-entrada').value = c.sabado_entrada || '';
-            if(document.getElementById('colab-sabado-saida')) document.getElementById('colab-sabado-saida').value = c.sabado_saida || '';
+            if (document.getElementById('colab-entrada')) document.getElementById('colab-entrada').value = c.horario_entrada || '';
+            if (document.getElementById('colab-saida')) document.getElementById('colab-saida').value = c.horario_saida || '';
+            if (document.getElementById('colab-intervalo-entrada')) document.getElementById('colab-intervalo-entrada').value = c.intervalo_entrada || '';
+            if (document.getElementById('colab-intervalo-saida')) document.getElementById('colab-intervalo-saida').value = c.intervalo_saida || '';
+            if (document.getElementById('colab-sabado-entrada')) document.getElementById('colab-sabado-entrada').value = c.sabado_entrada || '';
+            if (document.getElementById('colab-sabado-saida')) document.getElementById('colab-sabado-saida').value = c.sabado_saida || '';
 
             toggleFormEscalaTipo();
 
@@ -3447,7 +3447,7 @@ window.editColaborador = async function(id) {
                     document.querySelectorAll('.cb-uma-folga-colab').forEach(cb => {
                         cb.checked = folgasArr.includes(cb.value);
                     });
-                } catch(e) { console.error('Erro ao ler folgas:', e); }
+                } catch (e) { console.error('Erro ao ler folgas:', e); }
             }
             // Carregar data de referência do ciclo de domingos
             const cicloEl = document.getElementById('colab-escala-ciclo-inicio');
@@ -3456,23 +3456,23 @@ window.editColaborador = async function(id) {
                 // Atualizar label conforme tipo de escala
                 if (typeof window.atualizarLabelCiclo === 'function') {
                     const modo = c.escala_tipo === 'escala_12x36' ? '12x36'
-                               : c.escala_tipo === 'padrao_sab_alternado' ? 'sab_alternado'
-                               : 'folga';
+                        : c.escala_tipo === 'padrao_sab_alternado' ? 'sab_alternado'
+                            : 'folga';
                     window.atualizarLabelCiclo(modo);
                 }
             }
         }
 
         // toggleMotorista ANTES de carregar CNH — se chamado depois limpa os campos
-        if(typeof toggleMotorista === 'function') toggleMotorista();
-        if(document.getElementById('colab-cnh-numero')) document.getElementById('colab-cnh-numero').value = c.cnh_numero || '';
-        if(document.getElementById('colab-cnh-categoria')) document.getElementById('colab-cnh-categoria').value = c.cnh_categoria || '';
+        if (typeof toggleMotorista === 'function') toggleMotorista();
+        if (document.getElementById('colab-cnh-numero')) document.getElementById('colab-cnh-numero').value = c.cnh_numero || '';
+        if (document.getElementById('colab-cnh-categoria')) document.getElementById('colab-cnh-categoria').value = c.cnh_categoria || '';
 
         // Férias
-        if(document.getElementById('colab-ferias-programadas-inicio')) document.getElementById('colab-ferias-programadas-inicio').value = c.ferias_programadas_inicio || '';
-        if(document.getElementById('colab-ferias-programadas-fim')) document.getElementById('colab-ferias-programadas-fim').value = c.ferias_programadas_fim || '';
-        if(typeof updateVacationInfo === 'function') updateVacationInfo(admDate);
-        if(typeof calculateVacationDays === 'function') calculateVacationDays();
+        if (document.getElementById('colab-ferias-programadas-inicio')) document.getElementById('colab-ferias-programadas-inicio').value = c.ferias_programadas_inicio || '';
+        if (document.getElementById('colab-ferias-programadas-fim')) document.getElementById('colab-ferias-programadas-fim').value = c.ferias_programadas_fim || '';
+        if (typeof updateVacationInfo === 'function') updateVacationInfo(admDate);
+        if (typeof calculateVacationDays === 'function') calculateVacationDays();
 
         // Férias Fracionadas
         const ffVal = c.ferias_fracionadas || 'Não';
@@ -3506,7 +3506,7 @@ window.editColaborador = async function(id) {
             if (rawAdi) {
                 const numAdi = parseFloat(String(rawAdi).replace(/[^\d.]/g, ''));
                 document.getElementById('colab-adiantamento-valor').value = !isNaN(numAdi)
-                    ? new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(numAdi)
+                    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(numAdi)
                     : rawAdi;
             } else {
                 document.getElementById('colab-adiantamento-valor').value = '';
@@ -3516,26 +3516,26 @@ window.editColaborador = async function(id) {
         // Insalubridade — formatar valor como moeda ao carregar
         const insVal = c.insalubridade || 'Não';
         const radioInS = document.querySelector(`input[name="insalubridade_check"][value="${insVal === 'Sim' ? 'Sim' : 'Não'}"]`);
-        if(radioInS) radioInS.checked = true;
-        if(document.getElementById('colab-insalubridade-valor')) {
+        if (radioInS) radioInS.checked = true;
+        if (document.getElementById('colab-insalubridade-valor')) {
             const rawIns = c.insalubridade_valor;
             if (rawIns) {
                 const numIns = parseFloat(String(rawIns).replace(/[^\d.]/g, ''));
                 document.getElementById('colab-insalubridade-valor').value = !isNaN(numIns)
-                    ? new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(numIns)
+                    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(numIns)
                     : rawIns;
             } else {
                 document.getElementById('colab-insalubridade-valor').value = '';
             }
         }
         if (typeof window.toggleInsalubridade === 'function') window.toggleInsalubridade(insVal);
-        
+
         // Faculdade fields
         const participa = c.faculdade_participa || 'Não';
         const radioP = document.querySelector(`input[name="faculdade_participa"][value="${participa}"]`);
         if (radioP) radioP.checked = true;
         toggleFormacaoFields(participa);
-        
+
         if (document.getElementById('colab-faculdade-data-termino')) document.getElementById('colab-faculdade-data-termino').value = c.faculdade_data_termino || '';
 
         // Academia
@@ -3564,7 +3564,7 @@ window.editColaborador = async function(id) {
         const radioChaves = document.querySelector(`input[name="chaves_participa"][value="${participaChaves}"]`);
         if (radioChaves) radioChaves.checked = true;
         toggleChavesColabFields(participaChaves);
-        
+
         // Brigadista
         const participaBrig = c.brigadista_participa || 'Não';
         const radioBrig = document.querySelector(`input[name="brigadista_participa"][value="${participaBrig}"]`);
@@ -3592,7 +3592,7 @@ window.editColaborador = async function(id) {
         window.updateVacationInfo(document.getElementById('colab-admissao')?.value || c.data_admissao || c.admissao || '');
 
         updateStatusChip(getEffectiveStatus(c));
-        
+
         if (c.estado_civil === 'Casado' || c.estado_civil === 'União Estável') {
             toggleConjuge();
             // Cônjuge agora salvo diretamente no colaborador (conjuge_nome / conjuge_cpf)
@@ -3609,11 +3609,11 @@ window.editColaborador = async function(id) {
         const stateSaved = document.getElementById('photo-state-saved');
         const fotoPreview = document.getElementById('colab-foto-preview');
         const fotoInput = document.getElementById('colab-foto-input');
-        
+
         if (stateNew) stateNew.style.display = 'none';
         if (stateUploadable) stateUploadable.style.display = 'block';
         if (fotoInput) fotoInput.disabled = false;
-        
+
         if (c.foto_base64) {
             if (stateSaved) stateSaved.style.display = 'none';
             if (fotoPreview) {
@@ -3634,14 +3634,14 @@ window.editColaborador = async function(id) {
                 fotoPreview.src = '';
             }
         }
-        
+
         checkQuickDocsState();
-        
+
         // --- Admission Bar Logic ---
         const admissionBar = document.getElementById('admission-status-bar');
         const admissionText = document.getElementById('admission-status-text');
         const admissionBtn = document.getElementById('btn-iniciar-admissao');
-        
+
         if (admissionBar && admissionText && admissionBtn) {
             if (c.status === 'Aguardando início' || c.status === 'Processo iniciado') {
                 admissionBar.style.display = 'flex';
@@ -3661,7 +3661,7 @@ window.editColaborador = async function(id) {
                 admissionBar.style.display = 'none';
             }
         }
-        
+
         // Dependentes
         const container = document.getElementById('dependentes-container');
         if (container) {
@@ -3679,7 +3679,7 @@ window.editColaborador = async function(id) {
         }
 
         window._openColaboradorTab(c.id, c.nome_completo);
-        
+
         // Preencher aviso de ASO enviado se houver
         const asoNotice = document.getElementById('aso-email-notice');
         const asoNoticeDate = document.getElementById('aso-notice-date');
@@ -3701,7 +3701,7 @@ window.editColaborador = async function(id) {
         if (linkExames) linkExames.value = viewedColaborador.aso_exames_assinafy_link || '';
 
         setTimeout(() => {
-            if(typeof toggleMotorista === 'function') toggleMotorista();
+            if (typeof toggleMotorista === 'function') toggleMotorista();
         }, 100);
         // Failsafe: re-calcula período de férias após render completo
         setTimeout(() => {
@@ -3718,13 +3718,13 @@ const formColab = document.getElementById('form-colaborador');
 if (formColab) {
     formColab.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const id = document.getElementById('colab-id').value;
         const nomeInput = document.getElementById('colab-nome');
         const cpfInput = document.getElementById('colab-cpf');
         // Listener: sincronizar CTPS com CPF em tempo real
         if (cpfInput && !cpfInput.dataset.ctpsListener) {
-            cpfInput.addEventListener('input', function() {
+            cpfInput.addEventListener('input', function () {
                 const digits = this.value.replace(/\D/g, '');
                 const ctpsEl = document.getElementById('colab-ctps');
                 const serieEl = document.getElementById('colab-ctps-serie');
@@ -3805,7 +3805,7 @@ if (formColab) {
             cor_raca: document.getElementById('colab-cor-raca') ? document.getElementById('colab-cor-raca').value : null,
             sexo: document.getElementById('colab-sexo') ? document.getElementById('colab-sexo').value : null,
             grau_instrucao: document.getElementById('colab-grau-instrucao') ? document.getElementById('colab-grau-instrucao').value : null,
-            
+
             dependentes: (() => {
                 const results = [];
                 // Incluir Filhos / Dependentes (Cônjuge não é mais dependente)
@@ -3827,7 +3827,7 @@ if (formColab) {
             // Cônjuge salvo como colunas diretas no colaborador
             conjuge_nome: document.getElementById('conjuge-nome') ? document.getElementById('conjuge-nome').value.trim() : null,
             conjuge_cpf: document.getElementById('conjuge-cpf') ? document.getElementById('conjuge-cpf').value.trim() : null,
-            cbo: (function() {
+            cbo: (function () {
                 const code = document.getElementById('colab-cbo-codigo') ? document.getElementById('colab-cbo-codigo').value : '';
                 const desc = document.getElementById('colab-cbo') ? document.getElementById('colab-cbo').value : '';
                 return (code && desc) ? `${code} - ${desc}` : (code || desc);
@@ -3932,7 +3932,7 @@ if (formColab) {
             btnRestorer();
             return;
         }
-        
+
         if (!data.cpf || data.cpf.trim() === '') {
             alert('Preenchimento Obrigatório: O campo "CPF" não pode ficar vazio.');
             btnRestorer();
@@ -3967,7 +3967,7 @@ if (formColab) {
             if (id) {
                 const res = await apiPut(`/colaboradores/${id}`, data);
                 if (res.error) throw new Error(res.error);
-                colabId = id; 
+                colabId = id;
             } else {
                 const res = await apiPost('/colaboradores', data);
                 if (res.error) throw new Error(res.error);
@@ -3995,7 +3995,7 @@ if (formColab) {
             renderAppTabs();
             navigateTo('colaboradores');
 
-        } catch(err) {
+        } catch (err) {
             console.error(err);
             alert('Erro: ' + (err.message || 'Falha desconhecida.'));
 
@@ -4008,7 +4008,7 @@ if (formColab) {
     });
 }
 
-window.openProntuarioFromCurrentForm = function() {
+window.openProntuarioFromCurrentForm = function () {
     const id = document.getElementById('colab-id').value;
     const nome = document.getElementById('colab-nome').value;
     const cargo = document.getElementById('colab-cargo').value;
@@ -4024,28 +4024,28 @@ window.openProntuarioFromCurrentForm = function() {
 }
 
 // --- PRONTUÁRIO DIGITAL ---
-window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao = '', status = '', rgTipo = 'RG') {
+window.openProntuario = async function (id, nome, cargo, cpf, sexo = '', admissao = '', status = '', rgTipo = 'RG') {
     viewedColaborador = { id, nome_completo: nome, cargo, cpf, sexo, data_admissao: admissao, status, rg_tipo: rgTipo };
-    
+
     // Vincular botão IMEDIATAMENTE (antes de qualquer await)
     const syncBtn = document.getElementById('btn-sync-onedrive');
     if (syncBtn) {
-        syncBtn.onclick = function() { window.syncOneDriveManual(id, this); };
+        syncBtn.onclick = function () { window.syncOneDriveManual(id, this); };
     }
 
     // Buscar dados atualizados para garantir que temos o foto_path correto
     const c = await apiGet(`/colaboradores/${id}`);
     viewedColaborador = c || { id, nome, cargo, cpf, sexo, admissao, status, rgTipo };
-    
+
     const admission = viewedColaborador.data_admissao || viewedColaborador.admissao || admissao;
     updateProbationBadge(admission);
-    
+
     const nomeEl = document.getElementById('prontuario-nome-title');
     if (nomeEl) nomeEl.textContent = viewedColaborador.nome_completo || nome || 'Colaborador';
-    
+
     const cargoEl = document.getElementById('prontuario-cargo-info');
     if (cargoEl) cargoEl.textContent = `${viewedColaborador.cargo || cargo || 'Sem Cargo'} | CPF: ${viewedColaborador.cpf || cpf || ''}`;
-    
+
     // Status Badge
     const statusDisplay = document.getElementById('prontuario-status-display');
     if (statusDisplay) {
@@ -4067,7 +4067,7 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
     const fotoLink = document.getElementById('prontuario-foto-link');
     const fotoPlaceholder = document.getElementById('prontuario-photo-placeholder');
     if (fotoImg && fotoPlaceholder) {
-        const fotoSrc = viewedColaborador.foto_base64 || 
+        const fotoSrc = viewedColaborador.foto_base64 ||
             (viewedColaborador.foto_path ? `${API_URL.replace('/api', '')}/${viewedColaborador.foto_path}?t=${Date.now()}` : null);
         if (fotoSrc) {
             fotoImg.src = fotoSrc;
@@ -4098,22 +4098,22 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
     window.renderTabContent('00.CheckList', '00. CheckList');
 };
 
-window.uploadFotoProntuario = async function(input) {
+window.uploadFotoProntuario = async function (input) {
     if (!input.files || !input.files[0] || !viewedColaborador) return;
     const file = input.files[0];
     const colabId = viewedColaborador.id;
-    
+
     const formData = new FormData();
     formData.append('foto', file);
     formData.append('nome', viewedColaborador.nome_completo || ''); // Adicionado nome para o backend criar pasta
-    
+
     try {
         const response = await fetch(`${API_URL}/upload-foto/${colabId}`, {
             method: 'POST',
             body: formData,
             headers: { 'Authorization': `Bearer ${currentToken}` }
         });
-        
+
         if (response.ok) {
             // Recarregar prontuário para atualizar foto
             const updated = await apiGet(`/colaboradores/${colabId}`);
@@ -4162,16 +4162,16 @@ function getFichaCadastralDocs() {
     const certidao = isCasado ? "Certid\u00e3o de Casamento" : "Certid\u00e3o de Nascimento";
     const rgTipoInput = document.getElementById('colab-rg-tipo');
     const rgTipo = (viewedColaborador && viewedColaborador.rg_tipo) ? viewedColaborador.rg_tipo : (rgTipoInput ? rgTipoInput.value : 'RG');
-    
+
     const docs = [
         "T\u00edtulo Eleitoral",
         certidao,
         "Comprovante de endere\u00e7o",
         "Hist\u00f3rico escolar"
     ];
-    
+
     if (isMasc) docs.push("Reservista");
-    
+
     if (isMotorista) {
         docs.push("CNH");
     } else {
@@ -4185,7 +4185,7 @@ function getFichaCadastralDocs() {
         "Carteira de Trabalho",
         "Contrato e-social"
     );
-    
+
     return docs;
 }
 
@@ -4201,7 +4201,7 @@ function getAnosAdmissaoOptions(selectedYear = null) {
     }
     let optionsHtml = '';
     const targetYear = selectedYear ? String(selectedYear).replace(/'/g, '').trim() : String(anoAtual);
-    
+
     for (let a = anoAtual; a >= anoInicio; a--) {
         optionsHtml += `<option value="${a}"${String(a) === targetYear ? ' selected' : ''}>${a}</option>`;
     }
@@ -4211,7 +4211,7 @@ function getAnosAdmissaoOptions(selectedYear = null) {
 // ============================================================
 // GERADOR DE OCORRÊNCIA - Renderiza painel na aba Ocorrências (tabId: Advertências)
 // ============================================================
-window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
+window.renderAdvertenciasTab = function (listContainer, filteredDocs) {
     const safeTabId = 'Advert_ncias';
     const selected = window.tabPersistence ? window.tabPersistence[`temporal_year_${safeTabId}`] : null;
     const optionsHtml = getAnosAdmissaoOptions(selected);
@@ -4282,7 +4282,7 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
     renderTemporalAno('Advertências');
 };
 
-window.gerarAdvertencia = function() {
+window.gerarAdvertencia = function () {
     if (!viewedColaborador) { alert('Nenhum colaborador selecionado.'); return; }
 
     const tipo = document.getElementById('adv-tipo').value;
@@ -4293,12 +4293,12 @@ window.gerarAdvertencia = function() {
     if (!motivo) { alert('Por favor, descreva o motivo da advertência.'); document.getElementById('adv-motivo').focus(); return; }
 
     const tipoMap = {
-        verbal:      'ADVERTÊNCIA VERBAL',
-        escrita:     'ADVERTÊNCIA ESCRITA',
+        verbal: 'ADVERTÊNCIA VERBAL',
+        escrita: 'ADVERTÊNCIA ESCRITA',
         suspensao_1: 'SUSPENSÃO DISCIPLINAR — 1 DIA',
         suspensao_2: 'SUSPENSÃO DISCIPLINAR — 2 DIAS',
         suspensao_3: 'SUSPENSÃO DISCIPLINAR — 3 DIAS',
-        ocorrencia:  'OCORRÊNCIA'
+        ocorrencia: 'OCORRÊNCIA'
     };
     const tipoTexto = tipoMap[tipo] || 'ADVERTÊNCIA';
     const isSuspensao = tipo.startsWith('suspensao');
@@ -4306,10 +4306,10 @@ window.gerarAdvertencia = function() {
 
     const [ay, am, ad] = (dataOcorrencia || new Date().toISOString().split('T')[0]).split('-');
     const dataFormatada = `${ad}/${am}/${ay}`;
-    const meses = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
-    const dataExtenso = `${parseInt(ad)} de ${meses[parseInt(am)-1]} de ${ay}`;
+    const meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+    const dataExtenso = `${parseInt(ad)} de ${meses[parseInt(am) - 1]} de ${ay}`;
     const dataHoje = new Date();
-    const dataHojeFormatada = `${String(dataHoje.getDate()).padStart(2,'0')}/${String(dataHoje.getMonth()+1).padStart(2,'0')}/${dataHoje.getFullYear()}`;
+    const dataHojeFormatada = `${String(dataHoje.getDate()).padStart(2, '0')}/${String(dataHoje.getMonth() + 1).padStart(2, '0')}/${dataHoje.getFullYear()}`;
     const dataHojeExtenso = `${dataHoje.getDate()} de ${meses[dataHoje.getMonth()]} de ${dataHoje.getFullYear()}`;
 
     const c = viewedColaborador;
@@ -4334,9 +4334,9 @@ window.gerarAdvertencia = function() {
             A empresa <strong>AMERICA RENTAL EQUIPAMENTOS LTDA</strong>, inscrita no CNPJ sob o nº 03.434.448/0001-01,
             situada na Rua Salto da Divisa, nº 97, CEP 07252-300, Parque Alvorada – Guarulhos/SP,
             ${isOcorrencia
-                ? `vem por meio deste documento <strong>registrar a seguinte ocorrência</strong> envolvendo o(a) colaborador(a) <strong>${nomeColab}</strong>.`
-                : `vem por meio deste documento aplicar ao(à) colaborador(a) <strong>${nomeColab}</strong> a presente <strong>${tipoTexto}</strong>.`
-            }
+            ? `vem por meio deste documento <strong>registrar a seguinte ocorrência</strong> envolvendo o(a) colaborador(a) <strong>${nomeColab}</strong>.`
+            : `vem por meio deste documento aplicar ao(à) colaborador(a) <strong>${nomeColab}</strong> a presente <strong>${tipoTexto}</strong>.`
+        }
         </p>
         ${titulo ? `<p style="margin-top:0.75rem; text-align:center; font-size:1rem; font-weight:700; color:#92400e; text-transform:uppercase; letter-spacing:0.04em; border-bottom:1px solid #fdba74; padding-bottom:0.4rem;">${titulo}</p>` : ''}
 
@@ -4363,12 +4363,12 @@ window.gerarAdvertencia = function() {
 
     // Montar dados do colaborador para o padrão do preview
     const tipoSimples = {
-        verbal:      'Advertência Verbal',
-        escrita:     'Advertência Escrita',
+        verbal: 'Advertência Verbal',
+        escrita: 'Advertência Escrita',
         suspensao_1: 'Suspensão 1 dia',
         suspensao_2: 'Suspensão 2 dias',
         suspensao_3: 'Suspensão 3 dias',
-        ocorrencia:  'Ocorrência'
+        ocorrencia: 'Ocorrência'
     }[tipo] || tipoTexto;
     window._advertenciaData = {
         html: htmlDoc,
@@ -4394,7 +4394,7 @@ window.gerarAdvertencia = function() {
 
     // Mostrar no modal em tela cheia em vez do preview resumido
     window.abrirPreviewAdvertencia(window._advertenciaData);
-    
+
     const fb = document.getElementById('adv-feedback');
     if (fb) { fb.style.display = 'inline-flex'; setTimeout(() => { fb.style.display = 'none'; }, 3000); }
 };
@@ -4471,7 +4471,7 @@ function buildAdvertenciaTemplate(data, logoSrc) {
     </div>`;
 }
 
-window.abrirPreviewAdvertencia = function(data) {
+window.abrirPreviewAdvertencia = function (data) {
 
     // Voltar para o modal centralizado tradicional onde os botões ficam no topo
     const container = document.getElementById('preview-doc-body');
@@ -4502,7 +4502,7 @@ window.abrirPreviewAdvertencia = function(data) {
 };
 
 
-window.anexarAdvertenciaAoProntuario = async function() {
+window.anexarAdvertenciaAoProntuario = async function () {
     if (!viewedColaborador || !window._advertenciaData) return;
     if (typeof html2pdf === 'undefined') {
         alert('A biblioteca de PDF ainda não foi carregada. Tente imprimir como PDF nativo.');
@@ -4517,21 +4517,21 @@ window.anexarAdvertenciaAoProntuario = async function() {
 
     try {
         // Mapeamento de acentos para nome do arquivo
-        const semAcentos = (str) => (str||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'_');
+        const semAcentos = (str) => (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '_');
 
         const hoje = new Date();
-        const dd  = String(hoje.getDate()).padStart(2,'0');
-        const mm  = String(hoje.getMonth()+1).padStart(2,'0');
+        const dd = String(hoje.getDate()).padStart(2, '0');
+        const mm = String(hoje.getMonth() + 1).padStart(2, '0');
         const yyyy = hoje.getFullYear();
         const nomeArquivo = [
             semAcentos(window._advertenciaData.titulo),
             semAcentos(window._advertenciaData.tipoSimples),
             `${dd}-${mm}-${yyyy}`,
             semAcentos(window._advertenciaData.colaborador.NOME_COMPLETO)
-        ].join('_').replace(/_+/g,'_') + '.pdf';
+        ].join('_').replace(/_+/g, '_') + '.pdf';
 
         // Container A4 isolado
-        const apiBase = API_URL.replace('/api','');
+        const apiBase = API_URL.replace('/api', '');
         const logoSrc = `${apiBase}/assets/logo-header.png`;
         const data = window._advertenciaData;
 
@@ -4551,10 +4551,10 @@ window.anexarAdvertenciaAoProntuario = async function() {
 
         // Remover temporariamente sombra/borda/min-height para PDF mais limpo e sem página em branco extra
         const origBoxShadow = previewEl.style.boxShadow;
-        const origBorder    = previewEl.style.border;
+        const origBorder = previewEl.style.border;
         const origMinHeight = previewEl.style.minHeight;
         previewEl.style.boxShadow = 'none';
-        previewEl.style.border    = 'none';
+        previewEl.style.border = 'none';
         previewEl.style.minHeight = 'auto'; // evita página em branco extra
 
         const canvas = await html2canvas(previewEl, {
@@ -4567,15 +4567,15 @@ window.anexarAdvertenciaAoProntuario = async function() {
 
         // Restaurar estilos
         previewEl.style.boxShadow = origBoxShadow;
-        previewEl.style.border    = origBorder;
+        previewEl.style.border = origBorder;
         previewEl.style.minHeight = origMinHeight;
 
         // Converter canvas → PDF A4 com suporte a múltiplas páginas
         const { jsPDF } = window.jspdf;
-        const pdf   = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+        const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
         const pageW = pdf.internal.pageSize.getWidth();   // 210mm
         const pageH = pdf.internal.pageSize.getHeight();  // 297mm
-        const imgData    = canvas.toDataURL('image/jpeg', 0.98);
+        const imgData = canvas.toDataURL('image/jpeg', 0.98);
         const imgHeightMm = pageW * (canvas.height / canvas.width);
 
         let posY = 0, page = 0;
@@ -4653,13 +4653,13 @@ window.anexarAdvertenciaAoProntuario = async function() {
     }
 };
 
-window.renderTemporalTab = function(listContainer, tabId, tabTitle) {
+window.renderTemporalTab = function (listContainer, tabId, tabTitle) {
 
     const safeTabId = tabId.replace(/[^a-zA-Z0-9]/g, '_');
     const selId = `temporal_year_${safeTabId}`;
     const selected = (window.tabPersistence && window.tabPersistence[selId]) ? window.tabPersistence[selId] : null;
     const optionsHtml = getAnosAdmissaoOptions(selected);
-    
+
     const selectorHtml = `
         <div class="card p-3 mb-4 bg-light" style="display:flex; gap:1.5rem; align-items:center;">
             <label style="margin:0; font-weight:600;">Ano referente:</label>
@@ -4673,7 +4673,7 @@ window.renderTemporalTab = function(listContainer, tabId, tabTitle) {
     renderTemporalAno(tabId);
 }
 
-window.renderTemporalAno = function(tabId) {
+window.renderTemporalAno = function (tabId) {
     const safeTabId = tabId.replace(/[^a-zA-Z0-9]/g, '_');
     const yEl = document.getElementById(`temporal_year_${safeTabId}`);
     const y = yEl ? yEl.value : new Date().getFullYear().toString();
@@ -4682,7 +4682,7 @@ window.renderTemporalAno = function(tabId) {
     container.innerHTML = '';
 
     const docsToUse = currentDocs.filter(d => d.tab_name === tabId && d.year == y);
-    
+
     // Se for uma aba com documentos fixos, carregar slots fixos primeiro
     if (FIXED_DOCS[tabId]) {
         FIXED_DOCS[tabId].forEach(docType => {
@@ -4702,7 +4702,7 @@ window.renderTemporalAno = function(tabId) {
     container.appendChild(document.createElement('hr'));
     const form = createDynamicUploadForm(tabId, `Adicionar em ${tabId}`, '');
     const fileInput = form.querySelector('input[type="file"]');
-    fileInput.onchange = function() {
+    fileInput.onchange = function () {
         const typeIn = form.querySelector('input[type="text"]').value || 'Documento';
         uploadDocument(this, tabId, typeIn, `'${y}'`, null, null);
     };
@@ -4710,13 +4710,13 @@ window.renderTemporalAno = function(tabId) {
 }
 
 
-window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
+window.renderTabContent = function (tabId, tabTitle, preventScroll = false) {
     const container = document.getElementById('tab-dynamic-content');
     if (!container) return;
     if (!preventScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
-    
+
     if (typeof updateBreadcrumb === 'function') updateBreadcrumb('tab:' + tabTitle);
-    
+
     // Capturar filtros existentes ANTES de limpar o container
     if (!window.tabPersistence) window.tabPersistence = {};
     container.querySelectorAll('select').forEach(sel => {
@@ -4747,14 +4747,14 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
     }
     const listContainer = document.getElementById('docs-list-container');
-    
+
     // Capturar valores dos filtros
     const searchTerm = document.getElementById('doc-search-input')?.value.toLowerCase() || '';
     const sortOrder = document.getElementById('doc-sort-select')?.value || 'recent';
 
     // Filtragem e Ordenação dos dados
     let filteredDocs = currentDocs.filter(d => d.tab_name === tabId);
-    
+
     // Filtro de Texto
     if (searchTerm) {
         filteredDocs = filteredDocs.filter(d => d.document_type.toLowerCase().includes(searchTerm) || (d.file_name && d.file_name.toLowerCase().includes(searchTerm)));
@@ -4782,7 +4782,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             listContainer.innerHTML = '<div class="alert alert-warning"><i class="ph ph-warning"></i> Módulo de sinistros não carregado. Tente recarregar a página.</div>';
         }
     } else if (tabId === 'Contratos') {
-        
+
         renderContratosTab(listContainer, searchTerm);
     } else if (tabId === '00.CheckList') {
         renderCargoDocsChecklist(listContainer);
@@ -4813,19 +4813,19 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         const isMasc = viewedColaborador && viewedColaborador.sexo === 'Masculino';
         if (isMasc) fixed.push('Reservista');
         const rgTipo = (viewedColaborador && viewedColaborador.rg_tipo) ? viewedColaborador.rg_tipo : 'RG';
-        
+
         if (_isMotorista2) {
             fixed.push('CNH');
         } else {
             fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
         }
-        
+
         fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho', 'Contrato e-social');
         if (_isCasado) {
             fixed.push('CPF do Cônjuge');
         }
 
-        fixed.forEach(docType => {  
+        fixed.forEach(docType => {
             if (!searchTerm || docType.toLowerCase().includes(searchTerm)) {
                 const existingDoc = filteredDocs.find(d => d.document_type === docType);
                 listContainer.appendChild(createDocSlot(tabId, docType, existingDoc));
@@ -4859,7 +4859,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             const slotPront = listContainer.querySelector('#pensao-slot-pront');
             if (slotPront) slotPront.appendChild(createDocSlot(tabId, 'Pensão Alimentícia', pensaoDocPront || null));
         }
-        window.setPensaoPront = function(resposta) {
+        window.setPensaoPront = function (resposta) {
             const simBtn = document.getElementById('pensao-sim-pront');
             const naoBtn = document.getElementById('pensao-nao-pront');
             const slot = document.getElementById('pensao-slot-pront');
@@ -4879,7 +4879,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
                     body: JSON.stringify({ tem_pensao_alimenticia: resposta })
-                }).catch(()=>{});
+                }).catch(() => { });
             }
         };
 
@@ -4920,7 +4920,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
                 }
 
                 // Nome seguro para montar o document_type único por dependente
-                const safeDepName = (dep.nome || 'DEP').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+                const safeDepName = (dep.nome || 'DEP').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
 
                 // Cabeçalho da seção do dependente
                 const header = document.createElement('div');
@@ -4936,10 +4936,10 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
 
                 // Documentos condícionais por faixa etária
                 const docsConfig = [
-                    { label: 'CPF ou RG',                    show: true },
-                    { label: 'Caderneta de Vacinação',      show: idade !== null && idade < 7 },
+                    { label: 'CPF ou RG', show: true },
+                    { label: 'Caderneta de Vacinação', show: idade !== null && idade < 7 },
                     { label: 'Atestado de Frequência Escolar', show: idade !== null && idade >= 7 && idade <= 17 },
-                    { label: 'Certidão de Nascimento',       show: true },
+                    { label: 'Certidão de Nascimento', show: true },
                 ];
 
                 docsConfig.filter(d => d.show).forEach(docCfg => {
@@ -5015,7 +5015,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
     } else {
         // Slot fixo NR1 para a aba Certificados (upload-only, equivale ao credenciamento NR1)
         if (tabId === 'Certificados') {
-            const _normC = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+            const _normC = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
             const nr1Doc = filteredDocs.find(d =>
                 _normC(d.document_type).includes('nr1') ||
                 _normC(d.document_type).includes('nr 1') ||
@@ -5049,7 +5049,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         filteredDocs.filter(d => {
             if (tabId !== 'Certificados') return true;
             // Já mostrou NR1 no slot fixo — não duplicar
-            const _n = (s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim())(d.document_type);
+            const _n = (s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim())(d.document_type);
             return !(_n.includes('nr1') || _n.includes('nr 1') || _n.includes('ordem de servico') || _n.includes('ordem de servi'));
         }).forEach(d => {
             listContainer.appendChild(createDocSlot(tabId, d.document_type, d));
@@ -5058,11 +5058,11 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
 }
 async function renderCargoDocsChecklist(container) {
     container.innerHTML = '<p class="text-muted">Carregando lista de documentos exigidos para este cargo...</p>';
-    
+
     try {
         const cargos = await apiGet('/cargos');
         const cargoAtual = (cargos || []).find(c => c.nome === viewedColaborador.cargo);
-        
+
         if (!cargoAtual) {
             container.innerHTML = `
                 <div class="alert alert-warning">
@@ -5071,9 +5071,9 @@ async function renderCargoDocsChecklist(container) {
             `;
             return;
         }
-        
+
         const docsExigidos = await apiGet(`/cargos/${cargoAtual.id}/documentos`);
-        
+
         if (!docsExigidos || docsExigidos.length === 0) {
             container.innerHTML = `
                 <div class="alert alert-info">
@@ -5082,19 +5082,19 @@ async function renderCargoDocsChecklist(container) {
             `;
             return;
         }
-        
+
         container.innerHTML = `
             <div style="margin-bottom: 2rem; padding: 1rem; background: #fffcf0; border: 1px solid #ffeeba; border-radius: 8px;">
                 <h4 style="color: #856404; margin-bottom: 0.5rem;"><i class="ph ph-briefcase"></i> Documentação Exigida: ${cargoAtual.nome}</h4>
                 <p style="font-size: 0.85rem; color: #856404;">Anexe abaixo os documentos que foram selecionados como obrigatórios no gerenciamento de cargos.</p>
             </div>
         `;
-        
+
         docsExigidos.forEach(docName => {
             const existingDoc = currentDocs.find(d => d.tab_name === '00.CheckList' && d.document_type === docName);
             container.appendChild(createDocSlot('00.CheckList', docName, existingDoc));
         });
-        
+
     } catch (err) {
         console.error('Erro ao renderizar checklist do cargo:', err);
         container.innerHTML = '<div class="alert alert-danger">Erro ao carregar documentos do cargo.</div>';
@@ -5132,7 +5132,7 @@ async function renderFaculdadeTab(container, tabId) {
     const selectedYear = window.tabPersistence ? window.tabPersistence['fac_year'] : null;
     const selectedMonth = window.tabPersistence ? window.tabPersistence['fac_month'] : null;
     const optionsYears = getAnosAdmissaoOptions(selectedYear);
-    
+
     // Header com Resumo
     await renderFaculdadeSummary(container);
 
@@ -5156,17 +5156,17 @@ async function renderFaculdadeTab(container, tabId) {
         <div id="fac_competencia_container"></div>
     `;
     container.innerHTML += selectorHtml;
-    
+
     const date = new Date();
     const yEl = document.getElementById('fac_year');
     const mEl = document.getElementById('fac_month');
     if (yEl) yEl.value = selectedYear || date.getFullYear().toString();
     if (mEl) mEl.value = selectedMonth || (date.getMonth() + 1).toString().padStart(2, '0');
-    
+
     renderFaculdadeCompetencia();
 }
 
-window.renderFaculdadeCompetencia = function() {
+window.renderFaculdadeCompetencia = function () {
     const y = document.getElementById('fac_year').value;
     const m = document.getElementById('fac_month').value;
     const subContainer = document.getElementById('fac_competencia_container');
@@ -5179,7 +5179,7 @@ window.renderFaculdadeCompetencia = function() {
     subContainer.innerHTML = '';
 
     const docsMatch = currentDocs.filter(d => d.tab_name === 'Faculdade' && d.year == y && d.month == m);
-    
+
     // Lista de documentos por competência
     const required = ['Boleto'];
     if (m === '01' || m === '07') {
@@ -5212,7 +5212,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         if (rawFileName.includes('Ã')) {
             rawFileName = decodeURIComponent(escape(rawFileName));
         }
-    } catch (e) {}
+    } catch (e) { }
     const displayFileName = rawFileName.length > 40 ? rawFileName.substring(0, 40) + '…' : rawFileName;
 
     // Vencimento com cor vermelha se estiver dentro de 30 dias
@@ -5237,29 +5237,29 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         if (!sd.includes('T')) sd = sd.replace(' ', 'T');
         if (!sd.endsWith('Z')) sd += 'Z';
         const sentDateObj = new Date(sd);
-        
+
         const dd = String(sentDateObj.getDate()).padStart(2, '0');
-        const mm = String(sentDateObj.getMonth()+1).padStart(2, '0');
+        const mm = String(sentDateObj.getMonth() + 1).padStart(2, '0');
         const yyyy = sentDateObj.getFullYear();
         const h = String(sentDateObj.getHours()).padStart(2, '0');
         const min = String(sentDateObj.getMinutes()).padStart(2, '0');
-        
+
         const enviadoDate = `${dd}/${mm}/${yyyy} - ${h}h${min}m`;
         enviadoHtml = ` <span style="color:#64748b;">|</span> <span style="color:#2f9e44; font-weight:600;">Enviado: ${enviadoDate}</span>`;
-        
+
         // Link de assinatura em linha própria abaixo do Enviado
         if (existingDoc.assinafy_url) {
             const encodedUrl = encodeURIComponent(existingDoc.assinafy_url);
             linkAssinaturaHtml = `<p style="margin:1px 0 0; font-size:0.75rem;"><span data-copy-url="${encodedUrl}" onclick="copiarLinkAssinafy(this)" style="color:#64748b; display:inline-flex; align-items:center; gap:3px; cursor:pointer;" title="Clique para copiar o link de assinatura"><i class="ph ph-copy" style="font-size:0.9rem;"></i> Link para assinatura</span></p>`;
         }
-        
+
         if (existingDoc.assinafy_signed_at) {
             let sda = existingDoc.assinafy_signed_at;
             if (!sda.includes('T')) sda = sda.replace(' ', 'T');
             if (!sda.endsWith('Z')) sda += 'Z';
             const signedObj = new Date(sda);
             const sdd = String(signedObj.getDate()).padStart(2, '0');
-            const smm = String(signedObj.getMonth()+1).padStart(2, '0');
+            const smm = String(signedObj.getMonth() + 1).padStart(2, '0');
             const syyyy = signedObj.getFullYear();
             const sh = String(signedObj.getHours()).padStart(2, '0');
             const smin = String(signedObj.getMinutes()).padStart(2, '0');
@@ -5283,14 +5283,14 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                 atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${existingDoc.atestado_inicio} às ${existingDoc.atestado_fim}</span> `;
             }
         }
-        
+
         if (existingDoc.atestado_contab_enviado_em) {
             let sd = existingDoc.atestado_contab_enviado_em;
             if (!sd.includes('T')) sd = sd.replace(' ', 'T');
             if (!sd.endsWith('Z')) sd += 'Z';
             const contabDateObj = new Date(sd);
             const dd = String(contabDateObj.getDate()).padStart(2, '0');
-            const mm = String(contabDateObj.getMonth()+1).padStart(2, '0');
+            const mm = String(contabDateObj.getMonth() + 1).padStart(2, '0');
             const yyyy = contabDateObj.getFullYear();
             const h = String(contabDateObj.getHours()).padStart(2, '0');
             const min = String(contabDateObj.getMinutes()).padStart(2, '0');
@@ -5313,14 +5313,14 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         docBadge = tipoAdvSimples ? (() => {
             const t = tipoAdvSimples.toLowerCase();
             let bg, color;
-            if (t.includes('ocorr'))               { bg = '#0ea5e9'; color = '#fff'; }
-            else if (t.includes('verbal'))         { bg = '#ffd43b'; color = '#5c3d00'; }
+            if (t.includes('ocorr')) { bg = '#0ea5e9'; color = '#fff'; }
+            else if (t.includes('verbal')) { bg = '#ffd43b'; color = '#5c3d00'; }
             else if (t.includes('escrita') || t.includes('escrito')) { bg = '#fd7e14'; color = '#fff'; }
             else if (t.includes('suspens') && t.includes('1')) { bg = '#ff8787'; color = '#5c0000'; }
             else if (t.includes('suspens') && t.includes('2')) { bg = '#e03131'; color = '#fff'; }
             else if (t.includes('suspens') && t.includes('3')) { bg = '#862e2e'; color = '#fff'; }
-            else if (t.includes('suspens'))        { bg = '#e03131'; color = '#fff'; }
-            else                                   { bg = '#64748b'; color = '#fff'; }
+            else if (t.includes('suspens')) { bg = '#e03131'; color = '#fff'; }
+            else { bg = '#64748b'; color = '#fff'; }
             return `<span style="display:inline-block; margin-top:3px; background:${bg}; color:${color}; padding:1px 8px; border-radius:10px; font-size:0.68rem; font-weight:700; letter-spacing:0.03em;">${tipoAdvSimples}</span>`;
         })() : '';
     }
@@ -5386,7 +5386,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         if (st === 'Assinado') {
             // Tenta usar o assId da tabela admissao_assinaturas se disponível
             // caso contrário usa o id do próprio documento
-            assStatusIcon = `<button type="button" onclick="window.openSignedDocPopupDocumento(${existingDoc.id}, '${(docType||'').replace(/'/g,"\\'")}')"
+            assStatusIcon = `<button type="button" onclick="window.openSignedDocPopupDocumento(${existingDoc.id}, '${(docType || '').replace(/'/g, "\\'")}')"
                 style="height:42px;display:inline-flex;align-items:center;gap:6px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0 0.85rem;font-size:0.85rem;font-weight:600;cursor:pointer;white-space:nowrap;"
                 title="Visualizar PDF Assinado">
                 <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> Ver Assinado
@@ -5437,10 +5437,10 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     ` : ''}
 
                     ${(tabId === 'Advertências' && isSaved) ? (() => {
-                        const _isOcorrDoc  = (docType || '').includes('###Ocorr');
-                        const _isVerbalDoc = (docType || '').toLowerCase().includes('###advert') && (docType || '').toLowerCase().includes('verbal');
-                        if (_isOcorrDoc) return ''; // Ocorrência não tem assinatura
-                        return `
+                const _isOcorrDoc = (docType || '').includes('###Ocorr');
+                const _isVerbalDoc = (docType || '').toLowerCase().includes('###advert') && (docType || '').toLowerCase().includes('verbal');
+                if (_isOcorrDoc) return ''; // Ocorrência não tem assinatura
+                return `
                         ${(!stMain || stMain === 'Nenhum') ? `
                         <button type="button" class="btn btn-secondary"
                                 onclick="window.abrirModalAssinaturaTestemunhas(${existingDoc.id})"
@@ -5454,7 +5454,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                             <i class="ph ph-pen-nib"></i> Assinar
                         </button>` : ''}
                         `;
-                    })() : ''}
+            })() : ''}
 
 
 
@@ -5503,10 +5503,10 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <div style="display:flex; align-items:center; gap:8px; font-size:0.82rem; white-space:nowrap;">
                             <span style="font-weight:600;color:#64748b;">Exige Assinatura?</span>
                             <label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin:0;font-weight:500;">
-                                <input type="radio" name="exig-assin-${(docType||'').replace(/[^a-zA-Z0-9]/g,'_')}" value="PENDENTE" ${stMain !== 'NAO_EXIGE' ? 'checked' : ''}> Sim
+                                <input type="radio" name="exig-assin-${(docType || '').replace(/[^a-zA-Z0-9]/g, '_')}" value="PENDENTE" ${stMain !== 'NAO_EXIGE' ? 'checked' : ''}> Sim
                             </label>
                             <label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin:0;font-weight:500;">
-                                <input type="radio" name="exig-assin-${(docType||'').replace(/[^a-zA-Z0-9]/g,'_')}" value="NAO_EXIGE" ${stMain === 'NAO_EXIGE' ? 'checked' : ''}> Não
+                                <input type="radio" name="exig-assin-${(docType || '').replace(/[^a-zA-Z0-9]/g, '_')}" value="NAO_EXIGE" ${stMain === 'NAO_EXIGE' ? 'checked' : ''}> Não
                             </label>
                         </div>
                         ` : ''}
@@ -5528,9 +5528,9 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     </div>
 
                     ${(() => {
-                        const isOcorrenciaDoc = (docType || '').includes('###Ocorr');
-                        const showAssinafy = isSaved && tabId !== 'Atestados' && tabId !== '01_FICHA_CADASTRAL' && tabId !== 'Faculdade' && tabId !== 'Dependentes' && stMain !== 'NAO_EXIGE' && !isOcorrenciaDoc;
-                        return showAssinafy ? `
+            const isOcorrenciaDoc = (docType || '').includes('###Ocorr');
+            const showAssinafy = isSaved && tabId !== 'Atestados' && tabId !== '01_FICHA_CADASTRAL' && tabId !== 'Faculdade' && tabId !== 'Dependentes' && stMain !== 'NAO_EXIGE' && !isOcorrenciaDoc;
+            return showAssinafy ? `
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             ${(isAssinado && isSaved && (tabId === 'Pagamentos' || tabId === 'ASO')) ? `<button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>` : ''}
                             <button class="btn btn-assinafy" style="height: 42px; display:flex; align-items:center; padding:0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
@@ -5538,7 +5538,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                             </button>
                             ${assStatusIcon}
                         </div>` : (assStatusIcon ? `<div style="display:flex;align-items:center;gap:0.5rem; justify-content:flex-end; width:100%; margin-top:0.35rem;">${assStatusIcon}</div>` : '');
-                    })()}
+        })()}
 
                     ${(tabId === 'Atestados' && isSaved) ? `
                     <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end;">
@@ -5637,13 +5637,13 @@ function renderPagamentosTab(container, tabId, docs) {
 
     // Injetar status do certificado digital
     window.carregarStatusCertificado('cert-digital-banner-pagamentos');
-    
+
     const date = new Date();
     const yEl = document.getElementById('pag_year');
     const mEl = document.getElementById('pag_month');
     if (yEl) yEl.value = selectedYear || date.getFullYear().toString();
     if (mEl) mEl.value = selectedMonth || (date.getMonth() + 1).toString().padStart(2, '0');
-    
+
     renderPagamentosCompetencia();
 }
 
@@ -5676,7 +5676,7 @@ function renderTerapiaTab(container, tabId, docs) {
     renderTerapiaCompetencia();
 }
 
-window.renderTerapiaCompetencia = function() {
+window.renderTerapiaCompetencia = function () {
     const y = document.getElementById('terapia_year').value;
     const m = document.getElementById('terapia_month').value;
     const subContainer = document.getElementById('terapia_competencia_container');
@@ -5693,14 +5693,14 @@ window.renderTerapiaCompetencia = function() {
     subContainer.appendChild(form);
 }
 
-window.renderASOTab = function(container, filteredDocs) {
+window.renderASOTab = function (container, filteredDocs) {
     const selected = window.tabPersistence ? window.tabPersistence['aso_year'] : null;
-    window.lastASODocs = filteredDocs; 
+    window.lastASODocs = filteredDocs;
     const optionsHtml = getAnosAdmissaoOptions(selected);
 
     // Dados do envio anterior (se houver)
     const emailEnviado = viewedColaborador ? viewedColaborador.aso_email_enviado : null;
-    const exameData    = viewedColaborador ? viewedColaborador.aso_exame_data : null;
+    const exameData = viewedColaborador ? viewedColaborador.aso_exame_data : null;
     const noticeHtml = emailEnviado
         ? `<div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:10px; padding:10px 14px; margin-bottom:1rem; font-size:0.85rem; font-weight:600;">
                <div style="display:flex; align-items:center; gap:6px; color:#059669;">
@@ -5764,11 +5764,11 @@ window.renderASOTab = function(container, filteredDocs) {
 }
 
 // Função específica para envio pela aba ASO (não conflita com a de Admissão)
-window.sendASOEmailTab = async function() {
+window.sendASOEmailTab = async function () {
     if (!viewedColaborador) { alert('Colaborador não selecionado.'); return; }
 
-    const dataExame  = document.getElementById('aso-exame-data-tab').value;
-    const tipoExame  = document.getElementById('aso-tipo-exame-tab').value;
+    const dataExame = document.getElementById('aso-exame-data-tab').value;
+    const tipoExame = document.getElementById('aso-tipo-exame-tab').value;
     const destinatario = document.getElementById('aso-email-dest-tab').value;
     if (!dataExame) { alert('Selecione a data do exame.'); return; }
 
@@ -5803,7 +5803,7 @@ window.sendASOEmailTab = async function() {
             alert('✅ E-mail enviado com sucesso para a IACI!');
             // Recarregar aba para mostrar aviso
             viewedColaborador.aso_email_enviado = res.data_envio;
-            viewedColaborador.aso_exame_data    = res.data_agendada;
+            viewedColaborador.aso_exame_data = res.data_agendada;
             if (res.new_doc && typeof currentDocs !== 'undefined') {
                 currentDocs.push(res.new_doc);
             }
@@ -5823,7 +5823,7 @@ window.sendASOEmailTab = async function() {
 
 
 
-window.renderASOAno = function() {
+window.renderASOAno = function () {
     const yEl = document.getElementById('aso_year');
     const y = yEl ? yEl.value : new Date().getFullYear().toString();
     const container = document.getElementById('aso_ano_container');
@@ -5961,7 +5961,7 @@ async function renderFaltasTab(container) {
     `;
 }
 
-window.registrarFalta = async function() {
+window.registrarFalta = async function () {
     const data = document.getElementById('falta-data')?.value;
     const turno = document.getElementById('falta-turno')?.value;
     const obs = document.getElementById('falta-obs')?.value || '';
@@ -5973,29 +5973,29 @@ window.registrarFalta = async function() {
         await apiPost('/faltas', { colaborador_id: viewedColaborador.id, data_falta: data, turno, observacao: obs, avisado_previamente: avisado });
         const listContainer = document.getElementById('faltas-combined-container') || document.getElementById('docs-list-container');
         if (listContainer) await renderFaltasTab(listContainer);
-    } catch(e) { alert('Erro ao registrar falta: ' + e.message); }
+    } catch (e) { alert('Erro ao registrar falta: ' + e.message); }
 };
 
-window.deletarFalta = async function(id, btn) {
+window.deletarFalta = async function (id, btn) {
     if (!confirm('Excluir esta falta?')) return;
     btn.disabled = true;
     try {
         await apiDelete(`/faltas/${id}`);
         const listContainer = document.getElementById('faltas-combined-container') || document.getElementById('docs-list-container');
         if (listContainer) await renderFaltasTab(listContainer);
-    } catch(e) { alert('Erro ao excluir: ' + e.message); btn.disabled = false; }
+    } catch (e) { alert('Erro ao excluir: ' + e.message); btn.disabled = false; }
 };
 
-window.transformarFaltaEmAtestado = function(faltaId, dataFalta) {
+window.transformarFaltaEmAtestado = function (faltaId, dataFalta) {
     window.faltaIdParaAtestado = faltaId;
-    
+
     var overlay = document.getElementById('modal-transformar-falta-overlay');
-    if(overlay) overlay.remove();
-    
+    if (overlay) overlay.remove();
+
     overlay = document.createElement('div');
     overlay.id = 'modal-transformar-falta-overlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,0.6);z-index:999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
-    
+
     const today = new Date().toISOString().split('T')[0];
     const dataInicial = dataFalta || today;
 
@@ -6047,7 +6047,7 @@ window.transformarFaltaEmAtestado = function(faltaId, dataFalta) {
 
 window.selectedModalCID = null;
 
-window.searchModalCID = async function(val) {
+window.searchModalCID = async function (val) {
     const dd = document.getElementById('modal_cid_dropdown');
     if (!val || val.length < 2) { dd.style.display = 'none'; return; }
     try {
@@ -6055,21 +6055,21 @@ window.searchModalCID = async function(val) {
         const data = await res.json();
         if (!data.length) { dd.style.display = 'none'; return; }
         dd.innerHTML = data.map((c, i) =>
-            `<div style="padding:0.6rem 0.8rem;cursor:pointer;font-size:0.85rem;border-bottom:1px solid #f1f5f9;" onclick="window.selectModalCID('${c.code}', this.dataset.desc)" data-desc="${c.desc.replace(/"/g,'&quot;')}">
+            `<div style="padding:0.6rem 0.8rem;cursor:pointer;font-size:0.85rem;border-bottom:1px solid #f1f5f9;" onclick="window.selectModalCID('${c.code}', this.dataset.desc)" data-desc="${c.desc.replace(/"/g, '&quot;')}">
                 <strong style="color:#1a73e8;">${c.code}</strong> — ${c.desc}
              </div>`
         ).join('');
         dd.style.display = 'block';
-    } catch(e) { dd.style.display = 'none'; }
+    } catch (e) { dd.style.display = 'none'; }
 };
 
-window.selectModalCID = function(code, desc) {
+window.selectModalCID = function (code, desc) {
     window.selectedModalCID = { code, desc };
     document.getElementById('modal_cid_dropdown').style.display = 'none';
     document.getElementById('modal_cid_search').value = `${code} — ${desc}`;
 };
 
-window.calcModalAtestadoFim = function() {
+window.calcModalAtestadoFim = function () {
     const inicio = document.getElementById('modal_atestado_inicio')?.value;
     const qtd = parseInt(document.getElementById('modal_atestado_qtd')?.value, 10) || 1;
     const fimEl = document.getElementById('modal_atestado_fim');
@@ -6080,7 +6080,7 @@ window.calcModalAtestadoFim = function() {
     fimEl.value = d.toISOString().split('T')[0];
 };
 
-window.uploadModalAtestado = async function() {
+window.uploadModalAtestado = async function () {
     const fileEl = document.getElementById('modal_cid_file');
     const file = fileEl.files[0];
     if (!file) { alert('Anexe o documento do atestado.'); return; }
@@ -6093,9 +6093,9 @@ window.uploadModalAtestado = async function() {
     btn.disabled = true;
 
     const today = new Date();
-    const dd  = String(today.getDate()).padStart(2, '0');
-    const mm  = String(today.getMonth() + 1).padStart(2, '0');
-    const aa  = String(today.getFullYear()).slice(2);
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const aa = String(today.getFullYear()).slice(2);
     const nomeColabNorm = (viewedColaborador.nome_completo || viewedColaborador.nome || 'COLAB')
         .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
     const customName = `${window.selectedModalCID.code}_${nomeColabNorm}_${dd}${mm}${aa}`;
@@ -6129,7 +6129,7 @@ window.uploadModalAtestado = async function() {
                 try {
                     await apiDelete(`/faltas/${window.faltaIdParaAtestado}`);
                     window.faltaIdParaAtestado = null;
-                } catch(e) { console.error('Erro ao excluir falta:', e); }
+                } catch (e) { console.error('Erro ao excluir falta:', e); }
             }
 
             // Atualiza status se o atestado for válido para hoje
@@ -6139,29 +6139,29 @@ window.uploadModalAtestado = async function() {
             }
 
             document.getElementById('modal-transformar-falta-overlay').remove();
-            
+
             await loadDocumentosList();
             if (typeof renderAtestadosAno === 'function') renderAtestadosAno();
             const faltasCont = document.getElementById('faltas-combined-container');
             if (faltasCont) renderFaltasTab(faltasCont);
-            
+
             if (typeof showToast !== 'undefined') showToast('Falta transformada em atestado com sucesso!', 'success');
         } else {
-            const err = await res.json().catch(()=>({}));
+            const err = await res.json().catch(() => ({}));
             alert('Erro: ' + (err.error || res.statusText));
             btn.innerHTML = oldHtml;
             btn.disabled = false;
         }
-    } catch(e) {
+    } catch (e) {
         alert('Erro: ' + e.message);
         btn.innerHTML = oldHtml;
         btn.disabled = false;
     }
 };
 
-window.renderAtestadosTab = function(container, filteredDocs) {
+window.renderAtestadosTab = function (container, filteredDocs) {
     const selected = window.tabPersistence ? window.tabPersistence['atestados_year'] : null;
-    window.lastAtestadoDocs = filteredDocs; 
+    window.lastAtestadoDocs = filteredDocs;
     const optionsHtml = getAnosAdmissaoOptions(selected);
 
     // Injetar CSS do autocomplete se não existir
@@ -6267,7 +6267,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
     renderFaltasTab(document.getElementById('faltas-combined-container'));
 }
 
-window.switchAtestadosSubTab = function(tab) {
+window.switchAtestadosSubTab = function (tab) {
     const btnAt = document.getElementById('subtab-atestados-btn');
     const btnFa = document.getElementById('subtab-faltas-btn');
     const contAt = document.getElementById('subtab-atestados-content');
@@ -6290,7 +6290,7 @@ window.switchAtestadosSubTab = function(tab) {
 
 let selectedCID = null;
 
-window.searchCID = async function(val) {
+window.searchCID = async function (val) {
     const dd = document.getElementById('cid-dropdown');
     if (!val || val.length < 2) { dd.style.display = 'none'; return; }
     try {
@@ -6298,36 +6298,36 @@ window.searchCID = async function(val) {
         const data = await res.json();
         if (!data.length) { dd.style.display = 'none'; return; }
         dd.innerHTML = data.map((c, i) =>
-            `<div class="cid-option" data-code="${c.code}" data-desc="${c.desc.replace(/"/g,'&quot;')}" onclick="selectCID('${c.code}', this.dataset.desc)">
+            `<div class="cid-option" data-code="${c.code}" data-desc="${c.desc.replace(/"/g, '&quot;')}" onclick="selectCID('${c.code}', this.dataset.desc)">
                 <strong>${c.code}</strong> — ${c.desc}
              </div>`
         ).join('');
         dd.style.display = 'block';
-    } catch(e) { dd.style.display = 'none'; }
+    } catch (e) { dd.style.display = 'none'; }
 }
 
-window.selectCID = function(code, desc) {
+window.selectCID = function (code, desc) {
     selectedCID = { code, desc };
     document.getElementById('cid-dropdown').style.display = 'none';
     document.getElementById('cid-search').value = `${code} — ${desc}`;
-    
+
     const todayStr = new Date().toISOString().split('T')[0];
     document.getElementById('atestado_inicio_dia').value = todayStr;
     document.getElementById('atestado_qtd_dias').value = '1';
     calcAtestadoFim();
 }
 
-window.triggerAtestadoUpload = function() {
+window.triggerAtestadoUpload = function () {
     if (!selectedCID) {
         alert('Selecione primeiro qual é o CID (código) do atestado digitando na barra de busca!');
         const s = document.getElementById('cid-search');
-        if (s) { s.focus(); s.style.border = '2px solid red'; setTimeout(()=> s.style.border='', 2000); }
+        if (s) { s.focus(); s.style.border = '2px solid red'; setTimeout(() => s.style.border = '', 2000); }
         return;
     }
     document.getElementById('cid-file-input').click();
 }
 
-window.toggleAtestadoPeriodFields = function() {
+window.toggleAtestadoPeriodFields = function () {
     const tipo = document.getElementById('atestado_tipo').value;
     if (tipo === 'dias') {
         document.getElementById('atestado-dias-fields').style.display = 'flex';
@@ -6339,7 +6339,7 @@ window.toggleAtestadoPeriodFields = function() {
 }
 
 // Calcula data de término automaticamente
-window.calcAtestadoFim = function() {
+window.calcAtestadoFim = function () {
     const inicio = document.getElementById('atestado_inicio_dia')?.value;
     const qtd = parseInt(document.getElementById('atestado_qtd_dias')?.value, 10) || 1;
     const fimEl = document.getElementById('atestado_fim_dia');
@@ -6350,22 +6350,22 @@ window.calcAtestadoFim = function() {
     fimEl.value = d.toISOString().split('T')[0];
 };
 
-window.uploadAtestadoWithCID = async function(inputEl) {
+window.uploadAtestadoWithCID = async function (inputEl) {
     const file = inputEl.files[0];
     if (!file || !selectedCID) return;
     if (!viewedColaborador) { alert('Colaborador não selecionado.'); return; }
 
     // Loading state
-    const uploadBtn   = document.getElementById('cid-upload-btn');
-    const uploadIcon  = document.getElementById('cid-upload-icon');
+    const uploadBtn = document.getElementById('cid-upload-btn');
+    const uploadIcon = document.getElementById('cid-upload-icon');
     if (uploadBtn) { uploadBtn.style.opacity = '0.7'; uploadBtn.style.pointerEvents = 'none'; }
-    if (uploadIcon)  uploadIcon.className = 'ph ph-spinner ph-spin';
+    if (uploadIcon) uploadIcon.className = 'ph ph-spinner ph-spin';
 
     // Gerar nome no padrão Z01_DD-MM-AA_NomeColab
     const today = new Date();
-    const dd  = String(today.getDate()).padStart(2, '0');
-    const mm  = String(today.getMonth() + 1).padStart(2, '0');
-    const aa  = String(today.getFullYear()).slice(2);
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const aa = String(today.getFullYear()).slice(2);
     const nomeColabNorm = (viewedColaborador.nome_completo || viewedColaborador.nome || 'COLAB')
         .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
     const customName = `${selectedCID.code}_${nomeColabNorm}_${dd}${mm}${aa}`;
@@ -6406,14 +6406,14 @@ window.uploadAtestadoWithCID = async function(inputEl) {
         });
         if (res.ok) {
             const inicioSaved = formData.get('atestado_inicio');
-            const fimSaved    = formData.get('atestado_fim');
+            const fimSaved = formData.get('atestado_fim');
             selectedCID = null;
 
             if (window.faltaIdParaAtestado) {
                 try {
                     await apiDelete(`/faltas/${window.faltaIdParaAtestado}`);
                     window.faltaIdParaAtestado = null;
-                } catch(e) { console.error('Erro ao remover falta:', e); }
+                } catch (e) { console.error('Erro ao remover falta:', e); }
             }
 
             document.getElementById('cid-search').value = '';
@@ -6444,7 +6444,7 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     }
 }
 
-window.saveVencimento = async function(docId, inputId) {
+window.saveVencimento = async function (docId, inputId) {
     const val = document.getElementById(inputId).value;
     if (!val) { alert('Selecione uma data.'); return; }
     try {
@@ -6459,10 +6459,10 @@ window.saveVencimento = async function(docId, inputId) {
         if (res.ok) {
             alert('Validade atualizada com sucesso!');
             await loadDocumentosList(); // Para atualizar a exibição do Venc: dd/mm/aaaa no texto
-            
+
             const viewAdm = document.getElementById('view-admissao');
             const isAdmActive = viewAdm && viewAdm.classList.contains('active');
-            
+
             if (isAdmActive && viewedColaborador) {
                 updateAdmissaoStepPercentages();
                 initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true);
@@ -6475,10 +6475,10 @@ window.saveVencimento = async function(docId, inputId) {
         } else {
             alert('Erro ao salvar nova validade.');
         }
-    } catch(e) { alert('Erro: ' + e.message); }
+    } catch (e) { alert('Erro: ' + e.message); }
 };
 
-window.enviarAtestadoContabilidade = async function(docId, emailInputId, btn) {
+window.enviarAtestadoContabilidade = async function (docId, emailInputId, btn) {
     const emailInput = document.getElementById(emailInputId);
     const email = emailInput ? emailInput.value.trim() : '';
     if (!email) { alert('Informe o e-mail da contabilidade.'); return; }
@@ -6522,7 +6522,7 @@ window.enviarAtestadoContabilidade = async function(docId, emailInputId, btn) {
     }
 };
 
-window.enviarBoletoFinanceiro = async function(docId, emailInputId, btn) {
+window.enviarBoletoFinanceiro = async function (docId, emailInputId, btn) {
     const emailInput = document.getElementById(emailInputId);
     const email = emailInput ? emailInput.value.trim() : '';
     if (!email) { alert('Informe o e-mail do financeiro.'); return; }
@@ -6545,7 +6545,7 @@ window.enviarBoletoFinanceiro = async function(docId, emailInputId, btn) {
                             renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
                         }
                     }
-                }).catch(() => {});
+                }).catch(() => { });
             }
             setTimeout(() => { btn.innerHTML = originalHtml; btn.style.background = ''; btn.disabled = false; }, 3000);
         } else {
@@ -6558,7 +6558,7 @@ window.enviarBoletoFinanceiro = async function(docId, emailInputId, btn) {
     }
 };
 
-window.enviarSuspensaoContabilidade = async function(docId, emailInputId, btn) {
+window.enviarSuspensaoContabilidade = async function (docId, emailInputId, btn) {
     const emailInput = document.getElementById(emailInputId);
     const email = emailInput ? emailInput.value.trim() : '';
     if (!email) { alert('Informe o e-mail da contabilidade.'); return; }
@@ -6572,7 +6572,7 @@ window.enviarSuspensaoContabilidade = async function(docId, emailInputId, btn) {
         if (res && res.sucesso) {
             btn.innerHTML = '<i class="ph ph-check-circle"></i> Enviado!';
             btn.style.background = '#2f9e44';
-            
+
             // Reload the documents to show the updated timestamp immediately
             if (viewedColaborador) {
                 apiGet(`/colaboradores/${viewedColaborador.id}/documentos`).then(docs => {
@@ -6597,7 +6597,7 @@ window.enviarSuspensaoContabilidade = async function(docId, emailInputId, btn) {
     }
 };
 
-window.renderAtestadosAno = function() {
+window.renderAtestadosAno = function () {
     const yEl = document.getElementById('atestados_year');
     const y = yEl ? yEl.value : new Date().getFullYear().toString();
     const listContainer = document.getElementById('atestados-list-container'); // Corrected ID to match existing HTML
@@ -6619,7 +6619,7 @@ window.renderAtestadosAno = function() {
     });
 }
 
-window.renderPagamentosCompetencia = function() {
+window.renderPagamentosCompetencia = function () {
     const yEl = document.getElementById('pag_year');
     const mEl = document.getElementById('pag_month');
     const y = yEl ? yEl.value : '2026';
@@ -6636,7 +6636,7 @@ window.renderPagamentosCompetencia = function() {
     });
 };
 
-window.uploadDocument = async function(inputEl, tabId, docType, year = null, month = null, vencimento = null, reqAssin = null) {
+window.uploadDocument = async function (inputEl, tabId, docType, year = null, month = null, vencimento = null, reqAssin = null) {
     const file = inputEl.files[0];
     if (!file) return;
 
@@ -6669,10 +6669,10 @@ window.uploadDocument = async function(inputEl, tabId, docType, year = null, mon
     const cleanYear = year ? String(year).replace(/'/g, '').trim() : '';
     const cleanMonth = month ? String(month).replace(/'/g, '').trim() : '';
 
-    if(cleanYear && cleanYear !== 'null' && cleanYear !== 'undefined') formData.append('year', cleanYear);
-    if(cleanMonth && cleanMonth !== 'null' && cleanMonth !== 'undefined') formData.append('month', cleanMonth);
-    if(vencimento) formData.append('vencimento', vencimento);
-    if(reqAssin) formData.append('assinafy_status', reqAssin);
+    if (cleanYear && cleanYear !== 'null' && cleanYear !== 'undefined') formData.append('year', cleanYear);
+    if (cleanMonth && cleanMonth !== 'null' && cleanMonth !== 'undefined') formData.append('month', cleanMonth);
+    if (vencimento) formData.append('vencimento', vencimento);
+    if (reqAssin) formData.append('assinafy_status', reqAssin);
     formData.append('file', file);
 
     try {
@@ -6681,7 +6681,7 @@ window.uploadDocument = async function(inputEl, tabId, docType, year = null, mon
             headers: { 'Authorization': `Bearer ${currentToken}` },
             body: formData
         });
-        if(res.ok) {
+        if (res.ok) {
             const newDoc = await res.json();
 
             // Atualizacao otimista imediata do card no DOM
@@ -6713,7 +6713,7 @@ window.uploadDocument = async function(inputEl, tabId, docType, year = null, mon
                     initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true);
                 } else if (isProntActive) {
                     const activeTab = document.querySelector('#tabs-list li.active');
-                    if(activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+                    if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
                 }
             });
         } else {
@@ -6724,7 +6724,7 @@ window.uploadDocument = async function(inputEl, tabId, docType, year = null, mon
             }
             alert('Erro no upload.');
         }
-    } catch(e) {
+    } catch (e) {
         if (labelBtn) {
             labelBtn.innerHTML = originalLabelHtml;
             labelBtn.style.pointerEvents = '';
@@ -6734,10 +6734,10 @@ window.uploadDocument = async function(inputEl, tabId, docType, year = null, mon
     }
 }
 
-window.uploadDynamicDocument = function(inputEl, tabId) {
+window.uploadDynamicDocument = function (inputEl, tabId) {
     const docTypeInput = document.getElementById(`dyn-doc-type-${tabId}`);
     const docVencInput = document.getElementById(`dyn-doc-venc-${tabId}`);
-    
+
     const docType = docTypeInput ? docTypeInput.value.trim() : 'Documento Extra';
     const vencimento = docVencInput && docVencInput.value ? docVencInput.value : null;
 
@@ -6758,7 +6758,7 @@ window.uploadDynamicDocument = function(inputEl, tabId) {
     uploadDocument(inputEl, tabId, docType, year, month, vencimento, reqAssin);
 }
 
-window.deleteDoc = async function(docId, btnEl) {
+window.deleteDoc = async function (docId, btnEl) {
     if (!confirm("Tem certeza que deseja excluir esse anexo?")) {
         return;
     }
@@ -6776,7 +6776,7 @@ window.deleteDoc = async function(docId, btnEl) {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${currentToken}` }
         });
-        if(res.ok) {
+        if (res.ok) {
             // Remover o card do DOM imediatamente
             if (docCard) docCard.remove();
 
@@ -6805,7 +6805,7 @@ window.deleteDoc = async function(docId, btnEl) {
             }
             alert('Erro ao excluir o documento. Tente novamente.');
         }
-    } catch(e) {
+    } catch (e) {
         // Reverter em caso de falha de rede
         if (docCard) {
             docCard.style.opacity = '1';
@@ -6815,17 +6815,17 @@ window.deleteDoc = async function(docId, btnEl) {
     }
 }
 
-window.abrirArquivoOneDrive = function(path) {
+window.abrirArquivoOneDrive = function (path) {
     if (!path) return alert('Caminho do arquivo não fornecido.');
     const token = localStorage.getItem('erp_token');
     window.open(`${API_URL}/onedrive/download?path=${encodeURIComponent(path)}&token=${token}`, '_blank');
 };
 
-window.viewDoc = async function(docId) {
+window.viewDoc = async function (docId) {
     try {
         // Buscar info do documento para decidir o que mostrar
         const doc = await apiGet(`/documentos/info/${docId}`).catch(() => null);
-        
+
         // Se tem assinafy_status = Assinado, preferir o endpoint de download (que faz proxy do Assinafy)
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const viewUrl = `${API_URL}/documentos/view/${docId}?token=${token}`;
@@ -6835,30 +6835,30 @@ window.viewDoc = async function(docId) {
         const modal = document.getElementById('doc-modal');
         const modalBody = document.getElementById('modal-doc-body');
         const modalTitle = document.getElementById('modal-doc-title');
-        
+
         if (modal && modalBody) {
             if (modalTitle) modalTitle.textContent = doc?.document_type || doc?.file_name || 'Documento';
             modalBody.innerHTML = '';
-            
+
             // Usar iframe com URL direta (funciona com redirect do Assinafy)
             const iframe = document.createElement('iframe');
             iframe.src = viewUrl;
             iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
             modalBody.appendChild(iframe);
-            
+
             const btnDownload = document.getElementById('btn-download-doc');
             if (btnDownload) btnDownload.onclick = () => { window.open(downloadUrl, '_blank'); };
-            
+
             modal.style.display = 'flex';
         } else {
             // Fallback: abrir em nova aba
             window.open(viewUrl, '_blank');
         }
-    } catch(e) {
+    } catch (e) {
         alert('Erro ao abrir documento: ' + e.message);
     }
 }
-window.viewAssinado = async function(docId) {
+window.viewAssinado = async function (docId) {
     const url = `${API_URL}/documentos/download-assinado/${docId}`;
     try {
         document.body.style.cursor = 'wait';
@@ -6904,13 +6904,13 @@ window.viewAssinado = async function(docId) {
             a.download = fileName;
             a.click();
         });
-    } catch(e) {
+    } catch (e) {
         document.body.style.cursor = 'default';
         alert('Erro ao abrir o PDF assinado: ' + e.message);
     }
 };
 
-window.downloadAssinado = async function(docId) {
+window.downloadAssinado = async function (docId) {
     const url = `${API_URL}/documentos/download-assinado/${docId}`;
     try {
         let handle = null;
@@ -6954,13 +6954,13 @@ window.downloadAssinado = async function(docId) {
             const match = disposition.match(/filename="?([^"]+)"?/);
             if (match && match[1]) fileName = decodeURIComponent(match[1]);
         }
-        
+
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = fileName;
         a.click();
         URL.revokeObjectURL(a.href);
-    } catch(e) {
+    } catch (e) {
         document.body.style.cursor = 'default';
         alert('Erro ao baixar o PDF assinado: ' + e.message);
     }
@@ -6970,7 +6970,7 @@ window.downloadAssinado = async function(docId) {
 function getEffectiveStatus(c) {
     if (!c) return 'Ativo';
     let status = c.status || 'Ativo';
-    
+
     // Se está "Ativo" ou "Férias", verificamos as datas para saber se deve mostrar Férias
     if (status === 'Ativo' || status === 'Férias') {
         const today = new Date().toISOString().split('T')[0];
@@ -6978,14 +6978,14 @@ function getEffectiveStatus(c) {
         // 1º período
         const ini1 = c.ferias_programadas_inicio;
         const fim1 = c.ferias_programadas_fim;
-        const em1  = ini1 && fim1 && today >= ini1 && today <= fim1;
+        const em1 = ini1 && fim1 && today >= ini1 && today <= fim1;
 
         // 2º período (apenas quando fracionada = Sim + tirada)
         const ini2 = (c.ferias_fracionadas === 'Sim' && c.ferias_fracionadas_tipo === 'Tirada')
             ? c.ferias_fracionadas_inicio2 : null;
         const fim2 = (c.ferias_fracionadas === 'Sim' && c.ferias_fracionadas_tipo === 'Tirada')
             ? c.ferias_fracionadas_fim2 : null;
-        const em2  = ini2 && fim2 && today >= ini2 && today <= fim2;
+        const em2 = ini2 && fim2 && today >= ini2 && today <= fim2;
 
         if (em1 || em2) return 'Férias';
 
@@ -7008,15 +7008,15 @@ function updateStatusChip(val) {
     if (target) {
         target.classList.add('active');
     }
-    
+
     const statusInput = document.getElementById('colab-status');
     if (statusInput) statusInput.value = val;
 }
 
-window.previewFoto = function(input) {
+window.previewFoto = function (input) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = function (e) {
             const stateSaved = document.getElementById('photo-state-saved');
             const preview = document.getElementById('colab-foto-preview');
             if (stateSaved) stateSaved.style.display = 'none';
@@ -7026,7 +7026,7 @@ window.previewFoto = function(input) {
             }
         }
         reader.readAsDataURL(input.files[0]);
-        
+
         // Auto Upload if ID is present
         const colabId = document.getElementById('colab-id').value;
         if (colabId) {
@@ -7034,43 +7034,43 @@ window.previewFoto = function(input) {
             const fd = new FormData();
             fd.append('nome', nomeColab); // Nome deve vir antes do arquivo para o Multer ler primeiro!
             fd.append('foto', input.files[0]);
-            
+
             fetch(`${API_URL}/upload-foto/${colabId}`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${currentToken}` },
                 body: fd
             })
-            .then(res => res.json())
-            .then(data => {
-                if (data.sucesso) {
-                    // A pré-visualização base64 já está correta no círculo.
-                    // Não substituímos src por URL do servidor (efêmero no Render).
-                    // Apenas garantimos que a foto seja visível após o upload.
-                    const preview = document.getElementById('colab-foto-preview');
-                    const stateSaved = document.getElementById('photo-state-saved');
-                    if (preview) preview.style.display = 'block';
-                    if (stateSaved) stateSaved.style.display = 'none';
-                }
-            })
-            .catch(err => console.error("Erro no auto-upload de foto:", err));
+                .then(res => res.json())
+                .then(data => {
+                    if (data.sucesso) {
+                        // A pré-visualização base64 já está correta no círculo.
+                        // Não substituímos src por URL do servidor (efêmero no Render).
+                        // Apenas garantimos que a foto seja visível após o upload.
+                        const preview = document.getElementById('colab-foto-preview');
+                        const stateSaved = document.getElementById('photo-state-saved');
+                        if (preview) preview.style.display = 'block';
+                        if (stateSaved) stateSaved.style.display = 'none';
+                    }
+                })
+                .catch(err => console.error("Erro no auto-upload de foto:", err));
         }
     }
 }
 
-window.checkQuickDocsState = function() {
+window.checkQuickDocsState = function () {
     const idEl = document.getElementById('colab-id');
     const id = idEl ? idEl.value : '';
     const btnHeader = document.getElementById('btn-header-prontuario');
-    
+
     if (id) {
-        if(btnHeader) btnHeader.style.display = 'inline-flex';
+        if (btnHeader) btnHeader.style.display = 'inline-flex';
     } else {
-        if(btnHeader) btnHeader.style.display = 'none';
+        if (btnHeader) btnHeader.style.display = 'none';
     }
 };
 
 // CPF Masking
-window.mascaraCPF = function(el) {
+window.mascaraCPF = function (el) {
     let v = el.value.replace(/\D/g, "");
     if (v.length > 11) v = v.substring(0, 11);
     v = v.replace(/(\d{3})(\d)/, "$1.$2");
@@ -7081,16 +7081,16 @@ window.mascaraCPF = function(el) {
     // Sincronizar com RG se for CIN
     if (el.id === 'colab-cpf' && document.getElementById('colab-rg-tipo') && document.getElementById('colab-rg-tipo').value === 'CIN') {
         const rgEl = document.getElementById('colab-rg');
-        if(rgEl) rgEl.value = v;
+        if (rgEl) rgEl.value = v;
     }
 };
 
-window.toggleTipoDocumento = function() {
+window.toggleTipoDocumento = function () {
     const sel = document.getElementById('colab-rg-tipo');
     const rgInput = document.getElementById('colab-rg');
     const cpfInput = document.getElementById('colab-cpf');
     const lbl = document.getElementById('lbl-colab-rg');
-    
+
     if (sel && rgInput && cpfInput && lbl) {
         if (sel.value === 'CIN') {
             lbl.textContent = 'Número (CIN)';
@@ -7109,7 +7109,7 @@ window.toggleTipoDocumento = function() {
     }
 };
 
-window.mascaraRG = function(el) {
+window.mascaraRG = function (el) {
     let v = el.value.toUpperCase().replace(/[^0-9X]/g, '');
     // Keep numbers, allow X only at end
     let numbers = v.replace(/X/g, '');
@@ -7135,7 +7135,7 @@ window.mascaraRG = function(el) {
 };
 
 
-window.mascaraPIS = function(el) {
+window.mascaraPIS = function (el) {
     let v = el.value.replace(/\D/g, "");
     if (v.length > 11) v = v.substring(0, 11);
     v = v.replace(/^(\d{3})(\d)/, "$1.$2");
@@ -7144,7 +7144,7 @@ window.mascaraPIS = function(el) {
     el.value = v;
 };
 
-window.mascaraTitulo = function(el) {
+window.mascaraTitulo = function (el) {
     let v = el.value.replace(/\D/g, "");
     if (v.length > 12) v = v.substring(0, 12);
     v = v.replace(/(\d{4})(\d)/, "$1 $2");
@@ -7152,13 +7152,13 @@ window.mascaraTitulo = function(el) {
     el.value = v;
 };
 
-window.mascaraApenasNumeros = function(el) {
+window.mascaraApenasNumeros = function (el) {
     el.value = el.value.replace(/\D/g, "");
 };
 
 window.mascaraMilitar = window.mascaraApenasNumeros;
 
-window.toggleCertificadoMilitar = function(sexo) {
+window.toggleCertificadoMilitar = function (sexo) {
     const inp = document.getElementById('colab-militar');
     if (!inp) return;
     if (sexo === 'Masculino') {
@@ -7177,24 +7177,24 @@ window.toggleCertificadoMilitar = function(sexo) {
 
 
 // Validar campo genérico no frontend
-window.validarCPFCampo = function(el) {
+window.validarCPFCampo = function (el) {
     const v = el.value.replace(/\D/g, "");
     const errorMsg = document.getElementById(el.id === 'colab-cpf' ? 'cpf-error' : '');
     if (v.length > 0 && v.length < 11) {
         el.classList.add('is-invalid');
-        if(errorMsg) errorMsg.style.display = 'inline';
+        if (errorMsg) errorMsg.style.display = 'inline';
     } else {
         el.classList.remove('is-invalid');
-        if(errorMsg) errorMsg.style.display = 'none';
+        if (errorMsg) errorMsg.style.display = 'none';
     }
 };
 
-window.toggleConjuge = function() {
+window.toggleConjuge = function () {
     const estado = document.getElementById('colab-estadocivil');
     const section = document.getElementById('section-conjuge');
     const nome = document.getElementById('conjuge-nome');
     const cpf = document.getElementById('conjuge-cpf');
-    
+
     if (estado && (estado.value === 'Casado' || estado.value === 'União Estável')) {
         section.style.display = 'block';
     } else if (section) {
@@ -7204,13 +7204,13 @@ window.toggleConjuge = function() {
     }
 };
 
-window.toggleMotorista = function() {
+window.toggleMotorista = function () {
     const cargoSelect = document.getElementById('colab-cargo');
     const section = document.getElementById('section-cnh');
 
     if (cargoSelect && cargoSelect.value.toUpperCase().includes('MOTORISTA')) {
-        if(section) section.style.display = 'block';
-    } else if(section) {
+        if (section) section.style.display = 'block';
+    } else if (section) {
         section.style.display = 'none';
         // NEVER auto-clear CNH fields — user must edit them manually
     }
@@ -7226,13 +7226,13 @@ function formatStringGlobal(str) {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9 ]/g, "").trim().replace(/\s+/g, "_");
 }
 
-window.mascaraCNH = function(el) {
+window.mascaraCNH = function (el) {
     let v = el.value.replace(/\D/g, "");
     if (v.length > 11) v = v.substring(0, 11);
     el.value = v;
 };
 
-window.mascaraTelefone = function(i) {
+window.mascaraTelefone = function (i) {
 
     let v = i.value;
     v = v.replace(/\D/g, ""); // Remove não-dígitos
@@ -7248,7 +7248,7 @@ window.mascaraTelefone = function(i) {
     i.value = v;
 };
 
-window.mascaraMoeda = function(i) {
+window.mascaraMoeda = function (i) {
     let v = i.value.replace(/\D/g, "");
     if (v === "") {
         i.value = "";
@@ -7264,40 +7264,40 @@ function updateProbationBadge(admissaoDate) {
         document.getElementById('probation-badge-container'),
         document.getElementById('prontuario-probation-badge-container')
     ];
-    
+
     const venc1El = document.getElementById('colab-venc-1-45');
     const venc2El = document.getElementById('colab-venc-2-45');
-    
+
     if (venc1El) venc1El.value = '';
     if (venc2El) venc2El.value = '';
-    
+
     containers.forEach(container => {
         if (!container) return;
         container.innerHTML = '';
     });
 
     if (!admissaoDate || admissaoDate === '') return;
-    
+
     try {
         const adm = new Date(admissaoDate + 'T12:00:00');
-        
+
         // Calcular datas de vencimento
         const d1 = new Date(adm);
         d1.setDate(d1.getDate() + 45);
         if (venc1El) venc1El.value = d1.toLocaleDateString('pt-BR');
-        
+
         const d2 = new Date(adm);
         d2.setDate(d2.getDate() + 90);
         if (venc2El) venc2El.value = d2.toLocaleDateString('pt-BR');
 
         const today = new Date();
-        today.setHours(12,0,0,0);
-        
+        today.setHours(12, 0, 0, 0);
+
         const diffTime = today - adm;
         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        
+
         if (diffDays < 0) return;
-        
+
         containers.forEach(container => {
             if (diffDays <= 45) {
                 container.innerHTML = '<span class="probation-badge">1º 45</span>';
@@ -7305,11 +7305,11 @@ function updateProbationBadge(admissaoDate) {
                 container.innerHTML = '<span class="probation-badge second">2º 45</span>';
             }
         });
-    } catch(e) { console.error('Erro ao calcular período de experiência:', e); }
+    } catch (e) { console.error('Erro ao calcular período de experiência:', e); }
 }
 
 // --- CBO LOOKUP ---
-window.buscarCBO = async function(q) {
+window.buscarCBO = async function (q) {
     const dropdown = document.getElementById('cbo-dropdown');
     if (!q || q.length < 2) {
         if (dropdown) dropdown.style.display = 'none';
@@ -7318,14 +7318,14 @@ window.buscarCBO = async function(q) {
     try {
         const response = await fetch(`${API_URL}/cbo?q=${q}`);
         const results = await response.json();
-        
+
         if (!dropdown) return;
-        
+
         if (results.length === 0) {
             dropdown.style.display = 'none';
             return;
         }
-        
+
         dropdown.innerHTML = results.map(r => `
             <div class="cbo-suggestion" onclick="selecionarCBO('${r.code}', '${r.desc}')" 
                  style="padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; transition: background 0.2s;">
@@ -7333,30 +7333,30 @@ window.buscarCBO = async function(q) {
                 <div style="font-size: 0.8rem; color: #475569;">${r.desc}</div>
             </div>
         `).join('');
-        
+
         dropdown.style.display = 'block';
-        
+
         // Adicionar efeito de hover nos itens injetados
         const items = dropdown.querySelectorAll('.cbo-suggestion');
         items.forEach(item => {
             item.onmouseover = () => item.style.background = '#f1f5f9';
             item.onmouseout = () => item.style.background = '#fff';
         });
-    } catch(e) { console.error('Erro ao buscar CBO:', e); }
+    } catch (e) { console.error('Erro ao buscar CBO:', e); }
 };
 
-window.selecionarCBO = function(code, desc) {
+window.selecionarCBO = function (code, desc) {
     const codeEl = document.getElementById('colab-cbo-codigo');
     const descEl = document.getElementById('colab-cbo');
     const dropdown = document.getElementById('cbo-dropdown');
-    
+
     if (codeEl) codeEl.value = code;
     if (descEl) descEl.value = desc;
     if (dropdown) dropdown.style.display = 'none';
 };
 
 // --- GESTÃO DE FACULDADE ---
-window.loadFaculdadeCursos = async function() {
+window.loadFaculdadeCursos = async function () {
     try {
         const response = await fetch(`${API_URL}/cursos-faculdade`, {
             headers: { 'Authorization': `Bearer ${currentToken}` }
@@ -7393,7 +7393,7 @@ function renderFaculdadeCursos(cursos) {
     `}).join('');
 }
 
-window.calcSemestresFaculdade = function(val) {
+window.calcSemestresFaculdade = function (val) {
     const semestresInput = document.getElementById('faculdade-semestres');
     if (!semestresInput) return;
     if (!val || isNaN(val) || val <= 0) {
@@ -7436,7 +7436,7 @@ if (formFaculdade) {
     });
 }
 
-window.resetFaculdadeForm = function() {
+window.resetFaculdadeForm = function () {
     document.getElementById('form-faculdade').reset();
     document.getElementById('faculdade-id').value = '';
     document.getElementById('faculdade-form-title').textContent = 'Cadastrar Novo Curso';
@@ -7444,7 +7444,7 @@ window.resetFaculdadeForm = function() {
     if (semestresInput) semestresInput.value = '';
 };
 
-window.editFaculdadeCurso = function(c) {
+window.editFaculdadeCurso = function (c) {
     document.getElementById('faculdade-id').value = c.id;
     document.getElementById('faculdade-nome-curso').value = c.nome_curso;
     document.getElementById('faculdade-instituicao').value = c.instituicao;
@@ -7454,7 +7454,7 @@ window.editFaculdadeCurso = function(c) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-window.deleteFaculdadeCurso = async function(id) {
+window.deleteFaculdadeCurso = async function (id) {
     if (!confirm('Deseja realmente excluir este curso?')) return;
     try {
         const res = await fetch(`${API_URL}/cursos-faculdade/${id}`, {
@@ -7476,7 +7476,7 @@ document.addEventListener('click', (e) => {
 
 // --- GESTÃO DE GERADORES DE DOCUMENTOS ---
 
-window.loadGeradores = async function() {
+window.loadGeradores = async function () {
     try {
         const [items, templAdm, templOut] = await Promise.all([
             apiGet('/geradores'),
@@ -7492,25 +7492,25 @@ window.loadGeradores = async function() {
         }
 
         // Montar mapa de template por gerador_id
-        const admSet  = new Set((templAdm  || []).map(t => Number(t.gerador_id)));
-        const outSet  = new Set((templOut  || []).map(t => Number(t.gerador_id)));
+        const admSet = new Set((templAdm || []).map(t => Number(t.gerador_id)));
+        const outSet = new Set((templOut || []).map(t => Number(t.gerador_id)));
         const templateMap = {};
         geradores.forEach(g => {
             const inAdm = admSet.has(Number(g.id));
             const inOut = outSet.has(Number(g.id));
             if (inAdm && inOut) templateMap[g.id] = 'ambos';
-            else if (inAdm)    templateMap[g.id] = 'admissao';
-            else if (inOut)    templateMap[g.id] = 'contratos';
-            else               templateMap[g.id] = 'nenhum';
+            else if (inAdm) templateMap[g.id] = 'admissao';
+            else if (inOut) templateMap[g.id] = 'contratos';
+            else templateMap[g.id] = 'nenhum';
         });
 
-        window.allGeradores   = geradores;
-        window._templateMap   = templateMap;
+        window.allGeradores = geradores;
+        window._templateMap = templateMap;
         window.renderGeradoresList(geradores);
     } catch (e) { console.error(e); }
 };
 
-window.renderGeradoresList = function(items) {
+window.renderGeradoresList = function (items) {
     const tbody = document.getElementById('table-geradores-body');
     if (!tbody) return;
 
@@ -7518,10 +7518,10 @@ window.renderGeradoresList = function(items) {
 
     // Labels e styles por tipo de template
     const TEMPLATE_LABELS = {
-        admissao:  { label: 'Admissão',  bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+        admissao: { label: 'Admissão', bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
         contratos: { label: 'Contratos', bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
-        ambos:     { label: 'Ambos',     bg: '#fdf4ff', color: '#c026d3', border: '#f0abfc' },
-        nenhum:    { label: '—',         bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0' },
+        ambos: { label: 'Ambos', bg: '#fdf4ff', color: '#c026d3', border: '#f0abfc' },
+        nenhum: { label: '—', bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0' },
     };
 
     const PROTECTED_NAMES = [
@@ -7538,11 +7538,11 @@ window.renderGeradoresList = function(items) {
         'acordo de auxílio-combustível',
         'contrato intermitente'
     ];
-    
+
     const isProtected = (nome) => {
         const originalName = (nome || '').trim();
         const u = originalName.toLowerCase();
-        
+
         // Expor essas cópias precisas para que o usuário consiga excluí-las
         const BAD_EXACT_NAMES = [
             'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO',
@@ -7566,10 +7566,10 @@ window.renderGeradoresList = function(items) {
     });
 
     tbody.innerHTML = sortedItems.map(g => {
-        const tmpl  = templateMap[g.id] || 'nenhum';
-        const lbl   = TEMPLATE_LABELS[tmpl] || TEMPLATE_LABELS.nenhum;
+        const tmpl = templateMap[g.id] || 'nenhum';
+        const lbl = TEMPLATE_LABELS[tmpl] || TEMPLATE_LABELS.nenhum;
         const badge = `<span style="background:${lbl.bg};color:${lbl.color};border:1px solid ${lbl.border};border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;">${lbl.label}</span>`;
-        const prot  = isProtected(g.nome);
+        const prot = isProtected(g.nome);
         return `
         <tr data-template="${tmpl}">
             <td>
@@ -7586,8 +7586,8 @@ window.renderGeradoresList = function(items) {
     }).join('');
 };
 
-window.filterGeradores = function() {
-    const q       = (document.getElementById('search-geradores')?.value || '').toLowerCase();
+window.filterGeradores = function () {
+    const q = (document.getElementById('search-geradores')?.value || '').toLowerCase();
     const tmplFilter = document.getElementById('filter-gerador-template')?.value || 'todos';
 
     // Filtro para a aba geradores (lista normal)
@@ -7623,14 +7623,14 @@ window.filterGeradores = function() {
 };
 
 // ----- ABAS: GERADOR / TEMPLATES -----
-window.switchGeradoresTab = function(tab) {
-    const tabGerador         = document.getElementById('geradores-tab-gerador');
-    const tabTemplates       = document.getElementById('geradores-tab-templates');
-    const tabOutros          = document.getElementById('geradores-tab-outros-contratos');
-    const btnGerador         = document.getElementById('tab-btn-gerador');
-    const btnTemplates       = document.getElementById('tab-btn-templates');
-    const btnOutros          = document.getElementById('tab-btn-outros-contratos');
-    const headerActions      = document.getElementById('geradores-header-actions');
+window.switchGeradoresTab = function (tab) {
+    const tabGerador = document.getElementById('geradores-tab-gerador');
+    const tabTemplates = document.getElementById('geradores-tab-templates');
+    const tabOutros = document.getElementById('geradores-tab-outros-contratos');
+    const btnGerador = document.getElementById('tab-btn-gerador');
+    const btnTemplates = document.getElementById('tab-btn-templates');
+    const btnOutros = document.getElementById('tab-btn-outros-contratos');
+    const headerActions = document.getElementById('geradores-header-actions');
 
     const tabs = { gerador: tabGerador, templates: tabTemplates, 'outros-contratos': tabOutros };
     const btns = { gerador: btnGerador, templates: btnTemplates, 'outros-contratos': btnOutros };
@@ -7638,9 +7638,9 @@ window.switchGeradoresTab = function(tab) {
     Object.keys(tabs).forEach(k => {
         if (tabs[k]) tabs[k].style.display = k === tab ? 'block' : 'none';
         if (btns[k]) {
-            btns[k].style.background   = k === tab ? '#f503c5' : '#f1f5f9';
-            btns[k].style.color        = k === tab ? '#fff'    : '#64748b';
-            btns[k].style.border       = k === tab ? '1.5px solid #f503c5' : '1.5px solid #e2e8f0';
+            btns[k].style.background = k === tab ? '#f503c5' : '#f1f5f9';
+            btns[k].style.color = k === tab ? '#fff' : '#64748b';
+            btns[k].style.border = k === tab ? '1.5px solid #f503c5' : '1.5px solid #e2e8f0';
         }
     });
 
@@ -7653,7 +7653,7 @@ window.switchGeradoresTab = function(tab) {
     if (tab === 'outros-contratos') window.loadGeradoresOutrosContratos();
 };
 
-window.loadGeradoresTemplates = async function() {
+window.loadGeradoresTemplates = async function () {
     const container = document.getElementById('geradores-templates-container');
     if (!container) return;
     container.innerHTML = `<div style="text-align:center;padding:2rem;color:#94a3b8;"><i class="ph ph-circle-notch" style="font-size:2rem;"></i> Carregando...</div>`;
@@ -7666,12 +7666,12 @@ window.loadGeradoresTemplates = async function() {
         ]);
         window._deptTemplatesAll = templates;
         window.renderGeradoresTemplates(departamentos, geradores, templates);
-    } catch(e) {
+    } catch (e) {
         container.innerHTML = `<div class="card p-4" style="color:#e53e3e;">Erro ao carregar dados: ${e.message}</div>`;
     }
 };
 
-window.renderGeradoresTemplates = function(departamentos, geradores, templates) {
+window.renderGeradoresTemplates = function (departamentos, geradores, templates) {
     const container = document.getElementById('geradores-templates-container');
     if (!container) return;
 
@@ -7746,21 +7746,21 @@ window.renderGeradoresTemplates = function(departamentos, geradores, templates) 
     window.filterGeradores();
 };
 
-window.updateLocalDocCount = function(docId) {
+window.updateLocalDocCount = function (docId) {
     const chks = document.querySelectorAll(`.gerador-dept-chk[data-gerador="${docId}"]`);
     const count = Array.from(chks).filter(c => c.checked).length;
     const badge = document.getElementById(`doc-count-${docId}`);
     if (badge) badge.textContent = `${count} Setores`;
 };
 
-window.selecionarTodosSetores = function(docId) {
+window.selecionarTodosSetores = function (docId) {
     const chks = document.querySelectorAll(`.gerador-dept-chk[data-gerador="${docId}"]`);
     const anyUnchecked = Array.from(chks).some(c => !c.checked);
     chks.forEach(c => { c.checked = anyUnchecked; });
     window.updateLocalDocCount(docId);
 };
 
-window.saveBatchGeradorDeptTemplates = async function(tipo) {
+window.saveBatchGeradorDeptTemplates = async function (tipo) {
     const tipoReal = tipo || 'admissao';
     const selector = tipoReal === 'outros' ? '.gerador-outros-chk' : '.gerador-dept-chk';
     const endpoint = tipoReal === 'outros' ? '/gerador-outros-contratos-templates/batch' : '/gerador-departamento-templates/batch';
@@ -7783,13 +7783,13 @@ window.saveBatchGeradorDeptTemplates = async function(tipo) {
         btn.disabled = true;
 
         await apiPost(endpoint, { templates });
-        
+
         btn.innerHTML = `<i class="ph ph-check"></i> Salvo com sucesso`;
         setTimeout(() => {
             btn.innerHTML = oldHTML;
             btn.disabled = false;
         }, 2000);
-    } catch(e) {
+    } catch (e) {
         alert('Erro ao salvar templates: ' + e.message);
         event.currentTarget.disabled = false;
     }
@@ -7797,7 +7797,7 @@ window.saveBatchGeradorDeptTemplates = async function(tipo) {
 
 // === TEMPLATE DE OUTROS CONTRATOS ===
 
-window.loadGeradoresOutrosContratos = async function() {
+window.loadGeradoresOutrosContratos = async function () {
     const container = document.getElementById('geradores-outros-contratos-container');
     if (!container) return;
     container.innerHTML = `<div style="text-align:center;padding:2rem;color:#94a3b8;"><i class="ph ph-circle-notch" style="font-size:2rem;"></i> Carregando...</div>`;
@@ -7810,12 +7810,12 @@ window.loadGeradoresOutrosContratos = async function() {
         ]);
         window._outrosContratosTemplatesAll = templates;
         window.renderGeradoresOutrosContratos(departamentos, geradores, templates);
-    } catch(e) {
+    } catch (e) {
         container.innerHTML = `<div class="card p-4" style="color:#e53e3e;">Erro ao carregar dados: ${e.message}</div>`;
     }
 };
 
-window.renderGeradoresOutrosContratos = function(departamentos, geradores, templates) {
+window.renderGeradoresOutrosContratos = function (departamentos, geradores, templates) {
     const container = document.getElementById('geradores-outros-contratos-container');
     if (!container) return;
 
@@ -7877,14 +7877,14 @@ window.renderGeradoresOutrosContratos = function(departamentos, geradores, templ
     `;
 };
 
-window.updateOutrosDocCount = function(docId) {
+window.updateOutrosDocCount = function (docId) {
     const chks = document.querySelectorAll(`.gerador-outros-chk[data-gerador="${docId}"]`);
     const count = Array.from(chks).filter(c => c.checked).length;
     const badge = document.getElementById(`outros-count-${docId}`);
     if (badge) badge.textContent = `${count} Setores`;
 };
 
-window.selecionarTodosSetoresOutros = function(docId) {
+window.selecionarTodosSetoresOutros = function (docId) {
     const chks = document.querySelectorAll(`.gerador-outros-chk[data-gerador="${docId}"]`);
     const anyUnchecked = Array.from(chks).some(c => !c.checked);
     chks.forEach(c => { c.checked = anyUnchecked; });
@@ -8036,13 +8036,13 @@ async function seedInitialGeradores() {
             variaveis: ""
         }
     ];
-    
+
     for (const t of templates) {
         await apiPost('/geradores', t);
     }
 }
 
-window.openModalGerador = function() {
+window.openModalGerador = function () {
     document.getElementById('gerador-modal-title').textContent = 'Novo Gerador';
     document.getElementById('form-gerador').reset();
     document.getElementById('gerador-id').value = '';
@@ -8055,22 +8055,22 @@ window.openModalGerador = function() {
     document.getElementById('modal-gerador').style.display = 'block';
 };
 
-window.closeModalGerador = function() {
+window.closeModalGerador = function () {
     document.getElementById('modal-gerador').style.display = 'none';
 };
 
-window.editGerador = async function(id) {
+window.editGerador = async function (id) {
     try {
         const [g, depts, templAdm, templOut] = await Promise.all([
             apiGet(`/geradores/${id}`),
-            apiGet('/departamentos').catch(()=>[]),
-            apiGet('/gerador-departamento-templates').catch(()=>[]),
-            apiGet('/gerador-outros-contratos-templates').catch(()=>[])
+            apiGet('/departamentos').catch(() => []),
+            apiGet('/gerador-departamento-templates').catch(() => []),
+            apiGet('/gerador-outros-contratos-templates').catch(() => [])
         ]);
         document.getElementById('gerador-modal-title').textContent = 'Editar Gerador';
         document.getElementById('gerador-id').value = g.id;
         document.getElementById('gerador-nome').value = g.nome;
-        
+
         // Detectar se é texto puro legível (legado) ou HTML
         let finalContent = g.conteudo;
         if (!finalContent.includes('<') && !finalContent.includes('>')) {
@@ -8088,7 +8088,7 @@ window.editGerador = async function(id) {
     } catch (e) { console.error(e); }
 };
 
-window.deleteGerador = async function(id) {
+window.deleteGerador = async function (id) {
     if (!confirm('Deseja excluir este gerador?')) return;
     try {
         await apiDelete(`/geradores/${id}`);
@@ -8105,21 +8105,21 @@ function setupGeradores() {
         setTimeout(setupGeradores, 500); // Tentar novamente se o HTML não carregou
         return;
     }
-    
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = document.getElementById('gerador-id').value;
         const data = {
             nome: document.getElementById('gerador-nome').value,
             conteudo: document.getElementById('gerador-conteudo-editor').innerHTML,
-            variaveis: '' 
+            variaveis: ''
         };
-        
+
         try {
             let result;
             if (id) result = await apiPut(`/geradores/${id}`, data);
             else result = await apiPost('/geradores', data);
-            
+
             if (result && !result.error) {
                 const geradorId = result.id || Number(id);
 
@@ -8152,7 +8152,7 @@ function setupGeradores() {
                             apiPost('/gerador-outros-contratos-templates/batch', { templates: [...outrasOut, ...novasOut] })
                         ]);
                     }
-                } catch(te) { console.warn('Erro ao associar templates:', te); }
+                } catch (te) { console.warn('Erro ao associar templates:', te); }
 
                 alert('Salvo com sucesso!');
                 window.closeModalGerador();
@@ -8160,7 +8160,7 @@ function setupGeradores() {
             } else {
                 alert('Erro ao salvar: ' + (result?.error || 'Erro desconhecido'));
             }
-        } catch (e) { 
+        } catch (e) {
             console.error(e);
             alert('Falha crítica ao salvar gerador. Verifique o console.');
         }
@@ -8168,16 +8168,16 @@ function setupGeradores() {
 }
 
 // Funções do Editor de Texto
-window.formatDoc = function(cmd, value = null) {
+window.formatDoc = function (cmd, value = null) {
     document.execCommand(cmd, false, value);
 };
 
-window.abrirModalSelecaoColab = async function(geradorId) {
+window.abrirModalSelecaoColab = async function (geradorId) {
     try {
         const colabs = await apiGet('/colaboradores');
         const select = document.getElementById('select-colab-gerar');
         if (!select) return;
-        
+
         select.innerHTML = colabs.map(c => `<option value="${c.id}">${c.nome_completo} - ${c.cpf}</option>`).join('');
         document.getElementById('gerador-id-temp').innerText = geradorId;
 
@@ -8197,24 +8197,24 @@ window.abrirModalSelecaoColab = async function(geradorId) {
     } catch (e) { console.error(e); }
 };
 
-window.calcParcelaDesconto = function() {
+window.calcParcelaDesconto = function () {
     let valStr = document.getElementById('desconto-valor').value;
-    if(!valStr) valStr = '0';
+    if (!valStr) valStr = '0';
     // Substituir vírgula por ponto para cálculo
     valStr = valStr.replace(',', '.');
     const valor = parseFloat(valStr) || 0;
     const parcelas = parseInt(document.getElementById('desconto-parcelas').value) || 1;
-    
+
     const maxVal = (valor / parcelas).toFixed(2).replace('.', ',');
     document.getElementById('desconto-valor-parcelamento').innerText = `Valor de cada parcela: R$ ${maxVal}`;
 };
 
-window.processarGeracao = async function() {
+window.processarGeracao = async function () {
     const geradorId = document.getElementById('gerador-id-temp').innerText;
     const colabId = document.getElementById('select-colab-gerar').value;
-    
+
     if (!geradorId || !colabId) return;
-    
+
     let requestBody = {};
     const gerador = (window.allGeradores || []).find(g => g.id == geradorId);
     if (gerador && (gerador.nome || '').toUpperCase().includes('DESCONTO EM FOLHA')) {
@@ -8227,14 +8227,14 @@ window.processarGeracao = async function() {
     try {
         const response = await fetch(`${API_URL}/geradores/${geradorId}/gerar/${colabId}`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Authorization': `Bearer ${currentToken}`,
-                'Content-Type': 'application/json' 
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(requestBody)
         });
         const data = await response.json();
-        
+
         if (data.html) {
             document.getElementById('modal-selecionar-colab').style.display = 'none';
             window.abrirPreviewDocumento(data);
@@ -8249,7 +8249,7 @@ window.processarGeracao = async function() {
     } catch (e) { console.error(e); }
 };
 
-window.abrirPreviewDocumento = function(data) {
+window.abrirPreviewDocumento = function (data) {
     let container = document.getElementById('preview-doc-body');
     if (!container) {
         // Fallback robusto se o modal foi removido erroneamente por cache/códigos antigos
@@ -8277,7 +8277,7 @@ window.abrirPreviewDocumento = function(data) {
     if (previewBtnSalvar) {
         previewBtnSalvar.style.display = 'flex';
         previewBtnSalvar.innerHTML = '<i class="ph ph-paperclip"></i> Anexar ao Prontuário';
-        previewBtnSalvar.onclick = async function() {
+        previewBtnSalvar.onclick = async function () {
             const self = this;
             const oldHtml = self.innerHTML;
             self.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Anexando...';
@@ -8320,13 +8320,13 @@ window.abrirPreviewDocumento = function(data) {
                 if (typeof showToast !== 'undefined') {
                     showToast('Documento anexado ao prontuário com sucesso!', 'success');
                 } else {
-                    Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento anexado!', 'success');
+                    Swal.close(); if (typeof showToast !== 'undefined') showToast('Documento anexado!', 'success');
                 }
 
                 // Reload da lista de contratos
                 await window._reloadContratosContainer();
 
-            } catch(e) {
+            } catch (e) {
                 Swal.fire('Erro', e.message || 'Erro ao anexar documento', 'error');
                 self.innerHTML = oldHtml;
                 self.disabled = false;
@@ -8362,8 +8362,8 @@ window.abrirPreviewDocumento = function(data) {
         .replace(/AMERICA RENTAL EQUIPAMENTOS LTDA/g, '<b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>');
 
     const isSantander = (data.gerador_nome || '').toLowerCase().includes('santander');
-    const customFontSize   = isSantander ? '0.68rem' : '0.82rem';
-    const customLineHeight = isSantander ? '1.2'    : '1.45';
+    const customFontSize = isSantander ? '0.68rem' : '0.82rem';
+    const customLineHeight = isSantander ? '1.2' : '1.45';
 
     // CSS de quebra de página correta — evita cortar parágrafos e cláusulas no meio
     const conteudoPrincipal = `
@@ -8377,9 +8377,9 @@ window.abrirPreviewDocumento = function(data) {
         </div>`;
 
     // 4. Data atual formatada — "Guarulhos, 01 de abril de 2026."
-    const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
     const hoje = new Date();
-    const dataFormatada = `Guarulhos, ${String(hoje.getDate()).padStart(2,'0')} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}.`;
+    const dataFormatada = `Guarulhos, ${String(hoje.getDate()).padStart(2, '0')} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}.`;
 
     // 5. Rodapé — com ou sem campo de assinatura manual
     const colabNome = data.colaborador.NOME_COMPLETO;
@@ -8430,11 +8430,11 @@ window.abrirPreviewDocumento = function(data) {
 };
 
 // Salvar como PDF — usa o diálogo de impressão do navegador com destino "Salvar em PDF"
-window.salvarDocumentoPDF = function() {
+window.salvarDocumentoPDF = function () {
     const container = document.getElementById('preview-doc-body');
     if (!container) return;
-    const content   = container.innerHTML;
-    const docNome   = container.dataset.docNome || 'Documento';
+    const content = container.innerHTML;
+    const docNome = container.dataset.docNome || 'Documento';
     const colabNome = container.dataset.colabNome || '';
 
     const win = window.open('', '_blank');
@@ -8459,7 +8459,7 @@ window.salvarDocumentoPDF = function() {
     win.document.close();
 };
 
-window.imprimirDocumento = function() {
+window.imprimirDocumento = function () {
     const content = document.getElementById('preview-doc-body').innerHTML;
     const win = window.open('', '_blank');
     win.document.write(`
@@ -8484,7 +8484,7 @@ window.imprimirDocumento = function() {
 };
 
 // --- GESTÃO DE CHAVES ---
-window.loadChaves = async function() {
+window.loadChaves = async function () {
     try {
         const rows = await apiGet('/chaves');
         const tbody = document.getElementById('table-chaves-body');
@@ -8504,20 +8504,20 @@ window.loadChaves = async function() {
     } catch (e) { console.error(e); }
 };
 
-window.resetChavesForm = function() {
+window.resetChavesForm = function () {
     document.getElementById('form-chaves').reset();
     document.getElementById('chave-id').value = '';
     document.getElementById('chaves-form-title').textContent = 'Cadastrar Nova Chave';
 };
 
-window.editChave = function(id, nome) {
+window.editChave = function (id, nome) {
     document.getElementById('chave-id').value = id;
     document.getElementById('chave-nome').value = nome;
     document.getElementById('chaves-form-title').textContent = 'Editar Chave';
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-window.deleteChave = async function(id) {
+window.deleteChave = async function (id) {
     if (!confirm('Deseja excluir esta chave?')) return;
     try {
         await apiDelete(`/chaves/${id}`);
@@ -8527,15 +8527,15 @@ window.deleteChave = async function(id) {
 
 // --- GESTÃO DE ADMISSÃO ---
 const ADMISSAO_STATUS_STYLES = {
-    'Aguardando início': { bg:'#f1f3f5', color:'#495057', border:'#adb5bd', icon:'ph-hourglass-high', label:'Aguardando' },
-    'Processo iniciado': { bg:'#f3e8ff', color:'#7e22ce', border:'#c084fc', icon:'ph-play-circle',   label:'Iniciado' },
-    'Ativo':             { bg:'#e8f5e9', color:'#196b36', border:'#196b36', icon:'ph-check-circle',   label:'Ativo' },
-    'Férias':            { bg:'#fdf7e3', color:'#c2aa72', border:'#c2aa72', icon:'ph-airplane-tilt',  label:'Férias' },
-    'Afastado':          { bg:'#faeed9', color:'#eaa15f', border:'#eaa15f', icon:'ph-warning',        label:'Afastado' },
-    'Desligado':         { bg:'#fceeee', color:'#ba7881', border:'#ba7881', icon:'ph-x-circle',       label:'Desligado' }
+    'Aguardando início': { bg: '#f1f3f5', color: '#495057', border: '#adb5bd', icon: 'ph-hourglass-high', label: 'Aguardando' },
+    'Processo iniciado': { bg: '#f3e8ff', color: '#7e22ce', border: '#c084fc', icon: 'ph-play-circle', label: 'Iniciado' },
+    'Ativo': { bg: '#e8f5e9', color: '#196b36', border: '#196b36', icon: 'ph-check-circle', label: 'Ativo' },
+    'Férias': { bg: '#fdf7e3', color: '#c2aa72', border: '#c2aa72', icon: 'ph-airplane-tilt', label: 'Férias' },
+    'Afastado': { bg: '#faeed9', color: '#eaa15f', border: '#eaa15f', icon: 'ph-warning', label: 'Afastado' },
+    'Desligado': { bg: '#fceeee', color: '#ba7881', border: '#ba7881', icon: 'ph-x-circle', label: 'Desligado' }
 };
 
-window.loadAdmissaoSelect = async function() {
+window.loadAdmissaoSelect = async function () {
     try {
         const rows = await apiGet('/colaboradores');
         const hiddenInput = document.getElementById('admissao-select-colab');
@@ -8575,7 +8575,7 @@ window.loadAdmissaoSelect = async function() {
         dropdownList.appendChild(empty);
 
         pendentes.forEach(p => {
-            const s = ADMISSAO_STATUS_STYLES[p.status] || { bg:'#f1f3f5', color:'#495057', border:'#adb5bd', icon:'ph-clock', label: p.status };
+            const s = ADMISSAO_STATUS_STYLES[p.status] || { bg: '#f1f3f5', color: '#495057', border: '#adb5bd', icon: 'ph-clock', label: p.status };
             const cargo = p.cargo || 'Sem Cargo';
             const item = document.createElement('div');
             item.style.cssText = 'display:flex; align-items:center; gap:0.75rem; padding:0.6rem 1rem; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background 0.15s;';
@@ -8597,7 +8597,7 @@ window.loadAdmissaoSelect = async function() {
     } catch (e) { console.error(e); }
 };
 
-window.toggleAdmissaoDropdown = function() {
+window.toggleAdmissaoDropdown = function () {
     const list = document.getElementById('admissao-dropdown-list');
     const caret = document.getElementById('admissao-dropdown-caret');
     const trigger = document.getElementById('admissao-dropdown-trigger');
@@ -8610,10 +8610,10 @@ window.toggleAdmissaoDropdown = function() {
     if (container) container.style.paddingBottom = isOpen ? '1.5rem' : '260px';
 };
 
-window.selectAdmissaoColab = function(id, colab, s) {
+window.selectAdmissaoColab = function (id, colab, s) {
     const hiddenInput = document.getElementById('admissao-select-colab');
     const label = document.getElementById('admissao-dropdown-label');
-    const list  = document.getElementById('admissao-dropdown-list');
+    const list = document.getElementById('admissao-dropdown-list');
     const caret = document.getElementById('admissao-dropdown-caret');
     const trigger = document.getElementById('admissao-dropdown-trigger');
     const container = document.getElementById('admissao-search-container');
@@ -8653,7 +8653,7 @@ window.selectAdmissaoColab = function(id, colab, s) {
 };
 
 // Fechar dropdown ao clicar fora
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     const dd = document.getElementById('admissao-custom-dropdown');
     if (dd && !dd.contains(e.target)) {
         const list = document.getElementById('admissao-dropdown-list');
@@ -8668,7 +8668,7 @@ document.addEventListener('click', function(e) {
 });
 
 
-window.sendAssinafyWhatsApp = async function(tipo, suffix) {
+window.sendAssinafyWhatsApp = async function (tipo, suffix) {
     if (!viewedColaborador || !viewedColaborador.telefone) {
         alert('Telefone do colaborador não encontrado para enviar WhatsApp.');
         return;
@@ -8691,7 +8691,7 @@ window.sendAssinafyWhatsApp = async function(tipo, suffix) {
     } catch (e) { console.error('Erro ao salvar link:', e); }
 
     const msg = `Olá, ${viewedColaborador.nome_completo}.\n\nSeu Exame Admissional está disponível para assinatura digital.\n\nClique no link abaixo para assinar:\n${linkAssinafy}\n\nAmérica Rental Equipamentos Ltda.`;
-    
+
     const fone = viewedColaborador.telefone.replace(/\D/g, '');
     const url = `https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
@@ -8699,7 +8699,7 @@ window.sendAssinafyWhatsApp = async function(tipo, suffix) {
 
 window.currentActiveAdmissaoStep = 1;
 // --- Refatoração: Função genérica para construir HTML da lista de contratos (Admissão / Prontuário) ---
-window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, docs, colab) {
+window.buildAdmissaoSignatureRows = function (availableGeradores, assinaturas, docs, colab) {
     return availableGeradores.map(g => {
         const ass = assinaturas.find(a => a.gerador_id === g.id || a.nome_documento === g.nome);
         const docEquivalente = (docs || []).find(d => d.tab_name === 'CONTRATOS' && (d.document_type === g.nome || (d.file_name && d.file_name.includes(g.nome))));
@@ -8713,11 +8713,11 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
         else if (docEquivalente && docEquivalente.assinafy_status === 'NAO_EXIGE') realStatus = 'NAO_EXIGE';
         else if (docEquivalente && docEquivalente.file_path) realStatus = 'Anexado';
 
-        const isSigned   = realStatus === 'Assinado';
-        const isPending  = realStatus === 'Pendente';
-        const isAnexado  = realStatus === 'Anexado';
-        const naoExige   = realStatus === 'NAO_EXIGE';
-        const colabId    = colab ? colab.id : '';
+        const isSigned = realStatus === 'Assinado';
+        const isPending = realStatus === 'Pendente';
+        const isAnexado = realStatus === 'Anexado';
+        const naoExige = realStatus === 'NAO_EXIGE';
+        const colabId = colab ? colab.id : '';
 
         // Formatador de datas
         const fmtDate = (str) => {
@@ -8725,35 +8725,35 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
             try {
                 const d = new Date(str + (str.includes('Z') ? '' : 'Z'));
                 if (isNaN(d.getTime())) return '';
-                const dd = String(d.getDate()).padStart(2,'0');
-                const mm = String(d.getMonth()+1).padStart(2,'0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
                 const yy = d.getFullYear();
-                const hh = String(d.getHours()).padStart(2,'0');
-                const mi = String(d.getMinutes()).padStart(2,'0');
-                return dd+'/'+mm+'/'+yy+' - '+hh+':'+mi;
-            } catch(e) { return ''; }
+                const hh = String(d.getHours()).padStart(2, '0');
+                const mi = String(d.getMinutes()).padStart(2, '0');
+                return dd + '/' + mm + '/' + yy + ' - ' + hh + ':' + mi;
+            } catch (e) { return ''; }
         };
 
-        const sentDate   = (ass && ass.enviado_em) ? fmtDate(ass.enviado_em) : (docEquivalente && docEquivalente.upload_date ? fmtDate(docEquivalente.upload_date) : '');
+        const sentDate = (ass && ass.enviado_em) ? fmtDate(ass.enviado_em) : (docEquivalente && docEquivalente.upload_date ? fmtDate(docEquivalente.upload_date) : '');
         const signedDate = (ass && ass.assinado_em) ? fmtDate(ass.assinado_em) : (docEquivalente && docEquivalente.assinafy_signed_at ? fmtDate(docEquivalente.assinafy_signed_at) : '');
         const uploadDate = docEquivalente && docEquivalente.upload_date ? fmtDate(docEquivalente.upload_date) : '';
-        const fileName   = docEquivalente ? (docEquivalente.file_name || docEquivalente.original_name || '') : '';
+        const fileName = docEquivalente ? (docEquivalente.file_name || docEquivalente.original_name || '') : '';
 
         let leftIcon = '';
-        let subText  = '';
+        let subText = '';
 
         if (isSigned) {
             leftIcon = '<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>';
-            subText  = '<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">' + (signedDate ? '<i class="ph ph-signature"></i> Assinado: ' + signedDate : 'Documento Assinado') + '</span>';
+            subText = '<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">' + (signedDate ? '<i class="ph ph-signature"></i> Assinado: ' + signedDate : 'Documento Assinado') + '</span>';
         } else if (isPending) {
             leftIcon = '<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>';
-            subText  = '<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">' + (sentDate ? '<i class="ph ph-paper-plane-tilt"></i> Enviado: ' + sentDate : 'Enviado para Assinatura') + '</span>';
+            subText = '<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">' + (sentDate ? '<i class="ph ph-paper-plane-tilt"></i> Enviado: ' + sentDate : 'Enviado para Assinatura') + '</span>';
         } else if (naoExige || isAnexado) {
             leftIcon = '<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#9333ea;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>';
-            subText  = '<span style="color:#9333ea;font-size:0.75rem;font-weight:600;">' + (uploadDate ? '<i class="ph ph-file-arrow-up"></i> Anexado: ' + uploadDate : 'Documento Anexado') + '</span>';
+            subText = '<span style="color:#9333ea;font-size:0.75rem;font-weight:600;">' + (uploadDate ? '<i class="ph ph-file-arrow-up"></i> Anexado: ' + uploadDate : 'Documento Anexado') + '</span>';
         } else {
             leftIcon = '<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#94a3b8;"><i class="ph ph-file-dashed" style="font-size:1.4rem;"></i></div>';
-            subText  = '';
+            subText = '';
         }
 
         const fileNameTag = fileName ? '<span style="font-size:0.72rem;color:#94a3b8;margin-top:1px;"><i class="ph ph-file"></i> ' + fileName + '</span>' : '';
@@ -8783,14 +8783,14 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
                 <div id="admissao-inline-action-${g.id}"></div>
             `;
         } else if (isPending && docEquivalente && docEquivalente.id) {
-             dynamicControls = `<button type="button" onclick="window.reenviarAssinaturaContratoAdmissao('${docEquivalente.id}', '${colabId}', event)" class="btn btn-sm" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-pen"></i> Reenviar Ass.</button>`;
+            dynamicControls = `<button type="button" onclick="window.reenviarAssinaturaContratoAdmissao('${docEquivalente.id}', '${colabId}', event)" class="btn btn-sm" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-pen"></i> Reenviar Ass.</button>`;
         }
 
         const borderColor = isSigned ? '#bbf7d0' : isPending ? '#bfdbfe' : (naoExige || isAnexado) ? '#e9d5ff' : '#f1f5f9';
-        const bgColor     = isSigned ? '#f0fdf4'  : isPending ? '#eff6ff'  : (naoExige || isAnexado) ? '#faf5ff'  : '#fff';
+        const bgColor = isSigned ? '#f0fdf4' : isPending ? '#eff6ff' : (naoExige || isAnexado) ? '#faf5ff' : '#fff';
 
         // Botão excluir: usa id do doc (admissao_assinaturas) ou docEquivalente (documentos)
-        const _assId   = ass && ass.id ? ass.id : null;
+        const _assId = ass && ass.id ? ass.id : null;
         const _docEqId = docEquivalente && docEquivalente.id ? docEquivalente.id : null;
         let admDelBtn = '';
         if (_assId) {
@@ -8819,7 +8819,7 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
     }).join('');
 };
 
-window.renderInlineAdmissaoAction = function(geradorId, resp, colabId) {
+window.renderInlineAdmissaoAction = function (geradorId, resp, colabId) {
     const actionDiv = document.getElementById('admissao-inline-action-' + geradorId);
     if (!actionDiv) return;
 
@@ -8831,7 +8831,7 @@ window.renderInlineAdmissaoAction = function(geradorId, resp, colabId) {
     }
 };
 
-window.sendSingleAdmissaoSignature = async function(geradorId, colabId, btn) {
+window.sendSingleAdmissaoSignature = async function (geradorId, colabId, btn) {
     const ogHtml = btn.innerHTML;
     btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
     btn.disabled = true;
@@ -8870,10 +8870,10 @@ window.sendSingleAdmissaoSignature = async function(geradorId, colabId, btn) {
     }
 };
 
-window.uploadAdmissaoAvulso = async function(geradorId, colabId, fileInput) {
+window.uploadAdmissaoAvulso = async function (geradorId, colabId, fileInput) {
     if (!fileInput.files || fileInput.files.length === 0) return;
     const file = fileInput.files[0];
-    
+
     const gerador = window._admissaoGeradores?.find(g => String(g.id) === String(geradorId));
     if (!gerador) return alert('Gerador não encontrado.');
 
@@ -8899,14 +8899,14 @@ window.uploadAdmissaoAvulso = async function(geradorId, colabId, fileInput) {
         } else {
             throw new Error(d.error || 'Erro ao anexar');
         }
-    } catch(e) {
+    } catch (e) {
         showToast(e.message, 'error');
     }
     fileInput.value = '';
 };
 
 // ===== ABA CONTRATOS (PRONTUÁRIO DIGITAL) — apenas Outros Contratos =====
-window.renderContratosTab = async function(container, searchTerm = '') {
+window.renderContratosTab = async function (container, searchTerm = '') {
     if (!viewedColaborador) return;
     container.innerHTML = '<p class="text-muted" style="padding:0.5rem;"><i class="ph ph-spinner ph-spin"></i> Carregando geradores...</p>';
     // Vai direto para Outros Contratos — sem sub-aba de Admissão
@@ -8915,13 +8915,13 @@ window.renderContratosTab = async function(container, searchTerm = '') {
 
 // Helper: recarrega a aba Contratos no container correto
 // Só roda se ca-list-container estiver no DOM (indica que a aba Contratos está ativa)
-window._reloadContratosContainer = async function() {
+window._reloadContratosContainer = async function () {
     window._contratosAvulsoLoaded = false;
     // O elemento ca-list-container é renderizado por renderContratosAvulso
     // Se ele existe, o usuário ESTÁ na aba Contratos
     const caList = document.getElementById('ca-list-container');
     let ct = document.getElementById('docs-list-container') ||
-             document.getElementById('tab-dynamic-content');
+        document.getElementById('tab-dynamic-content');
     if (ct && caList) {
         const searchTerm = document.getElementById('doc-search-input')?.value.toLowerCase() || '';
         ct.innerHTML = '<p class="text-muted" style="padding:0.5rem;"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>';
@@ -8931,10 +8931,10 @@ window._reloadContratosContainer = async function() {
 
 // === SUB-ABA OUTROS CONTRATOS ===
 // Helper: avalia se um gerador deve aparecer automaticamente para o colaborador
-window._avaliarRegraGerador = function(g, colab, deptNome) {
+window._avaliarRegraGerador = function (g, colab, deptNome) {
     if (g.is_sinistro_only) return false;
     let regra = {};
-    try { regra = g.visibilidade_regra ? JSON.parse(g.visibilidade_regra) : {}; } catch(e) {}
+    try { regra = g.visibilidade_regra ? JSON.parse(g.visibilidade_regra) : {}; } catch (e) { }
 
     if (!regra.visivel_automatico) return false;
 
@@ -8960,7 +8960,7 @@ window._avaliarRegraGerador = function(g, colab, deptNome) {
             if (!valorColab.includes(valorEsperado)) return false;
         } else {
             // Aceitar variações "Sim"/"sim", "Nao"/"Não"/"não", "Intermitente" etc.
-            const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+            const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
             if (normalize(valorColab) !== normalize(valorEsperado)) return false;
         }
     }
@@ -8968,7 +8968,7 @@ window._avaliarRegraGerador = function(g, colab, deptNome) {
     return true;
 };
 
-window.renderContratosAvulso = async function(container, searchTerm = '') {
+window.renderContratosAvulso = async function (container, searchTerm = '') {
     if (!viewedColaborador || !container) return;
     container.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Carregando Documentos...</p>';
     try {
@@ -8976,7 +8976,7 @@ window.renderContratosAvulso = async function(container, searchTerm = '') {
             try {
                 const r = await apiGet(url);
                 return Array.isArray(r) ? r : (r ? [r] : []);
-            } catch(e) { return []; }
+            } catch (e) { return []; }
         };
         const [assinaturas, docs, geradores, departamentos] = await Promise.all([
             safeGet(`/colaboradores/${viewedColaborador.id}/admissao-assinaturas`),
@@ -9022,22 +9022,22 @@ window.renderContratosAvulso = async function(container, searchTerm = '') {
         // FALLBACK: se nenhum gerador tem regras seeded ainda, usa mapa legado de perfil
         const algumTemRegra = geradoresElegiveis.some(g => g.visibilidade_regra);
         if (!algumTemRegra) {
-            const deNorm = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+            const deNorm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
             const LEGACY_MAP = [
-                { nome: 'Termo de NÃO Interesse Terapia',  cond: deNorm(c.terapia_participa) === 'nao' || deNorm(c.terapia_participa) === 'nao' },
-                { nome: 'Termo de Interesse Terapia',       cond: deNorm(c.terapia_participa) === 'sim' },
-                { nome: 'Responsabilidade Bilhete Único',   cond: (c.meio_transporte||'').toLowerCase().includes('vt') },
-                { nome: 'Responsabilidade Celular',         cond: deNorm(c.celular_participa) === 'sim' },
-                { nome: 'Responsabilidade Chaves',          cond: deNorm(c.chaves_participa) === 'sim' },
-                { nome: 'Contrato Faculdade',               cond: deNorm(c.faculdade_participa) === 'sim' },
-                { nome: 'Contrato Academia',                cond: deNorm(c.academia_participa) === 'sim' },
-                { nome: 'Contrato Intermitente',            cond: deNorm(c.tipo_contrato) === 'intermitente' },
-                { nome: 'Acordo Individual Benefícios',     cond: true },
-                { nome: 'Autorização de Uso de Imagem',     cond: true },
-                { nome: 'Compartilhamento de Dados',        cond: true },
+                { nome: 'Termo de NÃO Interesse Terapia', cond: deNorm(c.terapia_participa) === 'nao' || deNorm(c.terapia_participa) === 'nao' },
+                { nome: 'Termo de Interesse Terapia', cond: deNorm(c.terapia_participa) === 'sim' },
+                { nome: 'Responsabilidade Bilhete Único', cond: (c.meio_transporte || '').toLowerCase().includes('vt') },
+                { nome: 'Responsabilidade Celular', cond: deNorm(c.celular_participa) === 'sim' },
+                { nome: 'Responsabilidade Chaves', cond: deNorm(c.chaves_participa) === 'sim' },
+                { nome: 'Contrato Faculdade', cond: deNorm(c.faculdade_participa) === 'sim' },
+                { nome: 'Contrato Academia', cond: deNorm(c.academia_participa) === 'sim' },
+                { nome: 'Contrato Intermitente', cond: deNorm(c.tipo_contrato) === 'intermitente' },
+                { nome: 'Acordo Individual Benefícios', cond: true },
+                { nome: 'Autorização de Uso de Imagem', cond: true },
+                { nome: 'Compartilhamento de Dados', cond: true },
                 { nome: 'Recebimento de Regimento Interno', cond: true },
-                { nome: 'Regras Sorteio Final de Ano',      cond: true },
-                { nome: 'Termo de Confidencialidade',       cond: true },
+                { nome: 'Regras Sorteio Final de Ano', cond: true },
+                { nome: 'Termo de Confidencialidade', cond: true },
             ];
             autoGeradores = LEGACY_MAP
                 .filter(m => m.cond)
@@ -9052,7 +9052,7 @@ window.renderContratosAvulso = async function(container, searchTerm = '') {
         const dropdownGeradores = geradoresElegiveis.filter(g => {
             if (!g.visibilidade_regra) return true; // sem regra = aparece sempre
             let regra = {};
-            try { regra = JSON.parse(g.visibilidade_regra); } catch(e) {}
+            try { regra = JSON.parse(g.visibilidade_regra); } catch (e) { }
             // Se dropdown_todos = false e não é auto-visível para este colab, não aparece no dropdown
             if (regra.dropdown_todos === false && !window._avaliarRegraGerador(g, c, deptNome)) return false;
             return true;
@@ -9088,16 +9088,16 @@ window.renderContratosAvulso = async function(container, searchTerm = '') {
 
         if (searchTerm) {
             const st = searchTerm.toLowerCase();
-            allExistingDocs = allExistingDocs.filter(d => (d.document_type||'').toLowerCase().includes(st) || (d.file_name||'').toLowerCase().includes(st));
-            autoGeradores = autoGeradores.filter(g => (g.nome||'').toLowerCase().includes(st));
+            allExistingDocs = allExistingDocs.filter(d => (d.document_type || '').toLowerCase().includes(st) || (d.file_name || '').toLowerCase().includes(st));
+            autoGeradores = autoGeradores.filter(g => (g.nome || '').toLowerCase().includes(st));
         }
-        
-        const _normFR = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
-        const fichaRegistroDoc = docs.find(d => 
+
+        const _normFR = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const fichaRegistroDoc = docs.find(d =>
             (d.tab_name === '01_FICHA_CADASTRAL' || d.tab_name === 'CONTRATOS_AVULSOS') &&
             (_normFR(d.document_type).includes('ficha de registro') || _normFR(d.document_type).includes('ficha cadastral'))
         );
-        
+
         if (fichaRegistroDoc && !allExistingDocs.some(d => d.id === fichaRegistroDoc.id)) {
             allExistingDocs.push(fichaRegistroDoc);
         }
@@ -9114,7 +9114,7 @@ window.renderContratosAvulso = async function(container, searchTerm = '') {
             const docMatch = _findDocForGerador(g);
             if (!docMatch) {
                 // Gerador pendente: renderiza a linha de perfil aguardando geração
-                const escNome = (g.nome||'').replace(/'/g,"\\'").replace(/"/g, "&quot;");
+                const escNome = (g.nome || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                 combinedHtml += `
                 <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #c026d3; border-radius:8px; background:#fdf4ff; gap:0.75rem;">
                     <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
@@ -9181,7 +9181,7 @@ window.renderContratosAvulso = async function(container, searchTerm = '') {
 
         `; // fim do innerHTML
 
-    } catch(err) {
+    } catch (err) {
         container.innerHTML = `<div class="alert alert-danger"><i class="ph ph-warning"></i> Erro: ${err.message}</div>`;
     }
 };
@@ -9193,7 +9193,7 @@ window._syncContratosRunning = false;
 
 // Helper: sincroniza o status de documentos Pendentes no Assinafy
 // showFeedback=true => mostra toast ao concluir; false => silencioso
-window.sincronizarStatusAssinaturas = async function(showFeedback) {
+window.sincronizarStatusAssinaturas = async function (showFeedback) {
     if (!viewedColaborador) return;
     // Evita execuções concorrentes (loop de reload)
     if (window._syncContratosRunning) return;
@@ -9240,7 +9240,7 @@ window.sincronizarStatusAssinaturas = async function(showFeedback) {
                 });
                 const data = await res.json().catch(() => ({}));
                 if (res.ok && (data.status_novo === 'Assinado' || data.sucesso)) atualizado++;
-            } catch(e) { /* ignora erros individuais */ }
+            } catch (e) { /* ignora erros individuais */ }
         }
 
         // Só recarrega a lista se algum status mudou para Assinado
@@ -9256,14 +9256,14 @@ window.sincronizarStatusAssinaturas = async function(showFeedback) {
                 : `Verificado — ${pendentes.length} documento(s) ainda aguardando assinatura.`;
             showToast(msg, atualizado > 0 ? 'success' : 'info');
         }
-    } catch(e) {
+    } catch (e) {
         if (showFeedback && typeof showToast !== 'undefined') showToast('Erro ao verificar: ' + e.message, 'error');
     } finally {
         window._syncContratosRunning = false; // sempre libera o guard
     }
 };
 
-window.toggleAcaoContratoPerfil = function(geradorId, exige, geradorNome) {
+window.toggleAcaoContratoPerfil = function (geradorId, exige, geradorNome) {
     const actionDiv = document.getElementById('pg-action-' + geradorId);
     if (!actionDiv) return;
     if (exige === 'nao') {
@@ -9283,10 +9283,10 @@ window.toggleAcaoContratoPerfil = function(geradorId, exige, geradorNome) {
     }
 };
 
-window.uploadContratoPerfilNaoAssinado = async function(input, geradorNome) {
+window.uploadContratoPerfilNaoAssinado = async function (input, geradorNome) {
     const file = input.files[0];
     if (!file || !viewedColaborador) return;
-    Swal.fire({ title: 'Anexando...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+    Swal.fire({ title: 'Anexando...', allowOutsideClick: false, didOpen: function () { Swal.showLoading(); } });
 
     var formData = new FormData();
     formData.append('file', file);
@@ -9302,16 +9302,16 @@ window.uploadContratoPerfilNaoAssinado = async function(input, geradorNome) {
             headers: { 'Authorization': 'Bearer ' + currentToken },
             body: formData
         });
-        var data = await res.json().catch(function() { return {}; });
+        var data = await res.json().catch(function () { return {}; });
         if (!res.ok) throw new Error(data.error || 'Falha ao salvar PDF');
-        Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento anexado!', 'success');
+        Swal.close(); if (typeof showToast !== 'undefined') showToast('Documento anexado!', 'success');
         await window._reloadContratosContainer();
-    } catch(e) {
+    } catch (e) {
         Swal.fire('Erro', e.message, 'error');
     }
 };
 
-window.previewContratoPerfilAssinado = async function(geradorId, geradorNome) {
+window.previewContratoPerfilAssinado = async function (geradorId, geradorNome) {
     Swal.fire({ title: 'Gerando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
         const res = await fetch(`${API_URL}/geradores/${geradorId}/gerar`, {
@@ -9343,12 +9343,12 @@ window.previewContratoPerfilAssinado = async function(geradorId, geradorNome) {
             }
         }, 150);
 
-    } catch(e) {
+    } catch (e) {
         Swal.fire('Erro', e.message, 'error');
     }
 };
 
-window.fecharPreviewEHabitarEnvio = function() {
+window.fecharPreviewEHabitarEnvio = function () {
     const elModal = document.getElementById('modal-preview-doc') || document.getElementById('doc-modal');
     if (elModal) elModal.style.display = 'none';
 
@@ -9368,7 +9368,7 @@ window.fecharPreviewEHabitarEnvio = function() {
 
 // Anexar ao Prontuário direto do preview (com assinatura pendente)
 // Salva o PDF como 'Pendente', fecha o preview e mostra o botão "Enviar para Assinatura"
-window.anexarAoProntuarioPerfil = async function(btn) {
+window.anexarAoProntuarioPerfil = async function (btn) {
     const geradorId = window._perfilGeradorIdCtx;
     const geradorNome = window._perfilGeradorNomeCtx;
     if (!geradorId || !viewedColaborador) return;
@@ -9379,7 +9379,7 @@ window.anexarAoProntuarioPerfil = async function(btn) {
 
     try {
         const previewContent = document.querySelector('#modal-preview-doc #preview-doc-body') ||
-                               document.querySelector('#doc-modal .preview-content');
+            document.querySelector('#doc-modal .preview-content');
         if (!previewContent) throw new Error('Conteúdo do preview não encontrado. Feche e gere novamente.');
 
         const pdfBlob = await window.gerarPDFBlob(previewContent);
@@ -9416,7 +9416,7 @@ window.anexarAoProntuarioPerfil = async function(btn) {
 
         await window._reloadContratosContainer();
 
-    } catch(e) {
+    } catch (e) {
         Swal.fire('Erro', e.message, 'error');
         btn.innerHTML = origHtml;
         btn.disabled = false;
@@ -9426,11 +9426,11 @@ window.anexarAoProntuarioPerfil = async function(btn) {
 // Enviar para assinatura um doc já salvo no banco (Pendente, sem assinafy_id)
 // docId pode ser o document_id real (quando vindo de anexarAoProntuarioPerfil)
 // ou o gerador_id como fallback (fluxo antigo)
-window.enviarAssinaturaDocSalvo = async function(docId, geradorNome) {
+window.enviarAssinaturaDocSalvo = async function (docId, geradorNome) {
     const colabId = viewedColaborador?.id;
     if (!colabId || !docId) return;
     const btn = document.querySelector(`[onclick*="enviarAssinaturaDocSalvo(${docId},"]`) ||
-                document.querySelector(`[onclick*="enviarAssinaturaDocSalvo(${docId}, "]`);
+        document.querySelector(`[onclick*="enviarAssinaturaDocSalvo(${docId}, "]`);
     const origHtml = btn ? btn.innerHTML : '';
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...'; }
     try {
@@ -9447,7 +9447,7 @@ window.enviarAssinaturaDocSalvo = async function(docId, geradorNome) {
         if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
         // Recarrega para refletir o novo status do banco (assinafy_id preenchido → estado "Aguardando")
         await window._reloadContratosContainer();
-    } catch(e) {
+    } catch (e) {
         Swal.fire('Erro ao enviar', e.message, 'error');
         if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
     }
@@ -9455,7 +9455,7 @@ window.enviarAssinaturaDocSalvo = async function(docId, geradorNome) {
 
 
 
-window.enviarAssinaturaPerfilDireto = async function(event) {
+window.enviarAssinaturaPerfilDireto = async function (event) {
     const geradorId = window._perfilGeradorIdCtx;
     const geradorNome = window._perfilGeradorNomeCtx;
     if (!geradorId) return;
@@ -9475,7 +9475,7 @@ window.enviarAssinaturaPerfilDireto = async function(event) {
 
         const pdfBlob = await window.gerarPDFBlob(previewContent);
         const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-� _-]/g, '');
-        const colabId  = viewedColaborador?.id || '';
+        const colabId = viewedColaborador?.id || '';
         const colabNome = (viewedColaborador?.nome_completo || colabId).toString();
 
         const formData = new FormData();
@@ -9505,7 +9505,7 @@ window.enviarAssinaturaPerfilDireto = async function(event) {
         Swal.fire({ title: 'Enviado com sucesso!', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success' });
 
         if (targetBtn && targetBtn.parentElement) {
-            const dtStr = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }).replace(',', ' -');
+            const dtStr = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', ' -');
             const txt = document.getElementById('perfil-status-txt-' + geradorId);
             if (txt) {
                 txt.innerHTML = '<div style="display:flex; flex-direction:column; gap:2px;"><span style="color:#2563eb;font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> Enviado para Assinatura</span><span style="font-size:0.75rem;color:#64748b;margin-left:22px;">' + dtStr + '</span></div>';
@@ -9515,13 +9515,13 @@ window.enviarAssinaturaPerfilDireto = async function(event) {
 
         await window._reloadContratosContainer();
 
-    } catch(e) {
+    } catch (e) {
         Swal.fire('Erro ao enviar', e.message, 'error');
         if (targetBtn) { targetBtn.innerHTML = originalHtml; targetBtn.disabled = false; }
     }
 };
 
-window.uploadContratoExterno = async function(input) {
+window.uploadContratoExterno = async function (input) {
     const file = input.files[0];
     if (!file || !viewedColaborador) return;
     input.value = '';
@@ -9552,12 +9552,12 @@ window.uploadContratoExterno = async function(input) {
         cancelButtonText: 'Cancelar',
         confirmButtonColor: '#2563eb',
         showLoaderOnConfirm: true,
-        allowOutsideClick: function() { return !Swal.isLoading(); },
-        didOpen: function() {
+        allowOutsideClick: function () { return !Swal.isLoading(); },
+        didOpen: function () {
             var dtInput = document.getElementById('swal-doctype');
             if (dtInput) dtInput.value = file.name.replace(/\.pdf$/i, '').substring(0, 60);
         },
-        preConfirm: async function() {
+        preConfirm: async function () {
             var docType = (document.getElementById('swal-doctype') || {}).value;
             if (docType) docType = docType.trim();
             if (!docType) { Swal.showValidationMessage('Informe o nome do documento'); return false; }
@@ -9578,28 +9578,28 @@ window.uploadContratoExterno = async function(input) {
                     headers: { 'Authorization': 'Bearer ' + currentToken },
                     body: formData
                 });
-                var data = await res.json().catch(function() { return {}; });
+                var data = await res.json().catch(function () { return {}; });
                 if (!res.ok) throw new Error(data.error || 'Falha ao anexar PDF');
 
                 if (reqAssinatura === 'sim') {
                     const assRes = await fetch(API_URL + '/assinafy/upload', {
                         method: 'POST',
-                        headers: { 
+                        headers: {
                             'Authorization': 'Bearer ' + currentToken,
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({ document_id: data.id, colaborador_id: viewedColaborador.id })
                     });
-                    const assData = await assRes.json().catch(e=>({}));
+                    const assData = await assRes.json().catch(e => ({}));
                     if (!assRes.ok) throw new Error(assData.error || 'Falha ao enviar para o Assinafy');
-                    
+
                     const dt = new Date();
                     const horaEnvio = dt.toLocaleDateString() + ' às ' + dt.toLocaleTimeString();
                     return { action: 'assinatura', horaEnvio: horaEnvio };
                 } else {
                     return { action: 'anexado' };
                 }
-            } catch(err) {
+            } catch (err) {
                 Swal.showValidationMessage(err.message);
                 return false;
             }
@@ -9618,7 +9618,7 @@ window.uploadContratoExterno = async function(input) {
 };
 
 // Upload com tipo de documento pré-definido (ex: Ficha de Registro, NR1 - não gerados por template)
-window.uploadContratoExternoComTipo = async function(input, docType, tabName) {
+window.uploadContratoExternoComTipo = async function (input, docType, tabName) {
     const file = input.files[0];
     if (!file || !viewedColaborador) return;
     input.value = '';
@@ -9639,7 +9639,7 @@ window.uploadContratoExternoComTipo = async function(input, docType, tabName) {
             headers: { 'Authorization': 'Bearer ' + currentToken },
             body: formData
         });
-        var data = await res.json().catch(function() { return {}; });
+        var data = await res.json().catch(function () { return {}; });
         if (!res.ok) throw new Error(data.error || 'Falha ao anexar PDF');
         if (typeof showToast !== 'undefined') showToast(docType + ' anexado com sucesso!', 'success');
         // Recarregar a aba correta após upload
@@ -9651,19 +9651,19 @@ window.uploadContratoExternoComTipo = async function(input, docType, tabName) {
         } else {
             await window._reloadContratosContainer();
         }
-    } catch(err) {
+    } catch (err) {
         alert('Erro: ' + err.message);
     }
 };
 
-window.openContratoViewerById = function(docId, nomeDoc) {
+window.openContratoViewerById = function (docId, nomeDoc) {
     var token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
     if (!token) { alert('Sessão expirada. Faça login novamente.'); return; }
     var pdfUrl = API_URL + '/documentos/view/' + docId + '?token=' + encodeURIComponent(token);
     window.openContratoViewerPopup(pdfUrl, nomeDoc);
 };
 
-window.openContratoViewerPopup = function(pdfUrl, nomeDoc) {
+window.openContratoViewerPopup = function (pdfUrl, nomeDoc) {
     if (!pdfUrl || pdfUrl.endsWith('undefined')) { alert('URL do documento não encontrada.'); return; }
     var token = window.currentToken || localStorage.getItem('erp_token') || '';
     var finalUrl = pdfUrl;
@@ -9705,7 +9705,7 @@ window.openContratoViewerPopup = function(pdfUrl, nomeDoc) {
     var closeBtn = document.createElement('button');
     closeBtn.style.cssText = 'background:#ef4444;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.1rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;';
     closeBtn.innerHTML = '<i class="ph ph-x"></i> Fechar';
-    closeBtn.onclick = function() { overlay.remove(); };
+    closeBtn.onclick = function () { overlay.remove(); };
     right.appendChild(dlBtn); right.appendChild(closeBtn);
     header.appendChild(left); header.appendChild(right);
 
@@ -9718,22 +9718,22 @@ window.openContratoViewerPopup = function(pdfUrl, nomeDoc) {
     var iframe = document.createElement('iframe');
     iframe.src = finalUrl;
     iframe.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;border:none;z-index:2;';
-    iframe.onload = function() { var l = document.getElementById('cv-fs-loading'); if (l) l.style.display = 'none'; };
+    iframe.onload = function () { var l = document.getElementById('cv-fs-loading'); if (l) l.style.display = 'none'; };
     content.appendChild(loading); content.appendChild(iframe);
     overlay.appendChild(header); overlay.appendChild(content);
     document.body.appendChild(overlay);
 
-    var onEsc = function(e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onEsc); } };
+    var onEsc = function (e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onEsc); } };
     document.addEventListener('keydown', onEsc);
 };
 
-window.reenviarAssinaturaContrato = async function(docId, ev) {
-    if(ev) ev.stopPropagation();
-    if(!confirm('Confirmar envio deste documento para assinatura digital?')) return;
+window.reenviarAssinaturaContrato = async function (docId, ev) {
+    if (ev) ev.stopPropagation();
+    if (!confirm('Confirmar envio deste documento para assinatura digital?')) return;
     let trBtn = null, ogHtml = '';
     try {
         trBtn = ev ? ev.currentTarget : null;
-        if(trBtn) { ogHtml = trBtn.innerHTML; trBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Aguarde...'; trBtn.disabled = true; }
+        if (trBtn) { ogHtml = trBtn.innerHTML; trBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Aguarde...'; trBtn.disabled = true; }
 
         let targetColabId = (viewedColaborador && viewedColaborador.id) ? viewedColaborador.id : window.lastColaboradorId;
         if (!targetColabId) throw new Error('Não foi possível identificar o colaborador atual.');
@@ -9744,21 +9744,21 @@ window.reenviarAssinaturaContrato = async function(docId, ev) {
             body: JSON.stringify({ document_id: Number(docId), colaborador_id: targetColabId })
         });
         const data = await res.json().catch(() => ({}));
-        if(trBtn) { trBtn.innerHTML = ogHtml; trBtn.disabled = false; }
-        if(res.ok) {
+        if (trBtn) { trBtn.innerHTML = ogHtml; trBtn.disabled = false; }
+        if (res.ok) {
             if (typeof showToast !== 'undefined') showToast('E-mail de assinatura enviado ao colaborador!', 'success');
             await window._reloadContratosContainer();
         } else {
             throw new Error(data.error || 'Erro ao reenviar assinatura');
         }
-    } catch(err) {
-        if(trBtn) { trBtn.innerHTML = ogHtml; trBtn.disabled = false; }
+    } catch (err) {
+        if (trBtn) { trBtn.innerHTML = ogHtml; trBtn.disabled = false; }
         if (typeof showToast !== 'undefined') showToast(err.message, 'error');
         else alert(err.message);
     }
 };
 
-window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
+window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
     docs = Array.isArray(docs) ? docs : [];
     if (docs.length === 0) {
         return '';
@@ -9787,7 +9787,7 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
             if (!str) return '';
             const d = new Date(str.includes('T') ? str : str + 'Z');
             if (isNaN(d.getTime())) return '';
-            return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} - ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} - ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         };
 
         const _uploadStr = formatDate(doc.upload_date || doc.created_at);
@@ -9815,7 +9815,7 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
         } else if (isPronto) {
             // Documento salvo localmente (Pendente sem assinafy_id) — aguardando envio ao Assinafy
             const gerDocId = doc.gerador_id || '';
-            const escNomeDoc = (doc.document_type || '').replace(/'/g,"\\'");
+            const escNomeDoc = (doc.document_type || '').replace(/'/g, "\\'");
             leftIconMarkup = `<div data-role="status-icon" style="display:flex;align-items:center;justify-content:center;width:24px;color:#7c3aed;"><i class="ph ph-paperclip" style="font-size:1.4rem;"></i></div>`;
             statusBadge = `<span data-role="status-badge" style="color:#7c3aed;font-size:0.75rem;font-weight:600;">Documento salvo — clique em Enviar para Assinatura${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
             sendBtn = `<button type="button" onclick="window.enviarDocumentoAvulsoAssinatura('${doc.id}', this)" style="background:#0056b3;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura</button>`;
@@ -9825,7 +9825,7 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
         } else {
             leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
             statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
-            const escNome = _docName.replace(/'/g,"\\'");
+            const escNome = _docName.replace(/'/g, "\\'");
             actionUX = `
                 <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #fde047; padding-left: 1rem; margin-right:5px;">
                     <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
@@ -9867,7 +9867,7 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
 };
 
 // Excluir contrato com proteção por senha (funciona para assinados e não-assinados)
-window.excluirContratoComSenha = async function(docId, tipo) {
+window.excluirContratoComSenha = async function (docId, tipo) {
     const senha = prompt('⚠️ Esta ação é irreversível.\n\nDigite a senha para excluir o contrato:');
     if (senha === null) return; // cancelado
     if (senha !== 'EXc2499!') {
@@ -9898,12 +9898,12 @@ window.excluirContratoComSenha = async function(docId, tipo) {
             const d = await res.json().catch(() => ({}));
             alert('Erro ao excluir: ' + (d.error || res.statusText));
         }
-    } catch(e) {
+    } catch (e) {
         alert('Erro ao excluir: ' + e.message);
     }
 };
 
-window.toggleAcaoDocumentoAvulso = function(docId, exige, docType) {
+window.toggleAcaoDocumentoAvulso = function (docId, exige, docType) {
     const actionDiv = document.getElementById('pg-action-doc-' + docId);
     if (!actionDiv) return;
     if (exige === 'nao') {
@@ -9923,7 +9923,7 @@ window.toggleAcaoDocumentoAvulso = function(docId, exige, docType) {
     }
 };
 
-window.enviarDocumentoAvulsoAssinatura = async function(docId, btn) {
+window.enviarDocumentoAvulsoAssinatura = async function (docId, btn) {
     if (!docId || !viewedColaborador) return;
     const oldHtml = btn ? btn.innerHTML : null;
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...'; }
@@ -9939,7 +9939,7 @@ window.enviarDocumentoAvulsoAssinatura = async function(docId, btn) {
 
             // Usa os dados da resposta para atualizar a UI imediatamente (sem depender do reload)
             const sentAt = data.assinafy_sent_at ? new Date(data.assinafy_sent_at) : new Date();
-            const fmt = `${String(sentAt.getDate()).padStart(2,'0')}/${String(sentAt.getMonth()+1).padStart(2,'0')}/${sentAt.getFullYear()} - ${String(sentAt.getHours()).padStart(2,'0')}:${String(sentAt.getMinutes()).padStart(2,'0')}`;
+            const fmt = `${String(sentAt.getDate()).padStart(2, '0')}/${String(sentAt.getMonth() + 1).padStart(2, '0')}/${sentAt.getFullYear()} - ${String(sentAt.getHours()).padStart(2, '0')}:${String(sentAt.getMinutes()).padStart(2, '0')}`;
 
             // Atualiza o card diretamente no DOM usando data-role (imune à normalização de estilos do browser)
             const card = btn ? btn.closest('.doc-check-item') : null;
@@ -9963,7 +9963,7 @@ window.enviarDocumentoAvulsoAssinatura = async function(docId, btn) {
                 if (btn && btn.parentElement) {
                     const reenviarBtn = document.createElement('button');
                     reenviarBtn.type = 'button';
-                    reenviarBtn.onclick = function(e) { window.reenviarAssinaturaContrato(docId, e); };
+                    reenviarBtn.onclick = function (e) { window.reenviarAssinaturaContrato(docId, e); };
                     reenviarBtn.style.cssText = 'background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;';
                     reenviarBtn.innerHTML = '<i class="ph ph-pen"></i> Reenviar para Assinatura';
                     btn.parentElement.replaceChild(reenviarBtn, btn);
@@ -9976,13 +9976,13 @@ window.enviarDocumentoAvulsoAssinatura = async function(docId, btn) {
             Swal.fire('Atenção', 'Erro no envio para assinar: ' + (data.error || 'Erro desconhecido'), 'warning');
             if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
         }
-    } catch(err) {
+    } catch (err) {
         Swal.fire('Erro', err.message, 'error');
         if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
     }
 };
 
-window.uploadContratoAvulsoSobrescrever = async function(input, docId, docType) {
+window.uploadContratoAvulsoSobrescrever = async function (input, docId, docType) {
     const file = input.files[0];
     if (!file || !viewedColaborador) return;
     Swal.fire({ title: 'Sobrescrevendo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
@@ -10012,7 +10012,7 @@ window.uploadContratoAvulsoSobrescrever = async function(input, docId, docType) 
 };
 
 // === MODAL GERAR NOVO CONTRATO ===
-window.abrirModalGerarContrato = function() {
+window.abrirModalGerarContrato = function () {
     const geradores = window._caAvailableGeradores || [];
     document.getElementById('modal-contrato-avulso')?.remove();
     const overlay = document.createElement('div');
@@ -10079,14 +10079,14 @@ window.abrirModalGerarContrato = function() {
     const _geradores = window._caAvailableGeradores || [];
     window._geradorItems = _geradores.map(g => ({ id: String(g.id), nome: g.nome || '' }));
 
-    window._openGeradorDropdown = function() {
+    window._openGeradorDropdown = function () {
         window._filterGeradorDropdown(document.getElementById('ca-gerador-search')?.value || '');
     };
 
-    window._filterGeradorDropdown = function(q) {
+    window._filterGeradorDropdown = function (q) {
         const dd = document.getElementById('ca-gerador-dropdown');
         if (!dd) return;
-        const filtered = (window._geradorItems || []).filter(g => g.nome.toLowerCase().includes((q||'').toLowerCase()));
+        const filtered = (window._geradorItems || []).filter(g => g.nome.toLowerCase().includes((q || '').toLowerCase()));
         if (filtered.length === 0) {
             dd.innerHTML = '<div style="padding:0.75rem 1rem;font-size:0.88rem;color:#94a3b8;">Nenhum resultado.</div>';
         } else {
@@ -10099,13 +10099,13 @@ window.abrirModalGerarContrato = function() {
         dd.style.display = 'block';
     };
 
-    window._selectGerador = function(id, nome) {
+    window._selectGerador = function (id, nome) {
         const search = document.getElementById('ca-gerador-search');
         const hidden = document.getElementById('ca-gerador-select');
-        const dd     = document.getElementById('ca-gerador-dropdown');
+        const dd = document.getElementById('ca-gerador-dropdown');
         if (search) search.value = nome;
         if (hidden) hidden.value = id;
-        if (dd)     dd.style.display = 'none';
+        if (dd) dd.style.display = 'none';
 
         const extras = document.getElementById('ca-extra-fields-desconto');
         if (extras) {
@@ -10115,19 +10115,19 @@ window.abrirModalGerarContrato = function() {
                 document.getElementById('ca-desconto-descricao').value = '';
                 document.getElementById('ca-desconto-valor').value = '';
                 document.getElementById('ca-desconto-parcelas').value = '1';
-                if(window.calcParcelaDescontoCA) window.calcParcelaDescontoCA();
+                if (window.calcParcelaDescontoCA) window.calcParcelaDescontoCA();
             }
         }
     };
 
-    window.calcParcelaDescontoCA = function() {
+    window.calcParcelaDescontoCA = function () {
         let valStr = document.getElementById('ca-desconto-valor')?.value || '0';
         valStr = valStr.replace(',', '.');
         const valor = parseFloat(valStr) || 0;
         const parcelas = parseInt(document.getElementById('ca-desconto-parcelas')?.value) || 1;
         const vp = (valor / parcelas).toFixed(2).replace('.', ',');
         const vpEl = document.getElementById('ca-desconto-valor-parcelamento');
-        if(vpEl) vpEl.innerText = 'Valor de cada parcela: R$ ' + vp;
+        if (vpEl) vpEl.innerText = 'Valor de cada parcela: R$ ' + vp;
     };
 
     setTimeout(() => {
@@ -10144,7 +10144,7 @@ window.abrirModalGerarContrato = function() {
     }, 100);
 };
 
-window.gerarContratoAvulso = async function() {
+window.gerarContratoAvulso = async function () {
     const hidden = document.getElementById('ca-gerador-select');
     const geradorId = hidden ? hidden.value : '';
     if (!geradorId) return alert('Selecione um documento.');
@@ -10191,7 +10191,7 @@ window.gerarContratoAvulso = async function() {
             if (previewBtnSalvar) {
                 previewBtnSalvar.style.display = 'flex';
                 previewBtnSalvar.innerHTML = '<i class="ph ph-paperclip"></i> Anexar ao Prontuário';
-                previewBtnSalvar.onclick = async function() {
+                previewBtnSalvar.onclick = async function () {
                     const oldHtml = this.innerHTML;
                     this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Anexando...';
                     this.disabled = true;
@@ -10215,14 +10215,14 @@ window.gerarContratoAvulso = async function() {
 
                         // Fechar modais
                         const modalPrev = document.getElementById('modal-preview-doc');
-                        const docModal  = document.getElementById('doc-modal');
+                        const docModal = document.getElementById('doc-modal');
                         if (modalPrev) modalPrev.style.display = 'none';
-                        if (docModal)  docModal.style.display  = 'none';
+                        if (docModal) docModal.style.display = 'none';
 
                         if (typeof showToast !== 'undefined') showToast('Documento anexado com sucesso!', 'success');
 
                         await window._reloadContratosContainer();
-                    } catch(err) {
+                    } catch (err) {
                         alert('Erro ao anexar: ' + err.message);
                     } finally {
                         this.innerHTML = oldHtml;
@@ -10232,7 +10232,7 @@ window.gerarContratoAvulso = async function() {
             }
         }, 200);
 
-    } catch(err) {
+    } catch (err) {
         btn.innerHTML = '<i class="ph ph-file-arrow-down"></i> Visualizar e Salvar';
         btn.disabled = false;
         const msg = document.getElementById('ca-msg');
@@ -10241,7 +10241,7 @@ window.gerarContratoAvulso = async function() {
 };
 
 // =======
-window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
+window.previewAdmissaoDoc = async function (geradorId, colabId, evt) {
     if (evt) { evt.preventDefault(); evt.stopPropagation(); }
 
     if (!colabId) { alert('Colaborador não identificado.'); return; }
@@ -10268,24 +10268,24 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
             const btnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
             if (!btnSalvar) return;
             btnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar e Configurar Envio';
-            btnSalvar.onclick = async function() {
+            btnSalvar.onclick = async function () {
                 const oldHtml = this.innerHTML;
                 this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Processando...';
                 this.disabled = true;
                 try {
                     const previewContent = document.querySelector('#modal-preview-doc .preview-content') ||
-                                          document.querySelector('#modal-preview-doc #preview-doc-body');
+                        document.querySelector('#modal-preview-doc #preview-doc-body');
                     if (!previewContent) throw new Error('Conteúdo do preview não encontrado');
-                    
+
                     const pdfBlob = await window.gerarPDFBlob(previewContent);
                     const safeName = (data.gerador_nome || 'documento_admissao').replace(/[^a-zA-Z0-9À-� _-]/g, '');
                     const cNome = (data.colaborador?.NOME_COMPLETO || colabId).toString();
-                    
+
                     const formData = new FormData();
                     formData.append('arquivo', pdfBlob, `${safeName}_${cNome}.pdf`);
                     formData.append('tab_name', 'CONTRATOS');
                     formData.append('document_type', data.gerador_nome);
-                    
+
                     const r = await fetch(`${API_URL}/documentos`, {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${currentToken}` },
@@ -10294,7 +10294,7 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
                     if (!r.ok) throw new Error('Falha ao salvar PDF');
 
                     document.getElementById('modal-preview-doc').style.display = 'none';
-                    
+
                     const sendPrompt = await Swal.fire({
                         title: 'Documento Salvo',
                         text: 'Deseja enviar este contrato para assinatura digital via Assinafy?',
@@ -10309,17 +10309,17 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
                             colaborador_id: colabId,
                             geradores_ids: [parseInt(geradorId)]
                         });
-                        if(typeof showToast !== 'undefined') showToast('Documento enviado para assinatura.', 'success');
+                        if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura.', 'success');
                     } else {
                         showToast('Documento de admissão salvo na pasta do colaborador.', 'success');
                     }
-                    
+
                     // Recarrega workflow se estiver aberto para atualizar status do item
                     if (document.getElementById('admissao-workflow-overlay')) {
                         window.initAdmissaoWorkflow(colabId, 2, true);
                     }
-                    
-                } catch(err) {
+
+                } catch (err) {
                     this.innerHTML = oldHtml;
                     this.disabled = false;
                     Swal.fire('Erro', err.message, 'error');
@@ -10327,20 +10327,20 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
             };
         }, 150);
 
-    } catch(e) {
+    } catch (e) {
         alert('Erro ao carregar pré-visualização: ' + e.message);
     }
 };
 
-window.rodarDiagnosticoAssinafy = async function() {
+window.rodarDiagnosticoAssinafy = async function () {
     if (!viewedColaborador) { alert('Nenhum colaborador selecionado.'); return; }
     try {
         const diag = await apiGet(`/admissao-assinaturas/diagnostico/${viewedColaborador.id}`);
         console.log("=== DIAGNOSTICO ===", diag);
-        
+
         let msg = "ID do Colaborador: " + viewedColaborador.id + "\n\n";
         msg += "=== DOCUMENTOS DA ADMISSAO VS ASSINAFY ===\n\n";
-        
+
         if (diag.assinafy_api_status) {
             diag.assinafy_api_status.forEach(statusDoc => {
                 msg += `- ${statusDoc.nome}:\n`;
@@ -10348,28 +10348,28 @@ window.rodarDiagnosticoAssinafy = async function() {
                 msg += `  Status Real Assinafy: ${statusDoc.status_assinafy_api}\n\n`;
             });
         }
-        
+
         alert("Diagnóstico completo! A tela seguinte mostrará o status exato.");
         alert(msg);
-    } catch(e) {
+    } catch (e) {
         alert("Erro no diagnostico: " + e.message);
     }
 }
 
 // ===== PASSO 2: ENVIO EM LOTE PARA ASSINAFY =====
-window.sendAdmissaoSignatures = async function(listId = 'admissao-signature-list', btnId = 'btn-enviar-assinaturas') {
+window.sendAdmissaoSignatures = async function (listId = 'admissao-signature-list', btnId = 'btn-enviar-assinaturas') {
     if (!viewedColaborador) { alert('Nenhum colaborador selecionado.'); return; }
 
     // Buscar checkboxes somente dentro do container correto
     const container = document.getElementById(listId);
     if (!container) { alert('Lista de documentos não encontrada.'); return; }
-    
+
     const checks = container.querySelectorAll('input[type="checkbox"]:checked');
     if (checks.length === 0) { alert('Selecione ao menos um documento para enviar.'); return; }
 
     // Dedup: garantir que não há IDs duplicados
     const geradorIds = [...new Set(Array.from(checks).map(c => Number(c.value)))];
-    
+
     if (!confirm(`Deseja enviar ${geradorIds.length} documento(s) para assinatura digital via Assinafy?`)) return;
 
     const btn = document.getElementById(btnId);
@@ -10382,7 +10382,7 @@ window.sendAdmissaoSignatures = async function(listId = 'admissao-signature-list
         });
 
         const erros = (res.resultados || []).filter(r => r.erro);
-        const ok    = (res.resultados || []).filter(r => r.ok);
+        const ok = (res.resultados || []).filter(r => r.ok);
 
         let msg = `✅ ${ok.length} documento(s) enviado(s) para assinatura no e-mail do colaborador.`;
         if (erros.length > 0) msg += `\n\n⚠️ ${erros.length} erro(s):\n` + erros.map(e => `• ${e.nome || e.id}: ${e.erro}`).join('\n');
@@ -10394,7 +10394,7 @@ window.sendAdmissaoSignatures = async function(listId = 'admissao-signature-list
         } else {
             await window.initAdmissaoWorkflow(viewedColaborador.id, 2, true);
         }
-    } catch(e) {
+    } catch (e) {
         alert('Erro ao enviar documentos: ' + e.message);
     } finally {
         if (btn) { btn.disabled = false; btn.innerHTML = `<i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura`; }
@@ -10402,7 +10402,7 @@ window.sendAdmissaoSignatures = async function(listId = 'admissao-signature-list
 };
 
 // ===== POPUP DE PDF ASSINADO =====
-window.openSignedDocPopup = function(assId, nomeDoc, evt) {
+window.openSignedDocPopup = function (assId, nomeDoc, evt) {
     if (evt) { evt.preventDefault(); evt.stopPropagation(); }
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
 
@@ -10451,11 +10451,11 @@ window.openSignedDocPopup = function(assId, nomeDoc, evt) {
         </div>`;
 
     // Clicar fora fecha
-    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
 };
 
 // Função para visualizar documentos assinados via tabela 'documentos' (ASO, EPI, Contratos)
-window.openSignedDocPopupDocumento = function(docId, nomeDoc) {
+window.openSignedDocPopupDocumento = function (docId, nomeDoc) {
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     const pdfUrl = `${API_URL}/documentos/view/${docId}?token=${token}`;
     const downloadUrl = `${API_URL}/documentos/download/${docId}?token=${token}`;
@@ -10502,7 +10502,7 @@ window.openSignedDocPopupDocumento = function(docId, nomeDoc) {
 
 // ===== INIT ADMISSÃO WORKFLOW =====
 // Exibe o painel correto (botão "Iniciar" ou stepper) dependendo do status do colaborador
-window.initAdmissaoWorkflow = async function(colabId, step, silent) {
+window.initAdmissaoWorkflow = async function (colabId, step, silent) {
     // Se colabId vazio = reset (chamado por selectAdmissaoColab com id vazio)
     if (!colabId) {
         window.resetAdmissao();
@@ -10515,7 +10515,7 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
         try {
             const cols = await apiGet('/colaboradores');
             colab = cols.find(c => String(c.id) === String(colabId));
-        } catch(e) { colab = viewedColaborador; }
+        } catch (e) { colab = viewedColaborador; }
 
         if (!colab) { if (!silent) console.warn('[Admissao] Colaborador não encontrado:', colabId); return; }
 
@@ -10536,44 +10536,44 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
 
             // Resolve Auto Geradores exactly like Prontuário Digital unified Contratos Tab
             const empDeptId = colab.departamento;
-            const deptObj = (departamentos||[]).find(d => String(d.id) === String(empDeptId) || String(d.nome).trim().toLowerCase() === String(empDeptId).trim().toLowerCase());
+            const deptObj = (departamentos || []).find(d => String(d.id) === String(empDeptId) || String(d.nome).trim().toLowerCase() === String(empDeptId).trim().toLowerCase());
             const deptNome = deptObj ? deptObj.nome : String(empDeptId || '');
 
-            const EXCLUIDOS_FIXOS = ['autorização de desconto em folha de pagamento','autorizacao de desconto em folha de pagamento','autorizar desconto','termo de responsabilidade de chaves'];
+            const EXCLUIDOS_FIXOS = ['autorização de desconto em folha de pagamento', 'autorizacao de desconto em folha de pagamento', 'autorizar desconto', 'termo de responsabilidade de chaves'];
             const isExcluido = (g) => {
                 const nLower = (g.nome || '').toLowerCase().trim();
                 return EXCLUIDOS_FIXOS.includes(nLower) || g.is_sinistro_only || nLower.startsWith('sinistro') || nLower.startsWith('sinistro -');
             };
 
-            const geradoresElegiveis = (geradores||[]).filter(g => !isExcluido(g));
+            const geradoresElegiveis = (geradores || []).filter(g => !isExcluido(g));
             let autoGeradores = geradoresElegiveis.filter(g => window._avaliarRegraGerador && window._avaliarRegraGerador(g, colab, deptNome));
-            
+
             if (geradoresElegiveis.length > 0 && !geradoresElegiveis.some(g => g.visibilidade_regra)) {
                 // Legacy Map Fallback
-                const deNorm = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+                const deNorm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
                 const c = colab;
                 const LEGACY_MAP = [
-                    { nome: 'Termo de NÃO Interesse Terapia',  cond: deNorm(c.terapia_participa) === 'nao' },
-                    { nome: 'Termo de Interesse Terapia',       cond: deNorm(c.terapia_participa) === 'sim' },
-                    { nome: 'Responsabilidade Bilhete Único',   cond: (c.meio_transporte||'').toLowerCase().includes('vt') },
-                    { nome: 'Responsabilidade Celular',         cond: deNorm(c.celular_participa) === 'sim' },
-                    { nome: 'Responsabilidade Chaves',          cond: deNorm(c.chaves_participa) === 'sim' },
-                    { nome: 'Contrato Faculdade',               cond: deNorm(c.faculdade_participa) === 'sim' },
-                    { nome: 'Contrato Academia',                cond: deNorm(c.academia_participa) === 'sim' },
-                    { nome: 'Contrato Intermitente',            cond: deNorm(c.tipo_contrato) === 'intermitente' },
-                    { nome: 'Acordo Individual Benefícios',     cond: true },
-                    { nome: 'Autorização de Uso de Imagem',     cond: true },
-                    { nome: 'Compartilhamento de Dados',        cond: true },
+                    { nome: 'Termo de NÃO Interesse Terapia', cond: deNorm(c.terapia_participa) === 'nao' },
+                    { nome: 'Termo de Interesse Terapia', cond: deNorm(c.terapia_participa) === 'sim' },
+                    { nome: 'Responsabilidade Bilhete Único', cond: (c.meio_transporte || '').toLowerCase().includes('vt') },
+                    { nome: 'Responsabilidade Celular', cond: deNorm(c.celular_participa) === 'sim' },
+                    { nome: 'Responsabilidade Chaves', cond: deNorm(c.chaves_participa) === 'sim' },
+                    { nome: 'Contrato Faculdade', cond: deNorm(c.faculdade_participa) === 'sim' },
+                    { nome: 'Contrato Academia', cond: deNorm(c.academia_participa) === 'sim' },
+                    { nome: 'Contrato Intermitente', cond: deNorm(c.tipo_contrato) === 'intermitente' },
+                    { nome: 'Acordo Individual Benefícios', cond: true },
+                    { nome: 'Autorização de Uso de Imagem', cond: true },
+                    { nome: 'Compartilhamento de Dados', cond: true },
                     { nome: 'Recebimento de Regimento Interno', cond: true },
-                    { nome: 'Regras Sorteio Final de Ano',      cond: true },
-                    { nome: 'Termo de Confidencialidade',       cond: true },
+                    { nome: 'Regras Sorteio Final de Ano', cond: true },
+                    { nome: 'Termo de Confidencialidade', cond: true },
                 ];
                 autoGeradores = LEGACY_MAP.filter(m => m.cond).map(m => geradoresElegiveis.find(g => deNorm(g.nome) === deNorm(m.nome))).filter(Boolean);
             }
             window._admissaoGeradores = autoGeradores;
-        } catch(e) { console.error('Erro ao pré-carregar dependências da admissão:', e); }
+        } catch (e) { console.error('Erro ao pré-carregar dependências da admissão:', e); }
 
-        const wf    = document.getElementById('admissao-workflow');
+        const wf = document.getElementById('admissao-workflow');
         const start = document.getElementById('admissao-start-action');
         const searchContainer = document.getElementById('admissao-search-container');
 
@@ -10585,7 +10585,7 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
         // Se o processo já foi iniciado, mostrar o stepper
         const INICIADOS = ['processo iniciado', 'em admissao', 'em andamento'];
         const processoIniciado = INICIADOS.some(s => statusNorm.includes(s)) ||
-                                 (admStatusNorm && admStatusNorm !== 'concluida' && admStatusNorm !== '' && admStatusNorm !== 'pendente');
+            (admStatusNorm && admStatusNorm !== 'concluida' && admStatusNorm !== '' && admStatusNorm !== 'pendente');
 
         // if (searchContainer) searchContainer.style.display = 'none';
 
@@ -10608,48 +10608,48 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
             const nameEl = document.getElementById('admissao-start-name');
             if (nameEl) nameEl.textContent = colab.nome_completo || '';
         }
-    } catch(e) {
+    } catch (e) {
         if (!silent) console.error('[initAdmissaoWorkflow] Erro:', e);
     }
 };
 
-window.startFinalAdmission = async function() {
+window.startFinalAdmission = async function () {
 
     console.log("[Admissao] Botão 'Iniciar' clicado. viewedColaborador:", viewedColaborador);
     if (!viewedColaborador) {
         alert("Erro: Nenhum colaborador selecionado.");
         return;
     }
-    
+
     try {
         const res = await apiPut(`/colaboradores/${viewedColaborador.id}`, {
             status: 'Processo iniciado'
         });
         console.log("[Admissao] Status atualizado no servidor:", res);
-        
+
         // Atualiza estado local imediatamente
         viewedColaborador.status = 'Processo iniciado';
-        
+
         // Recarrega workflow para mostrar panes
         window.initAdmissaoWorkflow(viewedColaborador.id);
-    } catch (e) { 
+    } catch (e) {
         console.error("[Admissao] Erro ao iniciar:", e);
-        alert('Erro ao iniciar processo: ' + e.message); 
+        alert('Erro ao iniciar processo: ' + e.message);
     }
 };
 
-window.nextAdmissaoStep = function(step, preventScroll = false) {
+window.nextAdmissaoStep = function (step, preventScroll = false) {
     window.currentActiveAdmissaoStep = step;
     document.querySelectorAll('.admissao-stepper .step-item').forEach(s => s.classList.remove('active'));
     let activeStepEl = document.getElementById('step-' + step);
-    if(activeStepEl) activeStepEl.classList.add('active');
+    if (activeStepEl) activeStepEl.classList.add('active');
 
     window.currentActiveAdmissaoStep = step;
     // Atualizar Panels
     document.querySelectorAll('.admissao-panel').forEach(p => p.classList.remove('active'));
     const panel = document.getElementById(`panel-step-${step}`);
     if (panel) panel.classList.add('active');
-    
+
     // Passo 3 (Assinaturas): carregar certificado digital
     if (step === 3 && typeof window.carregarStatusCertificado === 'function') {
         window.carregarStatusCertificado('cert-digital-banner');
@@ -10675,7 +10675,7 @@ window.nextAdmissaoStep = function(step, preventScroll = false) {
     if (!preventScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-window.handleAdmissaoFotoUpload = async function(event) {
+window.handleAdmissaoFotoUpload = async function (event) {
     const file = event.target.files[0];
     if (!file || !viewedColaborador) return;
 
@@ -10692,34 +10692,34 @@ window.handleAdmissaoFotoUpload = async function(event) {
 
     try {
         const result = await apiPostMultipard('/documentos', formData);
-        
+
         // Update viewedColaborador object specifically
         viewedColaborador.foto = result.file_path; // Simular que tá com a foto preenchida (se o back atualiza o collab também era ótimo). O back já lida com os documentos tab_name FOTO_PERFIL ou a gente pode mandar o path e fazer um PUT no colab pra gravar "foto"
-        
+
         // Atualizando o campo 'foto' no colaborador via PUT pra garantir 100%
         await apiPut(`/colaboradores/${viewedColaborador.id}`, {
             foto: result.file_path
         });
-        
+
         const photoUrl = window.BASE_URL + result.file_path;
 
         document.getElementById('admissao-foto-img').src = photoUrl;
         document.getElementById('admissao-foto-img').style.display = 'block';
         document.getElementById('admissao-foto-icon').style.display = 'none';
-        
+
         document.getElementById('admissao-foto-status').style.display = 'block';
-        
+
         // Recalcular as porcentagens (a foto atualizou!)
         if (typeof updateAdmissaoStepPercentages === 'function') {
             updateAdmissaoStepPercentages(viewedColaborador);
         }
-    } catch(e) {
+    } catch (e) {
         showToast('Falha ao adicionar a foto', 'error');
         console.error(e);
     }
 };
 
-window.renderAdmissaoDataSummary = async function(colab) {
+window.renderAdmissaoDataSummary = async function (colab) {
     const summaryDiv = document.getElementById('admissao-data-summary');
     if (!summaryDiv) return;
     try {
@@ -10728,7 +10728,7 @@ window.renderAdmissaoDataSummary = async function(colab) {
         const missing = step1.missing;
         const total = step1.total;
         const complete = total - missing.length;
-        
+
         let fieldsHtml = '';
         if (missing.length === 0) {
             fieldsHtml = `<div style="color:#059669; font-weight:700; margin-top:0.5rem;"><i class="ph ph-check-circle"></i> Todos os dados essenciais estão preenchidos!</div>`;
@@ -10780,7 +10780,7 @@ window.renderAdmissaoDataSummary = async function(colab) {
     }
 };
 
-window.saveAdmissaoResponsavel = async function(colabId, nomeResponsavel) {
+window.saveAdmissaoResponsavel = async function (colabId, nomeResponsavel) {
     try {
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/admissao-responsavel`, {
             method: 'PUT',
@@ -10790,17 +10790,17 @@ window.saveAdmissaoResponsavel = async function(colabId, nomeResponsavel) {
             },
             body: JSON.stringify({ admissao_responsavel_nome: nomeResponsavel })
         });
-        
+
         if (!res.ok) throw new Error('Falha ao salvar responsável');
-        
+
         if (typeof Toastify !== 'undefined') {
             Toastify({ text: 'Responsável atribuído com sucesso!', backgroundColor: '#059669' }).showToast();
         }
-        
+
         if (viewedColaborador && viewedColaborador.id === colabId) {
             viewedColaborador.admissao_responsavel_nome = nomeResponsavel;
         }
-    } catch(e) {
+    } catch (e) {
         console.error(e);
         alert('Erro ao salvar responsável.');
     }
@@ -10889,7 +10889,7 @@ function calculateAdmissaoStep1Completion(c) {
 
     // Dependentes (apenas filhos/outros)
     let depArr = [];
-    try { depArr = c.dependentes ? (typeof c.dependentes === 'string' ? JSON.parse(c.dependentes) : c.dependentes) : []; } catch(e) {}
+    try { depArr = c.dependentes ? (typeof c.dependentes === 'string' ? JSON.parse(c.dependentes) : c.dependentes) : []; } catch (e) { }
     const filhos = depArr.filter(d => d.grau_parentesco !== 'Cônjuge');
 
     if (isCasado) {
@@ -10912,7 +10912,7 @@ function calculateAdmissaoStep1Completion(c) {
 
         let displayVal = val;
         if (item.key.includes('data') && val && String(val).length >= 10) {
-            try { displayVal = new Date(val + 'T12:00:00').toLocaleDateString('pt-BR'); } catch(e) {}
+            try { displayVal = new Date(val + 'T12:00:00').toLocaleDateString('pt-BR'); } catch (e) { }
         }
 
         resultFields.push({ label: item.label, value: displayVal, filled: isFilled });
@@ -10925,12 +10925,12 @@ function calculateAdmissaoStep1Completion(c) {
         extraFields.push({ label: 'Cônjuge - CPF', value: conjuge_cpf, filled: !!conjuge_cpf, isExtra: true });
     }
     filhos.forEach((f, i) => {
-        extraFields.push({ label: `Dependente ${i+1} - Nome`, value: f.nome, filled: !!f.nome, isExtra: true });
-        extraFields.push({ label: `Dependente ${i+1} - CPF`, value: f.cpf, filled: !!f.cpf, isExtra: true });
+        extraFields.push({ label: `Dependente ${i + 1} - Nome`, value: f.nome, filled: !!f.nome, isExtra: true });
+        extraFields.push({ label: `Dependente ${i + 1} - CPF`, value: f.cpf, filled: !!f.cpf, isExtra: true });
         if (f.data_nascimento) {
             let dFmt = f.data_nascimento;
-            try { dFmt = new Date(f.data_nascimento + 'T12:00:00').toLocaleDateString('pt-BR'); } catch(e) {}
-            extraFields.push({ label: `Dependente ${i+1} - Nasc.`, value: dFmt, filled: true, isExtra: true });
+            try { dFmt = new Date(f.data_nascimento + 'T12:00:00').toLocaleDateString('pt-BR'); } catch (e) { }
+            extraFields.push({ label: `Dependente ${i + 1} - Nasc.`, value: dFmt, filled: true, isExtra: true });
         }
     });
     if (c.adiantamento_salarial === 'Sim') {
@@ -10974,26 +10974,26 @@ function updateAdmissaoStepPercentages(colab) {
         geradores.forEach(g => {
             const ass = assinaturas.find(a => a.gerador_id === g.id || a.nome_documento === g.nome);
             const docEquivalente = docs.find(d => d.tab_name === 'CONTRATOS' && (d.document_type === g.nome || (d.file_name && d.file_name.includes(g.nome))));
-            
+
             let realStatus = '';
             if (docEquivalente && docEquivalente.assinafy_status === 'Assinado') realStatus = 'Assinado';
             else if (ass && ass.assinafy_status === 'Assinado') realStatus = 'Assinado';
             else if (docEquivalente && docEquivalente.assinafy_status === 'Pendente') realStatus = 'Pendente';
             else if (ass && ass.assinafy_status === 'Pendente') realStatus = 'Pendente';
-            
+
             if (realStatus === 'Assinado') pontos += 2;
             else if (realStatus === 'Pendente') pontos += 1;
         });
         const maxPontos = geradores.length * 2;
         pc3 = Math.min(100, Math.round((pontos / maxPontos) * 100));
     }
-    
+
     // Atualiza a view de status se o modal estiver aberto
     const containerSignature = document.getElementById('admissao-signature-status');
     if (containerSignature) {
         const allUploadedContracts = docs.filter(d => d.tab_name === 'CONTRATOS');
         const combinedList = [];
-        
+
         geradores.forEach(g => {
             const docEquivalente = allUploadedContracts.find(d => d.document_type === g.nome || (d.file_name && d.file_name.includes(g.nome)));
             combinedList.push({ nome: g.nome, doc: docEquivalente });
@@ -11011,10 +11011,10 @@ function updateAdmissaoStepPercentages(colab) {
         } else {
             containerSignature.innerHTML = combinedList.map(item => {
                 const hasFile = !!item.doc;
-                
-                let statusBadge = hasFile 
-                   ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>` 
-                   : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`;
+
+                let statusBadge = hasFile
+                    ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>`
+                    : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`;
 
                 let dataText = '';
                 if (hasFile && item.doc.created_at) {
@@ -11025,7 +11025,7 @@ function updateAdmissaoStepPercentages(colab) {
                 }
 
                 return `
-                <div style="background:#fff; border:1px solid ${hasFile?'#bbf7d0':'#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
+                <div style="background:#fff; border:1px solid ${hasFile ? '#bbf7d0' : '#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
                     <div style="display:flex; flex-direction:column; gap:2px;">
                         <span style="font-weight:600; color:#334155; font-size:0.85rem;">${item.nome}</span>
                         ${dataText}
@@ -11052,20 +11052,20 @@ function updateAdmissaoStepPercentages(colab) {
     const isMasc = targetColab.sexo === 'Masculino';
     if (isMasc) fixed.push('Reservista');
     const rgTipo = targetColab.rg_tipo ? targetColab.rg_tipo : 'RG';
-    
+
     if (_isMotorista2) {
         fixed.push('CNH');
     } else {
         fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
     }
-    
+
     fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho');
     if (_isCasado) {
         fixed.push('CPF do Cônjuge');
     }
 
     const fichaDocs = (window.currentDocs || []).filter(d => d.tab_name === '01_FICHA_CADASTRAL');
-    
+
     // Pensão (Dinâmico)
     const temPensaoPront = (targetColab.tem_pensao_alimenticia === 'Sim') || !!fichaDocs.find(d => d.document_type === 'Pensão Alimentícia');
     if (temPensaoPront) fixed.push('Pensão Alimentícia');
@@ -11073,7 +11073,7 @@ function updateAdmissaoStepPercentages(colab) {
     let preenchidos4 = 0;
     let totalEsperado4 = fixed.length;
     const capturedDocIds = new Set();
-    
+
     const itemsFicha = fixed.map(docType => {
         const found = fichaDocs.find(d => d.document_type === docType);
         if (found && found.file_path) preenchidos4++;
@@ -11094,7 +11094,7 @@ function updateAdmissaoStepPercentages(colab) {
     const deps = depList.filter(d => d.grau_parentesco !== 'Cônjuge');
     const hoje = new Date();
     const dependentDocs = (window.currentDocs || []).filter(d => d.tab_name === 'Dependentes');
-    
+
     deps.forEach(dep => {
         let idade = null;
         if (dep.data_nascimento) {
@@ -11102,18 +11102,18 @@ function updateAdmissaoStepPercentages(colab) {
             const nasc = new Date(iso);
             if (!isNaN(nasc)) idade = Math.floor((hoje - nasc) / (365.25 * 24 * 3600 * 1000));
         }
-        const safeDepName = (dep.nome || 'DEP').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
-                
+        const safeDepName = (dep.nome || 'DEP').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+
         const docsConfig = [
-            { label: 'CPF ou RG',                    show: true },
-            { label: 'Caderneta de Vacinação',      show: idade !== null && idade < 7 },
+            { label: 'CPF ou RG', show: true },
+            { label: 'Caderneta de Vacinação', show: idade !== null && idade < 7 },
             { label: 'Atestado de Frequência Escolar', show: idade !== null && idade >= 7 && idade <= 17 },
-            { label: 'Certidão de Nascimento',       show: true },
+            { label: 'Certidão de Nascimento', show: true },
         ];
 
         const expectedForDep = docsConfig.filter(d => d.show);
         totalEsperado4 += expectedForDep.length;
-        
+
         expectedForDep.forEach(cfg => {
             const fullDocType = `${cfg.label}###DEP_${safeDepName}`;
             const found = dependentDocs.find(d => d.document_type === fullDocType);
@@ -11137,15 +11137,15 @@ function updateAdmissaoStepPercentages(colab) {
 
     const containerStep4 = document.getElementById('admissao-checklist-step3');
     if (containerStep4) {
-         containerStep4.innerHTML = itemsFicha.map(item => {
-             const hasFile = item.doc && item.doc.file_path;
-             const statusBadge = hasFile 
-                ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>` 
+        containerStep4.innerHTML = itemsFicha.map(item => {
+            const hasFile = item.doc && item.doc.file_path;
+            const statusBadge = hasFile
+                ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>`
                 : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`;
-             const dateText = hasFile ? (item.doc && item.doc.created_at ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>` : '') : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatório via Prontuário Digital</i></div>`;
-             
-             return `
-             <div style="background:#fff; border:1px solid ${hasFile?'#bbf7d0':'#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
+            const dateText = hasFile ? (item.doc && item.doc.created_at ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>` : '') : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatório via Prontuário Digital</i></div>`;
+
+            return `
+             <div style="background:#fff; border:1px solid ${hasFile ? '#bbf7d0' : '#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
                  <div style="display:flex; flex-direction:column; gap:2px;">
                      <span style="font-weight:600; color:#334155; font-size:0.85rem;">${item.nome}</span>
                      ${dateText}
@@ -11154,13 +11154,13 @@ function updateAdmissaoStepPercentages(colab) {
                      ${statusBadge}
                  </div>
              </div>`;
-         }).join('');
+        }).join('');
     }
 
     // ── Passo 5: ASO — 50% e-mail / 100% doc  ──
     let pc5 = 0;
     const asoDocs = (window.currentDocs || []).filter(d => d.tab_name === 'ASO');
-    
+
     // Reproduzir regras de ASO
     const listAso = ['ASO Padrão'];
     if ((targetColab.cargo || '').toUpperCase().includes('MOTORISTA')) listAso.push('Exames Complementares');
@@ -11179,7 +11179,7 @@ function updateAdmissaoStepPercentages(colab) {
     });
 
     const asoDocAnexado = itemsAso.some(item => item.doc && item.doc.file_path);
-    
+
     if (asoDocAnexado) {
         pc5 = 100;
         const noticeEl = document.getElementById('aso-email-notice');
@@ -11196,15 +11196,15 @@ function updateAdmissaoStepPercentages(colab) {
 
     const containerStep5 = document.getElementById('step5-aso-status');
     if (containerStep5) {
-         containerStep5.innerHTML = itemsAso.map(item => {
-             const hasFile = item.doc && item.doc.file_path;
-             const statusBadge = hasFile 
-                ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>` 
+        containerStep5.innerHTML = itemsAso.map(item => {
+            const hasFile = item.doc && item.doc.file_path;
+            const statusBadge = hasFile
+                ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>`
                 : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`;
-             const dateText = hasFile ? (item.doc && item.doc.created_at ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>` : '') : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatório via Prontuário Digital</i></div>`;
-             
-             return `
-             <div style="background:#fff; border:1px solid ${hasFile?'#bbf7d0':'#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
+            const dateText = hasFile ? (item.doc && item.doc.created_at ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>` : '') : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatório via Prontuário Digital</i></div>`;
+
+            return `
+             <div style="background:#fff; border:1px solid ${hasFile ? '#bbf7d0' : '#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
                  <div style="display:flex; flex-direction:column; gap:2px;">
                      <span style="font-weight:600; color:#334155; font-size:0.85rem;">${item.nome}</span>
                      ${dateText}
@@ -11213,7 +11213,7 @@ function updateAdmissaoStepPercentages(colab) {
                      ${statusBadge}
                  </div>
              </div>`;
-         }).join('');
+        }).join('');
     }
 
     // ── Passo 6: Contabilidade — 100% se ficha enviada ────────────────
@@ -11226,7 +11226,7 @@ function updateAdmissaoStepPercentages(colab) {
     const pc9 = 0;
     const pc10 = 0;
 
-    const percentages = { 1:pc1, 2:pc2, 3:pc3, 4:pc4, 5:pc5, 6:pc6, 7:pc7, 8:pc8, 9:pc9, 10:pc10 };
+    const percentages = { 1: pc1, 2: pc2, 3: pc3, 4: pc4, 5: pc5, 6: pc6, 7: pc7, 8: pc8, 9: pc9, 10: pc10 };
 
     let totalPc = 0;
     for (let s in percentages) {
@@ -11249,8 +11249,8 @@ function updateAdmissaoStepPercentages(colab) {
 
     const totalAtivos = 7;
     let sumAtivos = 0;
-    for(let i=1; i<=totalAtivos; i++) sumAtivos += percentages[i];
-    
+    for (let i = 1; i <= totalAtivos; i++) sumAtivos += percentages[i];
+
     const avg = Math.round(sumAtivos / totalAtivos);
     const totalEl = document.getElementById('admissao-pc-total');
     if (totalEl) totalEl.textContent = `${avg}%`;
@@ -11258,7 +11258,7 @@ function updateAdmissaoStepPercentages(colab) {
     if (bar) bar.style.width = `${avg}%`;
 }
 
-window.addDependenteRow = function(nome = '', cpf = '', nascimento = '', parentesco = '') {
+window.addDependenteRow = function (nome = '', cpf = '', nascimento = '', parentesco = '') {
     const container = document.getElementById('dependentes-container');
     const noMsg = document.getElementById('no-dependentes-msg');
     if (noMsg) noMsg.style.display = 'none';
@@ -11271,7 +11271,7 @@ window.addDependenteRow = function(nome = '', cpf = '', nascimento = '', parente
     row.className = 'dependente-row p-3 mb-3';
     row.id = rowId;
     row.style = 'background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; display: grid; grid-template-columns: 1fr 1fr 1fr 40px; gap: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);';
-    
+
     row.innerHTML = `
         <div class="input-group mb-1" style="grid-column: span 4;">
             <label style="font-size:0.75rem; font-weight:700; color: #475569;">Nome Completo do Dependente</label>
@@ -11295,10 +11295,10 @@ window.addDependenteRow = function(nome = '', cpf = '', nascimento = '', parente
     container.appendChild(row);
 };
 
-window.removeDependenteRow = function(id) {
+window.removeDependenteRow = function (id) {
     const row = document.getElementById(id);
     if (row) row.remove();
-    
+
     const container = document.getElementById('dependentes-container');
     if (container.children.length === 0) {
         const noMsg = document.getElementById('no-dependentes-msg');
@@ -11306,7 +11306,7 @@ window.removeDependenteRow = function(id) {
     }
 };
 
-window.filterAdmissaoDocs = function() {
+window.filterAdmissaoDocs = function () {
     const q = document.getElementById('search-admissao-docs').value.toLowerCase();
     const items = document.querySelectorAll('#admissao-signature-list .doc-check-item');
     items.forEach(item => {
@@ -11317,31 +11317,31 @@ window.filterAdmissaoDocs = function() {
 
 // Hook into toggleCheck to update counts
 const originalToggleCheck = window.toggleCheck;
-window.toggleCheck = function(el) {
+window.toggleCheck = function (el) {
     // Desativado: seleção agora é apenas via upload
     console.log('Toggle desativado. Use o botão de Upload.');
 };
 
-window.editColabFromAdmission = function() {
+window.editColabFromAdmission = function () {
     if (!viewedColaborador) return;
     const id = viewedColaborador.id;
     navigateTo('colaboradores');
     window.editColaborador(id);
 };
 
-window.sendASOEmail = async function() {
+window.sendASOEmail = async function () {
     if (!viewedColaborador) {
         alert('Carregue um colaborador primeiro abrindo a edição ou admissão.');
         return;
     }
     const dataExame = document.getElementById('aso-exame-data').value;
     const destinatario = document.getElementById('aso-email-destinatario').value;
-    
+
     if (!dataExame) {
         alert('Por favor, selecione a data do exame.');
         return;
     }
-    
+
     const [y, m, d] = dataExame.split('-');
     const dt = `${d}/${m}/${y}`;
     const cargo = (viewedColaborador.cargo || '').toLowerCase();
@@ -11357,7 +11357,7 @@ window.sendASOEmail = async function() {
     try {
         btn.disabled = true;
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
-        
+
         const res = await apiPost('/send-aso-email', {
             colaborador_id: viewedColaborador.id,
             email_to: destinatario,
@@ -11365,7 +11365,7 @@ window.sendASOEmail = async function() {
             tipo_exame: 'Admissional',
             cc: ['rh@americarental.com.br', 'rh2@americarental.com.br']
         });
-        
+
         if (res.sucesso) {
             alert('E-mail enviado com sucesso pelo servidor!');
             if (res.new_doc && typeof currentDocs !== 'undefined') currentDocs.push(res.new_doc);
@@ -11377,7 +11377,7 @@ window.sendASOEmail = async function() {
                 asoNotice.style.display = 'block';
                 asoNoticeDate.innerText = res.data_envio;
                 asoNoticeAgendada.innerText = res.data_agendada;
-                viewedColaborador.aso_email_enviado = res.data_envio; 
+                viewedColaborador.aso_email_enviado = res.data_envio;
                 viewedColaborador.aso_exame_data = res.data_agendada;
                 updateAdmissaoStepPercentages();
             }
@@ -11398,7 +11398,7 @@ window.sendASOEmail = async function() {
 
 async function uploadAdmissaoDoc(input, docType, tabName) {
     if (!input.files || input.files.length === 0 || !viewedColaborador) return;
-    
+
     const file = input.files[0];
     const item = input.closest('.checklist-item');
     const vencInput = item ? item.querySelector('.vencimento-input') : null;
@@ -11411,15 +11411,15 @@ async function uploadAdmissaoDoc(input, docType, tabName) {
     formData.append('tab_name', tabName);
     formData.append('document_type', docType);
     if (vencimento) formData.append('vencimento', vencimento);
-    
+
     try {
         const btn = input.nextElementSibling;
         const statusIcon = btn.nextElementSibling;
-        
+
         btn.disabled = true;
         const oldHtml = btn.innerHTML;
         btn.innerHTML = '<i class="ph ph-spinner-gap ph-spin"></i> Enviando...';
-        
+
         const response = await fetch(`${API_URL}/documentos`, {
             method: 'POST',
             body: formData,
@@ -11427,13 +11427,13 @@ async function uploadAdmissaoDoc(input, docType, tabName) {
                 'Authorization': `Bearer ${currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || 'mock_token'}`
             }
         });
-        
+
         if (response.ok) {
             const resJson = await response.json();
             btn.innerHTML = oldHtml;
             btn.disabled = false;
             if (statusIcon) statusIcon.style.display = 'inline-block';
-            
+
             // Mostrar containers Assinafy
             if (statusIcon) {
                 const containerAssinafy = statusIcon.nextElementSibling;
@@ -11441,9 +11441,9 @@ async function uploadAdmissaoDoc(input, docType, tabName) {
                     containerAssinafy.style.display = 'flex';
                 }
             }
-            
+
             if (item) item.classList.add('checked');
-            
+
             updateAdmissaoStepPercentages();
             alert('Documento enviado com sucesso!');
         } else {
@@ -11458,19 +11458,19 @@ async function uploadAdmissaoDoc(input, docType, tabName) {
     }
 };
 
-window.resetAdmissao = function() {
+window.resetAdmissao = function () {
     document.getElementById('admissao-workflow').style.display = 'none';
     document.getElementById('admissao-start-action').style.display = 'none';
     document.getElementById('admissao-search-container').style.display = 'block';
     document.getElementById('admissao-select-colab').value = '';
-    
+
     // Reset Checklist
     document.querySelectorAll('.upload-status').forEach(span => span.style.display = 'none');
     document.querySelectorAll('.checklist-item').forEach(item => item.classList.remove('checked'));
     updateAdmissaoStepPercentages();
 };
 
-window.finalizarAdmissao = async function() {
+window.finalizarAdmissao = async function () {
     if (!viewedColaborador) return;
 
     if (!confirm(`Confirmar a admissão definitiva de ${viewedColaborador.nome_completo}?\n\nO colaborador passará para o status "Em Integração".`)) return;
@@ -11535,7 +11535,7 @@ function copiarLinkAssinafy(el) {
 /**
  * Inicia o processo de assinatura eletronica via Assinafy
  */
-window.iniciarAssinafy = async function(docType, tabName, btn) {
+window.iniciarAssinafy = async function (docType, tabName, btn) {
     if (!viewedColaborador) return;
 
     const colabId = viewedColaborador.id;
@@ -11566,12 +11566,12 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
             // Atualizar data de envio no DOM
             const now = new Date();
             const dd = String(now.getDate()).padStart(2, '0');
-            const mm = String(now.getMonth()+1).padStart(2, '0');
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
             const yyyy = now.getFullYear();
             const h = String(now.getHours()).padStart(2, '0');
             const min = String(now.getMinutes()).padStart(2, '0');
             const hojeFormatado = `${dd}/${mm}/${yyyy} - ${h}h${min}m`;
-            
+
             const docInfoDiv = btn.closest('.doc-item') && btn.closest('.doc-item').querySelector('.doc-info div');
             if (docInfoDiv) {
                 // Atualizar ou criar o parágrafo de data de envio
@@ -11638,27 +11638,27 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
     }
 };
 
-window.syncAssinafyStatus = async function(docId, btn) {
+window.syncAssinafyStatus = async function (docId, btn) {
     if (!docId) return;
-    
+
     // Feedback visual rapido no proprio icone
     const icon = btn.querySelector('i');
     if (icon) {
         icon.classList.remove('ph-arrows-clockwise');
         icon.classList.add('ph-spinner', 'ph-spin');
     }
-    
+
     try {
         const res = await fetch(`${API_URL}/documentos/${docId}/sync-assinafy`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${currentToken}` }
         });
         const data = await res.json();
-        
+
         if (res.ok && data.sucesso) {
             // Apenas atualiza o log e a tela silenciosamente
             console.log(`[SYNC ASSINAFY] doc ${docId} antigo: ${data.status_antigo} -> novo: ${data.status_novo}`);
-            
+
             await loadDocumentosList();
             const activeTab = document.querySelector('#tabs-list li.active');
             if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
@@ -11677,7 +11677,7 @@ window.syncAssinafyStatus = async function(docId, btn) {
     }
 };
 
-window.forceOnedriveSync = async function(docId, btn) {
+window.forceOnedriveSync = async function (docId, btn) {
     const original = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;"></i> Enviando...';
@@ -11703,7 +11703,7 @@ window.forceOnedriveSync = async function(docId, btn) {
     }
 };
 
-window.syncAllAtestados = async function(ids, btn) {
+window.syncAllAtestados = async function (ids, btn) {
     const original = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="ph ph-spinner"></i> Sincronizando...';
@@ -11723,7 +11723,7 @@ window.syncAllAtestados = async function(ids, btn) {
     alert(`✅ Sincronização concluída!\n✓ Sucesso: ${ok}\n✗ Falha: ${fail}\n\nUse o botão ☁ individual para ver o log de cada falha.`);
 };
 
-window.testOneDriveConnection = async function() {
+window.testOneDriveConnection = async function () {
     const btn = document.getElementById('btn-test-onedrive');
     const originalHtml = btn.innerHTML;
     btn.disabled = true;
@@ -11735,19 +11735,19 @@ window.testOneDriveConnection = async function() {
             headers: { 'Authorization': `Bearer ${currentToken}` }
         });
         const data = await res.json();
-        
+
         if (data.sucesso) {
             let gpsRH = "";
             if (data.rhLocation) {
                 let dId = data.rhLocation.parentReference?.driveId;
                 gpsRH = `\n\n⚠️ PASTA 'RH' ENCONTRADA EM OUTRO LUGAR:\nEndereço: ${data.rhLocation.webUrl}\nID Drive: ${dId}`;
             }
-            
+
             let msg = `✅ O OneDrive está CONECTADO corretamente!\n\n` +
-                      `Biblioteca: ${data.driveName}\n` +
-                      `Link Direto: ${data.config.webUrlBase || data.config.webUrlRaiz}` +
-                      gpsRH + 
-                      `\n\nTudo pronto para sincronizar colaboradores.`;
+                `Biblioteca: ${data.driveName}\n` +
+                `Link Direto: ${data.config.webUrlBase || data.config.webUrlRaiz}` +
+                gpsRH +
+                `\n\nTudo pronto para sincronizar colaboradores.`;
             alert(msg);
         } else {
             let errorMsg = `❌ ${data.error}\n`;
@@ -11763,7 +11763,7 @@ window.testOneDriveConnection = async function() {
     }
 };
 
-window.syncOneDriveManual = async function(id, btnElement = null) {
+window.syncOneDriveManual = async function (id, btnElement = null) {
     // Se não passou o elemento, tenta achar pelos IDs conhecidos
     const btn = btnElement || document.getElementById('btn-sync-onedrive') || document.getElementById('btn-form-sync-onedrive');
     const originalHtml = btn ? btn.innerHTML : '';
@@ -11783,7 +11783,7 @@ window.syncOneDriveManual = async function(id, btnElement = null) {
         });
         clearTimeout(timeoutId);
         const data = await res.json();
-        
+
         if (data.sucesso) {
             alert(`✅ SUCESSO TOTAL!\nCaminho: ${data.path}`);
         } else {
@@ -11792,14 +11792,14 @@ window.syncOneDriveManual = async function(id, btnElement = null) {
     } catch (e) {
         alert("Erro na requisição: " + e.message);
     } finally {
-        if(btn) {
+        if (btn) {
             btn.disabled = false;
             btn.innerHTML = originalHtml;
         }
     }
 };
 
-window.resetSystem = async function() {
+window.resetSystem = async function () {
     const confirmation1 = confirm("🚨 ATENÇÃO: Você tem certeza que deseja LIMPAR TODOS os colaboradores do sistema?\n\nIsso apagará todos os dados do banco de dados (dependentes, fotos, documentos registrados). Os arquivos físicos no OneDrive não serão apagados por segurança.");
     if (!confirmation1) return;
 
@@ -11817,7 +11817,7 @@ window.resetSystem = async function() {
             headers: { 'Authorization': `Bearer ${currentToken}` }
         });
         const data = await res.json();
-        
+
         if (data.sucesso) {
             alert("Sistema limpo com sucesso! A página será recarregada.");
             location.reload();
@@ -11843,14 +11843,14 @@ setInterval(async () => {
     for (const docEl of pendingDocs) {
         const docId = docEl.getAttribute('data-doc-id');
         if (!docId) continue;
-        
+
         try {
             const res = await fetch(`${API_URL}/documentos/${docId}/sync-assinafy`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${currentToken}` }
             });
             const data = await res.json();
-            
+
             if (res.ok && data.sucesso) {
                 if (data.status_novo === 'Assinado' && data.status_antigo !== 'Assinado') {
                     docEl.setAttribute('data-assinafy-status', 'Assinado');
@@ -11861,29 +11861,29 @@ setInterval(async () => {
             console.error('Polling: erro checando doc ' + docId, e);
         }
     }
-    
+
     if (updatedAny) {
         await loadDocumentosList();
-        
+
         const activeTab = document.querySelector('#tabs-list li.active');
         if (activeTab) {
             renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
         } else {
-            initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true).catch(() => {});
+            initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true).catch(() => { });
         }
-        
+
         console.log('[POLLING] Documento(s) detectado(s) como Assinado(s). Tela atualizada com sucesso.');
     }
 }, 30000);
 
 
-window.markExpNotifLida = function(id) {
+window.markExpNotifLida = function (id) {
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-    fetch('/api/experiencia/notificacoes/' + id + '/lida', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } }).catch(()=>{});
+    fetch('/api/experiencia/notificacoes/' + id + '/lida', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } }).catch(() => { });
 };
-window.markLogNotifLida = function(id) {
+window.markLogNotifLida = function (id) {
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-    fetch('/api/logistica/notificacoes/' + id + '/lida', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } }).catch(()=>{});
+    fetch('/api/logistica/notificacoes/' + id + '/lida', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } }).catch(() => { });
 };
 
 
@@ -11894,7 +11894,7 @@ async function checkDiretoriaNotificacoes() {
     if (!token) return;
     try {
         if (!window.isTopAdmin) return;
-    } catch(e) { return; }
+    } catch (e) { return; }
 
     try {
         const resp = await fetch('/api/diretoria/notificacoes/pendentes', {
@@ -11902,11 +11902,11 @@ async function checkDiretoriaNotificacoes() {
         });
         if (!resp.ok) return;
         const notifs = await resp.json();
-        
+
         for (const notif of notifs) {
             if (_dirNotifSeen.has(notif.id)) continue;
             _dirNotifSeen.add(notif.id);
-            
+
             try {
                 const dados = JSON.parse(notif.dados || '{}');
                 // Theme: Red (Diretoria)
@@ -11946,16 +11946,16 @@ async function checkDiretoriaNotificacoes() {
                 popup.setAttribute('data-notif-id', notif.id);
                 document.body.appendChild(popup);
                 setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
-            } catch(parseErr) { }
+            } catch (parseErr) { }
         }
-    } catch(e) { }
+    } catch (e) { }
 }
 setInterval(checkDiretoriaNotificacoes, 60000);
 setTimeout(checkDiretoriaNotificacoes, 7000);
 
-window.markDirNotifLida = function(id) {
+window.markDirNotifLida = function (id) {
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-    fetch('/api/diretoria/notificacoes/' + id + '/lida', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } }).catch(()=>{});
+    fetch('/api/diretoria/notificacoes/' + id + '/lida', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } }).catch(() => { });
 };
 
 // --- POLLING: Notificações de Formulário de Experiência (para usuários RH) ---
@@ -11969,7 +11969,7 @@ async function checkExperienciaNotificacoes() {
         const permissoes = payload.permissoes || [];
         const isRH = permissoes.includes('rh_completo') || permissoes.some(p => String(p).includes('rh')) || permissoes.includes('experiencia');
         if (!isRH) return;
-    } catch(e) { return; }
+    } catch (e) { return; }
 
     try {
         const resp = await fetch('/api/experiencia/notificacoes/pendentes', {
@@ -11977,11 +11977,11 @@ async function checkExperienciaNotificacoes() {
         });
         if (!resp.ok) return;
         const notifs = await resp.json();
-        
+
         for (const notif of notifs) {
             if (_expNotifSeen.has(notif.id)) continue;
             _expNotifSeen.add(notif.id);
-            
+
             try {
                 const dados = JSON.parse(notif.dados || '{}');
                 // Show popup - blue theme (like assinatura but azul)
@@ -12022,15 +12022,15 @@ async function checkExperienciaNotificacoes() {
                 `;
                 popup.setAttribute('data-notif-id', notif.id);
                 document.body.appendChild(popup);
-                
+
                 // Mark as read
                 // markExpNotifLida removed from auto
-                
+
                 // Auto-close after 30s
                 setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
-            } catch(parseErr) { /* skip malformed */ }
+            } catch (parseErr) { /* skip malformed */ }
         }
-    } catch(e) { /* silent */ }
+    } catch (e) { /* silent */ }
 }
 
 // Poll every 60s
@@ -12055,7 +12055,7 @@ async function checkComercialNotificacoes() {
         for (const notif of notificacoes) {
             if (!_comNotifSeen.has(notif.id)) {
                 _comNotifSeen.add(notif.id);
-                
+
                 const popup = document.createElement('div');
                 popup.style.cssText = `
                     position:fixed; bottom:24px; right:24px; z-index:99999;
@@ -12064,12 +12064,12 @@ async function checkComercialNotificacoes() {
                     max-width:380px; animation: slideInRight 0.4s ease-out;
                     border-left: 4px solid #16a34a;
                 `;
-                
+
                 let titulo = notif.tipo === 'credenciamento_enviado' ? 'Envio do Credenciamento' : 'Acesso ao Credenciamento';
                 let icon = notif.tipo === 'credenciamento_enviado' ? 'ph-paper-plane-right' : 'ph-eye';
-                
+
                 let dados = {};
-                try { dados = JSON.parse(notif.dados || '{}'); } catch(e) {}
+                try { dados = JSON.parse(notif.dados || '{}'); } catch (e) { }
                 const remetente = dados.remetente || 'Logística';
                 const clienteNome = dados.cliente_nome || 'Cliente não informado';
 
@@ -12104,14 +12104,14 @@ async function checkComercialNotificacoes() {
                 setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
             }
         }
-    } catch(err) {
+    } catch (err) {
         // ignora silently
     }
 }
 
-window.markComNotifLida = function(id) {
+window.markComNotifLida = function (id) {
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-    fetch('/api/comercial/notificacoes/' + id + '/lida', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } }).catch(()=>{});
+    fetch('/api/comercial/notificacoes/' + id + '/lida', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } }).catch(() => { });
 };
 
 setInterval(checkComercialNotificacoes, 60000);
@@ -12125,7 +12125,7 @@ async function checkLogisticaNotificacoes() {
     try {
         const isLog = window.isTopAdmin || (window.activeUserPerms && window.activeUserPerms['logistica-credenciamento']) || (typeof currentUser !== 'undefined' && currentUser && (String(currentUser.departamento).toLowerCase().includes('log') || String(currentUser.role).toLowerCase().includes('log')));
         if (!isLog) return;
-    } catch(e) { return; }
+    } catch (e) { return; }
 
     try {
         const resp = await fetch('/api/logistica/notificacoes/pendentes', {
@@ -12133,11 +12133,11 @@ async function checkLogisticaNotificacoes() {
         });
         if (!resp.ok) return;
         const notifs = await resp.json();
-        
+
         for (const notif of notifs) {
             if (_logNotifSeen.has(notif.id)) continue;
             _logNotifSeen.add(notif.id);
-            
+
             try {
                 const dados = JSON.parse(notif.dados || '{}');
                 // Theme: Purple (Comercial)
@@ -12177,13 +12177,13 @@ async function checkLogisticaNotificacoes() {
                 `;
                 popup.setAttribute('data-notif-id', notif.id);
                 document.body.appendChild(popup);
-                
+
                 // markLogNotifLida removed from auto
-                
+
                 setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
-            } catch(parseErr) { }
+            } catch (parseErr) { }
         }
-    } catch(e) { }
+    } catch (e) { }
 }
 
 setInterval(checkLogisticaNotificacoes, 60000);
@@ -12201,15 +12201,15 @@ async function checkUserNotificacoes() {
         });
         if (!resp.ok) return;
         const notifs = await resp.json();
-        
+
         for (const notif of notifs) {
             if (_userNotifSeen.has(notif.id)) continue;
             _userNotifSeen.add(notif.id);
-            
+
             try {
                 let dados = {};
-                try { dados = JSON.parse(notif.dados || '{}'); } catch(e) {}
-                
+                try { dados = JSON.parse(notif.dados || '{}'); } catch (e) { }
+
                 let bg, icon, color, titulo, navTarget;
                 if (notif.tipo === 'aviso_faltas') {
                     if (dados.origem === 'agenda') {
@@ -12228,7 +12228,7 @@ async function checkUserNotificacoes() {
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
-                
+
                 const popup = document.createElement('div');
                 popup.style.cssText = `
                     position:fixed; bottom:24px; right:24px; z-index:99999;
@@ -12237,7 +12237,7 @@ async function checkUserNotificacoes() {
                     max-width:380px; animation: slideInRight 0.4s ease-out;
                     border-left: 4px solid ${color};
                 `;
-                
+
                 let contentHTML = '';
                 if (notif.tipo === 'aviso_faltas') {
                     const nomeColab = dados.nome_colab || 'Colaborador não identificado';
@@ -12307,14 +12307,14 @@ async function checkUserNotificacoes() {
                 popup.setAttribute('data-notif-id', notif.id);
                 document.body.appendChild(popup);
                 setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
-            } catch(parseErr) { }
+            } catch (parseErr) { }
         }
-    } catch(e) { }
+    } catch (e) { }
 }
 
-window.markUserNotifLida = function(id) {
+window.markUserNotifLida = function (id) {
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-    fetch('/api/notificacoes/me/' + id + '/lida', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } }).catch(()=>{});
+    fetch('/api/notificacoes/me/' + id + '/lida', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } }).catch(() => { });
 };
 
 setInterval(checkUserNotificacoes, 60000);
@@ -12335,7 +12335,7 @@ async function renderPdfToContainer(pdfUrl, containerId, onScrollEnd) {
         const loadingTask = pdfjsLib.getDocument(pdfUrl);
         const pdf = await loadingTask.promise;
         container.innerHTML = '';
-        
+
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
             const page = await pdf.getPage(pageNum);
             const scale = 1.2;
@@ -12353,7 +12353,7 @@ async function renderPdfToContainer(pdfUrl, containerId, onScrollEnd) {
             await page.render({ canvasContext: context, viewport: viewport }).promise;
             container.appendChild(canvas);
         }
-        
+
         const checkScroll = () => {
             if (container.scrollHeight - container.scrollTop <= container.clientHeight + 100) {
                 onScrollEnd();
@@ -12362,15 +12362,15 @@ async function renderPdfToContainer(pdfUrl, containerId, onScrollEnd) {
         };
 
         container.addEventListener('scroll', checkScroll);
-        
+
         if (container.scrollHeight <= container.clientHeight + 150) {
             onScrollEnd();
         }
-        
+
     } catch (e) {
         console.error("PDFJS Erro:", e);
         container.innerHTML = '<div style="color:red; padding:2rem;">Erro ao carregar renderização do PDF: ' + e.message + '</div>';
-        onScrollEnd(); 
+        onScrollEnd();
     }
 }
 
@@ -12378,7 +12378,7 @@ function getPointerPos(canvas, evt) {
     const rect = canvas.getBoundingClientRect();
     let clientX = evt.clientX;
     let clientY = evt.clientY;
-    if(evt.touches && evt.touches.length > 0) {
+    if (evt.touches && evt.touches.length > 0) {
         clientX = evt.touches[0].clientX;
         clientY = evt.touches[0].clientY;
     }
@@ -12404,7 +12404,7 @@ function setupHighDpiCanvas(canvasId, refObj, objKey) {
     canvas.height = h * dpr;
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
-    
+
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
     refObj[objKey] = ctx;
@@ -12416,7 +12416,7 @@ function setupHighDpiCanvas(canvasId, refObj, objKey) {
     let drawing = false;
 
     const start = (e) => { e.preventDefault(); drawing = true; const pos = getPointerPos(canvas, e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); };
-    const move = (e) => { e.preventDefault(); if(!drawing) return; const pos = getPointerPos(canvas, e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); };
+    const move = (e) => { e.preventDefault(); if (!drawing) return; const pos = getPointerPos(canvas, e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); };
     const stop = (e) => { e.preventDefault(); drawing = false; ctx.closePath(); };
 
     canvas.addEventListener('mousedown', start);
@@ -12424,8 +12424,8 @@ function setupHighDpiCanvas(canvasId, refObj, objKey) {
     canvas.addEventListener('mouseup', stop);
     canvas.addEventListener('mouseout', stop);
 
-    canvas.addEventListener('touchstart', start, {passive: false});
-    canvas.addEventListener('touchmove', move, {passive: false});
+    canvas.addEventListener('touchstart', start, { passive: false });
+    canvas.addEventListener('touchmove', move, { passive: false });
     canvas.addEventListener('touchend', stop);
 
     ctx.clearRect(0, 0, w, h);
@@ -12445,7 +12445,7 @@ let ctxTestemunhas = {};
 let currentDocIdForWitness = null;
 let currentDocDataForWitness = null;
 
-window.abrirModalAssinaturaTestemunhas = async function(docId) {
+window.abrirModalAssinaturaTestemunhas = async function (docId) {
     currentDocIdForWitness = docId;
     currentDocDataForWitness = currentDocs.find(d => d.id === docId);
 
@@ -12467,12 +12467,12 @@ window.abrirModalAssinaturaTestemunhas = async function(docId) {
     } catch (e) {
         console.error("Erro ao buscar colaboradores", e);
     }
-    
+
     console.log('[Testemunhas] Total colaboradores carregados:', cols.length);
-    
+
     // Mostrar todos os colaboradores cadastrados como possíveis testemunhas
     const todos = (cols || []).filter(c => (c.nome_completo || c.nome || '').trim() !== '');
-    todos.sort((a,b) => (a.nome_completo||a.nome||'').localeCompare(b.nome_completo||b.nome||''));
+    todos.sort((a, b) => (a.nome_completo || a.nome || '').localeCompare(b.nome_completo || b.nome || ''));
 
     let options = '<option value="">Selecione uma testemunha...</option>';
     todos.forEach(c => {
@@ -12487,7 +12487,7 @@ window.abrirModalAssinaturaTestemunhas = async function(docId) {
     document.getElementById('cpf-t2').innerText = '';
 
     const pdfUrl = `${API_URL}/documentos/view/${docId}?token=${currentToken}`;
-    
+
     renderPdfToContainer(pdfUrl, 'pdf-viewer-testemunhas', () => {
         formArea.style.display = 'block';
         setTimeout(() => {
@@ -12497,14 +12497,14 @@ window.abrirModalAssinaturaTestemunhas = async function(docId) {
     });
 };
 
-window.limparCanvasTestemunha = function(index) {
+window.limparCanvasTestemunha = function (index) {
     const canvas = document.getElementById('canvas-testemunha-' + index);
     const ctx = index === 1 ? ctxTestemunhas.ctx1 : ctxTestemunhas.ctx2;
     const dpr = window.devicePixelRatio || 1;
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 };
 
-window.salvarAssinaturasTestemunhas = async function() {
+window.salvarAssinaturasTestemunhas = async function () {
     const s1 = document.getElementById('select-testemunha-1').value;
     const s2 = document.getElementById('select-testemunha-2').value;
 
@@ -12516,7 +12516,7 @@ window.salvarAssinaturasTestemunhas = async function() {
     }
 
     const doc = currentDocDataForWitness;
-    if(!doc || !doc.file_path) { alert('Documento original não encontrado.'); return; }
+    if (!doc || !doc.file_path) { alert('Documento original não encontrado.'); return; }
     if (typeof PDFLib === 'undefined') { alert('A biblioteca de processamento de PDF não está carregada.'); return; }
 
     const btn = document.getElementById('btn-salvar-testemunhas');
@@ -12527,7 +12527,7 @@ window.salvarAssinaturasTestemunhas = async function() {
 
         const pdfUrl = `${API_URL}/documentos/download/${doc.id}?token=${currentToken}`;
         const pdfResp = await fetch(pdfUrl);
-        if(!pdfResp.ok) throw new Error('Não foi possível baixar o PDF original.');
+        if (!pdfResp.ok) throw new Error('Não foi possível baixar o PDF original.');
         const existingPdfBytes = await pdfResp.arrayBuffer();
 
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
@@ -12543,7 +12543,7 @@ window.salvarAssinaturasTestemunhas = async function() {
             const dpr = window.devicePixelRatio || 1;
             const scale = 3;
             const off = document.createElement('canvas');
-            off.width  = src.width  * scale / dpr;
+            off.width = src.width * scale / dpr;
             off.height = src.height * scale / dpr;
             const ctx = off.getContext('2d');
             ctx.scale(scale, scale);
@@ -12557,20 +12557,20 @@ window.salvarAssinaturasTestemunhas = async function() {
         // Coordenadas PDF-Lib (Y=0 na base da página. Altura ≈ 841pt para A4)
         // Posicionamento compacto: label → imagem → linha → nome → CPF
         const t1LabelY = 310;
-        const tImgH    = 70;
-        const t1ImgY   = 230; // imagem de Y=230 até Y=300
-        const t1LineY  = 222; // linha logo abaixo da imagem
-        const t1NameY  = 208; // nome bem próximo da linha
-        const t1CpfY   = 195; // CPF logo abaixo do nome
+        const tImgH = 70;
+        const t1ImgY = 230; // imagem de Y=230 até Y=300
+        const t1LineY = 222; // linha logo abaixo da imagem
+        const t1NameY = 208; // nome bem próximo da linha
+        const t1CpfY = 195; // CPF logo abaixo do nome
 
         // ══ TESTEMUNHA 1 (Esquerda) ══
         const t1X = 56;
         sigPage.drawText('Testemunha 1:', { x: t1X, y: t1LabelY, size: 10, color: PDFLib.rgb(0.2, 0.2, 0.2) });
-        
+
         const png1Bytes = await getHQCanvas('canvas-testemunha-1');
         const png1Image = await pdfDoc.embedPng(png1Bytes);
         sigPage.drawImage(png1Image, { x: t1X, y: t1ImgY, width: innerWidth, height: tImgH });
-        
+
         sigPage.drawLine({ start: { x: t1X, y: t1LineY }, end: { x: t1X + innerWidth, y: t1LineY }, thickness: 1, color: PDFLib.rgb(0.2, 0.2, 0.2) });
         sigPage.drawText(data1[0], { x: t1X, y: t1NameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
         sigPage.drawText(`CPF: ${data1[1] || 'N/D'}`, { x: t1X, y: t1CpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
@@ -12582,7 +12582,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         const png2Bytes = await getHQCanvas('canvas-testemunha-2');
         const png2Image = await pdfDoc.embedPng(png2Bytes);
         sigPage.drawImage(png2Image, { x: t2X, y: t1ImgY, width: innerWidth, height: tImgH });
-        
+
         sigPage.drawLine({ start: { x: t2X, y: t1LineY }, end: { x: t2X + innerWidth, y: t1LineY }, thickness: 1, color: PDFLib.rgb(0.2, 0.2, 0.2) });
         sigPage.drawText(data2[0], { x: t2X, y: t1NameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
         sigPage.drawText(`CPF: ${data2[1] || 'N/D'}`, { x: t2X, y: t1CpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
@@ -12597,8 +12597,8 @@ window.salvarAssinaturasTestemunhas = async function() {
         formData.append('tab_name', doc.tab_name);
         formData.append('document_type', doc.document_type);
         formData.append('assinafy_status', 'Testemunhas'); // Atualiza status
-        if(doc.year) formData.append('year', doc.year);
-        if(doc.month) formData.append('month', doc.month);
+        if (doc.year) formData.append('year', doc.year);
+        if (doc.month) formData.append('month', doc.month);
 
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando Documento...';
         const resUpload = await fetch(`${API_URL}/documentos`, {
@@ -12607,17 +12607,17 @@ window.salvarAssinaturasTestemunhas = async function() {
             body: formData
         });
 
-        if(!resUpload.ok) {
-            const errRes = await resUpload.json().catch(()=>({}));
+        if (!resUpload.ok) {
+            const errRes = await resUpload.json().catch(() => ({}));
             throw new Error(errRes.error || 'Falha ao reenviar documento com assinaturas.');
         }
 
         alert('Assinaturas adicionadas com sucesso!');
         document.getElementById('modal-assinatura-testemunhas').style.display = 'none';
-        
+
         await loadDocumentosList();
         const activeTab = document.querySelector('#tabs-list li.active');
-        if(activeTab) {
+        if (activeTab) {
             renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
         } else {
             renderTabContent('Advertências', 'Ocorrências', true);
@@ -12635,7 +12635,7 @@ window.salvarAssinaturasTestemunhas = async function() {
 let ctxColaborador = {};
 let currentDocIdForColab = null;
 
-window.abrirModalAssinaturaColaborador = async function(docId) {
+window.abrirModalAssinaturaColaborador = async function (docId) {
     currentDocIdForColab = docId;
     const doc = currentDocs.find(d => d.id === docId);
 
@@ -12647,7 +12647,7 @@ window.abrirModalAssinaturaColaborador = async function(docId) {
     document.getElementById('nome-assinatura-colab').innerText = viewedColaborador.nome_completo || 'Colaborador';
 
     const pdfUrl = `${API_URL}/documentos/view/${docId}?token=${currentToken}`;
-    
+
     renderPdfToContainer(pdfUrl, 'pdf-viewer-colaborador', () => {
         formArea.style.display = 'block';
         setTimeout(() => {
@@ -12656,20 +12656,20 @@ window.abrirModalAssinaturaColaborador = async function(docId) {
     });
 };
 
-window.limparCanvasColaborador = function() {
+window.limparCanvasColaborador = function () {
     const canvas = document.getElementById('canvas-colaborador');
     const ctx = ctxColaborador.ctx1;
     const dpr = window.devicePixelRatio || 1;
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 };
 
-window.salvarAssinaturaColaborador = async function() {
+window.salvarAssinaturaColaborador = async function () {
     if (isCanvasBlank('canvas-colaborador')) {
         alert('A assinatura do colaborador é obrigatória.'); return;
     }
 
     const doc = currentDocs.find(d => d.id === currentDocIdForColab);
-    if(!doc || !doc.file_path) { alert('Documento não encontrado.'); return; }
+    if (!doc || !doc.file_path) { alert('Documento não encontrado.'); return; }
 
     const btn = document.getElementById('btn-salvar-colaborador');
     const originalBtn = btn.innerHTML;
@@ -12679,7 +12679,7 @@ window.salvarAssinaturaColaborador = async function() {
 
         const pdfUrl = `${API_URL}/documentos/download/${doc.id}?token=${currentToken}`;
         const pdfResp = await fetch(pdfUrl);
-        if(!pdfResp.ok) throw new Error('Não foi possível baixar o PDF original.');
+        if (!pdfResp.ok) throw new Error('Não foi possível baixar o PDF original.');
         const existingPdfBytes = await pdfResp.arrayBuffer();
 
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
@@ -12693,7 +12693,7 @@ window.salvarAssinaturaColaborador = async function() {
             const dpr = window.devicePixelRatio || 1;
             const scale = 3;
             const off = document.createElement('canvas');
-            off.width  = src.width  * scale / dpr;
+            off.width = src.width * scale / dpr;
             off.height = src.height * scale / dpr;
             const ctx = off.getContext('2d');
             ctx.scale(scale, scale);
@@ -12705,12 +12705,12 @@ window.salvarAssinaturaColaborador = async function() {
         const cImgH = 80;
         const cWidth = 321; // Mesma largura das testemunhas
         const cX = (pgW - cWidth) / 2;
-        
+
         const cLabelY = 190;
-        const cImgY   = 100;
-        const cLineY  = 90;
-        const cNameY  = 70;
-        const cCpfY   = 55;
+        const cImgY = 100;
+        const cLineY = 90;
+        const cNameY = 70;
+        const cCpfY = 55;
 
         // Label
         lastPage.drawText('Colaborador (Ciente):', { x: cX, y: cLabelY, size: 10, color: PDFLib.rgb(0.2, 0.2, 0.2) });
@@ -12719,7 +12719,7 @@ window.salvarAssinaturaColaborador = async function() {
         const png1Bytes = await getHQCanvas2('canvas-colaborador');
         const png1Image = await pdfDoc.embedPng(png1Bytes);
         lastPage.drawImage(png1Image, { x: cX, y: cImgY, width: cWidth, height: cImgH });
-        
+
         // Linha e textos
         lastPage.drawLine({ start: { x: cX, y: cLineY }, end: { x: cX + cWidth, y: cLineY }, thickness: 1, color: PDFLib.rgb(0.2, 0.2, 0.2) });
         lastPage.drawText(viewedColaborador.nome_completo || 'Colaborador', { x: cX, y: cNameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
@@ -12734,9 +12734,9 @@ window.salvarAssinaturaColaborador = async function() {
         formData.append('colaborador_nome', viewedColaborador.nome_completo || 'Desconhecido');
         formData.append('tab_name', doc.tab_name);
         formData.append('document_type', doc.document_type);
-        formData.append('assinafy_status', 'Assinado'); 
-        if(doc.year) formData.append('year', doc.year);
-        if(doc.month) formData.append('month', doc.month);
+        formData.append('assinafy_status', 'Assinado');
+        if (doc.year) formData.append('year', doc.year);
+        if (doc.month) formData.append('month', doc.month);
 
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando Documento...';
         const resUpload = await fetch(`${API_URL}/documentos`, {
@@ -12745,18 +12745,18 @@ window.salvarAssinaturaColaborador = async function() {
             body: formData
         });
 
-        if(!resUpload.ok) {
-            const errRes = await resUpload.json().catch(()=>({}));
+        if (!resUpload.ok) {
+            const errRes = await resUpload.json().catch(() => ({}));
             throw new Error(errRes.error || 'Falha ao reenviar documento assinado.');
         }
 
         alert('Assinatura do colaborador coletada!');
         document.getElementById('modal-assinatura-colaborador').style.display = 'none';
-        
+
         await loadDocumentosList();
-        
+
         const activeTab = document.querySelector('#tabs-list li.active');
-        if(activeTab) {
+        if (activeTab) {
             renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
         } else {
             renderTabContent('Advertências', 'Ocorrências', true);
@@ -12784,7 +12784,7 @@ async function renderFichaEpiTab(container) {
             apiGet(`/colaboradores/${colabId}/epi-fichas`),
             apiGet('/epi-templates')
         ]);
-    } catch(e) {
+    } catch (e) {
         container.innerHTML = '<div class="alert alert-danger">Erro ao carregar dados de EPI.</div>';
         return;
     }
@@ -12793,23 +12793,23 @@ async function renderFichaEpiTab(container) {
 
     const dept = viewedColaborador?.departamento || '';
     const cargo = viewedColaborador?.cargo || '';
-    
+
     // Setores que devem usar o template Administrativo (Escritório)
     const SETORES_ADMIN = ['Comercial', 'Financeiro', 'Logística', 'Logistica', 'Administrativo', 'RH'];
     const isSetorAdmin = SETORES_ADMIN.includes(dept) || SETORES_ADMIN.includes(cargo);
 
     // Procura template por departamento ou por cargo (e.g. Motorista)
-    let templateDoColab = templates.find(t => (t.departamentos||[]).includes(dept) || (t.departamentos||[]).includes(cargo)) ||
-                          templates.find(t => t.grupo === dept || t.grupo === cargo) ||
-                          // Fallback: se for setor admin, usa o template de categoria Administrativo
-                          (isSetorAdmin ? templates.find(t => t.categoria === 'Administrativo') : null) ||
-                          templates[0];
+    let templateDoColab = templates.find(t => (t.departamentos || []).includes(dept) || (t.departamentos || []).includes(cargo)) ||
+        templates.find(t => t.grupo === dept || t.grupo === cargo) ||
+        // Fallback: se for setor admin, usa o template de categoria Administrativo
+        (isSetorAdmin ? templates.find(t => t.categoria === 'Administrativo') : null) ||
+        templates[0];
 
     let btnDesabilitado = false;
     if (fichaAtiva && templateDoColab) {
-        const ok = JSON.stringify((fichaAtiva.snapshot_epis||[]).slice().sort()) === JSON.stringify((templateDoColab.epis||[]).slice().sort())
-            && (fichaAtiva.snapshot_termo||'') === (templateDoColab.termo_texto||'')
-            && (fichaAtiva.snapshot_rodape||'') === (templateDoColab.rodape_texto||'')
+        const ok = JSON.stringify((fichaAtiva.snapshot_epis || []).slice().sort()) === JSON.stringify((templateDoColab.epis || []).slice().sort())
+            && (fichaAtiva.snapshot_termo || '') === (templateDoColab.termo_texto || '')
+            && (fichaAtiva.snapshot_rodape || '') === (templateDoColab.rodape_texto || '')
             && fichaAtiva.grupo === templateDoColab.grupo;
         if (ok) btnDesabilitado = true;
     }
@@ -12817,7 +12817,7 @@ async function renderFichaEpiTab(container) {
     const fmtDate = iso => {
         if (!iso) return '-';
         const d = new Date(iso);
-        return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+        return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
     };
 
     container.innerHTML = `
@@ -12858,7 +12858,7 @@ async function renderFichaEpiTab(container) {
                     <p style="margin:0;font-weight:700;font-size:0.9rem;color:#0f172a;">Ficha: ${f.grupo}</p>
                     <p style="margin:2px 0 0;font-size:0.78rem;color:#64748b;">Criada: ${fmtDate(f.created_at)}${f.fechada_em ? ' &middot; Fechada: ' + fmtDate(f.fechada_em) : ''}</p>
                 </div>
-                <span style="background:${f.status==='ativa'?'#dcfce7':'#f1f5f9'};color:${f.status==='ativa'?'#15803d':'#475569'};border-radius:999px;padding:2px 10px;font-size:0.75rem;font-weight:700;white-space:nowrap;">
+                <span style="background:${f.status === 'ativa' ? '#dcfce7' : '#f1f5f9'};color:${f.status === 'ativa' ? '#15803d' : '#475569'};border-radius:999px;padding:2px 10px;font-size:0.75rem;font-weight:700;white-space:nowrap;">
                     ${f.status === 'ativa' ? '&#9679; Ativa' : '&#9675; Fechada'}
                 </span>
                 <button onclick="window.previewFichaEpi(${f.id})" class="btn btn-secondary btn-sm" style="height:32px;display:flex;align-items:center;gap:4px;">
@@ -12876,9 +12876,9 @@ async function renderFichaEpiTab(container) {
 // FLUXO DE ASSINATURA DE ENTREGA DE EPI
 // ============================================================
 
-window.gerarFichaEpiManualProntuario = async function(templateId) {
+window.gerarFichaEpiManualProntuario = async function (templateId) {
     if (!confirm('Deseja gerar a Ficha de EPI para esse colaborador usando o template padrão vinculado a este cargo?')) return;
-    
+
     const colabId = viewedColaborador?.id;
     if (!colabId) return;
 
@@ -12906,10 +12906,10 @@ window.gerarFichaEpiManualProntuario = async function(templateId) {
             body: JSON.stringify(payload)
         });
         if (!res.ok) throw new Error('Erro na resposta do servidor.');
-        
+
         // Recarrega a aba para exibir a ficha ativa recém-criada
         renderTabContent('Ficha de EPI', 'Ficha de EPI');
-    } catch(err) {
+    } catch (err) {
         console.error(err);
         alert('Ocorreu um erro ao gerar a ficha ativa.');
         btn.innerHTML = oldHtml;
@@ -12917,7 +12917,7 @@ window.gerarFichaEpiManualProntuario = async function(templateId) {
     }
 };
 
-window.abrirAssinaturaEpi = async function(fichaId) {
+window.abrirAssinaturaEpi = async function (fichaId) {
     const { fichas, colabId } = window._epiProntuarioData || {};
     const ficha = (fichas || []).find(f => f.id === fichaId);
     if (!ficha) return;
@@ -12935,8 +12935,8 @@ window.abrirAssinaturaEpi = async function(fichaId) {
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff;display:flex;flex-direction:column;';
 
     const hoje = new Date();
-    const hojeDD = String(hoje.getDate()).padStart(2,'0');
-    const hojeM = String(hoje.getMonth()+1).padStart(2,'0');
+    const hojeDD = String(hoje.getDate()).padStart(2, '0');
+    const hojeM = String(hoje.getMonth() + 1).padStart(2, '0');
     const hojeStr = hojeDD + '/' + hojeM + '/' + hoje.getFullYear();
 
     overlay.innerHTML = `
@@ -13042,62 +13042,64 @@ window.abrirAssinaturaEpi = async function(fichaId) {
         window._initSignatureCanvas();
         const today = new Date();
         const di = document.getElementById('epi-data-entrega');
-        if (di) { di.value = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0'); }
+        if (di) { di.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'); }
         window._renderEpiGrid('');
     }, 100);
 };
 
-window._renderEpiGrid = function(filtro) {
+window._renderEpiGrid = function (filtro) {
     const epis = window._assinEpisDisponiveis || [];
     const c2 = document.getElementById('epi-lista-botoes');
     if (!c2) return;
-    const f = (filtro||'').toLowerCase().trim();
+    const f = (filtro || '').toLowerCase().trim();
     const filtered = f ? epis.filter(e => e.toLowerCase().includes(f)) : epis;
     c2.innerHTML = '';
     filtered.forEach(epi => {
-        const qty = window._assinQtds[epi]||0;
+        const qty = window._assinQtds[epi] || 0;
         const card = document.createElement('div');
         card.setAttribute('data-epi-card', epi);
-        card.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:0.65rem 1rem;border:2px solid '+(qty>0?'#16a34a':'#e2e8f0')+';border-radius:10px;background:'+(qty>0?'#f0fdf4':'#fff')+';box-shadow:0 1px 3px rgba(0,0,0,0.06);';
-        const lbl=document.createElement('span'); lbl.style.cssText='font-size:0.88rem;color:#0f172a;font-weight:600;flex:1;margin-right:0.5rem;line-height:1.3;'; lbl.textContent=epi;
-        const ctrl=document.createElement('div'); ctrl.style.cssText='display:flex;align-items:center;gap:6px;flex-shrink:0;';
-        const btnM=document.createElement('button'); btnM.textContent='−'; btnM.style.cssText='background:'+(qty>0?'#1e3a5f':'#e2e8f0')+';color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
-        btnM.addEventListener('click',()=>window._setEpiQty(epi,Math.max(0,(window._assinQtds[epi]||0)-1)));
-        const inp=document.createElement('input'); inp.type='number'; inp.min='0'; inp.value=qty; inp.style.cssText='width:48px;text-align:center;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px;font-size:0.95rem;font-weight:700;color:#0f172a;';
-        inp.addEventListener('input',()=>window._setEpiQty(epi,Math.max(0,parseInt(inp.value)||0)));
-        const btnP=document.createElement('button'); btnP.textContent='+'; btnP.style.cssText='background:#1e3a5f;color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
-        btnP.addEventListener('click',()=>window._setEpiQty(epi,(window._assinQtds[epi]||0)+1));
+        card.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.65rem 1rem;border:2px solid ' + (qty > 0 ? '#16a34a' : '#e2e8f0') + ';border-radius:10px;background:' + (qty > 0 ? '#f0fdf4' : '#fff') + ';box-shadow:0 1px 3px rgba(0,0,0,0.06);';
+        const lbl = document.createElement('span'); lbl.style.cssText = 'font-size:0.88rem;color:#0f172a;font-weight:600;flex:1;margin-right:0.5rem;line-height:1.3;'; lbl.textContent = epi;
+        const ctrl = document.createElement('div'); ctrl.style.cssText = 'display:flex;align-items:center;gap:6px;flex-shrink:0;';
+        const btnM = document.createElement('button'); btnM.textContent = '−'; btnM.style.cssText = 'background:' + (qty > 0 ? '#1e3a5f' : '#e2e8f0') + ';color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+        btnM.addEventListener('click', () => window._setEpiQty(epi, Math.max(0, (window._assinQtds[epi] || 0) - 1)));
+        const inp = document.createElement('input'); inp.type = 'number'; inp.min = '0'; inp.value = qty; inp.style.cssText = 'width:48px;text-align:center;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px;font-size:0.95rem;font-weight:700;color:#0f172a;';
+        inp.addEventListener('input', () => window._setEpiQty(epi, Math.max(0, parseInt(inp.value) || 0)));
+        const btnP = document.createElement('button'); btnP.textContent = '+'; btnP.style.cssText = 'background:#1e3a5f;color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+        btnP.addEventListener('click', () => window._setEpiQty(epi, (window._assinQtds[epi] || 0) + 1));
         ctrl.appendChild(btnM); ctrl.appendChild(inp); ctrl.appendChild(btnP);
         card.appendChild(lbl); card.appendChild(ctrl); c2.appendChild(card);
     });
 };
 
-window._setEpiQty = function(epi,qty) {
-    window._assinQtds=window._assinQtds||{}; window._assinQtds[epi]=qty;
-    const card=document.querySelector('[data-epi-card="'+CSS.escape(epi)+'"]');
-    if(card){ card.style.borderColor=qty>0?'#16a34a':'#e2e8f0'; card.style.background=qty>0?'#f0fdf4':'#fff';
-        const inp=card.querySelector('input[type=number]'); if(inp) inp.value=qty;
-        const btns=card.querySelectorAll('button'); if(btns[0]) btns[0].style.background=qty>0?'#1e3a5f':'#e2e8f0'; }
-    if(qty>0){ const w=document.getElementById('epi-select-warn'); if(w) w.style.display='none'; }
+window._setEpiQty = function (epi, qty) {
+    window._assinQtds = window._assinQtds || {}; window._assinQtds[epi] = qty;
+    const card = document.querySelector('[data-epi-card="' + CSS.escape(epi) + '"]');
+    if (card) {
+        card.style.borderColor = qty > 0 ? '#16a34a' : '#e2e8f0'; card.style.background = qty > 0 ? '#f0fdf4' : '#fff';
+        const inp = card.querySelector('input[type=number]'); if (inp) inp.value = qty;
+        const btns = card.querySelectorAll('button'); if (btns[0]) btns[0].style.background = qty > 0 ? '#1e3a5f' : '#e2e8f0';
+    }
+    if (qty > 0) { const w = document.getElementById('epi-select-warn'); if (w) w.style.display = 'none'; }
 };
 
-window._filtrarEpis = function(f){ window._renderEpiGrid(f); };
+window._filtrarEpis = function (f) { window._renderEpiGrid(f); };
 
-window._buildItensFromQtds = function() {
-    const r=[];
-    Object.entries(window._assinQtds||{}).forEach(([e,q])=>{ for(let i=0;i<q;i++) r.push(e); });
+window._buildItensFromQtds = function () {
+    const r = [];
+    Object.entries(window._assinQtds || {}).forEach(([e, q]) => { for (let i = 0; i < q; i++) r.push(e); });
     return r;
 };
 
-window._addEpiToList=function(e){ window._setEpiQty(e,(window._assinQtds[e]||0)+1); };
-window._removeEpiFromList=function(){};
-window._renderItensLista=function(){};
+window._addEpiToList = function (e) { window._setEpiQty(e, (window._assinQtds[e] || 0) + 1); };
+window._removeEpiFromList = function () { };
+window._renderItensLista = function () { };
 
-window._syncEpiSelection = function() {};
+window._syncEpiSelection = function () { };
 
 // Navega para step
-window._assinStep = function(n) {
-    [1,2,3].forEach(s => {
+window._assinStep = function (n) {
+    [1, 2, 3].forEach(s => {
         const el = document.getElementById(`epi-step-${s}`);
         if (el) {
             if (s === n) el.style.display = (s === 2) ? 'grid' : 'block';
@@ -13107,12 +13109,12 @@ window._assinStep = function(n) {
     window._assinCurrentStep = n;
 
     // Atualiza indicadores de step
-    [1,2,3].forEach(s => {
+    [1, 2, 3].forEach(s => {
         const badge = document.getElementById(`step-badge-${s}`);
-        const ind   = document.getElementById(`step-ind-${s}`);
+        const ind = document.getElementById(`step-ind-${s}`);
         if (!badge || !ind) return;
-        const done  = s < n;
-        const active= s === n;
+        const done = s < n;
+        const active = s === n;
         badge.style.background = done ? '#16a34a' : active ? '#1e3a5f' : '#cbd5e1';
         if (ind) ind.style.color = active ? '#1e3a5f' : done ? '#15803d' : '#94a3b8';
     });
@@ -13129,15 +13131,15 @@ window._assinStep = function(n) {
     // Atualiza lista selecionada no step 2
     if (n === 2) {
         const ul = document.getElementById('epi-lista-selecionada');
-        if (ul) { window._assinItens = window._buildItensFromQtds ? window._buildItensFromQtds() : []; ul.innerHTML = window._assinItens.map(e=>'<li>'+e+'</li>').join(''); }
+        if (ul) { window._assinItens = window._buildItensFromQtds ? window._buildItensFromQtds() : []; ul.innerHTML = window._assinItens.map(e => '<li>' + e + '</li>').join(''); }
         const dd = document.getElementById('epi-data-display');
-        if (dd) { const inp = document.getElementById('epi-data-entrega'); if(inp&&inp.value){ const p=inp.value.split('-'); dd.textContent=p.length===3?p[2]+'/'+p[1]+'/'+p[0]:inp.value; } }
+        if (dd) { const inp = document.getElementById('epi-data-entrega'); if (inp && inp.value) { const p = inp.value.split('-'); dd.textContent = p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : inp.value; } }
         window._initSignatureCanvas();
     }
 };
 
 // Botão "Próximo / Confirmar / Fechar"
-window._assinNextStep = async function() {
+window._assinNextStep = async function () {
     const step = window._assinCurrentStep;
 
     if (step === 1) {
@@ -13173,9 +13175,9 @@ window._assinNextStep = async function() {
                 headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     colaborador_id: window._assinColabId,
-                    epis_entregues: window._buildItensFromQtds ? window._buildItensFromQtds() : (window._assinItens||[]),
+                    epis_entregues: window._buildItensFromQtds ? window._buildItensFromQtds() : (window._assinItens || []),
                     assinatura_base64: assinaturaBase64,
-                    data_entrega: (()=>{ const i=document.getElementById('epi-data-entrega'); if(!i||!i.value) return ''; const p=i.value.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:i.value; })()
+                    data_entrega: (() => { const i = document.getElementById('epi-data-entrega'); if (!i || !i.value) return ''; const p = i.value.split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : i.value; })()
                 })
             });
             const result = await resp.json();
@@ -13186,10 +13188,10 @@ window._assinNextStep = async function() {
             (async () => {
                 try {
                     const { fichas: ff, colabId: cid, templates } = window._epiProntuarioData || {};
-                    const fich = (ff||[]).find(f => f.id === window._assinFichaId);
+                    const fich = (ff || []).find(f => f.id === window._assinFichaId);
                     if (fich && cid) {
-                        if (typeof ensureHeaderLogo === 'function') await ensureHeaderLogo().catch(()=>{});
-                        const tpl = (templates||[]).find(t => t.grupo === fich.grupo) || fich;
+                        if (typeof ensureHeaderLogo === 'function') await ensureHeaderLogo().catch(() => { });
+                        const tpl = (templates || []).find(t => t.grupo === fich.grupo) || fich;
                         const { jsPDF } = window.jspdf;
 
                         // Buscar TODAS as entregas já registradas para esta ficha (histórico completo)
@@ -13207,7 +13209,7 @@ window._assinNextStep = async function() {
                             }
                         });
 
-                        const doc = window.gerarDocEpi(tpl, viewedColaborador||{}, jsPDF, linhasFull);
+                        const doc = window.gerarDocEpi(tpl, viewedColaborador || {}, jsPDF, linhasFull);
                         const pdfB64 = doc.output('datauristring');
                         await fetch(API_URL + '/epi-fichas/' + window._assinFichaId + '/save-onedrive', {
                             method: 'POST',
@@ -13215,21 +13217,21 @@ window._assinNextStep = async function() {
                             body: JSON.stringify({ pdf_base64: pdfB64, colaborador_id: cid })
                         }).catch(e2 => console.warn('[save-onedrive]', e2));
                     }
-                } catch(se) { console.warn('[save-onedrive]', se); }
+                } catch (se) { console.warn('[save-onedrive]', se); }
             })();
             // Recarrega a aba após 2s e abre o PDF na tela
             setTimeout(() => {
                 const old = document.getElementById('epi-assinatura-overlay');
                 if (old) old.remove();
-                
+
                 // Abre o visualizador do PDF da ficha para mostrar a nova assinatura
                 window.previewFichaEpi(window._assinFichaId);
-                
+
                 const activeTab = document.querySelector('#tabs-list li.active');
                 if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
             }, 2000);
 
-        } catch(err) {
+        } catch (err) {
             alert('Erro ao salvar entrega: ' + err.message);
             const btnNext = document.getElementById('btn-assin-next');
             if (btnNext) { btnNext.disabled = false; btnNext.innerHTML = '<i class="ph ph-check"></i> Confirmar Entrega'; }
@@ -13244,7 +13246,7 @@ window._assinNextStep = async function() {
 };
 
 // Canvas de assinatura
-window._initSignatureCanvas = function() {
+window._initSignatureCanvas = function () {
     const canvas = document.getElementById('epi-signature-canvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -13287,13 +13289,13 @@ window._initSignatureCanvas = function() {
     canvas.onmouseleave = () => { drawing = false; };
 };
 
-window._limparAssinatura = function() {
+window._limparAssinatura = function () {
     const canvas = document.getElementById('epi-signature-canvas');
     if (!canvas) return;
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
 };
 
-window._assinaturaTemConteudo = function() {
+window._assinaturaTemConteudo = function () {
     const canvas = document.getElementById('epi-signature-canvas');
     if (!canvas) return false;
     const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
@@ -13301,7 +13303,7 @@ window._assinaturaTemConteudo = function() {
     return false;
 };
 
-window.gerarNovaFichaEpi = async function() {
+window.gerarNovaFichaEpi = async function () {
     const data = window._epiProntuarioData || {};
     const { templates, fichaAtiva, colabId, templateDoColab } = data;
     if (!templates || !colabId) return;
@@ -13334,33 +13336,33 @@ window.gerarNovaFichaEpi = async function() {
     // Recarrega a aba para mostrar a nova ficha
     const activeTab = document.querySelector('#tabs-list li.active');
     if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
-    
+
     // Abre a visualização automaticamente após criar a nova ficha (assinada)
     if (created.id) {
         setTimeout(() => { window.previewFichaEpi(created.id); }, 500);
     }
 };
 
-window.previewFichaEpi = async function(fichaId) {
+window.previewFichaEpi = async function (fichaId) {
     const { fichas, templates } = window._epiProntuarioData || {};
-    const ficha = (fichas||[]).find(f=>f.id===fichaId);
+    const ficha = (fichas || []).find(f => f.id === fichaId);
     if (!ficha) { alert('Ficha nao encontrada.'); return; }
     let linhasFilled = [];
     try {
-        const entregas = await apiGet('/epi-fichas/'+fichaId+'/entregas');
+        const entregas = await apiGet('/epi-fichas/' + fichaId + '/entregas');
         entregas.forEach(e => {
-            const epis = e.epis_entregues||[];
-            if(epis.length===0) linhasFilled.push({ data:e.data_entrega||'', descricao:'', assinatura_base64:e.assinatura_base64 });
-            else epis.forEach(nome => linhasFilled.push({ data:e.data_entrega||'', descricao:nome, assinatura_base64:e.assinatura_base64 }));
+            const epis = e.epis_entregues || [];
+            if (epis.length === 0) linhasFilled.push({ data: e.data_entrega || '', descricao: '', assinatura_base64: e.assinatura_base64 });
+            else epis.forEach(nome => linhasFilled.push({ data: e.data_entrega || '', descricao: nome, assinatura_base64: e.assinatura_base64 }));
         });
-    } catch(err) { console.warn('Erro entregas:', err); }
+    } catch (err) { console.warn('Erro entregas:', err); }
 
-    const template = (templates||[]).find(t=>t.grupo===ficha.grupo) ||
-        { epis:ficha.snapshot_epis||[], termo_texto:ficha.snapshot_termo, rodape_texto:ficha.snapshot_rodape, grupo:ficha.grupo };
+    const template = (templates || []).find(t => t.grupo === ficha.grupo) ||
+        { epis: ficha.snapshot_epis || [], termo_texto: ficha.snapshot_termo, rodape_texto: ficha.snapshot_rodape, grupo: ficha.grupo };
 
-    if (typeof ensureHeaderLogo==='function') await ensureHeaderLogo().catch(()=>{});
+    if (typeof ensureHeaderLogo === 'function') await ensureHeaderLogo().catch(() => { });
     const { jsPDF } = window.jspdf;
-    const doc = window.gerarDocEpi(template, viewedColaborador||{}, jsPDF, linhasFilled);
+    const doc = window.gerarDocEpi(template, viewedColaborador || {}, jsPDF, linhasFilled);
 
     // Usar Blob URL em vez de data URI (Chrome bloqueia data: em iframes)
     const pdfBytes = doc.output('arraybuffer');
@@ -13369,8 +13371,8 @@ window.previewFichaEpi = async function(fichaId) {
 
     const old = document.getElementById('epi-preview-overlay');
     if (old) { old._blobUrl && URL.revokeObjectURL(old._blobUrl); old.remove(); }
-    
-    window.closeEpiPreviewOverlay = function() {
+
+    window.closeEpiPreviewOverlay = function () {
         const o = document.getElementById('epi-preview-overlay');
         if (o) {
             if (o._blobUrl) URL.revokeObjectURL(o._blobUrl);
@@ -13383,13 +13385,13 @@ window.previewFichaEpi = async function(fichaId) {
     ov._blobUrl = blobUrl;
     ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.92);display:flex;flex-direction:column;align-items:stretch;padding:1rem;gap:0.75rem;';
 
-    const nomeArq = `FichaEPI_${(ficha.grupo||'EPI').replace(/\s+/g,'_')}.pdf`;
+    const nomeArq = `FichaEPI_${(ficha.grupo || 'EPI').replace(/\s+/g, '_')}.pdf`;
     const header = document.createElement('div');
     header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:0 0.5rem;flex-shrink:0;';
     header.innerHTML = `
         <p style="margin:0;color:#f1f5f9;font-weight:700;font-size:1rem;">
             Ficha de EPI &mdash; ${ficha.grupo}
-            ${ficha.status==='ativa' ? '<span style="color:#86efac;margin-left:8px;">&#9679; Ativa</span>' : ''}
+            ${ficha.status === 'ativa' ? '<span style="color:#86efac;margin-left:8px;">&#9679; Ativa</span>' : ''}
         </p>
         <div style="display:flex;gap:8px;align-items:center;">
             <a id="epi-preview-download" href="${blobUrl}" download="${nomeArq}"
@@ -13419,10 +13421,10 @@ function getNormalizedPageSearchData() {
     for (const [key, obj] of Object.entries(BREADCRUMB_MAP)) {
         const parts = obj.path.split('→').map(p => p.trim());
         const rootPath = parts[0];
-        
+
         let targetKey = key;
         let rootCode = obj.code;
-        
+
         // Se a tela for interna (sem código), redireciona o clique para a root (a raiz, ex: Colaboradores)
         if (!obj.code) {
             const rootEntry = Object.entries(BREADCRUMB_MAP).find(([k, v]) => v.path === rootPath && v.code);
@@ -13438,28 +13440,28 @@ function getNormalizedPageSearchData() {
                 }
             }
         }
-        
+
         pages.push({ key: targetKey, name: obj.path, code: rootCode });
     }
     return pages;
 }
 
-window.handlePageSearch = function(q) {
+window.handlePageSearch = function (q) {
     const resDiv = document.getElementById('page-search-results');
     if (!resDiv) return;
     q = (q || '').toLowerCase().trim();
     if (!q) { resDiv.style.display = 'none'; return; }
-    
+
     const all = getNormalizedPageSearchData();
     const filtered = all.filter(p => p.name.toLowerCase().includes(q) || (p.code && p.code.toLowerCase().includes(q)));
-    
+
     if (filtered.length === 0) {
         resDiv.innerHTML = '<div style="padding:10px; color:#64748b; font-size:0.85rem;">Nenhuma página encontrada.</div>';
     } else {
         resDiv.innerHTML = filtered.map(p => {
             const tMeta = getTabMeta(p.key) || { color: '#64748b', icon: 'ph-browsers', title: p.name };
             const color = tMeta.color || '#f503c5';
-            
+
             let menuName = 'RH';
             let menuIcon = 'ph-users';
             if (color === '#d9480f') { menuName = 'Diretoria'; menuIcon = 'ph-crown'; }
@@ -13485,7 +13487,7 @@ window.handlePageSearch = function(q) {
     resDiv.style.display = 'block';
 };
 
-window.abrirAbaOuNavegar = function(key) {
+window.abrirAbaOuNavegar = function (key) {
     if (key.startsWith('tab:')) {
         const tabName = key.replace('tab:', '');
         const li = document.querySelector(`#tabs-list li[data-tab="${tabName}"]`);
@@ -13500,7 +13502,7 @@ window.abrirAbaOuNavegar = function(key) {
     document.getElementById('page-search-results').style.display = 'none';
 };
 
-window.toggleBookmarkCurrentPage = function() {
+window.toggleBookmarkCurrentPage = function () {
     if (!window.currentBreadcrumbKey) return;
     const idx = window._pageBookmarks.indexOf(window.currentBreadcrumbKey);
     if (idx >= 0) {
@@ -13512,11 +13514,11 @@ window.toggleBookmarkCurrentPage = function() {
     renderBookmarks();
 };
 
-window.renderBookmarks = function() {
+window.renderBookmarks = function () {
     const list = document.getElementById('bookmarks-list');
     const starBtn = document.getElementById('btn-star-page');
     if (!list || !starBtn) return;
-    
+
     // Update star button state (filled or outline)
     if (window._pageBookmarks.includes(window.currentBreadcrumbKey)) {
         starBtn.innerHTML = '<i class="ph-fill ph-star"></i>';
@@ -13530,7 +13532,7 @@ window.renderBookmarks = function() {
 
         // Ignorar tabs ou caminhos com setas, a menos que seja usuarios-permissoes ou form-usuario
         if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario') || key.startsWith('tab:')) return '';
-        
+
         // Detecta a cor certa com base no TAB_META
         const tabMeta = TAB_META[key];
         let btnColor = tabMeta ? tabMeta.color : '#f503c5';
@@ -13549,12 +13551,12 @@ window.renderBookmarks = function() {
 
 // Hook renderBookmarks inside navigateTo and renderTabContent
 const _oldNavigateTo = window.navigateTo;
-window.navigateTo = function(viewId, pushState) {
+window.navigateTo = function (viewId, pushState) {
     _oldNavigateTo.call(window, viewId, pushState);
     if (typeof renderBookmarks === 'function') renderBookmarks();
 };
 const _oldRenderTabContent = window.renderTabContent;
-window.renderTabContent = function(tabId, tabName, force) {
+window.renderTabContent = function (tabId, tabName, force) {
     if (_oldRenderTabContent) _oldRenderTabContent.call(window, tabId, tabName, force);
     if (typeof renderBookmarks === 'function') renderBookmarks();
 };
@@ -13569,7 +13571,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================
 window._sidebarCollapsed = false;
 
-window.toggleSidebar = function() {
+window.toggleSidebar = function () {
     const sidebar = document.getElementById('app-sidebar');
     const wrapper = document.querySelector('.main-wrapper');
     const icon = document.getElementById('sidebar-toggle-icon');
@@ -13584,7 +13586,7 @@ window.toggleSidebar = function() {
 };
 
 // Restore sidebar state on load
-(function() {
+(function () {
     const saved = localStorage.getItem('sidebarCollapsed');
     if (saved === '1') {
         document.addEventListener('DOMContentLoaded', () => {
@@ -13604,7 +13606,7 @@ window.toggleSidebar = function() {
 // ==========================================
 // PRONTUÁRIO TABS SEARCH FILTER
 // ==========================================
-window.filterTabsList = function(q) {
+window.filterTabsList = function (q) {
     q = (q || '').toLowerCase().trim();
     document.querySelectorAll('#tabs-list li').forEach(li => {
         const text = li.textContent.trim().toLowerCase();
@@ -13627,7 +13629,7 @@ window.filterTabsList = function(q) {
  * Carrega o status do certificado digital e atualiza o banner.
  * Chamado ao entrar no step 2 da admissão e também nas abas ASO / Pagamentos do Prontuário.
  */
-window.carregarStatusCertificado = async function(customBannerId = null) {
+window.carregarStatusCertificado = async function (customBannerId = null) {
     const bannerId = customBannerId || 'cert-digital-banner';
     const banner = document.getElementById(bannerId);
     if (!banner) return;
@@ -13657,9 +13659,9 @@ window.carregarStatusCertificado = async function(customBannerId = null) {
         const data = await apiGet('/certificado-digital/status');
 
         if (data.configurado && data.ok) {
-            banner.style.background  = '#f0fdf4';
-            banner.style.border      = '1.5px solid #bbf7d0';
-            banner.style.color       = '#166534';
+            banner.style.background = '#f0fdf4';
+            banner.style.border = '1.5px solid #bbf7d0';
+            banner.style.color = '#166534';
             banner.innerHTML = `
                 <i class="ph ph-seal-check" style="font-size:1.3rem;color:#16a34a;flex-shrink:0;"></i>
                 <div style="flex:1;">
@@ -13671,9 +13673,9 @@ window.carregarStatusCertificado = async function(customBannerId = null) {
                 </div>
                 ${btnGerenciar}`;
         } else {
-            banner.style.background  = '#fffbeb';
-            banner.style.border      = '1.5px solid #fcd34d';
-            banner.style.color       = '#92400e';
+            banner.style.background = '#fffbeb';
+            banner.style.border = '1.5px solid #fcd34d';
+            banner.style.color = '#92400e';
             banner.innerHTML = `
                 <i class="ph ph-warning" style="font-size:1.3rem;color:#d97706;flex-shrink:0;"></i>
                 <div style="flex:1;">
@@ -13685,10 +13687,10 @@ window.carregarStatusCertificado = async function(customBannerId = null) {
                 </div>
                 ${btnConfigurar}`;
         }
-    } catch(e) {
+    } catch (e) {
         banner.style.background = '#f1f5f9';
-        banner.style.border     = '1.5px solid #e2e8f0';
-        banner.style.color      = '#64748b';
+        banner.style.border = '1.5px solid #e2e8f0';
+        banner.style.color = '#64748b';
         banner.innerHTML = `<i class="ph ph-info" style="font-size:1.1rem;"></i> <span style="flex:1;">Assinatura digital: verificação indisponível</span>`;
     }
 };
@@ -13696,7 +13698,7 @@ window.carregarStatusCertificado = async function(customBannerId = null) {
 /**
  * Abre o modal de gerenciamento do certificado digital.
  */
-window.abrirModalCertificado = function() {
+window.abrirModalCertificado = function () {
     // Criar modal se não existir
     let modal = document.getElementById('modal-cert-digital');
     if (!modal) {
@@ -13797,32 +13799,32 @@ window.abrirModalCertificado = function() {
             </div>`;
         document.body.appendChild(modal);
         // Fechar ao clicar fora
-        modal.addEventListener('click', e => { if(e.target === modal) window.fecharModalCertificado(); });
+        modal.addEventListener('click', e => { if (e.target === modal) window.fecharModalCertificado(); });
     }
 
     modal.style.display = 'flex';
     window._atualizarStatusModalCert();
 };
 
-window.fecharModalCertificado = function() {
+window.fecharModalCertificado = function () {
     const m = document.getElementById('modal-cert-digital');
-    if(m) m.style.display = 'none';
+    if (m) m.style.display = 'none';
 };
 
-window.onCertFileSelected = function(input) {
+window.onCertFileSelected = function (input) {
     const file = input.files[0];
     if (!file) return;
     const nameEl = document.getElementById('cert-file-name');
     const preview = document.getElementById('cert-file-preview');
-    const label   = document.getElementById('cert-upload-label');
+    const label = document.getElementById('cert-upload-label');
     if (nameEl) nameEl.textContent = file.name;
     if (preview) preview.style.display = 'flex';
-    if (label)  label.style.borderColor = '#a78bfa';
+    if (label) label.style.borderColor = '#a78bfa';
 };
 
-window._atualizarStatusModalCert = async function() {
-    const statusEl  = document.getElementById('cert-modal-status');
-    const btnRemover= document.getElementById('btn-cert-remover');
+window._atualizarStatusModalCert = async function () {
+    const statusEl = document.getElementById('cert-modal-status');
+    const btnRemover = document.getElementById('btn-cert-remover');
     const btnTestar = document.getElementById('btn-cert-testar');
     if (!statusEl) return;
 
@@ -13831,36 +13833,36 @@ window._atualizarStatusModalCert = async function() {
         const data = await apiGet('/certificado-digital/status');
         if (data.configurado && data.ok) {
             statusEl.style.background = '#f0fdf4';
-            statusEl.style.border     = '1.5px solid #bbf7d0';
-            statusEl.style.color      = '#166534';
+            statusEl.style.border = '1.5px solid #bbf7d0';
+            statusEl.style.color = '#166534';
             statusEl.innerHTML = `
                 <i class="ph ph-seal-check" style="font-size:1.2rem;"></i>
                 <div>
                     <div style="font-weight:700;">Certificado ativo</div>
                     <div style="font-size:0.77rem;opacity:0.85;">
                         CN: ${data.cn || 'N/A'} | Org: ${data.org || 'N/A'} | 
-                        Validade: ${data.validade || 'N/A'} | Serial: ${(data.serial||'').slice(-8)}
+                        Validade: ${data.validade || 'N/A'} | Serial: ${(data.serial || '').slice(-8)}
                     </div>
                 </div>`;
             if (btnRemover) btnRemover.style.display = 'flex';
-            if (btnTestar)  btnTestar.style.display  = 'flex';
+            if (btnTestar) btnTestar.style.display = 'flex';
         } else {
             statusEl.style.background = '#fffbeb';
-            statusEl.style.border     = '1.5px solid #fcd34d';
-            statusEl.style.color      = '#92400e';
+            statusEl.style.border = '1.5px solid #fcd34d';
+            statusEl.style.color = '#92400e';
             statusEl.innerHTML = `<i class="ph ph-warning" style="font-size:1.1rem;"></i> <span>Nenhum certificado configurado. ${data.motivo ? '(' + data.motivo + ')' : ''}</span>`;
             if (btnRemover) btnRemover.style.display = 'none';
-            if (btnTestar)  btnTestar.style.display  = 'none';
+            if (btnTestar) btnTestar.style.display = 'none';
         }
-    } catch(e) {
+    } catch (e) {
         statusEl.innerHTML = `<i class="ph ph-warning-circle"></i> Erro ao verificar: ${e.message}`;
     }
 };
 
-window.salvarCertificado = async function() {
+window.salvarCertificado = async function () {
     const fileInput = document.getElementById('cert-pfx-input');
-    const senha     = document.getElementById('cert-senha-input')?.value || '';
-    const msgEl     = document.getElementById('cert-upload-msg');
+    const senha = document.getElementById('cert-senha-input')?.value || '';
+    const msgEl = document.getElementById('cert-upload-msg');
     const btnSalvar = document.getElementById('btn-cert-salvar');
 
     if (!fileInput?.files[0]) {
@@ -13886,47 +13888,47 @@ window.salvarCertificado = async function() {
         if (!res.ok) throw new Error(data.error || 'Erro ao salvar o certificado');
 
         if (msgEl) { msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = `✅ Certificado salvo com sucesso! CN: <b>${data.cn}</b> | Validade: ${data.validade}`; }
-        
+
         // Atualizar status no modal e no banner
         await window._atualizarStatusModalCert();
         window.carregarStatusCertificado();
 
-    } catch(e) {
+    } catch (e) {
         if (msgEl) { msgEl.style.background = '#fef2f2'; msgEl.style.border = '1px solid #fca5a5'; msgEl.style.color = '#dc2626'; msgEl.innerHTML = `❌ ${e.message}`; }
     } finally {
         if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.innerHTML = `<i class="ph ph-floppy-disk"></i> Salvar Certificado`; }
     }
 };
 
-window.testarCertificado = async function() {
-    const msgEl  = document.getElementById('cert-upload-msg');
-    const btnTest= document.getElementById('btn-cert-testar');
+window.testarCertificado = async function () {
+    const msgEl = document.getElementById('cert-upload-msg');
+    const btnTest = document.getElementById('btn-cert-testar');
     if (msgEl) { msgEl.style.display = 'block'; msgEl.style.background = '#eff6ff'; msgEl.style.border = '1px solid #bfdbfe'; msgEl.style.color = '#1e40af'; msgEl.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Testando assinatura de um PDF de exemplo...`; }
     if (btnTest) { btnTest.disabled = true; }
 
     try {
-        const res  = await fetch(`${API_URL}/certificado-digital/testar`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' } });
+        const res = await fetch(`${API_URL}/certificado-digital/testar`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' } });
         const data = await res.json();
         if (!res.ok || !data.ok) throw new Error(data.erro || 'Falha no teste');
-        if (msgEl) { msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = `${data.message || '✅ Assinatura funcionando!'} (PDF: ${(data.tamanho_bytes/1024).toFixed(1)} KB)`; }
-    } catch(e) {
+        if (msgEl) { msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = `${data.message || '✅ Assinatura funcionando!'} (PDF: ${(data.tamanho_bytes / 1024).toFixed(1)} KB)`; }
+    } catch (e) {
         if (msgEl) { msgEl.style.background = '#fef2f2'; msgEl.style.border = '1px solid #fca5a5'; msgEl.style.color = '#dc2626'; msgEl.innerHTML = `❌ Teste falhou: ${e.message}`; }
     } finally {
         if (btnTest) { btnTest.disabled = false; }
     }
 };
 
-window.removerCertificado = async function() {
+window.removerCertificado = async function () {
     if (!confirm('Tem certeza que deseja remover o certificado digital? Os documentos serão enviados sem assinatura automática da empresa.')) return;
     try {
-        const res  = await fetch(`${API_URL}/certificado-digital`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${currentToken}` } });
+        const res = await fetch(`${API_URL}/certificado-digital`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${currentToken}` } });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao remover');
         await window._atualizarStatusModalCert();
         window.carregarStatusCertificado();
         const msgEl = document.getElementById('cert-upload-msg');
         if (msgEl) { msgEl.style.display = 'block'; msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = '✅ Certificado removido com sucesso.'; }
-    } catch(e) { alert(e.message); }
+    } catch (e) { alert(e.message); }
 };
 
 
@@ -13935,8 +13937,8 @@ window.removerCertificado = async function() {
 // ══════════════════════════════════════════════════════════════════════
 
 /** Carrega o status na view de Diretoria > Certificado Digital */
-window.carregarCertificadoView = async function() {
-    const statusEl  = document.getElementById('cert-view-status');
+window.carregarCertificadoView = async function () {
+    const statusEl = document.getElementById('cert-view-status');
     const btnTestar = document.getElementById('btn-cert-view-testar');
     const btnRemove = document.getElementById('btn-cert-view-remover');
     if (!statusEl) return;
@@ -13955,7 +13957,7 @@ window.carregarCertificadoView = async function() {
                         <span style="opacity:0.7;">Titular:</span> <b>${data.cn || 'N/A'}</b>
                         <span style="opacity:0.7;">Organização:</span> <span>${data.org || 'N/A'}</span>
                         <span style="opacity:0.7;">Validade:</span> <b style="color:${isDateNear(data.validade) ? '#dc2626' : '#166534'}">${data.validade || 'N/A'} ${isDateNear(data.validade) ? '⚠️ Próximo do vencimento!' : ''}</b>
-                        <span style="opacity:0.7;">Serial:</span> <span style="font-family:monospace;">${(data.serial||'').slice(-12)}</span>
+                        <span style="opacity:0.7;">Serial:</span> <span style="font-family:monospace;">${(data.serial || '').slice(-12)}</span>
                     </div>
                 </div>`;
             if (btnTestar) btnTestar.style.display = 'flex';
@@ -13964,7 +13966,7 @@ window.carregarCertificadoView = async function() {
             const isErro = data.configurado && !data.ok;
             const titulo = isErro ? 'Problema no Certificado Atual' : 'Nenhum certificado configurado';
             const subtitulo = isErro ? `⚠️ ${data.erro || 'Falha ao ler o certificado (senha inválida ou arquivo corrompido).'}` : (data.motivo || 'Configure o arquivo .pfx ao lado para ativar a assinatura automática.');
-            
+
             statusEl.style.cssText = `padding:1rem;border-radius:10px;background:#fffbeb;border:1.5px solid ${isErro ? '#fca5a5' : '#fcd34d'};font-size:0.88rem;color:${isErro ? '#dc2626' : '#92400e'};display:flex;align-items:center;gap:0.75rem;min-height:70px;`;
             statusEl.innerHTML = `
                 <i class="ph ${isErro ? 'ph-warning-circle' : 'ph-warning'}" style="font-size:1.5rem;color:${isErro ? '#dc2626' : '#d97706'};flex-shrink:0;"></i>
@@ -13977,7 +13979,7 @@ window.carregarCertificadoView = async function() {
         }
 
 
-    } catch(e) {
+    } catch (e) {
         statusEl.innerHTML = `<i class="ph ph-warning-circle"></i> Erro ao verificar: ${e.message}`;
     }
 };
@@ -13989,28 +13991,28 @@ function isDateNear(dateStr) {
         const exp = new Date(y, m - 1, d);
         const diff = (exp - new Date()) / (1000 * 60 * 60 * 24);
         return diff < 60; // menos de 60 dias
-    } catch(e) { return false; }
+    } catch (e) { return false; }
 }
 
-window.onCertViewFileSelected = function(input) {
+window.onCertViewFileSelected = function (input) {
     const file = input.files[0];
     if (!file) return;
     document.getElementById('cert-view-file-name').textContent = file.name;
     const preview = document.getElementById('cert-view-file-preview');
-    const label   = document.getElementById('cert-view-upload-label');
+    const label = document.getElementById('cert-view-upload-label');
     if (preview) preview.style.display = 'flex';
-    if (label)   label.style.borderColor = '#a78bfa';
+    if (label) label.style.borderColor = '#a78bfa';
 };
 
-window.salvarCertificadoView = async function() {
+window.salvarCertificadoView = async function () {
     const fileInput = document.getElementById('cert-view-pfx-input');
-    const senha     = document.getElementById('cert-view-senha')?.value || '';
-    const msgEl     = document.getElementById('cert-view-save-msg');
+    const senha = document.getElementById('cert-view-senha')?.value || '';
+    const msgEl = document.getElementById('cert-view-save-msg');
     const btnSalvar = document.getElementById('btn-cert-view-salvar');
 
     if (!fileInput?.files[0]) { alert('Selecione um arquivo .pfx primeiro.'); return; }
 
-    if (msgEl) { msgEl.style.display='block'; msgEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f8fafc;color:#64748b;margin-bottom:0.75rem;'; msgEl.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando e validando certificado...'; }
+    if (msgEl) { msgEl.style.display = 'block'; msgEl.style.cssText = 'display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f8fafc;color:#64748b;margin-bottom:0.75rem;'; msgEl.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando e validando certificado...'; }
     if (btnSalvar) { btnSalvar.disabled = true; btnSalvar.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
 
     try {
@@ -14018,7 +14020,7 @@ window.salvarCertificadoView = async function() {
         formData.append('certificado', fileInput.files[0]);
         formData.append('senha', senha);
 
-        const res  = await fetch(`${API_URL}/certificado-digital/upload`, {
+        const res = await fetch(`${API_URL}/certificado-digital/upload`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${currentToken}` },
             body: formData
@@ -14026,59 +14028,59 @@ window.salvarCertificadoView = async function() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
 
-        if (msgEl) { msgEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;margin-bottom:0.75rem;'; msgEl.innerHTML = `✅ Certificado salvo com sucesso! Ativo para sempre até o vencimento.<br><b>Titular:</b> ${data.cn} | <b>Validade:</b> ${data.validade}`; }
+        if (msgEl) { msgEl.style.cssText = 'display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;margin-bottom:0.75rem;'; msgEl.innerHTML = `✅ Certificado salvo com sucesso! Ativo para sempre até o vencimento.<br><b>Titular:</b> ${data.cn} | <b>Validade:</b> ${data.validade}`; }
 
         // Recarregar status
         await window.carregarCertificadoView();
 
-    } catch(e) {
-        if (msgEl) { msgEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;margin-bottom:0.75rem;'; msgEl.innerHTML = `❌ ${e.message}`; }
+    } catch (e) {
+        if (msgEl) { msgEl.style.cssText = 'display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;margin-bottom:0.75rem;'; msgEl.innerHTML = `❌ ${e.message}`; }
     } finally {
         if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Certificado'; }
     }
 };
 
-window.testarCertificadoView = async function() {
+window.testarCertificadoView = async function () {
     return window.testarAssinaturaView();
 };
 
-window.testarAssinaturaView = async function() {
+window.testarAssinaturaView = async function () {
     const resultEl = document.getElementById('cert-view-test-result');
-    const btn      = document.getElementById('btn-cert-view-testar');
-    if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;'; resultEl.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Testando assinatura no servidor...'; }
+    const btn = document.getElementById('btn-cert-view-testar');
+    if (resultEl) { resultEl.style.cssText = 'display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;'; resultEl.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Testando assinatura no servidor...'; }
     if (btn) btn.disabled = true;
 
     try {
-        const res  = await fetch(`${API_URL}/certificado-digital/testar-assinatura`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' } });
+        const res = await fetch(`${API_URL}/certificado-digital/testar-assinatura`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' } });
         const data = await res.json();
         if (!res.ok || !data.ok) throw new Error(data.erro || 'Falha no teste');
-        if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;'; resultEl.innerHTML = `✅ ${data.mensagem} PDF assinado: ${(data.tamanhoAssinado/1024).toFixed(1)} KB`; }
-    } catch(e) {
-        if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;'; resultEl.innerHTML = `❌ Erro: ${e.message}`; }
+        if (resultEl) { resultEl.style.cssText = 'display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;'; resultEl.innerHTML = `✅ ${data.mensagem} PDF assinado: ${(data.tamanhoAssinado / 1024).toFixed(1)} KB`; }
+    } catch (e) {
+        if (resultEl) { resultEl.style.cssText = 'display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;'; resultEl.innerHTML = `❌ Erro: ${e.message}`; }
     } finally {
         if (btn) btn.disabled = false;
     }
 };
 
-window.removerCertificadoView = async function() {
+window.removerCertificadoView = async function () {
     if (!confirm('Remover o certificado digital? Os documentos serão enviados SEM assinatura automática da empresa até que outro seja configurado.')) return;
     try {
-        const res  = await fetch(`${API_URL}/certificado-digital`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${currentToken}` } });
+        const res = await fetch(`${API_URL}/certificado-digital`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${currentToken}` } });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao remover');
         await window.carregarCertificadoView();
-    } catch(e) { alert(e.message); }
+    } catch (e) { alert(e.message); }
 };
 
 // Hook: ao navegar para 'certificado-digital', carregar status automaticamente
 const _origShowView = window.showView;
-window.showView = function(id) {
+window.showView = function (id) {
     if (typeof _origShowView === 'function') _origShowView(id);
 };
 // Já existe o navigateTo — adicionar hook para certificado-digital
 const _origNavigateTo = window.navigateTo;
 if (typeof _origNavigateTo === 'function') {
-    window.navigateTo = function(view) {
+    window.navigateTo = function (view) {
         _origNavigateTo(view);
         if (view === 'certificado-digital') {
             setTimeout(() => window.carregarCertificadoView(), 150);
@@ -14088,7 +14090,7 @@ if (typeof _origNavigateTo === 'function') {
 
 
 // ===== TELA DE ASSINATURAS DIGITAIS =====
-window.limparAsssinaturasTeste = async function() {
+window.limparAsssinaturasTeste = async function () {
     if (!confirm('Isso vai remover TODOS os registros de assinatura (apenas os de teste). Confirmar?')) return;
     try {
         const res = await fetch(`${API_URL}/assinaturas/limpar-testes`, {
@@ -14102,12 +14104,12 @@ window.limparAsssinaturasTeste = async function() {
         } else {
             alert('Erro: ' + (data.error || 'Falha ao limpar.'));
         }
-    } catch(e) {
+    } catch (e) {
         alert('Erro de conexão: ' + e.message);
     }
 };
 
-window.loadAssinaturasDigitais = async function() {
+window.loadAssinaturasDigitais = async function () {
     const container = document.getElementById('assinaturas-digitais-container');
     if (!container) return;
     container.innerHTML = '<div style="text-align:center;padding:3rem;"><i class="ph ph-circle-notch ph-spin" style="font-size:2.5rem;color:#f503c5;"></i><p style="margin-top:1rem;color:#64748b;">Carregando...</p></div>';
@@ -14188,13 +14190,13 @@ window.loadAssinaturasDigitais = async function() {
         window._assinaturaToken = token;
         window.filtrarAssinaturas();
 
-    } catch(e) {
+    } catch (e) {
         container.innerHTML = `<div style="text-align:center;padding:3rem;color:#ef4444;"><i class="ph ph-warning" style="font-size:2.5rem;"></i><p>${e.message}</p></div>`;
     }
 };
 
 
-window.setStatusOutroMeio = async function(id, source) {
+window.setStatusOutroMeio = async function (id, source) {
     if (!confirm('Tem certeza que deseja marcar este documento como assinado por "Outro Meio"? Ele saíra da fila de pendentes.')) return;
     try {
         const res = await apiPost('/admissao-assinaturas/outro-meio', { id, source });
@@ -14209,9 +14211,9 @@ window.setStatusOutroMeio = async function(id, source) {
                 window.filtrarAssinaturas();
             }
         }
-    } catch(e) { alert('Erro: ' + e.message); }
+    } catch (e) { alert('Erro: ' + e.message); }
 };
-window.filtrarAssinaturas = function() {
+window.filtrarAssinaturas = function () {
     const dados = window._assinaturasData || [];
     const search = (document.getElementById('ass-search')?.value || '').toLowerCase();
     const filterColab = (document.getElementById('ass-filter-colab')?.value || '').toLowerCase();
@@ -14251,12 +14253,12 @@ window.filtrarAssinaturas = function() {
         const statusBadge = isSigned
             ? '<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-check-circle"></i> Assinado</span>'
             : d.assinafy_status === 'Pendente'
-            ? '<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-clock"></i> Aguardando</span>'
-            : '<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;">—</span>';
+                ? '<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-clock"></i> Aguardando</span>'
+                : '<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;">—</span>';
 
         let viewBtn = `<span style="color:#94a3b8;font-size:0.78rem;">—</span>`;
         if (isSigned) {
-            const nomeEsc = (d.nome_documento||'').replace(/'/g, "\\'");
+            const nomeEsc = (d.nome_documento || '').replace(/'/g, "\\'");
             if (d.source === 'documento') {
                 viewBtn = `<button onclick="window.openSignedDocPopupDocumento(${d.id}, '${nomeEsc}')" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button>`;
             } else {
@@ -14277,13 +14279,13 @@ window.filtrarAssinaturas = function() {
             </td>
             <td style="padding:0.75rem 1rem;text-align:center;">${statusBadge}</td>
             <td style="padding:0.75rem 1rem;color:#475569;white-space:nowrap;">${fmtDate(d.enviado_em)}</td>
-            <td style="padding:0.75rem 1rem;${isSigned ? 'color:#15803d;' : 'color:#94a3b8;'}white-space:nowrap;font-weight:${isSigned?'600':'400'};">${fmtDate(d.assinado_em)}</td>
+            <td style="padding:0.75rem 1rem;${isSigned ? 'color:#15803d;' : 'color:#94a3b8;'}white-space:nowrap;font-weight:${isSigned ? '600' : '400'};">${fmtDate(d.assinado_em)}</td>
             <td style="padding:0.75rem 1rem;text-align:center;">${viewBtn}</td>
         </tr>`;
     }).join('');
 };
 
-window.reenviarAssinatura = async function(id, source, btn) {
+window.reenviarAssinatura = async function (id, source, btn) {
     const oldHtml = btn.innerHTML;
     btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
     btn.disabled = true;
@@ -14296,10 +14298,10 @@ window.reenviarAssinatura = async function(id, source, btn) {
             body: JSON.stringify({ id, source })
         });
         const data = await res.json();
-        
+
         btn.innerHTML = `<i class="ph ph-check-circle"></i> Gerado`;
         setTimeout(() => { btn.innerHTML = oldHtml; btn.disabled = false; }, 1500);
-        
+
         if (res.ok && data.success) {
             if (data.warn) {
                 alert('Atenção: ' + data.warn + '\n\nO link é: ' + (data.link || ''));
@@ -14309,7 +14311,7 @@ window.reenviarAssinatura = async function(id, source, btn) {
         } else {
             alert(data.error || 'Erro ao comunicar com o servidor.');
         }
-    } catch(e) {
+    } catch (e) {
         alert('Erro ao processar: ' + e.message);
         btn.innerHTML = oldHtml;
         btn.disabled = false;
@@ -14317,10 +14319,10 @@ window.reenviarAssinatura = async function(id, source, btn) {
 };
 
 // Registrar navegação para a tela de assinaturas
-(function() {
+(function () {
     const origNavigate = window.navigateTo;
     if (typeof origNavigate === 'function') {
-        window.navigateTo = function(view) {
+        window.navigateTo = function (view) {
             origNavigate(view);
             if (view === 'assinaturas-digitais') {
                 setTimeout(() => window.loadAssinaturasDigitais(), 150);
@@ -14328,7 +14330,7 @@ window.reenviarAssinatura = async function(id, source, btn) {
         };
     } else {
         // Fallback: observar clique no item do menu
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             const link = e.target.closest('[data-target="assinaturas-digitais"]');
             if (link) setTimeout(() => window.loadAssinaturasDigitais(), 200);
         });
@@ -14341,13 +14343,13 @@ window._historyData = [];
 window._historyPage = 1;
 const HISTORY_PER_PAGE = 20;
 
-window.historyPageChange = function(delta) {
+window.historyPageChange = function (delta) {
     const totalPages = Math.ceil(window._historyData.length / HISTORY_PER_PAGE);
     window._historyPage = Math.max(1, Math.min(totalPages, window._historyPage + delta));
     window._renderHistoryPage();
 };
 
-window._renderHistoryPage = function() {
+window._renderHistoryPage = function () {
     const tbody = document.getElementById('history-table-body');
     const pageInfo = document.getElementById('history-page-info');
     const prevBtn = document.getElementById('history-prev-btn');
@@ -14386,7 +14388,7 @@ window._renderHistoryPage = function() {
             const dt = new Date(rawDate.endsWith('Z') ? rawDate : rawDate + 'Z');
             dateStr = dt.toLocaleDateString('pt-BR');
             horaStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        } catch(e) {}
+        } catch (e) { }
 
         const stripBg = i % 2 === 0 ? 'background:#fff;' : 'background:#f8fafc;';
 
@@ -14414,13 +14416,13 @@ window._renderHistoryPage = function() {
     tbody.innerHTML = html;
 };
 
-window.showHistoryPopup = async function() {
+window.showHistoryPopup = async function () {
     const historyMod = document.getElementById('modal-history');
     if (historyMod) historyMod.style.display = 'flex';
     const tbody = document.getElementById('history-table-body');
     const loading = document.getElementById('history-loading');
     const contextLabel = document.getElementById('history-context-label');
-    
+
     window._historyPage = 1;
     window._historyData = [];
     tbody.innerHTML = '';
@@ -14429,7 +14431,7 @@ window.showHistoryPopup = async function() {
     try {
         let url = `${API_URL}/auditoria`;
         let labelText = 'Todas as alterações do sistema';
-        
+
         const viewPront = document.getElementById('view-prontuario');
         const viewAdm = document.getElementById('view-admissao');
         const viewForm = document.getElementById('view-form-colaborador');
@@ -14443,10 +14445,10 @@ window.showHistoryPopup = async function() {
         const viewRotaRedonda = document.getElementById('rota-redonda-container');
         const viewAgenda = document.getElementById('view-logistica-agenda');
 
-        const isColabActive = (viewPront && viewPront.classList.contains('active')) || 
-                              (viewAdm && viewAdm.classList.contains('active')) ||
-                              (viewForm && viewForm.classList.contains('active')) ||
-                              (viewListColab && viewListColab.classList.contains('active'));
+        const isColabActive = (viewPront && viewPront.classList.contains('active')) ||
+            (viewAdm && viewAdm.classList.contains('active')) ||
+            (viewForm && viewForm.classList.contains('active')) ||
+            (viewListColab && viewListColab.classList.contains('active'));
         const isGerActive = viewGer && viewGer.classList.contains('active');
         const isCargosActive = viewCargos && viewCargos.classList.contains('active');
         const isFaculdadeActive = viewFaculdade && viewFaculdade.classList.contains('active');
@@ -14497,7 +14499,7 @@ window.showHistoryPopup = async function() {
         } else {
             url += `?contexto=geral`;
         }
-        
+
         if (contextLabel) contextLabel.textContent = labelText;
 
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${currentToken}` } });
@@ -14521,36 +14523,36 @@ setInterval(() => {
 
     // Colaboradores / Prontuário / Admissão
     const viewPront = document.getElementById('view-prontuario');
-    const viewAdms  = document.getElementById('view-admissao');
-    const viewForm  = document.getElementById('view-form-colaborador');
+    const viewAdms = document.getElementById('view-admissao');
+    const viewForm = document.getElementById('view-form-colaborador');
     const viewListColab = document.getElementById('view-colaboradores');
 
     // Geradores
     const viewGer = document.getElementById('view-geradores');
 
     // RH extras
-    const viewCargos    = document.getElementById('view-cargos');
+    const viewCargos = document.getElementById('view-cargos');
     const viewFaculdade = document.getElementById('view-faculdade');
-    const viewEpi       = document.getElementById('view-ficha-epi');
+    const viewEpi = document.getElementById('view-ficha-epi');
     const viewAvaliacoes = document.getElementById('view-gerenciar-avaliacoes');
-    const viewDissidio  = document.getElementById('view-dissidio');
+    const viewDissidio = document.getElementById('view-dissidio');
 
     // Logística
     const viewSenhas = document.getElementById('logistica-senhas-container');
     const viewAgenda = document.getElementById('view-logistica-agenda');
 
-    const isColabActive = (viewPront    && viewPront.classList.contains('active')) ||
-                          (viewAdms     && viewAdms.classList.contains('active'))  ||
-                          (viewForm     && viewForm.classList.contains('active'))   ||
-                          (viewListColab && viewListColab.classList.contains('active'));
+    const isColabActive = (viewPront && viewPront.classList.contains('active')) ||
+        (viewAdms && viewAdms.classList.contains('active')) ||
+        (viewForm && viewForm.classList.contains('active')) ||
+        (viewListColab && viewListColab.classList.contains('active'));
 
-    const isGerActive       = viewGer        && viewGer.classList.contains('active');
-    const isCargosActive    = viewCargos     && viewCargos.classList.contains('active');
-    const isFaculdadeActive = viewFaculdade  && viewFaculdade.classList.contains('active');
-    const isEpiActive       = viewEpi        && viewEpi.classList.contains('active');
+    const isGerActive = viewGer && viewGer.classList.contains('active');
+    const isCargosActive = viewCargos && viewCargos.classList.contains('active');
+    const isFaculdadeActive = viewFaculdade && viewFaculdade.classList.contains('active');
+    const isEpiActive = viewEpi && viewEpi.classList.contains('active');
     const isAvaliacoesActive = viewAvaliacoes && viewAvaliacoes.classList.contains('active');
-    const isDissidioActive  = viewDissidio   && viewDissidio.classList.contains('active');
-    const isAgendaActive    = viewAgenda     && viewAgenda.classList.contains('active');
+    const isDissidioActive = viewDissidio && viewDissidio.classList.contains('active');
+    const isAgendaActive = viewAgenda && viewAgenda.classList.contains('active');
 
     // Cofre de Senhas — container visível (não tem classe active, verifica display)
     const isSenhasActive = viewSenhas && viewSenhas.offsetParent !== null;
@@ -14560,8 +14562,8 @@ setInterval(() => {
     const isRotaRedondaActive = viewRotaRedondaInterval && viewRotaRedondaInterval.offsetParent !== null;
 
     const shouldShow = isColabActive || isGerActive || isCargosActive ||
-                       isFaculdadeActive || isEpiActive || isAvaliacoesActive ||
-                       isDissidioActive || isSenhasActive || isRotaRedondaActive || isAgendaActive;
+        isFaculdadeActive || isEpiActive || isAvaliacoesActive ||
+        isDissidioActive || isSenhasActive || isRotaRedondaActive || isAgendaActive;
 
     btnHistory.style.display = shouldShow ? 'flex' : 'none';
 
@@ -14591,10 +14593,10 @@ setInterval(() => {
     function hasHistBtn(container) {
         // Considera tanto botões injetados quanto os já existentes no HTML
         return !!(container.querySelector('[data-hist-btn]') ||
-                  container.querySelector('[onclick*="showHistoryPopup"]') ||
-                  container.querySelector('[onclick*="abrirHistoricoSenhas"]') ||
-                  Array.from(container.querySelectorAll('button')).find(b =>
-                      b.textContent.includes('Histórico') && b.textContent.trim().length < 30));
+            container.querySelector('[onclick*="showHistoryPopup"]') ||
+            container.querySelector('[onclick*="abrirHistoricoSenhas"]') ||
+            Array.from(container.querySelectorAll('button')).find(b =>
+                b.textContent.includes('Histórico') && b.textContent.trim().length < 30));
     }
 
     // Injeta botão no header de uma view estática (ex: Cargos, Faculdade, EPI)
@@ -14629,7 +14631,7 @@ setInterval(() => {
         const avalView = document.querySelector('#view-gerenciar-avaliacoes.active');
         if (avalView) {
             const avalHeader = avalView.querySelector('.page-header') ||
-                               avalView.querySelector('[style*="space-between"]');
+                avalView.querySelector('[style*="space-between"]');
             if (avalHeader && !hasHistBtn(avalHeader)) {
                 avalHeader.appendChild(makeBtn(() => window.showHistoryPopup()));
             }
@@ -14643,8 +14645,8 @@ setInterval(() => {
         if (rrContainer && rrContainer.offsetParent !== null) {
             // Busca o div de actions no topo da tela (onde ficam Colar OS, Limpar, etc.)
             const rrHeader = rrContainer.querySelector('[style*="space-between"]') ||
-                             rrContainer.querySelector('.rr-topbar') ||
-                             rrContainer.firstElementChild;
+                rrContainer.querySelector('.rr-topbar') ||
+                rrContainer.firstElementChild;
             if (rrHeader && !hasHistBtn(rrHeader)) {
                 rrHeader.appendChild(makeBtn(() => window.showHistoryPopup()));
             }
@@ -14660,7 +14662,7 @@ setInterval(() => {
 })();
 
 // ===== SISTEMA DE TOAST: NOTIFICAÇÕES DE DOCUMENTOS ASSINADOS (ADMISSÃO) =====
-(function() {
+(function () {
     // Container de toasts
     function getToastContainer() {
         let c = document.getElementById('admissao-toast-container');
@@ -14684,11 +14686,11 @@ setInterval(() => {
     }
 
     function showToast(nomeDoc, nomeColab, hora, isAso = false) {
-        hora = hora || new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        hora = hora || new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         const container = getToastContainer();
         const toast = document.createElement('div');
         toast.setAttribute('data-toast-item', '1');
-        
+
         let colorMain = isAso ? '#84cc16' : '#22c55e'; // lime-500/olive-like para ASO, green-500 default
         let colorBg = isAso ? '#f7fee7' : '#f0fdf4'; // very subtle green background variations inside
         let colorText = isAso ? '#a3e635' : '#86efac';
@@ -14769,7 +14771,7 @@ setInterval(() => {
             // Manter apenas os últimos 200 para não encher o storage
             const arr = Array.from(seen).slice(-200);
             localStorage.setItem(SEEN_KEY, JSON.stringify(arr));
-        } catch {}
+        } catch { }
     }
 
     async function checkAlertasRecentes() {
@@ -14787,11 +14789,11 @@ setInterval(() => {
             const seen = getSeenIds();
             const novos = alertas.filter(a => !seen.has(String(a.unq_id)));
             if (novos.length === 0) return;
-            
+
             novos.slice(0, 5).forEach(a => {
-                const hora = a.assinado_em 
-                    ? new Date(a.assinado_em + (String(a.assinado_em).includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
-                    : new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+                const hora = a.assinado_em
+                    ? new Date(a.assinado_em + (String(a.assinado_em).includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    : new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 showToast(a.nome_documento || 'Documento', a.colaborador_nome || 'Colaborador', hora);
             });
             markSeen(novos.map(a => String(a.unq_id)));
@@ -14799,12 +14801,12 @@ setInterval(() => {
             // AUTO-REFRESH STATUS ao detectar novo documento assinado
             // Sempre tenta recarregar a aba Contratos; _reloadContratosContainer só executa
             // se o usuário estiver de fato na aba Contratos (ca-list-container no DOM)
-            window._reloadContratosContainer().catch(() => {});
+            window._reloadContratosContainer().catch(() => { });
             // Se o workflow de admissão estiver aberto, atualiza também
             if (document.getElementById('admissao-signature-list') && typeof window.initAdmissaoWorkflow === 'function' && viewedColaborador) {
                 window.initAdmissaoWorkflow(viewedColaborador.id, 2, true);
             }
-        } catch {}
+        } catch { }
     }
 
 
@@ -14825,25 +14827,25 @@ setInterval(() => {
 })();
 
 // --- GESTÃO DE INTEGRAÇÃO ---
-window.startIntegracao = function(val) {
-    if(val) {
+window.startIntegracao = function (val) {
+    if (val) {
         document.getElementById('integracao-workflow').style.display = 'block';
     } else {
         document.getElementById('integracao-workflow').style.display = 'none';
     }
 };
-window.nextIntegracaoStep = function(step) {
+window.nextIntegracaoStep = function (step) {
     document.querySelectorAll('.integracao-panel').forEach(p => p.style.display = 'none');
     document.querySelectorAll('#integracao-workflow .step-item').forEach(s => s.classList.remove('active'));
-    
+
     const panel = document.getElementById('int-panel-step-' + step);
-    if(panel) panel.style.display = 'block';
-    
+    if (panel) panel.style.display = 'block';
+
     const icon = document.getElementById('int-step-' + step);
-    if(icon) icon.classList.add('active');
+    if (icon) icon.classList.add('active');
 };
 
-window.switchCargoDeptoTab = function(tab) {
+window.switchCargoDeptoTab = function (tab) {
     document.getElementById('tab-btn-cargos').style.color = '#64748b';
     document.getElementById('tab-btn-cargos').style.borderBottomColor = 'transparent';
     document.getElementById('tab-btn-cargos').style.fontWeight = '500';
@@ -14856,16 +14858,16 @@ window.switchCargoDeptoTab = function(tab) {
     document.getElementById('tab-btn-' + tab).style.borderBottomColor = 'var(--primary-color)';
     document.getElementById('tab-btn-' + tab).style.fontWeight = '600';
     document.getElementById('tab-content-' + tab).style.display = 'block';
-    if(tab === 'departamentos' && typeof loadDepartamentos === 'function') loadDepartamentos();
+    if (tab === 'departamentos' && typeof loadDepartamentos === 'function') loadDepartamentos();
 };
 
-window.loadIntegracaoColabs = async function() {
+window.loadIntegracaoColabs = async function () {
     try {
         const colaboradores = await apiGet('/colaboradores');
-        if(!colaboradores) return;
+        if (!colaboradores) return;
         const integracaoUsers = colaboradores.filter(c => c.status === 'Em Integração');
         const sel = document.getElementById('select-integracao-colab');
-        if(sel) {
+        if (sel) {
             sel.innerHTML = '<option value="">Selecione um colaborador...</option>';
             integracaoUsers.forEach(c => {
                 const opt = document.createElement('option');
@@ -14874,9 +14876,9 @@ window.loadIntegracaoColabs = async function() {
                 sel.appendChild(opt);
             });
         }
-    } catch(e) {}
+    } catch (e) { }
 };
-window.toggleAlergias = function(val) {
+window.toggleAlergias = function (val) {
     const input = document.getElementById('colab-alergias');
     if (!input) return;
     if (val === 'Sim') {
@@ -14894,7 +14896,7 @@ window.toggleAlergias = function(val) {
     }
 };
 
-window.toggleAdiantamento = function(val) {
+window.toggleAdiantamento = function (val) {
     const input = document.getElementById('colab-adiantamento-valor');
     if (!input) return;
     if (val === 'Sim') {
@@ -14911,7 +14913,7 @@ window.toggleAdiantamento = function(val) {
     }
 };
 
-window.toggleInsalubridade = function(val) {
+window.toggleInsalubridade = function (val) {
     const input = document.getElementById('colab-insalubridade-valor');
     if (!input) return;
     if (val === 'Sim') {
@@ -14928,7 +14930,7 @@ window.toggleInsalubridade = function(val) {
     }
 };
 
-window.previewFichaAdmissao = function() {
+window.previewFichaAdmissao = function () {
     let colabId = viewedColaborador && viewedColaborador.id;
     if (!colabId) {
         const hid = document.getElementById('admissao-select-colab');
@@ -14959,7 +14961,7 @@ window.previewFichaAdmissao = function() {
     document.body.appendChild(modal);
 };
 
-window.enviarFichaContabilidade = async function(btn) {
+window.enviarFichaContabilidade = async function (btn) {
     let colabId = viewedColaborador && viewedColaborador.id;
     if (!colabId) {
         const hid = document.getElementById('admissao-select-colab');
@@ -15028,11 +15030,11 @@ window.enviarFichaContabilidade = async function(btn) {
                         window.renderEnvioContabilidadeLog();
                     }
                 }
-            }).catch(() => {});
+            }).catch(() => { });
         } else {
             alert('Erro ao enviar para Contabilidade: ' + (data.error || 'Erro desconhecido.'));
         }
-    } catch(err) {
+    } catch (err) {
         alert('Erro de conexão: ' + err.message);
     } finally {
         btn.innerHTML = originalText;
@@ -15041,7 +15043,7 @@ window.enviarFichaContabilidade = async function(btn) {
 };
 
 // ===== RENDER LOG DE ENVIO PARA CONTABILIDADE (PASSO 5) =====
-window.renderEnvioContabilidadeLog = function() {
+window.renderEnvioContabilidadeLog = function () {
     const colab = viewedColaborador;
     const logPanel = document.getElementById('envio-contabilidade-log');
     const dataEl = document.getElementById('envio-contab-data');
@@ -15061,7 +15063,7 @@ window.renderEnvioContabilidadeLog = function() {
         const dia = dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const hora = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         dataFormatada = `${dia} às ${hora}`;
-    } catch(e) {}
+    } catch (e) { }
 
     if (dataEl) dataEl.textContent = dataFormatada;
 
@@ -15083,7 +15085,7 @@ window.renderEnvioContabilidadeLog = function() {
 // PASSO 2 ADMISSÃO — SANTANDER (Pedido de Abertura de Conta)
 // ============================================================
 // Helper: atualiza UI do Step 2 Santander (usada ao gerar e ao voltar ao passo)
-window._updateSantanderStepUI = function(dataSantander) {
+window._updateSantanderStepUI = function (dataSantander) {
     var log = document.getElementById('santander-status-log');
     var logText = document.getElementById('santander-status-text');
 
@@ -15095,7 +15097,7 @@ window._updateSantanderStepUI = function(dataSantander) {
         try {
             var dt = new Date(dataSantander);
             logText.textContent = 'Ficha gerada em ' + dt.toLocaleString('pt-BR');
-        } catch(e) { logText.textContent = 'Ficha gerada'; }
+        } catch (e) { logText.textContent = 'Ficha gerada'; }
     }
 
     // === Marcar step 2 como 100% ===
@@ -15124,14 +15126,14 @@ window._updateSantanderStepUI = function(dataSantander) {
 
     // Estratégia 3: procurar qualquer elemento que contenha "step-2" e "pc"
     var allPc = document.querySelectorAll('[id*="step"][id*="pc"]');
-    allPc.forEach(function(el) {
+    allPc.forEach(function (el) {
         if (el.id === 'step-2-pc' || el.id.match(/step.?2.?pc/i)) {
             el.textContent = '100%';
         }
     });
 }
 
-window.populateSantanderPreview = async function() {
+window.populateSantanderPreview = async function () {
     var colab = viewedColaborador || window._admissaoColabSelecionado;
     if (!colab) return;
 
@@ -15143,13 +15145,13 @@ window.populateSantanderPreview = async function() {
                 colab.santander_ficha_data = fresh.santander_ficha_data;
                 if (viewedColaborador) viewedColaborador.santander_ficha_data = fresh.santander_ficha_data;
             }
-        } catch(e) { /* silent fail */ }
+        } catch (e) { /* silent fail */ }
     }
 
     window._updateSantanderStepUI(colab.santander_ficha_data);
 };
 
-window.gerarFichaSantander = async function() {
+window.gerarFichaSantander = async function () {
     const colab = viewedColaborador || window._admissaoColabSelecionado;
     if (!colab) { alert('Selecione um colaborador primeiro.'); return; }
 
@@ -15158,10 +15160,10 @@ window.gerarFichaSantander = async function() {
     const dataHoje = hoje.toLocaleDateString('pt-BR');
     const mesExtenso = hoje.toLocaleDateString('pt-BR', { month: 'long' });
     const anoStr = hoje.getFullYear();
-    
+
     // Salário formatado
-    const salario = colab.salario ? parseFloat(colab.salario).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) : '—';
-    
+    const salario = colab.salario ? parseFloat(colab.salario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—';
+
     // Endereço e Cidade extraídos corretamente do endereço do Colaborador (agora separado por vírgula e traço)
     let enderecoPuro = fmt(colab.endereco_completo);
     let numero = '—', complemento = '—', bairro = '—', cidade = '—', estado = '—', cep = '—';
@@ -15170,7 +15172,7 @@ window.gerarFichaSantander = async function() {
         const parts = colab.endereco_completo.split(',');
         enderecoPuro = parts[0] ? parts[0].trim() : '—';
         if (parts.length > 1) {
-            const part2 = parts[1].trim(); 
+            const part2 = parts[1].trim();
             numero = part2.split(' ')[0] || part2;
             if (part2.includes(' ')) complemento = part2.substring(numero.length).trim();
         }
@@ -15182,7 +15184,7 @@ window.gerarFichaSantander = async function() {
         }
         if (colab.cep) cep = colab.cep;
     }
-    
+
     // Data admissão formatada
     let admissaoFmt = '—';
     if (colab.data_admissao) {
@@ -15291,10 +15293,10 @@ window.gerarFichaSantander = async function() {
         colab.santander_ficha_data = new Date().toISOString();
         const log = document.getElementById('santander-status-log');
         const logText = document.getElementById('santander-status-text');
-        
+
         if (log) log.style.display = 'block';
         if (logText) logText.textContent = `Ficha gerada em ${new Date().toLocaleString('pt-BR')}`;
-        
+
         // Exibe o botão de visualização
         const btnVer = document.getElementById('btn-ver-santander');
         if (btnVer) btnVer.style.display = 'flex';
@@ -15310,28 +15312,28 @@ window.gerarFichaSantander = async function() {
                 body: JSON.stringify({ santander_ficha_data: colab.santander_ficha_data })
             });
             console.log('[Santander] Data salva no banco:', colab.santander_ficha_data);
-        } catch(e) { console.error('[Santander] Erro ao salvar data:', e); }
-        
+        } catch (e) { console.error('[Santander] Erro ao salvar data:', e); }
+
         if (typeof showToast === 'function') {
             showToast('Ficha gerada com sucesso! Use o botão Visualizar para imprimir.', 'success');
         } else alert('Ficha gerada com sucesso! Use o botão Visualizar para imprimir.');
     }
 };
 
-window.verFichaSantander = async function() {
+window.verFichaSantander = async function () {
     // Se não tem cache mas a ficha já foi gerada: regenera silenciosamente
     const colab = viewedColaborador || window._admissaoColabSelecionado;
     if (!window._santanderPreVHtml && colab && colab.santander_ficha_data) {
         // Mostrar loading
         const btn = document.querySelector('[onclick*="verFichaSantander"]');
         if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...'; btn.disabled = true; }
-        
+
         try {
             // Reutiliza a função de geração, mas sem exibir toast de sucesso
             window._silentSantanderGen = true;
             await window.gerarFichaSantander();
             window._silentSantanderGen = false;
-        } catch(e) {
+        } catch (e) {
             alert('Erro ao regenerar documento: ' + e.message);
         } finally {
             if (btn) { btn.innerHTML = '<i class="ph ph-eye"></i> Visualizar'; btn.disabled = false; }
@@ -15342,9 +15344,9 @@ window.verFichaSantander = async function() {
         const previewTitle = document.getElementById('preview-doc-title');
         const previewContainer = document.getElementById('preview-doc-body');
         const buttonsContainer = document.getElementById('preview-doc-buttons');
-        
+
         if (previewTitle) previewTitle.textContent = 'Pedido de Abertura de Conta (Santander)';
-        
+
         if (buttonsContainer) {
             buttonsContainer.innerHTML = `
                 <button class="btn btn-primary" onclick="window.imprimirFichaSantander()" style="display:flex;align-items:center;gap:0.4rem;">
@@ -15355,26 +15357,26 @@ window.verFichaSantander = async function() {
                 </button>
             `;
         }
-        
+
         if (previewContainer) {
             previewContainer.innerHTML = `<iframe id="santander-iframe" style="width:100%; height:85vh; border:none;" srcdoc="${window._santanderPreVHtml.replace(/"/g, '&quot;')}"></iframe>`;
         }
-        
+
         document.getElementById('modal-preview-doc').style.display = 'block';
     } else {
         alert("Gere o documento primeiro.");
     }
 };
 
-window.imprimirFichaSantander = function() {
+window.imprimirFichaSantander = function () {
     const iframe = document.getElementById('santander-iframe');
-    if(iframe && iframe.contentWindow) {
+    if (iframe && iframe.contentWindow) {
         iframe.contentWindow.focus();
         iframe.contentWindow.print();
     }
 };
 
-window.irAoProntuarioDigital = async function(tabName) {
+window.irAoProntuarioDigital = async function (tabName) {
     console.log('[irAoProntuarioDigital] Iniciado com aba alvo:', tabName);
     const colab = window._admissaoColabSelecionado || viewedColaborador;
     if (!colab) {
@@ -15382,7 +15384,7 @@ window.irAoProntuarioDigital = async function(tabName) {
         alert('Nenhum colaborador selecionado na Admissão.');
         return;
     }
-    
+
     console.log('[irAoProntuarioDigital] Colaborador detectado:', colab.nome_completo || colab.nome, colab.id);
 
     try {
@@ -15421,10 +15423,10 @@ window.irAoProntuarioDigital = async function(tabName) {
 
 // Funçao mockup caso nòo exista _recalculateAdmissaoFinalProg
 if (typeof window._recalculateAdmissaoFinalProg !== 'function') {
-    window._recalculateAdmissaoFinalProg = function() {
+    window._recalculateAdmissaoFinalProg = function () {
         const bar = document.getElementById('admissao-progress-bar');
         const pc = document.getElementById('admissao-pc-total');
-        if(bar) bar.style.width = '30%';
+        if (bar) bar.style.width = '30%';
     }
 }
 
@@ -15433,7 +15435,7 @@ if (typeof window._recalculateAdmissaoFinalProg !== 'function') {
 // ABA MULTAS — MOTORISTAS (v2 — Novo Fluxo de Processo)
 // ============================================================
 
-window._recarregarListaMultas = async function(colabId) {
+window._recarregarListaMultas = async function (colabId) {
     var tabContent = document.getElementById('tab-dynamic-content');
     if (tabContent && typeof window.renderMultasMotoristaTab === 'function') {
         tabContent.innerHTML = '';
@@ -15441,7 +15443,7 @@ window._recarregarListaMultas = async function(colabId) {
     }
 };
 
-window.renderMultasMotoristaTab = async function(container) {
+window.renderMultasMotoristaTab = async function (container) {
     const colab = viewedColaborador;
     if (!colab) return;
     container.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#94a3b8;padding:1rem 0;">
@@ -15463,9 +15465,9 @@ window.renderMultasMotoristaTab = async function(container) {
             const todas = await resp.json();
             multas = todas.filter(m => String(m.motorista_id) === String(colab.id));
         }
-    } catch(e) {
+    } catch (e) {
         // fallback: tenta endpoint antigo
-        try { multas = await apiGet(`/colaboradores/${colab.id}/multas`) || []; } catch(_) {}
+        try { multas = await apiGet(`/colaboradores/${colab.id}/multas`) || []; } catch (_) { }
     }
 
     container.innerHTML = '';
@@ -15480,11 +15482,11 @@ window.renderMultasMotoristaTab = async function(container) {
     }
 
     const STATUS_COLOR = {
-        'Conferência':                '#fef08a',
-        'Conferido':'#bfdbfe',
-        'Indicado':           '#bbf7d0',
-        'Multa NIC':     '#fecaca',
-        'Não Se Aplica':                 '#e2e8f0',
+        'Conferência': '#fef08a',
+        'Conferido': '#bfdbfe',
+        'Indicado': '#bbf7d0',
+        'Multa NIC': '#fecaca',
+        'Não Se Aplica': '#e2e8f0',
     };
 
     multas.forEach(m => {
@@ -15509,9 +15511,9 @@ window.renderMultasMotoristaTab = async function(container) {
     });
 };
 
-window._renderMultaCard = function(m, colabId, container) {
-    const statusColor = { pendente:'#f59e0b', doc_gerado:'#3b82f6', testemunhas_assinadas:'#8b5cf6', assinado:'#10b981', confirmado:'#8b5cf6' };
-    const statusLabel = { pendente:'Pendente', doc_gerado:'Processo Iniciado', testemunhas_assinadas:'Testemunhas Assinadas', assinado:'Assinado', confirmado:'Confirmado' };
+window._renderMultaCard = function (m, colabId, container) {
+    const statusColor = { pendente: '#f59e0b', doc_gerado: '#3b82f6', testemunhas_assinadas: '#8b5cf6', assinado: '#10b981', confirmado: '#8b5cf6' };
+    const statusLabel = { pendente: 'Pendente', doc_gerado: 'Processo Iniciado', testemunhas_assinadas: 'Testemunhas Assinadas', assinado: 'Assinado', confirmado: 'Confirmado' };
     const cor = statusColor[m.status] || '#64748b';
 
     const card = document.createElement('div');
@@ -15540,7 +15542,7 @@ window._renderMultaCard = function(m, colabId, container) {
     window._renderMultaActions(m, colabId, card.querySelector(`#multa-actions-${m.id}`));
 };
 
-window._renderMultaActions = function(m, colabId, actionsDiv) {
+window._renderMultaActions = function (m, colabId, actionsDiv) {
     actionsDiv.innerHTML = '';
     const assinFinalizado = m.assinaturas_finalizadas || m.status === 'assinado' || m.status === 'confirmado';
 
@@ -15615,7 +15617,7 @@ window._renderMultaActions = function(m, colabId, actionsDiv) {
 };
 
 // ─── Modal: Formulário de nova multa (SEM tipo/parcelas) ──────────────────────
-window.abrirFormNovaMulta = function(colabId, container) {
+window.abrirFormNovaMulta = function (colabId, container) {
     let modal = document.getElementById('modal-nova-multa');
     if (modal) modal.remove();
     modal = document.createElement('div');
@@ -15668,7 +15670,7 @@ window.abrirFormNovaMulta = function(colabId, container) {
 };
 
 // ─── Popup: Iniciar Processo (popup menor, não fullscreen) ────────────────────
-window.abrirPopupIniciarProcesso = function(m, colabId) {
+window.abrirPopupIniciarProcesso = function (m, colabId) {
     let modal = document.getElementById('modal-iniciar-processo');
     if (modal) modal.remove();
     modal = document.createElement('div');
@@ -15688,19 +15690,19 @@ window.abrirPopupIniciarProcesso = function(m, colabId) {
             <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">⚖️ Forma de Resolução</h4>
             <div style="display:flex;gap:12px;margin-bottom:1.5rem;">
                 <button id="tipo-indicacao" onclick="window.selecionarTipoMulta('indicacao')"
-                    style="flex:1;padding:0.75rem;border-radius:8px;border:2px solid ${tipoAtual==='indicacao'?'#f503c5':'#e2e8f0'};background:${tipoAtual==='indicacao'?'#fdf4ff':'#fff'};cursor:pointer;font-weight:600;color:${tipoAtual==='indicacao'?'#f503c5':'#334155'};">
+                    style="flex:1;padding:0.75rem;border-radius:8px;border:2px solid ${tipoAtual === 'indicacao' ? '#f503c5' : '#e2e8f0'};background:${tipoAtual === 'indicacao' ? '#fdf4ff' : '#fff'};cursor:pointer;font-weight:600;color:${tipoAtual === 'indicacao' ? '#f503c5' : '#334155'};">
                     📋 Seguir com a Indicação
                 </button>
                 <button id="tipo-nic" onclick="window.selecionarTipoMulta('nic')"
-                    style="flex:1;padding:0.75rem;border-radius:8px;border:2px solid ${tipoAtual==='nic'?'#f503c5':'#e2e8f0'};background:${tipoAtual==='nic'?'#fdf4ff':'#fff'};cursor:pointer;font-weight:600;color:${tipoAtual==='nic'?'#f503c5':'#334155'};">
+                    style="flex:1;padding:0.75rem;border-radius:8px;border:2px solid ${tipoAtual === 'nic' ? '#f503c5' : '#e2e8f0'};background:${tipoAtual === 'nic' ? '#fdf4ff' : '#fff'};cursor:pointer;font-weight:600;color:${tipoAtual === 'nic' ? '#f503c5' : '#334155'};">
                     💳 Pagamento da Multa NIC
                 </button>
             </div>
 
             <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;">💰 Parcelamento do Desconto</h4>
             <div style="display:flex;gap:10px;margin-bottom:1.5rem;">
-                ${[1,2,3].map(n=>`<button id="parc-${n}" onclick="window.selecionarParcelas(${n})"
-                    style="flex:1;padding:0.6rem;border-radius:8px;border:2px solid ${parcAtual===n?'#8b5cf6':'#e2e8f0'};background:${parcAtual===n?'#f5f3ff':'#fff'};cursor:pointer;font-weight:700;color:${parcAtual===n?'#8b5cf6':'#334155'};">${n}x</button>`).join('')}
+                ${[1, 2, 3].map(n => `<button id="parc-${n}" onclick="window.selecionarParcelas(${n})"
+                    style="flex:1;padding:0.6rem;border-radius:8px;border:2px solid ${parcAtual === n ? '#8b5cf6' : '#e2e8f0'};background:${parcAtual === n ? '#f5f3ff' : '#fff'};cursor:pointer;font-weight:700;color:${parcAtual === n ? '#8b5cf6' : '#334155'};">${n}x</button>`).join('')}
             </div>
 
             <button onclick="window.confirmarIniciarProcesso(${m.id}, ${colabId})"
@@ -15715,22 +15717,14 @@ window.abrirPopupIniciarProcesso = function(m, colabId) {
     window._multaProcessoId = m.id;
 };
 
-window.confirmarIniciarProcesso = async function(multaId, colabId) {
+window.confirmarIniciarProcesso = async function (multaId, colabId) {
     if (!window._multaTipoSelecionado) {
         alert('Selecione a forma de resolução antes de continuar.'); return;
     }
-
-    const sleep = ms => new Promise(r => setTimeout(r, ms));
-    async function fetchRetry(url, opts, tries = 3, delay = 2000) {
-        for (let i = 0; i < tries; i++) {
-            try { return await fetch(url, opts); }
-            catch(e) {
-                if (i === tries - 1) throw e;
-                console.warn(`[confirmarIniciarProcesso] Tentativa ${i+1} falhou. Aguardando ${delay}ms...`);
-                await sleep(delay);
-                delay = Math.min(delay * 2, 8000);
-            }
-        }
+    // Valida se há colaborador vinculado à multa
+    if (!colabId || colabId === 'undefined' || colabId === 'null' || String(colabId) === 'undefined') {
+        alert('⚠️ Esta multa não possui motorista vinculado.\n\nPara iniciar o processo, primeiro vincule um motorista pela opção "Gerenciar Multa" → "+ Adicionar Motorista".'); 
+        return;
     }
 
     const btnConfirmar = document.querySelector('#modal-iniciar-processo button[onclick*="confirmarIniciarProcesso"]');
@@ -15739,14 +15733,15 @@ window.confirmarIniciarProcesso = async function(multaId, colabId) {
 
     try {
         // Gera o documento HTML
-        const docRes = await fetchRetry(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/gerar-documento`, {
+        const docRes = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/gerar-documento`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
             body: JSON.stringify({ tipo: window._multaTipoSelecionado })
         });
         const docData = await docRes.json();
+        if (!docRes.ok) throw new Error(docData.error || `Erro HTTP ${docRes.status}`);
 
-        await fetchRetry(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/iniciar-processo`, {
+        const procRes = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/iniciar-processo`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
             body: JSON.stringify({
@@ -15755,25 +15750,26 @@ window.confirmarIniciarProcesso = async function(multaId, colabId) {
                 documento_html: docData.html || null
             })
         });
+        if (!procRes.ok) { const d = await procRes.json().catch(()=>({})); throw new Error(d.error || `Erro HTTP ${procRes.status}`); }
+
         document.getElementById('modal-iniciar-processo')?.remove();
         await window._recarregarListaMultas(colabId);
         if (typeof showToast === 'function') showToast('Processo iniciado!', 'success');
-    } catch(e) {
+    } catch (e) {
         if (btnConfirmar) { btnConfirmar.disabled = false; btnConfirmar.innerHTML = originalBtnText; }
-        if (typeof showToast === 'function') showToast('Erro ao iniciar processo: ' + e.message + ' — Tente novamente.', 'error');
-        else alert('Erro: ' + e.message);
+        alert('Erro ao iniciar processo: ' + e.message);
     }
+
 };
 
-
 // ─── Modal Testemunhas (100% fullscreen) ──────────────────────────────────────
-window.abrirModalTestemunhas = async function(m, colabId) {
+window.abrirModalTestemunhas = async function (m, colabId) {
     let modal = document.getElementById('modal-testemunhas-multa');
     if (modal) modal.remove();
 
     // Buscar lista de colaboradores para o dropdown
     let listaColab = [];
-    try { listaColab = await apiGet('/colaboradores') || []; } catch(e) {}
+    try { listaColab = await apiGet('/colaboradores') || []; } catch (e) { }
     const optsColab = listaColab.map(c => `<option value="${c.nome_completo || c.nome}">${c.nome_completo || c.nome}</option>`).join('');
 
     // Gerar/recuperar HTML do documento
@@ -15787,7 +15783,7 @@ window.abrirModalTestemunhas = async function(m, colabId) {
             });
             const d = await r.json();
             docHtml = d.html || '';
-        } catch(e) {}
+        } catch (e) { }
     }
 
     modal = document.createElement('div');
@@ -15862,7 +15858,7 @@ window.abrirModalTestemunhas = async function(m, colabId) {
     window._multaDocHtmlTestemunhas = docHtml;
 };
 
-window.confirmarAssinaturaTestemunhas = async function(multaId, colabId) {
+window.confirmarAssinaturaTestemunhas = async function (multaId, colabId) {
     const t1Nome = document.getElementById('test1-select')?.value || '';
     const t2Nome = document.getElementById('test2-select')?.value || '';
     const c1 = document.getElementById('canvas-test1');
@@ -15913,14 +15909,14 @@ window.confirmarAssinaturaTestemunhas = async function(multaId, colabId) {
         document.getElementById('modal-testemunhas-multa')?.remove();
         await window._recarregarListaMultas(colabId);
         if (typeof showToast === 'function') showToast('Assinaturas das testemunhas salvas!', 'success');
-    } catch(e) {
+    } catch (e) {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check"></i> Confirmar Assinaturas das Testemunhas'; }
         alert('Erro: ' + e.message);
     }
 };
 
 // ─── Modal Assinatura do Condutor (fullscreen) ────────────────────────────────
-window.abrirModalAssinaturaCondutor = async function(m, colabId) {
+window.abrirModalAssinaturaCondutor = async function (m, colabId) {
     let modal = document.getElementById('modal-condutor-multa');
     if (modal) modal.remove();
 
@@ -15934,7 +15930,7 @@ window.abrirModalAssinaturaCondutor = async function(m, colabId) {
                 body: JSON.stringify({ tipo: m.tipo_resolucao || 'indicacao' })
             });
             docHtml = (await r.json()).html || '';
-        } catch(e) {}
+        } catch (e) { }
     }
 
     // m.documento_html ja contem as assinaturas das testemunhas (salvas por confirmarAssinaturaTestemunhas)
@@ -15993,7 +15989,7 @@ window.abrirModalAssinaturaCondutor = async function(m, colabId) {
     window._multaCondutorNome = (viewedColaborador && (viewedColaborador.nome_completo || viewedColaborador.nome)) || 'Condutor';
 };
 
-window.confirmarAssinaturaCondutor = async function(multaId, colabId) {
+window.confirmarAssinaturaCondutor = async function (multaId, colabId) {
     if (!window._canvasTemConteudo('canvas-condutor')) { alert('O condutor precisa assinar.'); return; }
     const assinatura = document.getElementById('canvas-condutor').toDataURL('image/png');
     const btn = document.getElementById('btn-confirmar-condutor');
@@ -16030,14 +16026,14 @@ window.confirmarAssinaturaCondutor = async function(multaId, colabId) {
         document.getElementById('modal-condutor-multa')?.remove();
         await window._recarregarListaMultas(colabId);
         if (typeof showToast === 'function') showToast('Documento assinado pelo condutor!', 'success');
-    } catch(e) {
+    } catch (e) {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check"></i> Confirmar Assinatura do Condutor'; }
         alert('Erro: ' + e.message);
     }
 };
 
 // ─── Helpers de canvas ────────────────────────────────────────────────────────
-window._initCanvasMulta = function(id) {
+window._initCanvasMulta = function (id) {
     const canvas = document.getElementById(id);
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -16047,21 +16043,21 @@ window._initCanvasMulta = function(id) {
     const pos = (e) => {
         const r = canvas.getBoundingClientRect();
         const sx = canvas.width / r.width, sy = canvas.height / r.height;
-        if (e.touches) return { x:(e.touches[0].clientX-r.left)*sx, y:(e.touches[0].clientY-r.top)*sy };
-        return { x:(e.clientX-r.left)*sx, y:(e.clientY-r.top)*sy };
+        if (e.touches) return { x: (e.touches[0].clientX - r.left) * sx, y: (e.touches[0].clientY - r.top) * sy };
+        return { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
     };
-    canvas.onmousedown = canvas.ontouchstart = (e) => { e.preventDefault(); drawing=true; const p=pos(e); lx=p.x; ly=p.y; };
-    canvas.onmousemove = canvas.ontouchmove = (e) => { e.preventDefault(); if(!drawing) return; const p=pos(e); ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(p.x,p.y); ctx.stroke(); lx=p.x; ly=p.y; };
-    canvas.onmouseup = canvas.ontouchend = canvas.onmouseleave = () => { drawing=false; };
+    canvas.onmousedown = canvas.ontouchstart = (e) => { e.preventDefault(); drawing = true; const p = pos(e); lx = p.x; ly = p.y; };
+    canvas.onmousemove = canvas.ontouchmove = (e) => { e.preventDefault(); if (!drawing) return; const p = pos(e); ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(p.x, p.y); ctx.stroke(); lx = p.x; ly = p.y; };
+    canvas.onmouseup = canvas.ontouchend = canvas.onmouseleave = () => { drawing = false; };
 };
 
-window._limparCanvasMulta = function(id) {
+window._limparCanvasMulta = function (id) {
     const canvas = document.getElementById(id);
     if (!canvas) return;
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
 };
 
-window._canvasTemConteudo = function(id) {
+window._canvasTemConteudo = function (id) {
     const canvas = document.getElementById(id);
     if (!canvas) return false;
     const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
@@ -16070,31 +16066,31 @@ window._canvasTemConteudo = function(id) {
 };
 
 // ─── Helpers legados (compatibilidade) ───────────────────────────────────────
-window.selecionarTipoMulta = function(tipo) {
+window.selecionarTipoMulta = function (tipo) {
     window._multaTipoSelecionado = tipo;
-    ['indicacao','nic'].forEach(t => {
+    ['indicacao', 'nic'].forEach(t => {
         const btn = document.getElementById(`tipo-${t}`);
         if (!btn) return;
         const sel = t === tipo;
         btn.style.borderColor = sel ? '#f503c5' : '#e2e8f0';
-        btn.style.background  = sel ? '#fdf4ff' : '#fff';
-        btn.style.color       = sel ? '#f503c5' : '#334155';
+        btn.style.background = sel ? '#fdf4ff' : '#fff';
+        btn.style.color = sel ? '#f503c5' : '#334155';
     });
 };
 
-window.selecionarParcelas = function(n) {
+window.selecionarParcelas = function (n) {
     window._multaParcelasSelecionadas = n;
-    [1,2,3].forEach(i => {
+    [1, 2, 3].forEach(i => {
         const btn = document.getElementById(`parc-${i}`);
         if (!btn) return;
         const sel = i === n;
         btn.style.borderColor = sel ? '#8b5cf6' : '#e2e8f0';
-        btn.style.background  = sel ? '#f5f3ff' : '#fff';
-        btn.style.color       = sel ? '#8b5cf6' : '#334155';
+        btn.style.background = sel ? '#f5f3ff' : '#fff';
+        btn.style.color = sel ? '#8b5cf6' : '#334155';
     });
 };
 
-window.lookupCtb = async function(codigo) {
+window.lookupCtb = async function (codigo) {
     if (!codigo || codigo.length < 4) return;
     try {
         const data = await apiGet(`/ctb/${codigo}`);
@@ -16106,10 +16102,10 @@ window.lookupCtb = async function(codigo) {
             if (!document.getElementById('m-descricao').value && data.descricao)
                 document.getElementById('m-descricao').value = data.descricao;
         }
-    } catch(e) {}
+    } catch (e) { }
 };
 
-window.processarNotificacaoMulta = async function(input, colabId) {
+window.processarNotificacaoMulta = async function (input, colabId) {
     const file = input.files[0];
     if (!file) return;
     window._multaArquivo = file;
@@ -16137,14 +16133,14 @@ window.processarNotificacaoMulta = async function(input, colabId) {
         dadosDiv.style.display = 'block';
         loader.textContent = '✅ Dados extraídos! Confira e corrija se necessário.';
         loader.style.color = '#10b981';
-    } catch(e) {
+    } catch (e) {
         loader.textContent = `⚠️ Falha ao extrair: ${e.message || 'Preencha manualmente.'}`;
         loader.style.color = '#ef4444';
         document.getElementById('multa-dados').style.display = 'block';
     }
 };
 
-window.salvarNovaMulta = async function(colabId) {
+window.salvarNovaMulta = async function (colabId) {
     const get = id => (document.getElementById(id) || {}).value || '';
     const formData = new FormData();
     formData.append('codigo_infracao', get('m-codigo'));
@@ -16169,10 +16165,10 @@ window.salvarNovaMulta = async function(colabId) {
         document.getElementById('modal-nova-multa')?.remove();
         await window._recarregarListaMultas(colabId);
         if (typeof showToast === 'function') showToast('Multa salva! Clique em "Iniciar Processo" para continuar.', 'success');
-    } catch(e) { alert('Erro: ' + e.message); }
+    } catch (e) { alert('Erro: ' + e.message); }
 };
 
-window.excluirMulta = async function(multaId, colabId, btn) {
+window.excluirMulta = async function (multaId, colabId, btn) {
     if (!confirm('Excluir este registro de multa? Esta ação não pode ser desfeita.')) return;
     if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>'; btn.disabled = true; }
     try {
@@ -16182,13 +16178,13 @@ window.excluirMulta = async function(multaId, colabId, btn) {
         if (!res.ok) throw new Error('Falha ao excluir');
         await window._recarregarListaMultas(colabId);
         if (typeof showToast === 'function') showToast('Multa excluída.', 'success');
-    } catch(e) {
+    } catch (e) {
         if (btn) { btn.innerHTML = '<i class="ph ph-trash"></i>'; btn.disabled = false; }
         alert('Erro: ' + e.message);
     }
 };
 
-window.verDocumentoMulta = async function(multaId, colabId, tipo, multaObj) {
+window.verDocumentoMulta = async function (multaId, colabId, tipo, multaObj) {
     try {
         let htmlFinal = '';
         // Usar documento salvo no DB (com assinaturas), se disponivel
@@ -16238,10 +16234,10 @@ window.verDocumentoMulta = async function(multaId, colabId, tipo, multaObj) {
             const doc = iframe.contentDocument || iframe.contentWindow.document;
             if (doc) { doc.open(); doc.write(htmlFinal); doc.close(); }
         }, 50);
-    } catch(e) { alert('Erro: ' + e.message); }
+    } catch (e) { alert('Erro: ' + e.message); }
 };
 
-window.destacarCamposVazios = function() {
+window.destacarCamposVazios = function () {
     const form = document.getElementById('form-colaborador');
     if (!form) return;
 
@@ -16258,9 +16254,9 @@ window.destacarCamposVazios = function() {
     allInputs.forEach(el => {
         // Ignorar campos hidden, readonly, disabled, inputs de arquivo ou botões de rádio não agrupados
         if (el.type === 'hidden' || el.type === 'file' || el.readOnly || el.disabled || el.type === 'submit' || el.type === 'button') return;
-        
+
         // Ignorar campos que não estão visíveis (offsetParent === null)
-        if (el.offsetParent === null) return; 
+        if (el.offsetParent === null) return;
 
         // Se for um select, verifica se tem valor válido (não vazio e diferente do placeholder padrão)
         let vazio = false;
@@ -16278,9 +16274,9 @@ window.destacarCamposVazios = function() {
             el.style.backgroundColor = '#fff5f5';
             el.style.boxShadow = '0 0 5px rgba(224, 49, 49, 0.4)';
             count++;
-            
+
             // Adicionar listener para remover o destaque quando preenchido
-            const removeHighlight = function() {
+            const removeHighlight = function () {
                 this.style.border = '';
                 this.style.backgroundColor = '';
                 this.style.boxShadow = '';
