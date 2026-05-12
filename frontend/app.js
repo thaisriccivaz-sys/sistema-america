@@ -15719,16 +15719,34 @@ window.confirmarIniciarProcesso = async function(multaId, colabId) {
     if (!window._multaTipoSelecionado) {
         alert('Selecione a forma de resolução antes de continuar.'); return;
     }
+
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    async function fetchRetry(url, opts, tries = 3, delay = 2000) {
+        for (let i = 0; i < tries; i++) {
+            try { return await fetch(url, opts); }
+            catch(e) {
+                if (i === tries - 1) throw e;
+                console.warn(`[confirmarIniciarProcesso] Tentativa ${i+1} falhou. Aguardando ${delay}ms...`);
+                await sleep(delay);
+                delay = Math.min(delay * 2, 8000);
+            }
+        }
+    }
+
+    const btnConfirmar = document.querySelector('#modal-iniciar-processo button[onclick*="confirmarIniciarProcesso"]');
+    const originalBtnText = btnConfirmar ? btnConfirmar.innerHTML : '';
+    if (btnConfirmar) { btnConfirmar.disabled = true; btnConfirmar.textContent = 'Processando...'; }
+
     try {
         // Gera o documento HTML
-        const docRes = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/gerar-documento`, {
+        const docRes = await fetchRetry(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/gerar-documento`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
             body: JSON.stringify({ tipo: window._multaTipoSelecionado })
         });
         const docData = await docRes.json();
 
-        await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/iniciar-processo`, {
+        await fetchRetry(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/iniciar-processo`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
             body: JSON.stringify({
@@ -15740,8 +15758,13 @@ window.confirmarIniciarProcesso = async function(multaId, colabId) {
         document.getElementById('modal-iniciar-processo')?.remove();
         await window._recarregarListaMultas(colabId);
         if (typeof showToast === 'function') showToast('Processo iniciado!', 'success');
-    } catch(e) { alert('Erro: ' + e.message); }
+    } catch(e) {
+        if (btnConfirmar) { btnConfirmar.disabled = false; btnConfirmar.innerHTML = originalBtnText; }
+        if (typeof showToast === 'function') showToast('Erro ao iniciar processo: ' + e.message + ' — Tente novamente.', 'error');
+        else alert('Erro: ' + e.message);
+    }
 };
+
 
 // ─── Modal Testemunhas (100% fullscreen) ──────────────────────────────────────
 window.abrirModalTestemunhas = async function(m, colabId) {
