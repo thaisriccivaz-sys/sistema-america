@@ -310,7 +310,7 @@ function abrirModalNovaMulta() {
                 <button onclick="this.closest('#modal-nova-multa').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
             </div>
             <div style="padding:1.5rem;">
-                <form id="form-nova-multa" onsubmit="salvarNovaMulta(event)">
+                <form id="form-nova-multa" onsubmit="salvarNovaMultaLogistica(event)">
 
                     <!-- CAMPO PDF NO TOPO -->
                     <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe); border:1.5px dashed #3b82f6; border-radius:8px; padding:1rem 1.2rem; margin-bottom:1.3rem;">
@@ -379,7 +379,7 @@ function abrirModalNovaMulta() {
     document.body.appendChild(modal);
 }
 
-async function salvarNovaMulta(e) {
+async function salvarNovaMultaLogistica(e) {
     e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true;
