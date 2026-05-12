@@ -15718,27 +15718,100 @@ window.renderMultasMotoristaTab = async function (container) {
         'Não Se Aplica': '#e2e8f0',
     };
 
-    multas.forEach(m => {
+    multas.forEach((m, idx) => {
         const dataFmt = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
         const bgStatus = STATUS_COLOR[m.status] || '#e2e8f0';
+        const uid = `multa-det-${m.id || idx}`;
+
+        // Parcelas
+        const parcelas = m.parcelas ? `${m.parcelas}x` : '1x';
+
+        // Quem incluiu
+        const quemIncluiu = m.motorista_nome && m.motorista_nome !== 'null' ? m.motorista_nome : (m.created_by || '—');
+
+        // Data limite / prazo indicação
+        const prazoFmt = m.data_limite ? m.data_limite.split('-').reverse().join('/') : '—';
+
         const card = document.createElement('div');
-        card.style = 'border:1.5px solid #e2e8f0;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.06);';
+        card.style = 'border:1.5px solid #e2e8f0;border-radius:12px;margin-bottom:0.75rem;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.06);overflow:hidden;';
         card.innerHTML = `
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-                <span style="font-weight:700;font-size:0.95rem;color:#1e293b;">🚦 AIT: ${m.numero_ait || '—'}</span>
-                <span style="background:${bgStatus};color:#0f172a;font-weight:700;font-size:0.78rem;padding:3px 10px;border-radius:20px;white-space:nowrap;">${m.status || '—'}</span>
+            <!-- Linha principal (sempre visível) -->
+            <div onclick="(function(){
+                    var det = document.getElementById('${uid}');
+                    var ico = document.getElementById('${uid}-ico');
+                    var open = det.style.display !== 'none';
+                    det.style.display = open ? 'none' : 'block';
+                    ico.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
+                })()" 
+                style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:0.9rem 1.1rem;cursor:pointer;user-select:none;transition:background 0.15s;"
+                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+                    <!-- Seta rotativa -->
+                    <span id="${uid}-ico" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#f1f5f9;border:1px solid #e2e8f0;color:#64748b;font-size:0.8rem;flex-shrink:0;transition:transform 0.2s;transform:rotate(0deg);">
+                        <i class="ph ph-caret-right"></i>
+                    </span>
+                    <div style="min-width:0;">
+                        <div style="font-weight:700;font-size:0.92rem;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                            🚦 AIT: ${m.numero_ait || '—'}
+                            ${m.placa ? `<span style="margin-left:8px;font-size:0.8rem;font-weight:600;color:#64748b;background:#f1f5f9;padding:1px 8px;border-radius:10px;">${m.placa}</span>` : ''}
+                        </div>
+                        <div style="font-size:0.78rem;color:#94a3b8;margin-top:2px;">${dataFmt}${m.hora_infracao ? ' às ' + m.hora_infracao : ''}</div>
+                    </div>
+                </div>
+                <span style="background:${bgStatus};color:#0f172a;font-weight:700;font-size:0.75rem;padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${m.status || '—'}</span>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;font-size:0.82rem;color:#475569;">
-                <span><b>Data:</b> ${dataFmt} ${m.hora_infracao || ''}</span>
-                <span><b>Valor:</b> R$ ${m.valor_multa || '—'}</span>
-                <span><b>Pontos:</b> ${m.pontuacao || '—'}</span>
-                <span style="grid-column:1/-1;"><b>Motivo:</b> ${m.motivo || '—'}</span>
-                ${m.observacao ? `<span style="grid-column:1/-1;"><b>Observação:</b> ${m.observacao}</span>` : ''}
+
+            <!-- Painel de detalhes (expansível) -->
+            <div id="${uid}" style="display:none;border-top:1px solid #f1f5f9;padding:1rem 1.25rem;background:#fafafa;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;font-size:0.83rem;color:#334155;">
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Placa</span>
+                        <span style="font-weight:600;">${m.placa || '—'}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Data e Hora</span>
+                        <span style="font-weight:600;">${dataFmt}${m.hora_infracao ? ' — ' + m.hora_infracao : ''}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Valor da Multa</span>
+                        <span style="font-weight:700;color:#dc2626;">R$ ${m.valor_multa || '—'}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Pontuação</span>
+                        <span style="font-weight:600;">${m.pontuacao || '—'} pt(s)</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Parcelas</span>
+                        <span style="font-weight:600;">${parcelas}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Prazo Indicação</span>
+                        <span style="font-weight:600;${m.data_limite ? 'color:#d97706;' : ''}">${prazoFmt}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;grid-column:1/-1;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Local da Infração</span>
+                        <span style="font-weight:500;">${m.local_infracao || '—'}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;grid-column:1/-1;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Infração / Motivo</span>
+                        <span style="font-weight:500;">${m.motivo || '—'}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Incluído por</span>
+                        <span style="font-weight:600;">${quemIncluiu}</span>
+                    </div>
+                    ${m.observacao ? `
+                    <div style="display:flex;flex-direction:column;gap:2px;grid-column:1/-1;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Observação</span>
+                        <span style="font-style:italic;color:#475569;">${m.observacao}</span>
+                    </div>` : ''}
+                </div>
             </div>
         `;
         container.appendChild(card);
     });
 };
+
 
 window._renderMultaCard = function (m, colabId, container) {
     const statusColor = { pendente: '#f59e0b', doc_gerado: '#3b82f6', testemunhas_assinadas: '#8b5cf6', assinado: '#10b981', confirmado: '#8b5cf6' };
