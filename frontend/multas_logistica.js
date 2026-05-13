@@ -120,11 +120,25 @@ function renderMultasLogistica(container) {
                     style="flex:1; min-width:140px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">
                 <input id="mf-ate" type="date" title="Período até" oninput="filtrarMultasLogistica()"
                     style="flex:1; min-width:140px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">
-                <select id="mf-status" onchange="filtrarMultasLogistica()"
-                    style="flex:1; min-width:180px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none; background:#fff;">
-                    <option value="">Todos os Status</option>
-                    ${optsStatus}
-                </select>
+                <div class="custom-multi-select" style="position:relative; flex:1; min-width:180px;">
+                    <div class="select-box" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='block' ? 'none' : 'block'" style="padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; background:#fff; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                        <span id="lbl-status-rh" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Todos Status RH</span>
+                        <i class="ph ph-caret-down"></i>
+                    </div>
+                    <div class="options-container" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #cbd5e1; border-radius:6px; margin-top:4px; z-index:10; box-shadow:0 4px 6px rgba(0,0,0,0.1); max-height:200px; overflow-y:auto; padding:0.5rem;">
+                        ${STATUS_OPTS.map(s => `<label style="display:flex; align-items:center; gap:6px; font-size:0.82rem; padding:4px 0; cursor:pointer;"><input type="checkbox" value="${s}" class="chk-status-rh" onchange="window.atualizarLabelStatusRH(); filtrarMultasLogistica();"> ${s}</label>`).join('')}
+                    </div>
+                </div>
+
+                <div class="custom-multi-select" style="position:relative; flex:1; min-width:180px;">
+                    <div class="select-box" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='block' ? 'none' : 'block'" style="padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; background:#fff; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                        <span id="lbl-status-monaco" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Todos Status Mônaco</span>
+                        <i class="ph ph-caret-down"></i>
+                    </div>
+                    <div class="options-container" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #cbd5e1; border-radius:6px; margin-top:4px; z-index:10; box-shadow:0 4px 6px rgba(0,0,0,0.1); max-height:200px; overflow-y:auto; padding:0.5rem;">
+                        ${[...new Set(multasLogistica.map(m => m.status_monaco).filter(Boolean))].sort().map(s => `<label style="display:flex; align-items:center; gap:6px; font-size:0.82rem; padding:4px 0; cursor:pointer;"><input type="checkbox" value="${s}" class="chk-status-monaco" onchange="window.atualizarLabelStatusMonaco(); filtrarMultasLogistica();"> ${s}</label>`).join('')}
+                    </div>
+                </div>
                 <button onclick="limparFiltrosMultas()" title="Limpar filtros"
                     style="padding:0.45rem 0.8rem; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; color:#475569; white-space:nowrap;">&#x2715; Limpar</button>
             </div>
@@ -234,14 +248,17 @@ function _aplicarFiltrosMultas(lista) {
     const ait       = (document.getElementById('mf-ait')?.value || '').toLowerCase().trim();
     const de        = document.getElementById('mf-de')?.value || '';
     const ate       = document.getElementById('mf-ate')?.value || '';
-    const status    = document.getElementById('mf-status')?.value || '';
+    
+    const chksStatusRH = Array.from(document.querySelectorAll('.chk-status-rh:checked')).map(c => c.value);
+    const chksStatusMonaco = Array.from(document.querySelectorAll('.chk-status-monaco:checked')).map(c => c.value);
 
     return lista.filter(m => {
         if (motorista && !(m.motorista_nome || '').toLowerCase().includes(motorista)) return false;
         if (ait && !(m.numero_ait || '').toLowerCase().includes(ait)) return false;
         if (de && m.data_infracao && m.data_infracao < de) return false;
         if (ate && m.data_infracao && m.data_infracao > ate) return false;
-        if (status && m.status !== status) return false;
+        if (chksStatusRH.length > 0 && !chksStatusRH.includes(m.status)) return false;
+        if (chksStatusMonaco.length > 0 && !chksStatusMonaco.includes(m.status_monaco)) return false;
         return true;
     });
 }
@@ -302,9 +319,27 @@ function limparFiltrosMultas() {
     ['mf-motorista','mf-ait','mf-de','mf-ate'].forEach(id => {
         const el = document.getElementById(id); if (el) el.value = '';
     });
-    const sel = document.getElementById('mf-status'); if (sel) sel.value = '';
+    document.querySelectorAll('.chk-status-rh, .chk-status-monaco').forEach(cb => cb.checked = false);
+    if(window.atualizarLabelStatusRH) window.atualizarLabelStatusRH();
+    if(window.atualizarLabelStatusMonaco) window.atualizarLabelStatusMonaco();
     filtrarMultasLogistica();
 }
+
+window.atualizarLabelStatusRH = function() {
+    const chks = Array.from(document.querySelectorAll('.chk-status-rh:checked')).map(c => c.value);
+    const lbl = document.getElementById('lbl-status-rh');
+    if (chks.length === 0) lbl.textContent = 'Todos Status RH';
+    else if (chks.length === 1) lbl.textContent = chks[0];
+    else lbl.textContent = `${chks.length} selecionados (RH)`;
+};
+
+window.atualizarLabelStatusMonaco = function() {
+    const chks = Array.from(document.querySelectorAll('.chk-status-monaco:checked')).map(c => c.value);
+    const lbl = document.getElementById('lbl-status-monaco');
+    if (chks.length === 0) lbl.textContent = 'Todos Status Mônaco';
+    else if (chks.length === 1) lbl.textContent = chks[0];
+    else lbl.textContent = `${chks.length} selecionados (Mônaco)`;
+};
 
 function abrirModalNovaMulta() {
     document.getElementById('modal-nova-multa')?.remove();
