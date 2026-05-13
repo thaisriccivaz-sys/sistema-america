@@ -12412,7 +12412,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                             }
                             return true;
                         });
-                        res.json([...(rows || []), ...feriasCards, ...afastadoCards, ...faltaCardsDedup]);
+                        res.json([...(rows || []), ...feriasCards, ...afastadoCards, ...asoCards, ...faltaCardsDedup]);
                     });
                 });
             });
