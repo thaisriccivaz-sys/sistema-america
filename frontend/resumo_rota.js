@@ -748,17 +748,16 @@ function _rrRenderCorpo() {
             if (!disp || !nome || !nome.trim()) return null;
             const { status, motivo } = disp;
             if (status === 'disponivel') return null; // só alerta se indisponível
-            const configs = {
-                'ferias':   { bg: '#eff6ff', cor: '#1d4ed8', icon: 'ph-airplane-tilt', label: 'Férias' },
-                'afastado': { bg: '#fff7ed', cor: '#c2410c', icon: 'ph-bandaids',       label: 'Afastado' },
-                'falta':    { bg: '#fef9c3', cor: '#854d0e', icon: 'ph-user-minus',     label: 'Falta' },
-                'folga':    { bg: '#f0fdf4', cor: '#15803d', icon: 'ph-moon',           label: 'Folga' },
-                'aso':      { bg: '#e0f2fe', cor: '#0369a1', icon: 'ph-heartbeat',      label: 'ASO Agendado' },
-            };
-            const cfg = configs[status] || { bg: '#f1f5f9', cor: '#475569', icon: 'ph-question', label: status };
-            return `<div style="background:${cfg.bg};color:${cfg.cor};padding:8px 16px;border-bottom:1px solid rgba(0,0,0,0.06);font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:8px;">
-                <i class="${cfg.icon}" style="font-size:1rem;"></i>
-                <span><b>${nome}</b> — ${cfg.label}${motivo && motivo !== cfg.label ? ': ' + motivo : ''}</span>
+            const label = {
+                'ferias':   'Férias',
+                'afastado': 'Afastado',
+                'falta':    'Falta',
+                'folga':    'Folga',
+                'aso':      'ASO Agendado',
+            }[status] || status;
+            return `<div style="background:#fef2f2;color:#dc2626;padding:8px 16px;border-bottom:1px solid #fecaca;font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-warning-circle" style="font-size:1rem;"></i>
+                <span><b>${nome}</b> — ${label}${motivo && motivo !== label ? ': ' + motivo : ''}</span>
             </div>`;
         };
 
@@ -771,8 +770,8 @@ function _rrRenderCorpo() {
             if (!disp || !nome || !nome.trim()) return null;
             const avisos = disp.avisos || [];
             if (!avisos.length) return null;
-            return avisos.map(titulo => `<div style="background:#faf5ff;color:#7e22ce;padding:8px 16px;border-bottom:1px solid rgba(0,0,0,0.06);font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:8px;">
-                <i class="ph-warning-circle" style="font-size:1rem;"></i>
+            return avisos.map(titulo => `<div style="background:#fef2f2;color:#dc2626;padding:8px 16px;border-bottom:1px solid #fecaca;font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-warning-circle" style="font-size:1rem;"></i>
                 <span><b>${nome}</b> — Aviso: ${titulo}</span>
             </div>`).join('');
         };
