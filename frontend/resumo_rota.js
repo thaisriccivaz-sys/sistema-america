@@ -171,8 +171,15 @@ function _rrMontarColB(v) {
     const obsLinhas = [];
     v.os.forEach(os => {
         if (!os.obs) return;
-        const icon = _rrObsIcon(os.obs);
-        const nome = (os.cliente || '').substring(0, 15).trim();
+        let icon = _rrObsIcon(os.obs);
+        let nome = (os.cliente || '').trim();
+        
+        // Se o nome já possui emoji no início, evitamos adicionar ícone duplicado
+        if (/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F]/u.test(nome)) {
+            icon = ''; 
+        }
+        
+        nome = nome.substring(0, 25).trim();
         obsLinhas.push(`${icon ? icon + ' ' : ''}${nome}: ${os.obs.toUpperCase()}`);
     });
     if (obsLinhas.length) { lines.push(...obsLinhas); lines.push(''); }
@@ -496,7 +503,7 @@ window.rrImportarPlanilha = async function(input) {
         if (!veiculo) return;
         const motorista = (r[5]  || '').toString().replace(/^[\p{Emoji}\u{1F300}-\u{1FFFF}\u2600-\u26FF\u2700-\u27BF\s]+/u, '').trim();
         const ajudante  = (r[6]  || '').toString().replace(/^[\p{Emoji}\u{1F300}-\u{1FFFF}\u2600-\u26FF\u2700-\u27BF\s]+/u, '').trim();
-        const cliente   = (r[8]  || '').toString().replace(/^[\p{Emoji}\u{1F300}-\u{1FFFF}\u2600-\u26FF\u2700-\u27BF\s🌘🌓⭕💜🔗]+/u, '').trim();
+        const cliente   = (r[8]  || '').toString().trim();
         const obsCol    = (r[29] || '').toString().trim();
         const notas     = (r[36] || '').toString().trim();
 
