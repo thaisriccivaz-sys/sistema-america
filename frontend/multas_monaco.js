@@ -141,7 +141,7 @@ function _renderPage(container) {
     </div>
 
     <!-- Detail Drawer -->
-    <div id="monaco-drawer" style="display:none;position:fixed;top:0;right:0;width:480px;height:100vh;background:#fff;box-shadow:-8px 0 32px rgba(0,0,0,0.18);z-index:99999;overflow-y:auto;display:flex;flex-direction:column;">
+    <div id="monaco-drawer" style="display:none;position:fixed;top:0;right:0;width:480px;height:100vh;background:#fff;box-shadow:-8px 0 32px rgba(0,0,0,0.18);z-index:99999;overflow-y:auto;flex-direction:column;">
         <div id="monaco-drawer-content"></div>
     </div>
     `;
