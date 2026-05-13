@@ -1689,9 +1689,61 @@ function parseOsText(texto) {
         numOs: '', cliente: '', contrato: '', tipoOs: '',
         responsavel: '', telefone: '', endereco: '', email: '',
         dataEntrega: '', rawProdutos: '', observacoes: '', observacoesInternas: '',
-        linkGoogleMaps: '',
+        linkGoogleMaps: '', tipoServico: '', isCompras: false,
         ambiguidades: [], avisos: []
     };
+
+    const isComprasText = lines.some(l => l.toUpperCase().includes('COMPRAS [16]') || (l.toUpperCase().includes('COMPRAS') && l.includes('[16]')));
+    
+    if (isComprasText) {
+        resultado.isCompras = true;
+        resultado.cliente = 'AMERICA RENTAL';
+        resultado.contrato = '-';
+        resultado.tipoOs = 'Obra'; 
+        resultado.tipoServico = 'COMPRAS AMERICA';
+        resultado.responsavel = 'Compras';
+        resultado.telefone = '-';
+        
+        let localName = '';
+        let obsText = '';
+        
+        for (let i = 0; i < lines.length; i++) {
+            const l = lines[i];
+            const lu = l.toUpperCase();
+            
+            if (lu === 'OS' && i + 1 < lines.length) {
+                const match = lines[i+1].match(/^\d+/);
+                if (match) resultado.numOs = match[0];
+            } else if (lu.startsWith('OS ') && /\d+/.test(lu)) {
+                 const match = lu.match(/\d+/);
+                 if (match) resultado.numOs = match[0];
+            }
+            if (l.includes('📆Data:')) {
+                const v = l.replace(/.*?📆?Data:\s*/i, '').trim();
+                const datasEncontradas = [...v.matchAll(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/g)];
+                if (datasEncontradas.length > 0) {
+                    const [, d, m, a] = datasEncontradas[0];
+                    const ano = a ? (a.length === 2 ? '20' + a : a) : new Date().getFullYear();
+                    resultado.dataEntrega = `${ano}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+                }
+            }
+            if (l.includes('🚩Nome do Local:')) {
+                localName = l.replace(/.*?🚩?Nome do Local:\s*/i, '').trim();
+            }
+            if (l.includes('📍Endereço:')) {
+                resultado.endereco = l.replace(/.*?📍?Endereço:\s*/i, '').trim();
+            }
+            if (l.includes('🛒Produto:')) {
+                resultado.rawProdutos = l.replace(/.*?🛒?Produto:\s*/i, '').trim();
+            }
+            if (l.includes('👉Observações:')) {
+                obsText = l.replace(/.*?👉?Observações:\s*/i, '').trim();
+            }
+        }
+        
+        resultado.observacoes = [localName, obsText].filter(Boolean).join(' - ');
+        return resultado;
+    }
 
     const eVazio = (v) => !v || /^[\s\-–—*]*$/.test(v);
     const extrairValor = (linha, regex) => linha.replace(regex, '').replace(/^[\s\-–—:]+/, '').trim();
@@ -1969,7 +2021,12 @@ function abrirModalColarOS() {
 
         // Renderiza Preview dos Produtos identificados NO TOPO
         const tipoProvisorio = (dadosExtraidos.tipoOsDB || dadosExtraidos.tipoOs || '').toUpperCase().includes('OBRA') ? 'Obra' : 'Evento';
-        const parsedProds = parseProdutosString(dadosExtraidos.rawProdutos, tipoProvisorio);
+        let parsedProds = [];
+        if (dadosExtraidos.isCompras) {
+            parsedProds = [{ desc: dadosExtraidos.rawProdutos.toUpperCase(), qtd: 1 }];
+        } else {
+            parsedProds = parseProdutosString(dadosExtraidos.rawProdutos, tipoProvisorio);
+        }
         if (parsedProds.length > 0) {
             let prodHtml = `<div style="margin-bottom:12px;padding:10px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;">
                 <p style="margin:0 0 8px 0;font-weight:700;color:#0369a1;font-size:0.8rem;display:flex;align-items:center;gap:4px;">
@@ -2110,23 +2167,36 @@ function preencherFormularioComDados(dados, tipoOs) {
         if (contEl) { contEl.value = dados.contrato; contEl.style.background = '#f0fdf4'; }
     }
 
+    if (dados.tipoServico) {
+        const tsSearch = document.getElementById('rr-tipo-servico-search');
+        const tsHidden = document.getElementById('rr-tipo-servico');
+        if (tsSearch) { tsSearch.value = dados.tipoServico; tsSearch.style.background = '#f0fdf4'; }
+        if (tsHidden) { tsHidden.value = dados.tipoServico; }
+    }
+
     // Atualiza estado do cliente
     osState.clienteNome = dados.cliente;
 
     // Processa Produtos (ex: "10 STD 1 PCD" ou "01 guarita individual")
     if (dados.rawProdutos && tipoOs) {
         atualizarDropdownProdutos();
-        const parsedProds = parseProdutosString(dados.rawProdutos, tipoOs);
-        
-        parsedProds.forEach(p => {
-            osState.produtos.push({ id: Date.now() + Math.random(), desc: p.desc, qtd: p.qtd });
-            calcularCamposPorProduto({ desc: p.desc, qtd: p.qtd });
-        });
-        
-        if (parsedProds.length > 0) {
-            aplicarHabilidadesDoServico();
+        if (dados.isCompras) {
+            osState.produtos.push({ id: Date.now() + Math.random(), desc: dados.rawProdutos.toUpperCase(), qtd: 1 });
             atualizarUI();
             atualizarIconesCliente();
+        } else {
+            const parsedProds = parseProdutosString(dados.rawProdutos, tipoOs);
+            
+            parsedProds.forEach(p => {
+                osState.produtos.push({ id: Date.now() + Math.random(), desc: p.desc, qtd: p.qtd });
+                calcularCamposPorProduto({ desc: p.desc, qtd: p.qtd });
+            });
+            
+            if (parsedProds.length > 0) {
+                aplicarHabilidadesDoServico();
+                atualizarUI();
+                atualizarIconesCliente();
+            }
         }
     }
 
