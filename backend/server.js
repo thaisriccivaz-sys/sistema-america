@@ -13524,6 +13524,126 @@ function monacoAuth(req, res, next) {
     }
 }
 
+// Sincroniza multa recebida da Mônaco para a tabela principal de logística
+function syncToLogistica(uuid, payload) {
+    db.get('SELECT id, documento_base64, documento_path FROM multas_logistica WHERE numero_ait = ? OR monaco_uuid = ?', [payload.numero_ait, uuid], (err, row) => {
+        if (err) {
+            console.error('[MONACO SYNC] Erro ao buscar logistica:', err);
+            return;
+        }
+
+        let docBase64 = null;
+        let docNome = null;
+        if (payload.arquivos && payload.arquivos.length > 0) {
+            const arq = payload.arquivos[0];
+            if (arq.base64) {
+                docBase64 = arq.base64;
+                docNome = arq.nome || 'anexo_monaco.pdf';
+            }
+        }
+
+        const dataLimite = payload.prazo_identificacao_condutor || payload.vencimento_multa || null;
+        const localInfracao = payload.local || payload.local_infracao || payload.cidade || null;
+
+        if (row) {
+            // Atualizar multa existente
+            let updateSql = `UPDATE multas_logistica SET
+                monaco_uuid = ?, placa = ?, data_infracao = ?, hora_infracao = ?,
+                motivo = ?, valor_multa = ?, pontuacao = ?, local_infracao = ?, data_limite = ?`;
+            let params = [
+                uuid, payload.placa, payload.data_da_infracao, payload.hora_da_infracao,
+                payload.descricao, payload.valor_da_infracao, payload.pontos, localInfracao, dataLimite
+            ];
+
+            // Só atualiza PDF se a multa não tiver um PDF anexado manualmente
+            if (docBase64 && !row.documento_base64 && !row.documento_path) {
+                updateSql += `, documento_base64 = ?, documento_nome = ?`;
+                params.push(docBase64, docNome);
+            }
+
+            updateSql += ` WHERE id = ?`;
+            params.push(row.id);
+
+            db.run(updateSql, params, (errUpdate) => {
+                if (errUpdate) console.error('[MONACO SYNC] Erro update:', errUpdate);
+                else console.log(`[MONACO SYNC] Multa logistica ID=${row.id} atualizada.`);
+            });
+        } else {
+            // Inserir nova multa
+            db.run(`INSERT INTO multas_logistica (
+                monaco_uuid, numero_ait, placa, data_infracao, hora_infracao,
+                motivo, valor_multa, pontuacao, local_infracao, data_limite,
+                status, created_by_nome, observacao, documento_base64, documento_nome
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Conferência', 'Integração Mônaco', 'Multa importada automaticamente da Mônaco via webhook.', ?, ?)`, [
+                uuid, payload.numero_ait, payload.placa, payload.data_da_infracao, payload.hora_da_infracao,
+                payload.descricao, payload.valor_da_infracao, payload.pontos, localInfracao, dataLimite,
+                docBase64, docNome
+            ], function (errInsert) {
+                if (errInsert) console.error('[MONACO SYNC] Erro insert:', errInsert);
+                else {
+                    console.log(`[MONACO SYNC] Nova multa logistica inserida ID=${this.lastID}`);
+                    enviarNotificacaoNovaMultaMonaco(payload, this.lastID);
+                }
+            });
+        }
+    });
+}
+
+function enviarNotificacaoNovaMultaMonaco(payload, logisticaId) {
+    db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'nova_multa_monaco'", [], (err, rowsC) => {
+        if (!err && rowsC && rowsC.length > 0) {
+            const msg = `Nova Multa Mônaco: AIT ${payload.numero_ait} - Placa ${payload.placa}`;
+            const dados = JSON.stringify({ ait: payload.numero_ait, placa: payload.placa, data: payload.data_da_infracao, id: logisticaId });
+            
+            // Notificação no sininho do sistema
+            rowsC.forEach(c => {
+                db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                    [c.usuario_id, 'nova_multa_monaco', msg, dados]);
+            });
+
+            // Enviar e-mail para e-mails corporativos
+            const uids = rowsC.map(c => c.usuario_id);
+            if (uids.length > 0) {
+                const placeholders = uids.map(() => '?').join(',');
+                db.all(`SELECT c.email_corporativo FROM usuarios u
+                        JOIN colaboradores c ON LOWER(TRIM(c.nome_completo)) = LOWER(TRIM(u.nome))
+                        WHERE u.id IN (${placeholders}) 
+                          AND c.email_corporativo IS NOT NULL 
+                          AND c.email_corporativo != ''`, uids, async (errE, rowsE) => {
+                    if (!errE && rowsE && rowsE.length > 0) {
+                        const emails = [...new Set(rowsE.map(r => r.email_corporativo))];
+                        if (emails.length > 0) {
+                            try {
+                                await sendMailHelper({
+                                    to: emails.join(','),
+                                    subject: 'América Rental - Nova Multa Mônaco',
+                                    html: `
+                                        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                                            <h2>Nova Multa Recebida via Integração Mônaco</h2>
+                                            <p>Uma nova multa foi importada automaticamente e está na fila de "Conferência".</p>
+                                            <ul>
+                                                <li><b>AIT:</b> ${payload.numero_ait || 'N/A'}</li>
+                                                <li><b>Placa:</b> ${payload.placa || 'N/A'}</li>
+                                                <li><b>Data da Infração:</b> ${payload.data_da_infracao || 'N/A'}</li>
+                                                <li><b>Descrição:</b> ${payload.descricao || 'N/A'}</li>
+                                                <li><b>Valor:</b> R$ ${payload.valor_da_infracao || 'N/A'}</li>
+                                            </ul>
+                                            <p><a href="${process.env.PUBLIC_URL || 'https://sistema.america.onrender.com'}/?app=logistica" style="display:inline-block; padding: 10px 15px; background: #2d9e5f; color: #fff; text-decoration: none; border-radius: 5px;">Acessar Controle de Multas</a></p>
+                                        </div>
+                                    `
+                                });
+                                console.log('[MONACO EMAIL] Notificações enviadas para:', emails.join(', '));
+                            } catch (error) {
+                                console.error('[MONACO EMAIL] Erro ao enviar:', error.message);
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    });
+}
+
 // Helper para salvar/atualizar um registro Monaco
 function upsertMonaco(uuid, tipoEvento, payload, res) {
     // Serializar arquivos
@@ -13571,6 +13691,7 @@ function upsertMonaco(uuid, tipoEvento, payload, res) {
                         return res.status(500).json({ codError: 500, message: 'Erro ao atualizar' });
                     }
                     console.log(`[MONACO] Atualizado uuid=${uuid} tipo=${tipoEvento}`);
+                    syncToLogistica(uuid, payload);
                     res.status(200).json({ mensagem: 'Registro atualizado com sucesso', uuid });
                 });
         } else {
@@ -13606,6 +13727,7 @@ function upsertMonaco(uuid, tipoEvento, payload, res) {
                         return res.status(500).json({ codError: 500, message: 'Erro ao inserir' });
                     }
                     console.log(`[MONACO] Inserido id=${this.lastID} uuid=${uuid} tipo=${tipoEvento}`);
+                    syncToLogistica(uuid, payload);
                     res.status(200).json({ mensagem: 'Registro recebido com sucesso', uuid });
                 });
         }

@@ -389,6 +389,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     parcelas INTEGER DEFAULT 1,
                     placa TEXT,
                     local_infracao TEXT,
+                    monaco_uuid TEXT,
                     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
                     atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
@@ -493,6 +494,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('local_infracao')) db.run("ALTER TABLE multas_logistica ADD COLUMN local_infracao TEXT");
                     if (!cols.includes('created_by_id')) db.run("ALTER TABLE multas_logistica ADD COLUMN created_by_id INTEGER");
                     if (!cols.includes('created_by_nome')) db.run("ALTER TABLE multas_logistica ADD COLUMN created_by_nome TEXT");
+                    if (!cols.includes('monaco_uuid')) db.run("ALTER TABLE multas_logistica ADD COLUMN monaco_uuid TEXT");
                 });
 
                 // Avaliacoes (Migracao estrutural para Drop and Recreate caso a tabela antiga nao tenha 'tipo')

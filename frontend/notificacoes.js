@@ -9,7 +9,8 @@ const TIPOS_NOTIFICACAO = [
     { id: 'formulario_experiencia', nome: 'Formulário de Experiência Preenchido', icone: 'ph-clipboard-text' },
     { id: 'licenca_vencida', nome: 'Aviso de Licença Vencida', icone: 'ph-warning-circle' },
     { id: 'novo_sinistro', nome: 'Novo Sinistro Registrado', icone: 'ph-warning' },
-    { id: 'nova_multa_prontuario', nome: 'Nova Multa no Prontuário', icone: 'ph-traffic-cone' }
+    { id: 'nova_multa_prontuario', nome: 'Nova Multa no Prontuário', icone: 'ph-traffic-cone' },
+    { id: 'nova_multa_monaco', nome: 'Nova Multa Integrada Mônaco', icone: 'ph-police-car' }
 ];
 
 let globalUsuariosConfig = [];

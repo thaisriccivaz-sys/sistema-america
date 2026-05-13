@@ -284,6 +284,10 @@ window.renderResumoRota = function() {
                 style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;gap:7px;" title="Limpa o resumo atual da tela">
                 <i class="ph ph-eraser"></i> Limpar
             </button>
+            <button id="rr-btn-salvar" onclick="window.rrSalvarResumo()"
+                style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:none;align-items:center;gap:7px;">
+                <i class="ph ph-floppy-disk"></i> Salvar
+            </button>
             <button id="rr-btn-exportar" onclick="window.rrExportarExcel()"
                 style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:none;align-items:center;gap:7px;">
                 <i class="ph ph-microsoft-excel-logo"></i> Exportar Resumo
@@ -351,6 +355,8 @@ window.rrCarregarHistorico = async function(id) {
         window._rrOriginalFileName   = null;
         window._rrDataRotaAtual = null;
         _rrRenderCorpo();
+        const btnSalvar = document.getElementById('rr-btn-salvar');
+        if (btnSalvar) btnSalvar.style.display = 'none';
         if (btnExportar) btnExportar.style.display = 'none';
         if (btnOrig)     btnOrig.style.display = 'none';
         return;
@@ -384,6 +390,8 @@ window.rrCarregarHistorico = async function(id) {
 
         _rrCurrentId = data.id;
         _rrRenderCorpo(); // renderiza sem disp (limpo)
+        const btnSalvar = document.getElementById('rr-btn-salvar');
+        if (btnSalvar) btnSalvar.style.display = 'flex';
         if (btnExportar) btnExportar.style.display = 'flex';
         if (btnOrig) btnOrig.style.display = window._rrOriginalFileBase64 ? 'flex' : 'none';
 
@@ -449,8 +457,10 @@ window.rrLimparResumo = function() {
     window._rrOriginalFileBase64 = null;
     window._rrOriginalFileName   = null;
     _rrRenderCorpo();
+    const btnSalvar = document.getElementById('rr-btn-salvar');
     const btnExp  = document.getElementById('rr-btn-exportar');
     const btnOrig = document.getElementById('rr-btn-baixar-original');
+    if (btnSalvar) btnSalvar.style.display = 'none';
     if (btnExp)  btnExp.style.display  = 'none';
     if (btnOrig) btnOrig.style.display = 'none';
     const sel = document.getElementById('rr-historico-select');
@@ -675,6 +685,8 @@ window.rrImportarPlanilha = async function(input) {
     }
 
     _rrRenderCorpo();
+    const btnSalvar = document.getElementById('rr-btn-salvar');
+    if (btnSalvar) btnSalvar.style.display = 'flex';
     const btnExportar = document.getElementById('rr-btn-exportar');
     if (btnExportar) btnExportar.style.display = 'flex';
     const btnOrig = document.getElementById('rr-btn-baixar-original');
@@ -984,6 +996,99 @@ window.rrExportarExcel = async function() {
     // Salvar no banco
     try {
         const payload = {
+            nome: nomeFinal,
+            dados: {
+                veiculos: _rrVeiculos,
+                originalFileBase64: window._rrOriginalFileBase64 || null,
+                originalFileName:   window._rrOriginalFileName   || null,
+            }
+        };
+        const res = await fetch('/api/logistica/resumo-rota', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ..._rrAuthHeaders() },
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (data.success) {
+            _rrCurrentId = data.id;
+            window.rrListarHistorico();
+            showToast('Resumo salvo no histórico com sucesso!', 'success');
+        } else {
+            showToast('Erro ao salvar resumo.', 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('Erro de conexão ao salvar resumo.', 'error');
+    }
+
+    await _rrGerarExcel();
+};
+
+window.rrSalvarResumo = async function() {
+    if (!_rrVeiculos.length) {
+        showToast('Importe uma planilha primeiro.', 'error');
+        return;
+    }
+
+    // Captura edições manuais e valida campos obrigatórios
+    let faltouObs = false;
+    _rrVeiculos.forEach((v, i) => {
+        const ta = document.querySelector(`.rr-textarea-edit[data-index="${i}"]`);
+        if (ta) v.colBEditado = ta.value;
+        const to = document.querySelector(`.rr-textarea-obs[data-index="${i}"]`);
+        if (to) {
+            v.obsRoteirizador = to.value;
+            if (!v.obsRoteirizador || !v.obsRoteirizador.trim()) {
+                faltouObs = true;
+                to.style.borderColor = '#dc2626';
+            } else {
+                to.style.borderColor = '#cbd5e1';
+            }
+        }
+    });
+
+    if (faltouObs) {
+        showToast('Preencha as Observações do Roteirizador para todas as saídas!', 'error');
+        return;
+    }
+
+    let nomeFinal = window._rrDefaultNomeResumo || 'Resumo de Rota';
+
+    // Se é um resumo novo
+    if (!_rrCurrentId) {
+        const nomeExistente = _rrHistoricoList.find(h => h.nome === nomeFinal);
+        if (nomeExistente) {
+            const { value, isConfirmed } = await Swal.fire({
+                title: 'Nome já utilizado',
+                html: `Já existe um resumo salvo com o nome <b>"${nomeFinal}"</b>.<br>Deseja salvar com um nome diferente?`,
+                input: 'text',
+                inputValue: nomeFinal + ' (2)',
+                showCancelButton: true,
+                confirmButtonText: 'Salvar com novo nome',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#2d9e5f',
+            });
+            if (!isConfirmed) return;
+            nomeFinal = value || nomeFinal + ' (2)';
+        } else {
+            const { value, isConfirmed } = await Swal.fire({
+                title: 'Salvar Resumo de Rota',
+                input: 'text',
+                inputLabel: 'Nome do resumo',
+                inputValue: nomeFinal,
+                showCancelButton: true,
+                confirmButtonText: 'Salvar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#2d9e5f',
+            });
+            if (!isConfirmed) return;
+            nomeFinal = value || nomeFinal;
+        }
+    }
+
+    try {
+        const payload = {
+            id: _rrCurrentId,
             nome: nomeFinal,
             dados: {
                 veiculos: _rrVeiculos,
