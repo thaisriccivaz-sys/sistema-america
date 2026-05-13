@@ -12816,10 +12816,10 @@ window.salvarAssinaturasTestemunhas = async function () {
         const data2 = s2.split('###');
 
         // ── Posicionamento ancorado no RODAPÉ da última página ──
-        // As assinaturas ficam sempre nos últimos ~130pt da página,
-        // independentemente do comprimento do texto acima.
-        const tImgH    = 60;  // altura da imagem de assinatura
-        const bottomMargin = 30; // margem do rodapé
+        // TESTEMUNHAS ficam na faixa de ~150 a ~270pt do rodapé
+        // (abaixo delas ficará o bloco do Colaborador, em ~30 a ~130pt)
+        const tImgH    = 55;  // altura da imagem de assinatura
+        const bottomMargin = 160; // margem do rodapé para o bloco das testemunhas
         const t1CpfY   = bottomMargin;
         const t1NameY  = t1CpfY  + 14;
         const t1LineY  = t1NameY + 14;
@@ -12947,7 +12947,8 @@ window.salvarAssinaturaColaborador = async function () {
 
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
         const pages = pdfDoc.getPages();
-        const lastPage = pages[0]; // Agora garantimos que tudo fica na página 1
+        // Usa SEMPRE a última página, igual às testemunhas
+        const lastPage = pages[pages.length - 1];
         const { width: pgW, height: pgH } = lastPage.getSize();
 
         // Captura de alta qualidade
@@ -12964,16 +12965,18 @@ window.salvarAssinaturaColaborador = async function () {
             return fetch(off.toDataURL('image/png')).then(r => r.arrayBuffer());
         }
 
-        // --- COLABORADOR (Abaixo, Centro) ---
-        const cImgH = 80;
-        const cWidth = 321; // Mesma largura das testemunhas
+        // --- COLABORADOR (Centro, ABAIXO das testemunhas) ---
+        // Testemunhas ocupam a faixa 160-260pt do rodapé.
+        // Colaborador fica na faixa 30-130pt do rodapé, sem sobreposição.
+        const cImgH = 55;
+        const cWidth = 280;
         const cX = (pgW - cWidth) / 2;
 
-        const cLabelY = 190;
-        const cImgY = 100;
-        const cLineY = 90;
-        const cNameY = 70;
-        const cCpfY = 55;
+        const cCpfY   = 30;
+        const cNameY  = cCpfY  + 14;
+        const cLineY  = cNameY + 14;
+        const cImgY   = cLineY + 6;
+        const cLabelY = cImgY  + cImgH + 6;
 
         // Label
         lastPage.drawText('Colaborador (Ciente):', { x: cX, y: cLabelY, size: 10, color: PDFLib.rgb(0.2, 0.2, 0.2) });
