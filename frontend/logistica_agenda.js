@@ -189,7 +189,7 @@
             ferias:     { bg: '#fff7ed', color: '#ea580c', border: '#fdba74' },
             afastado:   { bg: '#fefce8', color: '#ca8a04', border: '#fde68a' },
             falta:      { bg: '#fef2f2', color: '#dc2626', border: '#fca5a5' },
-            aso:        { bg: '#e0f2fe', color: '#0369a1', border: '#bae6fd' },
+            aso:        { bg: '#f8fafc', color: '#64748b', border: '#cbd5e1' },
         };
 
         for (const dObj of diasRender) {
@@ -349,7 +349,7 @@
                 {k:'ferias',   label:'🟠 Férias',   color:'#ea580c', bg:'#fff7ed'},
                 {k:'afastado', label:'🟡 Afastado', color:'#ca8a04', bg:'#fefce8'},
                 {k:'falta',    label:'🔴 Falta',    color:'#dc2626', bg:'#fef2f2'},
-                {k:'aso',      label:'🔵 ASO',      color:'#0369a1', bg:'#e0f2fe'},
+                {k:'aso',      label:'⚪ ASO',      color:'#64748b', bg:'#f8fafc'},
             ].map(f => `<button onclick="agendaSetEscalaFiltro('${f.k}')"
                 style="border:1.5px solid ${agendaEscalaFiltroStatus===f.k?f.color:'#e2e8f0'};background:${agendaEscalaFiltroStatus===f.k?f.bg:'#fff'};color:${agendaEscalaFiltroStatus===f.k?f.color:'#64748b'};border-radius:20px;padding:4px 14px;font-size:0.8rem;font-weight:${agendaEscalaFiltroStatus===f.k?'700':'500'};cursor:pointer;transition:all .15s;">${f.label}</button>`
             ).join('')}
