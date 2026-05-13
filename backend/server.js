@@ -10775,6 +10775,18 @@ app.get('/api/logistica/os/:id', authenticateToken, (req, res) => {
     });
 });
 
+// DELETE /api/logistica/os/:id — Exclui (soft-delete) uma OS do histórico
+app.delete('/api/logistica/os/:id', authenticateToken, (req, res) => {
+    const id = parseInt(req.params.id);
+    if (!id) return res.status(400).json({ error: 'ID inválido.' });
+    db.run(`UPDATE os_logistica SET status = 'excluido' WHERE id = ?`, [id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'OS não encontrada.' });
+        console.log(`[OS-DELETE] OS id=${id} excluída por ${req.user?.nome || req.user?.username || 'usuário'}`);
+        res.json({ ok: true, message: 'OS excluída com sucesso.' });
+    });
+});
+
 // Verifica se o tipo de serviço é recorrente (Manutenção regular ou VAC)
 // Manutenções AVULSAS são pontuais (filtradas por data_os) — não são recorrentes
 function isRecorrente(tipoServico) {

@@ -4154,6 +4154,7 @@ function _rrMontarDrawerHistorico() {
                             <th style="padding:6px 10px; text-align:left; color:#475569; font-weight:700;">Serviço</th>
                             <th style="padding:6px 10px; text-align:left; color:#475569; font-weight:700;">Turno</th>
                             <th style="padding:6px 10px; text-align:left; color:#475569; font-weight:700;">Dias</th>
+                            <th style="padding:6px 6px; text-align:center; color:#475569; font-weight:700;">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="rr-hist-tbody">
@@ -4266,6 +4267,14 @@ function _rrMontarDrawerHistorico() {
                 </td>
                 <td style="padding:5px 10px; white-space:nowrap; color:#475569;">${turnoIco(tur)}</td>
                 <td style="padding:5px 10px; white-space:nowrap;">${fmtDias(os.dias_semana)}</td>
+                <td style="padding:5px 6px; text-align:center; white-space:nowrap;">
+                    <button
+                        onclick="event.stopPropagation(); window._rrExcluirOs(${os.id}, '${os.numero_os || ''}')"
+                        title="Excluir OS"
+                        style="background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; border-radius:6px; padding:3px 8px; cursor:pointer; font-size:0.8rem; line-height:1; transition:background 0.15s;"
+                        onmouseover="this.style.background='#fca5a5'" onmouseout="this.style.background='#fee2e2'"
+                    ><i class="ph ph-trash"></i></button>
+                </td>
             </tr>`;
         }).join('');
     }
@@ -4303,6 +4312,30 @@ function _rrMontarDrawerHistorico() {
     };
 
     window._rrFiltrarHistorico = filtro => _renderLinhas(filtro);
+
+    // ── Excluir OS do histórico ───────────────────────────────────────────────────
+    window._rrExcluirOs = async function(osId, osNum) {
+        if (!confirm(`Excluir a OS ${osNum || osId} do histórico? Esta ação não pode ser desfeita.`)) return;
+        try {
+            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+            const res = await fetch(`/api/logistica/os/${osId}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || `Erro ${res.status}`);
+            }
+            // Remove localmente e re-renderiza
+            _dados = _dados.filter(o => o.id !== osId);
+            const count = document.getElementById('rr-hist-count');
+            if (count) count.textContent = _dados.length;
+            _renderLinhas(document.getElementById('rr-hist-search')?.value || '');
+            mostrarToastAviso(`✅ OS ${osNum} excluída.`);
+        } catch (e) {
+            alert('Erro ao excluir OS: ' + e.message);
+        }
+    };
 
     // ── Fechar ao clicar fora do drawer ───────────────────────────────────────
     document.addEventListener('mousedown', function _rrClickFora(e) {
