@@ -1468,6 +1468,19 @@ function carregarRegistroNaTela(os) {
     osState.tiposServico         = new Set(parseJsonFront(os.habilidades));
     osState.acoes                = new Set(parseJsonFront(os.variaveis));
 
+    // Fallback: Inferir variáveis não parseadas através dos ícones presentes no nome do cliente
+    if (os.cliente) {
+        const REVERSE_ACOES = {};
+        for (const [k, v] of Object.entries(ACOES_DICT)) REVERSE_ACOES[v] = k;
+        const emojisNoCliente = os.cliente.match(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]/gu) || [];
+        emojisNoCliente.forEach(e => {
+            const char = e.trim();
+            if (REVERSE_ACOES[char]) {
+                osState.acoes.add(REVERSE_ACOES[char]);
+            }
+        });
+    }
+
     atualizarDropdownProdutos();
     atualizarIconesCliente();
 
