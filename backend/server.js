@@ -12555,8 +12555,8 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                 const temCiclo = c.escala_ciclo_inicio && (escalaStr.includes('uma_folga') || escalaStr.includes('duas_folgas') || escalaStr.includes('folga'));
                 const cicloBase = temCiclo ? new Date(c.escala_ciclo_inicio + 'T12:00:00') : null;
 
-                // Índice do último dia fixo de folga (para Tipo B: é o 2º dia que "cede" ao domingo)
-                const ultimoFolgaDow = folgasDow.length >= 2 ? folgasDow[folgasDow.length - 1] : null;
+                // Índice do 1º dia fixo de folga (para Tipo B: é o 1º dia que "cede" ao domingo de lei, virando trabalho)
+                const ultimoFolgaDow = folgasDow.length >= 2 ? folgasDow[0] : null;
 
                 const isDomingoDeLei = (dateStr) => {
                     if (!temCiclo || !cicloBase) return false;
@@ -12701,7 +12701,7 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
         const dow = d.getDay();
         const temCiclo = c.escala_ciclo_inicio && (escalaStr.includes('uma_folga') || escalaStr.includes('duas_folgas') || escalaStr.includes('folga'));
         const cicloBase = temCiclo ? new Date(c.escala_ciclo_inicio + 'T12:00:00') : null;
-        const ultimoFolgaDow = folgasDow.length >= 2 ? folgasDow[folgasDow.length - 1] : null;
+        const ultimoFolgaDow = folgasDow.length >= 2 ? folgasDow[0] : null;
 
         const isDomingoDeLei = (ds) => {
             if (!temCiclo || !cicloBase) return false;
