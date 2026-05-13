@@ -6637,11 +6637,53 @@ window.renderPagamentosCompetencia = function () {
     if (!subContainer) return;
     subContainer.innerHTML = '';
 
+    // ── Slots mensais ──────────────────────────────────────────────────────────
     const docs = currentDocs.filter(d => d.tab_name === 'Pagamentos' && d.year == y && d.month == m);
     ['Ponto', 'Holerite Pagamento', 'Holerite Adiantamento', 'Recibo Combustível', 'Recibo Alimentação', 'Outros'].forEach(type => {
         const d = docs.find(x => x.document_type === type);
         subContainer.appendChild(createDocSlot('Pagamentos', type, d, `'${y}'`, `'${m}'`));
     });
+
+    // ── Seção sazonal: Férias (por ano, sem vínculo de mês) ───────────────────
+    const feriasDoAno = currentDocs.filter(d => d.tab_name === 'Pagamentos' && d.document_type === 'Férias' && d.year == y);
+
+    const secFerias = document.createElement('div');
+    secFerias.style.cssText = 'margin-top:1.5rem; border-top:2px dashed #bfdbfe; padding-top:1.25rem;';
+    secFerias.innerHTML = `
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+            <h5 style="margin:0; color:#1e40af; display:flex; align-items:center; gap:0.5rem;">
+                <i class="ph ph-sun-horizon" style="font-size:1.2rem;"></i> Férias <span style="font-size:0.8rem; font-weight:400; color:#64748b; margin-left:4px;">(${y} — sazonal)</span>
+            </h5>
+            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; background:#1e40af; color:#fff; border-radius:8px; padding:6px 14px; font-size:0.85rem; font-weight:600; transition:background 0.2s;"
+                   onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#1e40af'">
+                <i class="ph ph-upload-simple"></i> Adicionar Férias
+                <input type="file" accept=".pdf" style="display:none;"
+                    onchange="window.uploadDocument(this, 'Pagamentos', 'Férias', '${y}', null)">
+            </label>
+        </div>
+        <div id="ferias-slots-${y}" style="display:flex; flex-wrap:wrap; gap:0.75rem;">
+            ${feriasDoAno.length === 0
+                ? `<p style="color:#94a3b8; font-size:0.85rem; margin:0;">Nenhum documento de férias cadastrado para ${y}. Clique em "Adicionar Férias" para inserir.</p>`
+                : feriasDoAno.map(d => `
+                    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:0.75rem 1rem; display:flex; align-items:center; gap:0.75rem; min-width:220px;">
+                        <i class="ph ph-file-pdf" style="color:#1e40af; font-size:1.4rem;"></i>
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-weight:600; font-size:0.85rem; color:#1e3a8a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${d.file_name || 'Férias'}">Férias ${y}</div>
+                            <div style="font-size:0.75rem; color:#64748b;">${d.file_name || ''}</div>
+                        </div>
+                        <div style="display:flex; gap:4px;">
+                            <button onclick="viewDoc(${d.id})" title="Visualizar" style="background:#dbeafe; color:#1e40af; border:none; border-radius:6px; padding:4px 8px; cursor:pointer;">
+                                <i class="ph ph-eye"></i>
+                            </button>
+                            <button onclick="deleteDoc(${d.id})" title="Excluir" style="background:#fee2e2; color:#dc2626; border:none; border-radius:6px; padding:4px 8px; cursor:pointer;">
+                                <i class="ph ph-trash"></i>
+                            </button>
+                        </div>
+                    </div>`).join('')
+            }
+        </div>
+    `;
+    subContainer.appendChild(secFerias);
 };
 
 window.uploadDocument = async function (inputEl, tabId, docType, year = null, month = null, vencimento = null, reqAssin = null) {
