@@ -12428,7 +12428,7 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
     const DEPTS_EXCLUIDOS = ['ESCRITÓRIO', 'RH', 'Comercial', 'Financeiro', 'Administrativo', 'Diretoria'];
     const excStr = DEPTS_EXCLUIDOS.map(() => '?').join(',');
 
-    db.all(`SELECT id, nome_completo, cargo, departamento, foto_base64, foto_path,
+    db.all(`SELECT id, nome_completo, cargo, departamento, foto_base64, foto_path, aso_exame_data,
                    escala_tipo, escala_folgas, escala_ciclo_inicio, horario_entrada, horario_saida, status
             FROM colaboradores WHERE status IN ('Ativo','Afastado','Férias')
             AND departamento NOT IN (${excStr})
@@ -12516,7 +12516,12 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
 
             // Para cada colaborador, calcular disponibilidade por dia
             const result = (colabs || []).map(c => {
-                const ausencias = { ...((faltSet || {})[c.id] || {}), ...((atestSet || {})[c.id] || {}), ...((ferSet || {})[c.id] || {}) };
+                const asoData = {};
+                if (c.aso_exame_data) {
+                    const [d, m, y] = c.aso_exame_data.split('/');
+                    if (d && m && y) asoData[`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`] = 'aso';
+                }
+                const ausencias = { ...asoData, ...((faltSet || {})[c.id] || {}), ...((atestSet || {})[c.id] || {}), ...((ferSet || {})[c.id] || {}) };
 
                 // Parse da escala
                 const escalaStr = (c.escala_tipo || '').toLowerCase();

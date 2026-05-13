@@ -189,6 +189,7 @@
             ferias:     { bg: '#fff7ed', color: '#ea580c', border: '#fdba74' },
             afastado:   { bg: '#fefce8', color: '#ca8a04', border: '#fde68a' },
             falta:      { bg: '#fef2f2', color: '#dc2626', border: '#fca5a5' },
+            aso:        { bg: '#e0f2fe', color: '#0369a1', border: '#bae6fd' },
         };
 
         for (const dObj of diasRender) {
@@ -224,7 +225,7 @@
                     const avatarHTML = `<div style="width:20px;height:20px;border-radius:50%;background:${st.bg};border:1.5px solid ${st.border};display:${colab.foto_base64?'none':'flex'};align-items:center;justify-content:center;font-size:9px;font-weight:800;color:${st.color};flex-shrink:0;">${inicial}</div>`;
                     const sublabel = status === 'disponivel' && colab.horario_entrada
                         ? `${colab.horario_entrada}${colab.horario_saida?'-'+colab.horario_saida:''}`
-                        : ({disponivel:'Disponível',folga:'Folga',ferias:'Férias',afastado:'Afastado',falta:'Falta'}[status]||'');
+                        : ({disponivel:'Disponível',folga:'Folga',ferias:'Férias',afastado:'Afastado',falta:'Falta',aso:'ASO'}[status]||'');
                     return `<div style="display:flex;align-items:center;gap:4px;padding:3px 5px;margin-bottom:2px;border-radius:6px;background:${st.bg};border:1px solid ${st.border};">
                         ${fotoHTML}${avatarHTML}
                         <div style="overflow:hidden;min-width:0;">
@@ -348,6 +349,7 @@
                 {k:'ferias',   label:'🟠 Férias',   color:'#ea580c', bg:'#fff7ed'},
                 {k:'afastado', label:'🟡 Afastado', color:'#ca8a04', bg:'#fefce8'},
                 {k:'falta',    label:'🔴 Falta',    color:'#dc2626', bg:'#fef2f2'},
+                {k:'aso',      label:'🔵 ASO',      color:'#0369a1', bg:'#e0f2fe'},
             ].map(f => `<button onclick="agendaSetEscalaFiltro('${f.k}')"
                 style="border:1.5px solid ${agendaEscalaFiltroStatus===f.k?f.color:'#e2e8f0'};background:${agendaEscalaFiltroStatus===f.k?f.bg:'#fff'};color:${agendaEscalaFiltroStatus===f.k?f.color:'#64748b'};border-radius:20px;padding:4px 14px;font-size:0.8rem;font-weight:${agendaEscalaFiltroStatus===f.k?'700':'500'};cursor:pointer;transition:all .15s;">${f.label}</button>`
             ).join('')}
