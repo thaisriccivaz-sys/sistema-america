@@ -5734,13 +5734,17 @@ window.renderASOTab = function (container, filteredDocs) {
                 </div>
                 <div class="input-group" style="width:180px; flex-shrink:0; margin-bottom:0;">
                     <label style="font-size:0.75rem; font-weight:700;">Tipo de Exame</label>
-                    <select id="aso-tipo-exame-tab" class="form-control" style="padding:0.5rem; font-size:0.85rem; height:38px;">
+                    <select id="aso-tipo-exame-tab" class="form-control" style="padding:0.5rem; font-size:0.85rem; height:38px;" onchange="document.getElementById('aso-nova-funcao-container').style.display = this.value === 'Troca de Função' ? 'block' : 'none';">
                         <option value="Admissional">Admissional</option>
                         <option value="Demissional">Demissional</option>
                         <option value="Retorno ao trabalho">Retorno ao trabalho</option>
                         <option value="Periódico">Periódico</option>
                         <option value="Troca de Função">Troca de Função</option>
                     </select>
+                </div>
+                <div class="input-group" id="aso-nova-funcao-container" style="display:none; width:180px; flex-shrink:0; margin-bottom:0;">
+                    <label style="font-size:0.75rem; font-weight:700;">Nova Função</label>
+                    <input type="text" id="aso-nova-funcao-tab" class="form-control" style="padding:0.5rem; font-size:0.85rem; height:38px;">
                 </div>
                 <div class="input-group" style="flex:1; min-width:200px; margin-bottom:0;">
                     <label style="font-size:0.75rem; font-weight:700;">Destinatário</label>
@@ -5770,7 +5774,9 @@ window.sendASOEmailTab = async function () {
     const dataExame = document.getElementById('aso-exame-data-tab').value;
     const tipoExame = document.getElementById('aso-tipo-exame-tab').value;
     const destinatario = document.getElementById('aso-email-dest-tab').value;
+    const novaFuncao = document.getElementById('aso-nova-funcao-tab')?.value || '';
     if (!dataExame) { alert('Selecione a data do exame.'); return; }
+    if (tipoExame === 'Troca de Função' && !novaFuncao) { alert('Preencha a nova função.'); return; }
 
     const [y, m, d] = dataExame.split('-');
     const dt = `${d}/${m}/${y}`;
@@ -5783,7 +5789,8 @@ window.sendASOEmailTab = async function () {
         : '';
     const exames = examesCompl ? `Exame Padrão\nExames Complementares: ${examesCompl}` : 'Exame Padrão';
 
-    const mailBody = `Título: Exame Médico\n\nSegue abaixo as informações para a realização do exame do colaborador.\n\nData: ${dt}\nNome: ${viewedColaborador.nome_completo || viewedColaborador.nome}\nCPF: ${viewedColaborador.cpf || '-'}\nFunção: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\n⚠️ IMPORTANTE:\nApós o exame ficar pronto, favor enviar o documento por e-mail para: rh@americarental.com.br`;
+    const novaFuncaoText = (tipoExame === 'Troca de Função' && novaFuncao) ? `\nNova Função: ${novaFuncao}` : '';
+    const mailBody = `Título: Exame Médico\n\nSegue abaixo as informações para a realização do exame do colaborador.\n\nData: ${dt}\nNome: ${viewedColaborador.nome_completo || viewedColaborador.nome}\nCPF: ${viewedColaborador.cpf || '-'}\nFunção Atual: ${viewedColaborador.cargo || '-'}${novaFuncaoText}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\n⚠️ IMPORTANTE:\nApós o exame ficar pronto, favor enviar o documento por e-mail para: rh@americarental.com.br`;
 
     const btn = document.getElementById('btn-enviar-aso-email-tab');
     const originalContent = btn.innerHTML;
@@ -5796,6 +5803,7 @@ window.sendASOEmailTab = async function () {
             email_to: destinatario.replace(/;/g, ','),
             data_exame: dataExame,
             tipo_exame: tipoExame,
+            nova_funcao: novaFuncao,
             cc: ['rh@americarental.com.br', 'rh2@americarental.com.br']
         });
 

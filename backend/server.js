@@ -6437,7 +6437,7 @@ app.delete('/api/avaliacao-templates/:id', authenticateToken, (req, res) => {
 
 // --- ROTA DE ENVIO DE E-MAIL ASO ---
 app.post('/api/send-aso-email', authenticateToken, (req, res) => {
-    const { colaborador_id, email_to, data_exame, cc, tipo_exame } = req.body;
+    const { colaborador_id, email_to, data_exame, cc, tipo_exame, nova_funcao } = req.body;
 
     db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (err, colab) => {
         if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
@@ -6452,6 +6452,10 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
         const dataFormatada = `${d}/${m}/${y}`;
         const tipoExameStr = tipo_exame || 'Admissional';
 
+        const novaFuncaoHtml = (tipoExameStr === 'Troca de Função' && nova_funcao) 
+            ? `<p><strong>Nova Função:</strong> ${nova_funcao}</p>` 
+            : '';
+
         const htmlContent = `
             <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
                 <div style="text-align: center; margin-bottom: 20px;">
@@ -6464,7 +6468,8 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
                     <p><strong>Data:</strong> ${dataFormatada}</p>
                     <p><strong>Nome:</strong> ${colab.nome_completo}</p>
                     <p><strong>CPF:</strong> ${colab.cpf}</p>
-                    <p><strong>Função:</strong> ${colab.cargo || '-'}</p>
+                    <p><strong>Função Atual:</strong> ${colab.cargo || '-'}</p>
+                    ${novaFuncaoHtml}
                     <p><strong>Departamento:</strong> ${colab.departamento || '-'}</p>
                 </div>
 
