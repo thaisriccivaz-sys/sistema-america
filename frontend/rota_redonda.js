@@ -1905,19 +1905,31 @@ function parseOsText(texto) {
 function parseProdutosString(rawStr, tipoOs) {
     const prods = [];
     if (!rawStr || !tipoOs) return prods;
-    
-    // Suporta "01 guarita individual / 01 STD"
-    // Pega o número e o texto seguinte (com ou sem espaços, ignorando pontuações iniciais)
+
+    // Normaliza separadores comuns: "01 STD e 01 Luxo" ou "01 STD / 01 Luxo" → "01 STD  01 Luxo"
+    const rawNorm = rawStr
+        .replace(/\be\b/gi, ' ')   // remove "e" isolado (conector)
+        .replace(/[/,|]+/g, ' ');  // substitui / , | por espaço
+
     const prodRegex = /(\d+)\s+([A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+)*)/g;
     let match;
-    while ((match = prodRegex.exec(rawStr)) !== null) {
+    while ((match = prodRegex.exec(rawNorm)) !== null) {
         let qtd = parseInt(match[1], 10);
         let nomeStr = match[2].toUpperCase().trim();
-        
+
         const MAP_PROD = {
-            'STD': 'STD', 'STANDARD': 'STD', 'STANDARDS': 'STD',
-            'LX': 'LX', 'ELX': 'ELX', 'EXL': 'ELX', 'SLX': 'ELX',
+            // STD
+            'BANHEIRO STANDARD': 'STD', 'BANHEIRO STD': 'STD',
+            'STANDARD': 'STD', 'STANDARDS': 'STD', 'STD': 'STD',
+            // LX (Luxo)
+            'BANHEIRO EXTRA LUXO': 'ELX', 'BANHEIRO EXTRA LX': 'ELX',
+            'EXTRA LUXO': 'ELX', 'EXTRA LX': 'ELX',
+            'BANHEIRO LUXO': 'LX', 'BANHEIRO LX': 'LX',
+            'ELX': 'ELX', 'EXL': 'ELX', 'SLX': 'ELX',
+            'LUXO': 'LX', 'LX': 'LX',
+            // PCD
             'PCD': 'PCD', 'PCDS': 'PCD',
+            // Outros
             'CHUVEIRO': 'CHUVEIRO', 'CHUVEIROS': 'CHUVEIRO',
             'HIDRAULICO': 'HIDRÁULICO', 'HIDRAULICOS': 'HIDRÁULICO', 'HIDRAU': 'HIDRÁULICO',
             'MICTORIO': 'MICTÓRIO', 'MICTORIOS': 'MICTÓRIO', 'MICT': 'MICTÓRIO',
@@ -1928,13 +1940,13 @@ function parseProdutosString(rawStr, tipoOs) {
             'GUARITA DUPLA': 'GUARITA DUPLA', 'GUARITAS DUPLAS': 'GUARITA DUPLA',
             'GUARITA IND': 'GUARITA INDIVIDUAL', 'GUARITAS IND': 'GUARITA INDIVIDUAL',
             'GUARITA DUP': 'GUARITA DUPLA', 'GUARITAS DUP': 'GUARITA DUPLA',
-            'GUARITA': 'GUARITA INDIVIDUAL', 'GUARITAS': 'GUARITA INDIVIDUAL' // fallback
+            'GUARITA': 'GUARITA INDIVIDUAL', 'GUARITAS': 'GUARITA INDIVIDUAL'
         };
-        
+
         let base = nomeStr;
-        // Procura a chave correspondente (da mais longa para a mais curta para não ter match errado)
-        for (const [chave, valor] of Object.entries(MAP_PROD).sort((a,b) => b[0].length - a[0].length)) {
-            if (nomeStr.includes(chave)) { base = valor; break; }
+        // Procura a chave correspondente (da mais longa para a mais curta para evitar match errado)
+        for (const [chave, valor] of Object.entries(MAP_PROD).sort((a, b) => b[0].length - a[0].length)) {
+            if (nomeStr === chave || nomeStr.startsWith(chave + ' ')) { base = valor; break; }
         }
 
         const nomeProdutoCompleto = `${base} ${tipoOs === 'Obra' ? 'OBRA' : 'EVENTO'}`;
