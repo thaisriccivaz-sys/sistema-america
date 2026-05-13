@@ -138,7 +138,8 @@ function renderMultasLogistica(container) {
                             <th class="multa-th-sort" data-col="data_infracao" onclick="ordenarMultas('data_infracao')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data/Hora <i class="sort-ico ph ph-arrow-down" style="color:#2563eb;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="motivo" onclick="ordenarMultas('motivo')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motivo <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="motorista_nome" onclick="ordenarMultas('motorista_nome')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motorista <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
-                            <th class="multa-th-sort" data-col="status" onclick="ordenarMultas('status')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
+                            <th class="multa-th-sort" data-col="status" onclick="ordenarMultas('status')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status RH <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
+                            <th class="multa-th-sort" data-col="status_monaco" onclick="ordenarMultas('status_monaco')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status Mônaco <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="data_limite" onclick="ordenarMultas('data_limite')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data Limite <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th style="padding:1rem; font-weight:600; color:#475569; text-align:center;">Ações</th>
                         </tr>
@@ -149,7 +150,7 @@ function renderMultasLogistica(container) {
     const listaFiltrada = _aplicarFiltrosMultas(multasLogistica);
 
     if (listaFiltrada.length === 0) {
-        html += `<tr><td colspan="8" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada.</td></tr>`;
+        html += `<tr><td colspan="9" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada.</td></tr>`;
     } else {
         listaFiltrada.forEach(m => {
             const dataInfracao = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
@@ -176,6 +177,13 @@ function renderMultasLogistica(container) {
             else if (m.status === 'Multa NIC') statusColor = '#fecaca';
             else if (m.status === 'Não Se Aplica') statusColor = '#cbd5e1';
 
+            let statusMonacoHtml = '';
+            if (m.status_monaco) {
+                statusMonacoHtml = `<span style="background:#f1f5f9; color:#475569; padding:4px 8px; border-radius:12px; font-size:0.75rem; font-weight:700; white-space:nowrap; border:1px solid #cbd5e1;"><i class="ph ph-police-car"></i> ${m.status_monaco}</span>`;
+            } else {
+                statusMonacoHtml = `<span style="color:#94a3b8; font-size:0.8rem;">—</span>`;
+            }
+
             let docsExtrasList = [];
             try { docsExtrasList = JSON.parse(m.documentos_extras || '[]'); } catch(e){}
             const olhoAzul = docsExtrasList[0] ? `<button onclick="visualizarDocExtra(${m.id}, 0)" style="background:transparent; border:none; cursor:pointer; color:#3b82f6; margin-right:8px;" title="Visualizar Documento 1"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : '';
@@ -193,6 +201,7 @@ function renderMultasLogistica(container) {
                             ${m.status || '—'}
                         </span>
                     </td>
+                    <td style="padding:1rem;">${statusMonacoHtml}</td>
                     <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite)}</td>
                     <td style="padding:1rem; text-align:center; min-width:140px; white-space:nowrap;">
                         ${(m.status === 'Indicado' || m.status === 'Multa NIC') ?
@@ -735,6 +744,15 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
 
                     <!-- INFO MOTORISTA -->
                     ${motoristaInfoHtml}
+
+                    <!-- INFO MONACO -->
+                    ${multa.status_monaco ? `
+                    <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:0.85rem 1rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+                        <i class="ph ph-police-car" style="color:#475569; font-size:1.2rem;"></i>
+                        <span style="font-size:0.85rem; color:#334155;"><b>Status Atual na Mônaco:</b> <span style="font-weight:700; color:#0f172a; padding:2px 8px; background:#e2e8f0; border-radius:12px;">${multa.status_monaco}</span></span>
+                        <span style="font-size:0.75rem; color:#94a3b8; margin-left:auto;">(Atualizado via Webhook)</span>
+                    </div>
+                    ` : ''}
 
                     <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap;">
                         <div style="flex:1; min-width:250px;">

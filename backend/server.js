@@ -13525,7 +13525,7 @@ function monacoAuth(req, res, next) {
 }
 
 // Sincroniza multa recebida da Mônaco para a tabela principal de logística
-function syncToLogistica(uuid, payload) {
+function syncToLogistica(uuid, tipoEvento, payload) {
     db.get('SELECT id, documento_base64, documento_path FROM multas_logistica WHERE numero_ait = ? OR monaco_uuid = ?', [payload.numero_ait, uuid], (err, row) => {
         if (err) {
             console.error('[MONACO SYNC] Erro ao buscar logistica:', err);
@@ -13544,15 +13544,16 @@ function syncToLogistica(uuid, payload) {
 
         const dataLimite = payload.prazo_identificacao_condutor || payload.vencimento_multa || null;
         const localInfracao = payload.local || payload.local_infracao || payload.cidade || null;
+        const statusMonaco = payload.status_notificacao || tipoEvento;
 
         if (row) {
             // Atualizar multa existente
             let updateSql = `UPDATE multas_logistica SET
                 monaco_uuid = ?, placa = ?, data_infracao = ?, hora_infracao = ?,
-                motivo = ?, valor_multa = ?, pontuacao = ?, local_infracao = ?, data_limite = ?`;
+                motivo = ?, valor_multa = ?, pontuacao = ?, local_infracao = ?, data_limite = ?, status_monaco = ?`;
             let params = [
                 uuid, payload.placa, payload.data_da_infracao, payload.hora_da_infracao,
-                payload.descricao, payload.valor_da_infracao, payload.pontos, localInfracao, dataLimite
+                payload.descricao, payload.valor_da_infracao, payload.pontos, localInfracao, dataLimite, statusMonaco
             ];
 
             // Só atualiza PDF se a multa não tiver um PDF anexado manualmente
@@ -13573,11 +13574,11 @@ function syncToLogistica(uuid, payload) {
             db.run(`INSERT INTO multas_logistica (
                 monaco_uuid, numero_ait, placa, data_infracao, hora_infracao,
                 motivo, valor_multa, pontuacao, local_infracao, data_limite,
-                status, created_by_nome, observacao, documento_base64, documento_nome
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Conferência', 'Integração Mônaco', 'Multa importada automaticamente da Mônaco via webhook.', ?, ?)`, [
+                status, created_by_nome, observacao, documento_base64, documento_nome, status_monaco
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Conferência', 'Integração Mônaco', 'Multa importada automaticamente da Mônaco via webhook.', ?, ?, ?)`, [
                 uuid, payload.numero_ait, payload.placa, payload.data_da_infracao, payload.hora_da_infracao,
                 payload.descricao, payload.valor_da_infracao, payload.pontos, localInfracao, dataLimite,
-                docBase64, docNome
+                docBase64, docNome, statusMonaco
             ], function (errInsert) {
                 if (errInsert) console.error('[MONACO SYNC] Erro insert:', errInsert);
                 else {
@@ -13691,7 +13692,7 @@ function upsertMonaco(uuid, tipoEvento, payload, res) {
                         return res.status(500).json({ codError: 500, message: 'Erro ao atualizar' });
                     }
                     console.log(`[MONACO] Atualizado uuid=${uuid} tipo=${tipoEvento}`);
-                    syncToLogistica(uuid, payload);
+                    syncToLogistica(uuid, tipoEvento, payload);
                     res.status(200).json({ mensagem: 'Registro atualizado com sucesso', uuid });
                 });
         } else {
@@ -13727,7 +13728,7 @@ function upsertMonaco(uuid, tipoEvento, payload, res) {
                         return res.status(500).json({ codError: 500, message: 'Erro ao inserir' });
                     }
                     console.log(`[MONACO] Inserido id=${this.lastID} uuid=${uuid} tipo=${tipoEvento}`);
-                    syncToLogistica(uuid, payload);
+                    syncToLogistica(uuid, tipoEvento, payload);
                     res.status(200).json({ mensagem: 'Registro recebido com sucesso', uuid });
                 });
         }
