@@ -171,10 +171,11 @@ function renderMultasLogistica(container) {
             
             let motoristaHtml = '';
             if (m.motorista_id && m.motorista_nome) {
+                const nomeCurto = m.motorista_nome.length > 15 ? m.motorista_nome.substring(0, 15) + '...' : m.motorista_nome;
                 if (String(m.motorista_id) === '-1') {
-                    motoristaHtml = `<span style="font-weight:600; color:#ef4444;" title="Ex Colaborador">${m.motorista_nome}</span>`;
+                    motoristaHtml = `<span style="font-weight:600; color:#ef4444;" title="Ex Colaborador: ${m.motorista_nome}">${nomeCurto}</span>`;
                 } else {
-                    motoristaHtml = `<span style="font-weight:600; color:#0f172a;">${m.motorista_nome}</span>`;
+                    motoristaHtml = `<span style="font-weight:600; color:#0f172a;" title="${m.motorista_nome}">${nomeCurto}</span>`;
                 }
             } else {
                 if (m.status === 'Indicado' || m.status === 'Multa NIC') {
