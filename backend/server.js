@@ -4955,7 +4955,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                                 const safeTab = tab_name === 'CONTRATOS_AVULSOS' ? 'CONTRATOS' : tabToOneDrivePath(tab_name);
                                 const parentDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
                                 let targetDir = parentDir;
-                                if (year && year !== 'null' && year !== 'undefined' && year !== '' && safeTab !== '01_FICHA_CADASTRAL') {
+                                if (year && year !== 'null' && year !== 'undefined' && year !== '' && safeTab !== '01_FICHA_CADASTRAL' && safeTab !== 'CONTRATOS' && tab_name !== 'CONTRATOS_AVULSOS') {
                                     targetDir += `/${year.replace(/[^0-9]/g, '')}`;
                                     if (safeTab === 'PAGAMENTOS' && month && month !== 'null' && month !== 'undefined' && month !== '') {
                                         targetDir += `/${getMesNome(month)}`;
