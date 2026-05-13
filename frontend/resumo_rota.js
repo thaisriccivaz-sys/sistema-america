@@ -766,6 +766,20 @@ function _rrRenderCorpo() {
         const _ajuDisp = _dispInfo(v._dispAjudante,  v.ajudante);
         const badgeDisp = [_motDisp, _ajuDisp].filter(Boolean).join('');
 
+        // Badges de Aviso da Agenda Logística
+        const _avisoInfo = (disp, nome) => {
+            if (!disp || !nome || !nome.trim()) return null;
+            const avisos = disp.avisos || [];
+            if (!avisos.length) return null;
+            return avisos.map(titulo => `<div style="background:#faf5ff;color:#7e22ce;padding:8px 16px;border-bottom:1px solid rgba(0,0,0,0.06);font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:8px;">
+                <i class="ph-warning-circle" style="font-size:1rem;"></i>
+                <span><b>${nome}</b> — Aviso: ${titulo}</span>
+            </div>`).join('');
+        };
+        const _motAviso = _avisoInfo(v._dispMotorista, v.motorista);
+        const _ajuAviso = _avisoInfo(v._dispAjudante,  v.ajudante);
+        const badgeAviso = [_motAviso, _ajuAviso].filter(Boolean).join('');
+
         return `
         <div style="background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:16px;overflow:hidden;border:1px solid #e2e8f0;">
             <div style="background:#2d9e5f;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -789,6 +803,7 @@ function _rrRenderCorpo() {
             </div>
             ${badgeAlerta}
             ${badgeDisp}
+            ${badgeAviso}
             <div style="padding:14px 18px;background:#f8fafc;">
                 <textarea class="rr-textarea-edit" data-index="${i}" spellcheck="false"
                     style="width:100%;height:${h}px;border:1px solid #cbd5e1;border-radius:6px;padding:12px;font-size:0.85rem;color:#1e293b;line-height:1.7;font-family:monospace;resize:vertical;outline:none;box-sizing:border-box;"

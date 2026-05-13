@@ -12788,7 +12788,25 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                 });
             });
 
-            Promise.all([pAtestado, pFalta, pAgenda]).then(([atestSet, faltSet, agendaMap]) => {
+            // Avisos: cards de aviso na agenda logística para essa data referentes a colaboradores
+            const pAviso = new Promise(resolve => {
+                db.all(`SELECT referente_ids, titulo FROM logistica_agenda WHERE data = ? AND tipo = 'aviso'`, [data], (e, rows) => {
+                    const avisoMap = new Map(); // id -> [titulo, ...]
+                    (rows || []).forEach(r => {
+                        try {
+                            const refs = JSON.parse(r.referente_ids || '[]');
+                            refs.forEach(rid => {
+                                const idNum = Number(rid);
+                                if (!avisoMap.has(idNum)) avisoMap.set(idNum, []);
+                                if (r.titulo) avisoMap.get(idNum).push(r.titulo);
+                            });
+                        } catch (ex) { }
+                    });
+                    resolve(avisoMap);
+                });
+            });
+
+            Promise.all([pAtestado, pFalta, pAgenda, pAviso]).then(([atestSet, faltSet, agendaMap, avisoMap]) => {
                 const result = {};
                 colabs.forEach(c => {
                     const nomeKey = (c.nome_completo || '').toLowerCase().trim();
@@ -12854,7 +12872,10 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                         }
                     }
 
-                    result[nomeKey] = { status, motivo, nome: c.nome_completo, data_fim };
+                    // Avisos da Agenda Logística (não alteram status, apenas adicionam aviso)
+                    const avisosColab = avisoMap.has(c.id) ? avisoMap.get(c.id) : [];
+
+                    result[nomeKey] = { status, motivo, nome: c.nome_completo, data_fim, avisos: avisosColab };
                 });
                 res.json(result);
             });
