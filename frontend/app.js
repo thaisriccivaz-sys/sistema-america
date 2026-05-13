@@ -12793,8 +12793,9 @@ window.salvarAssinaturasTestemunhas = async function () {
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
 
         const pages = pdfDoc.getPages();
-        const sigPage = pages[0];
-        const { width: pageWidth, height: pageHeight } = sigPage.getSize(); // 794 x 1123
+        // Usa SEMPRE a última página para as assinaturas das testemunhas
+        const sigPage = pages[pages.length - 1];
+        const { width: pageWidth, height: pageHeight } = sigPage.getSize();
         const innerWidth = (pageWidth - 112) / 2 - 20;
 
         // --- Captura canvas em alta resolução (3x DPI) ---
@@ -12814,14 +12815,16 @@ window.salvarAssinaturasTestemunhas = async function () {
         const data1 = s1.split('###');
         const data2 = s2.split('###');
 
-        // Coordenadas PDF-Lib (Y=0 na base da página. Altura ≈ 841pt para A4)
-        // Posicionamento compacto: label → imagem → linha → nome → CPF
-        const t1LabelY = 310;
-        const tImgH = 70;
-        const t1ImgY = 230; // imagem de Y=230 até Y=300
-        const t1LineY = 222; // linha logo abaixo da imagem
-        const t1NameY = 208; // nome bem próximo da linha
-        const t1CpfY = 195; // CPF logo abaixo do nome
+        // ── Posicionamento ancorado no RODAPÉ da última página ──
+        // As assinaturas ficam sempre nos últimos ~130pt da página,
+        // independentemente do comprimento do texto acima.
+        const tImgH    = 60;  // altura da imagem de assinatura
+        const bottomMargin = 30; // margem do rodapé
+        const t1CpfY   = bottomMargin;
+        const t1NameY  = t1CpfY  + 14;
+        const t1LineY  = t1NameY + 14;
+        const t1ImgY   = t1LineY + 6;
+        const t1LabelY = t1ImgY  + tImgH + 6;
 
         // ══ TESTEMUNHA 1 (Esquerda) ══
         const t1X = 56;
