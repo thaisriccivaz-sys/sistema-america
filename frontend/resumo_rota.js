@@ -232,6 +232,33 @@ function _rrMontarColB(v) {
     return lines.join('\n');
 }
 
+function _rrMontarPainelDireito(v) {
+    // Gera o painel visual da direita: obs com ícone + cliente
+    const items = [];
+
+    v.os.forEach(os => {
+        if (!os.obs) return;
+        const icon = _rrObsIcon(os.obs) || '🟡';
+        const cliente = (os.cliente || '').substring(0, 22).toUpperCase().trim();
+        const obs = os.obs.toUpperCase();
+        items.push({ icon, cliente, obs });
+    });
+
+    if (!items.length) {
+        return `<div style="color:#94a3b8;font-size:0.82rem;padding:8px 0;">Nenhuma observação registrada</div>`;
+    }
+
+    return items.map(it =>
+        `<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;border-radius:8px;background:#fff;margin-bottom:6px;border:1px solid #e2e8f0;">
+            <span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">${it.icon}</span>
+            <div style="min-width:0;">
+                <div style="font-size:0.75rem;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.cliente}</div>
+                <div style="font-size:0.78rem;color:#475569;margin-top:1px;line-height:1.4;">${it.obs}</div>
+            </div>
+        </div>`
+    ).join('');
+}
+
 // ── Estado global ──────────────────────────────────────────────
 let _rrVeiculos        = [];
 let _rrCurrentId       = null;
@@ -803,12 +830,19 @@ function _rrRenderCorpo() {
             ${badgeAlerta}
             ${badgeDisp}
             ${badgeAviso}
-            <div style="padding:14px 18px;background:#f8fafc;">
-                <textarea class="rr-textarea-edit" data-index="${i}" spellcheck="false"
-                    style="width:100%;height:${h}px;border:1px solid #cbd5e1;border-radius:6px;padding:12px;font-size:0.85rem;color:#1e293b;line-height:1.7;font-family:monospace;resize:vertical;outline:none;box-sizing:border-box;"
-                    onfocus="this.style.borderColor='#2d9e5f';this.style.boxShadow='0 0 0 3px rgba(45,158,95,0.1)'"
-                    onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'"
-                >${colB}</textarea>
+            <div style="display:flex;gap:0;border-top:1px solid #e2e8f0;">
+                <div style="flex:1 1 60%;padding:14px 18px;background:#f8fafc;border-right:1px solid #e2e8f0;">
+                    <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Resumo</div>
+                    <textarea class="rr-textarea-edit" data-index="${i}" spellcheck="false"
+                        style="width:100%;height:${h}px;border:1px solid #cbd5e1;border-radius:6px;padding:12px;font-size:0.85rem;color:#1e293b;line-height:1.7;font-family:monospace;resize:vertical;outline:none;box-sizing:border-box;"
+                        onfocus="this.style.borderColor='#2d9e5f';this.style.boxShadow='0 0 0 3px rgba(45,158,95,0.1)'"
+                        onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'"
+                    >${colB}</textarea>
+                </div>
+                <div style="flex:0 0 40%;max-width:40%;padding:14px 14px;background:#f0f4f8;overflow-y:auto;max-height:${Math.max(180, h + 24)}px;">
+                    <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Avisos / Observações</div>
+                    ${_rrMontarPainelDireito(v)}
+                </div>
             </div>
         </div>`;
     }).join('');
