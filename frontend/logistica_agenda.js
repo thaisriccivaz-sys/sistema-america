@@ -30,6 +30,7 @@
         { value: 'falta', label: 'Falta', icon: 'ph-x-circle', color: '#dc2626' },
         { value: 'afastado', label: 'Afastado', icon: 'ph-first-aid', color: '#ca8a04' },
         { value: 'ferias',  label: 'Férias', icon: 'ph-airplane-tilt', color: '#ea580c' },
+        { value: 'aso',     label: 'ASO Agendado', icon: 'ph-heartbeat', color: '#0891b2' },
         { value: 'outro',   label: 'Outro',           icon: 'ph-calendar',      color: '#6b7280' },
     ];
     function getTipo(v) { return TIPOS.find(t => t.value === v) || TIPOS[6]; }

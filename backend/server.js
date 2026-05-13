@@ -12360,7 +12360,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                                     horario: '',
                                     setor: 'logistica',
                                     responsaveis: '[]',
-                                    referente_ids: '[]',
+                                    referente_ids: JSON.stringify([c.id]),
                                     acoes: '[]'
                                 });
                             }
@@ -12732,7 +12732,7 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
     }
 
     db.all(`SELECT id, nome_completo, status, escala_tipo, escala_folgas, escala_ciclo_inicio,
-                   ferias_programadas_inicio, ferias_programadas_fim
+                   ferias_programadas_inicio, ferias_programadas_fim, aso_exame_data
             FROM colaboradores WHERE LOWER(TRIM(nome_completo)) IN (${nomesArr.map(() => '?').join(',')})`,
         nomesArr, (err, colabs) => {
             if (err) return res.status(500).json({ error: err.message });
@@ -12834,6 +12834,19 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                     // Folga da escala (só se ainda disponível)
                     if (status === 'disponivel') {
                         if (calcFolga(c, data)) { status = 'folga'; motivo = 'Dia de folga (escala)'; }
+                    }
+
+                    // ASO Agendado
+                    if (c.aso_exame_data) {
+                        const [d, m, y] = c.aso_exame_data.split('/');
+                        if (d && m && y) {
+                            const asoDateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+                            if (asoDateStr === data) {
+                                // Add ASO info
+                                status = 'aso'; 
+                                motivo = 'ASO agendado para hoje';
+                            }
+                        }
                     }
 
                     result[nomeKey] = { status, motivo, nome: c.nome_completo, data_fim };

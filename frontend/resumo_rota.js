@@ -753,6 +753,7 @@ function _rrRenderCorpo() {
                 'afastado': { bg: '#fff7ed', cor: '#c2410c', icon: 'ph-bandaids',       label: 'Afastado' },
                 'falta':    { bg: '#fef9c3', cor: '#854d0e', icon: 'ph-user-minus',     label: 'Falta' },
                 'folga':    { bg: '#f0fdf4', cor: '#15803d', icon: 'ph-moon',           label: 'Folga' },
+                'aso':      { bg: '#e0f2fe', cor: '#0369a1', icon: 'ph-heartbeat',      label: 'ASO Agendado' },
             };
             const cfg = configs[status] || { bg: '#f1f5f9', cor: '#475569', icon: 'ph-question', label: status };
             return `<div style="background:${cfg.bg};color:${cfg.cor};padding:8px 16px;border-bottom:1px solid rgba(0,0,0,0.06);font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:8px;">
