@@ -12354,7 +12354,9 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                     if (!isDuplicate) rows.push(card);
                 }
             });
-        db.all(`SELECT id, nome_completo, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores WHERE status IN ('Ativo', 'Afastado', 'Férias') AND departamento NOT IN ('ESCRITÓRIO', 'RH', 'Comercial', 'Financeiro', 'Administrativo', 'Diretoria') AND ferias_programadas_inicio IS NOT NULL AND ferias_programadas_fim IS NOT NULL AND ferias_programadas_inicio != ''`, [], (errColab, colabs) => {
+            const deptFilter = reqContext === 'rh' ? '' : "AND departamento NOT IN ('ESCRITÓRIO', 'RH', 'Comercial', 'Financeiro', 'Administrativo', 'Diretoria')";
+            const deptFilterC = reqContext === 'rh' ? '' : "AND c.departamento NOT IN ('ESCRITÓRIO', 'RH', 'Comercial', 'Financeiro', 'Administrativo', 'Diretoria')";
+        db.all(`SELECT id, nome_completo, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores WHERE status IN ('Ativo', 'Afastado', 'Férias') ${deptFilter} AND ferias_programadas_inicio IS NOT NULL AND ferias_programadas_fim IS NOT NULL AND ferias_programadas_inicio != ''`, [], (errColab, colabs) => {
             if (errColab) return res.json(rows || []);
 
             const feriasCards = [];
@@ -12389,8 +12391,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                     AND d.atestado_tipo = 'dias'
                     AND d.atestado_inicio IS NOT NULL 
                     AND d.atestado_fim IS NOT NULL
-                    AND c.status IN ('Ativo', 'Afastado', 'Férias')
-                    AND c.departamento NOT IN ('ESCRITÓRIO', 'RH', 'Comercial', 'Financeiro', 'Administrativo', 'Diretoria')`, [], (errAtest, atestados) => {
+                    AND c.status IN ('Ativo', 'Afastado', 'Férias') ${deptFilterC}`, [], (errAtest, atestados) => {
 
                 const afastadoCards = [];
                 if (!errAtest) {
@@ -12419,7 +12420,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                     });
                 }
 
-                db.all(`SELECT id, nome_completo, aso_exame_data FROM colaboradores WHERE status IN ('Ativo', 'Afastado', 'Férias') AND departamento NOT IN ('ESCRITÓRIO', 'RH', 'Comercial', 'Financeiro', 'Administrativo', 'Diretoria') AND aso_exame_data IS NOT NULL AND aso_exame_data != ''`, [], (errAso, asoColabs) => {
+                db.all(`SELECT id, nome_completo, aso_exame_data FROM colaboradores WHERE status IN ('Ativo', 'Afastado', 'Férias') ${deptFilter} AND aso_exame_data IS NOT NULL AND aso_exame_data != ''`, [], (errAso, asoColabs) => {
                     const asoCards = [];
                     if (!errAso) {
                         (asoColabs || []).forEach(c => {
@@ -12448,8 +12449,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                     db.all(`SELECT f.colaborador_id, f.data_falta, f.turno, c.nome_completo
                             FROM faltas f
                             JOIN colaboradores c ON f.colaborador_id = c.id
-                            WHERE c.status IN ('Ativo', 'Afastado', 'Férias')
-                            AND c.departamento NOT IN ('ESCRITÓRIO', 'RH', 'Comercial', 'Financeiro', 'Administrativo', 'Diretoria')`, [], (errFaltas, faltasRows) => {
+                            WHERE c.status IN ('Ativo', 'Afastado', 'Férias') ${deptFilterC}`, [], (errFaltas, faltasRows) => {
                         const faltaCards = [];
                         if (!errFaltas) {
                             (faltasRows || []).forEach(f => {
