@@ -14051,10 +14051,12 @@ async function sigorReq(path, method = 'GET', body = null) {
   return resp.json();
 }
 
-// Requisicao generica para HOMOLOGACAO (tabelas de referencia)
-async function sigorHomReq(path) {
+// Requisicao generica para HOMOLOGACAO (tabelas de referencia e testes)
+async function sigorHomReq(path, method = 'GET', body = null) {
   const token = await sigorGetHomToken();
-  const resp = await fetch(SIGOR_HOM.api + path, { headers: { 'Authorization': token } });
+  const opts = { method, headers: { 'Authorization': token, 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const resp = await fetch(SIGOR_HOM.api + path, opts);
   return resp.json();
 }
 
@@ -14136,17 +14138,19 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
   const destUnidade = parseInt(destinadorUnidade) || SIGOR_DESTINADOR.unidade;
 
   try {
-    const endpoint = complementarDeId ? '/salvarManifestoComplementarLote' : '/salvarManifestoLote';
+    // NOTA: usando homologação até receber credenciais de produção
+    const endpoint = '/salvarManifestoLote';
     
     // De/Para de unidades básicas
     const mapaUnidade = { 'TON': 3, 'KG': 1, 'L': 21, 'M3': 2 };
     const uniCodigo = mapaUnidade[unidade] || parseInt(unidade) || 3;
+    const homUnidade = parseInt(SIGOR_HOM.unidade); // 19201
 
     const payload = [{
       seuCodigo: 'AR-' + Date.now().toString().slice(-8),
       nomeResponsavel: 'América Rental',
-      transportador: { cpfCnpj: '03434448000101', unidade: parseInt(SIGOR_CFG.unidade) },
-      destinador: { cpfCnpj: destCnpj, unidade: destUnidade },
+      transportador: { cpfCnpj: SIGOR_HOM.cpfCnpj, unidade: homUnidade },
+      destinador: { cpfCnpj: SIGOR_HOM.cpfCnpj, unidade: homUnidade }, // hom: mesmo usuário como destinador
       gerador: { cpfCnpj: (geradorCnpj || '').replace(/\D/g, ''), razaoSocial: geradorNome },
       observacoes: observacao || '',
       listaManifestoResiduos: [{
@@ -14156,24 +14160,39 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
         tiaCodigo: parseInt(acondicionamentoCodigo),
         tieCodigo: parseInt(estadoFisicoCodigo),
         traCodigo: parseInt(tratamentoCodigo),
-        claCodigo: 1 // Código de classe padrão
+        claCodigo: 1
       }]
     }];
 
-    const data = await sigorReq(endpoint, 'POST', payload);
+    console.log('[MTR] Enviando payload hom:', JSON.stringify(payload));
+    const data = await sigorHomReq('/salvarManifestoLote', 'POST', payload);
+    console.log('[MTR] Resposta CETESB:', JSON.stringify(data).substring(0, 500));
     const obj = data.respostaApiwsManifestoDTO?.[0] || data.objetoResposta?.[0] || data.objetoResposta || data;
     const numeroMTR = obj?.manifestoNumeroEstadual || obj?.numeroManifesto || obj?.numero || null;
-    
-    // A API deles pode retornar sucesso HTTP 200 mas com erro de negócio no objeto da resposta
-    const erro = data.erro || data.erroNacional || obj?.restResponseValido === false || false;
-    const mensagem = data.mensagem || data.mensagemErroNacional || obj?.restResponseMensagem || 'Erro desconhecido da CETESB';
 
-    if (erro || !numeroMTR) {
-      console.warn('[MTR] Erro negócio da CETESB:', mensagem);
-      return res.status(400).json({ erro: true, mensagem: mensagem || 'Não foi possível obter o número do MTR.' });
+    // Coletar todos os erros do objeto de resposta (transportador, destinador, residuos...)
+    const errosDetalhados = [];
+    if (obj?.transportador?.restResponseMensagem && !obj.transportador.restResponseValido)
+      errosDetalhados.push('Transportador: ' + obj.transportador.restResponseMensagem);
+    if (obj?.destinador?.restResponseMensagem && !obj.destinador.restResponseValido)
+      errosDetalhados.push('Destinador: ' + obj.destinador.restResponseMensagem);
+    if (obj?.restResponseMensagem && !obj.restResponseValido)
+      errosDetalhados.push(obj.restResponseMensagem);
+    if (data.mensagemErroNacional)
+      errosDetalhados.push(data.mensagemErroNacional);
+
+    const mensagemErro = errosDetalhados.length > 0
+      ? errosDetalhados.join(' | ')
+      : (data.mensagem || obj?.restResponseMensagem || 'Erro desconhecido da CETESB');
+
+    // A API CETESB retorna HTTP 200 mesmo em erro de negócio
+    const temErro = data.erro || data.erroNacional || !obj?.restResponseValido || !numeroMTR;
+
+    if (temErro || !numeroMTR) {
+      console.warn('[MTR] Erro CETESB:', mensagemErro);
+      return res.status(400).json({ erro: true, mensagem: mensagemErro });
     }
 
-    // Salvar localmente
     db.run(
       `INSERT INTO mtr_local (numero_mtr, status, gerador_nome, gerador_cnpj, residuo_codigo,
         quantidade, unidade, acondicionamento_codigo, estado_fisico_codigo, tratamento_codigo,
