@@ -14358,8 +14358,14 @@ app.get('/api/mtr/:id/pdf', authenticateToken, async (req, res) => {
     if (err || !row) return res.status(404).json({ mensagem: 'MTR não encontrada' });
     try {
       if (row.pdf_base64) return res.json({ pdf: row.pdf_base64 });
-      const data = await sigorReq('/downloadManifesto/' + row.numero_mtr);
-      const pdf = data.objetoResposta || null;
+            const token = await sigorGetToken();
+      const fetchResponse = await fetch(SIGOR_CFG.api + '/downloadManifesto/' + row.numero_mtr, {
+          method: 'POST',
+          headers: { 'Authorization': token, 'Content-Type': 'application/json' }
+      });
+      if (!fetchResponse.ok) throw new Error('Erro na API CETESB ao baixar PDF (' + fetchResponse.status + ')');
+      const arrayBuffer = await fetchResponse.arrayBuffer();
+      const pdf = Buffer.from(arrayBuffer).toString('base64');
       if (pdf) db.run('UPDATE mtr_local SET pdf_base64 = ? WHERE id = ?', [pdf, row.id]);
       res.json({ pdf });
     } catch (e) {

@@ -241,6 +241,7 @@ window.downloadMTR = async function (id) {
   try {
     const res = await fetch(`/api/mtr/${id}/pdf`, { headers: { 'Authorization': `Bearer ${window.currentToken}` } });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.mensagem || 'Erro desconhecido');
     if (!data.pdf) throw new Error('PDF não disponível');
     const blob = b64toBlob(data.pdf, 'application/pdf');
     const url = URL.createObjectURL(blob);
