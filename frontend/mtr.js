@@ -41,7 +41,7 @@ async function carregarListaMTR() {
 
 
 function renderTabelaMTR(lista) {
-  const tbody = document.getElementById('tabela-mtrs-body');
+  const tbody = document.getElementById('mtr-tbody');
   if (!lista || lista.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:2rem;">Nenhuma MTR encontrada.</td></tr>';
     return;
