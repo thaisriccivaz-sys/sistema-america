@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 
 <html lang="pt-BR">
 
@@ -22,6 +22,7 @@
     <script src="experiencia.js?v=1" defer></script>
     <script src="entregas.js" defer></script>
     <script src="resumo_rota.js?v=1778023285000" defer></script>
+    <script src="rh_agenda.js" defer></script>
     <script src="notificacoes.js" defer></script>
 </head>
 
@@ -92,6 +93,7 @@
                     <a href="#" class="nav-item" data-target="logistica-agenda"
                         onclick="navigateTo('logistica-agenda'); return false;"><i class="ph ph-calendar-check"></i>
                         Agenda</a>
+                    <a href="#" class="nav-item" data-target="rh-agenda" onclick="navigateTo('rh-agenda'); return false;"><i class="ph ph-calendar-check"></i> Agenda</a>
                     <a href="#" class="nav-item" data-target="colaboradores"><i class="ph ph-address-book"></i>
                         Colaboradores</a>
                     <a href="#" class="nav-item" data-target="assinaturas-digitais"><i class="ph ph-signature"></i>
@@ -303,6 +305,8 @@
                 </section>
 
                 <!-- VIEW: AGENDA LOGISTICA -->
+                <section id="view-rh-agenda" class="content-view" style="padding:0; background:#f0f4f8;"><div id="rh-agenda-container"></div></section>
+
                 <section id="view-logistica-agenda" class="content-view" style="padding:0; background:#f0f4f8;">
                     <div id="logistica-agenda-container"></div>
                 </section>
