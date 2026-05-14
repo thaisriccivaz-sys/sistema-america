@@ -13980,7 +13980,7 @@ app.get('/api/monaco/multas/count/novas', authenticateToken, (req, res) => {
 // ── MÓDULO MTR SIGOR ─────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Configuracao de HOMOLOGACAO - usada para buscar tabelas de referencia (residuos, tratamentos, etc.)
+// Configuracoes SIGOR - valores padrao (sobrescritos pelo banco ao iniciar)
 const SIGOR_HOM = {
   cpfCnpj: '38058722839',
   senha: 'gb5ti5',
@@ -13988,16 +13988,101 @@ const SIGOR_HOM = {
   api: 'https://mtrr-hom.cetesb.sp.gov.br/apiws/rest'
 };
 
-// Configuracao de PRODUCAO - usada para gerar MTRs reais
-// Preencher com as credenciais do site https://mtr.cetesb.sp.gov.br
 const SIGOR_CFG = {
-  cpfCnpj: '38058722839',   // ← CPF do usuario de producao
-  senha: 'gb5ti5',           // ← Senha de producao
-  unidade: '19201',          // ← Codigo da unidade de producao
+  cpfCnpj: '38058722839',
+  senha: 'gb5ti5',
+  unidade: '19201',
   apiHom: 'https://mtrr-hom.cetesb.sp.gov.br/apiws/rest',
   apiProd: 'https://mtrr.cetesb.sp.gov.br/apiws/rest',
   get api() { return this.apiProd; }
 };
+
+// Criar tabela de configuracoes
+db.run(`CREATE TABLE IF NOT EXISTS config_sistema (
+  chave TEXT PRIMARY KEY,
+  valor TEXT,
+  updated_at TEXT DEFAULT (datetime('now'))
+)`);
+
+// Carregar credenciais salvas do banco (ao iniciar)
+function carregarCredenciaisSigorDoBanco() {
+  db.all("SELECT chave, valor FROM config_sistema WHERE chave LIKE 'sigor_%'", [], (err, rows) => {
+    if (err || !rows || rows.length === 0) return;
+    const cfg = {};
+    rows.forEach(r => { cfg[r.chave] = r.valor; });
+    if (cfg['sigor_hom_cpf'])    SIGOR_HOM.cpfCnpj  = cfg['sigor_hom_cpf'];
+    if (cfg['sigor_hom_senha'])  SIGOR_HOM.senha     = cfg['sigor_hom_senha'];
+    if (cfg['sigor_hom_unidade'])SIGOR_HOM.unidade   = cfg['sigor_hom_unidade'];
+    if (cfg['sigor_prod_cpf'])   SIGOR_CFG.cpfCnpj   = cfg['sigor_prod_cpf'];
+    if (cfg['sigor_prod_senha']) SIGOR_CFG.senha      = cfg['sigor_prod_senha'];
+    if (cfg['sigor_prod_unidade'])SIGOR_CFG.unidade   = cfg['sigor_prod_unidade'];
+    // Invalida tokens em cache para forcar reautenticacao
+    _sigorToken = null; _sigorTokenExp = 0;
+    _sigorHomToken = null; _sigorHomTokenExp = 0;
+    console.log('[SIGOR] Credenciais carregadas do banco');
+  });
+}
+carregarCredenciaisSigorDoBanco();
+
+// ── GET /api/config/sigor - Retorna credenciais (senha mascarada) ──────────────
+app.get('/api/config/sigor', authenticateToken, (req, res) => {
+  if (!['admin', 'diretoria'].includes(req.user?.role)) return res.status(403).json({ erro: 'Sem permissao' });
+  res.json({
+    hom: { cpfCnpj: SIGOR_HOM.cpfCnpj, senha: SIGOR_HOM.senha, unidade: SIGOR_HOM.unidade },
+    prod: { cpfCnpj: SIGOR_CFG.cpfCnpj, senha: SIGOR_CFG.senha, unidade: SIGOR_CFG.unidade }
+  });
+});
+
+// ── PUT /api/config/sigor - Salva credenciais no banco ───────────────────────
+app.put('/api/config/sigor', authenticateToken, (req, res) => {
+  if (!['admin', 'diretoria'].includes(req.user?.role)) return res.status(403).json({ erro: 'Sem permissao' });
+  const { hom, prod } = req.body;
+  const agora = new Date().toISOString();
+  const upsert = (chave, valor) => new Promise((resolve, reject) => {
+    db.run(`INSERT INTO config_sistema (chave, valor, updated_at) VALUES (?,?,?)
+            ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor, updated_at=excluded.updated_at`,
+      [chave, valor, agora], err => err ? reject(err) : resolve());
+  });
+  const ops = [];
+  if (hom) {
+    if (hom.cpfCnpj) ops.push(upsert('sigor_hom_cpf',    hom.cpfCnpj));
+    if (hom.senha)   ops.push(upsert('sigor_hom_senha',   hom.senha));
+    if (hom.unidade) ops.push(upsert('sigor_hom_unidade', hom.unidade));
+  }
+  if (prod) {
+    if (prod.cpfCnpj) ops.push(upsert('sigor_prod_cpf',    prod.cpfCnpj));
+    if (prod.senha)   ops.push(upsert('sigor_prod_senha',   prod.senha));
+    if (prod.unidade) ops.push(upsert('sigor_prod_unidade', prod.unidade));
+  }
+  Promise.all(ops)
+    .then(() => { carregarCredenciaisSigorDoBanco(); res.json({ ok: true }); })
+    .catch(e => res.status(500).json({ erro: e.message }));
+});
+
+// ── GET /api/config/sigor/testar - Testa autenticacao ────────────────────────
+app.get('/api/config/sigor/testar', authenticateToken, async (req, res) => {
+  if (!['admin', 'diretoria'].includes(req.user?.role)) return res.status(403).json({ ok: false });
+  const env = req.query.env === 'prod' ? 'prod' : 'hom';
+  const cfg = env === 'prod' ? SIGOR_CFG : SIGOR_HOM;
+  const url = env === 'prod' ? SIGOR_CFG.apiProd : SIGOR_HOM.api;
+  try {
+    const resp = await fetch(url + '/gettoken', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cpfCnpj: cfg.cpfCnpj, senha: cfg.senha, unidade: cfg.unidade })
+    });
+    const data = await resp.json();
+    if (data.erro || !data.objetoResposta) {
+      return res.json({ ok: false, mensagem: data.mensagem || 'Credenciais invalidas' });
+    }
+    // Invalida token em cache para usar as novas credenciais
+    if (env === 'prod') { _sigorToken = null; _sigorTokenExp = 0; }
+    else { _sigorHomToken = null; _sigorHomTokenExp = 0; }
+    res.json({ ok: true, mensagem: 'Autenticado com sucesso' });
+  } catch (e) {
+    res.json({ ok: false, mensagem: e.message });
+  }
+});
 
 // Dados fixos do Destinador padrao
 const SIGOR_DESTINADOR = {

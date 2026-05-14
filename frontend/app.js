@@ -660,6 +660,7 @@ const TAB_META = {
     'certificado-digital': { color: '#d9480f', icon: 'ph-certificate', title: 'Certificado Digital' },
     'chaves': { color: '#d9480f', icon: 'ph-key', title: 'Chaves' },
     'form-usuario': { color: '#d9480f', icon: 'ph-user-gear', title: 'Cadastro de Usuário' },
+    'config-sigor': { color: '#d9480f', icon: 'ph-key', title: 'Credenciais SIGOR' },
     // Logística - Verde
     'logistica-em-breve': { color: '#2d9e5f', icon: 'ph-truck', title: 'Logística' },
     'logistica-dashboard': { color: '#2d9e5f', icon: 'ph-chart-bar', title: 'Dashboard Logística' },
@@ -921,6 +922,8 @@ function navigateTo(target) {
         if (typeof window.carregarHistoricoComCred === 'function') setTimeout(() => window.carregarHistoricoComCred(), 80);
     } else if (target === 'licencas') {
         if (typeof window.initLicencas === 'function') setTimeout(() => window.initLicencas(), 80);
+    } else if (target === 'config-sigor') {
+        if (typeof window.initConfigSigor === 'function') setTimeout(() => window.initConfigSigor(), 80);
     }
 }
 
