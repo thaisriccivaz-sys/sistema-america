@@ -1,4 +1,4 @@
-﻿const API_URL = '/api';
+const API_URL = '/api';
 
 
 
@@ -14769,6 +14769,8 @@ window.showHistoryPopup = async function () {
         const isDissidioActive = viewDissidio && viewDissidio.classList.contains('active');
         const isRotaRedondaActive = viewRotaRedonda && viewRotaRedonda.offsetParent !== null;
         const isAgendaActive = viewAgenda && viewAgenda.classList.contains('active');
+        const viewRhAgendaHist = document.getElementById('view-rh-agenda');
+        const isRhAgendaActive = viewRhAgendaHist && viewRhAgendaHist.classList.contains('active');
 
         if (isColabActive && viewedColaborador && viewedColaborador.id) {
             // Prontuário ou Admissão de um colaborador específico
@@ -14799,6 +14801,9 @@ window.showHistoryPopup = async function () {
         } else if (isAgendaActive) {
             url += `?programa=Agenda Logística`;
             labelText = 'Tela: Agenda Logística';
+        } else if (isRhAgendaActive) {
+            url += `?programa=Agenda RH`;
+            labelText = 'Tela: Agenda RH';
         } else if (isRotaRedondaActive) {
             url += `?programa=OS Logística`;
             labelText = 'Tela: Rota Redonda — Histórico Geral';
@@ -14865,6 +14870,8 @@ setInterval(() => {
     const isAvaliacoesActive = viewAvaliacoes && viewAvaliacoes.classList.contains('active');
     const isDissidioActive = viewDissidio && viewDissidio.classList.contains('active');
     const isAgendaActive = viewAgenda && viewAgenda.classList.contains('active');
+    const viewRhAgendaBtn = document.getElementById('view-rh-agenda');
+    const isRhAgendaActive = viewRhAgendaBtn && viewRhAgendaBtn.classList.contains('active');
 
     // Cofre de Senhas — container visível (não tem classe active, verifica display)
     const isSenhasActive = viewSenhas && viewSenhas.offsetParent !== null;
@@ -14875,7 +14882,7 @@ setInterval(() => {
 
     const shouldShow = isColabActive || isGerActive || isCargosActive ||
         isFaculdadeActive || isEpiActive || isAvaliacoesActive ||
-        isDissidioActive || isSenhasActive || isRotaRedondaActive || isAgendaActive;
+        isDissidioActive || isSenhasActive || isRotaRedondaActive || isAgendaActive || isRhAgendaActive;
 
     btnHistory.style.display = shouldShow ? 'flex' : 'none';
 
