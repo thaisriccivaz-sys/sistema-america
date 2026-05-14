@@ -194,10 +194,6 @@
             document.getElementById('ag-setor-dropdown-list').style.display = 'block';
         }
     };
-        if (newFiltro && oldFiltro) {
-            oldFiltro.innerHTML = newFiltro.innerHTML;
-        }
-    };
 
     function buildAgendaHTML() {
         let diasRender = [];
