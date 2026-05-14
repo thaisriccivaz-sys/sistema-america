@@ -537,25 +537,32 @@ window.rrImportarPlanilha = async function(input) {
     _rrVeiculos  = Object.values(map).sort((a, b) => (a.veiculo || '').localeCompare(b.veiculo || '', 'pt-BR', { sensitivity: 'base' }));
     _rrCurrentId = null;
 
-    // --- DETECTAR DATA DA ROTA (col 25 = "Data agendada" na planilha do SimpliRoute) ---
+    // --- DETECTAR DATA DA ROTA (col 4 = Coluna D, ou col 25 = "Data agendada") ---
     let _rrDataRota = null;
     for (const r of rows) {
-        const dataCell = r[25]; // col 25 = "Data agendada"
-        if (dataCell) {
-            // Pode ser uma Date (ExcelJS converte automaticamente) ou string "DD/MM/YYYY"
-            let dt = null;
-            if (dataCell instanceof Date) {
-                dt = dataCell.toISOString().split('T')[0];
-            } else {
-                const s = String(dataCell).trim();
-                // Formato DD/MM/YYYY ou DD-MM-YYYY
-                const m = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
-                if (m) dt = `${m[3]}-${m[2]}-${m[1]}`;
-                // Formato YYYY-MM-DD
-                else if (/^\d{4}-\d{2}-\d{2}$/.test(s)) dt = s;
+        // Tenta Coluna D (r[4]) primeiro, depois Coluna Y (r[25])
+        const dataCells = [r[4], r[25]];
+        for (const dataCell of dataCells) {
+            if (dataCell) {
+                let dt = null;
+                if (dataCell instanceof Date) {
+                    dt = dataCell.toISOString().split('T')[0];
+                } else {
+                    const s = String(dataCell).trim();
+                    // Pode vir com hora junto: 15/05/2026 08:00 ou 2026-05-15 08:00
+                    const dataParte = s.split(' ')[0]; 
+                    
+                    const m = dataParte.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
+                    if (m) dt = `${m[3]}-${m[2]}-${m[1]}`;
+                    else if (/^\d{4}-\d{2}-\d{2}$/.test(dataParte)) dt = dataParte;
+                }
+                if (dt) { 
+                    _rrDataRota = dt; 
+                    break; 
+                }
             }
-            if (dt) { _rrDataRota = dt; break; }
         }
+        if (_rrDataRota) break;
     }
     // Se não achou na planilha, usa data de hoje
     if (!_rrDataRota) {
