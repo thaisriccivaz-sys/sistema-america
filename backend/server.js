@@ -13150,8 +13150,10 @@ async function dispararAcoesAgenda(card) {
         referente_ids.forEach(colab_id => {
             db.get('SELECT id FROM faltas WHERE colaborador_id = ? AND data_falta = ?', [colab_id, card.data], (errChk, existente) => {
                 if (errChk || existente) return; // já existe, não duplicar
+                const obsBase = card.descricao || 'Falta registrada via Agenda da Logística';
+                const obsFinal = obsBase + (card.criado_por ? ' (Criado por: ' + card.criado_por + ')' : '');
                 db.run('INSERT INTO faltas (colaborador_id, data_falta, turno, observacao, avisado_previamente) VALUES (?, ?, ?, ?, ?)',
-                    [colab_id, card.data, 'Dia todo', card.descricao || 'Falta registrada via Agenda da Logística', 'Não'],
+                    [colab_id, card.data, 'Dia todo', obsFinal, 'Não'],
                     function (errFalta) {
                         if (errFalta) console.error("Erro ao inserir falta via Agenda:", errFalta.message);
                     }
