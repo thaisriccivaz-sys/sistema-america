@@ -113,6 +113,10 @@ window.abrirModalGerarMTR = async function (complementarDeId = null) {
     document.getElementById('mtr-estado-fisico').value = '2'; // LÍQUIDO
     document.getElementById('mtr-acondicionamento').value = '11'; // TANQUE
     document.getElementById('mtr-tratamento').value = '23'; // Tratamento de Efluentes
+    // Destinador padrão: BRK Ambiental - Mauá
+    document.getElementById('mtr-destinador-nome').value = 'BRK AMBIENTAL - MAUÁ S.A.';
+    document.getElementById('mtr-destinador-cnpj').value = '05380441000260';
+    document.getElementById('mtr-destinador-unidade').value = '19154';
   }
 };
 
@@ -152,16 +156,19 @@ window.submitGerarMTR = async function (e) {
   btn.innerHTML = '<i class="ph ph-spinner"></i> Gerando...';
   try {
     const payload = {
-      geradorNome: document.getElementById('mtr-gerador-nome').value,
-      geradorCnpj: document.getElementById('mtr-gerador-cnpj').value,
-      residuoCodigo: document.getElementById('mtr-residuo').value,
-      quantidade: document.getElementById('mtr-quantidade').value,
-      unidade: document.getElementById('mtr-unidade').value,
+      geradorNome:          document.getElementById('mtr-gerador-nome').value,
+      geradorCnpj:          document.getElementById('mtr-gerador-cnpj').value,
+      residuoCodigo:        document.getElementById('mtr-residuo').value,
+      quantidade:           document.getElementById('mtr-quantidade').value,
+      unidade:              document.getElementById('mtr-unidade').value,
       acondicionamentoCodigo: document.getElementById('mtr-acondicionamento').value,
-      estadoFisicoCodigo: document.getElementById('mtr-estado-fisico').value,
-      tratamentoCodigo: document.getElementById('mtr-tratamento').value,
-      observacao: document.getElementById('mtr-observacao').value,
-      complementarDeId: document.getElementById('mtr-complementar-de').value || null
+      estadoFisicoCodigo:   document.getElementById('mtr-estado-fisico').value,
+      tratamentoCodigo:     document.getElementById('mtr-tratamento').value,
+      observacao:           document.getElementById('mtr-observacao').value,
+      destinadorNome:       document.getElementById('mtr-destinador-nome').value,
+      destinadorCnpj:       document.getElementById('mtr-destinador-cnpj').value,
+      destinadorUnidade:    document.getElementById('mtr-destinador-unidade').value,
+      complementarDeId:     document.getElementById('mtr-complementar-de').value || null
     };
     const res = await fetch('/api/mtr/gerar', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.currentToken}` }, body: JSON.stringify(payload) });
     const data = await res.json();

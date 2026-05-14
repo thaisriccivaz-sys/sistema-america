@@ -14096,11 +14096,11 @@ app.get('/api/mtr/lista', authenticateToken, (req, res) => {
 app.get('/api/mtr/tabelas', authenticateToken, async (req, res) => {
   try {
     const [residuos, acondicionamentos, estadosFisicos, tratamentos, unidades] = await Promise.all([
-      sigorReq('/retornaListaResiduo', 'GET'),
-      sigorReq('/retornaListaAcondicionamento', 'GET'),
-      sigorReq('/retornaListaEstadoFisico', 'GET'),
-      sigorReq('/retornaListaTratamento', 'GET'),
-      sigorReq('/retornaListaUnidade', 'GET')
+      sigorHomReq('/retornaListaResiduo'),
+      sigorHomReq('/retornaListaAcondicionamento'),
+      sigorHomReq('/retornaListaEstadoFisico'),
+      sigorHomReq('/retornaListaTratamento'),
+      sigorHomReq('/retornaListaUnidade')
     ]);
     res.json({
       residuos: (residuos.objetoResposta || []).map(r => ({ codigo: r.resCodigoIbama, descricao: r.resDescricao })),
@@ -14116,11 +14116,20 @@ app.get('/api/mtr/tabelas', authenticateToken, async (req, res) => {
 });
 
 
+// ── DELETE /api/mtr/limpar-invalidos ────────────────────────────────────────
+app.delete('/api/mtr/limpar-invalidos', authenticateToken, (req, res) => {
+  db.run('DELETE FROM mtr_local WHERE numero_mtr IS NULL OR numero_mtr = "null"', function(err) {
+    if (err) return res.status(500).json({ erro: err.message });
+    res.json({ removidos: this.changes });
+  });
+});
+
 // ── POST /api/mtr/gerar ───────────────────────────────────────────────────────
 app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
   const { geradorNome, geradorCnpj, residuoCodigo, quantidade, unidade,
           acondicionamentoCodigo, estadoFisicoCodigo, tratamentoCodigo,
-          observacao, complementarDeId } = req.body;
+          observacao, complementarDeId,
+          destinadorNome, destinadorCnpj, destinadorUnidade } = req.body;
 
   try {
     const endpoint = complementarDeId ? '/salvarManifestoComplementarLote' : '/salvarManifestoLote';
@@ -14133,7 +14142,10 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
       seuCodigo: 'AR-' + Date.now().toString().slice(-8),
       nomeResponsavel: 'América Rental',
       transportador: { cpfCnpj: '03434448000101', unidade: parseInt(SIGOR_CFG.unidade) },
-      destinador: { cpfCnpj: SIGOR_DESTINADOR.cnpj, unidade: SIGOR_DESTINADOR.unidade },
+      destinador: {
+        cpfCnpj: (destinadorCnpj || SIGOR_DESTINADOR.cnpj).replace(/\D/g, ''),
+        unidade: parseInt(destinadorUnidade || SIGOR_DESTINADOR.unidade)
+      },
       gerador: { cpfCnpj: (geradorCnpj || '').replace(/\D/g, ''), razaoSocial: geradorNome },
       observacoes: observacao || '',
       listaManifestoResiduos: [{
