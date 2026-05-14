@@ -188,7 +188,7 @@ function _rrMontarColB(v) {
         nome = nome.substring(0, 25).trim();
         
         // Remove também do os.obs caso já venha com emojis como 🛒 no início
-        let obsLimpa = os.obs.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🛒]+/, '').trim().toUpperCase();
+        let obsLimpa = os.obs.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🛒]+/gu, '').trim().toUpperCase();
         
         obsLinhas.push(`${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`);
     });
