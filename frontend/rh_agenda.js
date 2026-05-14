@@ -144,6 +144,7 @@
 
     window.rhAgendaSetEscalaFiltro = function(status) {
         agendaEscalaFiltroStatus = status;
+        window.rhAgendaRenderFiltroStatus();
         window.rhAgendaUpdateGrid();
     };
 
@@ -158,6 +159,7 @@
         } else {
             agendaBuscaSetores.push(setor);
         }
+        window.rhAgendaRenderSetorDropdown();
         window.rhAgendaUpdateGrid();
     };
 
@@ -169,8 +171,29 @@
         if (newGrid && oldGrid) {
             oldGrid.innerHTML = newGrid.innerHTML;
         }
-        const newFiltro = tempDiv.querySelector('#ag-escala-filtro-wrap');
-        const oldFiltro = document.querySelector('#ag-escala-filtro-wrap');
+    };
+
+    window.rhAgendaRenderFiltroStatus = function() {
+        const container = document.getElementById('ag-status-buttons-container');
+        if (!container) return;
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = buildAgendaHTML();
+        const newContainer = tempDiv.querySelector('#ag-status-buttons-container');
+        if (newContainer) container.innerHTML = newContainer.innerHTML;
+    };
+
+    window.rhAgendaRenderSetorDropdown = function() {
+        const container = document.getElementById('ag-setor-dropdown-container');
+        if (!container) return;
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = buildAgendaHTML();
+        const newContainer = tempDiv.querySelector('#ag-setor-dropdown-container');
+        if (newContainer) {
+            container.innerHTML = newContainer.innerHTML;
+            // keep it open since we just clicked it
+            document.getElementById('ag-setor-dropdown-list').style.display = 'block';
+        }
+    };
         if (newFiltro && oldFiltro) {
             oldFiltro.innerHTML = newFiltro.innerHTML;
         }
@@ -374,34 +397,45 @@
                 </div>
             </div>
             ${agendaFilterTipo === 'escala' ? `
-            <div id="ag-escala-filtro-wrap" style="display:flex; gap:16px; margin-bottom:16px; align-items:center; flex-wrap:wrap; background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 16px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <i class="ph ph-magnifying-glass" style="color:#94a3b8;font-size:1.1rem;"></i>
-                    <input type="text" placeholder="Buscar por nome..." value="${agendaBuscaNome || ''}" oninput="rhAgendaSetBuscaNome(this.value)" style="padding:6px 10px; border:none; border-bottom:1px solid #cbd5e1; font-size:0.85rem; outline:none; min-width:180px; background:transparent;">
+            ${agendaFilterTipo === 'escala' ? `
+            <div id="ag-escala-filtro-bar" style="display:flex;align-items:center;gap:12px;flex-wrap:nowrap;padding:0.4rem 0;margin-bottom:1rem; overflow-x:auto;">
+                <span style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">Status:</span>
+                <div id="ag-status-buttons-container" style="display:flex; align-items:center; gap:6px;">
+                ${[
+                    {k:'todos',    label:'Todos',      color:'#334155', bg:'#f1f5f9'},
+                    {k:'disponivel',label:'🟢 Escalados',color:'#16a34a', bg:'#dcfce7'},
+                    {k:'folga',    label:'⚪ Folga',    color:'#94a3b8', bg:'#f1f5f9'},
+                    {k:'ferias',   label:'🟠 Férias',   color:'#ea580c', bg:'#fff7ed'},
+                    {k:'afastado', label:'🟡 Afastado', color:'#ca8a04', bg:'#fefce8'},
+                    {k:'falta',    label:'🔴 Falta',    color:'#dc2626', bg:'#fef2f2'},
+                    {k:'aso',      label:'⚪ ASO',      color:'#64748b', bg:'#f8fafc'},
+                ].map(f => `<button onclick="rhAgendaSetEscalaFiltro('${f.k}')"
+                    style="border:1.5px solid ${agendaEscalaFiltroStatus===f.k?f.color:'#e2e8f0'};background:${agendaEscalaFiltroStatus===f.k?f.bg:'#fff'};color:${agendaEscalaFiltroStatus===f.k?f.color:'#64748b'};border-radius:20px;padding:4px 14px;font-size:0.8rem;font-weight:${agendaEscalaFiltroStatus===f.k?'700':'500'};cursor:pointer;transition:all .15s;white-space:nowrap;">${f.label}</button>`
+                ).join('')}
                 </div>
-                <div style="width:1px; height:24px; background:#e2e8f0; margin:0 4px;"></div>
-                <div style="display:flex; flex-wrap:wrap; gap:6px; flex:1; align-items:center;">
-                    <span style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-right:4px;">Setores:</span>
-                    ${Array.from(new Set(agendaEscalaData.map(c => c.departamento).filter(Boolean))).sort().map(d => {
-                        const isSelected = agendaBuscaSetores.includes(d);
-                        return `<button onclick="rhAgendaToggleSetor('${d}')" style="border:1.5px solid ${isSelected ? '#3b82f6' : '#e2e8f0'}; background:${isSelected ? '#eff6ff' : '#f8fafc'}; color:${isSelected ? '#1d4ed8' : '#64748b'}; border-radius:16px; padding:3px 12px; font-size:0.75rem; font-weight:${isSelected ? '700' : '600'}; cursor:pointer; transition:all .15s;">${d}</button>`;
-                    }).join('')}
+                
+                <div style="flex:1; min-width:20px;"></div>
+                
+                <input type="text" id="ag-busca-nome-input" placeholder="Buscar por nome..." value="${agendaBuscaNome || ''}" oninput="rhAgendaSetBuscaNome(this.value)" style="padding:6px 12px; border:1px solid #cbd5e1; border-radius:20px; font-size:0.8rem; outline:none; min-width:200px; background:#fff;">
+                
+                <div id="ag-setor-dropdown-container" style="position:relative; min-width:160px;">
+                    <div onclick="document.getElementById('ag-setor-dropdown-list').style.display = document.getElementById('ag-setor-dropdown-list').style.display === 'none' ? 'block' : 'none'" style="padding:6px 12px; border:1px solid #cbd5e1; border-radius:20px; font-size:0.8rem; background:#fff; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#334155; font-weight:600;">
+                            ${agendaBuscaSetores.length === 0 ? 'Todos os Setores' : (agendaBuscaSetores.length === 1 ? agendaBuscaSetores[0] : agendaBuscaSetores.length + ' selecionados')}
+                        </span>
+                        <i class="ph ph-caret-down" style="color:#64748b; margin-left:8px;"></i>
+                    </div>
+                    <div id="ag-setor-dropdown-list" style="display:none; position:absolute; top:100%; right:0; width:100%; min-width:200px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; margin-top:4px; max-height:250px; overflow-y:auto; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.15); padding:4px;">
+                        ${Array.from(new Set(agendaEscalaData.map(c => c.departamento).filter(Boolean))).sort().map(d => {
+                            const isSelected = agendaBuscaSetores.includes(d);
+                            return `<div onclick="rhAgendaToggleSetor('${d}')" style="padding:6px 10px; cursor:pointer; display:flex; align-items:center; gap:8px; border-radius:4px; background:${isSelected ? '#f0fdf4' : 'transparent'}; margin-bottom:2px;">
+                                <input type="checkbox" ${isSelected ? 'checked' : ''} style="pointer-events:none; accent-color:#16a34a; width:14px; height:14px; margin:0;">
+                                <span style="font-size:0.8rem; color:${isSelected ? '#16a34a' : '#334155'}; font-weight:${isSelected ? '600' : '400'};">${d}</span>
+                            </div>`;
+                        }).join('')}
+                    </div>
                 </div>
-            </div>
-            <div id="ag-escala-filtro-bar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:0.2rem 0;margin-bottom:0.75rem;">
-            <span style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-right:4px;">Status:</span>
-            ${[
-                {k:'todos',    label:'Todos',      color:'#334155', bg:'#f1f5f9'},
-                {k:'disponivel',label:'🟢 Escalados',color:'#16a34a', bg:'#dcfce7'},
-                {k:'folga',    label:'⚪ Folga',    color:'#94a3b8', bg:'#f1f5f9'},
-                {k:'ferias',   label:'🟠 Férias',   color:'#ea580c', bg:'#fff7ed'},
-                {k:'afastado', label:'🟡 Afastado', color:'#ca8a04', bg:'#fefce8'},
-                {k:'falta',    label:'🔴 Falta',    color:'#dc2626', bg:'#fef2f2'},
-                {k:'aso',      label:'⚪ ASO',      color:'#64748b', bg:'#f8fafc'},
-            ].map(f => `<button onclick="rhAgendaSetEscalaFiltro('${f.k}')"
-                style="border:1.5px solid ${agendaEscalaFiltroStatus===f.k?f.color:'#e2e8f0'};background:${agendaEscalaFiltroStatus===f.k?f.bg:'#fff'};color:${agendaEscalaFiltroStatus===f.k?f.color:'#64748b'};border-radius:20px;padding:4px 14px;font-size:0.8rem;font-weight:${agendaEscalaFiltroStatus===f.k?'700':'500'};cursor:pointer;transition:all .15s;">${f.label}</button>`
-            ).join('')}
-        </div>` : ''}
+            </div>` : ''}
         ${weekdaysHTML}
             <div class="ag-grid grid-${agendaViewMode}">${cells}</div>
         </div>
@@ -745,3 +779,13 @@
     };
 
 })();
+
+
+// Fecha o dropdown se clicar fora
+window.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('ag-setor-dropdown-list');
+    const container = document.getElementById('ag-setor-dropdown-container');
+    if (dropdown && container && !container.contains(e.target)) {
+        dropdown.style.display = 'none';
+    }
+});
