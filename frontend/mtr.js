@@ -97,6 +97,17 @@ window.abrirModalGerarMTR = async function (complementarDeId = null) {
   }
   
   preencherSelectsModal();
+
+  // Se for uma nova MTR (não complementar), setar valores padrões recorrentes
+  if (!complementarDeId) {
+    document.getElementById('mtr-gerador-nome').value = 'América Rental Equipamentos';
+    document.getElementById('mtr-gerador-cnpj').value = '03434448000101';
+    document.getElementById('mtr-quantidade').value = '10';
+    document.getElementById('mtr-unidade').value = 'TON';
+    document.getElementById('mtr-residuo').value = '200304'; // Lodos de fossas sépticas
+    document.getElementById('mtr-estado-fisico').value = '2'; // LÍQUIDO
+    document.getElementById('mtr-tratamento').value = '23'; // Tratamento de Efluentes
+  }
 };
 
 window.fecharModalMTR = function () {
