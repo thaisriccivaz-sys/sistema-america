@@ -26,7 +26,7 @@ window.initMTR = async function () {
 // ── Carregar lista de MTRs do banco local ─────────────────────────────────────
 async function carregarListaMTR() {
   try {
-    const res = await fetch('/api/mtr/lista');
+    const res = await fetch('/api/mtr/lista', { headers: { 'Authorization': `Bearer ${window.currentToken}` } });
     const data = await res.json();
     _mtrListaCache = data || [];
     renderTabelaMTR(_mtrListaCache);
@@ -63,7 +63,7 @@ function renderTabelaMTR(lista) {
 // ── Carregar tabelas de referência SIGOR ──────────────────────────────────────
 async function carregarTabelas() {
   try {
-    const res = await fetch('/api/mtr/tabelas');
+    const res = await fetch('/api/mtr/tabelas', { headers: { 'Authorization': `Bearer ${window.currentToken}` } });
     const data = await res.json();
     _mtrResiduos = data.residuos || [];
     _mtrAcondicionamentos = data.acondicionamentos || [];
@@ -146,7 +146,7 @@ window.submitGerarMTR = async function (e) {
       observacao: document.getElementById('mtr-observacao').value,
       complementarDeId: document.getElementById('mtr-complementar-de').value || null
     };
-    const res = await fetch('/api/mtr/gerar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const res = await fetch('/api/mtr/gerar', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.currentToken}` }, body: JSON.stringify(payload) });
     const data = await res.json();
     if (!res.ok || data.erro) throw new Error(data.mensagem || 'Erro ao gerar MTR');
     window.fecharModalMTR();
@@ -185,7 +185,7 @@ window.abrirReceberMTR = function (id) {
       if (!peso || !dataReceb) { Swal.showValidationMessage('Preencha peso e data'); return false; }
       const res = await fetch(`/api/mtr/${id}/receber`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.currentToken}` },
         body: JSON.stringify({ pesoReal: peso, dataRecebimento: dataReceb, observacao: document.getElementById('swal-obs-receb').value })
       });
       const data = await res.json();
@@ -203,7 +203,7 @@ window.abrirReceberMTR = function (id) {
 // ── Download PDF MTR ──────────────────────────────────────────────────────────
 window.downloadMTR = async function (id) {
   try {
-    const res = await fetch(`/api/mtr/${id}/pdf`);
+    const res = await fetch(`/api/mtr/${id}/pdf`, { headers: { 'Authorization': `Bearer ${window.currentToken}` } });
     const data = await res.json();
     if (!data.pdf) throw new Error('PDF não disponível');
     const blob = b64toBlob(data.pdf, 'application/pdf');
