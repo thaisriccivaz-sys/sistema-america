@@ -154,7 +154,9 @@
     };
 
     window.rhAgendaToggleSetor = function(setor) {
-        if (agendaBuscaSetores.includes(setor)) {
+        if (setor === 'todos') {
+            agendaBuscaSetores = [];
+        } else if (agendaBuscaSetores.includes(setor)) {
             agendaBuscaSetores = agendaBuscaSetores.filter(s => s !== setor);
         } else {
             agendaBuscaSetores.push(setor);
@@ -421,6 +423,10 @@
                         <i class="ph ph-caret-down" style="color:#64748b; margin-left:8px;"></i>
                     </div>
                     <div id="ag-setor-dropdown-list" style="display:none; position:absolute; top:100%; right:0; width:100%; min-width:200px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; margin-top:4px; max-height:250px; overflow-y:auto; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.15); padding:4px;">
+                        <div onclick="rhAgendaToggleSetor('todos')" style="padding:6px 10px; cursor:pointer; display:flex; align-items:center; gap:8px; border-radius:4px; background:${agendaBuscaSetores.length === 0 ? '#f0fdf4' : 'transparent'}; margin-bottom:6px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
+                            <input type="checkbox" ${agendaBuscaSetores.length === 0 ? 'checked' : ''} style="pointer-events:none; accent-color:#16a34a; width:14px; height:14px; margin:0;">
+                            <span style="font-size:0.8rem; color:${agendaBuscaSetores.length === 0 ? '#16a34a' : '#334155'}; font-weight:${agendaBuscaSetores.length === 0 ? '700' : '500'};">Todos os Setores</span>
+                        </div>
                         ${Array.from(new Set(agendaEscalaData.map(c => c.departamento).filter(Boolean))).sort().map(d => {
                             const isSelected = agendaBuscaSetores.includes(d);
                             return `<div onclick="rhAgendaToggleSetor('${d}')" style="padding:6px 10px; cursor:pointer; display:flex; align-items:center; gap:8px; border-radius:4px; background:${isSelected ? '#f0fdf4' : 'transparent'}; margin-bottom:2px;">
