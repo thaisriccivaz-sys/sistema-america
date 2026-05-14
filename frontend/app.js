@@ -469,6 +469,7 @@ const BREADCRUMB_MAP = {
     'logistica-senhas': { path: 'Cofre de Senhas', code: 'LOG007' },
     'logistica-resumo-rota': { path: 'Resumo de Rota', code: 'LOG008' },
     'logistica-itinerantes': { path: 'Clientes Itinerantes', code: 'LOG009' },
+    'rh-agenda': { path: 'Agenda RH', code: 'RH020' },
     'logistica-agenda': { path: 'Agenda Logística', code: 'LOG011' },
     // Comercial
     'comercial-credenciamento': { path: 'Solicitar Credencial', code: 'COM001' },

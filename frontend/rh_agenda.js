@@ -55,7 +55,7 @@
 
     async function carregarEscala(inicio, fim) {
         try {
-            const r = await fetch(`${API}/logistica/escala?inicio=${inicio}&fim=${fim}`, {
+            const r = await fetch(`${API}/rh/escala?inicio=${inicio}&fim=${fim}`, {
                 headers: { Authorization: `Bearer ${window.currentToken}` }
             });
             if (!r.ok) return [];
@@ -337,7 +337,7 @@
                         <button class="ag-view-btn ${agendaViewMode==='mes'?'active':''}" onclick="agendaSetView('mes')">Mês</button>
                     </div>
                     <button class="ag-nav-btn" onclick="limparTestesAgenda()" style="display:none; color: #dc2626; border-color: #fca5a5;"><i class="ph ph-trash"></i> Limpar Testes</button>
-                    <button class="ag-btn-novo" onclick="abrirNovoCard('')"><i class="ph ph-plus"></i> Novo Card</button>
+                    <button class="ag-nav-btn" onclick="if(typeof window.showHistoryPopup==='function')window.showHistoryPopup()" style="color:#f503c5;border-color:#f503c5;font-weight:600;" title="Historico de Alteracoes"><i class="ph ph-clock-counter-clockwise"></i> Historico</button> <button class="ag-btn-novo" onclick="abrirNovoCard('')"><i class="ph ph-plus"></i> Novo Card</button>
                 </div>
             </div>
             ${agendaFilterTipo === 'escala' ? `<div id="ag-escala-filtro-bar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:0.6rem 0;margin-bottom:0.75rem;">
@@ -384,8 +384,8 @@
         .ag-view-toggles { display: flex; background: #e2e8f0; border-radius: 8px; overflow: hidden; margin-right: 0; padding: 2px; }
         .ag-view-btn { border: none; background: transparent; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: #64748b; transition: all 0.2s; }
         .ag-view-btn.active { background: #fff; color: #2d9e5f; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .ag-btn-novo{background:linear-gradient(135deg,#2d9e5f,#1a7a46);color:#fff;border:none;border-radius:10px;padding:8px 18px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(45,158,95,.35);transition:all .2s;}
-        .ag-btn-novo:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(45,158,95,.45);}
+        .ag-btn-novo{background:linear-gradient(135deg,#f503c5,#c000a0);color:#fff;border:none;border-radius:10px;padding:8px 18px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(45,158,95,.35);transition:all .2s;}
+        .ag-btn-novo:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(245,3,197,.45);}
         .ag-weekdays{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-weight:600;font-size:.8rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;padding-bottom:.4rem;border-bottom:2px solid #e2e8f0;margin-bottom:.5rem;}
         .ag-grid.grid-mes { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
         .ag-grid.grid-semana { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
