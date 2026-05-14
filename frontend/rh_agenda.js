@@ -413,7 +413,7 @@
                 
                 <div style="flex:1; min-width:20px;"></div>
                 
-                <input type="text" id="ag-busca-nome-input" placeholder="Buscar por nome..." value="${agendaBuscaNome || ''}" oninput="rhAgendaSetBuscaNome(this.value)" autocomplete="off" data-lpignore="true" data-1p-ignore="true" style="padding:6px 12px; border:1px solid #cbd5e1; border-radius:20px; font-size:0.8rem; outline:none; min-width:200px; background:#fff;">
+                <input type="search" id="ag-busca-nome-input" name="ag-busca-nome" autocomplete="new-password" role="presentation" placeholder="Buscar por nome..." value="${agendaBuscaNome || ''}" oninput="rhAgendaSetBuscaNome(this.value)" data-lpignore="true" data-1p-ignore="true" style="padding:6px 12px; border:1px solid #cbd5e1; border-radius:20px; font-size:0.8rem; outline:none; min-width:200px; background:#fff;">
                 
                 <div id="ag-setor-dropdown-container" style="position:relative; min-width:160px;">
                     <div onclick="document.getElementById('ag-setor-dropdown-list').style.display = document.getElementById('ag-setor-dropdown-list').style.display === 'none' ? 'block' : 'none'" style="padding:6px 12px; border:1px solid #cbd5e1; border-radius:20px; font-size:0.8rem; background:#fff; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
