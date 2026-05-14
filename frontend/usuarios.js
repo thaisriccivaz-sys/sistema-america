@@ -17,6 +17,7 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'ficha-epi',              pagina_nome: 'Ficha EPI', icone: 'ph-shield-check' },
     { modulo: 'RH', pagina_id: 'gerenciar-avaliacoes',   pagina_nome: 'Avaliações', icone: 'ph-clipboard-text' },
     { modulo: 'RH', pagina_id: 'dissidio',               pagina_nome: 'Dissídio', icone: 'ph-trend-up' },
+    { modulo: 'RH', pagina_id: 'rh-agenda',              pagina_nome: 'Agenda RH', icone: 'ph-calendar-check' },
     // Módulo Logística
     { modulo: 'Logística', pagina_id: 'logistica-dashboard',    pagina_nome: 'Dashboard Logística', icone: 'ph-chart-bar' },
     { modulo: 'Logística', pagina_id: 'logistica-pipeline',     pagina_nome: 'Pipeline OS',   icone: 'ph-kanban' },
@@ -508,7 +509,7 @@ const MENU_HIERARQUIA = [
                 telas: [
                     'dashboard', 'colaboradores', 'assinaturas-digitais', 'ferias', 'experiencia',
                     'admissao', 'integracao', 'cargos', 'faculdade', 'geradores',
-                    'ficha-epi', 'gerenciar-avaliacoes', 'dissidio'
+                    'ficha-epi', 'gerenciar-avaliacoes', 'dissidio', 'rh-agenda'
                 ]
             }
         ]
