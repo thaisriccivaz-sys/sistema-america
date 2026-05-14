@@ -14280,7 +14280,12 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
     const data = await sigorReq('/salvarManifestoLote', 'POST', payload);
     console.log('[MTR] Resposta CETESB:', JSON.stringify(data).substring(0, 500));
     const obj = data.respostaApiwsManifestoDTO?.[0] || data.objetoResposta?.[0] || data.objetoResposta || data;
-    const numeroMTR = obj?.manifestoNumeroEstadual || obj?.numeroManifesto || obj?.numero || null;
+        let numeroMTR = obj?.numeroManifestoEstadual || obj?.manifestoNumeroEstadual || obj?.numeroManifesto || obj?.manifesto || obj?.numero || null;
+    if (!numeroMTR) {
+        const str = JSON.stringify(data);
+        const match = str.match(/(?:numeroManifestoEstadual|manifesto|numero|manifestoNumeroEstadual|numeroManifesto)"?:\s*"?(\d+)"?/i) || str.match(/\b(\d{12,14})\b/);
+        if (match) numeroMTR = match[1];
+    }
 
     // Coletar todos os erros do objeto de resposta (transportador, destinador, residuos...)
     const errosDetalhados = [];
