@@ -76,14 +76,27 @@ async function carregarTabelas() {
 }
 
 // ── Abrir modal Gerar MTR ─────────────────────────────────────────────────────
-window.abrirModalGerarMTR = function (complementarDeId = null) {
+window.abrirModalGerarMTR = async function (complementarDeId = null) {
   const modal = document.getElementById('modal-gerar-mtr');
   if (!modal) return;
+  
+  // Mostrar estado de carregamento
+  document.getElementById('mtr-residuo').innerHTML = '<option value="">Carregando opções da CETESB...</option>';
+  document.getElementById('mtr-acondicionamento').innerHTML = '<option value="">Carregando...</option>';
+  document.getElementById('mtr-estado-fisico').innerHTML = '<option value="">Carregando...</option>';
+  document.getElementById('mtr-tratamento').innerHTML = '<option value="">Carregando...</option>';
+  
   document.getElementById('mtr-form').reset();
   document.getElementById('mtr-complementar-de').value = complementarDeId || '';
   document.getElementById('mtr-modal-titulo').textContent = complementarDeId ? 'Gerar MTR Complementar' : 'Gerar Nova MTR';
-  preencherSelectsModal();
   modal.style.display = 'flex';
+
+  // Se as listas estiverem vazias, tenta carregar novamente
+  if (_mtrResiduos.length === 0 || _mtrAcondicionamentos.length === 0) {
+    await carregarTabelas();
+  }
+  
+  preencherSelectsModal();
 };
 
 window.fecharModalMTR = function () {
