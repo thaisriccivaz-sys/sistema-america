@@ -41,17 +41,24 @@ async function carregarListaMTR() {
 
 
 function renderTabelaMTR(lista) {
-  const tbody = document.getElementById('mtr-tbody');
-  if (!tbody) return;
-  if (!lista.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#64748b;padding:2rem;">Nenhuma MTR encontrada.</td></tr>`;
+  const tbody = document.getElementById('tabela-mtrs-body');
+  if (!lista || lista.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:2rem;">Nenhuma MTR encontrada.</td></tr>';
     return;
   }
   tbody.innerHTML = lista.map(m => {
     const statusColor = {
       'Ativo': '#10b981', 'Recebido': '#3b82f6', 'Cancelado': '#ef4444', 'Pendente': '#f59e0b'
     }[m.status] || '#64748b';
-    return `<tr>
+    
+    let isAmerica = false;
+    if (m.gerador_nome && m.gerador_nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('america rental')) {
+        isAmerica = true;
+    }
+    
+    const rowStyle = isAmerica ? 'background-color: #dcfce7;' : ''; // light green
+
+    return `<tr style="${rowStyle}">
       <td><strong>${m.numero_mtr || '-'}</strong></td>
       <td>${m.data_geracao ? new Date(m.data_geracao).toLocaleDateString('pt-BR') : '-'}</td>
       <td><span style="background:${statusColor}22;color:${statusColor};padding:2px 8px;border-radius:999px;font-size:0.78rem;font-weight:600;">${m.status || 'Pendente'}</span></td>
@@ -259,13 +266,41 @@ function b64toBlob(b64, type) {
 }
 
 // ── Filtro da tabela ──────────────────────────────────────────────────────────
-window.filtrarMTR = function (q) {
-  const lower = q.toLowerCase();
-  const filtrado = _mtrListaCache.filter(m =>
-    (m.numero_mtr || '').toLowerCase().includes(lower) ||
-    (m.gerador_nome || '').toLowerCase().includes(lower) ||
-    (m.residuo_nome || '').toLowerCase().includes(lower)
-  );
+window.filtrarMTR = function () {
+  const num = (document.getElementById('filtro-mtr-numero')?.value || '').toLowerCase();
+  const ger = (document.getElementById('filtro-mtr-gerador')?.value || '').toLowerCase();
+  const dest = (document.getElementById('filtro-mtr-destinador')?.value || '').toLowerCase();
+  const dtIni = document.getElementById('filtro-mtr-data-ini')?.value;
+  const dtFim = document.getElementById('filtro-mtr-data-fim')?.value;
+
+  const filtrado = _mtrListaCache.filter(m => {
+    let match = true;
+    if (num && !(m.numero_mtr || '').toLowerCase().includes(num)) match = false;
+    if (ger && !(m.gerador_nome || '').toLowerCase().includes(ger)) match = false;
+    
+    // Destinador is stored inside payload_json in DB (m.payload_json). We parse it if we need to search it.
+    if (dest) {
+        let destNome = '';
+        try {
+            const p = JSON.parse(m.payload_json || '{}');
+            const d = p.respostaApiwsManifestoDTO?.[0]?.destinador || p.objetoResposta?.[0]?.destinador || p.objetoResposta?.destinador;
+            if (d && d.razaoSocial) destNome = d.razaoSocial;
+        } catch(e) {}
+        if (!destNome.toLowerCase().includes(dest)) match = false;
+    }
+
+    if (dtIni || dtFim) {
+        const dtStr = (m.data_geracao || '').split('T')[0];
+        if (dtStr) {
+            if (dtIni && dtStr < dtIni) match = false;
+            if (dtFim && dtStr > dtFim) match = false;
+        } else {
+            match = false;
+        }
+    }
+
+    return match;
+  });
   renderTabelaMTR(filtrado);
 };
 
