@@ -14117,28 +14117,42 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
           observacao, complementarDeId } = req.body;
 
   try {
-    const endpoint = complementarDeId ? '/gerarManifestoComplementarLote' : '/gerarManifestoLote';
+    const endpoint = complementarDeId ? '/salvarManifestoComplementarLote' : '/salvarManifestoLote';
+    
+    // De/Para de unidades básicas
+    const mapaUnidade = { 'TON': 3, 'KG': 1, 'L': 21, 'M3': 2 };
+    const uniCodigo = mapaUnidade[unidade] || parseInt(unidade) || 3;
+
     const payload = [{
-      seuCodigo: 'AR-' + Date.now(),
+      seuCodigo: 'AR-' + Date.now().toString().slice(-8),
+      nomeResponsavel: 'América Rental',
+      transportador: { cpfCnpj: SIGOR_CFG.cpfCnpj, unidade: parseInt(SIGOR_CFG.unidade) },
+      destinador: { cpfCnpj: SIGOR_CFG.cpfCnpj, unidade: parseInt(SIGOR_CFG.unidade) },
       gerador: { cpfCnpj: (geradorCnpj || '').replace(/\D/g, ''), razaoSocial: geradorNome },
-      residuos: [{
-        codigo: residuoCodigo,
-        quantidade: parseFloat(quantidade),
-        unidade: { codigo: unidade },
-        acondicionamento: { codigo: acondicionamentoCodigo },
-        estadoFisico: { codigo: estadoFisicoCodigo },
-        tratamento: { codigo: tratamentoCodigo }
-      }],
-      observacao: observacao || ''
+      observacoes: observacao || '',
+      listaManifestoResiduos: [{
+        resCodigoIbama: residuoCodigo,
+        marQuantidade: parseFloat(quantidade),
+        uniCodigo: uniCodigo,
+        tiaCodigo: parseInt(acondicionamentoCodigo),
+        tieCodigo: parseInt(estadoFisicoCodigo),
+        traCodigo: parseInt(tratamentoCodigo),
+        claCodigo: 1 // Código de classe padrão
+      }]
     }];
 
     const data = await sigorReq(endpoint, 'POST', payload);
-    const obj = data.objetoResposta?.[0] || data.objetoResposta;
-    const numeroMTR = obj?.numeroManifesto || obj?.numero || null;
-    const erro = data.erro || false;
-    const mensagem = data.mensagem || '';
+    const obj = data.objetoResposta?.[0] || data.objetoResposta || data;
+    const numeroMTR = obj?.manifestoNumeroEstadual || obj?.numeroManifesto || obj?.numero || null;
+    
+    // A API deles pode retornar sucesso HTTP 200 mas com erro de negócio no objeto da resposta
+    const erro = data.erro || obj?.restResponseValido === false || false;
+    const mensagem = data.mensagem || obj?.restResponseMensagem || obj?.mensagemErroNacional || 'Erro desconhecido da CETESB';
 
-    if (erro) return res.status(400).json({ erro: true, mensagem });
+    if (erro) {
+      console.warn('[MTR] Erro negócio da CETESB:', mensagem);
+      return res.status(400).json({ erro: true, mensagem });
+    }
 
     // Salvar localmente
     db.run(
