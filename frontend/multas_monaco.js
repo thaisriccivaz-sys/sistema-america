@@ -277,11 +277,20 @@ window._monacoAbrirDetalhe = async function(id) {
         if (arqs.length > 0) {
             arquivosHtml = `<div style="margin-top:1rem;padding:1rem;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
                 <p style="font-size:0.78rem;font-weight:700;color:#334155;margin:0 0 0.5rem;">📎 Documentos Anexados (${arqs.length})</p>
-                ${arqs.map((a,i) => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #f1f5f9;">
-                    <i class="ph ph-file-pdf" style="color:#ef4444;"></i>
-                    <span style="font-size:0.8rem;color:#475569;">${a.nome || `Arquivo ${i+1}`}</span>
-                    ${a.base64 ? `<button onclick="window._monacoVerPDF('${a.base64}','${a.nome||'arquivo.pdf'}')" style="margin-left:auto;background:#0f172a;color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:0.72rem;cursor:pointer;">Ver PDF</button>` : ''}
-                </div>`).join('')}
+                ${arqs.map((a,i) => {
+                    const b64 = a.base64 || a.arquivo || a.conteudo || a.content;
+                    let btn = '';
+                    if (b64) {
+                        btn = `<button onclick="window._monacoVerPDF('${b64}','${a.nome||'arquivo.pdf'}')" style="margin-left:auto;background:#0f172a;color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:0.72rem;cursor:pointer;">Ver PDF</button>`;
+                    } else if (a.url) {
+                        btn = `<a href="${a.url}" target="_blank" style="margin-left:auto;background:#0f172a;color:#fff;text-decoration:none;border-radius:4px;padding:2px 8px;font-size:0.72rem;cursor:pointer;">Ver Anexo</a>`;
+                    }
+                    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #f1f5f9;">
+                        <i class="ph ph-file-pdf" style="color:#ef4444;"></i>
+                        <span style="font-size:0.8rem;color:#475569;">${a.nome || `Arquivo ${i+1}`}</span>
+                        ${btn}
+                    </div>`;
+                }).join('')}
             </div>`;
         }
     } catch(e) {}
