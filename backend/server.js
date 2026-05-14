@@ -12269,6 +12269,13 @@ db.run(`CREATE TABLE IF NOT EXISTS logistica_agenda (
     if (err && !err.message.includes('already exists')) console.error('[Agenda] Erro na criação da tabela:', err.message);
 });
 
+// Auto-migrate: status_visualizacao na tabela multas_monaco
+setTimeout(() => {
+    db.run(`ALTER TABLE multas_monaco ADD COLUMN status_visualizacao TEXT DEFAULT 'nova'`, () => {});
+    // Corrigir registros existentes que já foram vistos
+    db.run(`UPDATE multas_monaco SET status_visualizacao = 'vista' WHERE visualizada = 1 AND (status_visualizacao IS NULL OR status_visualizacao = 'nova')`, () => {});
+}, 2000);
+
 // Auto-migrate: adicionar colunas novas se tabela já existe
 setTimeout(() => {
     ['ALTER TABLE logistica_agenda ADD COLUMN horario TEXT DEFAULT \'\';',
@@ -13660,7 +13667,7 @@ function upsertMonaco(uuid, tipoEvento, payload, res) {
         const now = new Date().toISOString();
 
         if (existing) {
-            // Atualizar (não resetar visualizada se já foi vista e só veio status novo)
+            // Atualizar: marcar como 'atualizado' para sinalizar que houve mudança
             db.run(`UPDATE multas_monaco SET
                 tipo_evento = ?, placa = ?, renavam = ?, fleet_id = ?, numero_frota = ?,
                 gestor = ?, condutor = ?, enquadramento = ?, descricao = ?, numero_ait = ?,
@@ -13672,7 +13679,7 @@ function upsertMonaco(uuid, tipoEvento, payload, res) {
                 status_notificacao = ?, velocidade_permitida = ?, velocidade_aferida = ?,
                 velocidade_considerada = ?, multa_originaria_enquadramento = ?,
                 fator_multiplicador = ?, ait_originaria = ?, data_multa_originaria = ?,
-                arquivos_json = ?, visualizada = 0, updated_at = ?
+                arquivos_json = ?, visualizada = 0, status_visualizacao = 'atualizado', updated_at = ?
                 WHERE uuid = ?`,
                 [
                     tipoEvento, payload.placa, payload.renavam, payload.fleet_id, payload.numero_frota,
@@ -13708,8 +13715,8 @@ function upsertMonaco(uuid, tipoEvento, payload, res) {
                 status_notificacao, velocidade_permitida, velocidade_aferida,
                 velocidade_considerada, multa_originaria_enquadramento,
                 fator_multiplicador, ait_originaria, data_multa_originaria,
-                arquivos_json, visualizada, created_at, updated_at
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?)`,
+                arquivos_json, visualizada, status_visualizacao, created_at, updated_at
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,'nova',?,?)`,
                 [
                     uuid, tipoEvento, payload.placa, payload.renavam, payload.fleet_id, payload.numero_frota,
                     payload.gestor, payload.condutor, payload.enquadramento, payload.descricao, payload.numero_ait,
@@ -13808,7 +13815,7 @@ app.get('/api/monaco/multas', authenticateToken, (req, res) => {
 
 // ── PATCH /api/monaco/multas/:id/visualizar ───────────────────────────────────
 app.patch('/api/monaco/multas/:id/visualizar', authenticateToken, (req, res) => {
-    db.run(`UPDATE multas_monaco SET visualizada = 1, updated_at = datetime('now') WHERE id = ?`,
+    db.run(`UPDATE multas_monaco SET visualizada = 1, status_visualizacao = 'vista', updated_at = datetime('now') WHERE id = ?`,
         [req.params.id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ sucesso: true });

@@ -113,19 +113,17 @@ function _renderPage(container) {
         <!-- Tabela -->
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
             <div style="overflow-x:auto;">
-            <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
-                <thead>
-                    <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
-                        <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;white-space:nowrap;">Status</th>
-                        <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;">Placa</th>
-                        <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;">AIT</th>
-                        <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;">Tipo</th>
-                        <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;">Gravidade</th>
-                        <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;">Infração</th>
-                        <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;white-space:nowrap;">Data</th>
-                        <th style="padding:0.75rem 1rem;text-align:right;font-weight:700;color:#475569;white-space:nowrap;">Valor</th>
-                        <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;white-space:nowrap;">Condutor</th>
-                        <th style="padding:0.75rem 1rem;"></th>
+            <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+                <thead style="position:sticky; top:0; z-index:2; background:#f8fafc; outline:1px solid #e2e8f0;">
+                    <tr style="text-align:left;">
+                        <th style="padding:1rem; font-weight:600; color:#475569; white-space:nowrap;">AIT</th>
+                        <th style="padding:1rem; font-weight:600; color:#475569;">Placa</th>
+                        <th style="padding:1rem; font-weight:600; color:#475569; white-space:nowrap;">Data/Hora</th>
+                        <th style="padding:1rem; font-weight:600; color:#475569; white-space:nowrap;">Motivo</th>
+                        <th style="padding:1rem; font-weight:600; color:#475569; white-space:nowrap;">Motorista</th>
+                        <th style="padding:1rem; font-weight:600; color:#475569; white-space:nowrap;">Status</th>
+                        <th style="padding:1rem; font-weight:600; color:#475569; white-space:nowrap;">Data Limite</th>
+                        <th style="padding:1rem; font-weight:600; color:#475569; text-align:center;">Ações</th>
                     </tr>
                 </thead>
                 <tbody id="monaco-tbody">
@@ -151,33 +149,58 @@ function _renderRows() {
     if (!_multas.length) return '';
     return _multas.map(m => {
         const tc = TIPO_CONFIG[m.tipo_evento] || TIPO_CONFIG['notificacao'];
-        const gc = GRAV_COLOR[m.gravidade] || '#64748b';
         const isNova = !m.visualizada;
-        const dataFmt = m.data_da_infracao ? m.data_da_infracao : '—';
-        const valor = m.valor_da_infracao ? `R$ ${parseFloat(m.valor_da_infracao).toFixed(2).replace('.',',')}` : '—';
-        return `<tr style="border-bottom:1px solid #f1f5f9;background:${isNova?'#fffbf0':'#fff'};cursor:pointer;" onclick="window._monacoAbrirDetalhe(${m.id})">
-            <td style="padding:0.65rem 1rem;white-space:nowrap;">
-                ${isNova ? `<span style="background:#ef4444;color:#fff;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:800;letter-spacing:0.05em;">NOVA</span>` 
-                         : `<span style="color:#94a3b8;font-size:0.75rem;"><i class="ph ph-check"></i> Vista</span>`}
-            </td>
-            <td style="padding:0.65rem 1rem;font-weight:700;color:#1e293b;">${m.placa || '—'}</td>
-            <td style="padding:0.65rem 1rem;color:#475569;font-size:0.8rem;">${m.numero_ait || '—'}</td>
-            <td style="padding:0.65rem 1rem;">
-                <span style="background:${tc.bg};color:${tc.color};padding:2px 10px;border-radius:10px;font-size:0.75rem;font-weight:700;white-space:nowrap;">
-                    <i class="ph ${tc.icon}"></i> ${tc.label}
-                </span>
-            </td>
-            <td style="padding:0.65rem 1rem;">
-                ${m.gravidade ? `<span style="color:${gc};font-weight:700;font-size:0.8rem;">${m.gravidade}</span>` : '—'}
-            </td>
-            <td style="padding:0.65rem 1rem;color:#475569;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${m.descricao||''}">${m.descricao||'—'}</td>
-            <td style="padding:0.65rem 1rem;color:#475569;white-space:nowrap;">${dataFmt}</td>
-            <td style="padding:0.65rem 1rem;text-align:right;font-weight:600;color:#1e293b;white-space:nowrap;">${valor}</td>
-            <td style="padding:0.65rem 1rem;color:#475569;font-size:0.8rem;">${m.condutor && m.condutor !== 'não informado' ? m.condutor : '—'}</td>
-            <td style="padding:0.65rem 1rem;text-align:right;">
-                <i class="ph ph-caret-right" style="color:#94a3b8;"></i>
-            </td>
-        </tr>`;
+        const dataFmt = m.data_da_infracao ? m.data_da_infracao.split('-').reverse().join('/') : '—';
+        const horaFmt = m.hora_da_infracao || '—';
+        const motivo = m.descricao || '—';
+        const condutor = (m.condutor && m.condutor !== 'não informado') ? m.condutor : '—';
+        const dataLimiteVal = m.prazo_identificacao_condutor || m.vencimento_multa || '';
+
+        let motoristaHtml = `<span style="font-weight:600; color:#0f172a;">${condutor}</span>`;
+        if (condutor === '—') {
+             motoristaHtml = `<button onclick="window._monacoAbrirDetalhe(${m.id})" style="background:#f1f5f9; color:#2563eb; border:1px solid #cbd5e1; padding:0.3rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:600;">+ Adicionar Motorista</button>`;
+        }
+        
+        const statusHtml = `<span style="background:${tc.bg}; color:${tc.color}; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">${tc.label}</span>`;
+        
+        let dataLimiteHtml = '—';
+        if (dataLimiteVal) {
+             const [y, mm, d] = dataLimiteVal.split('-');
+             const fmt = `${d}/${mm}/${y}`;
+             const diff = Math.ceil((new Date(dataLimiteVal + 'T12:00:00') - new Date()) / 86400000);
+             if (diff <= 10) {
+                  const urgente = diff <= 0 ? 'VENCIDA' : `${diff}d`;
+                  dataLimiteHtml = `<span style="color:#dc2626;font-weight:700;white-space:nowrap;" title="${urgente}">⚠️ ${fmt}</span>`;
+             } else {
+                  dataLimiteHtml = `<span style="white-space:nowrap;">${fmt}</span>`;
+             }
+        }
+
+        let statusVisBadge = '';
+        const sv = m.status_visualizacao || (m.visualizada ? 'vista' : 'nova');
+        if (sv === 'nova') {
+            statusVisBadge = `<span style="background:#ef4444;color:#fff;padding:2px 6px;border-radius:10px;font-size:0.6rem;font-weight:800;letter-spacing:0.05em;margin-left:5px;vertical-align:middle;">NOVA</span>`;
+        } else if (sv === 'atualizado') {
+            statusVisBadge = `<span style="background:#f97316;color:#fff;padding:2px 6px;border-radius:10px;font-size:0.6rem;font-weight:800;letter-spacing:0.05em;margin-left:5px;vertical-align:middle;">ATUALIZADO</span>`;
+        } else {
+            statusVisBadge = `<span style="color:#94a3b8;font-size:0.75rem;margin-left:5px;vertical-align:middle;"><i class="ph ph-check"></i> Vista</span>`;
+        }
+
+        const rowBg = (sv === 'nova' || sv === 'atualizado') ? '#fffbf0' : 'transparent';
+        const rowBgHover = '#f8fafc';
+        return `<tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s; background:${rowBg};" onmouseover="this.style.background='${rowBgHover}'" onmouseout="this.style.background='${rowBg}'">
+                <td style="padding:1rem;"><strong>${m.numero_ait||'—'}</strong>${statusVisBadge}</td>
+                <td style="padding:1rem; font-weight:600; color:#334155; white-space:nowrap;">${m.placa||'—'}</td>
+                <td style="padding:1rem;">${dataFmt}<br><span style="color:#64748b; font-size:0.8rem;">${horaFmt}</span></td>
+                <td style="padding:1rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${motivo}">${motivo}</td>
+                <td style="padding:1rem;">${motoristaHtml}</td>
+                <td style="padding:1rem;">${statusHtml}</td>
+                <td style="padding:1rem; white-space:nowrap;">${dataLimiteHtml}</td>
+                <td style="padding:1rem; text-align:center; min-width:140px; white-space:nowrap;">
+                    <button onclick="window._monacoAbrirDetalhe(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Detalhes / Gerenciar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>
+                    ${(m.arquivos_json && m.arquivos_json !== '[]') ? `<button onclick="window._monacoAbrirDetalhe(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Ver Documentos"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>` : ''}
+                </td>
+            </tr>`;
     }).join('');
 }
 
@@ -205,12 +228,25 @@ window._monacoAbrirDetalhe = async function(id) {
                 headers: { 'Authorization': `Bearer ${window.currentToken}` }
             });
             m.visualizada = 1;
-            const row = document.querySelector(`tr[onclick="window._monacoAbrirDetalhe(${id})"]`);
-            if (row) {
-                row.style.background = '#fff';
-                const td = row.querySelector('td:first-child');
-                if (td) td.innerHTML = `<span style="color:#94a3b8;font-size:0.75rem;"><i class="ph ph-check"></i> Vista</span>`;
-            }
+            m.status_visualizacao = 'vista';
+            // Atualizar badge na linha da tabela
+            const badge = document.querySelector(`#monaco-tbody tr td:first-child`);
+            const allRows = document.querySelectorAll('#monaco-tbody tr');
+            allRows.forEach(row => {
+                const btn = row.querySelector(`button[onclick="window._monacoAbrirDetalhe(${id})"]`);
+                if (btn) {
+                    const td = row.querySelector('td:first-child');
+                    if (td) {
+                        const spans = td.querySelectorAll('span');
+                        spans.forEach(s => { if (s.textContent === 'NOVA' || s.textContent === 'ATUALIZADO') s.remove(); });
+                        const vistaSpan = document.createElement('span');
+                        vistaSpan.style.cssText = 'color:#94a3b8;font-size:0.75rem;margin-left:5px;vertical-align:middle;';
+                        vistaSpan.innerHTML = '<i class="ph ph-check"></i> Vista';
+                        td.appendChild(vistaSpan);
+                    }
+                    row.style.background = 'transparent';
+                }
+            });
             _atualizarBadgeMenu();
         } catch(e) {}
     }
