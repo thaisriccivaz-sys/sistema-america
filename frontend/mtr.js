@@ -56,7 +56,27 @@ function renderTabelaMTR(lista) {
         isAmerica = true;
     }
     
-    const rowStyle = isAmerica ? 'background-color: #dcfce7;' : ''; // light green
+    const rowStyle = isAmerica ? 'background-color: #dcfce7;' : '';
+
+    let actionsHtml = '';
+    if (isAmerica) {
+        if (m.numero_mtr) {
+            actionsHtml += `<button onclick="window.downloadMTR(${m.id})" title="Imprimir MTR" class="btn btn-secondary" style="padding:4px 8px;font-size:1.1rem;margin-right:4px;"><i class="ph ph-printer"></i></button>`;
+        }
+        if (m.status === 'Ativo' || m.status === 'Salvo' || m.status === 'Pendente') {
+            actionsHtml += `<button onclick="window.cancelarMTR(${m.id})" class="btn btn-danger" style="padding:4px 8px;font-size:0.8rem;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;"><i class="ph ph-x"></i> Cancelar</button>`;
+        } else if (m.status === 'Recebido') {
+            actionsHtml += `<button onclick="window.downloadRecebimento(${m.id})" title="Imprimir Recebimento" class="btn btn-secondary" style="padding:4px 8px;font-size:1.1rem;margin-right:4px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;"><i class="ph ph-shield-check"></i></button>`;
+            actionsHtml += `<button onclick="window.downloadCDF(${m.id})" title="Baixar CDF" class="btn btn-secondary" style="padding:4px 8px;font-size:1.1rem;margin-right:4px;background:#8b5cf6;color:white;border:none;border-radius:6px;cursor:pointer;"><i class="ph ph-file-text"></i></button>`;
+        }
+    } else {
+        if (m.numero_mtr) {
+            actionsHtml += `<button onclick="window.downloadMTR(${m.id})" class="btn btn-secondary" style="padding:3px 10px;font-size:0.78rem;margin-right:4px;"><i class="ph ph-download-simple"></i> PDF</button>`;
+        }
+        if (m.status === 'Ativo' || m.status === 'Salvo' || m.status === 'Pendente') {
+            actionsHtml += `<button onclick="window.abrirReceberMTR(${m.id})" class="btn btn-primary" style="padding:3px 10px;font-size:0.78rem;background:#3b82f6;border:none;border-radius:6px;color:white;cursor:pointer;"><i class="ph ph-check-circle"></i> Receber</button>`;
+        }
+    }
 
     return `<tr style="${rowStyle}">
       <td><strong>${m.numero_mtr || '-'}</strong></td>
@@ -64,10 +84,7 @@ function renderTabelaMTR(lista) {
       <td><span style="background:${statusColor}22;color:${statusColor};padding:2px 8px;border-radius:999px;font-size:0.78rem;font-weight:600;">${m.status || 'Pendente'}</span></td>
       <td>${m.residuo_nome || '-'}</td>
       <td>${m.gerador_nome || '-'}</td>
-      <td style="text-align:right;">
-        ${m.numero_mtr ? `<button onclick="window.downloadMTR(${m.id})" class="btn btn-secondary" style="padding:3px 10px;font-size:0.78rem;margin-right:4px;"><i class="ph ph-download-simple"></i> PDF</button>` : ''}
-        ${m.status === 'Ativo' ? `<button onclick="window.abrirReceberMTR(${m.id})" class="btn btn-primary" style="padding:3px 10px;font-size:0.78rem;background:#3b82f6;"><i class="ph ph-check-circle"></i> Receber</button>` : ''}
-      </td>
+      <td style="text-align:right;">${actionsHtml}</td>
     </tr>`;
   }).join('');
 }
@@ -315,3 +332,48 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   obs.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
 });
+
+window.cancelarMTR = async function(id) {
+    const mtr = _mtrListaCache.find(m => m.id === id);
+    if (!mtr) return;
+    
+    const { value: justificativa } = await Swal.fire({
+      title: 'Cancelar MTR',
+      html: `Informe a justificativa para o cancelamento do MTR número ${mtr.numero_mtr}?`,
+      input: 'textarea',
+      inputPlaceholder: 'Justificativa...',
+      showCancelButton: true,
+      confirmButtonText: 'Salvar',
+      confirmButtonColor: '#ef4444',
+      cancelButtonText: 'Cancelar',
+      inputValidator: (value) => {
+        if (!value) {
+          return 'Você precisa informar a justificativa!';
+        }
+      }
+    });
+
+    if (justificativa) {
+        try {
+            const res = await fetch(`/api/mtr/${id}/cancelar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.currentToken}` },
+                body: JSON.stringify({ justificativa })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.mensagem || 'Erro ao cancelar');
+            Swal.fire('Cancelado!', 'O MTR foi cancelado com sucesso.', 'success');
+            carregarListaMTR();
+        } catch(e) {
+            Swal.fire('Erro', e.message, 'error');
+        }
+    }
+};
+
+window.downloadRecebimento = function(id) {
+    Swal.fire('Em breve', 'A impressão do certificado de recebimento está em desenvolvimento.', 'info');
+};
+
+window.downloadCDF = function(id) {
+    Swal.fire('Em breve', 'O download do CDF está em desenvolvimento.', 'info');
+};
