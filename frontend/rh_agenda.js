@@ -47,7 +47,7 @@
 
     async function carregarCards(inicio, fim) {
         try {
-            const r = await fetch(`${API}/logistica/agenda?inicio=${inicio}&fim=${fim}`, {
+            const r = await fetch(`${API}/logistica/agenda?inicio=${inicio}&fim=${fim}&context=rh`, {
                 headers: { Authorization: `Bearer ${window.currentToken}` }
             });
             if (!r.ok) return [];
@@ -754,7 +754,7 @@
         const referente_ids = Array.from(document.querySelectorAll('#ag-ref-list [data-id]')).map(c => parseInt(c.dataset.id));
         const acoes         = Array.from(document.querySelectorAll('#ag-acoes-grid .ag-acao-item.selected')).map(el => el.querySelector('input').value);
 
-        const payload = { titulo, data, horario, descricao, tipo, responsaveis, referente_ids, acoes, setor: 'logistica' };
+        const payload = { titulo, data, horario, descricao, tipo, responsaveis, referente_ids, acoes, setor: 'rh' };
         if (idExistente) payload.id = idExistente;
 
         try {

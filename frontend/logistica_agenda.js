@@ -45,7 +45,7 @@
 
     async function carregarCards(inicio, fim) {
         try {
-            const r = await fetch(`${API}/logistica/agenda?inicio=${inicio}&fim=${fim}`, {
+            const r = await fetch(`${API}/logistica/agenda?inicio=${inicio}&fim=${fim}&context=logistica`, {
                 headers: { Authorization: `Bearer ${window.currentToken}` }
             });
             if (!r.ok) return [];

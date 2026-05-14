@@ -12313,9 +12313,47 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
         where += ' AND data >= ? AND data <= ?';
         params.push(dInicio, dFim);
     }
-    if (setor) { where += ' AND setor = ?'; params.push(setor); }
-    db.all(`SELECT * FROM logistica_agenda WHERE ${where} ORDER BY data, id`, params, (err, rows) => {
+    const reqContext = req.query.context || 'logistica';
+    if (setor) { where += ' AND setor = ?'; params.push(setor); } else { where += ' AND setor IN ("logistica", "rh")'; }
+    db.all(`SELECT * FROM logistica_agenda WHERE ${where} ORDER BY data, id`, params, (err, rawRows) => {
         if (err) return res.status(500).json({ error: err.message });
+        db.all(`SELECT id, departamento FROM colaboradores`, [], (errDept, allColabs) => {
+            const deptMap = {};
+            (allColabs || []).forEach(c => deptMap[c.id] = c.departamento);
+            const opSectors = ['Ajudante Geral', 'Ajudante Pátio', 'Liderança', 'Logística', 'Manutenção', 'Motorista'];
+            let rows = [];
+            const seenManual = new Set();
+            (rawRows || []).forEach(card => {
+                let isVisible = true;
+                if (reqContext === 'rh' && card.setor === 'logistica') {
+                    isVisible = false;
+                    try {
+                        const refs = JSON.parse(card.referente_ids || '[]');
+                        if (refs.some(id => opSectors.includes(deptMap[id]))) isVisible = true;
+                    } catch(e){}
+                } else if (reqContext === 'logistica' && card.setor === 'rh') {
+                    isVisible = false;
+                    try {
+                        const refs = JSON.parse(card.referente_ids || '[]');
+                        if (refs.some(id => opSectors.includes(deptMap[id]))) isVisible = true;
+                    } catch(e){}
+                }
+                if (isVisible) {
+                    let isDuplicate = false;
+                    try {
+                        const refs = JSON.parse(card.referente_ids || '[]');
+                        if (refs.length > 0) {
+                            let allSeen = true;
+                            refs.forEach(ref => {
+                                const key = `${card.tipo}_${card.data}_${ref}`;
+                                if (!seenManual.has(key)) { allSeen = false; seenManual.add(key); }
+                            });
+                            if (allSeen) isDuplicate = true;
+                        }
+                    } catch(e){}
+                    if (!isDuplicate) rows.push(card);
+                }
+            });
         db.all(`SELECT id, nome_completo, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores WHERE status IN ('Ativo', 'Afastado', 'Férias') AND departamento NOT IN ('ESCRITÓRIO', 'RH', 'Comercial', 'Financeiro', 'Administrativo', 'Diretoria') AND ferias_programadas_inicio IS NOT NULL AND ferias_programadas_fim IS NOT NULL AND ferias_programadas_inicio != ''`, [], (errColab, colabs) => {
             if (errColab) return res.json(rows || []);
 
@@ -12458,6 +12496,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
         });
     });
 });
+        });
 
 // GET – Escala operacional: retorna colaboradores ativos do operacional com dados de escala e ausências no período
 app.get('/api/logistica/escala', authenticateToken, (req, res) => {
@@ -12712,7 +12751,7 @@ app.get('/api/rh/escala', authenticateToken, (req, res) => {
             FROM colaboradores WHERE status IN ('Ativo','Afastado','Férias')
             AND departamento IN (${incStr})
             AND (tipo_contrato IS NULL OR tipo_contrato != 'Intermitente')
-            ORDER BY departamento ASC, nome_completo ASC`, INCL, (err, colabs) => {
+            ORDER BY nome_completo ASC`, INCL, (err, colabs) => {
         if (err) return res.status(500).json({ error: err.message });
         const ids = (colabs || []).map(c => c.id);
         if (!ids.length) return res.json([]);
