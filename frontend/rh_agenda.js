@@ -393,7 +393,6 @@
                 </div>
             </div>
             ${agendaFilterTipo === 'escala' ? `
-            ${agendaFilterTipo === 'escala' ? `
             <div id="ag-escala-filtro-bar" style="display:flex;align-items:center;gap:12px;flex-wrap:nowrap;padding:0.4rem 0;margin-bottom:1rem; overflow-x:auto;">
                 <span style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">Status:</span>
                 <div id="ag-status-buttons-container" style="display:flex; align-items:center; gap:6px;">
