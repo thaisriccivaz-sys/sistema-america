@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -2285,7 +2285,7 @@ app.get('/api/equipes', authenticateToken, (req, res) => {
             db.all(`SELECT em.*, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.status as colab_status, c.cnh_categoria, c.ferias_programadas_inicio, c.ferias_programadas_fim, c.tipo_contrato, c.data_admissao, c.escala_tipo, c.horario_entrada, c.horario_saida
                 FROM equipes_membros em
                 JOIN colaboradores c ON c.id = em.colaborador_id
-                WHERE em.equipe_id = ?
+                WHERE em.equipe_id = ? AND c.status != 'Desligado'
                 ORDER BY em.funcao ASC, em.ordem ASC`, [eq.id], (err2, membros) => {
                 eq.membros = membros || [];
                 resolve(eq);
@@ -2295,6 +2295,16 @@ app.get('/api/equipes', authenticateToken, (req, res) => {
         Promise.all(promises).then(result => res.json(result));
     });
 });
+
+// Auto-limpeza: remover colaboradores desligados das equipes
+setTimeout(() => {
+    db.run(`DELETE FROM equipes_membros WHERE colaborador_id IN (
+        SELECT id FROM colaboradores WHERE status = 'Desligado'
+    )`, (err) => {
+        if (err) console.error('[EQUIPES] Erro ao limpar desligados:', err.message);
+        else console.log('[EQUIPES] Membros desligados removidos das equipes.');
+    });
+}, 3000);
 
 // ── POST /api/equipes ─────────────────────────────────────────────────────────
 app.post('/api/equipes', authenticateToken, (req, res) => {
@@ -2911,6 +2921,11 @@ async function checkColaboradorDesligado(colaboradorId) {
             attachments
         });
         console.log(`[checkColaboradorDesligado] E-mail enviado para ${emailsUnicos.join(', ')} — ${deptos.length} departamento(s) afetado(s)`);
+        // Remover colaborador de todas as equipes ao ser desligado
+        db.run('DELETE FROM equipes_membros WHERE colaborador_id = ?', [colaboradorId], (errEq) => {
+            if (errEq) console.error('[EQUIPES] Erro ao remover desligado das equipes:', errEq.message);
+            else console.log('[EQUIPES] Colaborador ' + colaboradorId + ' removido de todas as equipes.');
+        });
     } catch (err) {
         console.error('[checkColaboradorDesligado] ERRO FATAL:', err.message, err.stack || '');
     }
