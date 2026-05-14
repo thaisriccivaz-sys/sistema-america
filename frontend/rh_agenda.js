@@ -10,6 +10,8 @@
     let agendaColabs = [];
     let agendaEscalaData = [];
     let agendaEscalaFiltroStatus = 'todos'; // 'todos','disponivel','folga','ferias','afastado','falta'
+    let agendaBuscaNome = '';
+    let agendaBuscaSetor = '';
 
     function isoDate(d) {
         return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -83,7 +85,7 @@
         if (!r.ok) throw new Error(await r.text());
     }
 
-    window.limparTestesAgenda = async function() {
+    window.limparTestesRhAgenda = async function() {
         if (!confirm('Tem certeza que deseja apagar TODOS os cards criados manualmente (reuniões, avisos, testes)?\n\nEssa ação deixará apenas os cards automáticos gerados pelo RH (Férias, Afastamentos, ASO).')) return;
         try {
             const r = await fetch(`${API}/logistica/agenda/clear`, {
@@ -140,7 +142,7 @@
         container.innerHTML = buildAgendaHTML();
     };
 
-    window.agendaSetEscalaFiltro = function(status) {
+    window.rhAgendaSetEscalaFiltro = function(status) {
         agendaEscalaFiltroStatus = status;
         window.renderAgendaRH();
     };
@@ -234,7 +236,7 @@
                         </div>
                     </div>`;
                 }).join('');
-                cells += `<div class="ag-cell ${isHoje?'ag-hoje':''} mode-${agendaViewMode}" data-date="${dateStr}" onclick="abrirNovoCard('${dateStr}')">
+                cells += `<div class="ag-cell ${isHoje?'ag-hoje':''} mode-${agendaViewMode}" data-date="${dateStr}" onclick="rhAbrirNovoCard('${dateStr}')">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
                         ${headerText}<div class="ag-day-num ${isHoje?'ag-hoje-num':''}">${dObj.getDate()}</div>
                     </div>
@@ -290,7 +292,7 @@
                 } catch(e) {}
                 
                 return `<div class="ag-badge" style="background:${t.color}22;color:${t.color};border-left:3px solid ${t.color};"
-                    onclick="abrirCardDetalhes(event, '${c.id}')" title="${tituloDisplay}">
+                    onclick="rhAbrirCardDetalhes(event, '${c.id}')" title="${tituloDisplay}">
                     ${fotosHTML || `<i class="ph ${t.icon}" style="font-size:0.8rem;flex-shrink:0;margin-right:2px;"></i>`}
                     <span style="overflow:hidden;text-overflow:ellipsis;">${tituloDisplay}</span>
                 </div>`;
@@ -303,7 +305,7 @@
                 headerText = `<div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; font-weight:700;">${curDayName}</div>`;
             }
 
-            cells += `<div class="ag-cell ${isHoje?'ag-hoje':''} mode-${agendaViewMode}" data-date="${dateStr}" onclick="abrirNovoCard('${dateStr}')">
+            cells += `<div class="ag-cell ${isHoje?'ag-hoje':''} mode-${agendaViewMode}" data-date="${dateStr}" onclick="rhAbrirNovoCard('${dateStr}')">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
                     ${headerText}
                     <div class="ag-day-num ${isHoje?'ag-hoje-num':''}">${dObj.getDate()}</div>
@@ -320,24 +322,24 @@
         return `<div class="ag-wrap">
             <div class="ag-header">
                 <div class="ag-header-left">
-                    <button class="ag-nav-btn" onclick="agendaNav(-1)"><i class="ph ph-caret-left"></i></button>
+                    <button class="ag-nav-btn" onclick="rhAgendaNav(-1)"><i class="ph ph-caret-left"></i></button>
                     <h2 class="ag-titulo">${titulo}</h2>
-                    <button class="ag-nav-btn" onclick="agendaNav(1)"><i class="ph ph-caret-right"></i></button>
-                    <button class="ag-nav-btn ag-hoje-btn" onclick="agendaIrHoje()"><i class="ph ph-calendar-blank"></i> Hoje</button>
+                    <button class="ag-nav-btn" onclick="rhAgendaNav(1)"><i class="ph ph-caret-right"></i></button>
+                    <button class="ag-nav-btn ag-hoje-btn" onclick="rhAgendaIrHoje()"><i class="ph ph-calendar-blank"></i> Hoje</button>
                 </div>
                 <div class="ag-header-right">
-                    <button class="ag-nav-btn ${agendaFilterTipo === 'escala' ? 'ag-escala-active' : ''}" onclick="agendaSetFilter('${agendaFilterTipo === 'escala' ? '' : 'escala'}')" style="${agendaFilterTipo === 'escala' ? 'background:#1a7a46;color:#fff;border-color:#1a7a46;' : 'color:#1a7a46;border-color:#1a7a46;font-weight:600;'}"><i class="ph ph-users"></i> Escala Operacional</button>
-                    <select id="ag-filter-tipo" class="ag-nav-btn" onchange="agendaSetFilter(this.value)" style="outline:none; font-weight:600;">
+                    <button class="ag-nav-btn ${agendaFilterTipo === 'escala' ? 'ag-escala-active' : ''}" onclick="rhAgendaSetFilter('${agendaFilterTipo === 'escala' ? '' : 'escala'}')" style="${agendaFilterTipo === 'escala' ? 'background:#1a7a46;color:#fff;border-color:#1a7a46;' : 'color:#1a7a46;border-color:#1a7a46;font-weight:600;'}"><i class="ph ph-users"></i> Escala Operacional</button>
+                    <select id="ag-filter-tipo" class="ag-nav-btn" onchange="rhAgendaSetFilter(this.value)" style="outline:none; font-weight:600;">
                         <option value="">Todos os Cards</option>
                         ${TIPOS.filter(t => t.value !== 'outro' && t.value !== 'aso').map(t => `<option value="${t.value}" ${agendaFilterTipo === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
                     </select>
                     <div class="ag-view-toggles">
-                        <button class="ag-view-btn ${agendaViewMode==='dia'?'active':''}" onclick="agendaSetView('dia')">Dia</button>
-                        <button class="ag-view-btn ${agendaViewMode==='semana'?'active':''}" onclick="agendaSetView('semana')">Semana</button>
-                        <button class="ag-view-btn ${agendaViewMode==='mes'?'active':''}" onclick="agendaSetView('mes')">Mês</button>
+                        <button class="ag-view-btn ${agendaViewMode==='dia'?'active':''}" onclick="rhAgendaSetView('dia')">Dia</button>
+                        <button class="ag-view-btn ${agendaViewMode==='semana'?'active':''}" onclick="rhAgendaSetView('semana')">Semana</button>
+                        <button class="ag-view-btn ${agendaViewMode==='mes'?'active':''}" onclick="rhAgendaSetView('mes')">Mês</button>
                     </div>
-                    <button class="ag-nav-btn" onclick="limparTestesAgenda()" style="display:none; color: #dc2626; border-color: #fca5a5;"><i class="ph ph-trash"></i> Limpar Testes</button>
-                    <button class="ag-btn-novo" onclick="abrirNovoCard('')"><i class="ph ph-plus"></i> Novo Card</button>
+                    <button class="ag-nav-btn" onclick="limparTestesRhAgenda()" style="display:none; color: #dc2626; border-color: #fca5a5;"><i class="ph ph-trash"></i> Limpar Testes</button>
+                    <button class="ag-btn-novo" onclick="rhAbrirNovoCard('')"><i class="ph ph-plus"></i> Novo Card</button>
                 </div>
             </div>
             ${agendaFilterTipo === 'escala' ? `<div id="ag-escala-filtro-bar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:0.6rem 0;margin-bottom:0.75rem;">
@@ -350,7 +352,7 @@
                 {k:'afastado', label:'🟡 Afastado', color:'#ca8a04', bg:'#fefce8'},
                 {k:'falta',    label:'🔴 Falta',    color:'#dc2626', bg:'#fef2f2'},
                 {k:'aso',      label:'⚪ ASO',      color:'#64748b', bg:'#f8fafc'},
-            ].map(f => `<button onclick="agendaSetEscalaFiltro('${f.k}')"
+            ].map(f => `<button onclick="rhAgendaSetEscalaFiltro('${f.k}')"
                 style="border:1.5px solid ${agendaEscalaFiltroStatus===f.k?f.color:'#e2e8f0'};background:${agendaEscalaFiltroStatus===f.k?f.bg:'#fff'};color:${agendaEscalaFiltroStatus===f.k?f.color:'#64748b'};border-radius:20px;padding:4px 14px;font-size:0.8rem;font-weight:${agendaEscalaFiltroStatus===f.k?'700':'500'};cursor:pointer;transition:all .15s;">${f.label}</button>`
             ).join('')}
         </div>` : ''}
@@ -362,11 +364,11 @@
         
 
         <!-- Modal de Card -->
-        <div id="ag-modal-overlay" style="display:none;" onclick="fecharAgendaModal(event)">
+        <div id="ag-modal-overlay" style="display:none;" onclick="fecharRhAgendaModal(event)">
             <div class="ag-modal" onclick="event.stopPropagation()">
                 <div class="ag-modal-header">
                     <span id="ag-modal-title">Novo Card</span>
-                    <button onclick="fecharAgendaModal()" class="ag-modal-close"><i class="ph ph-x"></i></button>
+                    <button onclick="fecharRhAgendaModal()" class="ag-modal-close"><i class="ph ph-x"></i></button>
                 </div>
                 <div class="ag-modal-body" id="ag-modal-body"></div>
             </div>
@@ -444,7 +446,7 @@
     }
 
     // ── Navegação ───────────────────────────────────────────────
-    window.agendaNav = function(delta) {
+    window.rhAgendaNav = function(delta) {
         if (agendaViewMode === 'mes') {
             agendaCurrentDate.setMonth(agendaCurrentDate.getMonth() + delta);
         } else if (agendaViewMode === 'semana') {
@@ -455,24 +457,24 @@
         window.renderAgendaRH();
     };
     
-    window.agendaIrHoje = function() {
+    window.rhAgendaIrHoje = function() {
         agendaCurrentDate = new Date();
         window.renderAgendaRH();
     };
 
-    window.agendaSetView = function(mode) {
+    window.rhAgendaSetView = function(mode) {
         agendaViewMode = mode;
         window.renderAgendaRH();
     };
 
-    window.agendaSetFilter = function(tipo) {
+    window.rhAgendaSetFilter = function(tipo) {
         agendaFilterTipo = tipo;
         window.renderAgendaRH();
     };
 
-    window.abrirNovoCard = function(dateStr) { mostrarFormCard({ data: dateStr }); };
+    window.rhAbrirNovoCard = function(dateStr) { mostrarFormCard({ data: dateStr }); };
 
-    window.abrirCardDetalhes = function(e, id) {
+    window.rhAbrirCardDetalhes = function(e, id) {
         if (e) e.stopPropagation();
         const card = agendaCards.find(c => String(c.id) === String(id));
         if (!card) {
@@ -512,7 +514,7 @@
             const ativo = tipoAtual === t.value;
             return `<div class="ag-tipo-btn ${ativo?'active':''}"
                 style="${ativo?`background:${t.color};border-color:${t.color};color:#fff;`:''}"
-                onclick="agendaSelectTipo('${t.value}','${t.color}')"
+                onclick="rhAgendaSelectTipo('${t.value}','${t.color}')"
                 data-tipo="${t.value}">
                 <i class="ph ${t.icon}"></i>${t.label}
             </div>`;
@@ -526,7 +528,7 @@
             const c = agendaColabs.find(x => x.id == id);
             return c ? `<div class="ag-chip-resp" data-id="${id}">
                 <i class="ph ph-user-gear"></i>${c.nome_completo.split(' ')[0]}
-                <button onclick="agendaRemoveChip('resp','${id}')"><i class="ph ph-x"></i></button>
+                <button onclick="rhAgendaRemoveChip('resp','${id}')"><i class="ph ph-x"></i></button>
             </div>` : '';
         }).join('');
 
@@ -534,7 +536,7 @@
             const c = agendaColabs.find(x => x.id == id);
             return c ? `<div class="ag-chip-ref" data-id="${id}">
                 <i class="ph ph-user"></i>${c.nome_completo.split(' ')[0]}
-                <button onclick="agendaRemoveChip('ref','${id}')"><i class="ph ph-x"></i></button>
+                <button onclick="rhAgendaRemoveChip('ref','${id}')"><i class="ph ph-x"></i></button>
             </div>` : '';
         }).join('');
 
@@ -571,14 +573,14 @@
             </div>
             <!-- Responsáveis ocultos: gerenciados pelo sistema -->
             <div style="display:none" id="ag-resp-list-hidden">${respChips}</div>
-            <select id="ag-resp-select" style="display:none" onchange="agendaAddChip('resp',this.value);this.value=''">
+            <select id="ag-resp-select" style="display:none" onchange="rhAgendaAddChip('resp',this.value);this.value=''">
                 <option value="">— Adicionar responsável —</option>
                 ${colabOptions}
             </select>
             <div class="ag-chips-list" id="ag-resp-list" style="display:none"></div>
             <div class="ag-field">
                 <label><i class="ph ph-user" style="color:#92400e;margin-right:4px;"></i>Card referente à</label>
-                <select id="ag-ref-select" onchange="agendaAddChip('ref',this.value);this.value=''">
+                <select id="ag-ref-select" onchange="rhAgendaAddChip('ref',this.value);this.value=''">
                     <option value="">— Selecionar colaborador —</option>
                     ${colabOptions}
                 </select>
@@ -587,9 +589,9 @@
             <!-- Ações ocultas: gerenciadas pelo sistema de notificações -->
 
             <div class="ag-footer">
-                ${isEdicao?`<button class="ag-btn-del" onclick="agendaExcluirCard(${card.id})"><i class="ph ph-trash"></i> Excluir Card</button>`:''}
-                <button class="ag-btn-cancel" onclick="fecharAgendaModal()">Cancelar</button>
-                <button class="ag-btn-save" onclick="agendaSalvarCard(${card.id||'null'})">
+                ${isEdicao?`<button class="ag-btn-del" onclick="rhAgendaExcluirCard(${card.id})"><i class="ph ph-trash"></i> Excluir Card</button>`:''}
+                <button class="ag-btn-cancel" onclick="fecharRhAgendaModal()">Cancelar</button>
+                <button class="ag-btn-save" onclick="rhAgendaSalvarCard(${card.id||'null'})">
                     <i class="ph ph-floppy-disk"></i> ${isEdicao?'Editar Card':'Criar Card'}
                 </button>
             </div>`;
@@ -601,13 +603,13 @@
         }
     }
 
-    window.fecharAgendaModal = function(e) {
+    window.fecharRhAgendaModal = function(e) {
         if (e && e.target !== document.getElementById('ag-modal-overlay')) return;
         const ov = document.getElementById('ag-modal-overlay');
         if (ov) ov.style.display = 'none';
     };
 
-    window.agendaSelectTipo = function(val, color) {
+    window.rhAgendaSelectTipo = function(val, color) {
         const titInput = document.getElementById('ag-titulo');
         const oldTypeObj = TIPOS.find(t => t.label === titInput.value);
         if (!titInput.value || oldTypeObj) {
@@ -623,7 +625,7 @@
         if (btn) { btn.classList.add('active'); btn.style.background = color; btn.style.borderColor = color; btn.style.color = '#fff'; }
     };
 
-    window.agendaAddChip = function(tipo, id) {
+    window.rhAgendaAddChip = function(tipo, id) {
         if (!id) return;
         const listId = tipo === 'resp' ? 'ag-resp-list' : 'ag-ref-list';
         const list = document.getElementById(listId);
@@ -636,23 +638,23 @@
         chip.className = cls;
         chip.dataset.id = id;
         chip.innerHTML = `<i class="ph ${icone}"></i>${c.nome_completo.split(' ')[0]}
-            <button onclick="agendaRemoveChip('${tipo}','${id}')"><i class="ph ph-x"></i></button>`;
+            <button onclick="rhAgendaRemoveChip('${tipo}','${id}')"><i class="ph ph-x"></i></button>`;
         list.appendChild(chip);
     };
 
-    window.agendaRemoveChip = function(tipo, id) {
+    window.rhAgendaRemoveChip = function(tipo, id) {
         const listId = tipo === 'resp' ? 'ag-resp-list' : 'ag-ref-list';
         const chip = document.querySelector(`#${listId} [data-id="${id}"]`);
         if (chip) chip.remove();
     };
 
-    window.agendaToggleAcao = function(val, el) {
+    window.rhAgendaToggleAcao = function(val, el) {
         el.classList.toggle('selected');
         const cb = el.querySelector('input[type=checkbox]');
         if (cb) cb.checked = !cb.checked;
     };
 
-    window.agendaSalvarCard = async function(idExistente) {
+    window.rhAgendaSalvarCard = async function(idExistente) {
         const titulo    = document.getElementById('ag-titulo')?.value.trim();
         const data      = document.getElementById('ag-data')?.value;
         
@@ -684,7 +686,7 @@
         }
     };
 
-    window.agendaExcluirCard = async function(id) {
+    window.rhAgendaExcluirCard = async function(id) {
         if (!confirm('Excluir este card da agenda?')) return;
         try {
             await excluirCard(id);
