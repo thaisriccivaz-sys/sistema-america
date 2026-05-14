@@ -14219,26 +14219,38 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
   const { geradorNome, geradorCnpj, residuoCodigo, quantidade, unidade,
           acondicionamentoCodigo, estadoFisicoCodigo, tratamentoCodigo,
           observacao, complementarDeId,
-          destinadorCnpj, destinadorUnidade } = req.body;
+          destinadorCnpj, destinadorUnidade, motorista, placa, dataExpedicao } = req.body;
 
   // Usar destinador do formulário ou fallback para o padrão BRK
   const destCnpj = (destinadorCnpj || SIGOR_DESTINADOR.cnpj).replace(/\D/g, '');
   const destUnidade = parseInt(destinadorUnidade) || SIGOR_DESTINADOR.unidade;
 
   try {
-    // NOTA: usando homologação até receber credenciais de produção
+    // Usar API de PRODUCAO agora que temos as credenciais corretas
     const endpoint = '/salvarManifestoLote';
     
     // De/Para de unidades básicas
     const mapaUnidade = { 'TON': 3, 'KG': 1, 'L': 21, 'M3': 2 };
     const uniCodigo = mapaUnidade[unidade] || parseInt(unidade) || 3;
-    const homUnidade = parseInt(SIGOR_HOM.unidade); // 19201
+    
+    // America Rental CNPJ
+    const transpCnpj = '03434448000101';
+    const transpUnidade = 116064; 
+
+    // Date in ms
+    let dtExpedicao = Date.now();
+    if (dataExpedicao) {
+       dtExpedicao = new Date(dataExpedicao + 'T12:00:00Z').getTime();
+    }
 
     const payload = [{
       seuCodigo: 'AR-' + Date.now().toString().slice(-8),
       nomeResponsavel: 'América Rental',
-      transportador: { cpfCnpj: SIGOR_HOM.cpfCnpj, unidade: homUnidade },
-      destinador: { cpfCnpj: SIGOR_HOM.cpfCnpj, unidade: homUnidade }, // hom: mesmo usuário como destinador
+      nomeMotorista: motorista || 'MÁRCIO JORGE VILAR DA SILVA',
+      placaVeiculo: (placa || 'DPE5A75').replace(/[^a-zA-Z0-9]/g, ''),
+      dataExpedicao: dtExpedicao,
+      transportador: { cpfCnpj: transpCnpj, unidade: transpUnidade },
+      destinador: { cpfCnpj: destCnpj, unidade: destUnidade },
       gerador: { cpfCnpj: (geradorCnpj || '').replace(/\D/g, ''), razaoSocial: geradorNome },
       observacoes: observacao || '',
       listaManifestoResiduos: [{
@@ -14252,8 +14264,9 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
       }]
     }];
 
-    console.log('[MTR] Enviando payload hom:', JSON.stringify(payload));
-    const data = await sigorHomReq('/salvarManifestoLote', 'POST', payload);
+    console.log('[MTR] Enviando payload prod:', JSON.stringify(payload));
+    // Mudamos de sigorHomReq para sigorReq (Producao)
+    const data = await sigorReq('/salvarManifestoLote', 'POST', payload);
     console.log('[MTR] Resposta CETESB:', JSON.stringify(data).substring(0, 500));
     const obj = data.respostaApiwsManifestoDTO?.[0] || data.objetoResposta?.[0] || data.objetoResposta || data;
     const numeroMTR = obj?.manifestoNumeroEstadual || obj?.numeroManifesto || obj?.numero || null;

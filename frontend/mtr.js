@@ -120,6 +120,9 @@ window.abrirModalGerarMTR = async function (complementarDeId = null) {
     document.getElementById('mtr-destinador-nome').value = 'BRK AMBIENTAL - MAUÁ S.A.';
     document.getElementById('mtr-destinador-cnpj').value = '05.380.441/0002-60';
     document.getElementById('mtr-destinador-unidade').value = '19154';
+    document.getElementById('mtr-data-expedicao').value = new Date().toISOString().split('T')[0];
+    document.getElementById('mtr-motorista').value = 'MÁRCIO JORGE VILAR DA SILVA';
+    document.getElementById('mtr-placa').value = 'DPE5A75';
   }
 };
 
@@ -170,6 +173,9 @@ window.submitGerarMTR = async function (e) {
       tratamentoCodigo: document.getElementById('mtr-tratamento').value,
       observacao: document.getElementById('mtr-observacao').value,
       complementarDeId: document.getElementById('mtr-complementar-de').value || null,
+      motorista: document.getElementById('mtr-motorista').value,
+      placa: document.getElementById('mtr-placa').value,
+      dataExpedicao: document.getElementById('mtr-data-expedicao').value,
       // Destinador (editável pelo usuário)
       destinadorNome: document.getElementById('mtr-destinador-nome').value,
       destinadorCnpj: document.getElementById('mtr-destinador-cnpj').value,
