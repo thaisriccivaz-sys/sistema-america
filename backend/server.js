@@ -14026,7 +14026,8 @@ carregarCredenciaisSigorDoBanco();
 
 // ── GET /api/config/sigor - Retorna credenciais (senha mascarada) ──────────────
 app.get('/api/config/sigor', authenticateToken, (req, res) => {
-  if (!['admin', 'diretoria'].includes(req.user?.role)) return res.status(403).json({ erro: 'Sem permissao' });
+  const role = (req.user?.role || '').toLowerCase();
+  if (!['admin', 'administrador', 'diretoria'].includes(role)) return res.status(403).json({ erro: 'Sem permissao' });
   res.json({
     hom: { cpfCnpj: SIGOR_HOM.cpfCnpj, senha: SIGOR_HOM.senha, unidade: SIGOR_HOM.unidade },
     prod: { cpfCnpj: SIGOR_CFG.cpfCnpj, senha: SIGOR_CFG.senha, unidade: SIGOR_CFG.unidade }
@@ -14035,7 +14036,8 @@ app.get('/api/config/sigor', authenticateToken, (req, res) => {
 
 // ── PUT /api/config/sigor - Salva credenciais no banco ───────────────────────
 app.put('/api/config/sigor', authenticateToken, (req, res) => {
-  if (!['admin', 'diretoria'].includes(req.user?.role)) return res.status(403).json({ erro: 'Sem permissao' });
+  const role = (req.user?.role || '').toLowerCase();
+  if (!['admin', 'administrador', 'diretoria'].includes(role)) return res.status(403).json({ erro: 'Sem permissao' });
   const { hom, prod } = req.body;
   const agora = new Date().toISOString();
   const upsert = (chave, valor) => new Promise((resolve, reject) => {
@@ -14061,7 +14063,8 @@ app.put('/api/config/sigor', authenticateToken, (req, res) => {
 
 // ── GET /api/config/sigor/testar - Testa autenticacao ────────────────────────
 app.get('/api/config/sigor/testar', authenticateToken, async (req, res) => {
-  if (!['admin', 'diretoria'].includes(req.user?.role)) return res.status(403).json({ ok: false });
+  const role = (req.user?.role || '').toLowerCase();
+  if (!['admin', 'administrador', 'diretoria'].includes(role)) return res.status(403).json({ ok: false, mensagem: 'Sem permissão' });
   const env = req.query.env === 'prod' ? 'prod' : 'hom';
   const cfg = env === 'prod' ? SIGOR_CFG : SIGOR_HOM;
   const url = env === 'prod' ? SIGOR_CFG.apiProd : SIGOR_HOM.api;
