@@ -1,4 +1,4 @@
-﻿// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // MÓDULO: AGENDA LOGÍSTICA v3
 // ═══════════════════════════════════════════════════════════════
 (function() {
@@ -328,7 +328,7 @@
                     <button class="ag-nav-btn ag-hoje-btn" onclick="rhAgendaIrHoje()"><i class="ph ph-calendar-blank"></i> Hoje</button>
                 </div>
                 <div class="ag-header-right">
-                    <button class="ag-nav-btn ${agendaFilterTipo === 'escala' ? 'ag-escala-active' : ''}" onclick="rhAgendaSetFilter('${agendaFilterTipo === 'escala' ? '' : 'escala'}')" style="${agendaFilterTipo === 'escala' ? 'background:#1a7a46;color:#fff;border-color:#1a7a46;' : 'color:#1a7a46;border-color:#1a7a46;font-weight:600;'}"><i class="ph ph-users"></i> Escala Operacional</button>
+                    <button class="ag-nav-btn ${agendaFilterTipo === 'escala' ? 'ag-escala-active' : ''}" onclick="rhAgendaSetFilter('${agendaFilterTipo === 'escala' ? '' : 'escala'}')" style="${agendaFilterTipo === 'escala' ? 'background:#1a7a46;color:#fff;border-color:#1a7a46;' : 'color:#1a7a46;border-color:#1a7a46;font-weight:600;'}"><i class="ph ph-users"></i> Controle de Escala</button>
                     <select id="ag-filter-tipo" class="ag-nav-btn" onchange="rhAgendaSetFilter(this.value)" style="outline:none; font-weight:600;">
                         <option value="">Todos os Cards</option>
                         ${TIPOS.filter(t => t.value !== 'outro' && t.value !== 'aso').map(t => `<option value="${t.value}" ${agendaFilterTipo === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
@@ -342,7 +342,15 @@
                     <button class="ag-btn-novo" onclick="rhAbrirNovoCard('')"><i class="ph ph-plus"></i> Novo Card</button>
                 </div>
             </div>
-            ${agendaFilterTipo === 'escala' ? `<div id="ag-escala-filtro-bar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:0.6rem 0;margin-bottom:0.75rem;">
+            ${agendaFilterTipo === 'escala' ? `
+            <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; align-items:center;">
+                <input type="text" placeholder="Buscar por nome..." value="${agendaBuscaNome || ''}" oninput="rhAgendaSetBuscaNome(this.value)" style="padding:6px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; min-width:200px;">
+                <select onchange="rhAgendaSetBuscaSetor(this.value)" style="padding:6px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; min-width:150px; background:#fff;">
+                    <option value="">Todos os Setores</option>
+                    ${Array.from(new Set(agendaEscalaData.map(c => c.departamento).filter(Boolean))).sort().map(d => `<option value="${d}" ${agendaBuscaSetor===d?'selected':''}>${d}</option>`).join('')}
+                </select>
+            </div>
+            <div id="ag-escala-filtro-bar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:0.6rem 0;margin-bottom:0.75rem;">
             <span style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-right:4px;">Mostrar:</span>
             ${[
                 {k:'todos',    label:'Todos',      color:'#334155', bg:'#f1f5f9'},
