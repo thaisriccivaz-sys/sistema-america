@@ -14090,24 +14090,25 @@ app.get('/api/mtr/lista', authenticateToken, (req, res) => {
 app.get('/api/mtr/tabelas', authenticateToken, async (req, res) => {
   try {
     const [residuos, acondicionamentos, estadosFisicos, tratamentos, unidades] = await Promise.all([
-      sigorReq('/listaResiduos'),
-      sigorReq('/listaTipoAcondicionamento'),
-      sigorReq('/listaTipoEstadoFisico'),
-      sigorReq('/listaTratamentos'),
-      sigorReq('/listaUnidades')
+      sigorReq('/retornaListaResiduo', 'GET'),
+      sigorReq('/retornaListaAcondicionamento', 'GET'),
+      sigorReq('/retornaListaEstadoFisico', 'GET'),
+      sigorReq('/retornaListaTratamento', 'GET'),
+      sigorReq('/retornaListaUnidade', 'GET')
     ]);
     res.json({
-      residuos: residuos.objetoResposta || [],
-      acondicionamentos: acondicionamentos.objetoResposta || [],
-      estadosFisicos: estadosFisicos.objetoResposta || [],
-      tratamentos: tratamentos.objetoResposta || [],
-      unidades: unidades.objetoResposta || []
+      residuos: (residuos.objetoResposta || []).map(r => ({ codigo: r.resCodigoIbama, descricao: r.resDescricao })),
+      acondicionamentos: (acondicionamentos.objetoResposta || []).map(a => ({ codigo: a.tiaCodigo, descricao: a.tiaDescricao })),
+      estadosFisicos: (estadosFisicos.objetoResposta || []).map(e => ({ codigo: e.tieCodigo, descricao: e.tieDescricao })),
+      tratamentos: (tratamentos.objetoResposta || []).map(t => ({ codigo: t.traCodigo, descricao: t.traDescricao })),
+      unidades: (unidades.objetoResposta || []).map(u => ({ codigo: u.uniSigla || u.uniCodigo, descricao: u.uniDescricao + ' (' + (u.uniSigla || u.uniCodigo) + ')' }))
     });
   } catch (e) {
     console.error('[MTR] Erro tabelas:', e);
     res.status(500).json({ error: e.message });
   }
 });
+
 
 // ── POST /api/mtr/gerar ───────────────────────────────────────────────────────
 app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
@@ -14199,5 +14200,7 @@ app.get('/api/mtr/:id/pdf', authenticateToken, async (req, res) => {
 });
 
 console.log('[MTR SIGOR] Endpoints registrados: /lista /tabelas /gerar /:id/receber /:id/pdf');
+
+
 
 console.log('[MONACO] Endpoints webhook registrados: /token /notificacao /multa /remulta /multa-paga /retornoCondutor');
