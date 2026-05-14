@@ -7699,14 +7699,33 @@ app.delete('/api/epi-templates/:id', authenticateToken, (req, res) => {
 // --- USUÁRIOS ---
 app.get('/api/usuarios', authenticateToken, (req, res) => {
     db.all(`SELECT u.id, u.username, u.nome, u.email, u.role, u.departamento, u.grupo_permissao_id, u.ativo,
-                   g.nome as grupo_nome,
-                   c.foto_base64 as foto_colaborador
+                   g.nome as grupo_nome
             FROM usuarios u
             LEFT JOIN grupos_permissao g ON g.id = u.grupo_permissao_id
-            LEFT JOIN colaboradores c ON c.nome_completo = u.nome
-            ORDER BY u.nome`, [], (err, rows) => {
+            ORDER BY u.nome`, [], (err, usuarios) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
+        
+        db.all(`SELECT id, nome_completo, foto_base64, foto_path FROM colaboradores`, [], (errC, colabs) => {
+            if (errC) return res.json(usuarios);
+            
+            const norm = (s) => s ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : "";
+            
+            usuarios.forEach(u => {
+                const uNome = norm(u.nome);
+                let c = colabs.find(col => norm(col.nome_completo) === uNome);
+                if (!c) {
+                    c = colabs.find(col => {
+                        const cNome = norm(col.nome_completo);
+                        return cNome && uNome && (cNome.includes(uNome) || uNome.includes(cNome));
+                    });
+                }
+                if (c) {
+                    u.foto_colaborador = c.foto_base64 || (c.foto_path ? '/api/colaboradores/foto/' + c.id : null);
+                }
+            });
+            
+            res.json(usuarios);
+        });
     });
 });
 
