@@ -26,14 +26,19 @@ window.initMTR = async function () {
 // ── Carregar lista de MTRs do banco local ─────────────────────────────────────
 async function carregarListaMTR() {
   try {
+    // Limpar registros inválidos do servidor (gerados antes da correção de erros)
+    fetch('/api/mtr/limpar-invalidos', { method: 'DELETE', headers: { 'Authorization': `Bearer ${window.currentToken}` } }).catch(() => {});
+    
     const res = await fetch('/api/mtr/lista', { headers: { 'Authorization': `Bearer ${window.currentToken}` } });
     const data = await res.json();
-    _mtrListaCache = data || [];
+    // Filtrar localmente também para garantir
+    _mtrListaCache = (data || []).filter(m => m.numero_mtr && m.numero_mtr !== 'null');
     renderTabelaMTR(_mtrListaCache);
   } catch (e) {
     console.error('[MTR] Erro ao carregar lista:', e);
   }
 }
+
 
 function renderTabelaMTR(lista) {
   const tbody = document.getElementById('mtr-tbody');

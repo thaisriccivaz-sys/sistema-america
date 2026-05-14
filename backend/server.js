@@ -13947,45 +13947,6 @@ app.post('/api/monaco/multa-paga', monacoAuth, (req, res) => {
     upsertMonaco(uuid, 'multa-paga', payload, res);
 });
 
-// ── POST /api/monaco/retornoCondutor ─────────────────────────────────────────
-app.post('/api/monaco/retornoCondutor', monacoAuth, (req, res) => {
-    const { uuid, numero_ait, retorno_condutor } = req.body || {};
-    if (!uuid) return res.status(400).json({ codError: 400, message: 'Campo uuid obrigatório' });
-    db.run(`UPDATE multas_monaco SET retorno_condutor = ?, updated_at = datetime('now') WHERE uuid = ?`,
-        [retorno_condutor, uuid], function (err) {
-            if (err) return res.status(500).json({ codError: 500, message: 'Erro interno' });
-            if (this.changes === 0) return res.status(404).json({ codError: 404, message: 'UUID não encontrado' });
-            res.status(200).json({ mensagem: 'Status enviado com sucesso' });
-        });
-});
-
-// ── GET /api/monaco/multas ────────────────────────────────────────────────────
-// Lista todas as multas Monaco (para o frontend)
-app.get('/api/monaco/multas', authenticateToken, (req, res) => {
-    const { tipo, placa, visualizada, limit = 200, offset = 0 } = req.query;
-    let where = [];
-    let params = [];
-
-    if (tipo) { where.push('tipo_evento = ?'); params.push(tipo); }
-    if (placa) { where.push('placa LIKE ?'); params.push(`%${placa}%`); }
-    if (visualizada !== undefined && visualizada !== '') {
-        where.push('visualizada = ?');
-        params.push(parseInt(visualizada));
-    }
-
-    const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
-    db.all(`SELECT * FROM multas_monaco ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-        [...params, parseInt(limit), parseInt(offset)],
-        (err, rows) => {
-            if (err) return res.status(500).json({ error: err.message });
-            // Count total
-            db.get(`SELECT COUNT(*) as total, SUM(CASE WHEN visualizada = 0 THEN 1 ELSE 0 END) as novas
-                FROM multas_monaco ${whereClause}`, params, (e2, counts) => {
-                res.json({ multas: rows || [], total: counts?.total || 0, novas: counts?.novas || 0 });
-            });
-        });
-});
-
 // ── PATCH /api/monaco/multas/:id/visualizar ───────────────────────────────────
 app.patch('/api/monaco/multas/:id/visualizar', authenticateToken, (req, res) => {
     db.run(`UPDATE multas_monaco SET visualizada = 1, status_visualizacao = 'vista', updated_at = datetime('now') WHERE id = ?`,
@@ -14019,26 +13980,39 @@ app.get('/api/monaco/multas/count/novas', authenticateToken, (req, res) => {
 // ── MÓDULO MTR SIGOR ─────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const SIGOR_CFG = {
+// Configuracao de HOMOLOGACAO - usada para buscar tabelas de referencia (residuos, tratamentos, etc.)
+const SIGOR_HOM = {
   cpfCnpj: '38058722839',
   senha: 'gb5ti5',
   unidade: '19201',
-  apiHom: 'https://mtrr-hom.cetesb.sp.gov.br/apiws/rest',
-  apiProd: 'https://mtrr.cetesb.sp.gov.br/apiws/rest',
-  get api() { return this.apiProd; } // ← Produção ativa
+  api: 'https://mtrr-hom.cetesb.sp.gov.br/apiws/rest'
 };
 
-// Dados fixos do Destinador padrão
+// Configuracao de PRODUCAO - usada para gerar MTRs reais
+// Preencher com as credenciais do site https://mtr.cetesb.sp.gov.br
+const SIGOR_CFG = {
+  cpfCnpj: '38058722839',   // ← CPF do usuario de producao
+  senha: 'gb5ti5',           // ← Senha de producao
+  unidade: '19201',          // ← Codigo da unidade de producao
+  apiHom: 'https://mtrr-hom.cetesb.sp.gov.br/apiws/rest',
+  apiProd: 'https://mtrr.cetesb.sp.gov.br/apiws/rest',
+  get api() { return this.apiProd; }
+};
+
+// Dados fixos do Destinador padrao
 const SIGOR_DESTINADOR = {
   cnpj: '05380441000260',
   unidade: 19154,
-  nome: 'BRK AMBIENTAL - MAUÁ S.A.'
+  nome: 'BRK AMBIENTAL - MAUA S.A.'
 };
 
 
 let _sigorToken = null;
 let _sigorTokenExp = 0;
+let _sigorHomToken = null;
+let _sigorHomTokenExp = 0;
 
+// Token de PRODUCAO (para gerar MTRs)
 async function sigorGetToken() {
   if (_sigorToken && Date.now() < _sigorTokenExp) return _sigorToken;
   const resp = await fetch(SIGOR_CFG.api + '/gettoken', {
@@ -14047,12 +14021,28 @@ async function sigorGetToken() {
     body: JSON.stringify({ cpfCnpj: SIGOR_CFG.cpfCnpj, senha: SIGOR_CFG.senha, unidade: SIGOR_CFG.unidade })
   });
   const data = await resp.json();
-  if (data.erro || !data.objetoResposta) throw new Error(data.mensagem || 'Falha na autenticação SIGOR');
+  if (data.erro || !data.objetoResposta) throw new Error(data.mensagem || 'Falha na autenticacao SIGOR Producao');
   _sigorToken = data.objetoResposta;
-  _sigorTokenExp = Date.now() + 3600000; // 1h
+  _sigorTokenExp = Date.now() + 3600000;
   return _sigorToken;
 }
 
+// Token de HOMOLOGACAO (para buscar tabelas de referencia - residuos, tratamentos, etc.)
+async function sigorGetHomToken() {
+  if (_sigorHomToken && Date.now() < _sigorHomTokenExp) return _sigorHomToken;
+  const resp = await fetch(SIGOR_HOM.api + '/gettoken', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cpfCnpj: SIGOR_HOM.cpfCnpj, senha: SIGOR_HOM.senha, unidade: SIGOR_HOM.unidade })
+  });
+  const data = await resp.json();
+  if (data.erro || !data.objetoResposta) throw new Error(data.mensagem || 'Falha na autenticacao SIGOR Homologacao');
+  _sigorHomToken = data.objetoResposta;
+  _sigorHomTokenExp = Date.now() + 3600000;
+  return _sigorHomToken;
+}
+
+// Requisicao generica para PRODUCAO
 async function sigorReq(path, method = 'GET', body = null) {
   const token = await sigorGetToken();
   const opts = { method, headers: { 'Authorization': token, 'Content-Type': 'application/json' } };
@@ -14060,6 +14050,14 @@ async function sigorReq(path, method = 'GET', body = null) {
   const resp = await fetch(SIGOR_CFG.api + path, opts);
   return resp.json();
 }
+
+// Requisicao generica para HOMOLOGACAO (tabelas de referencia)
+async function sigorHomReq(path) {
+  const token = await sigorGetHomToken();
+  const resp = await fetch(SIGOR_HOM.api + path, { headers: { 'Authorization': token } });
+  return resp.json();
+}
+
 
 // Criar tabela mtr_local se não existir
 db.run(`CREATE TABLE IF NOT EXISTS mtr_local (
