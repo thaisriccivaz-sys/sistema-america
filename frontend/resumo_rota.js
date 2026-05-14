@@ -180,15 +180,17 @@ function _rrMontarColB(v) {
     v.os.forEach(os => {
         if (!os.obs) return;
         let icon = _rrObsIcon(os.obs);
-        let nome = (os.cliente || '').trim();
+                let nome = (os.cliente || '').trim();
         
-        // Se o nome já possui emoji no início, evitamos adicionar ícone duplicado
-        if (/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F]/u.test(nome)) {
-            icon = ''; 
-        }
+        // Remove os emojis do nome do cliente para que o texto fique limpo
+        nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🔸]+/gu, '').trim();
         
         nome = nome.substring(0, 25).trim();
-        obsLinhas.push(`${icon ? icon + ' ' : ''}${nome}: ${os.obs.toUpperCase()}`);
+        
+        // Remove também do os.obs caso já venha com emojis como 🛒 no início
+        let obsLimpa = os.obs.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🛒]+/, '').trim().toUpperCase();
+        
+        obsLinhas.push(`${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`);
     });
     if (obsLinhas.length) { lines.push(...obsLinhas); lines.push(''); }
 
@@ -212,8 +214,17 @@ function _rrMontarColB(v) {
         lines.push('');
     }
 
-    // 4. OUTROS
-    const outros = v.os.filter(o => o.tipo === 'OUTROS' || o.tipo === 'AVULSA');
+        // 4. OUTROS E AVULSA
+    const avulsas = v.os.filter(o => o.tipo === 'AVULSA');
+    if (avulsas.length) {
+        const ag = _rrAgruparProdutos(avulsas);
+        lines.push('❗ MANUTENCAO AVULSA ' + _rrTipoObraEvento(avulsas) + ':');
+        for (const [nome, { qtd, icon }] of Object.entries(ag))
+            lines.push('   ' + qtd + ' × ' + nome);
+        lines.push('');
+    }
+
+    const outros = v.os.filter(o => o.tipo === 'OUTROS');
     if (outros.length) {
         outros.forEach(o => lines.push(o.servico.toUpperCase()));
         lines.push('');
