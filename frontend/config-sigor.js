@@ -64,9 +64,18 @@ window.testarSigor = async function (env) {
   statusEl.style.background = '#fef3c7';
   statusEl.style.color = '#92400e';
 
+  // Ler do campo da tela (evita precisar salvar antes para testar)
+  const payload = {
+    cpfCnpj: document.getElementById(`${env}-cpfcnpj`).value.trim().replace(/\D/g, ''),
+    senha: document.getElementById(`${env}-senha`).value.trim(),
+    unidade: document.getElementById(`${env}-unidade`).value.trim()
+  };
+
   try {
     const res = await fetch(`/api/config/sigor/testar?env=${env}`, {
-      headers: { 'Authorization': `Bearer ${window.currentToken}` }
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.currentToken}` },
+      body: JSON.stringify(payload)
     });
     const d = await res.json();
     if (d.ok) {

@@ -14061,12 +14061,12 @@ app.put('/api/config/sigor', authenticateToken, (req, res) => {
     .catch(e => res.status(500).json({ erro: e.message }));
 });
 
-// ── GET /api/config/sigor/testar - Testa autenticacao ────────────────────────
-app.get('/api/config/sigor/testar', authenticateToken, async (req, res) => {
+// ── POST /api/config/sigor/testar - Testa autenticacao com os dados enviados ──
+app.post('/api/config/sigor/testar', authenticateToken, async (req, res) => {
   const role = (req.user?.role || '').toLowerCase();
   if (!['admin', 'administrador', 'diretoria'].includes(role)) return res.status(403).json({ ok: false, mensagem: 'Sem permissão' });
   const env = req.query.env === 'prod' ? 'prod' : 'hom';
-  const cfg = env === 'prod' ? SIGOR_CFG : SIGOR_HOM;
+  const cfg = req.body || {}; // Lê da requisição, não do banco
   const url = env === 'prod' ? SIGOR_CFG.apiProd : SIGOR_HOM.api;
   try {
     const resp = await fetch(url + '/gettoken', {
@@ -14076,7 +14076,7 @@ app.get('/api/config/sigor/testar', authenticateToken, async (req, res) => {
     });
     const data = await resp.json();
     if (data.erro || !data.objetoResposta) {
-      return res.json({ ok: false, mensagem: data.mensagem || 'Credenciais invalidas' });
+      return res.json({ ok: false, mensagem: data.mensagem || 'Credenciais inválidas' });
     }
     // Invalida token em cache para usar as novas credenciais
     if (env === 'prod') { _sigorToken = null; _sigorTokenExp = 0; }
