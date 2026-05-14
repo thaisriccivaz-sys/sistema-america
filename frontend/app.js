@@ -361,10 +361,15 @@ async function carregarFotoUsuarioTopbar() {
         });
         if (!resColabs.ok) return;
         const colaboradores = await resColabs.json();
-        const colaborador = colaboradores.find(c =>
-            c.nome_completo && usuarioAtual.nome &&
-            c.nome_completo.toLowerCase().trim() === usuarioAtual.nome.toLowerCase().trim()
-        );
+        const norm = (s) => s ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : "";
+        const uNome = norm(usuarioAtual.nome);
+        let colaborador = colaboradores.find(c => norm(c.nome_completo) === uNome);
+        if (!colaborador) {
+            colaborador = colaboradores.find(c => {
+                const cNome = norm(c.nome_completo);
+                return cNome && uNome && (cNome.includes(uNome) || uNome.includes(cNome));
+            });
+        }
 
         if (!colaborador || !colaborador.id) return;
 
