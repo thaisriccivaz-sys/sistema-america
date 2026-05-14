@@ -8,10 +8,23 @@ let _multasSortDir = 'desc'; // mais novo primeiro por padrão
 // Helper: badge de data limite (vermelho se < 10 dias)
 function _dataLimiteBadge(dl) {
     if (!dl) return '—';
-    const [y,m,d] = dl.split('-');
-    const fmt = `${d}/${m}/${y}`;
-    const diff = Math.ceil((new Date(dl + 'T12:00:00') - new Date()) / 86400000);
-    if (diff <= 10) {
+    let fmt = '';
+    let isoDateForDiff = '';
+    if (dl.includes('/')) {
+        fmt = dl;
+        const parts = dl.split('/');
+        if (parts.length === 3) {
+            isoDateForDiff = `${parts[2]}-${parts[1]}-${parts[0]}T12:00:00`;
+        } else {
+            isoDateForDiff = new Date().toISOString();
+        }
+    } else {
+        const [y,m,d] = dl.split('-');
+        fmt = `${d}/${m}/${y}`;
+        isoDateForDiff = dl + 'T12:00:00';
+    }
+    const diff = Math.ceil((new Date(isoDateForDiff) - new Date()) / 86400000);
+    if (diff <= 10 && !isNaN(diff)) {
         const urgente = diff <= 0 ? 'VENCIDA' : `${diff}d`;
         return `<span style="color:#dc2626;font-weight:700;white-space:nowrap;" title="${urgente}">⚠️ ${fmt}</span>`;
     }
@@ -867,7 +880,14 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
 
                     <div style="margin-bottom:1rem; background:#fff7ed; border:1.5px solid #fed7aa; border-radius:8px; padding:0.85rem 1rem;">
                         <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:700; color:#c2410c;">&#128197; Data Limite &mdash; Indicação de Condutor / Defesa de Autuação</label>
-                        <input type="date" id="gm-data-limite" value="${multa.data_limite || ''}" style="width:100%; padding:0.6rem; border:1px solid #fed7aa; border-radius:4px; font-size:0.9rem;">
+                        <input type="date" id="gm-data-limite" value="${(function(){
+                            let dl = multa.data_limite || '';
+                            if (dl.includes('/')) {
+                                const p = dl.split('/');
+                                if(p.length === 3) return \`\${p[2]}-\${p[1]}-\${p[0]}\`;
+                            }
+                            return dl;
+                        })()}" style="width:100%; padding:0.6rem; border:1px solid #fed7aa; border-radius:4px; font-size:0.9rem;">
                     </div>
 
                     <div style="margin-bottom:1rem;">

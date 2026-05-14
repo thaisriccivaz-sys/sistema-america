@@ -165,10 +165,24 @@ function _renderRows() {
         
         let dataLimiteHtml = '—';
         if (dataLimiteVal) {
-             const [y, mm, d] = dataLimiteVal.split('-');
-             const fmt = `${d}/${mm}/${y}`;
-             const diff = Math.ceil((new Date(dataLimiteVal + 'T12:00:00') - new Date()) / 86400000);
-             if (diff <= 10) {
+             let fmt = '';
+             let isoDateForDiff = '';
+             if (dataLimiteVal.includes('/')) {
+                 fmt = dataLimiteVal;
+                 const parts = dataLimiteVal.split('/');
+                 if (parts.length === 3) {
+                     isoDateForDiff = `${parts[2]}-${parts[1]}-${parts[0]}T12:00:00`;
+                 } else {
+                     isoDateForDiff = new Date().toISOString(); // fallback
+                 }
+             } else {
+                 const [y, mm, d] = dataLimiteVal.split('-');
+                 fmt = `${d}/${mm}/${y}`;
+                 isoDateForDiff = dataLimiteVal + 'T12:00:00';
+             }
+             
+             const diff = Math.ceil((new Date(isoDateForDiff) - new Date()) / 86400000);
+             if (diff <= 10 && !isNaN(diff)) {
                   const urgente = diff <= 0 ? 'VENCIDA' : `${diff}d`;
                   dataLimiteHtml = `<span style="color:#dc2626;font-weight:700;white-space:nowrap;" title="${urgente}">⚠️ ${fmt}</span>`;
              } else {
@@ -223,7 +237,7 @@ window._monacoAbrirDetalhe = async function(id) {
     // Marcar como visualizada
     if (!m.visualizada) {
         try {
-            await fetch(`${window.API_URL}/monaco/multas/${id}/visualizar`, {
+            await fetch(`/api/monaco/multas/${id}/visualizar`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${window.currentToken}` }
             });
@@ -356,7 +370,7 @@ function _campoFull(label, val) {
 window._monacoSalvarObs = async function(id) {
     const obs = document.getElementById('monaco-obs-input')?.value || '';
     try {
-        await fetch(`${window.API_URL}/monaco/multas/${id}/observacao`, {
+        await fetch(`/api/monaco/multas/${id}/observacao`, {
             method: 'PATCH',
             headers: { 'Authorization': `Bearer ${window.currentToken}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ observacao_interna: obs })
@@ -373,7 +387,7 @@ window._monacoMarcarTodasLidas = async function() {
     if (!novas.length) return;
     if (!confirm(`Marcar ${novas.length} multa(s) como lidas?`)) return;
     await Promise.all(novas.map(m =>
-        fetch(`${window.API_URL}/monaco/multas/${m.id}/visualizar`, {
+        fetch(`/api/monaco/multas/${m.id}/visualizar`, {
             method: 'PATCH', headers: { 'Authorization': `Bearer ${window.currentToken}` }
         })
     ));
