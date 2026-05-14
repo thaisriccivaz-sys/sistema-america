@@ -908,7 +908,7 @@ function navigateTo(target) {
     } else if (target === 'logistica-itinerantes') {
         if (typeof window.renderItinerantesPage === 'function') setTimeout(() => window.renderItinerantesPage(), 80);
     } else if (target === 'rh-agenda') {
-        if (typeof window.renderAgendaLogistica === 'function') setTimeout(() => window.renderAgendaLogistica(), 80);
+        if (typeof window.renderAgendaRH === 'function') setTimeout(() => window.renderAgendaRH(), 80);
     } else if (target === 'logistica-agenda') {
         if (typeof window.renderAgendaLogistica === 'function') setTimeout(() => window.renderAgendaLogistica(), 80);
     } else if (target === 'comercial-credenciamento') {

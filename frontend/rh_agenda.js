@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════════════════
 // MÓDULO: AGENDA LOGÍSTICA v3
 // ═══════════════════════════════════════════════════════════════
 (function() {
@@ -91,15 +91,15 @@
                 headers: { Authorization: `Bearer ${window.currentToken}` }
             });
             if (!r.ok) throw new Error(await r.text());
-            window.renderAgendaLogistica();
+            window.renderAgendaRH();
         } catch(e) {
             alert('Erro ao limpar testes: ' + e.message);
         }
     };
 
     // ── Renderização principal ──────────────────────────────────
-    window.renderAgendaLogistica = async function() {
-        const container = document.getElementById('logistica-agenda-container');
+    window.renderAgendaRH = async function() {
+        const container = document.getElementById('rh-agenda-container');
         if (!container) return;
         await carregarColabs();
         
@@ -142,7 +142,7 @@
 
     window.agendaSetEscalaFiltro = function(status) {
         agendaEscalaFiltroStatus = status;
-        window.renderAgendaLogistica();
+        window.renderAgendaRH();
     };
 
     function buildAgendaHTML() {
@@ -452,22 +452,22 @@
         } else if (agendaViewMode === 'dia') {
             agendaCurrentDate.setDate(agendaCurrentDate.getDate() + delta);
         }
-        window.renderAgendaLogistica();
+        window.renderAgendaRH();
     };
     
     window.agendaIrHoje = function() {
         agendaCurrentDate = new Date();
-        window.renderAgendaLogistica();
+        window.renderAgendaRH();
     };
 
     window.agendaSetView = function(mode) {
         agendaViewMode = mode;
-        window.renderAgendaLogistica();
+        window.renderAgendaRH();
     };
 
     window.agendaSetFilter = function(tipo) {
         agendaFilterTipo = tipo;
-        window.renderAgendaLogistica();
+        window.renderAgendaRH();
     };
 
     window.abrirNovoCard = function(dateStr) { mostrarFormCard({ data: dateStr }); };
@@ -678,7 +678,7 @@
             await salvarCard(payload);
             showToast(idExistente ? 'Card atualizado!' : 'Card criado!', 'success');
             document.getElementById('ag-modal-overlay').style.display = 'none';
-            await window.renderAgendaLogistica();
+            await window.renderAgendaRH();
         } catch(e) {
             showToast('Erro ao salvar: ' + e.message, 'error');
         }
@@ -690,7 +690,7 @@
             await excluirCard(id);
             showToast('Card excluído.', 'success');
             document.getElementById('ag-modal-overlay').style.display = 'none';
-            await window.renderAgendaLogistica();
+            await window.renderAgendaRH();
         } catch(e) {
             showToast('Erro ao excluir: ' + e.message, 'error');
         }
