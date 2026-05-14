@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -12705,7 +12705,7 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
 app.get('/api/rh/escala', authenticateToken, (req, res) => {
     const { inicio, fim } = req.query;
     if (!inicio || !fim) return res.status(400).json({ error: 'Informe inicio e fim.' });
-    const INCL = ['Administrativo', 'Comercial', 'Financeiro', 'Limpeza', 'Logística', 'Manutenção', 'RH', 'Supervisão'];
+    const INCL = ['Administrativo', 'Comercial', 'Financeiro', 'Limpeza', 'Logística', 'Manutenção', 'RH', 'Supervisão', 'Ajudante Geral', 'Ajudante Pátio', 'Liderança', 'Motorista'];
     const incStr = INCL.map(() => '?').join(',');
     db.all(`SELECT id, nome_completo, cargo, departamento, foto_base64, foto_path, aso_exame_data,
                    escala_tipo, escala_folgas, escala_ciclo_inicio, horario_entrada, horario_saida, status
