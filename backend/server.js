@@ -14025,8 +14025,16 @@ const SIGOR_CFG = {
   unidade: '19201',
   apiHom: 'https://mtrr-hom.cetesb.sp.gov.br/apiws/rest',
   apiProd: 'https://mtrr.cetesb.sp.gov.br/apiws/rest',
-  get api() { return this.apiHom; } // ← Troque para apiProd em produção
+  get api() { return this.apiProd; } // ← Produção ativa
 };
+
+// Dados fixos do Destinador padrão
+const SIGOR_DESTINADOR = {
+  cnpj: '05380441000260',
+  unidade: 19154,
+  nome: 'BRK AMBIENTAL - MAUÁ S.A.'
+};
+
 
 let _sigorToken = null;
 let _sigorTokenExp = 0;
@@ -14127,7 +14135,7 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
       seuCodigo: 'AR-' + Date.now().toString().slice(-8),
       nomeResponsavel: 'América Rental',
       transportador: { cpfCnpj: '03434448000101', unidade: parseInt(SIGOR_CFG.unidade) },
-      destinador: { cpfCnpj: '03434448000101', unidade: parseInt(SIGOR_CFG.unidade) },
+      destinador: { cpfCnpj: SIGOR_DESTINADOR.cnpj, unidade: SIGOR_DESTINADOR.unidade },
       gerador: { cpfCnpj: (geradorCnpj || '').replace(/\D/g, ''), razaoSocial: geradorNome },
       observacoes: observacao || '',
       listaManifestoResiduos: [{

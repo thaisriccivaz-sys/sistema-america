@@ -106,6 +106,7 @@ window.abrirModalGerarMTR = async function (complementarDeId = null) {
     document.getElementById('mtr-unidade').value = 'TON';
     document.getElementById('mtr-residuo').value = '200304'; // Lodos de fossas sépticas
     document.getElementById('mtr-estado-fisico').value = '2'; // LÍQUIDO
+    document.getElementById('mtr-acondicionamento').value = '11'; // TANQUE
     document.getElementById('mtr-tratamento').value = '23'; // Tratamento de Efluentes
   }
 };
