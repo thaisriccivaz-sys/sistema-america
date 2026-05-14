@@ -884,7 +884,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                             let dl = multa.data_limite || '';
                             if (dl.includes('/')) {
                                 const p = dl.split('/');
-                                if(p.length === 3) return \`\${p[2]}-\${p[1]}-\${p[0]}\`;
+                                if(p.length === 3) return p[2] + '-' + p[1] + '-' + p[0];
                             }
                             return dl;
                         })()}" style="width:100%; padding:0.6rem; border:1px solid #fed7aa; border-radius:4px; font-size:0.9rem;">
