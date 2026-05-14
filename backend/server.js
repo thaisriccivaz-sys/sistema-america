@@ -14129,7 +14129,11 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
   const { geradorNome, geradorCnpj, residuoCodigo, quantidade, unidade,
           acondicionamentoCodigo, estadoFisicoCodigo, tratamentoCodigo,
           observacao, complementarDeId,
-          destinadorNome, destinadorCnpj, destinadorUnidade } = req.body;
+          destinadorCnpj, destinadorUnidade } = req.body;
+
+  // Usar destinador do formulário ou fallback para o padrão BRK
+  const destCnpj = (destinadorCnpj || SIGOR_DESTINADOR.cnpj).replace(/\D/g, '');
+  const destUnidade = parseInt(destinadorUnidade) || SIGOR_DESTINADOR.unidade;
 
   try {
     const endpoint = complementarDeId ? '/salvarManifestoComplementarLote' : '/salvarManifestoLote';
@@ -14142,10 +14146,7 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
       seuCodigo: 'AR-' + Date.now().toString().slice(-8),
       nomeResponsavel: 'América Rental',
       transportador: { cpfCnpj: '03434448000101', unidade: parseInt(SIGOR_CFG.unidade) },
-      destinador: {
-        cpfCnpj: (destinadorCnpj || SIGOR_DESTINADOR.cnpj).replace(/\D/g, ''),
-        unidade: parseInt(destinadorUnidade || SIGOR_DESTINADOR.unidade)
-      },
+      destinador: { cpfCnpj: destCnpj, unidade: destUnidade },
       gerador: { cpfCnpj: (geradorCnpj || '').replace(/\D/g, ''), razaoSocial: geradorNome },
       observacoes: observacao || '',
       listaManifestoResiduos: [{

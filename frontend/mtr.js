@@ -84,41 +84,45 @@ async function carregarTabelas() {
 window.abrirModalGerarMTR = async function (complementarDeId = null) {
   const modal = document.getElementById('modal-gerar-mtr');
   if (!modal) return;
-  
-  // Mostrar estado de carregamento
-  document.getElementById('mtr-residuo').innerHTML = '<option value="">Carregando opções da CETESB...</option>';
-  document.getElementById('mtr-acondicionamento').innerHTML = '<option value="">Carregando...</option>';
-  document.getElementById('mtr-estado-fisico').innerHTML = '<option value="">Carregando...</option>';
-  document.getElementById('mtr-tratamento').innerHTML = '<option value="">Carregando...</option>';
-  
+
+  // 1. Reset do form (limpa tudo antes de repopular)
   document.getElementById('mtr-form').reset();
   document.getElementById('mtr-complementar-de').value = complementarDeId || '';
-  document.getElementById('mtr-modal-titulo').textContent = complementarDeId ? 'Gerar MTR Complementar' : 'Gerar Nova MTR';
+  document.getElementById('mtr-modal-titulo').innerHTML = complementarDeId
+    ? '<i class="ph ph-leaf" style="color:#10b981;"></i> Gerar MTR Complementar'
+    : '<i class="ph ph-leaf" style="color:#10b981;"></i> Gerar Nova MTR';
+
+  // 2. Mostrar estado de carregamento nos selects dinâmicos
+  ['mtr-residuo','mtr-acondicionamento','mtr-estado-fisico','mtr-tratamento'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<option value="">Carregando...</option>';
+  });
+
   modal.style.display = 'flex';
 
-  // Se as listas estiverem vazias, tenta carregar novamente
-  if (_mtrResiduos.length === 0 || _mtrAcondicionamentos.length === 0) {
-    await carregarTabelas();
-  }
-  
+  // 3. Carregar tabelas SEMPRE (garante dados frescos)
+  await carregarTabelas();
+
+  // 4. Preencher selects com os dados carregados
   preencherSelectsModal();
 
-  // Se for uma nova MTR (não complementar), setar valores padrões recorrentes
+  // 5. Setar valores padrão APÓS preencher (funciona pois opções já existem no DOM)
   if (!complementarDeId) {
     document.getElementById('mtr-gerador-nome').value = 'América Rental Equipamentos';
     document.getElementById('mtr-gerador-cnpj').value = '03434448000101';
     document.getElementById('mtr-quantidade').value = '10';
     document.getElementById('mtr-unidade').value = 'TON';
-    document.getElementById('mtr-residuo').value = '200304'; // Lodos de fossas sépticas
-    document.getElementById('mtr-estado-fisico').value = '2'; // LÍQUIDO
+    document.getElementById('mtr-residuo').value = '200304';      // Lodos de fossas sépticas
+    document.getElementById('mtr-estado-fisico').value = '2';     // LÍQUIDO
     document.getElementById('mtr-acondicionamento').value = '11'; // TANQUE
-    document.getElementById('mtr-tratamento').value = '23'; // Tratamento de Efluentes
-    // Destinador padrão: BRK Ambiental - Mauá
+    document.getElementById('mtr-tratamento').value = '23';       // Tratamento de Efluentes
+    // Destinador padrão
     document.getElementById('mtr-destinador-nome').value = 'BRK AMBIENTAL - MAUÁ S.A.';
-    document.getElementById('mtr-destinador-cnpj').value = '05380441000260';
+    document.getElementById('mtr-destinador-cnpj').value = '05.380.441/0002-60';
     document.getElementById('mtr-destinador-unidade').value = '19154';
   }
 };
+
 
 window.fecharModalMTR = function () {
   const modal = document.getElementById('modal-gerar-mtr');
@@ -156,20 +160,22 @@ window.submitGerarMTR = async function (e) {
   btn.innerHTML = '<i class="ph ph-spinner"></i> Gerando...';
   try {
     const payload = {
-      geradorNome:          document.getElementById('mtr-gerador-nome').value,
-      geradorCnpj:          document.getElementById('mtr-gerador-cnpj').value,
-      residuoCodigo:        document.getElementById('mtr-residuo').value,
-      quantidade:           document.getElementById('mtr-quantidade').value,
-      unidade:              document.getElementById('mtr-unidade').value,
+      geradorNome: document.getElementById('mtr-gerador-nome').value,
+      geradorCnpj: document.getElementById('mtr-gerador-cnpj').value,
+      residuoCodigo: document.getElementById('mtr-residuo').value,
+      quantidade: document.getElementById('mtr-quantidade').value,
+      unidade: document.getElementById('mtr-unidade').value,
       acondicionamentoCodigo: document.getElementById('mtr-acondicionamento').value,
-      estadoFisicoCodigo:   document.getElementById('mtr-estado-fisico').value,
-      tratamentoCodigo:     document.getElementById('mtr-tratamento').value,
-      observacao:           document.getElementById('mtr-observacao').value,
-      destinadorNome:       document.getElementById('mtr-destinador-nome').value,
-      destinadorCnpj:       document.getElementById('mtr-destinador-cnpj').value,
-      destinadorUnidade:    document.getElementById('mtr-destinador-unidade').value,
-      complementarDeId:     document.getElementById('mtr-complementar-de').value || null
+      estadoFisicoCodigo: document.getElementById('mtr-estado-fisico').value,
+      tratamentoCodigo: document.getElementById('mtr-tratamento').value,
+      observacao: document.getElementById('mtr-observacao').value,
+      complementarDeId: document.getElementById('mtr-complementar-de').value || null,
+      // Destinador (editável pelo usuário)
+      destinadorNome: document.getElementById('mtr-destinador-nome').value,
+      destinadorCnpj: document.getElementById('mtr-destinador-cnpj').value,
+      destinadorUnidade: parseInt(document.getElementById('mtr-destinador-unidade').value) || 19154
     };
+
     const res = await fetch('/api/mtr/gerar', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.currentToken}` }, body: JSON.stringify(payload) });
     const data = await res.json();
     if (!res.ok || data.erro) throw new Error(data.mensagem || 'Erro ao gerar MTR');
