@@ -10,6 +10,8 @@
     let agendaColabs = [];
     let agendaEscalaData = [];
     let agendaEscalaFiltroStatus = 'todos'; // 'todos','disponivel','folga','ferias','afastado','falta'
+    let agendaBuscaNome = '';
+    let agendaBuscaSetores = [];
 
     function isoDate(d) {
         return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -142,7 +144,56 @@
 
     window.agendaSetEscalaFiltro = function(status) {
         agendaEscalaFiltroStatus = status;
-        window.renderAgendaLogistica();
+        window.agendaRenderFiltroStatus();
+        window.agendaUpdateGrid();
+    };
+
+    window.agendaSetBuscaNome = function(val) {
+        agendaBuscaNome = (val || '').toLowerCase();
+        window.agendaUpdateGrid();
+    };
+
+    window.agendaToggleSetor = function(setor) {
+        if (setor === 'todos') {
+            agendaBuscaSetores = [];
+        } else if (agendaBuscaSetores.includes(setor)) {
+            agendaBuscaSetores = agendaBuscaSetores.filter(s => s !== setor);
+        } else {
+            agendaBuscaSetores.push(setor);
+        }
+        window.agendaRenderSetorDropdown();
+        window.agendaUpdateGrid();
+    };
+
+    window.agendaUpdateGrid = function() {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = buildAgendaHTML();
+        const newGrid = tempDiv.querySelector('.ag-grid');
+        const oldGrid = document.querySelector('#logistica-agenda-container .ag-grid');
+        if (newGrid && oldGrid) {
+            oldGrid.innerHTML = newGrid.innerHTML;
+        }
+    };
+
+    window.agendaRenderFiltroStatus = function() {
+        const container = document.getElementById('ag-log-status-buttons-container');
+        if (!container) return;
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = buildAgendaHTML();
+        const newContainer = tempDiv.querySelector('#ag-log-status-buttons-container');
+        if (newContainer) container.innerHTML = newContainer.innerHTML;
+    };
+
+    window.agendaRenderSetorDropdown = function() {
+        const container = document.getElementById('ag-log-setor-dropdown-container');
+        if (!container) return;
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = buildAgendaHTML();
+        const newContainer = tempDiv.querySelector('#ag-log-setor-dropdown-container');
+        if (newContainer) {
+            container.innerHTML = newContainer.innerHTML;
+            document.getElementById('ag-log-setor-dropdown-list').style.display = 'block';
+        }
     };
 
     function buildAgendaHTML() {
@@ -208,6 +259,8 @@
                 }
                 // Filtrar colaboradores pelo status selecionado
                 const colabsFiltrados = (agendaEscalaData || []).filter(colab => {
+                    if (agendaBuscaNome && !(colab.nome_completo || '').toLowerCase().includes(agendaBuscaNome)) return false;
+                    if (agendaBuscaSetores.length > 0 && !agendaBuscaSetores.includes(colab.departamento)) return false;
                     if (agendaEscalaFiltroStatus === 'todos') return true;
                     const diaInfo = (colab.dias || []).find(x => x.data === dateStr);
                     const status = diaInfo ? diaInfo.status : 'disponivel';
@@ -340,20 +393,49 @@
                     <button class="ag-btn-novo" onclick="abrirNovoCard('')"><i class="ph ph-plus"></i> Novo Card</button>
                 </div>
             </div>
-            ${agendaFilterTipo === 'escala' ? `<div id="ag-escala-filtro-bar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:0.6rem 0;margin-bottom:0.75rem;">
-            <span style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-right:4px;">Mostrar:</span>
-            ${[
-                {k:'todos',    label:'Todos',      color:'#334155', bg:'#f1f5f9'},
-                {k:'disponivel',label:'🟢 Escalados',color:'#16a34a', bg:'#dcfce7'},
-                {k:'folga',    label:'⚪ Folga',    color:'#94a3b8', bg:'#f1f5f9'},
-                {k:'ferias',   label:'🟠 Férias',   color:'#ea580c', bg:'#fff7ed'},
-                {k:'afastado', label:'🟡 Afastado', color:'#ca8a04', bg:'#fefce8'},
-                {k:'falta',    label:'🔴 Falta',    color:'#dc2626', bg:'#fef2f2'},
-                {k:'aso',      label:'⚪ ASO',      color:'#64748b', bg:'#f8fafc'},
-            ].map(f => `<button onclick="agendaSetEscalaFiltro('${f.k}')"
-                style="border:1.5px solid ${agendaEscalaFiltroStatus===f.k?f.color:'#e2e8f0'};background:${agendaEscalaFiltroStatus===f.k?f.bg:'#fff'};color:${agendaEscalaFiltroStatus===f.k?f.color:'#64748b'};border-radius:20px;padding:4px 14px;font-size:0.8rem;font-weight:${agendaEscalaFiltroStatus===f.k?'700':'500'};cursor:pointer;transition:all .15s;">${f.label}</button>`
-            ).join('')}
-        </div>` : ''}
+            ${agendaFilterTipo === 'escala' ? `
+            <div id="ag-escala-filtro-bar" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:0.4rem 0;margin-bottom:1rem; overflow:visible;">
+                <span style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">STATUS:</span>
+                <div id="ag-log-status-buttons-container" style="display:flex; align-items:center; gap:6px;">
+                ${[
+                    {k:'todos',    label:'Todos',      color:'#334155', bg:'#f1f5f9'},
+                    {k:'disponivel',label:'🟢 Escalados',color:'#16a34a', bg:'#dcfce7'},
+                    {k:'folga',    label:'⚪ Folga',    color:'#94a3b8', bg:'#f1f5f9'},
+                    {k:'ferias',   label:'🟠 Férias',   color:'#ea580c', bg:'#fff7ed'},
+                    {k:'afastado', label:'🟡 Afastado', color:'#ca8a04', bg:'#fefce8'},
+                    {k:'falta',    label:'🔴 Falta',    color:'#dc2626', bg:'#fef2f2'},
+                    {k:'aso',      label:'⚪ ASO',      color:'#64748b', bg:'#f8fafc'},
+                ].map(f => `<button onclick="agendaSetEscalaFiltro('${f.k}')"
+                    style="border:1.5px solid ${agendaEscalaFiltroStatus===f.k?f.color:'#e2e8f0'};background:${agendaEscalaFiltroStatus===f.k?f.bg:'#fff'};color:${agendaEscalaFiltroStatus===f.k?f.color:'#64748b'};border-radius:20px;padding:4px 14px;font-size:0.8rem;font-weight:${agendaEscalaFiltroStatus===f.k?'700':'500'};cursor:pointer;transition:all .15s;white-space:nowrap;">${f.label}</button>`
+                ).join('')}
+                </div>
+
+                <div style="flex:1; min-width:20px;"></div>
+
+                <input type="search" id="ag-log-busca-nome-input" name="ag-log-busca-nome" autocomplete="new-password" role="presentation" placeholder="Buscar por nome..." value="${agendaBuscaNome || ''}" oninput="agendaSetBuscaNome(this.value)" readonly onfocus="this.removeAttribute('readonly')" data-lpignore="true" data-1p-ignore="true" style="padding:6px 12px; border:1px solid #cbd5e1; border-radius:20px; font-size:0.8rem; outline:none; min-width:200px; background:#fff;">
+
+                <div id="ag-log-setor-dropdown-container" style="position:relative; min-width:160px;">
+                    <div onclick="document.getElementById('ag-log-setor-dropdown-list').style.display = document.getElementById('ag-log-setor-dropdown-list').style.display === 'none' ? 'block' : 'none'" style="padding:6px 12px; border:1px solid #cbd5e1; border-radius:20px; font-size:0.8rem; background:#fff; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#334155; font-weight:600;">
+                            ${agendaBuscaSetores.length === 0 ? 'Todos os Setores' : (agendaBuscaSetores.length === 1 ? agendaBuscaSetores[0] : agendaBuscaSetores.length + ' selecionados')}
+                        </span>
+                        <i class="ph ph-caret-down" style="color:#64748b; margin-left:8px;"></i>
+                    </div>
+                    <div id="ag-log-setor-dropdown-list" style="display:none; position:absolute; top:100%; right:0; width:100%; min-width:200px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; margin-top:4px; max-height:250px; overflow-y:auto; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.15); padding:4px;">
+                        <div onclick="agendaToggleSetor('todos')" style="padding:6px 10px; cursor:pointer; display:flex; align-items:center; gap:8px; border-radius:4px; background:${agendaBuscaSetores.length === 0 ? '#f0fdf4' : 'transparent'}; margin-bottom:6px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
+                            <input type="checkbox" ${agendaBuscaSetores.length === 0 ? 'checked' : ''} style="pointer-events:none; accent-color:#16a34a; width:14px; height:14px; margin:0;">
+                            <span style="font-size:0.8rem; color:${agendaBuscaSetores.length === 0 ? '#16a34a' : '#334155'}; font-weight:${agendaBuscaSetores.length === 0 ? '700' : '500'};">Todos os Setores</span>
+                        </div>
+                        ${Array.from(new Set(agendaEscalaData.map(c => c.departamento).filter(Boolean))).sort().map(d => {
+                            const isSelected = agendaBuscaSetores.includes(d);
+                            return `<div onclick="agendaToggleSetor('${d}')" style="padding:6px 10px; cursor:pointer; display:flex; align-items:center; gap:8px; border-radius:4px; background:${isSelected ? '#f0fdf4' : 'transparent'}; margin-bottom:2px;">
+                                <input type="checkbox" ${isSelected ? 'checked' : ''} style="pointer-events:none; accent-color:#16a34a; width:14px; height:14px; margin:0;">
+                                <span style="font-size:0.8rem; color:${isSelected ? '#16a34a' : '#334155'}; font-weight:${isSelected ? '600' : '400'};">${d}</span>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>` : ''}
         ${weekdaysHTML}
             <div class="ag-grid grid-${agendaViewMode}">${cells}</div>
         </div>
@@ -697,3 +779,12 @@
     };
 
 })();
+
+// Fecha o dropdown se clicar fora
+window.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('ag-log-setor-dropdown-list');
+    const container = document.getElementById('ag-log-setor-dropdown-container');
+    if (dropdown && container && !container.contains(e.target)) {
+        dropdown.style.display = 'none';
+    }
+});
