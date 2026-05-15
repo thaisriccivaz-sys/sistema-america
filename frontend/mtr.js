@@ -168,7 +168,9 @@ window.abrirModalGerarMTR = async function (complementarDeId = null) {
     document.getElementById('mtr-estado-fisico').value = '2';     // LÍQUIDO
     document.getElementById('mtr-acondicionamento').value = '11'; // TANQUE
     document.getElementById('mtr-tratamento').value = '23';       // Tratamento de Efluentes
-    // Destinador padrão
+    // Destinador padrão - BRK
+    const presetEl = document.getElementById('mtr-destinador-preset');
+    if (presetEl) presetEl.value = 'brk';
     document.getElementById('mtr-destinador-nome').value = 'BRK AMBIENTAL - MAUÁ S.A.';
     document.getElementById('mtr-destinador-cnpj').value = '05.380.441/0002-60';
     document.getElementById('mtr-destinador-unidade').value = '19154';
@@ -182,6 +184,28 @@ window.abrirModalGerarMTR = async function (complementarDeId = null) {
 window.fecharModalMTR = function () {
   const modal = document.getElementById('modal-gerar-mtr');
   if (modal) modal.style.display = 'none';
+};
+
+// ── Selecionar Destinador Preset ─────────────────────────────────────────────
+const _DESTINADORES = {
+  brk: {
+    nome: 'BRK AMBIENTAL - MAUÁ S.A.',
+    cnpj: '05.380.441/0002-60',
+    unidade: '19154'
+  },
+  attend: {
+    nome: 'ATTEND AMBIENTAL S.A.',
+    cnpj: '13.039.389/0002-01',
+    unidade: '546'
+  }
+};
+
+window.preencherDestinador = function(key) {
+  const d = _DESTINADORES[key];
+  if (!d) return;
+  document.getElementById('mtr-destinador-nome').value = d.nome;
+  document.getElementById('mtr-destinador-cnpj').value = d.cnpj;
+  document.getElementById('mtr-destinador-unidade').value = d.unidade;
 };
 
 function preencherSelectsModal() {
