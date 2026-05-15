@@ -78,12 +78,25 @@ function renderTabelaMTR(lista) {
         }
     }
 
+    let destNome = '-';
+    try {
+        const p = JSON.parse(m.payload_json || '{}');
+        const d = p.respostaApiwsManifestoDTO?.[0]?.destinador || p.objetoResposta?.[0]?.destinador || p.objetoResposta?.destinador;
+        if (d && d.razaoSocial) destNome = d.razaoSocial;
+    } catch(e) {}
+    
+    let gStr = m.gerador_nome || '-';
+    if(gStr.length > 15) gStr = gStr.substring(0, 15) + '...';
+    
+    let dStr = destNome;
+    if(dStr.length > 15) dStr = dStr.substring(0, 15) + '...';
+
     return `<tr style="${rowStyle}">
       <td><strong>${m.numero_mtr || '-'}</strong></td>
       <td>${m.data_geracao ? new Date(m.data_geracao).toLocaleDateString('pt-BR') : '-'}</td>
       <td><span style="background:${statusColor}22;color:${statusColor};padding:2px 8px;border-radius:999px;font-size:0.78rem;font-weight:600;">${m.status || 'Pendente'}</span></td>
-      <td>${m.residuo_nome || '-'}</td>
-      <td>${m.gerador_nome || '-'}</td>
+      <td title="${m.gerador_nome || ''}">${gStr}</td>
+      <td title="${destNome}">${dStr}</td>
       <td style="text-align:right;">${actionsHtml}</td>
     </tr>`;
   }).join('');
@@ -286,8 +299,8 @@ function b64toBlob(b64, type) {
 // ── Filtro da tabela ──────────────────────────────────────────────────────────
 window.filtrarMTR = function () {
   const num = (document.getElementById('filtro-mtr-numero')?.value || '').toLowerCase();
-  const ger = (document.getElementById('filtro-mtr-gerador')?.value || '').toLowerCase();
-  const dest = (document.getElementById('filtro-mtr-destinador')?.value || '').toLowerCase();
+  const ger = (document.getElementById('f_mtr_ger_x1')?.value || '').toLowerCase();
+  const dest = (document.getElementById('f_mtr_dst_x2')?.value || '').toLowerCase();
   const dtIni = document.getElementById('filtro-mtr-data-ini')?.value;
   const dtFim = document.getElementById('filtro-mtr-data-fim')?.value;
 
