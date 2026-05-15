@@ -143,6 +143,19 @@ db.run("CREATE TABLE IF NOT EXISTS departamentos_excluidos (nome TEXT PRIMARY KE
     db.run("DELETE FROM departamentos WHERE nome = 'Recursos Humanos' AND id = 1136");
 });
 
+// Tabela de auditoria do Resumo de Rota
+db.run(`CREATE TABLE IF NOT EXISTS resumo_rota_auditoria (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data_rota TEXT,
+    nome_resumo TEXT,
+    veiculo TEXT,
+    campo TEXT,
+    valor_anterior TEXT,
+    valor_atual TEXT,
+    usuario_nome TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => { if (err) console.error('Erro ao criar tabela resumo_rota_auditoria:', err); else console.log('Tabela resumo_rota_auditoria OK.'); });
+
 // MIGRATION: Colunas de visibilidade dos geradores (Movido para database.js)
 
 // MIGRATION: Marcar geradores de sinistro
@@ -13104,7 +13117,7 @@ app.post('/api/logistica/agenda', authenticateToken, express.json(), (req, res) 
                 if (row) dispararAcoesAgenda(row).catch(() => { });
             });
             db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
-                [criado_por, 'Agenda Logística', 'Criação de Card', null, `Card: ${titulo || ''} (${data})`, insertedId]);
+                [criado_por, (setor === 'rh' ? 'Agenda RH' : 'Agenda Logística'), 'Criação de Card', null, `Card: ${titulo || ''} (${data})`, insertedId]);
             res.json({ id: insertedId, ok: true });
         }
     );
@@ -13121,7 +13134,7 @@ app.put('/api/logistica/agenda/:id', authenticateToken, express.json(), (req, re
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
-                [req.user ? req.user.username : '', 'Agenda Logística', 'Edição de Card', null, `Editou o card: ${titulo || ''}`, req.params.id]);
+                [req.user ? req.user.username : '', (setor === 'rh' ? 'Agenda RH' : 'Agenda Logística'), 'Edição de Card', null, `Editou o card: ${titulo || ''}`, req.params.id]);
             res.json({ ok: true });
         }
     );
@@ -13136,6 +13149,78 @@ app.delete('/api/logistica/agenda/:id', authenticateToken, (req, res) => {
         res.json({ ok: true });
     });
 });
+
+// GET – histórico de auditoria para agenda (logística ou RH)
+app.get('/api/logistica/agenda-auditoria', authenticateToken, (req, res) => {
+    const programa = req.query.programa || 'Agenda Logística';
+    db.all(
+        `SELECT a.*, la.titulo as card_titulo, la.data as card_data, la.referente_ids as card_referente_ids
+         FROM auditoria a
+         LEFT JOIN logistica_agenda la ON a.registro_id = la.id
+         WHERE a.programa = ?
+         ORDER BY a.data_hora DESC LIMIT 200`,
+        [programa],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            const colabIds = new Set();
+            rows.forEach(r => {
+                try { const ids = JSON.parse(r.card_referente_ids || '[]'); ids.forEach(id => colabIds.add(id)); } catch(e){}
+                try {
+                    const m = (r.conteudo_atual || '').match(/Referente: (\[.*?\])/);
+                    if (m) { const ids = JSON.parse(m[1]); ids.forEach(id => colabIds.add(id)); }
+                } catch(e){}
+            });
+            if (colabIds.size === 0) return res.json(rows);
+            const placeholders = Array.from(colabIds).map(() => '?').join(',');
+            db.all(`SELECT id, nome_completo FROM colaboradores WHERE id IN (${placeholders})`,
+                Array.from(colabIds), (errC, colabs) => {
+                    if (errC) return res.json(rows);
+                    const colabMap = {};
+                    (colabs || []).forEach(col => { colabMap[col.id] = col.nome_completo; });
+                    rows.forEach(r => {
+                        let refIds = [];
+                        try { refIds = JSON.parse(r.card_referente_ids || '[]'); } catch(e){}
+                        if (!refIds.length) {
+                            try {
+                                const m = (r.conteudo_atual || '').match(/Referente: (\[.*?\])/);
+                                if (m) refIds = JSON.parse(m[1]);
+                            } catch(e){}
+                        }
+                        r.colaboradores_referenciados = refIds.map(id => colabMap[id] || String(id)).filter(Boolean).join(', ');
+                    });
+                    res.json(rows);
+                }
+            );
+        }
+    );
+});
+
+// GET – histórico de auditoria para Resumo de Rota
+app.get('/api/logistica/resumo-rota-auditoria', authenticateToken, (req, res) => {
+    db.all(
+        `SELECT * FROM resumo_rota_auditoria ORDER BY created_at DESC LIMIT 500`,
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows || []);
+        }
+    );
+});
+
+// POST – registrar auditoria de alteração no Resumo de Rota
+app.post('/api/logistica/resumo-rota-auditoria', authenticateToken, express.json(), (req, res) => {
+    const { data_rota, nome_resumo, veiculo, campo, valor_anterior, valor_atual } = req.body;
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    db.run(
+        `INSERT INTO resumo_rota_auditoria (data_rota, nome_resumo, veiculo, campo, valor_anterior, valor_atual, usuario_nome)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [data_rota || '', nome_resumo || '', veiculo || '', campo || '', valor_anterior || '', valor_atual || '', usuario],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true, id: this.lastID });
+        }
+    );
+});
+
 
 // Helper: disparar ações (e-mail) de um card da agenda
 async function dispararAcoesAgenda(card) {
