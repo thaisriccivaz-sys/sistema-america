@@ -14193,6 +14193,32 @@ app.get('/api/mtr/lista', authenticateToken, (req, res) => {
   });
 });
 
+
+// ── POST /api/mtr/sincronizar ────────────────────────────────────────────────
+app.post('/api/mtr/sincronizar', authenticateToken, async (req, res) => {
+  db.all('SELECT * FROM mtr_local WHERE status NOT IN ("Cancelado", "Recebido")', [], async (err, rows) => {
+    if (err) return res.status(500).json({ mensagem: err.message });
+    if (!rows || rows.length === 0) return res.json({ mensagem: 'Nenhuma MTR pendente para sincronizar' });
+    
+    let atualizados = 0;
+    for (const row of rows) {
+      if (!row.numero_mtr) continue;
+      try {
+        const data = await sigorReq('/retornaManifesto/' + row.numero_mtr);
+        if (data && data.objetoResposta && data.objetoResposta.situacaoManifesto) {
+           let sit = data.objetoResposta.situacaoManifesto.simDescricao;
+           if(sit === 'Salvo') sit = 'Ativo'; // Mapeamento
+           if (sit !== row.status) {
+              db.run('UPDATE mtr_local SET status = ? WHERE id = ?', [sit, row.id]);
+              atualizados++;
+           }
+        }
+      } catch (e) {}
+    }
+    res.json({ mensagem: `Sincronização concluída. ${atualizados} MTR(s) atualizada(s).` });
+  });
+});
+
 // ── GET /api/mtr/tabelas ──────────────────────────────────────────────────────
 app.get('/api/mtr/tabelas', authenticateToken, async (req, res) => {
   try {
@@ -14403,3 +14429,30 @@ console.log('[MTR SIGOR] Endpoints registrados: /lista /tabelas /gerar /:id/rece
 
 
 console.log('[MONACO] Endpoints webhook registrados: /token /notificacao /multa /remulta /multa-paga /retornoCondutor');
+
+
+// ── CRON JOB MTR (A CADA 1 HORA) ─────────────────────────────────────────────
+setInterval(async () => {
+    console.log('[CRON-MTR] Iniciando sincronização automática de MTRs...');
+    db.all('SELECT * FROM mtr_local WHERE status NOT IN ("Cancelado", "Recebido")', [], async (err, rows) => {
+        if (err || !rows) return;
+        let atualizados = 0;
+        for (const row of rows) {
+            if (!row.numero_mtr) continue;
+            try {
+                const data = await sigorReq('/retornaManifesto/' + row.numero_mtr);
+                if (data && data.objetoResposta && data.objetoResposta.situacaoManifesto) {
+                    let sit = data.objetoResposta.situacaoManifesto.simDescricao;
+                    if(sit === 'Salvo') sit = 'Ativo';
+                    if (sit && sit !== row.status) {
+                        db.run('UPDATE mtr_local SET status = ? WHERE id = ?', [sit, row.id]);
+                        atualizados++;
+                    }
+                }
+            } catch(e) {}
+        }
+        if (atualizados > 0) {
+            console.log(`[CRON-MTR] Sincronização automática concluiu com ${atualizados} atualizações.`);
+        }
+    });
+}, 60 * 60 * 1000);

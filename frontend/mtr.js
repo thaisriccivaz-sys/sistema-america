@@ -377,3 +377,25 @@ window.downloadRecebimento = function(id) {
 window.downloadCDF = function(id) {
     Swal.fire('Em breve', 'O download do CDF está em desenvolvimento.', 'info');
 };
+
+window.sincronizarMTR = async function() {
+    Swal.fire({
+      title: 'Sincronizando MTRs...',
+      text: 'Buscando status atualizados na CETESB. Isso pode levar alguns segundos dependendo da quantidade de MTRs.',
+      allowOutsideClick: false,
+      didOpen: () => { Swal.showLoading(); }
+    });
+    try {
+        const res = await fetch('/api/mtr/sincronizar', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${window.currentToken}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.mensagem || 'Erro ao sincronizar');
+        
+        Swal.fire('Concluído!', data.mensagem, 'success');
+        carregarListaMTR();
+    } catch(e) {
+        Swal.fire('Erro', e.message, 'error');
+    }
+};
