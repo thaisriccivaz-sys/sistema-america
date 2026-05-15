@@ -88,7 +88,8 @@ function renderTabelaMTR(lista) {
     let gStr = m.gerador_nome || '-';
     if(gStr.length > 15) gStr = gStr.substring(0, 15) + '...';
     
-    let dStr = destNome;
+    let dStr = p._destinadorNome || destNome;
+    if(!dStr || dStr === '-') dStr = 'BRK AMBIENTAL - MAUÁ S.A.';
     if(dStr.length > 15) dStr = dStr.substring(0, 15) + '...';
 
     return `<tr style="${rowStyle}">

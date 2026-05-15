@@ -14346,7 +14346,7 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [numeroMTR, 'Ativo', geradorNome, geradorCnpj, residuoCodigo,
        quantidade, unidade, acondicionamentoCodigo, estadoFisicoCodigo, tratamentoCodigo,
-       observacao, JSON.stringify(data), complementarDeId || null],
+       observacao, JSON.stringify({ ...data, _destinadorNome: req.body.destinadorNome || 'BRK AMBIENTAL - MAUÁ S.A.' }), complementarDeId || null],
       function (errIns) {
         if (errIns) console.error('[MTR] Erro insert:', errIns);
         res.json({ erro: false, mensagem: 'MTR gerada com sucesso', numeroMTR, id: this.lastID });
