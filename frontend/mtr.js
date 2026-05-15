@@ -190,6 +190,7 @@ window.submitGerarMTR = async function (e) {
       geradorNome: document.getElementById('mtr-gerador-nome').value,
       geradorCnpj: document.getElementById('mtr-gerador-cnpj').value,
       residuoCodigo: document.getElementById('mtr-residuo').value,
+      claCodigo: document.getElementById('mtr-classe-codigo') ? document.getElementById('mtr-classe-codigo').value : '2',
       quantidade: document.getElementById('mtr-quantidade').value,
       unidade: document.getElementById('mtr-unidade').value,
       acondicionamentoCodigo: document.getElementById('mtr-acondicionamento').value,

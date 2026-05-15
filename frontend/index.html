@@ -414,11 +414,18 @@
                                             <option value="M3">Metro Cúbico (M³)</option>
                                         </select>
                                     </div>
-                                    <div style="grid-column:1/-1;">
-                                        <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Resíduo *</label>
-                                        <select id="mtr-residuo" required style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;box-sizing:border-box;">
-                                            <option value="">Carregando resíduos...</option>
-                                        </select>
+                                    <div style="grid-column:1/-1; display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                                        <div>
+                                            <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Resíduo *</label>
+                                            <select id="mtr-residuo" required style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;box-sizing:border-box;">
+                                                <option value="">Carregando resíduos...</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Classe *</label>
+                                            <input type="text" value="CLASSE II A" readonly style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#f8fafc;box-sizing:border-box;">
+                                            <input type="hidden" id="mtr-classe-codigo" value="2">
+                                        </div>
                                     </div>
                                     <div>
                                         <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Estado Físico *</label>
