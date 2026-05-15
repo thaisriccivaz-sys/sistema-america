@@ -7,30 +7,36 @@ window.initFrotaManutencoes = async function(containerEl) {
     const tok = window.currentToken || localStorage.getItem('token');
     window._manutTok = tok;
 
+    // Sub-tab state
+    window._mnSubAba = window._mnSubAba || 'preventiva';
+
     c.innerHTML = `<div style="padding:1.5rem;background:#f8fafc;min-height:100%;">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:1rem;">
     <h2 style="margin:0;color:#1e293b;display:flex;align-items:center;gap:12px;font-size:1.5rem;">
         <div style="background:#d97706;color:#fff;width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;">
             <i class="ph ph-wrench"></i>
         </div>
-        Controle de Manutenções
+        Manutenções
     </h2>
-    <div style="display:flex;gap:10px;">
-        <select id="mn-filtro-veiculo" onchange="window.mnFiltrar()" style="padding:0.65rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;min-width:200px;background:#fff;">
-            <option value="">Todos os Veículos</option>
-        </select>
-        <select id="mn-filtro-status" onchange="window.mnFiltrar()" style="padding:0.65rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;min-width:150px;background:#fff;">
-            <option value="">Todos os Status</option>
-            <option value="agendada">Agendada</option>
-            <option value="em_andamento">Em Andamento</option>
-            <option value="concluida">Concluída</option>
-            <option value="cancelada">Cancelada</option>
-        </select>
-        <button onclick="window.abrirModalManutencao(null)" style="background:#d97706;color:#fff;border:none;border-radius:8px;padding:0.65rem 1.1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
-            <i class="ph ph-plus"></i> Nova Manutenção
-        </button>
-    </div>
+    <button onclick="window.abrirModalManutencao(null)" style="background:#d97706;color:#fff;border:none;border-radius:8px;padding:0.65rem 1.1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+        <i class="ph ph-plus"></i> Nova Manutenção
+    </button>
 </div>
+
+<!-- Sub-abas -->
+<div style="display:flex;gap:4px;margin-bottom:1.5rem;background:#fff;padding:6px;border-radius:10px;border:1px solid #e2e8f0;width:fit-content;">
+    <button id="mn-sub-btn-preventiva" onclick="window.mnMudarSubAba('preventiva')" 
+        style="padding:0.5rem 1.2rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;background:#d97706;color:#fff;">
+        <i class="ph ph-calendar-check"></i> Preventiva
+    </button>
+    <button id="mn-sub-btn-corretiva" onclick="window.mnMudarSubAba('corretiva')" 
+        style="padding:0.5rem 1.2rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;background:transparent;color:#64748b;">
+        <i class="ph ph-wrench"></i> Corretiva
+    </button>
+</div>
+
+<div id="mn-sub-conteudo"></div>
+</div>`
 
 <div id="mn-km-bar" style="background:#fff;padding:1rem 1.5rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1.5rem;display:none;">
     <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
@@ -61,31 +67,7 @@ window.initFrotaManutencoes = async function(containerEl) {
     window._manutFrota = frota || [];
     window._manutDados = manut || [];
 
-    const sel = document.getElementById('mn-filtro-veiculo');
-    if (sel) {
-        frota.forEach(v => {
-            const opt = document.createElement('option');
-            opt.value = v.id;
-            opt.textContent = v.placa + ' - ' + (v.marca_modelo_versao || '').split('/').slice(0,2).join('/');
-            sel.appendChild(opt);
-        });
-    }
-
-    sel.addEventListener('change', async () => {
-        const vid = sel.value;
-        const kmBar = document.getElementById('mn-km-bar');
-        const prevPanel = document.getElementById('mn-preventivo-panel');
-        if (!vid) { kmBar.style.display='none'; prevPanel.style.display='none'; return; }
-        kmBar.style.display='flex';
-        const v = frota.find(x => x.id == vid);
-        const kmEl = document.getElementById('mn-km-atual');
-        if (kmEl && v) kmEl.textContent = v.km_atual ? `KM registrado: ${Number(v.km_atual).toLocaleString('pt-BR')} km` : 'Sem KM registrado';
-        const inp = document.getElementById('mn-km-input');
-        if (inp && v?.km_atual) inp.value = v.km_atual;
-        await mnCarregarPreventivo(vid, tok);
-    });
-
-    mnRenderLista();
+    window.mnMudarSubAba(window._mnSubAba || 'preventiva');
 };
 
 async function mnCarregarPreventivo(vid, tok) {
@@ -310,7 +292,12 @@ window.salvarManutencao = async function(id) {
         // Atualiza dados da frota para cards refletirem status
         const frota = await fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json());
         window._frotaDados = frota || [];
-        mnRenderLista();
+        if (window._mnSubAba === 'corretiva') {
+            const sub = document.getElementById('mn-sub-conteudo');
+            if (sub) mnRenderCorretivaTela(sub);
+        } else if (window._mnSubAba === 'preventiva') {
+            window.mnCarregarPreventivoVeiculo();
+        }
     } catch(e) { alert('Erro: ' + e.message); }
 };
 

@@ -198,7 +198,7 @@ function renderCardsFrota() {
         borderColor = '#dc2626'; statusLabel = '\u26A0'; placaColor = '#dc2626';
     } else if (alerta === 'expirado') {
         borderColor = '#dc2626';
-        statusLabel = '✖';
+        statusLabel = '\u2716';
         placaColor = '#dc2626';
     } else if (manutPreventivaPendente || alerta === 'vencendo' || !v.exercicio) {
         borderColor = '#f59e0b';
@@ -207,13 +207,18 @@ function renderCardsFrota() {
         placaColor = '#d97706';
     }
 
+    // Card background: amarelo quando houver alerta de manutenção preventiva
+    const alertaManutStatus = statusManut.alerta_manutencao || 'ok';
+    const cardBg = emManutencao ? '#fff5f5' : (alertaManutStatus === 'vencida' || alertaManutStatus === 'proxima' || manutPreventivaPendente) ? '#fffbeb' : '#fff';
+    const cardBorder = emManutencao ? '2px solid #fca5a5' : (alertaManutStatus === 'vencida' || alertaManutStatus === 'proxima' || manutPreventivaPendente) ? '2px solid #fcd34d' : '1px solid #e2e8f0';
+
     const placeholder = 'https://via.placeholder.com/400x250/e2e8f0/94a3b8?text=Sem+Foto';
     const foto = v.foto_base64 || placeholder;
     const marcaCompleta = v.marca_modelo_versao || 'N/D';
     const rodizio = getRodizio(v.placa);
 
     return `
-    <div style="background:#fff;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.08);overflow:hidden;border:1px solid #e2e8f0;position:relative;display:flex;flex-direction:column;transition:transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 20px rgba(0,0,0,0.12)';" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';">
+    <div style="background:${cardBg};border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.08);overflow:hidden;border:${cardBorder};position:relative;display:flex;flex-direction:column;transition:transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 20px rgba(0,0,0,0.12)';" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';">
         
         <div style="position:absolute;top:0;right:0;width:0;height:0;border-top:60px solid ${borderColor};border-left:60px solid transparent;z-index:2;"></div>
         <div style="position:absolute;top:8px;right:6px;z-index:3;color:${textColor};font-size:0.9rem;font-weight:900;transform:rotate(45deg);letter-spacing:1px;width:30px;text-align:center;">
@@ -263,6 +268,19 @@ function renderCardsFrota() {
             </div>
         </div>
 
+        <!-- KM diario -->
+        <div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;">
+            <i class="ph ph-gauge" style="color:#d97706;font-size:1rem;"></i>
+            <span style="font-size:0.78rem;color:#64748b;font-weight:600;">KM atual:</span>
+            <input type="number" id="km-card-${v.id}" value="${v.km_atual||''}" placeholder="Digite KM" 
+                style="flex:1;padding:0.3rem 0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.8rem;outline:none;" 
+                onkeydown="if(event.key==='Enter')window.salvarKmCard(${v.id})">
+            <button onclick="window.salvarKmCard(${v.id})" 
+                style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap;">
+                Salvar
+            </button>
+        </div>
+
         <div style="background:#f8fafc;padding:0.75rem 1rem;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
             <div style="font-weight:800;color:#cbd5e1;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;">
                 ${v.tipo_veiculo||'VEÍCULO'}
@@ -278,7 +296,46 @@ function renderCardsFrota() {
   }).join('');
 }
 
+window.salvarKmCard = async function(vid) {
+    const inp = document.getElementById('km-card-' + vid);
+    if (!inp || !inp.value) return;
+    const km = parseInt(inp.value);
+    const tok = window.currentToken || localStorage.getItem('token');
+    try {
+        const res = await fetch('/api/frota/veiculos/' + vid + '/km', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+            body: JSON.stringify({ km_atual: km })
+        });
+        if (!res.ok) throw new Error('Erro ao salvar KM');
+        // Update local data and re-render
+        const v = (window._frotaDados||[]).find(x => x.id === vid);
+        if (v) v.km_atual = km;
+        // Check alert status for this vehicle and re-render just this card's background
+        const alertRes = await fetch('/api/frota/veiculos/' + vid + '/alertas', { headers: { Authorization: 'Bearer ' + tok } });
+        const alertData = await alertRes.json();
+        const temAlerta = alertData.tem_alerta;
+        if (window._frotaStatusManut) {
+            window._frotaStatusManut[vid] = {
+                ...(window._frotaStatusManut[vid]||{}),
+                km_atual: km,
+                alerta_manutencao: temAlerta ? 'proxima' : 'ok'
+            };
+        }
+        // Visual feedback
+        inp.style.borderColor = '#2d9e5f';
+        setTimeout(() => {
+            if (inp) inp.style.borderColor = '#e2e8f0';
+        }, 1500);
+        // Full re-render to update card color
+        renderCardsFrota();
+    } catch(e) {
+        alert('Erro ao salvar KM: ' + e.message);
+    }
+};
+
 window.visualizarCRLV = async function(id) {
+
   const tok = window.currentToken || localStorage.getItem('token');
   try {
     const res = await fetch(`/api/frota/veiculos/${id}/crlv`, { headers: { Authorization: 'Bearer ' + tok } });
