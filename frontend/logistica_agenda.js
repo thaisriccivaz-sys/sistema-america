@@ -390,7 +390,7 @@
                         <button class="ag-view-btn ${agendaViewMode==='mes'?'active':''}" onclick="agendaSetView('mes')">Mês</button>
                     </div>
                     <button class="ag-nav-btn" onclick="limparTestesAgenda()" style="display:none; color: #dc2626; border-color: #fca5a5;"><i class="ph ph-trash"></i> Limpar Testes</button>
-                    <button class="ag-nav-btn" onclick="agendaAbrirHistorico()" style="color:#7c3aed;border-color:#c4b5fd;" title="Histórico de alterações de cards"><i class="ph ph-clock-counter-clockwise"></i> Histórico</button>
+                    <button class="ag-nav-btn" onclick="agendaAbrirHistorico()" style="color:#7c3aed;border-color:#c4b5fd;display:flex;align-items:center;gap:6px;" title="Histórico de alterações de cards"><i class="ph ph-clock-counter-clockwise"></i> Histórico</button>
                     <button class="ag-btn-novo" onclick="abrirNovoCard('')"><i class="ph ph-plus"></i> Novo Card</button>
                 </div>
             </div>
