@@ -2,12 +2,17 @@
 function getMesVenc(placa){const c=(placa||'').trim().slice(-1).toUpperCase();return({'1':7,'2':7,'3':8,'4':8,'5':9,'6':9,'7':10,'8':10,'9':11,'0':12})[c]||null;}
 function alertaPlaca(placa,exercicio){
   const hoje=new Date();
-  const anoVencimento = parseInt(exercicio) + 1; // Exercício 2025 -> vence em 2026
+  const anoVencimento = parseInt(exercicio) + 1;
   const mesVencimento = getMesVenc(placa);
   if(!mesVencimento||!anoVencimento) return null;
-  // Expirado se: estamos em um ano maior que o ano de vencimento OR estamos no mesmo ano de vencimento e o mês atual já PASSOU o mês de vencimento
-  const expirado = (hoje.getFullYear() > anoVencimento) || (hoje.getFullYear() === anoVencimento && hoje.getMonth() + 1 > mesVencimento);
-  return expirado ? 'expirado' : null;
+  
+  if ((hoje.getFullYear() > anoVencimento) || (hoje.getFullYear() === anoVencimento && hoje.getMonth() + 1 > mesVencimento)) {
+      return 'expirado';
+  }
+  if (hoje.getFullYear() === anoVencimento && hoje.getMonth() + 1 === mesVencimento) {
+      return 'vencendo';
+  }
+  return 'ok';
 }
 async function extrairCRLV(file){
   return new Promise(resolve=>{
@@ -132,7 +137,6 @@ function renderCardsFrota() {
     });
   }
 
-  // Ordenar por expirado primeiro, depois alfabético por placa
   rows.sort((a,b) => {
       const expA = alertaPlaca(a.placa, a.exercicio) === 'expirado' ? 1 : 0;
       const expB = alertaPlaca(b.placa, b.exercicio) === 'expirado' ? 1 : 0;
@@ -148,62 +152,68 @@ function renderCardsFrota() {
   tb.innerHTML = rows.map(v => {
     const alerta = alertaPlaca(v.placa, v.exercicio);
     
-    // Cores da borda/indicador
     let borderColor = '#2d9e5f'; // verde
-    let statusLabel = 'REGULAR';
+    let statusLabel = 'OK';
+    let textColor = '#fff';
+    
     if (alerta === 'expirado') {
         borderColor = '#dc2626'; // vermelho
-        statusLabel = 'VENCIDO';
-    } else if (!v.exercicio) {
+        statusLabel = '✖';
+    } else if (alerta === 'vencendo' || !v.exercicio) {
         borderColor = '#f59e0b'; // amarelo
-        statusLabel = 'PENDENTE';
+        statusLabel = '!';
+        textColor = '#fff';
     }
 
     const placeholder = 'https://via.placeholder.com/400x250/e2e8f0/94a3b8?text=Sem+Foto';
     const foto = v.foto_base64 || placeholder;
-    const marcaCurta = (v.marca_modelo_versao||'N/D').split('/')[0].substring(0, 15);
+    const marcaCompleta = v.marca_modelo_versao || 'N/D';
 
     return `
     <div style="background:#fff;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.08);overflow:hidden;border:1px solid #e2e8f0;position:relative;display:flex;flex-direction:column;transition:transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 20px rgba(0,0,0,0.12)';" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';">
         
-        <!-- Triângulo de Status no canto superior direito -->
         <div style="position:absolute;top:0;right:0;width:0;height:0;border-top:60px solid ${borderColor};border-left:60px solid transparent;z-index:2;"></div>
-        <div style="position:absolute;top:8px;right:6px;z-index:3;color:#fff;font-size:0.6rem;font-weight:800;transform:rotate(45deg);letter-spacing:1px;">
+        <div style="position:absolute;top:8px;right:6px;z-index:3;color:${textColor};font-size:0.9rem;font-weight:900;transform:rotate(45deg);letter-spacing:1px;width:30px;text-align:center;">
             ${statusLabel}
         </div>
 
-        <!-- Foto -->
         <div style="height:140px;width:100%;background-image:url('${foto}');background-size:cover;background-position:center;border-bottom:1px solid #e2e8f0;"></div>
         
-        <!-- Detalhes -->
-        <div style="padding:1rem;flex:1;display:flex;flex-direction:column;gap:0.4rem;font-size:0.82rem;color:#475569;">
-            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
-                <span style="font-weight:600;color:#94a3b8;">Veículo:</span>
-                <span style="font-weight:700;color:#1e293b;" title="${v.marca_modelo_versao||''}">${marcaCurta}</span>
+        <div style="padding:1rem;flex:1;display:flex;flex-direction:column;gap:0.5rem;font-size:0.85rem;color:#475569;">
+            
+            <div style="display:flex;flex-direction:column;gap:0.1rem;margin-bottom:0.3rem;">
+                <span style="font-weight:600;color:#94a3b8;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;">Placa</span>
+                <span style="font-weight:800;color:#2d9e5f;font-size:1.1rem;">${v.placa||'N/D'}</span>
             </div>
+            
+            <div style="display:flex;flex-direction:column;gap:0.1rem;border-bottom:1px solid #f1f5f9;padding-bottom:0.5rem;margin-bottom:0.2rem;">
+                <span style="font-weight:600;color:#94a3b8;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;">Marca / Modelo / Versão</span>
+                <span style="font-weight:700;color:#1e293b;line-height:1.2;">${marcaCompleta}</span>
+            </div>
+            
             <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
                 <span style="font-weight:600;color:#94a3b8;">Cor:</span>
                 <span style="font-weight:700;color:#1e293b;">${v.cor_predominante||'N/D'}</span>
             </div>
-            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
-                <span style="font-weight:600;color:#94a3b8;">Placa:</span>
-                <span style="font-weight:800;color:#2d9e5f;">${v.placa||'N/D'}</span>
-            </div>
+            
             <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
                 <span style="font-weight:600;color:#94a3b8;">Exercício:</span>
-                <span style="font-weight:700;color:${alerta==='expirado'?'#dc2626':'#1e293b'};">${v.exercicio||'N/D'}</span>
+                <span style="font-weight:700;color:${alerta==='expirado'?'#dc2626':(alerta==='vencendo'?'#d97706':'#1e293b')};">${v.exercicio||'N/D'} ${alerta==='vencendo'?'(Vencendo)':''}</span>
             </div>
-            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
-                <span style="font-weight:600;color:#94a3b8;">Tanque:</span>
-                <span style="font-weight:700;color:#1e293b;">${v.capacidade_tanque?v.capacidade_tanque+' L':'N/D'}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;">
-                <span style="font-weight:600;color:#94a3b8;">Carga:</span>
-                <span style="font-weight:700;color:#1e293b;">${v.capacidade_carga?v.capacidade_carga+' un':'N/D'}</span>
+            
+            <div style="display:flex;justify-content:space-between;align-items:center;background:#f8fafc;padding:0.6rem;border-radius:8px;margin-top:0.2rem;border:1px solid #e2e8f0;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-gas-pump" style="color:#64748b;font-size:1.1rem;"></i>
+                    <span style="font-weight:700;color:#1e293b;">${v.capacidade_tanque?v.capacidade_tanque+' L':'N/D'}</span>
+                </div>
+                <div style="width:1px;height:20px;background:#cbd5e1;"></div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-package" style="color:#64748b;font-size:1.1rem;"></i>
+                    <span style="font-weight:700;color:#1e293b;">${v.capacidade_carga?v.capacidade_carga+' un':'N/D'}</span>
+                </div>
             </div>
         </div>
 
-        <!-- Ações Inferiores -->
         <div style="background:#f8fafc;padding:0.75rem 1rem;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
             <div style="font-weight:800;color:#cbd5e1;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;">
                 ${v.tipo_veiculo||'VEÍCULO'}
