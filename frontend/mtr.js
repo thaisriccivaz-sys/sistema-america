@@ -418,7 +418,10 @@ window.cancelarMTR = async function(id) {
                 body: JSON.stringify({ justificativa })
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.mensagem || 'Erro ao cancelar');
+            if (!res.ok) {
+                const msgDetalhada = data.detalhe || data.mensagem || 'Erro ao cancelar';
+                throw new Error(msgDetalhada);
+            }
             Swal.fire('Cancelado!', 'O MTR foi cancelado com sucesso.', 'success');
             carregarListaMTR();
         } catch(e) {
