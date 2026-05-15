@@ -1,5 +1,15 @@
 (function(){
 function getMesVenc(placa){const c=(placa||'').trim().slice(-1).toUpperCase();return({'1':7,'2':7,'3':8,'4':8,'5':9,'6':9,'7':10,'8':10,'9':11,'0':12})[c]||null;}
+function getRodizio(placa){
+    if(!placa) return 'N/D';
+    const c=placa.trim().slice(-1);
+    if(['1','2'].includes(c)) return 'Segunda-feira';
+    if(['3','4'].includes(c)) return 'Terça-feira';
+    if(['5','6'].includes(c)) return 'Quarta-feira';
+    if(['7','8'].includes(c)) return 'Quinta-feira';
+    if(['9','0'].includes(c)) return 'Sexta-feira';
+    return 'N/D';
+}
 function alertaPlaca(placa,exercicio){
   const hoje=new Date();
   const anoVencimento = parseInt(exercicio) + 1;
@@ -81,7 +91,6 @@ window.processarFotoVeiculo = async function(inp) {
     const st = document.getElementById('foto-status');
     if (st) st.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Processando foto...';
     
-    // Resize image to base64
     const img = new Image();
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -115,10 +124,8 @@ window.processarFotoVeiculo = async function(inp) {
 };
 
 window._frotaDados = [];
-window._frotaSearch = '';
 
-window.filtrarFrota = function(val) {
-  window._frotaSearch = (val || '').trim().toLowerCase();
+window.aplicarFiltrosFrota = function() {
   renderCardsFrota();
 };
 
@@ -126,16 +133,37 @@ function renderCardsFrota() {
   const tb = document.getElementById('frota-grid');
   if (!tb) return;
 
+  const fBusca = (document.getElementById('filtro-busca')?.value || '').trim().toLowerCase();
+  const fTipo = document.getElementById('filtro-tipo')?.value || '';
+  const fCor = document.getElementById('filtro-cor')?.value || '';
+  const fRodizio = document.getElementById('filtro-rodizio')?.value || '';
+
   let rows = [...window._frotaDados];
-  if (window._frotaSearch) {
-    const s = window._frotaSearch;
-    rows = rows.filter(v => {
+
+  rows = rows.filter(v => {
+    // Texto livre: Placa ou Modelo
+    if (fBusca) {
       const p = v.placa || '';
       const m = v.marca_modelo_versao || '';
+      if (!p.toLowerCase().includes(fBusca) && !m.toLowerCase().includes(fBusca)) return false;
+    }
+    // Tipo de Veículo
+    if (fTipo) {
+      const t = v.tipo_veiculo || '';
+      if (t.toLowerCase() !== fTipo.toLowerCase()) return false;
+    }
+    // Cor
+    if (fCor) {
       const c = v.cor_predominante || '';
-      return p.toLowerCase().includes(s) || m.toLowerCase().includes(s) || c.toLowerCase().includes(s);
-    });
-  }
+      if (c.toLowerCase() !== fCor.toLowerCase()) return false;
+    }
+    // Rodízio
+    if (fRodizio) {
+      const r = getRodizio(v.placa);
+      if (r !== fRodizio) return false;
+    }
+    return true;
+  });
 
   rows.sort((a,b) => {
       const expA = alertaPlaca(a.placa, a.exercicio) === 'expirado' ? 1 : 0;
@@ -152,22 +180,26 @@ function renderCardsFrota() {
   tb.innerHTML = rows.map(v => {
     const alerta = alertaPlaca(v.placa, v.exercicio);
     
-    let borderColor = '#2d9e5f'; // verde
+    let borderColor = '#2d9e5f'; 
     let statusLabel = 'OK';
     let textColor = '#fff';
+    let placaColor = '#2d9e5f';
     
     if (alerta === 'expirado') {
-        borderColor = '#dc2626'; // vermelho
+        borderColor = '#dc2626';
         statusLabel = '✖';
+        placaColor = '#dc2626'; // Placa vermelha
     } else if (alerta === 'vencendo' || !v.exercicio) {
-        borderColor = '#f59e0b'; // amarelo
+        borderColor = '#f59e0b';
         statusLabel = '!';
         textColor = '#fff';
+        placaColor = '#d97706'; // Placa amarela/laranja
     }
 
     const placeholder = 'https://via.placeholder.com/400x250/e2e8f0/94a3b8?text=Sem+Foto';
     const foto = v.foto_base64 || placeholder;
     const marcaCompleta = v.marca_modelo_versao || 'N/D';
+    const rodizio = getRodizio(v.placa);
 
     return `
     <div style="background:#fff;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.08);overflow:hidden;border:1px solid #e2e8f0;position:relative;display:flex;flex-direction:column;transition:transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 20px rgba(0,0,0,0.12)';" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';">
@@ -181,13 +213,14 @@ function renderCardsFrota() {
         
         <div style="padding:1rem;flex:1;display:flex;flex-direction:column;gap:0.5rem;font-size:0.85rem;color:#475569;">
             
-            <div style="display:flex;flex-direction:column;gap:0.1rem;margin-bottom:0.3rem;">
+            <!-- Placa (Cor dinamica baseada no status) -->
+            <div style="display:flex;flex-direction:column;gap:0.1rem;margin-bottom:0.1rem;">
                 <span style="font-weight:600;color:#94a3b8;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;">Placa</span>
-                <span style="font-weight:800;color:#2d9e5f;font-size:1.1rem;">${v.placa||'N/D'}</span>
+                <span style="font-weight:800;color:${placaColor};font-size:1.2rem;">${v.placa||'N/D'}</span>
             </div>
             
-            <div style="display:flex;flex-direction:column;gap:0.1rem;border-bottom:1px solid #f1f5f9;padding-bottom:0.5rem;margin-bottom:0.2rem;">
-                <span style="font-weight:600;color:#94a3b8;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;">Marca / Modelo / Versão</span>
+            <!-- Marca/Modelo/Versão sem label e com borda -->
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:0.6rem;border-radius:8px;margin-bottom:0.3rem;">
                 <span style="font-weight:700;color:#1e293b;line-height:1.2;">${marcaCompleta}</span>
             </div>
             
@@ -199,6 +232,11 @@ function renderCardsFrota() {
             <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
                 <span style="font-weight:600;color:#94a3b8;">Exercício:</span>
                 <span style="font-weight:700;color:${alerta==='expirado'?'#dc2626':(alerta==='vencendo'?'#d97706':'#1e293b')};">${v.exercicio||'N/D'} ${alerta==='vencendo'?'(Vencendo)':''}</span>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
+                <span style="font-weight:600;color:#94a3b8;">Rodízio (SP):</span>
+                <span style="font-weight:700;color:#0369a1;">${rodizio}</span>
             </div>
             
             <div style="display:flex;justify-content:space-between;align-items:center;background:#f8fafc;padding:0.6rem;border-radius:8px;margin-top:0.2rem;border:1px solid #e2e8f0;">
@@ -280,6 +318,16 @@ window.exportarFrotaExcel = async function() {
   } catch (err) { alert('Erro ao gerar o Excel: ' + err.message); }
 };
 
+function popularFiltros() {
+    const corSelect = document.getElementById('filtro-cor');
+    if(corSelect) {
+        const cores = [...new Set(window._frotaDados.map(v => (v.cor_predominante||'').trim()).filter(c => c))];
+        cores.sort();
+        const options = cores.map(c => `<option value="${c}">${c}</option>`).join('');
+        corSelect.innerHTML = '<option value="">Todas as Cores</option>' + options;
+    }
+}
+
 window.initFrotaVeiculos = async function() {
   const c = document.getElementById('frota-veiculos-container'); if (!c) return;
   await carregarPDFjs();
@@ -294,13 +342,38 @@ window.initFrotaVeiculos = async function() {
         Gestão de Frota
     </h2>
     <div style="display:flex;align-items:center;gap:12px;">
-    <div style="position:relative;">
+        <button onclick="window.exportarFrotaExcel()" style="background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:10px;padding:0.7rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 4px rgba(0,0,0,0.02);transition:0.2s;" onmouseover="this.style.background='#f1f5f9'"><i class="ph ph-download-simple"></i> Baixar Excel</button>
+        <button onclick="window.abrirModalFrota(null)" style="background:#2d9e5f;color:#fff;border:none;border-radius:10px;padding:0.7rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 10px rgba(45,158,95,0.25);transition:0.2s;" onmouseover="this.style.background='#23824e'"><i class="ph ph-plus-circle"></i> Novo Veículo</button>
+    </div>
+</div>
+
+<div style="background:#fff;padding:1rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1.5rem;display:flex;flex-wrap:wrap;gap:1rem;align-items:center;box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+    <div style="position:relative;flex:1;min-width:200px;">
         <i class="ph ph-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1.1rem;"></i>
-        <input type="text" placeholder="Buscar por placa, modelo ou cor..." onkeyup="window.filtrarFrota(this.value)" style="padding:0.7rem 1rem 0.7rem 2.6rem;border:1px solid #cbd5e1;border-radius:10px;font-size:0.9rem;width:280px;outline:none;box-shadow:0 2px 4px rgba(0,0,0,0.02);transition:0.2s;" onfocus="this.style.borderColor='#2d9e5f';this.style.boxShadow='0 0 0 3px rgba(45,158,95,0.1)';" onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='0 2px 4px rgba(0,0,0,0.02)';">
+        <input type="text" id="filtro-busca" placeholder="Buscar por placa ou modelo..." onkeyup="window.aplicarFiltrosFrota()" style="padding:0.6rem 1rem 0.6rem 2.4rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;width:100%;box-sizing:border-box;outline:none;transition:0.2s;" onfocus="this.style.borderColor='#2d9e5f';" onblur="this.style.borderColor='#cbd5e1';">
     </div>
-    <button onclick="window.exportarFrotaExcel()" style="background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:10px;padding:0.7rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 4px rgba(0,0,0,0.02);transition:0.2s;" onmouseover="this.style.background='#f1f5f9'"><i class="ph ph-download-simple"></i> Baixar Excel</button>
-    <button onclick="window.abrirModalFrota(null)" style="background:#2d9e5f;color:#fff;border:none;border-radius:10px;padding:0.7rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 10px rgba(45,158,95,0.25);transition:0.2s;" onmouseover="this.style.background='#23824e'"><i class="ph ph-plus-circle"></i> Novo Veículo</button>
-    </div>
+    
+    <select id="filtro-tipo" onchange="window.aplicarFiltrosFrota()" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;background:#fff;cursor:pointer;min-width:140px;">
+        <option value="">Todos os Tipos</option>
+        <option value="caminhão">Caminhão</option>
+        <option value="caminhonete">Caminhonete</option>
+        <option value="utilitário">Utilitário</option>
+        <option value="carretinha">Carretinha</option>
+        <option value="caminhão tanque">Caminhão Tanque</option>
+    </select>
+    
+    <select id="filtro-cor" onchange="window.aplicarFiltrosFrota()" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;background:#fff;cursor:pointer;min-width:140px;">
+        <option value="">Todas as Cores</option>
+    </select>
+    
+    <select id="filtro-rodizio" onchange="window.aplicarFiltrosFrota()" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;background:#fff;cursor:pointer;min-width:160px;">
+        <option value="">Qualquer Rodízio</option>
+        <option value="Segunda-feira">Segunda (1 e 2)</option>
+        <option value="Terça-feira">Terça (3 e 4)</option>
+        <option value="Quarta-feira">Quarta (5 e 6)</option>
+        <option value="Quinta-feira">Quinta (7 e 8)</option>
+        <option value="Sexta-feira">Sexta (9 e 0)</option>
+    </select>
 </div>
 
 <!-- Grid de Cards -->
@@ -313,6 +386,7 @@ window.initFrotaVeiculos = async function() {
     const res = await fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } });
     const rows = await res.json();
     window._frotaDados = rows || [];
+    popularFiltros();
     renderCardsFrota();
   } catch (e) {
     const tb = document.getElementById('frota-grid');
@@ -356,9 +430,7 @@ window.abrirModalFrota=async function(id){
 <div style="padding:1.5rem;background:#fff;">
 ${alertaHtml}
 
-<!-- ROW TOP: FOTO E CRLV LADO A LADO -->
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
-    <!-- FOTO UPLOAD -->
     <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 2px 4px rgba(0,0,0,0.02);">
         <div style="background:#f8fafc;padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;font-weight:600;color:#475569;font-size:0.85rem;display:flex;align-items:center;gap:6px;">
             <i class="ph ph-camera" style="color:#2d9e5f;font-size:1.1rem;"></i> Foto do Veículo
@@ -373,7 +445,6 @@ ${alertaHtml}
         </div>
     </div>
 
-    <!-- CRLV UPLOAD -->
     <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 2px 4px rgba(0,0,0,0.02);">
         <div style="background:#f8fafc;padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;font-weight:600;color:#475569;font-size:0.85rem;display:flex;align-items:center;gap:6px;">
             <i class="ph ph-file-pdf" style="color:#0891b2;font-size:1.1rem;"></i> Importar CRLV
@@ -498,7 +569,7 @@ window.salvarVeiculoFrota=async function(id){
     profundidade_sem_banheiro:g('fv-prof-s'),
     crlv_base64:window._frotaB64||null,
     crlv_filename:window._frotaFN||null,
-    foto_base64: window._frotaImgB64 // will be string or null
+    foto_base64: window._frotaImgB64
   };
   try{
     const res=await fetch(id?'/api/frota/veiculos/'+id:'/api/frota/veiculos',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok},body:JSON.stringify(body)});
