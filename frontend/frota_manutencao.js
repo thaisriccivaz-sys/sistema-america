@@ -68,23 +68,27 @@ window.mnMudarSubAba = function(aba) {
 
 function mnRenderPreventivaTela(sub) {
     const frota = window._manutFrota || [];
-    const veicOpts = frota.map(v => `<option value="${v.id}">${v.placa} — ${(v.marca_modelo_versao||'').substring(0,28)}</option>`).join('');
+    const veicOpts = frota.map(v => `<option value="${v.id}">${v.placa} \u2014 ${(v.marca_modelo_versao||'').substring(0,28)}</option>`).join('');
     sub.innerHTML = `
-    <div style="background:#fff;padding:1rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-        <label style="font-weight:600;color:#475569;font-size:0.9rem;">Veículo:</label>
-        <select id="mn-prev-veiculo" onchange="window.mnCarregarPreventivoVeiculo()" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;min-width:220px;background:#fff;">
+    <div style="background:#fff;padding:1rem 1.25rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <label style="font-weight:700;color:#475569;font-size:0.9rem;">Veículo:</label>
+        <select id="mn-prev-veiculo" onchange="window.mnCarregarPreventivoVeiculo()" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;min-width:240px;background:#fff;">
             <option value="">Selecione...</option>${veicOpts}
         </select>
-        <div id="mn-prev-km-box" style="display:none;align-items:center;gap:8px;">
-            <i class="ph ph-gauge" style="color:#d97706;"></i>
-            <input type="number" id="mn-prev-km" placeholder="KM atual" style="padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;width:120px;outline:none;">
-            <button onclick="window.mnSalvarKmPreventivo()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.5rem 1rem;font-weight:600;cursor:pointer;font-size:0.85rem;">
+        <div id="mn-prev-km-box" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+            <i class="ph ph-gauge" style="color:#d97706;font-size:1.1rem;"></i>
+            <span style="font-size:0.85rem;color:#64748b;font-weight:600;">KM atual:</span>
+            <input type="number" id="mn-prev-km" placeholder="Ex: 125000" style="padding:0.45rem 0.75rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;width:130px;outline:none;">
+            <button onclick="window.mnSalvarKmPreventivo()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:600;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:6px;">
                 <i class="ph ph-floppy-disk"></i> Salvar KM
             </button>
             <span id="mn-prev-km-label" style="font-size:0.82rem;color:#64748b;"></span>
         </div>
+        <button onclick="window.abrirModalManutencaoPreventiva()" style="background:#d97706;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:600;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:6px;margin-left:auto;">
+            <i class="ph ph-plus"></i> Registrar Manutenção
+        </button>
     </div>
-    <div id="mn-prev-plano"><div style="padding:3rem;text-align:center;color:#94a3b8;">Selecione um veículo para ver o plano preventivo.</div></div>`;
+    <div id="mn-prev-plano"><div style="padding:3rem;text-align:center;color:#94a3b8;">Selecione um ve\u00edculo para ver o plano preventivo.</div></div>`;
 }
 
 window.mnCarregarPreventivoVeiculo = async function() {
@@ -99,14 +103,87 @@ window.mnCarregarPreventivoVeiculo = async function() {
     const kmLbl = document.getElementById('mn-prev-km-label');
     if (kmInp && v?.km_atual) kmInp.value = v.km_atual;
     if (kmLbl && v) kmLbl.textContent = v.km_atual ? `Registrado: ${Number(v.km_atual).toLocaleString('pt-BR')} km` : '';
-    planoEl.innerHTML = '<div style="padding:1.5rem;text-align:center;color:#94a3b8;"><i class="ph ph-circle-notch ph-spin"></i> Calculando...</div>';
+    planoEl.innerHTML = '<div style="padding:1.5rem;text-align:center;color:#94a3b8;"><i class="ph ph-circle-notch ph-spin"></i> Carregando plano...</div>';
     const tok = window._manutTok;
     try {
-        const res = await fetch('/api/frota/veiculos/' + vid + '/alertas', { headers: { Authorization: 'Bearer ' + tok } });
+        const res = await fetch('/api/frota/manutencoes/preventivo/' + vid, { headers: { Authorization: 'Bearer ' + tok } });
         const data = await res.json();
-        planoEl.innerHTML = mnRenderPreventivo(data);
+        planoEl.innerHTML = mnRenderPlanoAgrupado(data);
     } catch(e) { planoEl.innerHTML = '<div style="padding:1rem;color:#dc2626;">Erro ao carregar plano.</div>'; }
 };
+
+function mnRenderPlanoAgrupado(data) {
+    const { km_atual, grupos } = data;
+    if (!grupos || !Object.keys(grupos).length) return '<div style="padding:2rem;text-align:center;color:#94a3b8;">Nenhum item encontrado.</div>';
+    const critCor = { Critica:'#dc2626', Alta:'#d97706', Media:'#0284c7', Baixa:'#2d9e5f' };
+    const vid = document.getElementById('mn-prev-veiculo')?.value;
+
+    let html = `<div style="display:flex;flex-direction:column;gap:1rem;">`;
+    Object.entries(grupos).forEach(([catNome, cat]) => {
+        const rows = cat.itens.map(item => {
+            let cor = '#2d9e5f', bg = '#ecfdf5', icone = 'check-circle';
+            if (item.status_item==='vencida') { cor='#dc2626'; bg='#fef2f2'; icone='warning'; }
+            else if (item.status_item==='proxima') { cor='#d97706'; bg='#fffbeb'; icone='clock'; }
+            const kmRestTxt = item.km_restante <= 0
+                ? `<span style="color:#dc2626;font-weight:700;">Vencida h\u00e1 ${Math.abs(Math.round(item.km_restante)).toLocaleString('pt-BR')} ${item.unidade}</span>`
+                : `<span style="color:${cor};font-weight:700;">Restam ${Math.round(item.km_restante).toLocaleString('pt-BR')} ${item.unidade}</span>`;
+            const criticBadge = `<span style="background:${critCor[item.criticidade]||'#94a3b8'}22;color:${critCor[item.criticidade]||'#94a3b8'};padding:1px 7px;border-radius:20px;font-size:0.72rem;font-weight:700;">${item.criticidade||'Media'}</span>`;
+            return `<tr style="background:${bg};border-bottom:1px solid #e2e8f0;">
+                <td style="padding:0.6rem 0.9rem;">
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <i class="ph ph-${icone}" style="color:${cor};"></i>
+                        <span style="font-weight:600;color:#1e293b;font-size:0.85rem;">${item.nome}</span>
+                        ${item.impede_operacao ? '<span style="background:#dc262622;color:#dc2626;padding:1px 6px;border-radius:20px;font-size:0.7rem;font-weight:700;">Para Op.</span>' : ''}
+                    </div>
+                </td>
+                <td style="padding:0.6rem 0.9rem;text-align:center;">${criticBadge}</td>
+                <td style="padding:0.6rem 0.9rem;text-align:center;color:#64748b;font-size:0.82rem;">${item.tipo_controle}</td>
+                <td style="padding:0.6rem 0.9rem;text-align:center;color:#475569;font-size:0.82rem;">A cada ${Number(item.periodicidade_padrao).toLocaleString('pt-BR')} ${item.unidade}</td>
+                <td style="padding:0.6rem 0.9rem;text-align:center;color:#64748b;font-size:0.82rem;">${item.km_ultima ? Number(item.km_ultima).toLocaleString('pt-BR') + ' ' + item.unidade : '\u2014'}</td>
+                <td style="padding:0.6rem 0.9rem;text-align:center;">${kmRestTxt}</td>
+                <td style="padding:0.6rem 0.9rem;text-align:center;">
+                    <button onclick="window.registrarManutPreventiva(${item.id},'${item.nome.replace(/'/g,'\\'+'')}',' ${item.tipo_controle}')" 
+                        style="background:#2d9e5f;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.7rem;font-size:0.75rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:4px;">
+                        <i class="ph ph-check"></i> Registrar
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+        html += `<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+            <div style="background:#1e293b;padding:0.65rem 1rem;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-${cat.icone||'wrench'}" style="color:#f59e0b;font-size:1rem;"></i>
+                <span style="font-weight:700;color:#fff;font-size:0.9rem;">${catNome}</span>
+                <span style="margin-left:auto;font-size:0.78rem;color:#94a3b8;">${cat.itens.length} itens</span>
+            </div>
+            <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.83rem;">
+                <thead><tr style="background:#f1f5f9;">
+                    <th style="padding:0.5rem 0.9rem;text-align:left;color:#64748b;font-weight:600;">Servi\u00e7o</th>
+                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Criticidade</th>
+                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Controle</th>
+                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Intervalo</th>
+                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">&Uacute;ltimo</th>
+                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Status</th>
+                    <th style="padding:0.5rem 0.9rem;"></th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table></div>
+        </div>`;
+    });
+    html += '</div>';
+    return html;
+}
+
+window.registrarManutPreventiva = function(servicoId, nome, tipoControle) {
+    const vid = document.getElementById('mn-prev-veiculo')?.value;
+    if (!vid) return alert('Selecione um veículo primeiro');
+    window.abrirModalManutencaoPreventiva(servicoId, nome, tipoControle, vid);
+};
+
+window.abrirModalManutencaoPreventiva = function(servicoId, nome, tipoControle, vid) {
+    // Opens the modal pre-filled for a specific preventive maintenance item
+    window.abrirModalManutencao(null, { tipo: 'preventiva', servico_catalogo_id: servicoId, descricao: nome, tipoControle, vid });
+};
+
 
 window.mnSalvarKmPreventivo = async function() {
     const vid = document.getElementById('mn-prev-veiculo')?.value;
