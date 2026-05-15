@@ -849,7 +849,7 @@ function _rrRenderCorpo() {
             ${badgeDisp}
             ${badgeAviso}
             <div style="display:flex;gap:0;border-top:1px solid #e2e8f0;">
-                <div style="flex:1 1 60%;padding:14px 18px;background:#f8fafc;border-right:1px solid #e2e8f0;">
+                <div style="flex:1 1 40%;padding:14px 18px;background:#f8fafc;border-right:1px solid #e2e8f0;">
                     <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Resumo da Rota</div>
                     <textarea class="rr-textarea-edit" data-index="${i}" spellcheck="false"
                         style="width:100%;height:${h}px;border:1px solid #cbd5e1;border-radius:6px;padding:12px;font-size:0.85rem;color:#1e293b;line-height:1.7;font-family:monospace;resize:vertical;outline:none;box-sizing:border-box;"
