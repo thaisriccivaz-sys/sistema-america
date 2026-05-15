@@ -394,30 +394,42 @@ window.mnAtualizarKm = async function() {
     } else alert('Erro ao atualizar KM');
 };
 
-window.abrirModalManutencao = async function(id) {
+window.abrirModalManutencao = async function(id, opts = {}) {
     const tok = window._manutTok;
     let m = {};
     if (id) {
         m = (window._manutDados||[]).find(x => x.id === id) || {};
+    } else {
+        m = {
+            tipo: opts.tipo || 'corretiva',
+            veiculo_id: opts.vid || '',
+            servico_catalogo_id: opts.servico_catalogo_id || '',
+            descricao: opts.descricao || '',
+            tipo_controle: opts.tipoControle || 'KM'
+        };
     }
+
     let ov = document.getElementById('modal-manut-ov'); if (ov) ov.remove();
     ov = document.createElement('div'); ov.id = 'modal-manut-ov';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
     const frota = window._manutFrota || [];
-    const veicOpts = frota.map(v => `<option value="${v.id}" ${m.veiculo_id==v.id?'selected':''}>${v.placa} — ${(v.marca_modelo_versao||'').substring(0,30)}</option>`).join('');
+    const veicOpts = frota.map(v => `<option value="${v.id}" ${m.veiculo_id==v.id?'selected':''}>${v.placa} \u2014 ${(v.marca_modelo_versao||'').substring(0,30)}</option>`).join('');
     const inp = (fid,val,ph,type) => `<input id="${fid}" value="${val||''}" placeholder="${ph||''}" type="${type||'text'}" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">`;
     const lbl = t => `<label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">${t}</label>`;
-    const sel = (fid, opts, selected) => `<select id="${fid}" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;">${opts.map(o=>`<option value="${o.v}" ${selected===o.v?'selected':''}>${o.l}</option>`).join('')}</select>`;
+    const sel = (fid, optsArr, selected, disabled) => `<select id="${fid}" ${disabled?'disabled':''} style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:${disabled?'#f8fafc':'#fff'};box-sizing:border-box;font-size:0.9rem;outline:none;${disabled?'cursor:not-allowed;color:#64748b;':''}">${optsArr.map(o=>`<option value="${o.v}" ${selected===o.v?'selected':''}>${o.l}</option>`).join('')}</select>`;
 
     ov.innerHTML = `<div style="background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);">
 <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#fffbeb;position:sticky;top:0;">
     <div style="font-size:1rem;font-weight:700;color:#92400e;display:flex;align-items:center;gap:8px;">
         <div style="background:#d97706;color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-wrench"></i></div>
-        ${id ? 'Editar Manutenção' : 'Nova Manutenção'}
+        ${id ? 'Editar Manutenção' : (m.tipo==='preventiva' ? 'Nova Preventiva' : 'Nova Corretiva')}
     </div>
     <button onclick="document.getElementById('modal-manut-ov').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;"><i class="ph ph-x"></i></button>
 </div>
 <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
+    <input type="hidden" id="mn-m-serv-cat-id" value="${m.servico_catalogo_id||''}">
+    <input type="hidden" id="mn-m-tipo-controle" value="${m.tipo_controle||'KM'}">
+    
     <div>
         ${lbl('Veículo *')}
         <select id="mn-m-veiculo" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;">
@@ -427,11 +439,11 @@ window.abrirModalManutencao = async function(id) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
         <div>
             ${lbl('Tipo *')}
-            ${sel('mn-m-tipo', [{v:'preventiva',l:'Preventiva'},{v:'corretiva',l:'Corretiva'}], m.tipo||'preventiva')}
+            ${sel('mn-m-tipo', [{v:'preventiva',l:'Preventiva'},{v:'corretiva',l:'Corretiva'}], m.tipo, opts.tipo!==undefined)}
         </div>
         <div>
             ${lbl('Status *')}
-            ${sel('mn-m-status', [{v:'agendada',l:'Agendada'},{v:'em_andamento',l:'Em Andamento'},{v:'concluida',l:'Concluída'},{v:'cancelada',l:'Cancelada'}], m.status||'agendada')}
+            ${sel('mn-m-status', [{v:'agendada',l:'Agendada'},{v:'em_andamento',l:'Em Andamento'},{v:'concluida',l:'Concluída'},{v:'cancelada',l:'Cancelada'}], m.status||'agendada', false)}
         </div>
     </div>
     <div>
@@ -439,8 +451,8 @@ window.abrirModalManutencao = async function(id) {
         <textarea id="mn-m-descricao" placeholder="Descreva o serviço realizado ou a realizar..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:80px;resize:vertical;">${m.descricao||''}</textarea>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-        <div>${lbl('KM na Manutenção')}${inp('mn-m-km', m.km_na_manutencao, 'Ex: 100000', 'number')}</div>
-        <div>${lbl('Próxima Manutenção (KM)')}${inp('mn-m-km-prox', m.km_proxima_manutencao, 'Ex: 110000', 'number')}</div>
+        <div>${lbl('KM na Manutenção (se aplicável)')}${inp('mn-m-km', m.km_na_manutencao, 'Ex: 100000', 'number')}</div>
+        <div>${lbl('Horímetro (se aplicável)')}${inp('mn-m-horimetro', m.horimetro_na_manutencao, 'Ex: 500', 'number')}</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
         <div>${lbl('Data Agendamento')}${inp('mn-m-data-ag', m.data_agendamento, '', 'date')}</div>
