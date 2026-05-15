@@ -14297,7 +14297,7 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
         tiaCodigo: parseInt(acondicionamentoCodigo),
         tieCodigo: parseInt(estadoFisicoCodigo),
         traCodigo: parseInt(tratamentoCodigo),
-        claCodigo: 1
+        claCodigo: req.body.claCodigo ? parseInt(req.body.claCodigo) : 2
       }]
     }];
 
