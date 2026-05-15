@@ -857,7 +857,7 @@ function _rrRenderCorpo() {
                         onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'"
                     >${colB}</textarea>
                 </div>
-                <div style="flex:0 0 40%;max-width:40%;padding:14px 14px;background:#fff;">
+                <div style="flex:0 0 30%;max-width:30%;padding:14px 14px;background:#fff;border-right:1px solid #e2e8f0;">
                     <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Observações do Roteirizador <span style="color:#dc2626;">*</span></div>
                     <textarea class="rr-textarea-obs" data-index="${i}" spellcheck="false"
                         placeholder="Digite as observações do roteirizador (obrigatório)..."
@@ -867,8 +867,17 @@ function _rrRenderCorpo() {
                         required
                     >${v.obsRoteirizador || ''}</textarea>
                 </div>
+                <div style="flex:0 0 30%;max-width:30%;padding:14px 14px;background:#fff;">
+                    <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Observações de Alterações</div>
+                    <textarea class="rr-textarea-alt" data-index="${i}" spellcheck="false"
+                        placeholder="Observações de alterações (opcional)..."
+                        style="width:100%;height:${h}px;border:1px solid #cbd5e1;border-radius:6px;padding:12px;font-size:0.85rem;color:#1e293b;line-height:1.7;font-family:sans-serif;resize:vertical;outline:none;box-sizing:border-box;background:#f8fafc;"
+                        onfocus="this.style.borderColor='#3b82f6';this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'"
+                        onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'; window._rrAtualizarVeiculo(${i}, 'obsAlteracoes', this.value);"
+                    >${v.obsAlteracoes || ''}</textarea>
+                </div>
             </div>
-        </div>`;
+        `;
     }).join('');
 }
 
@@ -973,6 +982,8 @@ window.rrExportarExcel = async function() {
                 to.style.borderColor = '#cbd5e1';
             }
         }
+        const taAlt = document.querySelector(`.rr-textarea-alt[data-index="${i}"]`);
+        if (taAlt) v.obsAlteracoes = taAlt.value;
     });
 
     if (faltouObs) {
@@ -1071,6 +1082,8 @@ window.rrSalvarResumo = async function() {
                 to.style.borderColor = '#cbd5e1';
             }
         }
+        const taAlt = document.querySelector(`.rr-textarea-alt[data-index="${i}"]`);
+        if (taAlt) v.obsAlteracoes = taAlt.value;
     });
 
     if (faltouObs) {
