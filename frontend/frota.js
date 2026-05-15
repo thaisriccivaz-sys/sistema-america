@@ -172,6 +172,11 @@ function renderCardsFrota() {
       return (a.placa||'').localeCompare(b.placa||'');
   });
 
+  const ct = document.getElementById('frota-contador');
+  if (ct) {
+      ct.innerHTML = \`<i class="ph ph-truck" style="font-size:1.1rem;"></i>\${rows.length} \${rows.length === 1 ? 'veículo listado' : 'veículos listados'}\`;
+  }
+
   if (!rows || !rows.length) {
     tb.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#94a3b8;font-size:1.1rem;">Nenhum veículo encontrado</div>';
     return;
@@ -459,6 +464,10 @@ window.initFrotaVeiculos = async function() {
         <option value="Quinta-feira">Quinta (7 e 8)</option>
         <option value="Sexta-feira">Sexta (9 e 0)</option>
     </select>
+    
+    <div id="frota-contador" style="font-weight:700;color:#2d9e5f;background:#ecfdf5;padding:0.6rem 1rem;border-radius:8px;font-size:0.9rem;border:1px solid #a7f3d0;margin-left:auto;display:flex;align-items:center;gap:6px;">
+        <i class="ph ph-truck"></i> Aguarde...
+    </div>
 </div>
 
 <!-- Grid de Cards -->
