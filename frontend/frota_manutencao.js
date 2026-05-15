@@ -1,8 +1,8 @@
 (function(){
 'use strict';
 
-window.initFrotaManutencoes = async function() {
-    const c = document.getElementById('frota-veiculos-container');
+window.initFrotaManutencoes = async function(containerEl) {
+    const c = containerEl || document.getElementById('frota-conteudo') || document.getElementById('frota-veiculos-container');
     if (!c) return;
     const tok = window.currentToken || localStorage.getItem('token');
     window._manutTok = tok;

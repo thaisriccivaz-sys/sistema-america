@@ -429,27 +429,52 @@ window.trocarAbaFrota = function(aba) {
         b.style.background = isActive ? '#2d9e5f' : '#fff';
         b.style.color = isActive ? '#fff' : '#475569';
         b.style.borderColor = isActive ? '#2d9e5f' : '#cbd5e1';
+        b.style.fontWeight = isActive ? '700' : '600';
     });
-    if (aba === 'veiculos') window.initFrotaVeiculos();
-    else if (aba === 'manutencoes') window.initFrotaManutencoes();
+    const inner = document.getElementById('frota-conteudo');
+    if (!inner) return;
+    if (aba === 'veiculos') _renderGestaoFrota(inner);
+    else if (aba === 'manutencoes') { window._manutContainer = inner; window.initFrotaManutencoes(inner); }
 };
 
-window.initFrota = function() {
-    const c = document.getElementById('frota-veiculos-container'); if (!c) return;
-    c.innerHTML = `<div style="min-height:100%;"><div style="background:#fff;border-bottom:1px solid #e2e8f0;padding:0 1.5rem;display:flex;gap:0;">
-        <button class="frota-aba-btn" data-aba="veiculos" onclick="window.trocarAbaFrota('veiculos')" style="background:#2d9e5f;color:#fff;border:1px solid #2d9e5f;border-bottom:none;padding:0.75rem 1.5rem;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;border-radius:10px 10px 0 0;margin-right:4px;">
-            <i class="ph ph-truck"></i> Gestão de Frota
-        </button>
-        <button class="frota-aba-btn" data-aba="manutencoes" onclick="window.trocarAbaFrota('manutencoes')" style="background:#fff;color:#475569;border:1px solid #cbd5e1;border-bottom:none;padding:0.75rem 1.5rem;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;border-radius:10px 10px 0 0;">
-            <i class="ph ph-wrench"></i> Manutenções
-        </button>
-    </div><div id="frota-veiculos-container"><div style="padding:3rem;text-align:center;color:#94a3b8;"><i class="ph ph-circle-notch ph-spin" style="font-size:2rem;"></i></div></div></div>`;
-    // Re-point the container to the inner div
+// _renderGestaoFrota: renders fleet tab content into a given container
+function _renderGestaoFrota(container) {
+    // initFrotaVeiculos already renders into frota-conteudo, just call it
     window.initFrotaVeiculos();
-};
+}
 
 window.initFrotaVeiculos = async function() {
-  const c = document.getElementById('frota-veiculos-container'); if (!c) return;
+  // Ensure the tab wrapper exists — render it if opening frota for the first time
+  const outerC = document.getElementById('frota-veiculos-container');
+  if (!outerC) return;
+  
+  // Build tab wrapper if not yet present
+  if (!document.getElementById('frota-conteudo')) {
+      outerC.innerHTML = `
+      <div style="min-height:100%;">
+        <div style="background:#fff;border-bottom:2px solid #e2e8f0;padding:0 1.5rem;display:flex;gap:4px;">
+          <button class="frota-aba-btn" data-aba="veiculos" onclick="window.trocarAbaFrota('veiculos')" style="background:#2d9e5f;color:#fff;border:1px solid #2d9e5f;border-bottom:none;padding:0.75rem 1.5rem;font-weight:700;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;border-radius:10px 10px 0 0;margin-top:4px;">
+            <i class="ph ph-truck"></i> Gest\u00e3o de Frota
+          </button>
+          <button class="frota-aba-btn" data-aba="manutencoes" onclick="window.trocarAbaFrota('manutencoes')" style="background:#fff;color:#475569;border:1px solid #cbd5e1;border-bottom:none;padding:0.75rem 1.5rem;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;border-radius:10px 10px 0 0;margin-top:4px;">
+            <i class="ph ph-wrench"></i> Manuten\u00e7\u00f5es
+          </button>
+        </div>
+        <div id="frota-conteudo" style="min-height:400px;"></div>
+      </div>`;
+  } else {
+      // Tabs already rendered — just reset active button
+      document.querySelectorAll('.frota-aba-btn').forEach(b => {
+          const isActive = b.dataset.aba === 'veiculos';
+          b.style.background = isActive ? '#2d9e5f' : '#fff';
+          b.style.color = isActive ? '#fff' : '#475569';
+          b.style.borderColor = isActive ? '#2d9e5f' : '#cbd5e1';
+      });
+  }
+  
+  const c = document.getElementById('frota-conteudo');
+  if (!c) return;
+  window._frotaAbaAtiva = 'veiculos';
   await carregarPDFjs();
   const tok = window.currentToken || localStorage.getItem('token');
   
