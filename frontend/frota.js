@@ -174,7 +174,7 @@ function renderCardsFrota() {
 
   const ct = document.getElementById('frota-contador');
   if (ct) {
-      ct.innerHTML = \`<i class="ph ph-truck" style="font-size:1.1rem;"></i>\${rows.length} \${rows.length === 1 ? 'veículo listado' : 'veículos listados'}\`;
+      ct.innerHTML = `<i class="ph ph-truck" style="font-size:1.1rem;margin-right:6px;"></i>${rows.length} ${rows.length === 1 ? 'veículo listado' : 'veículos listados'}`;
   }
 
   if (!rows || !rows.length) {
