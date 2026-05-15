@@ -979,6 +979,21 @@ const db = new sqlite3.Database(dbPath, (err) => {
     db.run("ALTER TABLE credenciamentos ADD COLUMN enviado_em DATETIME", () => {});
 
 
+            // Tabela de Auditoria do Resumo de Rota
+            db.run(`
+                CREATE TABLE IF NOT EXISTS resumo_rota_auditoria (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    data_rota TEXT NOT NULL,
+                    nome_resumo TEXT NOT NULL,
+                    veiculo TEXT,
+                    campo TEXT NOT NULL,
+                    valor_anterior TEXT,
+                    valor_atual TEXT,
+                    usuario_nome TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
             console.log('Tabelas do sistema RH verificadas/criadas com sucesso.');
 
         });
