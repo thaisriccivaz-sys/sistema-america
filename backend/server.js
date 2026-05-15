@@ -14434,43 +14434,32 @@ app.post('/api/mtr/:id/cancelar', authenticateToken, async (req, res) => {
       return;
     }
     try {
-      const numInt = parseInt(row.numero_mtr);
-      const numStr = String(row.numero_mtr);
+      // API 12 - Cancelar Manifesto (Manual SIGOR v1.15)
+      // Endpoint: POST /cancelarManifesto
+      // Payload: objeto simples (NÃO array) com manNumero (string) e justificativa
+      const payload = {
+        manNumero: String(row.numero_mtr),
+        justificativa: justificativa
+      };
+      console.log('[MTR CANCEL] Payload correto (API 12):', JSON.stringify(payload));
+      const data = await sigorReq('/cancelarManifesto', 'POST', payload);
+      console.log('[MTR CANCEL] Resposta SIGOR:', JSON.stringify(data));
 
-      // Tenta 4 variantes de payload ate uma funcionar
-      const variantes = [
-        [{ numManifesto: numInt, justificativaCancelamento: justificativa }],
-        [{ numManifesto: numStr, justificativaCancelamento: justificativa }],
-        [{ numeroManifesto: numStr, justificativaCancelamento: justificativa }],
-        [{ nrManifesto: numInt, justificativaCancelamento: justificativa }],
-      ];
-
-      let ultimaResposta = null;
-      for (const payload of variantes) {
-        console.log('[MTR CANCEL] Tentando payload:', JSON.stringify(payload));
-        const data = await sigorReq('/cancelarManifestoLote', 'POST', payload);
-        console.log('[MTR CANCEL] Resposta:', JSON.stringify(data));
-        ultimaResposta = data;
-
-        const respItem = data.objetoResposta?.[0];
-        const valido = respItem?.restResponseValido ?? respItem?.valido;
-        const temErro = !!data.erro || !!data.mensagem;
-
-        if (!temErro || valido === true) {
-          db.run('UPDATE mtr_local SET status = ? WHERE id = ?', ['Cancelado', row.id]);
-          return res.json({ mensagem: 'MTR cancelada com sucesso no SIGOR' });
-        }
+      // Sucesso: data.erro === false e data.mensagem contém "sucesso"
+      if (data.erro === false || (data.mensagem && data.mensagem.toLowerCase().includes('sucesso'))) {
+        db.run('UPDATE mtr_local SET status = ? WHERE id = ?', ['Cancelado', row.id]);
+        return res.json({ mensagem: 'MTR cancelada com sucesso' });
       }
 
-      // Todas as variantes falharam
-      const respItem = ultimaResposta?.objetoResposta?.[0];
-      const msgFinal = respItem?.restResponseMensagem || ultimaResposta?.mensagem || 'Erro ao cancelar no SIGOR';
-      console.error('[MTR CANCEL] Todas as variantes falharam:', JSON.stringify(ultimaResposta));
-      return res.status(400).json({ mensagem: msgFinal, detalhe: respItem?.restResponseMensagem, sigorResponse: ultimaResposta });
+      // Erro do SIGOR
+      const msgFinal = data.mensagem || 'Erro ao cancelar no SIGOR';
+      console.error('[MTR CANCEL] SIGOR rejeitou:', msgFinal);
+      return res.status(400).json({ mensagem: msgFinal });
     } catch (e) {
       console.error('[MTR CANCEL] Excecao:', e.message);
       res.status(500).json({ mensagem: e.message });
     }
+
   });
 });
 
