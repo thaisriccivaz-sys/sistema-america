@@ -13234,6 +13234,7 @@ app.get('/api/logistica/resumo-rota-auditoria', authenticateToken, (req, res) =>
 
 // POST – registrar auditoria de alteração no Resumo de Rota
 app.post('/api/logistica/resumo-rota-auditoria', authenticateToken, express.json(), (req, res) => {
+    console.log('[AUDITORIA] POST recebido:', req.body);
     const { data_rota, nome_resumo, veiculo, campo, valor_anterior, valor_atual } = req.body;
     const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
     db.run(
