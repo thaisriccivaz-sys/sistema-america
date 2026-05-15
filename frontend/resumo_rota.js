@@ -374,6 +374,7 @@ window.rrCarregarHistorico = async function(id) {
         window._rrOriginalFileName   = null;
         window._rrDataRotaAtual = null;
         _rrRenderCorpo();
+        if (typeof window._rrCapturarSnapshot === "function") window._rrCapturarSnapshot();
         const btnSalvar = document.getElementById('rr-btn-salvar');
         if (btnSalvar) btnSalvar.style.display = 'none';
         if (btnExportar) btnExportar.style.display = 'none';
@@ -476,6 +477,7 @@ window.rrLimparResumo = function() {
     window._rrOriginalFileBase64 = null;
     window._rrOriginalFileName   = null;
     _rrRenderCorpo();
+    if (typeof window._rrCapturarSnapshot === "function") window._rrCapturarSnapshot();
     const btnSalvar = document.getElementById('rr-btn-salvar');
     const btnExp  = document.getElementById('rr-btn-exportar');
     const btnOrig = document.getElementById('rr-btn-baixar-original');
@@ -711,6 +713,7 @@ window.rrImportarPlanilha = async function(input) {
     }
 
     _rrRenderCorpo();
+    if (typeof window._rrCapturarSnapshot === "function") window._rrCapturarSnapshot();
     const btnSalvar = document.getElementById('rr-btn-salvar');
     if (btnSalvar) btnSalvar.style.display = 'flex';
     const btnExportar = document.getElementById('rr-btn-exportar');
@@ -1063,7 +1066,6 @@ window.rrExportarExcel = async function() {
 
 window.rrSalvarResumo = async function() {
     // Captura snapshot antes de ler os textareas (para detectar mudanças)
-    window._rrCapturarSnapshot();
     if (!_rrVeiculos.length) {
         showToast('Importe uma planilha primeiro.', 'error');
         return;
@@ -1147,6 +1149,7 @@ window.rrSalvarResumo = async function() {
             _rrCurrentId = data.id;
             await window.rrListarHistorico();
             await window._rrRegistrarAlteracoes(nomeFinal);
+            if (typeof window._rrCapturarSnapshot === "function") window._rrCapturarSnapshot();
             const sel = document.getElementById('rr-historico-select');
             if (sel) sel.value = _rrCurrentId;
             const btnOrig = document.getElementById('rr-btn-baixar-original');
