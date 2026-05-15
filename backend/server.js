@@ -14466,7 +14466,29 @@ app.post('/api/mtr/:id/cancelar', authenticateToken, async (req, res) => {
 
 
 
-// ── GET /api/mtr/:id/pdf ───────────────────────────────────────────────────── ─────────────────────────────────────────────────────
+// ── GET /api/mtr/:id/sigor-status ────────────────────────────────────────────
+// Retorna o status completo do SIGOR para uma MTR específica (diagnóstico)
+app.get('/api/mtr/:id/sigor-status', authenticateToken, async (req, res) => {
+  db.get('SELECT * FROM mtr_local WHERE id = ?', [req.params.id], async (err, row) => {
+    if (err || !row) return res.status(404).json({ mensagem: 'MTR não encontrada' });
+    try {
+      const data = await sigorReq('/retornaManifesto/' + row.numero_mtr);
+      const sit = data?.objetoResposta?.situacaoManifesto;
+      const validacoes = data?.objetoResposta?.listaManifestoResiduos?.[0];
+      res.json({
+        numero_mtr: row.numero_mtr,
+        status_local: row.status,
+        status_sigor: sit?.simDescricao,
+        sigorResponse: data,
+        validadoSigor: validacoes
+      });
+    } catch (e) {
+      res.status(500).json({ mensagem: e.message });
+    }
+  });
+});
+
+// ── GET /api/mtr/:id/pdf ──────────────────────────────────────────────────────
 app.get('/api/mtr/:id/pdf', authenticateToken, async (req, res) => {
   db.get('SELECT * FROM mtr_local WHERE id = ?', [req.params.id], async (err, row) => {
     if (err || !row) return res.status(404).json({ mensagem: 'MTR não encontrada' });
