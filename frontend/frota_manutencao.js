@@ -36,28 +36,9 @@ window.initFrotaManutencoes = async function(containerEl) {
 </div>
 
 <div id="mn-sub-conteudo"></div>
-</div>`
-
-<div id="mn-km-bar" style="background:#fff;padding:1rem 1.5rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1.5rem;display:none;">
-    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-        <div style="font-weight:600;color:#475569;font-size:0.9rem;display:flex;align-items:center;gap:6px;">
-            <i class="ph ph-gauge" style="font-size:1.2rem;color:#d97706;"></i>
-            Quilometragem atual:
-        </div>
-        <input type="number" id="mn-km-input" placeholder="Ex: 125000" style="padding:0.5rem 0.75rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;width:150px;outline:none;">
-        <button onclick="window.mnAtualizarKm()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.5rem 1rem;font-weight:600;cursor:pointer;font-size:0.85rem;">
-            <i class="ph ph-floppy-disk"></i> Atualizar KM
-        </button>
-        <span id="mn-km-atual" style="color:#64748b;font-size:0.85rem;"></span>
-    </div>
-</div>
-
-<div id="mn-preventivo-panel" style="display:none;margin-bottom:1.5rem;"></div>
-
-<div id="mn-lista" style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
-    <div style="padding:3rem;text-align:center;color:#94a3b8;"><i class="ph ph-circle-notch ph-spin" style="font-size:2rem;"></i><br>Carregando...</div>
-</div>
 </div>`;
+
+
 
     const [frota, manut] = await Promise.all([
         fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json()),
@@ -70,7 +51,150 @@ window.initFrotaManutencoes = async function(containerEl) {
     window.mnMudarSubAba(window._mnSubAba || 'preventiva');
 };
 
+
+window.mnMudarSubAba = function(aba) {
+    window._mnSubAba = aba;
+    ['preventiva','corretiva'].forEach(a => {
+        const btn = document.getElementById('mn-sub-btn-' + a);
+        if (!btn) return;
+        btn.style.background = a === aba ? '#d97706' : 'transparent';
+        btn.style.color = a === aba ? '#fff' : '#64748b';
+    });
+    const sub = document.getElementById('mn-sub-conteudo');
+    if (!sub) return;
+    if (aba === 'preventiva') mnRenderPreventivaTela(sub);
+    else mnRenderCorretivaTela(sub);
+};
+
+function mnRenderPreventivaTela(sub) {
+    const frota = window._manutFrota || [];
+    const veicOpts = frota.map(v => `<option value="${v.id}">${v.placa} — ${(v.marca_modelo_versao||'').substring(0,28)}</option>`).join('');
+    sub.innerHTML = `
+    <div style="background:#fff;padding:1rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <label style="font-weight:600;color:#475569;font-size:0.9rem;">Veículo:</label>
+        <select id="mn-prev-veiculo" onchange="window.mnCarregarPreventivoVeiculo()" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;min-width:220px;background:#fff;">
+            <option value="">Selecione...</option>${veicOpts}
+        </select>
+        <div id="mn-prev-km-box" style="display:none;align-items:center;gap:8px;">
+            <i class="ph ph-gauge" style="color:#d97706;"></i>
+            <input type="number" id="mn-prev-km" placeholder="KM atual" style="padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;width:120px;outline:none;">
+            <button onclick="window.mnSalvarKmPreventivo()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.5rem 1rem;font-weight:600;cursor:pointer;font-size:0.85rem;">
+                <i class="ph ph-floppy-disk"></i> Salvar KM
+            </button>
+            <span id="mn-prev-km-label" style="font-size:0.82rem;color:#64748b;"></span>
+        </div>
+    </div>
+    <div id="mn-prev-plano"><div style="padding:3rem;text-align:center;color:#94a3b8;">Selecione um veículo para ver o plano preventivo.</div></div>`;
+}
+
+window.mnCarregarPreventivoVeiculo = async function() {
+    const vid = document.getElementById('mn-prev-veiculo')?.value;
+    const kmBox = document.getElementById('mn-prev-km-box');
+    const planoEl = document.getElementById('mn-prev-plano');
+    if (!kmBox || !planoEl) return;
+    if (!vid) { kmBox.style.display='none'; planoEl.innerHTML=''; return; }
+    kmBox.style.display = 'flex';
+    const v = (window._manutFrota||[]).find(x => x.id == vid);
+    const kmInp = document.getElementById('mn-prev-km');
+    const kmLbl = document.getElementById('mn-prev-km-label');
+    if (kmInp && v?.km_atual) kmInp.value = v.km_atual;
+    if (kmLbl && v) kmLbl.textContent = v.km_atual ? `Registrado: ${Number(v.km_atual).toLocaleString('pt-BR')} km` : '';
+    planoEl.innerHTML = '<div style="padding:1.5rem;text-align:center;color:#94a3b8;"><i class="ph ph-circle-notch ph-spin"></i> Calculando...</div>';
+    const tok = window._manutTok;
+    try {
+        const res = await fetch('/api/frota/veiculos/' + vid + '/alertas', { headers: { Authorization: 'Bearer ' + tok } });
+        const data = await res.json();
+        planoEl.innerHTML = mnRenderPreventivo(data);
+    } catch(e) { planoEl.innerHTML = '<div style="padding:1rem;color:#dc2626;">Erro ao carregar plano.</div>'; }
+};
+
+window.mnSalvarKmPreventivo = async function() {
+    const vid = document.getElementById('mn-prev-veiculo')?.value;
+    const km = document.getElementById('mn-prev-km')?.value;
+    if (!vid || !km) return alert('Selecione o veículo e informe o KM');
+    const tok = window._manutTok;
+    const res = await fetch('/api/frota/veiculos/' + vid + '/km', {
+        method: 'PUT', headers: {'Content-Type':'application/json', Authorization: 'Bearer ' + tok},
+        body: JSON.stringify({ km_atual: parseInt(km) })
+    });
+    if (res.ok) {
+        const v = (window._manutFrota||[]).find(x => x.id == vid);
+        if (v) v.km_atual = parseInt(km);
+        const lbl = document.getElementById('mn-prev-km-label');
+        if (lbl) lbl.textContent = `Registrado: ${Number(km).toLocaleString('pt-BR')} km`;
+        window.mnCarregarPreventivoVeiculo();
+    } else alert('Erro ao salvar KM');
+};
+
+function mnRenderCorretivaTela(sub) {
+    const frota = window._manutFrota || [];
+    const veicOpts = frota.map(v => `<option value="${v.id}">${v.placa}</option>`).join('');
+    const statusCor = {agendada:'#2563eb',em_andamento:'#dc2626',concluida:'#2d9e5f',cancelada:'#94a3b8'};
+    const statusLbl = {agendada:'Agendada',em_andamento:'Em Andamento',concluida:'Concluída',cancelada:'Cancelada'};
+    const rows = (window._manutDados||[]).filter(m => m.tipo==='corretiva');
+    const makeRow = m => `<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+        <td style="padding:0.7rem 1rem;font-weight:700;">${m.placa||'—'}</td>
+        <td style="padding:0.7rem 1rem;max-width:200px;">${m.descricao||'—'}</td>
+        <td style="padding:0.7rem 1rem;text-align:center;"><span style="background:${statusCor[m.status]||'#94a3b8'}22;color:${statusCor[m.status]||'#94a3b8'};padding:2px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;">${statusLbl[m.status]||m.status}</span></td>
+        <td style="padding:0.7rem 1rem;text-align:center;color:#64748b;">${m.data_agendamento||m.data_conclusao||'—'}</td>
+        <td style="padding:0.7rem 1rem;text-align:center;color:#64748b;">${m.fornecedor||'—'}</td>
+        <td style="padding:0.7rem 1rem;text-align:center;color:#64748b;">${m.custo?'R$ '+Number(m.custo).toFixed(2).replace('.',','):'—'}</td>
+        <td style="padding:0.7rem 1rem;text-align:center;display:flex;gap:4px;">
+            <button onclick="window.abrirModalManutencao(${m.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-pencil"></i></button>
+            <button onclick="window.excluirManutencao(${m.id})" style="background:#dc2626;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-trash"></i></button>
+        </td>
+    </tr>`;
+    sub.innerHTML = `<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+        <div style="background:#f8fafc;padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px;"><i class="ph ph-wrench" style="color:#d97706;"></i> Manutenções Corretivas</span>
+            <div style="display:flex;gap:8px;">
+                <select id="mn-corr-veiculo" onchange="window.mnFiltrarCorretiva()" style="padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;outline:none;background:#fff;"><option value="">Todos os Veículos</option>${veicOpts}</select>
+                <select id="mn-corr-status" onchange="window.mnFiltrarCorretiva()" style="padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;outline:none;background:#fff;">
+                    <option value="">Todos Status</option><option value="agendada">Agendada</option><option value="em_andamento">Em Andamento</option><option value="concluida">Concluída</option><option value="cancelada">Cancelada</option>
+                </select>
+            </div>
+        </div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+            <thead><tr style="background:#f1f5f9;">
+                <th style="padding:0.6rem 1rem;text-align:left;color:#64748b;">Placa</th>
+                <th style="padding:0.6rem 1rem;text-align:left;color:#64748b;">Descrição</th>
+                <th style="padding:0.6rem 1rem;text-align:center;color:#64748b;">Status</th>
+                <th style="padding:0.6rem 1rem;text-align:center;color:#64748b;">Data</th>
+                <th style="padding:0.6rem 1rem;text-align:center;color:#64748b;">Fornecedor</th>
+                <th style="padding:0.6rem 1rem;text-align:center;color:#64748b;">Custo</th>
+                <th style="padding:0.6rem 1rem;"></th>
+            </tr></thead>
+            <tbody id="mn-corr-tbody">${rows.length ? rows.map(makeRow).join('') : '<tr><td colspan="7" style="padding:2rem;text-align:center;color:#94a3b8;">Nenhuma manutenção corretiva registrada.</td></tr>'}</tbody>
+        </table></div>
+    </div>`;
+}
+
+window.mnFiltrarCorretiva = function() {
+    const fV = document.getElementById('mn-corr-veiculo')?.value||'';
+    const fS = document.getElementById('mn-corr-status')?.value||'';
+    let rows = (window._manutDados||[]).filter(m=>m.tipo==='corretiva');
+    if (fV) rows = rows.filter(m=>String(m.veiculo_id)===fV);
+    if (fS) rows = rows.filter(m=>m.status===fS);
+    const tbody = document.getElementById('mn-corr-tbody');
+    if (!tbody) return;
+    const statusCor={agendada:'#2563eb',em_andamento:'#dc2626',concluida:'#2d9e5f',cancelada:'#94a3b8'};
+    const statusLbl={agendada:'Agendada',em_andamento:'Em Andamento',concluida:'Concluída',cancelada:'Cancelada'};
+    tbody.innerHTML = rows.length ? rows.map(m=>`<tr style="border-bottom:1px solid #f1f5f9;">
+        <td style="padding:0.7rem 1rem;font-weight:700;">${m.placa||'—'}</td>
+        <td style="padding:0.7rem 1rem;">${m.descricao||'—'}</td>
+        <td style="padding:0.7rem 1rem;text-align:center;"><span style="background:${statusCor[m.status]||'#94a3b8'}22;color:${statusCor[m.status]||'#94a3b8'};padding:2px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;">${statusLbl[m.status]||m.status}</span></td>
+        <td style="padding:0.7rem 1rem;text-align:center;color:#64748b;">${m.data_agendamento||m.data_conclusao||'—'}</td>
+        <td style="padding:0.7rem 1rem;text-align:center;color:#64748b;">${m.fornecedor||'—'}</td>
+        <td style="padding:0.7rem 1rem;text-align:center;color:#64748b;">${m.custo?'R$ '+Number(m.custo).toFixed(2).replace('.',','):'—'}</td>
+        <td style="padding:0.7rem 1rem;display:flex;gap:4px;">
+            <button onclick="window.abrirModalManutencao(${m.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-pencil"></i></button>
+            <button onclick="window.excluirManutencao(${m.id})" style="background:#dc2626;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-trash"></i></button>
+        </td>
+    </tr>`).join('') : '<tr><td colspan="7" style="padding:2rem;text-align:center;color:#94a3b8;">Nenhuma encontrada.</td></tr>';
+};
+
 async function mnCarregarPreventivo(vid, tok) {
+
     const panel = document.getElementById('mn-preventivo-panel');
     if (!panel) return;
     panel.style.display = 'block';
