@@ -14159,12 +14159,22 @@ async function sigorGetHomToken() {
 }
 
 // Requisicao generica para PRODUCAO
-async function sigorReq(path, method = 'GET', body = null) {
+async function sigorReq(path, method = 'GET', body = null, retry = true) {
   const token = await sigorGetToken();
   const opts = { method, headers: { 'Authorization': token, 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   const resp = await fetch(SIGOR_CFG.api + path, opts);
-  return resp.json();
+  const text = await resp.text();
+  if (!text || text.trim() === '') {
+    // Token provavelmente expirado - forçar renovação e tentar uma vez mais
+    if (retry && resp.status === 401) {
+      console.warn('[SIGOR] Token expirado (401 vazio), renovando...');
+      _sigorToken = null; _sigorTokenExp = 0;
+      return sigorReq(path, method, body, false);
+    }
+    throw new Error(`SIGOR retornou resposta vazia (HTTP ${resp.status}) em ${path}`);
+  }
+  return JSON.parse(text);
 }
 
 // Requisicao generica para HOMOLOGACAO (tabelas de referencia e testes)
@@ -14213,29 +14223,40 @@ app.get('/api/mtr/lista', authenticateToken, (req, res) => {
 
 // ── POST /api/mtr/sincronizar ────────────────────────────────────────────────
 app.post('/api/mtr/sincronizar', authenticateToken, async (req, res) => {
-  db.all('SELECT * FROM mtr_local WHERE status NOT IN ("Cancelado", "Recebido")', [], async (err, rows) => {
+  db.all('SELECT * FROM mtr_local WHERE numero_mtr IS NOT NULL AND numero_mtr != "null"', [], async (err, rows) => {
     if (err) return res.status(500).json({ mensagem: err.message });
-    if (!rows || rows.length === 0) return res.json({ mensagem: 'Nenhuma MTR pendente para sincronizar' });
-    
+    if (!rows || rows.length === 0) return res.json({ mensagem: 'Nenhuma MTR encontrada para sincronizar' });
+
     let atualizados = 0;
+    const erros = [];
     for (const row of rows) {
       if (!row.numero_mtr) continue;
       try {
         const data = await sigorReq('/retornaManifesto/' + row.numero_mtr);
+        console.log(`[SINC] MTR ${row.numero_mtr} resposta:`, JSON.stringify(data).substring(0, 200));
         if (data && data.objetoResposta && data.objetoResposta.situacaoManifesto) {
            let sit = data.objetoResposta.situacaoManifesto.simDescricao;
            if (sit) {
                sit = sit.charAt(0).toUpperCase() + sit.slice(1).toLowerCase();
                if (sit === 'Salvo') sit = 'Ativo';
            }
-           if (sit !== row.status) {
-              db.run('UPDATE mtr_local SET status = ? WHERE id = ?', [sit, row.id]);
+           console.log(`[SINC] MTR ${row.numero_mtr}: status SIGOR='${sit}' local='${row.status}'`);
+           if (sit && sit !== row.status) {
+              await new Promise((resolve, reject) => {
+                db.run('UPDATE mtr_local SET status = ? WHERE id = ?', [sit, row.id], (e) => e ? reject(e) : resolve());
+              });
               atualizados++;
            }
+        } else {
+          console.warn(`[SINC] MTR ${row.numero_mtr}: objetoResposta ou situacaoManifesto ausente. data=`, JSON.stringify(data).substring(0, 300));
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error(`[SINC] Erro ao sincronizar MTR ${row.numero_mtr}:`, e.message);
+        erros.push(`${row.numero_mtr}: ${e.message}`);
+      }
     }
-    res.json({ mensagem: `Sincronização concluída. ${atualizados} MTR(s) atualizada(s).` });
+    const msg = `Sincronização concluída. ${atualizados} MTR(s) atualizada(s) de ${rows.length} total.${erros.length ? ' Erros: ' + erros.join('; ') : ''}`;
+    res.json({ mensagem: msg });
   });
 });
 
