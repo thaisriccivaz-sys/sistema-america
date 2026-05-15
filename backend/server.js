@@ -13977,6 +13977,23 @@ app.patch('/api/monaco/multas/:id/observacao', authenticateToken, (req, res) => 
         });
 });
 
+// ── GET /api/monaco/multas ───────────────────────────────────────────────────
+// Lista todas as multas recebidas via webhook Mônaco
+app.get('/api/monaco/multas', authenticateToken, (req, res) => {
+    const { tipo, placa, visualizada, limit } = req.query;
+    let query = 'SELECT * FROM multas_monaco WHERE 1=1';
+    const params = [];
+    if (tipo) { query += ' AND tipo_evento = ?'; params.push(tipo); }
+    if (placa) { query += ' AND placa LIKE ?'; params.push('%' + placa + '%'); }
+    if (visualizada !== undefined && visualizada !== '') { query += ' AND visualizada = ?'; params.push(parseInt(visualizada)); }
+    query += ' ORDER BY created_at DESC LIMIT ?';
+    params.push(parseInt(limit) || 300);
+    db.all(query, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ multas: rows || [] });
+    });
+});
+
 // ── GET /api/monaco/multas/count/novas ───────────────────────────────────────
 // Retorna apenas o count de novas (para badge no menu)
 app.get('/api/monaco/multas/count/novas', authenticateToken, (req, res) => {
