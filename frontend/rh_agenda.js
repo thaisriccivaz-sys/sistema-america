@@ -391,7 +391,6 @@
                         <button class="ag-view-btn ${agendaViewMode==='mes'?'active':''}" onclick="rhAgendaSetView('mes')">Mês</button>
                     </div>
                     <button class="ag-nav-btn" onclick="limparTestesRhAgenda()" style="display:none; color: #dc2626; border-color: #fca5a5;"><i class="ph ph-trash"></i> Limpar Testes</button>
-                    <button class="ag-nav-btn" onclick="rhAgendaAbrirHistorico()" style="color:#7c3aed;border-color:#c4b5fd;" title="Histórico de alterações"><i class="ph ph-clock-counter-clockwise"></i> Histórico</button>
                     <button class="ag-btn-novo" onclick="rhAbrirNovoCard('')"><i class="ph ph-plus"></i> Novo Card</button>
                 </div>
             </div>
@@ -829,7 +828,8 @@ window.rhAgendaAbrirHistorico = async function() {
                 <th style="padding:10px 12px;text-align:left;font-size:0.75rem;text-transform:uppercase;color:#64748b;border-bottom:2px solid #e2e8f0;">Card / Colaborador</th>
                 <th style="padding:10px 12px;text-align:left;font-size:0.75rem;text-transform:uppercase;color:#64748b;border-bottom:2px solid #e2e8f0;">Ação</th>
                 <th style="padding:10px 12px;text-align:left;font-size:0.75rem;text-transform:uppercase;color:#64748b;border-bottom:2px solid #e2e8f0;">Usuário</th>
-                <th style="padding:10px 12px;text-align:left;font-size:0.75rem;text-transform:uppercase;color:#64748b;border-bottom:2px solid #e2e8f0;">Conteúdo</th>
+                <th style="padding:10px 12px;text-align:left;font-size:0.75rem;text-transform:uppercase;color:#64748b;border-bottom:2px solid #e2e8f0;">Conteúdo Anterior</th>
+                <th style="padding:10px 12px;text-align:left;font-size:0.75rem;text-transform:uppercase;color:#64748b;border-bottom:2px solid #e2e8f0;">Conteúdo Atual</th>
             </tr></thead>
             <tbody>${rows.map((r, i) => {
                 let cardData = r.card_data || '';
@@ -846,7 +846,8 @@ window.rhAgendaAbrirHistorico = async function() {
                     <td style="padding:10px 12px;"><div style="font-weight:600;color:#1e293b;">${titulo}</div>${colabs?'<div style="font-size:0.75rem;color:#7c3aed;margin-top:2px;">👤 '+colabs+'</div>':''}</td>
                     <td style="padding:10px 12px;"><span style="background:${acaoBg};color:${acaoColor};border-radius:6px;padding:2px 8px;font-size:0.8rem;">${acao}</span></td>
                     <td style="padding:10px 12px;color:#7c3aed;font-weight:600;">${r.usuario||'—'}</td>
-                    <td style="padding:10px 12px;font-size:0.8rem;color:#475569;max-width:250px;overflow:hidden;text-overflow:ellipsis;">${r.conteudo_atual||'—'}</td>
+                    <td style="padding:10px 12px;font-size:0.8rem;color:#ef4444;max-width:200px;overflow:hidden;text-overflow:ellipsis;">${r.conteudo_anterior||'—'}</td>
+                    <td style="padding:10px 12px;font-size:0.8rem;color:#10b981;max-width:200px;overflow:hidden;text-overflow:ellipsis;">${r.conteudo_atual||'—'}</td>
                 </tr>`;
             }).join('')}</tbody>
         </table>`;

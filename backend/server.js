@@ -13125,19 +13125,45 @@ app.post('/api/logistica/agenda', authenticateToken, express.json(), (req, res) 
 
 // PUT – atualizar card
 app.put('/api/logistica/agenda/:id', authenticateToken, express.json(), (req, res) => {
-    const { titulo, descricao, data, horario, tipo, responsaveis, referente_ids, acoes, setor } = req.body;
-    db.run(`UPDATE logistica_agenda SET titulo=?, descricao=?, data=?, horario=?, tipo=?, responsaveis=?, referente_ids=?, acoes=?, setor=?,
-            atualizado_em=datetime('now','localtime') WHERE id=?`,
-        [titulo || '', descricao || '', data, horario || '', tipo || 'aviso',
-        JSON.stringify(responsaveis || []), JSON.stringify(referente_ids || []), JSON.stringify(acoes || []),
-        setor || 'logistica', req.params.id],
-        function (err) {
-            if (err) return res.status(500).json({ error: err.message });
-            db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
-                [req.user ? req.user.username : '', (setor === 'rh' ? 'Agenda RH' : 'Agenda Logística'), 'Edição de Card', null, `Editou o card: ${titulo || ''}`, req.params.id]);
-            res.json({ ok: true });
-        }
-    );
+    db.get('SELECT * FROM logistica_agenda WHERE id = ?', [req.params.id], (err, oldRow) => {
+        if (err || !oldRow) return res.status(404).json({ error: 'Card não encontrado' });
+        
+        const { titulo, descricao, data, horario, tipo, responsaveis, referente_ids, acoes, setor } = req.body;
+        
+        let anterior = [];
+        let atual = [];
+        if ((oldRow.titulo || '') !== (titulo || '')) { anterior.push(`Título: ${oldRow.titulo || ''}`); atual.push(`Título: ${titulo || ''}`); }
+        if ((oldRow.descricao || '') !== (descricao || '')) { anterior.push(`Descrição: ${oldRow.descricao || ''}`); atual.push(`Descrição: ${descricao || ''}`); }
+        if ((oldRow.data || '') !== (data || '')) { anterior.push(`Data: ${oldRow.data || ''}`); atual.push(`Data: ${data || ''}`); }
+        if ((oldRow.horario || '') !== (horario || '')) { anterior.push(`Horário: ${oldRow.horario || ''}`); atual.push(`Horário: ${horario || ''}`); }
+        if ((oldRow.tipo || '') !== (tipo || '')) { anterior.push(`Tipo: ${oldRow.tipo || ''}`); atual.push(`Tipo: ${tipo || ''}`); }
+        
+        try {
+            const oldResp = JSON.parse(oldRow.responsaveis || '[]').join(',');
+            const newResp = (responsaveis || []).join(',');
+            if (oldResp !== newResp) { anterior.push(`Resp: [${oldResp}]`); atual.push(`Resp: [${newResp}]`); }
+            
+            const oldRef = JSON.parse(oldRow.referente_ids || '[]').join(',');
+            const newRef = (referente_ids || []).join(',');
+            if (oldRef !== newRef) { anterior.push(`Referente: [${oldRef}]`); atual.push(`Referente: [${newRef}]`); }
+        } catch(e) {}
+
+        let ca = anterior.length ? anterior.join(' | ') : null;
+        let cu = atual.length ? atual.join(' | ') : `Editou o card: ${titulo || ''}`;
+
+        db.run(`UPDATE logistica_agenda SET titulo=?, descricao=?, data=?, horario=?, tipo=?, responsaveis=?, referente_ids=?, acoes=?, setor=?,
+                atualizado_em=datetime('now','localtime') WHERE id=?`,
+            [titulo || '', descricao || '', data, horario || '', tipo || 'aviso',
+            JSON.stringify(responsaveis || []), JSON.stringify(referente_ids || []), JSON.stringify(acoes || []),
+            setor || 'logistica', req.params.id],
+            function (err2) {
+                if (err2) return res.status(500).json({ error: err2.message });
+                db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [req.user ? req.user.username : '', (setor === 'rh' ? 'Agenda RH' : 'Agenda Logística'), 'Edição de Card', ca, cu, req.params.id]);
+                res.json({ ok: true });
+            }
+        );
+    });
 });
 
 // DELETE – excluir card

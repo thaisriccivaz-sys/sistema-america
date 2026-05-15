@@ -315,10 +315,6 @@ window.renderResumoRota = function() {
                 style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:none;align-items:center;gap:7px;">
                 <i class="ph ph-file-xls"></i> Baixar Rota Original
             </button>
-            <button onclick="window.rrAbrirHistoricoAlteracoes()"
-                style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;gap:7px;">
-                <i class="ph ph-clock-counter-clockwise"></i> Histórico de Alterações
-            </button>
         </div>
     </div>
     <div id="rr-corpo" style="padding:20px;"></div>`;
