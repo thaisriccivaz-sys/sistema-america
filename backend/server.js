@@ -14260,6 +14260,56 @@ app.post('/api/mtr/sincronizar', authenticateToken, async (req, res) => {
   });
 });
 
+// ── POST /api/mtr/importar ───────────────────────────────────────────────────
+// Importa uma MTR existente (gerada pelo cliente) sabendo o número
+app.post('/api/mtr/importar', authenticateToken, async (req, res) => {
+  const { numero_mtr } = req.body;
+  if (!numero_mtr) return res.status(400).json({ mensagem: 'Número do MTR obrigatório' });
+
+  try {
+    // 1. Consulta o SIGOR para pegar os dados
+    const data = await sigorReq('/retornaManifesto/' + numero_mtr);
+    const obj = data?.objetoResposta;
+    
+    if (!obj || data.erro) {
+       return res.status(400).json({ mensagem: data?.mensagem || 'MTR não encontrada no SIGOR ou erro na consulta.' });
+    }
+
+    // 2. Verifica se já existe localmente
+    db.get('SELECT id FROM mtr_local WHERE numero_mtr = ?', [numero_mtr], (err, row) => {
+      if (err) return res.status(500).json({ mensagem: err.message });
+      if (row) return res.status(400).json({ mensagem: 'MTR já está cadastrada no sistema.' });
+
+      // 3. Extrai dados básicos para o banco
+      const status = obj.situacaoManifesto?.simDescricao || 'Ativo';
+      const geradorNome = obj.parceiroGerador?.parDescricao || 'GERADOR EXTERNO';
+      const geradorCnpj = obj.parceiroGerador?.parCnpj || '';
+      
+      const residuo = obj.listaManifestoResiduo?.[0] || {};
+      const resNome = residuo.residuo?.resDescricao || 'Múltiplos / Não informado';
+      const quantidade = residuo.marQuantidade || 0;
+      const unidade = residuo.unidade?.uniSigla || 'TON';
+      const observacao = obj.manObservacao || 'Importada do SIGOR';
+
+      // 4. Salva no banco local
+      db.run(
+        `INSERT INTO mtr_local (numero_mtr, status, gerador_nome, gerador_cnpj, residuo_codigo,
+          quantidade, unidade, observacao, payload_json)
+         VALUES (?,?,?,?,?,?,?,?,?)`,
+        [numero_mtr, status, geradorNome, geradorCnpj, resNome,
+         quantidade, unidade, observacao, JSON.stringify(data)],
+        function (errIns) {
+          if (errIns) return res.status(500).json({ mensagem: errIns.message });
+          res.json({ mensagem: 'MTR importada com sucesso!', id: this.lastID });
+        }
+      );
+    });
+  } catch (e) {
+    console.error('[MTR IMPORT] Erro:', e.message);
+    res.status(500).json({ mensagem: e.message });
+  }
+});
+
 // ── GET /api/mtr/tabelas ──────────────────────────────────────────────────────
 app.get('/api/mtr/tabelas', authenticateToken, async (req, res) => {
   try {
