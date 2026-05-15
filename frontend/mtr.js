@@ -420,7 +420,31 @@ window.cancelarMTR = async function(id) {
             const data = await res.json();
             if (!res.ok) {
                 const msgDetalhada = data.detalhe || data.mensagem || 'Erro ao cancelar';
-                throw new Error(msgDetalhada);
+                // Oferecer cancelamento local quando SIGOR rejeita
+                const { isConfirmed } = await Swal.fire({
+                    icon: 'warning',
+                    title: 'SIGOR recusou o cancelamento',
+                    html: `<p>${msgDetalhada}</p><p style="margin-top:12px;font-size:0.9rem;color:#64748b;">Deseja cancelar <strong>apenas no nosso sistema</strong>? (Você deverá cancelar também no site do SIGOR manualmente.)</p>`,
+                    confirmButtonText: 'Sim, cancelar só aqui',
+                    confirmButtonColor: '#f59e0b',
+                    showCancelButton: true,
+                    cancelButtonText: 'Não'
+                });
+                if (isConfirmed) {
+                    const res2 = await fetch(`/api/mtr/${id}/cancelar?forceLocal=1`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.currentToken}` },
+                        body: JSON.stringify({ justificativa })
+                    });
+                    const data2 = await res2.json();
+                    if (res2.ok) {
+                        Swal.fire('Cancelado localmente', 'MTR cancelada no nosso sistema. Lembre-se de cancelar também no site do SIGOR.', 'warning');
+                        carregarListaMTR();
+                    } else {
+                        Swal.fire('Erro', data2.mensagem, 'error');
+                    }
+                }
+                return;
             }
             Swal.fire('Cancelado!', 'O MTR foi cancelado com sucesso.', 'success');
             carregarListaMTR();

@@ -14425,6 +14425,14 @@ app.post('/api/mtr/:id/cancelar', authenticateToken, async (req, res) => {
   if (!justificativa) return res.status(400).json({ mensagem: 'Justificativa obrigatória' });
   db.get('SELECT * FROM mtr_local WHERE id = ?', [req.params.id], async (err, row) => {
     if (err || !row) return res.status(404).json({ mensagem: 'MTR não encontrada' });
+    // Modo forçado local: cancela só no banco sem chamar SIGOR
+    if (req.query.forceLocal === '1') {
+      db.run('UPDATE mtr_local SET status = ? WHERE id = ?', ['Cancelado', row.id], (e) => {
+        if (e) return res.status(500).json({ mensagem: e.message });
+        res.json({ mensagem: 'MTR cancelada localmente (pendente de cancelamento no SIGOR)' });
+      });
+      return;
+    }
     try {
       const numInt = parseInt(row.numero_mtr);
       // Tenta com numManifesto (inteiro) - formato preferido pela API SIGOR
