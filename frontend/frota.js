@@ -184,21 +184,27 @@ function renderCardsFrota() {
 
   tb.innerHTML = rows.map(v => {
     const alerta = alertaPlaca(v.placa, v.exercicio);
+    const statusManut = (window._frotaStatusManut || {})[v.id] || {};
+    const emManutencao = statusManut.manutencoes_ativas > 0 || v.em_manutencao;
+    const kPatterns = (window._manutDados || []).filter(m => m.veiculo_id === v.id && m.status === 'agendada' && m.km_proxima_manutencao && v.km_atual && (m.km_proxima_manutencao - v.km_atual) <= 1000);
+    const manutPreventivaPendente = kPatterns.length > 0;
     
     let borderColor = '#2d9e5f'; 
     let statusLabel = 'OK';
     let textColor = '#fff';
     let placaColor = '#2d9e5f';
     
-    if (alerta === 'expirado') {
+    if (emManutencao) {
+        borderColor = '#dc2626'; statusLabel = '\u26A0'; placaColor = '#dc2626';
+    } else if (alerta === 'expirado') {
         borderColor = '#dc2626';
         statusLabel = '✖';
-        placaColor = '#dc2626'; // Placa vermelha
-    } else if (alerta === 'vencendo' || !v.exercicio) {
+        placaColor = '#dc2626';
+    } else if (manutPreventivaPendente || alerta === 'vencendo' || !v.exercicio) {
         borderColor = '#f59e0b';
         statusLabel = '!';
         textColor = '#fff';
-        placaColor = '#d97706'; // Placa amarela/laranja
+        placaColor = '#d97706';
     }
 
     const placeholder = 'https://via.placeholder.com/400x250/e2e8f0/94a3b8?text=Sem+Foto';
@@ -414,6 +420,34 @@ function popularFiltros() {
     }
 }
 
+window._frotaAbaAtiva = 'veiculos';
+
+window.trocarAbaFrota = function(aba) {
+    window._frotaAbaAtiva = aba;
+    document.querySelectorAll('.frota-aba-btn').forEach(b => {
+        const isActive = b.dataset.aba === aba;
+        b.style.background = isActive ? '#2d9e5f' : '#fff';
+        b.style.color = isActive ? '#fff' : '#475569';
+        b.style.borderColor = isActive ? '#2d9e5f' : '#cbd5e1';
+    });
+    if (aba === 'veiculos') window.initFrotaVeiculos();
+    else if (aba === 'manutencoes') window.initFrotaManutencoes();
+};
+
+window.initFrota = function() {
+    const c = document.getElementById('frota-veiculos-container'); if (!c) return;
+    c.innerHTML = `<div style="min-height:100%;"><div style="background:#fff;border-bottom:1px solid #e2e8f0;padding:0 1.5rem;display:flex;gap:0;">
+        <button class="frota-aba-btn" data-aba="veiculos" onclick="window.trocarAbaFrota('veiculos')" style="background:#2d9e5f;color:#fff;border:1px solid #2d9e5f;border-bottom:none;padding:0.75rem 1.5rem;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;border-radius:10px 10px 0 0;margin-right:4px;">
+            <i class="ph ph-truck"></i> Gestão de Frota
+        </button>
+        <button class="frota-aba-btn" data-aba="manutencoes" onclick="window.trocarAbaFrota('manutencoes')" style="background:#fff;color:#475569;border:1px solid #cbd5e1;border-bottom:none;padding:0.75rem 1.5rem;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;border-radius:10px 10px 0 0;">
+            <i class="ph ph-wrench"></i> Manutenções
+        </button>
+    </div><div id="frota-veiculos-container"><div style="padding:3rem;text-align:center;color:#94a3b8;"><i class="ph ph-circle-notch ph-spin" style="font-size:2rem;"></i></div></div></div>`;
+    // Re-point the container to the inner div
+    window.initFrotaVeiculos();
+};
+
 window.initFrotaVeiculos = async function() {
   const c = document.getElementById('frota-veiculos-container'); if (!c) return;
   await carregarPDFjs();
@@ -442,7 +476,6 @@ window.initFrotaVeiculos = async function() {
         <i class="ph ph-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1.1rem;"></i>
         <input type="text" id="filtro-busca" placeholder="Buscar por placa ou modelo..." onkeyup="window.aplicarFiltrosFrota()" style="padding:0.6rem 1rem 0.6rem 2.4rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;width:100%;box-sizing:border-box;outline:none;transition:0.2s;" onfocus="this.style.borderColor='#2d9e5f';" onblur="this.style.borderColor='#cbd5e1';">
     </div>
-    
     <select id="filtro-tipo" onchange="window.aplicarFiltrosFrota()" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;background:#fff;cursor:pointer;min-width:140px;">
         <option value="">Todos os Tipos</option>
         <option value="caminhão">Caminhão</option>
@@ -451,11 +484,9 @@ window.initFrotaVeiculos = async function() {
         <option value="carretinha">Carretinha</option>
         <option value="caminhão tanque">Caminhão Tanque</option>
     </select>
-    
     <select id="filtro-cor" onchange="window.aplicarFiltrosFrota()" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;background:#fff;cursor:pointer;min-width:140px;">
         <option value="">Todas as Cores</option>
     </select>
-    
     <select id="filtro-rodizio" onchange="window.aplicarFiltrosFrota()" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;background:#fff;cursor:pointer;min-width:160px;">
         <option value="">Qualquer Rodízio</option>
         <option value="Segunda-feira">Segunda (1 e 2)</option>
@@ -464,7 +495,6 @@ window.initFrotaVeiculos = async function() {
         <option value="Quinta-feira">Quinta (7 e 8)</option>
         <option value="Sexta-feira">Sexta (9 e 0)</option>
     </select>
-    
     <div id="frota-contador" style="font-weight:700;color:#2d9e5f;background:#ecfdf5;padding:0.6rem 1rem;border-radius:8px;font-size:0.9rem;border:1px solid #a7f3d0;margin-left:auto;display:flex;align-items:center;gap:6px;">
         <i class="ph ph-truck"></i> Aguarde...
     </div>
@@ -477,8 +507,15 @@ window.initFrotaVeiculos = async function() {
 </div>`;
 
   try {
-    const res = await fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } });
-    const rows = await res.json();
+    const [frotaRes, statusRes] = await Promise.all([
+        fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } }),
+        fetch('/api/frota/status-manutencao', { headers: { Authorization: 'Bearer ' + tok } }).catch(() => ({ json: () => [] }))
+    ]);
+    const rows = await frotaRes.json();
+    const statusManut = await statusRes.json().catch(() => []);
+    // Enrich vehicles with maintenance status
+    window._frotaStatusManut = {};
+    (statusManut || []).forEach(s => { window._frotaStatusManut[s.id] = s; });
     window._frotaDados = rows || [];
     popularFiltros();
     renderCardsFrota();

@@ -1003,4 +1003,88 @@ const db = new sqlite3.Database(dbPath, (err) => {
 // Habilitar chaves estrangeiras no SQLite
 db.run("PRAGMA foreign_keys = ON;");
 
+
+            // ============================================================
+            // MANUTENÇÕES DE FROTA
+            // ============================================================
+
+            // Tabela de registros de quilometragem dos veículos
+            db.run(`
+                CREATE TABLE IF NOT EXISTS frota_quilometragem (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    veiculo_id INTEGER NOT NULL,
+                    km_atual INTEGER NOT NULL,
+                    data_registro TEXT NOT NULL DEFAULT (date('now')),
+                    observacao TEXT,
+                    usuario_nome TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (veiculo_id) REFERENCES frota_veiculos(id) ON DELETE CASCADE
+                )
+            `);
+
+            // Tabela de manutenções registradas
+            db.run(`
+                CREATE TABLE IF NOT EXISTS frota_manutencoes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    veiculo_id INTEGER NOT NULL,
+                    tipo TEXT NOT NULL DEFAULT 'preventiva',
+                    descricao TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'agendada',
+                    km_na_manutencao INTEGER,
+                    km_proxima_manutencao INTEGER,
+                    data_agendamento TEXT,
+                    data_conclusao TEXT,
+                    custo REAL,
+                    fornecedor TEXT,
+                    observacoes TEXT,
+                    usuario_nome TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (veiculo_id) REFERENCES frota_veiculos(id) ON DELETE CASCADE
+                )
+            `);
+
+            // Tabela de plano de manutenção preventiva por km
+            db.run(`
+                CREATE TABLE IF NOT EXISTS frota_plano_preventivo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL,
+                    descricao TEXT,
+                    intervalo_km INTEGER NOT NULL,
+                    ativo INTEGER DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `, (err) => {
+                if (err) return;
+                // Seed dos itens preventivos padrão
+                const itens = [
+                    ['Troca de óleo do motor', 'Trocar óleo e filtro de óleo', 10000],
+                    ['Filtro de ar', 'Substituição do filtro de ar do motor', 20000],
+                    ['Filtro de combustível', 'Substituição do filtro de combustível', 20000],
+                    ['Filtro de cabine (ar condicionado)', 'Substituição do filtro de cabine', 20000],
+                    ['Fluido de freio', 'Verificação e troca do fluido de freio', 40000],
+                    ['Correia dentada / Correia acessórios', 'Inspeção e troca conforme necessário', 60000],
+                    ['Velas de ignição', 'Troca das velas de ignição (motor a gasolina)', 30000],
+                    ['Alinhamento e balanceamento', 'Verificação de alinhamento e balanceamento dos pneus', 10000],
+                    ['Revisão dos freios (pastilhas/lonas)', 'Inspeção e substituição de pastilhas ou lonas', 40000],
+                    ['Verificação do sistema de arrefecimento', 'Inspecionar e trocar fluido do radiador', 40000],
+                    ['Fluido de direção hidráulica', 'Verificação e troca do fluido', 40000],
+                    ['Revisão elétrica geral', 'Revisão de bateria, alternador e sistema elétrico', 60000],
+                    ['Lubrificação de engaxetamentos', 'Lubrificação de juntas, rolamentos e componentes', 20000],
+                    ['Calibragem de pneus', 'Verificação da calibragem e estado dos pneus', 5000],
+                    ['Limpeza do sistema de injeção', 'Limpeza dos bicos injetores', 40000],
+                ];
+                itens.forEach(([nome, descricao, km]) => {
+                    db.run('INSERT OR IGNORE INTO frota_plano_preventivo (nome, descricao, intervalo_km) VALUES (?,?,?)', [nome, descricao, km]);
+                });
+            });
+
+            // Migration: adicionar coluna km_atual e em_manutencao nos veículos
+            db.all("PRAGMA table_info(frota_veiculos)", (err, rows) => {
+                if (err || !rows) return;
+                const cols = rows.map(r => r.name);
+                if (!cols.includes('km_atual')) db.run("ALTER TABLE frota_veiculos ADD COLUMN km_atual INTEGER DEFAULT 0");
+                if (!cols.includes('em_manutencao')) db.run("ALTER TABLE frota_veiculos ADD COLUMN em_manutencao INTEGER DEFAULT 0");
+            });
+
 module.exports = db;

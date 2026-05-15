@@ -1,0 +1,326 @@
+(function(){
+'use strict';
+
+window.initFrotaManutencoes = async function() {
+    const c = document.getElementById('frota-veiculos-container');
+    if (!c) return;
+    const tok = window.currentToken || localStorage.getItem('token');
+    window._manutTok = tok;
+
+    c.innerHTML = `<div style="padding:1.5rem;background:#f8fafc;min-height:100%;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
+    <h2 style="margin:0;color:#1e293b;display:flex;align-items:center;gap:12px;font-size:1.5rem;">
+        <div style="background:#d97706;color:#fff;width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;">
+            <i class="ph ph-wrench"></i>
+        </div>
+        Controle de Manutenções
+    </h2>
+    <div style="display:flex;gap:10px;">
+        <select id="mn-filtro-veiculo" onchange="window.mnFiltrar()" style="padding:0.65rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;min-width:200px;background:#fff;">
+            <option value="">Todos os Veículos</option>
+        </select>
+        <select id="mn-filtro-status" onchange="window.mnFiltrar()" style="padding:0.65rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;min-width:150px;background:#fff;">
+            <option value="">Todos os Status</option>
+            <option value="agendada">Agendada</option>
+            <option value="em_andamento">Em Andamento</option>
+            <option value="concluida">Concluída</option>
+            <option value="cancelada">Cancelada</option>
+        </select>
+        <button onclick="window.abrirModalManutencao(null)" style="background:#d97706;color:#fff;border:none;border-radius:8px;padding:0.65rem 1.1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+            <i class="ph ph-plus"></i> Nova Manutenção
+        </button>
+    </div>
+</div>
+
+<div id="mn-km-bar" style="background:#fff;padding:1rem 1.5rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1.5rem;display:none;">
+    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <div style="font-weight:600;color:#475569;font-size:0.9rem;display:flex;align-items:center;gap:6px;">
+            <i class="ph ph-gauge" style="font-size:1.2rem;color:#d97706;"></i>
+            Quilometragem atual:
+        </div>
+        <input type="number" id="mn-km-input" placeholder="Ex: 125000" style="padding:0.5rem 0.75rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;width:150px;outline:none;">
+        <button onclick="window.mnAtualizarKm()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.5rem 1rem;font-weight:600;cursor:pointer;font-size:0.85rem;">
+            <i class="ph ph-floppy-disk"></i> Atualizar KM
+        </button>
+        <span id="mn-km-atual" style="color:#64748b;font-size:0.85rem;"></span>
+    </div>
+</div>
+
+<div id="mn-preventivo-panel" style="display:none;margin-bottom:1.5rem;"></div>
+
+<div id="mn-lista" style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+    <div style="padding:3rem;text-align:center;color:#94a3b8;"><i class="ph ph-circle-notch ph-spin" style="font-size:2rem;"></i><br>Carregando...</div>
+</div>
+</div>`;
+
+    const [frota, manut] = await Promise.all([
+        fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json()),
+        fetch('/api/frota/manutencoes', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json())
+    ]);
+
+    window._manutFrota = frota || [];
+    window._manutDados = manut || [];
+
+    const sel = document.getElementById('mn-filtro-veiculo');
+    if (sel) {
+        frota.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v.id;
+            opt.textContent = v.placa + ' - ' + (v.marca_modelo_versao || '').split('/').slice(0,2).join('/');
+            sel.appendChild(opt);
+        });
+    }
+
+    sel.addEventListener('change', async () => {
+        const vid = sel.value;
+        const kmBar = document.getElementById('mn-km-bar');
+        const prevPanel = document.getElementById('mn-preventivo-panel');
+        if (!vid) { kmBar.style.display='none'; prevPanel.style.display='none'; return; }
+        kmBar.style.display='flex';
+        const v = frota.find(x => x.id == vid);
+        const kmEl = document.getElementById('mn-km-atual');
+        if (kmEl && v) kmEl.textContent = v.km_atual ? `KM registrado: ${Number(v.km_atual).toLocaleString('pt-BR')} km` : 'Sem KM registrado';
+        const inp = document.getElementById('mn-km-input');
+        if (inp && v?.km_atual) inp.value = v.km_atual;
+        await mnCarregarPreventivo(vid, tok);
+    });
+
+    mnRenderLista();
+};
+
+async function mnCarregarPreventivo(vid, tok) {
+    const panel = document.getElementById('mn-preventivo-panel');
+    if (!panel) return;
+    panel.style.display = 'block';
+    panel.innerHTML = '<div style="padding:1rem;text-align:center;color:#94a3b8;"><i class="ph ph-circle-notch ph-spin"></i> Calculando plano preventivo...</div>';
+    try {
+        const res = await fetch('/api/frota/preventivo/' + vid, { headers: { Authorization: 'Bearer ' + tok } });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        panel.innerHTML = mnRenderPreventivo(data);
+    } catch(e) {
+        panel.innerHTML = '<div style="padding:1rem;color:#dc2626;">Erro ao carregar plano preventivo.</div>';
+    }
+}
+
+function mnRenderPreventivo(data) {
+    const { km_atual, plano } = data;
+    const rows = (plano || []).map(item => {
+        let cor = '#2d9e5f'; let icone = 'check-circle'; let bg = '#ecfdf5';
+        if (item.status_item === 'vencida') { cor = '#dc2626'; icone = 'warning'; bg = '#fef2f2'; }
+        else if (item.status_item === 'proxima') { cor = '#d97706'; icone = 'clock'; bg = '#fffbeb'; }
+        const kmRestLabel = item.km_restante <= 0
+            ? `<span style="color:#dc2626;font-weight:700;">Vencida há ${Math.abs(item.km_restante).toLocaleString('pt-BR')} km</span>`
+            : `<span style="color:${cor};font-weight:700;">Restam ${item.km_restante.toLocaleString('pt-BR')} km</span>`;
+        return `<tr style="background:${bg};border-bottom:1px solid #e2e8f0;">
+            <td style="padding:0.6rem 1rem;"><i class="ph ph-${icone}" style="color:${cor};"></i> <strong style="color:${cor};">${item.nome}</strong></td>
+            <td style="padding:0.6rem 1rem;color:#64748b;font-size:0.85rem;">${item.descricao||''}</td>
+            <td style="padding:0.6rem 1rem;text-align:center;color:#475569;font-size:0.85rem;">A cada ${item.intervalo_km.toLocaleString('pt-BR')} km</td>
+            <td style="padding:0.6rem 1rem;text-align:center;color:#475569;font-size:0.85rem;">${item.km_ultima ? item.km_ultima.toLocaleString('pt-BR') + ' km' : '—'}</td>
+            <td style="padding:0.6rem 1rem;text-align:center;">${kmRestLabel}</td>
+        </tr>`;
+    }).join('');
+
+    return `<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+        <div style="background:#f8fafc;padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px;">
+            <i class="ph ph-clipboard-text" style="color:#d97706;font-size:1.1rem;"></i>
+            Plano de Manutenção Preventiva — KM Atual: <span style="color:#0284c7;">${(km_atual||0).toLocaleString('pt-BR')} km</span>
+        </div>
+        <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+            <thead>
+                <tr style="background:#f1f5f9;">
+                    <th style="padding:0.5rem 1rem;text-align:left;color:#64748b;font-weight:600;">Serviço</th>
+                    <th style="padding:0.5rem 1rem;text-align:left;color:#64748b;font-weight:600;">Descrição</th>
+                    <th style="padding:0.5rem 1rem;text-align:center;color:#64748b;font-weight:600;">Intervalo</th>
+                    <th style="padding:0.5rem 1rem;text-align:center;color:#64748b;font-weight:600;">Último KM</th>
+                    <th style="padding:0.5rem 1rem;text-align:center;color:#64748b;font-weight:600;">Status</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+        </div>
+    </div>`;
+}
+
+function mnRenderLista() {
+    const el = document.getElementById('mn-lista');
+    if (!el) return;
+    const fVeiculo = document.getElementById('mn-filtro-veiculo')?.value || '';
+    const fStatus = document.getElementById('mn-filtro-status')?.value || '';
+    let rows = [...(window._manutDados || [])];
+    if (fVeiculo) rows = rows.filter(m => String(m.veiculo_id) === fVeiculo);
+    if (fStatus) rows = rows.filter(m => m.status === fStatus);
+    if (!rows.length) {
+        el.innerHTML = '<div style="padding:3rem;text-align:center;color:#94a3b8;"><i class="ph ph-wrench" style="font-size:2rem;"></i><br>Nenhuma manutenção encontrada.</div>';
+        return;
+    }
+    const statusCor = { agendada:'#2563eb', em_andamento:'#dc2626', concluida:'#2d9e5f', cancelada:'#94a3b8' };
+    const statusLabel = { agendada:'Agendada', em_andamento:'Em Andamento', concluida:'Concluída', cancelada:'Cancelada' };
+    const tipoCor = { preventiva:'#7c3aed', corretiva:'#d97706' };
+    el.innerHTML = `<div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+        <thead><tr style="background:#f1f5f9;">
+            <th style="padding:0.75rem 1rem;text-align:left;color:#64748b;">Veículo</th>
+            <th style="padding:0.75rem 1rem;text-align:left;color:#64748b;">Tipo</th>
+            <th style="padding:0.75rem 1rem;text-align:left;color:#64748b;">Descrição</th>
+            <th style="padding:0.75rem 1rem;text-align:center;color:#64748b;">KM</th>
+            <th style="padding:0.75rem 1rem;text-align:center;color:#64748b;">Status</th>
+            <th style="padding:0.75rem 1rem;text-align:center;color:#64748b;">Data</th>
+            <th style="padding:0.75rem 1rem;text-align:center;color:#64748b;">Custo</th>
+            <th style="padding:0.75rem 1rem;text-align:center;color:#64748b;"></th>
+        </tr></thead>
+        <tbody>${rows.map(m => `
+        <tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+            <td style="padding:0.75rem 1rem;font-weight:700;color:#1e293b;">${m.placa||'—'}</td>
+            <td style="padding:0.75rem 1rem;"><span style="background:${tipoCor[m.tipo]||'#94a3b8'}22;color:${tipoCor[m.tipo]||'#94a3b8'};padding:2px 8px;border-radius:20px;font-size:0.78rem;font-weight:600;">${m.tipo}</span></td>
+            <td style="padding:0.75rem 1rem;color:#374151;max-width:250px;">${m.descricao||'—'}</td>
+            <td style="padding:0.75rem 1rem;text-align:center;color:#64748b;">${m.km_na_manutencao ? m.km_na_manutencao.toLocaleString('pt-BR') + ' km' : '—'}</td>
+            <td style="padding:0.75rem 1rem;text-align:center;"><span style="background:${statusCor[m.status]||'#94a3b8'}22;color:${statusCor[m.status]||'#94a3b8'};padding:2px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;">${statusLabel[m.status]||m.status}</span></td>
+            <td style="padding:0.75rem 1rem;text-align:center;color:#64748b;">${m.data_agendamento||m.data_conclusao||'—'}</td>
+            <td style="padding:0.75rem 1rem;text-align:center;color:#64748b;">${m.custo ? 'R$ ' + Number(m.custo).toFixed(2).replace('.',',') : '—'}</td>
+            <td style="padding:0.75rem 1rem;text-align:center;display:flex;gap:4px;justify-content:center;">
+                <button onclick="window.abrirModalManutencao(${m.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Editar"><i class="ph ph-pencil"></i></button>
+                <button onclick="window.excluirManutencao(${m.id})" style="background:#dc2626;color:#fff;border:none;border-radius:6px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Excluir"><i class="ph ph-trash"></i></button>
+            </td>
+        </tr>`).join('')}</tbody>
+    </table></div>`;
+}
+
+window.mnFiltrar = function() { mnRenderLista(); };
+
+window.mnAtualizarKm = async function() {
+    const vid = document.getElementById('mn-filtro-veiculo')?.value;
+    const km = document.getElementById('mn-km-input')?.value;
+    if (!vid || !km) return alert('Selecione o veículo e informe o KM');
+    const tok = window._manutTok;
+    const res = await fetch('/api/frota/veiculos/' + vid + '/km', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+        body: JSON.stringify({ km_atual: parseInt(km) })
+    });
+    if (res.ok) {
+        const v = window._manutFrota?.find(x => x.id == vid);
+        if (v) v.km_atual = parseInt(km);
+        const el = document.getElementById('mn-km-atual');
+        if (el) el.textContent = `KM registrado: ${Number(km).toLocaleString('pt-BR')} km`;
+        await mnCarregarPreventivo(vid, tok);
+        // Atualizar também os dados de frota para o card
+        await fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } })
+            .then(r => r.json()).then(d => { window._frotaDados = d; });
+    } else alert('Erro ao atualizar KM');
+};
+
+window.abrirModalManutencao = async function(id) {
+    const tok = window._manutTok;
+    let m = {};
+    if (id) {
+        m = (window._manutDados||[]).find(x => x.id === id) || {};
+    }
+    let ov = document.getElementById('modal-manut-ov'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'modal-manut-ov';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    const frota = window._manutFrota || [];
+    const veicOpts = frota.map(v => `<option value="${v.id}" ${m.veiculo_id==v.id?'selected':''}>${v.placa} — ${(v.marca_modelo_versao||'').substring(0,30)}</option>`).join('');
+    const inp = (fid,val,ph,type) => `<input id="${fid}" value="${val||''}" placeholder="${ph||''}" type="${type||'text'}" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">`;
+    const lbl = t => `<label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">${t}</label>`;
+    const sel = (fid, opts, selected) => `<select id="${fid}" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;">${opts.map(o=>`<option value="${o.v}" ${selected===o.v?'selected':''}>${o.l}</option>`).join('')}</select>`;
+
+    ov.innerHTML = `<div style="background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);">
+<div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#fffbeb;position:sticky;top:0;">
+    <div style="font-size:1rem;font-weight:700;color:#92400e;display:flex;align-items:center;gap:8px;">
+        <div style="background:#d97706;color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-wrench"></i></div>
+        ${id ? 'Editar Manutenção' : 'Nova Manutenção'}
+    </div>
+    <button onclick="document.getElementById('modal-manut-ov').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;"><i class="ph ph-x"></i></button>
+</div>
+<div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
+    <div>
+        ${lbl('Veículo *')}
+        <select id="mn-m-veiculo" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;">
+            <option value="">Selecione...</option>${veicOpts}
+        </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div>
+            ${lbl('Tipo *')}
+            ${sel('mn-m-tipo', [{v:'preventiva',l:'Preventiva'},{v:'corretiva',l:'Corretiva'}], m.tipo||'preventiva')}
+        </div>
+        <div>
+            ${lbl('Status *')}
+            ${sel('mn-m-status', [{v:'agendada',l:'Agendada'},{v:'em_andamento',l:'Em Andamento'},{v:'concluida',l:'Concluída'},{v:'cancelada',l:'Cancelada'}], m.status||'agendada')}
+        </div>
+    </div>
+    <div>
+        ${lbl('Descrição do serviço *')}
+        <textarea id="mn-m-descricao" placeholder="Descreva o serviço realizado ou a realizar..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:80px;resize:vertical;">${m.descricao||''}</textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div>${lbl('KM na Manutenção')}${inp('mn-m-km', m.km_na_manutencao, 'Ex: 100000', 'number')}</div>
+        <div>${lbl('Próxima Manutenção (KM)')}${inp('mn-m-km-prox', m.km_proxima_manutencao, 'Ex: 110000', 'number')}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div>${lbl('Data Agendamento')}${inp('mn-m-data-ag', m.data_agendamento, '', 'date')}</div>
+        <div>${lbl('Data Conclusão')}${inp('mn-m-data-conc', m.data_conclusao, '', 'date')}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div>${lbl('Fornecedor / Oficina')}${inp('mn-m-forn', m.fornecedor, 'Nome da oficina...')}</div>
+        <div>${lbl('Custo (R$)')}${inp('mn-m-custo', m.custo, '0.00', 'number')}</div>
+    </div>
+    <div>
+        ${lbl('Observações')}
+        <textarea id="mn-m-obs" placeholder="Observações adicionais..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:60px;resize:vertical;">${m.observacoes||''}</textarea>
+    </div>
+    <div style="display:flex;gap:1rem;justify-content:flex-end;padding-top:1rem;border-top:1px solid #e2e8f0;">
+        <button onclick="document.getElementById('modal-manut-ov').remove()" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;color:#475569;">Cancelar</button>
+        <button onclick="window.salvarManutencao(${id||'null'})" style="background:#d97706;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.5rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+            <i class="ph ph-floppy-disk"></i> ${id ? 'Salvar Alterações' : 'Registrar'}
+        </button>
+    </div>
+</div></div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+};
+
+window.salvarManutencao = async function(id) {
+    const tok = window._manutTok;
+    const g = sel => { const el = document.getElementById(sel); return el ? el.value.trim() : ''; };
+    const vid = g('mn-m-veiculo');
+    const descricao = g('mn-m-descricao');
+    if (!vid) return alert('Selecione o veículo');
+    if (!descricao) return alert('Informe a descrição do serviço');
+    const body = {
+        veiculo_id: vid, tipo: g('mn-m-tipo'), descricao, status: g('mn-m-status'),
+        km_na_manutencao: g('mn-m-km') || null, km_proxima_manutencao: g('mn-m-km-prox') || null,
+        data_agendamento: g('mn-m-data-ag') || null, data_conclusao: g('mn-m-data-conc') || null,
+        custo: g('mn-m-custo') || null, fornecedor: g('mn-m-forn'), observacoes: g('mn-m-obs')
+    };
+    try {
+        const res = await fetch(id ? '/api/frota/manutencoes/' + id : '/api/frota/manutencoes', {
+            method: id ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        document.getElementById('modal-manut-ov')?.remove();
+        // Reload
+        const manut = await fetch('/api/frota/manutencoes', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json());
+        window._manutDados = manut || [];
+        // Atualiza dados da frota para cards refletirem status
+        const frota = await fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json());
+        window._frotaDados = frota || [];
+        mnRenderLista();
+    } catch(e) { alert('Erro: ' + e.message); }
+};
+
+window.excluirManutencao = async function(id) {
+    if (!confirm('Excluir esta manutenção?')) return;
+    const tok = window._manutTok;
+    await fetch('/api/frota/manutencoes/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + tok } });
+    const manut = await fetch('/api/frota/manutencoes', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json());
+    window._manutDados = manut || [];
+    mnRenderLista();
+};
+
+})();
