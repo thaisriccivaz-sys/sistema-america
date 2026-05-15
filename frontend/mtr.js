@@ -48,9 +48,15 @@ function renderTabelaMTR(lista) {
     return;
   }
   tbody.innerHTML = lista.map(m => {
+    const statusNorm = (m.status || '').toLowerCase();
     const statusColor = {
-      'Ativo': '#10b981', 'Recebido': '#3b82f6', 'Cancelado': '#ef4444', 'Pendente': '#f59e0b'
-    }[m.status] || '#64748b';
+      'salvo':       '#f59e0b',
+      'ativo':       '#10b981',
+      'recebido':    '#3b82f6',
+      'cancelado':   '#ef4444',
+      'pendente':    '#94a3b8',
+      'cdf emitido': '#8b5cf6',
+    }[statusNorm] || '#64748b';
     
     let isAmerica = false;
     if (m.gerador_nome && m.gerador_nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('america rental')) {
@@ -60,23 +66,20 @@ function renderTabelaMTR(lista) {
     const rowStyle = isAmerica ? 'background-color: #dcfce7;' : '';
 
     let actionsHtml = '';
-    if (isAmerica) {
-        if (m.numero_mtr) {
-            actionsHtml += `<button onclick="window.downloadMTR(${m.id})" title="Imprimir MTR" class="btn btn-secondary" style="padding:4px 8px;font-size:1.1rem;margin-right:4px;"><i class="ph ph-printer"></i></button>`;
-        }
-        if (m.status === 'Ativo' || m.status === 'Salvo' || m.status === 'Pendente') {
+    if (m.numero_mtr) {
+        // Imprimir MTR (sempre disponivel)
+        actionsHtml += `<button onclick="window.downloadMTR(${m.id})" title="Imprimir MTR" class="btn btn-secondary" style="padding:4px 8px;font-size:1.1rem;margin-right:4px;"><i class="ph ph-printer"></i></button>`;
+    }
+    if (statusNorm === 'salvo' || statusNorm === 'ativo' || statusNorm === 'pendente') {
+        if (isAmerica) {
             actionsHtml += `<button onclick="window.cancelarMTR(${m.id})" class="btn btn-danger" style="padding:4px 8px;font-size:0.8rem;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;"><i class="ph ph-x"></i> Cancelar</button>`;
-        } else if (m.status === 'Recebido') {
-            actionsHtml += `<button onclick="window.downloadRecebimento(${m.id})" title="Imprimir Recebimento" class="btn btn-secondary" style="padding:4px 8px;font-size:1.1rem;margin-right:4px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;"><i class="ph ph-shield-check"></i></button>`;
-            actionsHtml += `<button onclick="window.downloadCDF(${m.id})" title="Baixar CDF" class="btn btn-secondary" style="padding:4px 8px;font-size:1.1rem;margin-right:4px;background:#8b5cf6;color:white;border:none;border-radius:6px;cursor:pointer;"><i class="ph ph-file-text"></i></button>`;
-        }
-    } else {
-        if (m.numero_mtr) {
-            actionsHtml += `<button onclick="window.downloadMTR(${m.id})" class="btn btn-secondary" style="padding:3px 10px;font-size:0.78rem;margin-right:4px;"><i class="ph ph-download-simple"></i> PDF</button>`;
-        }
-        if (m.status === 'Ativo' || m.status === 'Salvo' || m.status === 'Pendente') {
+        } else {
             actionsHtml += `<button onclick="window.abrirReceberMTR(${m.id})" class="btn btn-primary" style="padding:3px 10px;font-size:0.78rem;background:#3b82f6;border:none;border-radius:6px;color:white;cursor:pointer;"><i class="ph ph-check-circle"></i> Receber</button>`;
         }
+    } else if (statusNorm === 'recebido') {
+        actionsHtml += `<button onclick="window.downloadRecebimento(${m.id})" title="Certificado de Recebimento" style="padding:4px 8px;font-size:1.1rem;margin-right:4px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;"><i class="ph ph-shield-check"></i></button>`;
+    } else if (statusNorm === 'cdf emitido') {
+        actionsHtml += `<button onclick="window.downloadCDF(${m.id})" title="Baixar CDF" style="padding:4px 8px;font-size:1.1rem;margin-right:4px;background:#8b5cf6;color:white;border:none;border-radius:6px;cursor:pointer;"><i class="ph ph-certificate"></i> CDF</button>`;
     }
 
     let destNome = '-';

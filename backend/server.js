@@ -14238,7 +14238,7 @@ app.post('/api/mtr/sincronizar', authenticateToken, async (req, res) => {
            let sit = data.objetoResposta.situacaoManifesto.simDescricao;
            if (sit) {
                sit = sit.charAt(0).toUpperCase() + sit.slice(1).toLowerCase();
-               if (sit === 'Salvo') sit = 'Ativo';
+               // Manter o status exatamente como o SIGOR retorna
            }
            console.log(`[SINC] MTR ${row.numero_mtr}: status SIGOR='${sit}' local='${row.status}'`);
            if (sit && sit !== row.status) {
@@ -14382,7 +14382,7 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
         quantidade, unidade, acondicionamento_codigo, estado_fisico_codigo, tratamento_codigo,
         observacao, payload_json, complementar_de_id)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [numeroMTR, 'Ativo', geradorNome, geradorCnpj, residuoCodigo,
+      [numeroMTR, 'Salvo', geradorNome, geradorCnpj, residuoCodigo,
        quantidade, unidade, acondicionamentoCodigo, estadoFisicoCodigo, tratamentoCodigo,
        observacao, JSON.stringify({ ...data, _destinadorNome: req.body.destinadorNome || 'BRK AMBIENTAL - MAUÁ S.A.' }), complementarDeId || null],
       function (errIns) {
@@ -14486,7 +14486,7 @@ setInterval(async () => {
                     let sit = data.objetoResposta.situacaoManifesto.simDescricao;
            if (sit) {
                sit = sit.charAt(0).toUpperCase() + sit.slice(1).toLowerCase();
-               if (sit === 'Salvo') sit = 'Ativo';
+               // Manter o status exatamente como o SIGOR retorna
            }
                     if (sit && sit !== row.status) {
                         db.run('UPDATE mtr_local SET status = ? WHERE id = ?', [sit, row.id]);
