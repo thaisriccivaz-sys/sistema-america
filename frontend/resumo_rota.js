@@ -1375,8 +1375,10 @@ window._rrRegistrarAlteracoes = async function(nomeFinal) {
     if (promises.length) {
         try {
             await Promise.all(promises);
+            console.log('[RR] Auditoria salva:', promises.length, 'alterações');
         } catch (e) {
             console.error('Erro ao registrar auditoria de Resumo Rota', e);
+            if (typeof showToast === 'function') showToast('Erro na auditoria: ' + e.message, 'error');
         }
     }
 };
