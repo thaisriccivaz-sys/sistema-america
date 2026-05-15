@@ -79,8 +79,9 @@ function renderTabelaMTR(lista) {
     }
 
     let destNome = '-';
+    let p = {};
     try {
-        const p = JSON.parse(m.payload_json || '{}');
+        p = JSON.parse(m.payload_json || '{}');
         const d = p.respostaApiwsManifestoDTO?.[0]?.destinador || p.objetoResposta?.[0]?.destinador || p.objetoResposta?.destinador;
         if (d && d.razaoSocial) destNome = d.razaoSocial;
     } catch(e) {}
