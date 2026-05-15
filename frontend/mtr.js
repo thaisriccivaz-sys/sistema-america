@@ -15,6 +15,7 @@ let _mtrAcondicionamentos = [];
 let _mtrEstadosFisicos = [];
 let _mtrTratamentos = [];
 let _mtrUnidades = [];
+let _mtrClasses = [];
 let _mtrListaCache = [];
 
 // ── Inicialização ─────────────────────────────────────────────────────────────
@@ -104,7 +105,7 @@ function renderTabelaMTR(lista) {
   }).join('');
 }
 
-// ── Carregar tabelas de referência SIGOR ──────────────────────────────────────
+// ── Carregar tabelas de referência SIGOR ────────────────────────────────────
 async function carregarTabelas() {
   try {
     const res = await fetch('/api/mtr/tabelas', { headers: { 'Authorization': `Bearer ${window.currentToken}` } });
@@ -114,6 +115,18 @@ async function carregarTabelas() {
     _mtrEstadosFisicos = data.estadosFisicos || [];
     _mtrTratamentos = data.tratamentos || [];
     _mtrUnidades = data.unidades || [];
+    _mtrClasses = data.classes || [
+      { codigo: 43, descricao: 'CLASSE II A' },
+      { codigo: 42, descricao: 'CLASSE II B' },
+      { codigo: 1,  descricao: 'CLASSE I' },
+      { codigo: 11, descricao: 'CLASSE A (RCC)' },
+      { codigo: 12, descricao: 'CLASSE B (RCC)' },
+      { codigo: 13, descricao: 'CLASSE C (RCC)' },
+      { codigo: 14, descricao: 'CLASSE D (RCC)' },
+      { codigo: 21, descricao: 'GRUPO A1 (RSS)' },
+      { codigo: 22, descricao: 'GRUPO A2 (RSS)' },
+      { codigo: 25, descricao: 'GRUPO A5 (RSS)' },
+    ];
   } catch (e) {
     console.warn('[MTR] Tabelas ainda não carregadas:', e);
   }
@@ -205,7 +218,7 @@ window.submitGerarMTR = async function (e) {
       geradorNome: document.getElementById('mtr-gerador-nome').value,
       geradorCnpj: document.getElementById('mtr-gerador-cnpj').value,
       residuoCodigo: document.getElementById('mtr-residuo').value,
-      claCodigo: document.getElementById('mtr-classe-codigo') ? document.getElementById('mtr-classe-codigo').value : '2',
+      claCodigo: document.getElementById('mtr-classe') ? document.getElementById('mtr-classe').value : '43',
       quantidade: document.getElementById('mtr-quantidade').value,
       unidade: document.getElementById('mtr-unidade').value,
       acondicionamentoCodigo: document.getElementById('mtr-acondicionamento').value,
@@ -229,6 +242,7 @@ window.submitGerarMTR = async function (e) {
     Swal.fire({ icon: 'success', title: 'MTR Gerada!', text: `Número: ${data.numeroMTR}`, confirmButtonColor: '#10b981' });
     await carregarListaMTR();
   } catch (err) {
+    window.fecharModalMTR();
     Swal.fire({ icon: 'error', title: 'Erro ao gerar MTR', text: err.message });
   } finally {
     btn.disabled = false;
