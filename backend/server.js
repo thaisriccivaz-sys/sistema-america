@@ -14207,7 +14207,10 @@ app.post('/api/mtr/sincronizar', authenticateToken, async (req, res) => {
         const data = await sigorReq('/retornaManifesto/' + row.numero_mtr);
         if (data && data.objetoResposta && data.objetoResposta.situacaoManifesto) {
            let sit = data.objetoResposta.situacaoManifesto.simDescricao;
-           if(sit === 'Salvo') sit = 'Ativo'; // Mapeamento
+           if (sit) {
+               sit = sit.charAt(0).toUpperCase() + sit.slice(1).toLowerCase();
+               if (sit === 'Salvo') sit = 'Ativo';
+           }
            if (sit !== row.status) {
               db.run('UPDATE mtr_local SET status = ? WHERE id = ?', [sit, row.id]);
               atualizados++;
@@ -14443,7 +14446,10 @@ setInterval(async () => {
                 const data = await sigorReq('/retornaManifesto/' + row.numero_mtr);
                 if (data && data.objetoResposta && data.objetoResposta.situacaoManifesto) {
                     let sit = data.objetoResposta.situacaoManifesto.simDescricao;
-                    if(sit === 'Salvo') sit = 'Ativo';
+           if (sit) {
+               sit = sit.charAt(0).toUpperCase() + sit.slice(1).toLowerCase();
+               if (sit === 'Salvo') sit = 'Ativo';
+           }
                     if (sit && sit !== row.status) {
                         db.run('UPDATE mtr_local SET status = ? WHERE id = ?', [sit, row.id]);
                         atualizados++;
