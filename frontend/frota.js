@@ -18,33 +18,24 @@ async function extrairCRLV(file){
         const pdf=await lib.getDocument({data:new Uint8Array(e.target.result)}).promise;
         let txt='';
         for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i);const ct=await pg.getTextContent();txt+=ct.items.map(x=>x.str).join('\n')+'\n';}
-        console.log('[CRLV raw]',txt);
         const linhas=txt.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
-        console.log('[CRLV linhas]',linhas);
         const d={};
-        // PLACA: formato ABC1234 ou Mercosul ABC1D23
         let placaIdx=-1;
         for(let i=0;i<linhas.length;i++){if(/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(linhas[i])){d.placa=linhas[i];placaIdx=i;break;}}
-        // Após placa: próximo ano (4 dígitos) = EXERCÍCIO
         if(placaIdx>=0){
           for(let i=placaIdx+1;i<Math.min(placaIdx+8,linhas.length);i++){
             if(/^\d{4}$/.test(linhas[i])&&parseInt(linhas[i])>=2020){d.exercicio=linhas[i];
-              // Próximo 4 dígitos = ANO FABRICAÇÃO
               for(let j=i+1;j<Math.min(i+8,linhas.length);j++){
                 if(/^\d{4}$/.test(linhas[j])&&parseInt(linhas[j])>=1950){d.ano_fabricacao=linhas[j];
-                  // Próximo 4 dígitos = ANO MODELO
                   for(let k=j+1;k<Math.min(j+8,linhas.length);k++){
                     if(/^\d{4}$/.test(linhas[k])&&parseInt(linhas[k])>=1950){d.ano_modelo=linhas[k];break;}
                   }break;}
               }break;}
           }
         }
-        // RENAVAM: linha com 9-11 dígitos somente
         for(const l of linhas){if(/^\d{9,11}$/.test(l)&&l!==d.placa&&l!==d.exercicio&&l!==d.ano_fabricacao&&l!==d.ano_modelo){d.renavam=l;break;}}
-        // COR: lista de cores conhecidas
         const cores=['BRANCA','PRETA','CINZA','VERMELHA','AZUL','VERDE','AMARELA','LARANJA','MARROM','BEGE','PRATA','DOURADA','VINHO','BEGE'];
         for(const l of linhas){const u=l.toUpperCase();for(const c of cores){if(u===c||u.startsWith(c)){d.cor=c;break;}}if(d.cor)break;}
-        // MARCA/MODELO: linha com "/" que não seja chassi/motor, após placa
         const excl=/^(BRANCA|PRETA|CINZA|VERMELHA|AZUL|VERDE|AMARELA|LARANJA|MARROM|BEGE|PRATA|DOURADA|VINHO|PARTICULAR|COMERCIAL|CARROCERIA|CARGA|SEM OBS|AMERICA|GUARULHOS|DETRAN|SENATRAN|INFORMACOES|REPASSE|CUSTO|VALOR|TOTAL|ESPECIE|COMBUSTIVEL|LOCAL|DATA|CPF|CNPJ|SP|MG|RJ|PR|SC|RS|BA|GO)/i;
         for(let i=placaIdx>0?placaIdx:0;i<linhas.length;i++){const l=linhas[i];if(l.includes('/')&&!/^\*/.test(l)&&!/^\d/.test(l)&&l.length>4&&!excl.test(l)&&/[A-Z]{2}/.test(l)){d.marca_modelo_versao=l;break;}}
         resolve(d);
@@ -54,16 +45,19 @@ async function extrairCRLV(file){
   });
 }
 function b64(file){return new Promise(r=>{const fr=new FileReader();fr.onload=e=>r(e.target.result);fr.readAsDataURL(file);});}
-window._frotaB64=null;window._frotaFN=null;
+
+window._frotaB64=null;
+window._frotaFN=null;
+window._frotaImgB64=null;
+
 window.processarCRLV=async function(inp,modo){
   const file=inp.files[0];if(!file)return;
   await carregarPDFjs();
   const statusId=modo==='update'?'crlv-upd-status':'crlv-status';
   const st=document.getElementById(statusId);
-  if(st)st.innerHTML='<i class="ph ph-circle-notch"></i> Lendo PDF...';
+  if(st)st.innerHTML='<i class="ph ph-circle-notch ph-spin"></i> Lendo PDF...';
   window._frotaB64=await b64(file);window._frotaFN=file.name;
   const d=await extrairCRLV(file);
-  console.log('[CRLV dados]',d);
   let n=0;
   const set=(id,v)=>{if(!v)return;const el=document.getElementById(id);if(el){el.value=v;n++;}};
   if(modo==='update'){
@@ -75,110 +69,153 @@ window.processarCRLV=async function(inp,modo){
     if(st)st.innerHTML=n>0?`<span style="color:#16a34a;font-weight:600">✅ ${n} campo(s) preenchido(s)</span>`:`<span style="color:#f59e0b;font-weight:600">⚠️ PDF processado mas dados não identificados</span>`;
   }
 };
-window._frotaDados = [];
-window._frotaSort = { col: '', dir: 'asc' };
-window._frotaSearch = '';
 
-window.ordenarFrota = function(col) {
-  if (window._frotaSort.col === col) {
-    window._frotaSort.dir = window._frotaSort.dir === 'asc' ? 'desc' : 'asc';
-  } else {
-    window._frotaSort.col = col;
-    window._frotaSort.dir = 'asc';
-  }
-  renderTabelaFrota();
+window.processarFotoVeiculo = async function(inp) {
+    const file = inp.files[0];
+    if (!file) return;
+    const st = document.getElementById('foto-status');
+    if (st) st.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Processando foto...';
+    
+    // Resize image to base64
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800;
+            const MAX_HEIGHT = 800;
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+                if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+            } else {
+                if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            window._frotaImgB64 = canvas.toDataURL('image/jpeg', 0.8);
+            
+            const prev = document.getElementById('fv-foto-preview');
+            if (prev) {
+                prev.src = window._frotaImgB64;
+                prev.style.display = 'block';
+            }
+            if (st) st.innerHTML = '<span style="color:#16a34a;font-weight:600">✅ Foto carregada</span>';
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
 };
+
+window._frotaDados = [];
+window._frotaSearch = '';
 
 window.filtrarFrota = function(val) {
   window._frotaSearch = (val || '').trim().toLowerCase();
-  renderTabelaFrota();
+  renderCardsFrota();
 };
 
-function renderTabelaFrota() {
-  const tb = document.getElementById('frota-tbody');
+function renderCardsFrota() {
+  const tb = document.getElementById('frota-grid');
   if (!tb) return;
-  const ths = document.querySelectorAll('#frota-thead th');
-  ths.forEach(th => {
-    const s = th.querySelector('.ph-caret-down, .ph-caret-up');
-    if (s) {
-      if (th.dataset.col === window._frotaSort.col) {
-        s.className = window._frotaSort.dir === 'asc' ? 'ph ph-caret-up' : 'ph ph-caret-down';
-        s.style.color = '#2d9e5f';
-      } else {
-        s.className = 'ph ph-caret-down';
-        s.style.color = '#cbd5e1';
-      }
-    }
-  });
 
   let rows = [...window._frotaDados];
-  
   if (window._frotaSearch) {
     const s = window._frotaSearch;
     rows = rows.filter(v => {
       const p = v.placa || '';
       const m = v.marca_modelo_versao || '';
       const c = v.cor_predominante || '';
-      const a = String(v.ano_modelo || '');
-      const e = String(v.exercicio || '');
-      const r = v.renavam || '';
-      const t = String(v.capacidade_tanque || '');
-      const cg = String(v.capacidade_carga || '');
-      const tp = v.tipo_veiculo || '';
-      return p.toLowerCase().includes(s) || m.toLowerCase().includes(s) || 
-             c.toLowerCase().includes(s) || a.includes(s) || e.includes(s) || 
-             r.toLowerCase().includes(s) || t.includes(s) || cg.includes(s) || 
-             tp.toLowerCase().includes(s);
-    });
-  }
-  if (window._frotaSort.col) {
-    rows.sort((a, b) => {
-      let va = a[window._frotaSort.col] || '';
-      let vb = b[window._frotaSort.col] || '';
-      if (typeof va === 'string') va = va.toLowerCase();
-      if (typeof vb === 'string') vb = vb.toLowerCase();
-      if (window._frotaSort.col === 'ano_modelo') {
-        va = parseInt(va) || 0; vb = parseInt(vb) || 0;
-      } else if (window._frotaSort.col === 'exercicio') {
-        let vaAno = parseInt(a.exercicio) || 0;
-        let vbAno = parseInt(b.exercicio) || 0;
-        let vaMes = getMesVenc(a.placa) || 0;
-        let vbMes = getMesVenc(b.placa) || 0;
-        va = vaAno * 100 + vaMes;
-        vb = vbAno * 100 + vbMes;
-      }
-      if (va < vb) return window._frotaSort.dir === 'asc' ? -1 : 1;
-      if (va > vb) return window._frotaSort.dir === 'asc' ? 1 : -1;
-      return 0;
+      return p.toLowerCase().includes(s) || m.toLowerCase().includes(s) || c.toLowerCase().includes(s);
     });
   }
 
-  const meses = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  // Ordenar por expirado primeiro, depois alfabético por placa
+  rows.sort((a,b) => {
+      const expA = alertaPlaca(a.placa, a.exercicio) === 'expirado' ? 1 : 0;
+      const expB = alertaPlaca(b.placa, b.exercicio) === 'expirado' ? 1 : 0;
+      if (expA !== expB) return expB - expA;
+      return (a.placa||'').localeCompare(b.placa||'');
+  });
+
   if (!rows || !rows.length) {
-    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8;">Nenhum veículo cadastrado</td></tr>';
+    tb.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#94a3b8;font-size:1.1rem;">Nenhum veículo encontrado</div>';
     return;
   }
-  tb.innerHTML = rows.map((v, i) => {
+
+  tb.innerHTML = rows.map(v => {
     const alerta = alertaPlaca(v.placa, v.exercicio);
-    const mesV = getMesVenc(v.placa);
-    const anoVencimento = parseInt(v.exercicio) + 1;
-    const exStr = v.exercicio + (mesV && anoVencimento ? ` (vence em ${meses[mesV]} / ${anoVencimento})` : '');
-    const exStyle = alerta ? 'color:#dc2626;font-weight:700;' : '';
-    return `<tr style="background:${i%2===0?'#fff':'#f8fafc'};border-bottom:none;">
-<td style="padding:10px 12px;font-weight:700;color:#2d9e5f;">${v.placa||''}</td>
-<td style="padding:10px 12px;">${v.marca_modelo_versao||''}</td>
-<td style="padding:10px 12px;">${v.cor_predominante||''}</td>
-<td style="padding:10px 12px;">${v.ano_modelo||''}</td>
-<td style="padding:10px 12px;"><span style="${exStyle}">${alerta?'⚠️ ':''}${exStr}</span></td>
-<td style="padding:10px 12px;">${v.renavam||''}</td>
-<td style="padding:10px 12px;">${v.capacidade_tanque?v.capacidade_tanque+' L':'-'}</td>
-<td style="padding:10px 12px;">${v.capacidade_carga?v.capacidade_carga+' un':'-'}</td>
-<td style="padding:10px 12px;">${v.tipo_veiculo||''}</td>
-<td style="padding:10px 12px;text-align:center;white-space:nowrap;">
-${v.crlv_filename ? `<button onclick="window.visualizarCRLV(${v.id})" style="background:#0891b2;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;margin-right:4px;" title="Visualizar CRLV"><i class="ph ph-file-pdf"></i></button>` : `<button disabled style="background:#cbd5e1;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:not-allowed;margin-right:4px;" title="Sem CRLV"><i class="ph ph-file-pdf"></i></button>`}
-<button onclick="window.abrirModalFrota(${v.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;margin-right:4px;" title="Editar"><i class="ph ph-pencil"></i></button>
-<button onclick="window.excluirVeiculoFrota(${v.id},'${v.placa}')" style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;" title="Excluir"><i class="ph ph-trash"></i></button>
-</td></tr>`;
+    
+    // Cores da borda/indicador
+    let borderColor = '#2d9e5f'; // verde
+    let statusLabel = 'REGULAR';
+    if (alerta === 'expirado') {
+        borderColor = '#dc2626'; // vermelho
+        statusLabel = 'VENCIDO';
+    } else if (!v.exercicio) {
+        borderColor = '#f59e0b'; // amarelo
+        statusLabel = 'PENDENTE';
+    }
+
+    const placeholder = 'https://via.placeholder.com/400x250/e2e8f0/94a3b8?text=Sem+Foto';
+    const foto = v.foto_base64 || placeholder;
+    const marcaCurta = (v.marca_modelo_versao||'N/D').split('/')[0].substring(0, 15);
+
+    return `
+    <div style="background:#fff;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.08);overflow:hidden;border:1px solid #e2e8f0;position:relative;display:flex;flex-direction:column;transition:transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 20px rgba(0,0,0,0.12)';" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';">
+        
+        <!-- Triângulo de Status no canto superior direito -->
+        <div style="position:absolute;top:0;right:0;width:0;height:0;border-top:60px solid ${borderColor};border-left:60px solid transparent;z-index:2;"></div>
+        <div style="position:absolute;top:8px;right:6px;z-index:3;color:#fff;font-size:0.6rem;font-weight:800;transform:rotate(45deg);letter-spacing:1px;">
+            ${statusLabel}
+        </div>
+
+        <!-- Foto -->
+        <div style="height:140px;width:100%;background-image:url('${foto}');background-size:cover;background-position:center;border-bottom:1px solid #e2e8f0;"></div>
+        
+        <!-- Detalhes -->
+        <div style="padding:1rem;flex:1;display:flex;flex-direction:column;gap:0.4rem;font-size:0.82rem;color:#475569;">
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
+                <span style="font-weight:600;color:#94a3b8;">Veículo:</span>
+                <span style="font-weight:700;color:#1e293b;" title="${v.marca_modelo_versao||''}">${marcaCurta}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
+                <span style="font-weight:600;color:#94a3b8;">Cor:</span>
+                <span style="font-weight:700;color:#1e293b;">${v.cor_predominante||'N/D'}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
+                <span style="font-weight:600;color:#94a3b8;">Placa:</span>
+                <span style="font-weight:800;color:#2d9e5f;">${v.placa||'N/D'}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
+                <span style="font-weight:600;color:#94a3b8;">Exercício:</span>
+                <span style="font-weight:700;color:${alerta==='expirado'?'#dc2626':'#1e293b'};">${v.exercicio||'N/D'}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
+                <span style="font-weight:600;color:#94a3b8;">Tanque:</span>
+                <span style="font-weight:700;color:#1e293b;">${v.capacidade_tanque?v.capacidade_tanque+' L':'N/D'}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+                <span style="font-weight:600;color:#94a3b8;">Carga:</span>
+                <span style="font-weight:700;color:#1e293b;">${v.capacidade_carga?v.capacidade_carga+' un':'N/D'}</span>
+            </div>
+        </div>
+
+        <!-- Ações Inferiores -->
+        <div style="background:#f8fafc;padding:0.75rem 1rem;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-weight:800;color:#cbd5e1;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;">
+                ${v.tipo_veiculo||'VEÍCULO'}
+            </div>
+            <div style="display:flex;gap:4px;">
+                ${v.crlv_filename ? `<button onclick="window.visualizarCRLV(${v.id})" style="background:#0891b2;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Visualizar CRLV"><i class="ph ph-file-pdf"></i></button>` : `<button disabled style="background:#e2e8f0;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:not-allowed;" title="Sem CRLV"><i class="ph ph-file-pdf"></i></button>`}
+                <button onclick="window.abrirModalFrota(${v.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Editar"><i class="ph ph-pencil"></i></button>
+                <button onclick="window.excluirVeiculoFrota(${v.id},'${v.placa}')" style="background:#dc2626;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Excluir"><i class="ph ph-trash"></i></button>
+            </div>
+        </div>
+    </div>
+    `;
   }).join('');
 }
 
@@ -191,95 +228,46 @@ window.visualizarCRLV = async function(id) {
     if (!data.crlv_base64) throw new Error('Documento não encontrado.');
 
     let base64Data = data.crlv_base64;
-    if (base64Data.includes(',')) {
-      base64Data = base64Data.split(',')[1];
-    }
+    if (base64Data.includes(',')) base64Data = base64Data.split(',')[1];
     
     const byteCharacters = atob(base64Data);
     const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: 'application/pdf' });
+    for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
+    const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
-  } catch (err) {
-    alert('Erro ao visualizar CRLV: ' + err.message);
-  }
+  } catch (err) { alert('Erro ao visualizar CRLV: ' + err.message); }
 };
 
 window.exportarFrotaExcel = async function() {
-  if (!window._frotaDados || window._frotaDados.length === 0) {
-    alert('Nenhum veículo para exportar.');
-    return;
-  }
-  
-  if (typeof ExcelJS === 'undefined') {
-    alert('Biblioteca ExcelJS não carregada.');
-    return;
-  }
+  if (!window._frotaDados || window._frotaDados.length === 0) { alert('Nenhum veículo para exportar.'); return; }
+  if (typeof ExcelJS === 'undefined') { alert('Biblioteca ExcelJS não carregada.'); return; }
 
   try {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Frota');
 
-    const HEADERS = [
-      'Placa',
-      'Marca / Modelo / Versão',
-      'Cor Predominante',
-      'Ano Modelo',
-      'Exercício',
-      'RENAVAM',
-      'Capacidade Tanque (L)',
-      'Capacidade Carga (un)',
-      'Tipo de Veículo',
-      'Altura c/ Banheiro',
-      'Altura s/ Banheiro',
-      'Largura c/ Banheiro',
-      'Largura s/ Banheiro',
-      'Profundidade c/ Banheiro',
-      'Profundidade s/ Banheiro'
-    ];
-
+    const HEADERS = ['Placa','Marca / Modelo / Versão','Cor Predominante','Ano Modelo','Exercício','RENAVAM','Capacidade Tanque (L)','Capacidade Carga (un)','Tipo de Veículo','Altura c/ Banheiro','Altura s/ Banheiro','Largura c/ Banheiro','Largura s/ Banheiro','Profundidade c/ Banheiro','Profundidade s/ Banheiro'];
     const headerRow = worksheet.addRow(HEADERS);
     headerRow.font = { bold: true };
     headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1D5DB' } };
 
     window._frotaDados.forEach(v => {
       worksheet.addRow([
-        v.placa || '',
-        v.marca_modelo_versao || '',
-        v.cor_predominante || '',
-        v.ano_modelo || '',
-        v.exercicio || '',
-        v.renavam || '',
-        v.capacidade_tanque || '',
-        v.capacidade_carga || '',
-        v.tipo_veiculo || '',
-        v.altura_com_banheiro || '',
-        v.altura_sem_banheiro || '',
-        v.largura_com_banheiro || '',
-        v.largura_sem_banheiro || '',
-        v.profundidade_com_banheiro || '',
-        v.profundidade_sem_banheiro || ''
+        v.placa||'', v.marca_modelo_versao||'', v.cor_predominante||'', v.ano_modelo||'', v.exercicio||'', v.renavam||'',
+        v.capacidade_tanque||'', v.capacidade_carga||'', v.tipo_veiculo||'', v.altura_com_banheiro||'', v.altura_sem_banheiro||'',
+        v.largura_com_banheiro||'', v.largura_sem_banheiro||'', v.profundidade_com_banheiro||'', v.profundidade_sem_banheiro||''
       ]);
     });
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
+    const a = document.createElement('a'); a.href = url;
     a.download = `Frota_Veiculos_${new Date().toISOString().slice(0,10)}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-  } catch (err) {
-    console.error('Erro ao exportar excel da frota:', err);
-    alert('Erro ao gerar o Excel: ' + err.message);
-  }
+  } catch (err) { alert('Erro ao gerar o Excel: ' + err.message); }
 };
 
 window.initFrotaVeiculos = async function() {
@@ -287,47 +275,38 @@ window.initFrotaVeiculos = async function() {
   await carregarPDFjs();
   const tok = window.currentToken || localStorage.getItem('token');
   
-  const thStyle = "position:sticky;top:0;background:#fafafa;padding:12px;text-align:left;color:#475569;font-weight:700;border-bottom:1px solid #e2e8f0;cursor:pointer;user-select:none;z-index:2;";
-  const st = (col, label) => `<th data-col="${col}" onclick="window.ordenarFrota('${col}')" style="${thStyle}">
-    <div style="display:flex;align-items:center;gap:4px;">${label} <i class="ph ph-caret-down" style="color:#cbd5e1;font-size:0.9rem;"></i></div>
-  </th>`;
-
-  c.innerHTML = `<div style="padding:1.5rem;background:#f1f5f9;height:100%;">
+  c.innerHTML = `<div style="padding:1.5rem;background:#f8fafc;min-height:100%;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
-<h2 style="margin:0;color:#1e293b;display:flex;align-items:center;gap:8px;"><i class="ph ph-truck" style="color:#2d9e5f;"></i> Frota de Veículos</h2>
-<div style="display:flex;align-items:center;gap:12px;">
-  <div style="position:relative;">
-    <i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;"></i>
-    <input type="text" placeholder="Buscar veículo..." onkeyup="window.filtrarFrota(this.value)" style="padding:0.6rem 1rem 0.6rem 2.2rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.88rem;width:250px;outline:none;" onfocus="this.style.borderColor='#2d9e5f'" onblur="this.style.borderColor='#cbd5e1'">
-  </div>
-  <button onclick="window.exportarFrotaExcel()" style="background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;"><i class="ph ph-download-simple"></i> Baixar Excel</button>
-  <button onclick="window.abrirModalFrota(null)" style="background:#2d9e5f;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;"><i class="ph ph-plus"></i> Novo Veículo</button>
+    <h2 style="margin:0;color:#1e293b;display:flex;align-items:center;gap:12px;font-size:1.6rem;">
+        <div style="background:#2d9e5f;color:#fff;width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(45,158,95,0.3);">
+            <i class="ph ph-truck"></i>
+        </div> 
+        Gestão de Frota
+    </h2>
+    <div style="display:flex;align-items:center;gap:12px;">
+    <div style="position:relative;">
+        <i class="ph ph-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1.1rem;"></i>
+        <input type="text" placeholder="Buscar por placa, modelo ou cor..." onkeyup="window.filtrarFrota(this.value)" style="padding:0.7rem 1rem 0.7rem 2.6rem;border:1px solid #cbd5e1;border-radius:10px;font-size:0.9rem;width:280px;outline:none;box-shadow:0 2px 4px rgba(0,0,0,0.02);transition:0.2s;" onfocus="this.style.borderColor='#2d9e5f';this.style.boxShadow='0 0 0 3px rgba(45,158,95,0.1)';" onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='0 2px 4px rgba(0,0,0,0.02)';">
+    </div>
+    <button onclick="window.exportarFrotaExcel()" style="background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:10px;padding:0.7rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 4px rgba(0,0,0,0.02);transition:0.2s;" onmouseover="this.style.background='#f1f5f9'"><i class="ph ph-download-simple"></i> Baixar Excel</button>
+    <button onclick="window.abrirModalFrota(null)" style="background:#2d9e5f;color:#fff;border:none;border-radius:10px;padding:0.7rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 10px rgba(45,158,95,0.25);transition:0.2s;" onmouseover="this.style.background='#23824e'"><i class="ph ph-plus-circle"></i> Novo Veículo</button>
+    </div>
 </div>
+
+<!-- Grid de Cards -->
+<div id="frota-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:1.5rem;padding-bottom:2rem;">
+    <div style="grid-column:1/-1;text-align:center;padding:3rem;color:#94a3b8;"><i class="ph ph-circle-notch ph-spin" style="font-size:2rem;"></i><br>Carregando veículos...</div>
 </div>
-<div style="background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow-y:auto;height:calc(100vh - 260px);">
-<table style="width:100%;border-collapse:collapse;font-size:0.86rem;">
-<thead id="frota-thead"><tr>
-${st('placa', 'Placa')}
-${st('marca_modelo_versao', 'Marca/Modelo/Versão')}
-${st('cor_predominante', 'Cor')}
-${st('ano_modelo', 'Ano Modelo')}
-${st('exercicio', 'Exercício / Vencimento')}
-${st('renavam', 'RENAVAM')}
-${st('capacidade_tanque', 'Tanque')}
-${st('capacidade_carga', 'Carga')}
-${st('tipo_veiculo', 'Tipo')}
-<th style="${thStyle.replace('cursor:pointer;','')} text-align:center;">Ações</th>
-</tr></thead>
-<tbody id="frota-tbody"><tr><td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8;">Carregando...</td></tr></tbody>
-</table></div></div>`;
+</div>`;
+
   try {
     const res = await fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } });
     const rows = await res.json();
     window._frotaDados = rows || [];
-    renderTabelaFrota();
+    renderCardsFrota();
   } catch (e) {
-    const tb = document.getElementById('frota-tbody');
-    if (tb) tb.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:#dc2626;">Erro: ${e.message}</td></tr>`;
+    const tb = document.getElementById('frota-grid');
+    if (tb) tb.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#dc2626;">Erro: ${e.message}</div>`;
   }
 };
 
@@ -335,58 +314,107 @@ window.abrirModalFrota=async function(id){
   const tok = window.currentToken || localStorage.getItem('token');
   let v={};
   if(id){const r=await fetch('/api/frota/veiculos/'+id,{headers:{Authorization:'Bearer '+tok}});v=await r.json();}
-  window._frotaB64=null;window._frotaFN=null;
+  
+  window._frotaB64=null;
+  window._frotaFN=null;
+  window._frotaImgB64=v.foto_base64||null;
+  
   let ov=document.getElementById('modal-frota-ov');if(ov)ov.remove();
   ov=document.createElement('div');ov.id='modal-frota-ov';
-  ov.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.75);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  
   const tipos=['caminhão','caminhonete','utilitário','carretinha','caminhão tanque'];
   const optT=tipos.map(t=>`<option value="${t}"${(v.tipo_veiculo||'caminhão')===t?' selected':''}>${t.charAt(0).toUpperCase()+t.slice(1)}</option>`).join('');
-  const inp=(id,val,ph,type)=>`<input id="${id}" value="${val||''}" placeholder="${ph||''}" type="${type||'text'}" style="width:100%;padding:.55rem;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;font-size:.85rem;">`;
-  const lbl=t=>`<label style="font-size:.76rem;font-weight:600;color:#475569;display:block;margin-bottom:3px;">${t}</label>`;
+  const inp=(id,val,ph,type)=>`<input id="${id}" value="${val||''}" placeholder="${ph||''}" type="${type||'text'}" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;transition:0.2s;" onfocus="this.style.borderColor='#2d9e5f';this.style.boxShadow='0 0 0 3px rgba(45,158,95,0.1)'" onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'">`;
+  const lbl=t=>`<label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">${t}</label>`;
   const alerta=alertaPlaca(v.placa,v.exercicio);
-  const alertaHtml=alerta&&id?`<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;color:#dc2626;font-weight:600;font-size:.85rem;">⚠️ CRLV vencido ou a vencer — atualize o documento</div>`:'';
-  ov.innerHTML=`<div style="background:#fff;border-radius:16px;width:95vw;max-width:900px;max-height:90vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,.4);display:flex;flex-direction:column;">
-<div style="padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;border-radius:16px 16px 0 0;position:sticky;top:0;z-index:2;">
-<div style="font-size:1rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px;"><i class="ph ph-truck" style="color:#2d9e5f;"></i>${id?'Editar Veículo':'Novo Veículo'}</div>
-<button onclick="document.getElementById('modal-frota-ov').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#64748b;"><i class="ph ph-x"></i></button>
+  const alertaHtml=alerta&&id?`<div style="background:#fef2f2;border-left:4px solid #ef4444;padding:0.75rem 1rem;margin-bottom:1.5rem;color:#b91c1c;font-weight:600;font-size:0.85rem;border-radius:4px;">⚠️ CRLV vencido ou a vencer — atualize o documento para regularizar a situação no sistema.</div>`:'';
+  
+  const placeholderFoto = window._frotaImgB64 || 'https://via.placeholder.com/400x250/e2e8f0/94a3b8?text=Sem+Foto';
+
+  ov.innerHTML=`<div style="background:#fff;border-radius:16px;width:100%;max-width:900px;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);display:flex;flex-direction:column;">
+<div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;position:sticky;top:0;z-index:10;">
+<div style="font-size:1.1rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:10px;">
+    <div style="background:#2d9e5f;color:#fff;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;">
+        <i class="ph ph-${id?'pencil':'plus'}"></i>
+    </div>
+    ${id?'Editar Veículo':'Novo Veículo'}
 </div>
-<div style="padding:1.5rem;">
+<button onclick="document.getElementById('modal-frota-ov').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#94a3b8;transition:0.2s;" onmouseover="this.style.color='#ef4444'"><i class="ph ph-x"></i></button>
+</div>
+
+<div style="padding:1.5rem;background:#fff;">
 ${alertaHtml}
-<div style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);border:2px dashed #6ee7b7;border-radius:12px;padding:1rem;margin-bottom:1.25rem;text-align:center;">
-<i class="ph ph-file-pdf" style="font-size:1.8rem;color:#2d9e5f;display:block;margin-bottom:.4rem;"></i>
-<p style="margin:0 0 .5rem;font-weight:600;color:#065f46;font-size:.88rem;">📄 Importar dados do CRLV (PDF)</p>
-<label style="background:#2d9e5f;color:#fff;padding:.45rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:.85rem;display:inline-flex;align-items:center;gap:6px;">
-<i class="ph ph-upload-simple"></i> Selecionar CRLV
-<input type="file" accept=".pdf" style="display:none;" onchange="window.processarCRLV(this,'new')">
-</label>
-<div id="crlv-status" style="margin-top:.6rem;font-size:.8rem;color:#6b7280;"></div>
+
+<!-- ROW TOP: FOTO E CRLV LADO A LADO -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
+    <!-- FOTO UPLOAD -->
+    <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+        <div style="background:#f8fafc;padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;font-weight:600;color:#475569;font-size:0.85rem;display:flex;align-items:center;gap:6px;">
+            <i class="ph ph-camera" style="color:#2d9e5f;font-size:1.1rem;"></i> Foto do Veículo
+        </div>
+        <div style="padding:1rem;display:flex;flex-direction:column;align-items:center;background:#fff;flex:1;">
+            <img id="fv-foto-preview" src="${placeholderFoto}" style="width:100%;height:140px;object-fit:cover;border-radius:8px;border:1px dashed #cbd5e1;margin-bottom:1rem;background:#f1f5f9;">
+            <label style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;transition:0.2s;width:100%;justify-content:center;" onmouseover="this.style.background='#e2e8f0'">
+                <i class="ph ph-upload-simple"></i> Selecionar Imagem (JPEG/PNG)
+                <input type="file" accept="image/*" style="display:none;" onchange="window.processarFotoVeiculo(this)">
+            </label>
+            <div id="foto-status" style="margin-top:0.5rem;font-size:0.75rem;color:#64748b;"></div>
+        </div>
+    </div>
+
+    <!-- CRLV UPLOAD -->
+    <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+        <div style="background:#f8fafc;padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;font-weight:600;color:#475569;font-size:0.85rem;display:flex;align-items:center;gap:6px;">
+            <i class="ph ph-file-pdf" style="color:#0891b2;font-size:1.1rem;"></i> Importar CRLV
+        </div>
+        <div style="padding:1rem;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;flex:1;text-align:center;">
+            <div style="background:#ecfeff;color:#0891b2;width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
+                <i class="ph ph-file-pdf" style="font-size:2rem;"></i>
+            </div>
+            <p style="margin:0 0 1rem;font-size:0.85rem;color:#64748b;padding:0 1rem;">O sistema extrai os dados automaticamente do documento original.</p>
+            <label style="background:#0891b2;color:#fff;padding:0.6rem 1.2rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;transition:0.2s;" onmouseover="this.style.background='#0e7490'">
+                <i class="ph ph-upload-simple"></i> Selecionar PDF
+                <input type="file" accept=".pdf" style="display:none;" onchange="window.processarCRLV(this,'new')">
+            </label>
+            <div id="crlv-status" style="margin-top:0.75rem;font-size:0.8rem;color:#64748b;font-weight:500;"></div>
+        </div>
+    </div>
 </div>
-<p style="font-weight:700;color:#334155;margin:0 0 .6rem;font-size:.88rem;border-bottom:2px solid #e2e8f0;padding-bottom:.3rem;">🚛 Dados do Veículo</p>
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.85rem;margin-bottom:.85rem;">
-<div>${lbl('Placa *')}${inp('fv-placa',v.placa,'ABC1234')}</div>
-<div style="grid-column:span 2;">${lbl('Marca / Modelo / Versão')}${inp('fv-marca',v.marca_modelo_versao,'Ex: FORD/CARGO 2429 E')}</div>
-<div>${lbl('Cor Predominante')}${inp('fv-cor',v.cor_predominante,'BRANCA')}</div>
-<div>${lbl('Ano Modelo')}${inp('fv-anomodelo',v.ano_modelo,'2025')}</div>
-<div>${lbl('Exercício (Ano Validade)')}${inp('fv-exercicio',v.exercicio,'2025')}</div>
-<div>${lbl('Código RENAVAM')}${inp('fv-renavam',v.renavam,'00000000000')}</div>
-<div>${lbl('Capacidade Tanque (L)')}${inp('fv-tanque',v.capacidade_tanque,'','number')}</div>
-<div>${lbl('Capacidade Carga (un)')}${inp('fv-carga',v.capacidade_carga,'','number')}</div>
-<div>${lbl('Tipo de Veículo')}<select id="fv-tipo" style="width:100%;padding:.55rem;border:1px solid #e2e8f0;border-radius:8px;background:#fff;box-sizing:border-box;font-size:.85rem;">${optT}</select></div>
+
+<div style="background:#f8fafc;padding:1rem 1.5rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1.5rem;">
+    <h3 style="margin:0 0 1rem;font-size:1rem;color:#1e293b;display:flex;align-items:center;gap:6px;"><i class="ph ph-identification-card" style="color:#64748b;"></i> Dados Básicos</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+        <div>${lbl('Placa *')}${inp('fv-placa',v.placa,'ABC1234')}</div>
+        <div style="grid-column:span 2;">${lbl('Marca / Modelo / Versão')}${inp('fv-marca',v.marca_modelo_versao,'Ex: FORD/CARGO 2429 E')}</div>
+        <div>${lbl('Cor Predominante')}${inp('fv-cor',v.cor_predominante,'BRANCA')}</div>
+        <div>${lbl('Ano Modelo')}${inp('fv-anomodelo',v.ano_modelo,'2025')}</div>
+        <div>${lbl('Exercício (Validade CRLV)')}${inp('fv-exercicio',v.exercicio,'2025')}</div>
+        <div>${lbl('Código RENAVAM')}${inp('fv-renavam',v.renavam,'00000000000')}</div>
+        <div>${lbl('Tanque (Litros)')}${inp('fv-tanque',v.capacidade_tanque,'','number')}</div>
+        <div>${lbl('Carga (Unidades)')}${inp('fv-carga',v.capacidade_carga,'','number')}</div>
+        <div style="grid-column:span 3;">${lbl('Tipo de Veículo')}<select id="fv-tipo" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;transition:0.2s;" onfocus="this.style.borderColor='#2d9e5f';this.style.boxShadow='0 0 0 3px rgba(45,158,95,0.1)'" onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'">${optT}</select></div>
+    </div>
 </div>
-<p style="font-weight:700;color:#334155;margin:0 0 .6rem;font-size:.88rem;border-bottom:2px solid #e2e8f0;padding-bottom:.3rem;">📐 Medidas</p>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:1.5rem;">
-<div>${lbl('Altura c/ Banheiro (m)')}${inp('fv-alt-c',v.altura_com_banheiro,'','number')}</div>
-<div>${lbl('Altura s/ Banheiro (m)')}${inp('fv-alt-s',v.altura_sem_banheiro,'','number')}</div>
-<div>${lbl('Largura c/ Banheiro (m)')}${inp('fv-larg-c',v.largura_com_banheiro,'','number')}</div>
-<div>${lbl('Largura s/ Banheiro (m)')}${inp('fv-larg-s',v.largura_sem_banheiro,'','number')}</div>
-<div>${lbl('Profundidade c/ Banheiro (m)')}${inp('fv-prof-c',v.profundidade_com_banheiro,'','number')}</div>
-<div>${lbl('Profundidade s/ Banheiro (m)')}${inp('fv-prof-s',v.profundidade_sem_banheiro,'','number')}</div>
+
+<div style="background:#f8fafc;padding:1rem 1.5rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1.5rem;">
+    <h3 style="margin:0 0 1rem;font-size:1rem;color:#1e293b;display:flex;align-items:center;gap:6px;"><i class="ph ph-ruler" style="color:#64748b;"></i> Medidas (Opcional)</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div>${lbl('Altura c/ Banheiro (m)')}${inp('fv-alt-c',v.altura_com_banheiro,'','number')}</div>
+        <div>${lbl('Altura s/ Banheiro (m)')}${inp('fv-alt-s',v.altura_sem_banheiro,'','number')}</div>
+        <div>${lbl('Largura c/ Banheiro (m)')}${inp('fv-larg-c',v.largura_com_banheiro,'','number')}</div>
+        <div>${lbl('Largura s/ Banheiro (m)')}${inp('fv-larg-s',v.largura_sem_banheiro,'','number')}</div>
+        <div>${lbl('Profundidade c/ Banheiro (m)')}${inp('fv-prof-c',v.profundidade_com_banheiro,'','number')}</div>
+        <div>${lbl('Profundidade s/ Banheiro (m)')}${inp('fv-prof-s',v.profundidade_sem_banheiro,'','number')}</div>
+    </div>
 </div>
-<div style="display:flex;gap:.75rem;justify-content:flex-end;">
-<button onclick="document.getElementById('modal-frota-ov').remove()" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:.55rem 1.1rem;font-weight:600;cursor:pointer;color:#475569;font-size:.85rem;">Cancelar</button>
-${id?`<button onclick="window.abrirAtualizarCRLV(${id})" style="background:#f59e0b;color:#fff;border:none;border-radius:8px;padding:.55rem 1.1rem;font-weight:600;cursor:pointer;font-size:.85rem;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-arrows-clockwise"></i> Atualizar CRLV</button>`:''}
-<button onclick="window.salvarVeiculoFrota(${id||'null'})" style="background:#2d9e5f;color:#fff;border:none;border-radius:8px;padding:.55rem 1.2rem;font-weight:600;cursor:pointer;font-size:.85rem;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> Salvar</button>
-</div></div></div>`;
+
+<div style="display:flex;gap:1rem;justify-content:flex-end;padding-top:1rem;border-top:1px solid #e2e8f0;">
+${id?`<button onclick="window.abrirAtualizarCRLV(${id})" style="background:#fff;color:#f59e0b;border:1px solid #f59e0b;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;font-size:0.9rem;display:inline-flex;align-items:center;gap:6px;transition:0.2s;margin-right:auto;" onmouseover="this.style.background='#fef3c7'"><i class="ph ph-arrows-clockwise"></i> Atualizar apenas CRLV</button>`:''}
+<button onclick="document.getElementById('modal-frota-ov').remove()" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;color:#475569;font-size:0.9rem;transition:0.2s;" onmouseover="this.style.background='#e2e8f0'">Cancelar</button>
+<button onclick="window.salvarVeiculoFrota(${id||'null'})" style="background:#2d9e5f;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.5rem;font-weight:600;cursor:pointer;font-size:0.9rem;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 10px rgba(45,158,95,0.3);transition:0.2s;" onmouseover="this.style.background='#23824e'"><i class="ph ph-floppy-disk"></i> ${id?'Salvar Alterações':'Cadastrar Veículo'}</button>
+</div>
+</div></div>`;
   document.body.appendChild(ov);
   ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
 };
@@ -442,13 +470,34 @@ window.salvarVeiculoFrota=async function(id){
   const tok = window.currentToken || localStorage.getItem('token');
   const g=sel=>{const el=document.getElementById(sel);return el?el.value.trim():'';};
   const placa=g('fv-placa');if(!placa){alert('Placa é obrigatória');return;}
-  const body={placa,marca_modelo_versao:g('fv-marca'),cor_predominante:g('fv-cor'),ano_modelo:g('fv-anomodelo'),exercicio:g('fv-exercicio'),renavam:g('fv-renavam'),capacidade_tanque:g('fv-tanque'),capacidade_carga:g('fv-carga'),tipo_veiculo:g('fv-tipo'),altura_com_banheiro:g('fv-alt-c'),altura_sem_banheiro:g('fv-alt-s'),largura_com_banheiro:g('fv-larg-c'),largura_sem_banheiro:g('fv-larg-s'),profundidade_com_banheiro:g('fv-prof-c'),profundidade_sem_banheiro:g('fv-prof-s'),crlv_base64:window._frotaB64||null,crlv_filename:window._frotaFN||null};
+  const body={
+    placa,
+    marca_modelo_versao:g('fv-marca'),
+    cor_predominante:g('fv-cor'),
+    ano_modelo:g('fv-anomodelo'),
+    exercicio:g('fv-exercicio'),
+    renavam:g('fv-renavam'),
+    capacidade_tanque:g('fv-tanque'),
+    capacidade_carga:g('fv-carga'),
+    tipo_veiculo:g('fv-tipo'),
+    altura_com_banheiro:g('fv-alt-c'),
+    altura_sem_banheiro:g('fv-alt-s'),
+    largura_com_banheiro:g('fv-larg-c'),
+    largura_sem_banheiro:g('fv-larg-s'),
+    profundidade_com_banheiro:g('fv-prof-c'),
+    profundidade_sem_banheiro:g('fv-prof-s'),
+    crlv_base64:window._frotaB64||null,
+    crlv_filename:window._frotaFN||null,
+    foto_base64: window._frotaImgB64 // will be string or null
+  };
   try{
     const res=await fetch(id?'/api/frota/veiculos/'+id:'/api/frota/veiculos',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok},body:JSON.stringify(body)});
     const data=await res.json();
     if(!res.ok)throw new Error(data.error||'Erro ao salvar');
     document.getElementById('modal-frota-ov').remove();
-    window._frotaB64=null;window._frotaFN=null;
+    window._frotaB64=null;
+    window._frotaFN=null;
+    window._frotaImgB64=null;
     window.initFrotaVeiculos();
   }catch(e){alert('Erro: '+e.message);}
 };
@@ -461,7 +510,6 @@ window.excluirVeiculoFrota=async function(id,placa){
 };
 })();
 
-function b64(file){return new Promise((r,j)=>{const f=new FileReader();f.onload=()=>r(f.result.split(',')[1]);f.onerror=j;f.readAsDataURL(file);});}
 async function carregarPDFjs() {
   if (window.pdfjsLib) return;
   return new Promise((resolve, reject) => {

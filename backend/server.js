@@ -4528,6 +4528,8 @@ app.get('/api/logistica/multas', authenticateToken, (req, res) => {
 });
 
 db.run("ALTER TABLE multas_logistica ADD COLUMN documento_base64 TEXT", (err) => {
+});
+db.run("ALTER TABLE frota_veiculos ADD COLUMN foto_base64 TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION multas_logistica documento_base64]', err.message);
 });
 
@@ -11134,7 +11136,7 @@ db.serialize(() => {
 
 // GET - listar todos os veículos da frota
 app.get('/api/frota/veiculos', authenticateToken, (req, res) => {
-    db.all('SELECT id, placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_filename, created_at, updated_at FROM frota_veiculos ORDER BY placa ASC', [], (err, rows) => {
+    db.all('SELECT id, placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_filename, foto_base64, created_at, updated_at FROM frota_veiculos ORDER BY placa ASC', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
     });
@@ -11160,12 +11162,12 @@ app.get('/api/frota/veiculos/:id/crlv', authenticateToken, (req, res) => {
 
 // POST - cadastrar novo veículo
 app.post('/api/frota/veiculos', authenticateToken, (req, res) => {
-    const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename } = req.body;
+    const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, foto_base64 } = req.body;
     if (!placa) return res.status(400).json({ error: 'Placa é obrigatória' });
     db.run(
-        `INSERT INTO frota_veiculos (placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, updated_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
-        [placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo || 'caminhão', capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64 || null, crlv_filename || null],
+        `INSERT INTO frota_veiculos (placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, foto_base64, updated_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
+        [placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo || 'caminhão', capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64 || null, crlv_filename || null, foto_base64 || null],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, message: 'Veículo cadastrado com sucesso' });
@@ -11175,36 +11177,35 @@ app.post('/api/frota/veiculos', authenticateToken, (req, res) => {
 
 // PUT - atualizar veículo (incluindo novo CRLV)
 app.put('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
-    const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename } = req.body;
+    const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, foto_base64 } = req.body;
 
-    const fields = [
+    let fields = [
         placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo,
         exercicio, renavam, motor, chassi, tipo_veiculo,
         capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro,
         largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro
     ];
 
-    // Se novo CRLV foi enviado, inclui no update e zera o alerta
+    let query = `UPDATE frota_veiculos SET placa=?, marca_modelo_versao=?, cor_predominante=?, ano_fabricacao=?, ano_modelo=?, exercicio=?, renavam=?, motor=?, chassi=?, tipo_veiculo=?, capacidade_tanque=?, capacidade_carga=?, altura_com_banheiro=?, altura_sem_banheiro=?, largura_com_banheiro=?, largura_sem_banheiro=?, profundidade_com_banheiro=?, profundidade_sem_banheiro=?`;
+
     if (crlv_base64) {
-        fields.push(crlv_base64, crlv_filename || null, 0);
-        db.run(
-            `UPDATE frota_veiculos SET placa=?, marca_modelo_versao=?, cor_predominante=?, ano_fabricacao=?, ano_modelo=?, exercicio=?, renavam=?, motor=?, chassi=?, tipo_veiculo=?, capacidade_tanque=?, capacidade_carga=?, altura_com_banheiro=?, altura_sem_banheiro=?, largura_com_banheiro=?, largura_sem_banheiro=?, profundidade_com_banheiro=?, profundidade_sem_banheiro=?, crlv_base64=?, crlv_filename=?, crlv_alerta_enviado=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-            [...fields, req.params.id],
-            function (err) {
-                if (err) return res.status(500).json({ error: err.message });
-                res.json({ message: 'Veículo atualizado com sucesso' });
-            }
-        );
-    } else {
-        db.run(
-            `UPDATE frota_veiculos SET placa=?, marca_modelo_versao=?, cor_predominante=?, ano_fabricacao=?, ano_modelo=?, exercicio=?, renavam=?, motor=?, chassi=?, tipo_veiculo=?, capacidade_tanque=?, capacidade_carga=?, altura_com_banheiro=?, altura_sem_banheiro=?, largura_com_banheiro=?, largura_sem_banheiro=?, profundidade_com_banheiro=?, profundidade_sem_banheiro=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-            [...fields, req.params.id],
-            function (err) {
-                if (err) return res.status(500).json({ error: err.message });
-                res.json({ message: 'Veículo atualizado com sucesso' });
-            }
-        );
+        query += `, crlv_base64=?, crlv_filename=?, crlv_alerta_enviado=0`;
+        fields.push(crlv_base64, crlv_filename || null);
     }
+    
+    // Check if foto_base64 was sent (either a string or explicit null means they want to update it)
+    if (foto_base64 !== undefined) {
+        query += `, foto_base64=?`;
+        fields.push(foto_base64);
+    }
+
+    query += `, updated_at=CURRENT_TIMESTAMP WHERE id=?`;
+    fields.push(req.params.id);
+
+    db.run(query, fields, function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Veículo atualizado com sucesso' });
+    });
 });
 
 // DELETE - excluir veículo
