@@ -1326,7 +1326,7 @@ window._rrAbrirHistoricoAlteracoes = async function() {
 
 window._rrSnapshot = null;
 window._rrCapturarSnapshot = function() {
-    window._rrSnapshot = JSON.parse(JSON.stringify(window._rrVeiculos || []));
+    window._rrSnapshot = JSON.parse(JSON.stringify(_rrVeiculos || []));
 };
 
 window._rrRegistrarAlteracoes = async function(nomeFinal) {
@@ -1345,7 +1345,7 @@ window._rrRegistrarAlteracoes = async function(nomeFinal) {
     }
 
     const promises = [];
-    window._rrVeiculos.forEach((v, i) => {
+    _rrVeiculos.forEach((v, i) => {
         const snap = window._rrSnapshot[i];
         if (!snap) return;
         const placa = (v.veiculo || 'N/A').split(' ')[0];
