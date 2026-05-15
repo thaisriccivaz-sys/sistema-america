@@ -14426,22 +14426,29 @@ app.post('/api/mtr/:id/cancelar', authenticateToken, async (req, res) => {
   db.get('SELECT * FROM mtr_local WHERE id = ?', [req.params.id], async (err, row) => {
     if (err || !row) return res.status(404).json({ mensagem: 'MTR não encontrada' });
     try {
+      const numMTR = parseInt(row.numero_mtr) || row.numero_mtr;
       const payload = [{
-        numeroManifesto: row.numero_mtr,
+        numManifesto: numMTR,
         justificativaCancelamento: justificativa
       }];
+      console.log('[MTR CANCEL] Payload:', JSON.stringify(payload));
       const data = await sigorReq('/cancelarManifestoLote', 'POST', payload);
-      // Analisar retorno (pode variar, assumimos que validaçao é checada ou retorna erro)
-      if (data.erro || (data.objetoResposta && !data.objetoResposta[0]?.restResponseValido)) {
-          return res.status(400).json({ mensagem: data.mensagem || data.objetoResposta?.[0]?.restResponseMensagem || 'Erro ao cancelar' });
+      console.log('[MTR CANCEL] Resposta SIGOR:', JSON.stringify(data).substring(0, 500));
+      const respItem = data.objetoResposta?.[0];
+      const valido = respItem?.restResponseValido ?? respItem?.valido ?? true;
+      const msgErro = data.mensagem || respItem?.restResponseMensagem || respItem?.mensagem;
+      if (data.erro || !valido) {
+          return res.status(400).json({ mensagem: msgErro || 'Erro ao cancelar no SIGOR' });
       }
       db.run('UPDATE mtr_local SET status = ? WHERE id = ?', ['Cancelado', req.params.id]);
       res.json({ mensagem: 'MTR cancelada com sucesso' });
     } catch (e) {
+      console.error('[MTR CANCEL] Erro:', e.message);
       res.status(500).json({ mensagem: e.message });
     }
   });
 });
+
 
 // ── GET /api/mtr/:id/pdf ───────────────────────────────────────────────────── ─────────────────────────────────────────────────────
 app.get('/api/mtr/:id/pdf', authenticateToken, async (req, res) => {
