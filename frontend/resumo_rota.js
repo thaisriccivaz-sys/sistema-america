@@ -304,7 +304,7 @@ window.renderResumoRota = function() {
                 <i class="ph ph-eraser"></i> Limpar
             </button>
             <button id="rr-btn-salvar" onclick="window.rrSalvarResumo()"
-                style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:none;align-items:center;gap:7px;">
+                style="background:#2563eb;color:#fff;border:1px solid #1d4ed8;border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:none;align-items:center;gap:7px;box-shadow:0 2px 8px rgba(37,99,235,0.4);">
                 <i class="ph ph-floppy-disk"></i> Salvar
             </button>
             <button id="rr-btn-exportar" onclick="window.rrExportarExcel()"
