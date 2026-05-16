@@ -388,7 +388,6 @@ window.mnAtualizarKm = async function() {
         const el = document.getElementById('mn-km-atual');
         if (el) el.textContent = `KM registrado: ${Number(km).toLocaleString('pt-BR')} km`;
         await mnCarregarPreventivo(vid, tok);
-        // Atualizar também os dados de frota para o card
         await fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } })
             .then(r => r.json()).then(d => { window._frotaDados = d; });
     } else alert('Erro ao atualizar KM');
@@ -396,6 +395,14 @@ window.mnAtualizarKm = async function() {
 
 window.abrirModalManutencao = async function(id, opts = {}) {
     const tok = window._manutTok;
+    
+    if (!window._manutCategorias) {
+        window._manutCategorias = await fetch('/api/frota/categorias', { headers: { Authorization: 'Bearer ' + tok } }).then(r=>r.json());
+    }
+    if (!window._manutCatalogo) {
+        window._manutCatalogo = await fetch('/api/frota/catalogo', { headers: { Authorization: 'Bearer ' + tok } }).then(r=>r.json());
+    }
+
     let m = {};
     if (id) {
         m = (window._manutDados||[]).find(x => x.id === id) || {};
@@ -412,14 +419,21 @@ window.abrirModalManutencao = async function(id, opts = {}) {
     let ov = document.getElementById('modal-manut-ov'); if (ov) ov.remove();
     ov = document.createElement('div'); ov.id = 'modal-manut-ov';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    
     const frota = window._manutFrota || [];
     const veicOpts = frota.map(v => `<option value="${v.id}" ${m.veiculo_id==v.id?'selected':''}>${v.placa} \u2014 ${(v.marca_modelo_versao||'').substring(0,30)}</option>`).join('');
-    const inp = (fid,val,ph,type) => `<input id="${fid}" value="${val||''}" placeholder="${ph||''}" type="${type||'text'}" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">`;
+    
+    const fornecedores = [...new Set((window._manutDados||[]).map(x => x.fornecedor).filter(Boolean))];
+    const fornListOpts = fornecedores.map(f => `<option value="${f.replace(/"/g,'&quot;')}">`).join('');
+
+    const inp = (fid,val,ph,type,list) => `<input id="${fid}" value="${val||''}" placeholder="${ph||''}" type="${type||'text'}" ${list?`list="${list}"`:''} style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">`;
     const lbl = t => `<label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">${t}</label>`;
-    const sel = (fid, optsArr, selected, disabled) => `<select id="${fid}" ${disabled?'disabled':''} style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:${disabled?'#f8fafc':'#fff'};box-sizing:border-box;font-size:0.9rem;outline:none;${disabled?'cursor:not-allowed;color:#64748b;':''}">${optsArr.map(o=>`<option value="${o.v}" ${selected===o.v?'selected':''}>${o.l}</option>`).join('')}</select>`;
+    const sel = (fid, optsArr, selected, disabled, onchg) => `<select id="${fid}" ${disabled?'disabled':''} ${onchg?`onchange="${onchg}"`:''} style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:${disabled?'#f8fafc':'#fff'};box-sizing:border-box;font-size:0.9rem;outline:none;${disabled?'cursor:not-allowed;color:#64748b;':''}">${optsArr.map(o=>`<option value="${o.v}" ${selected===o.v?'selected':''}>${o.l}</option>`).join('')}</select>`;
+
+    const catOpts = [{v:'', l:'Selecione...'}].concat((window._manutCategorias||[]).map(c => ({v:c.id, l:c.nome})));
 
     ov.innerHTML = `<div style="background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);">
-<div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#fffbeb;position:sticky;top:0;">
+<div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#fffbeb;position:sticky;top:0;z-index:10;">
     <div style="font-size:1rem;font-weight:700;color:#92400e;display:flex;align-items:center;gap:8px;">
         <div style="background:#d97706;color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-wrench"></i></div>
         ${id ? 'Editar Manutenção' : (m.tipo==='preventiva' ? 'Nova Preventiva' : 'Nova Corretiva')}
@@ -427,9 +441,8 @@ window.abrirModalManutencao = async function(id, opts = {}) {
     <button onclick="document.getElementById('modal-manut-ov').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;"><i class="ph ph-x"></i></button>
 </div>
 <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
-    <input type="hidden" id="mn-m-serv-cat-id" value="${m.servico_catalogo_id||''}">
-    <input type="hidden" id="mn-m-tipo-controle" value="${m.tipo_controle||'KM'}">
-    
+    <datalist id="lista-fornecedores">${fornListOpts}</datalist>
+
     <div>
         ${lbl('Veículo *')}
         <select id="mn-m-veiculo" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;">
@@ -443,25 +456,36 @@ window.abrirModalManutencao = async function(id, opts = {}) {
         </div>
         <div>
             ${lbl('Status *')}
-            ${sel('mn-m-status', [{v:'agendada',l:'Agendada'},{v:'em_andamento',l:'Em Andamento'},{v:'concluida',l:'Concluída'},{v:'cancelada',l:'Cancelada'}], m.status||'agendada', false)}
+            ${sel('mn-m-status', [{v:'programada',l:'Programada'},{v:'agendada',l:'Agendada'},{v:'em_andamento',l:'Em Andamento'},{v:'concluida',l:'Concluída'},{v:'cancelada',l:'Cancelada'}], m.status||'programada', false)}
         </div>
     </div>
-    <div>
-        ${lbl('Descrição do serviço *')}
-        <textarea id="mn-m-descricao" placeholder="Descreva o serviço realizado ou a realizar..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:80px;resize:vertical;">${m.descricao||''}</textarea>
-    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-        <div>${lbl('KM na Manutenção (se aplicável)')}${inp('mn-m-km', m.km_na_manutencao, 'Ex: 100000', 'number')}</div>
-        <div>${lbl('Horímetro (se aplicável)')}${inp('mn-m-horimetro', m.horimetro_na_manutencao, 'Ex: 500', 'number')}</div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div>${lbl('Fornecedor / Oficina')}${inp('mn-m-forn', m.fornecedor, 'Digite para buscar ou criar...', 'text', 'lista-fornecedores')}</div>
         <div>${lbl('Data Agendamento')}${inp('mn-m-data-ag', m.data_agendamento, '', 'date')}</div>
-        <div>${lbl('Data Conclusão')}${inp('mn-m-data-conc', m.data_conclusao, '', 'date')}</div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-        <div>${lbl('Fornecedor / Oficina')}${inp('mn-m-forn', m.fornecedor, 'Nome da oficina...')}</div>
-        <div>${lbl('Custo (R$)')}${inp('mn-m-custo', m.custo, '0.00', 'number')}</div>
+    
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;margin-top:0.5rem;">
+        <h4 style="margin:0 0 1rem 0;font-size:0.9rem;color:#1e293b;display:flex;align-items:center;gap:6px;"><i class="ph ph-list-plus" style="color:#0284c7;"></i> Serviços</h4>
+        
+        <div style="display:flex;flex-direction:column;gap:1rem;margin-bottom:1rem;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                <div>${lbl('Categoria')}${sel('mn-m-cat', catOpts, '', false, 'window.mnModalCatChanged()')}</div>
+                <div>${lbl('Serviço')}<select id="mn-m-serv" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;" onchange="window.mnModalServChanged()"><option value="">Selecione a categoria...</option></select></div>
+            </div>
+            <div id="mn-m-serv-novo-box" style="display:none;">
+                ${lbl('Nome do Novo Serviço')}
+                ${inp('mn-m-serv-novo', '', 'Ex: Troca de válvula específica...')}
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                <div>${lbl('KM Atual (Realizada em)')}${inp('mn-m-km', m.km_na_manutencao, 'Ex: 120000', 'number')}</div>
+                <div>${lbl('Intervalo p/ Próxima (KM)')}${inp('mn-m-intervalo', '', 'Ex: 10000', 'number')}</div>
+            </div>
+            <button id="mn-m-btn-add" onclick="window.mnModalAddServico()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.6rem;font-weight:600;cursor:pointer;font-size:0.85rem;">Adicionar Serviço à Lista</button>
+        </div>
+
+        <div id="mn-m-servicos-lista" style="display:flex;flex-direction:column;gap:6px;"></div>
     </div>
+
     <div>
         ${lbl('Observações')}
         <textarea id="mn-m-obs" placeholder="Observações adicionais..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:60px;resize:vertical;">${m.observacoes||''}</textarea>
@@ -475,43 +499,197 @@ window.abrirModalManutencao = async function(id, opts = {}) {
 </div></div>`;
     document.body.appendChild(ov);
     ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+
+    window._mnModalServicos = [];
+    
+    if (m.descricao) {
+        let interv = '';
+        if (m.servico_catalogo_id) {
+            const catItem = (window._manutCatalogo||[]).find(c => c.id == m.servico_catalogo_id);
+            if (catItem) interv = catItem.periodicidade_padrao;
+        } else if (m.km_proxima_manutencao && m.km_na_manutencao) {
+            interv = m.km_proxima_manutencao - m.km_na_manutencao;
+        }
+
+        window._mnModalServicos.push({
+            id: m.id,
+            cat_id: '',
+            servico_id: m.servico_catalogo_id,
+            nome: m.descricao,
+            km: m.km_na_manutencao || '',
+            intervalo: interv || ''
+        });
+        window.mnModalRenderServicos();
+    }
 };
 
-window.salvarManutencao = async function(id) {
+window.mnModalCatChanged = function() {
+    const cid = document.getElementById('mn-m-cat').value;
+    const sSel = document.getElementById('mn-m-serv');
+    const nBox = document.getElementById('mn-m-serv-novo-box');
+    nBox.style.display = 'none';
+    sSel.innerHTML = '<option value="">Selecione...</option>';
+    if (!cid) return;
+    const catItens = (window._manutCatalogo||[]).filter(s => s.categoria_id == cid);
+    catItens.forEach(s => {
+        const o = document.createElement('option');
+        o.value = s.id; o.textContent = s.nome;
+        o.dataset.interval = s.periodicidade_padrao;
+        sSel.appendChild(o);
+    });
+    const o = document.createElement('option');
+    o.value = 'novo'; o.textContent = '+ Novo Serviço...';
+    sSel.appendChild(o);
+};
+
+window.mnModalServChanged = function() {
+    const sSel = document.getElementById('mn-m-serv');
+    const nBox = document.getElementById('mn-m-serv-novo-box');
+    const intInp = document.getElementById('mn-m-intervalo');
+    if (sSel.value === 'novo') {
+        nBox.style.display = 'block';
+        intInp.value = '';
+    } else {
+        nBox.style.display = 'none';
+        const opt = sSel.options[sSel.selectedIndex];
+        if (opt && opt.dataset.interval) intInp.value = opt.dataset.interval;
+    }
+};
+
+window.mnModalAddServico = function() {
+    const cSel = document.getElementById('mn-m-cat');
+    const sSel = document.getElementById('mn-m-serv');
+    const nInp = document.getElementById('mn-m-serv-novo');
+    const kmInp = document.getElementById('mn-m-km');
+    const intInp = document.getElementById('mn-m-intervalo');
+
+    if (!cSel.value && window._mnModalServicos.length===0 && !sSel.value) return alert('Selecione uma categoria e um serviço');
+    
+    let nome = '', servId = '';
+    if (sSel.value === 'novo') {
+        if (!nInp.value.trim()) return alert('Digite o nome do novo serviço');
+        nome = nInp.value.trim();
+    } else if (sSel.value) {
+        nome = sSel.options[sSel.selectedIndex].text;
+        servId = sSel.value;
+    } else if (window._mnModalServicos.length===0) {
+        return alert('Selecione um serviço');
+    } else {
+        return;
+    }
+
+    window._mnModalServicos.push({
+        cat_id: cSel.value,
+        servico_id: servId,
+        nome: nome,
+        km: kmInp.value,
+        intervalo: intInp.value
+    });
+
+    sSel.value = '';
+    nInp.value = '';
+    document.getElementById('mn-m-serv-novo-box').style.display = 'none';
+    window.mnModalRenderServicos();
+};
+
+window.mnModalRemoveServico = function(idx) {
+    window._mnModalServicos.splice(idx, 1);
+    window.mnModalRenderServicos();
+};
+
+window.mnModalRenderServicos = function() {
+    const list = document.getElementById('mn-m-servicos-lista');
+    if (!list) return;
+    list.innerHTML = window._mnModalServicos.map((s, i) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#fff;padding:0.6rem 0.8rem;border:1px solid #e2e8f0;border-radius:8px;">
+            <div style="font-size:0.85rem;">
+                <strong style="color:#1e293b;">${s.nome}</strong>
+                <span style="color:#64748b;margin-left:8px;">KM: ${s.km||'\u2014'} | Int: ${s.intervalo||'\u2014'}</span>
+            </div>
+            <button onclick="window.mnModalRemoveServico(${i})" style="background:none;border:none;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>
+        </div>
+    `).join('');
+};
+
+window.salvarManutencao = async function(idEdit) {
     const tok = window._manutTok;
     const g = sel => { const el = document.getElementById(sel); return el ? el.value.trim() : ''; };
     const vid = g('mn-m-veiculo');
-    const descricao = g('mn-m-descricao');
     if (!vid) return alert('Selecione o veículo');
-    if (!descricao) return alert('Informe a descrição do serviço');
-    const body = {
-        veiculo_id: vid, tipo: g('mn-m-tipo'), descricao, status: g('mn-m-status'),
-        km_na_manutencao: g('mn-m-km') || null, km_proxima_manutencao: g('mn-m-km-prox') || null,
-        data_agendamento: g('mn-m-data-ag') || null, data_conclusao: g('mn-m-data-conc') || null,
-        custo: g('mn-m-custo') || null, fornecedor: g('mn-m-forn'), observacoes: g('mn-m-obs')
+    
+    if (window._mnModalServicos.length === 0) {
+        const sSel = document.getElementById('mn-m-serv');
+        if (sSel && sSel.value) window.mnModalAddServico();
+        if (window._mnModalServicos.length === 0) return alert('Adicione pelo menos um serviço à lista');
+    }
+
+    const basePayload = {
+        veiculo_id: vid,
+        tipo: g('mn-m-tipo'),
+        status: g('mn-m-status'),
+        data_agendamento: g('mn-m-data-ag') || null,
+        fornecedor: g('mn-m-forn'),
+        observacoes: g('mn-m-obs')
     };
+
     try {
-        const res = await fetch(id ? '/api/frota/manutencoes/' + id : '/api/frota/manutencoes', {
-            method: id ? 'PUT' : 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
-            body: JSON.stringify(body)
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
+        document.getElementById('modal-manut-ov').style.opacity = '0.5';
+        document.getElementById('modal-manut-ov').style.pointerEvents = 'none';
+
+        for (let s of window._mnModalServicos) {
+            let sId = s.servico_id;
+            if (!sId && s.cat_id) {
+                const resCat = await fetch('/api/frota/catalogo', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                    body: JSON.stringify({ categoria_id: s.cat_id, nome: s.nome, periodicidade_padrao: s.intervalo||null })
+                });
+                if (resCat.ok) {
+                    const dataCat = await resCat.json();
+                    sId = dataCat.id;
+                    window._manutCatalogo = null;
+                }
+            }
+
+            const kmManut = s.km ? parseInt(s.km) : null;
+            const interv = s.intervalo ? parseInt(s.intervalo) : null;
+            const kmProx = (kmManut && interv) ? (kmManut + interv) : null;
+
+            const payload = {
+                ...basePayload,
+                descricao: s.nome,
+                servico_catalogo_id: sId || null,
+                km_na_manutencao: kmManut,
+                km_proxima_manutencao: kmProx
+            };
+
+            const url = idEdit ? '/api/frota/manutencoes/' + idEdit : '/api/frota/manutencoes';
+            const method = idEdit ? 'PUT' : 'POST';
+            
+            const res = await fetch(url, {
+                method, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error('Erro ao salvar ' + s.nome);
+        }
+
         document.getElementById('modal-manut-ov')?.remove();
-        // Reload
+        
         const manut = await fetch('/api/frota/manutencoes', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json());
         window._manutDados = manut || [];
-        // Atualiza dados da frota para cards refletirem status
         const frota = await fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json());
         window._frotaDados = frota || [];
+        
         if (window._mnSubAba === 'corretiva') {
             const sub = document.getElementById('mn-sub-conteudo');
             if (sub) mnRenderCorretivaTela(sub);
         } else if (window._mnSubAba === 'preventiva') {
             window.mnCarregarPreventivoVeiculo();
         }
-    } catch(e) { alert('Erro: ' + e.message); }
+    } catch(e) { 
+        alert('Erro: ' + e.message); 
+        const ov = document.getElementById('modal-manut-ov');
+        if (ov) { ov.style.opacity='1'; ov.style.pointerEvents='auto'; }
+    }
 };
 
 window.excluirManutencao = async function(id) {
