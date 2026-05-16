@@ -15070,3 +15070,5 @@ setInterval(async () => {
         }
     });
 }, 60 * 60 * 1000);
+
+app.get('/api/frota/force-seed', (req, res) => { const db = require('./database'); const cats = [[1,'Motor','engine',1],[2,'Freios','disc',2],[3,'Pneus e Rodagem','tire',3],[4,'Suspensão e Direção','car',4],[5,'Transmissão','gear-six',5],[6,'Sistema Elétrico','lightning',6],[7,'Ar Condicionado','thermometer',7],[8,'Hidráulica / Operacional','drop',8],[9,'Sistema de Sucção','funnel',9],[10,'Estrutura / Carroceria','truck',10],[11,'Segurança e Legalização','shield-check',11]]; let errors = []; cats.forEach(c => db.run('INSERT OR IGNORE INTO frota_categorias_manutencao(id,nome,icone,ordem) VALUES(?,?,?,?)', c, (err) => { if(err) errors.push(err.message); })); setTimeout(() => res.json({ success: true, errors }), 1000); });
