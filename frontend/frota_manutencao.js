@@ -445,7 +445,7 @@ window.abrirModalManutencao = async function(id, opts = {}) {
 
     <div>
         ${lbl('Veículo *')}
-        <select id="mn-m-veiculo" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;">
+        <select id="mn-m-veiculo" onchange="window.mnModalVeiculoChanged()" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;">
             <option value="">Selecione...</option>${veicOpts}
         </select>
     </div>
@@ -470,17 +470,22 @@ window.abrirModalManutencao = async function(id, opts = {}) {
         <div style="display:flex;flex-direction:column;gap:1rem;margin-bottom:1rem;">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
                 <div>${lbl('Categoria')}${sel('mn-m-cat', catOpts, '', false, 'window.mnModalCatChanged()')}</div>
-                <div>${lbl('Serviço')}<select id="mn-m-serv" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;" onchange="window.mnModalServChanged()"><option value="">Selecione a categoria...</option></select></div>
             </div>
-            <div id="mn-m-serv-novo-box" style="display:none;">
-                ${lbl('Nome do Novo Serviço')}
-                ${inp('mn-m-serv-novo', '', 'Ex: Troca de válvula específica...')}
+            
+            <div id="mn-m-serv-container" style="display:none;flex-direction:column;gap:1rem;">
+                <div>${lbl('Selecione os Serviços')}
+                     <div id="mn-m-serv-checkboxes" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem;max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
+                </div>
+                <div id="mn-m-serv-novo-box" style="display:none;">
+                    ${lbl('Nome do Novo Serviço')}
+                    ${inp('mn-m-serv-novo', '', 'Ex: Troca de válvula específica...')}
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                    <div>${lbl('KM Atual (Realizada em)')}${inp('mn-m-km', m.km_na_manutencao, 'Ex: 120000', 'number')}</div>
+                    <div>${lbl('KM de intervalo para a proxima')}${inp('mn-m-intervalo', '', 'Ex: 10000', 'number')}</div>
+                </div>
+                <button id="mn-m-btn-add" onclick="window.mnModalAddServico()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.6rem;font-weight:600;cursor:pointer;font-size:0.85rem;">Adicionar Serviços Selecionados à Lista</button>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-                <div>${lbl('KM Atual (Realizada em)')}${inp('mn-m-km', m.km_na_manutencao, 'Ex: 120000', 'number')}</div>
-                <div>${lbl('Intervalo p/ Próxima (KM)')}${inp('mn-m-intervalo', '', 'Ex: 10000', 'number')}</div>
-            </div>
-            <button id="mn-m-btn-add" onclick="window.mnModalAddServico()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.6rem;font-weight:600;cursor:pointer;font-size:0.85rem;">Adicionar Serviço à Lista</button>
         </div>
 
         <div id="mn-m-servicos-lista" style="display:flex;flex-direction:column;gap:6px;"></div>
@@ -523,70 +528,106 @@ window.abrirModalManutencao = async function(id, opts = {}) {
     }
 };
 
-window.mnModalCatChanged = function() {
-    const cid = document.getElementById('mn-m-cat').value;
-    const sSel = document.getElementById('mn-m-serv');
-    const nBox = document.getElementById('mn-m-serv-novo-box');
-    nBox.style.display = 'none';
-    sSel.innerHTML = '<option value="">Selecione...</option>';
-    if (!cid) return;
-    const catItens = (window._manutCatalogo||[]).filter(s => s.categoria_id == cid);
-    catItens.forEach(s => {
-        const o = document.createElement('option');
-        o.value = s.id; o.textContent = s.nome;
-        o.dataset.interval = s.periodicidade_padrao;
-        sSel.appendChild(o);
-    });
-    const o = document.createElement('option');
-    o.value = 'novo'; o.textContent = '+ Novo Serviço...';
-    sSel.appendChild(o);
+window.mnModalVeiculoChanged = function() {
+    const vid = document.getElementById('mn-m-veiculo').value;
+    const v = (window._manutFrota||[]).find(x => x.id == vid);
+    if (v && v.km_atual) {
+        document.getElementById('mn-m-km').value = v.km_atual;
+    } else {
+        document.getElementById('mn-m-km').value = '';
+    }
 };
 
-window.mnModalServChanged = function() {
-    const sSel = document.getElementById('mn-m-serv');
+window.mnModalCatChanged = function() {
+    const cid = document.getElementById('mn-m-cat').value;
+    const sBox = document.getElementById('mn-m-serv-checkboxes');
+    const cCont = document.getElementById('mn-m-serv-container');
+    const nBox = document.getElementById('mn-m-serv-novo-box');
+    nBox.style.display = 'none';
+    sBox.innerHTML = '';
+    if (!cid) {
+        cCont.style.display = 'none';
+        return;
+    }
+    cCont.style.display = 'flex';
+    const catItens = (window._manutCatalogo||[]).filter(s => s.categoria_id == cid);
+    
+    // Checkbox to select all
+    const htmlAll = `<label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:700;color:#0284c7;cursor:pointer;padding-bottom:6px;border-bottom:1px solid #e2e8f0;">
+        <input type="checkbox" onchange="const cbs=document.querySelectorAll('.mn-serv-cb'); cbs.forEach(c=>{c.checked=this.checked; window.mnModalServCbChanged();})"> Selecionar Todos
+    </label>`;
+    
+    let htmlCbs = catItens.map(s => `
+        <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:#1e293b;cursor:pointer;">
+            <input type="checkbox" class="mn-serv-cb" value="${s.id}" data-nome="${s.nome}" data-interval="${s.periodicidade_padrao}" onchange="window.mnModalServCbChanged()"> ${s.nome}
+        </label>
+    `).join('');
+    
+    htmlCbs += `<label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:#d97706;cursor:pointer;margin-top:4px;font-weight:600;">
+            <input type="checkbox" class="mn-serv-cb" value="novo" data-nome="novo" onchange="window.mnModalServCbChanged()"> + Novo Serviço...
+        </label>`;
+        
+    sBox.innerHTML = htmlAll + htmlCbs;
+    document.getElementById('mn-m-intervalo').value = '';
+};
+
+window.mnModalServCbChanged = function() {
+    const cbs = document.querySelectorAll('.mn-serv-cb:checked');
     const nBox = document.getElementById('mn-m-serv-novo-box');
     const intInp = document.getElementById('mn-m-intervalo');
-    if (sSel.value === 'novo') {
-        nBox.style.display = 'block';
+    
+    let isNovo = false;
+    let minInterval = Infinity;
+    
+    cbs.forEach(cb => {
+        if (cb.value === 'novo') isNovo = true;
+        if (cb.dataset.interval && cb.dataset.interval !== 'undefined') {
+            const v = parseInt(cb.dataset.interval);
+            if (!isNaN(v) && v < minInterval) minInterval = v;
+        }
+    });
+    
+    nBox.style.display = isNovo ? 'block' : 'none';
+    if (!isNovo && minInterval !== Infinity) {
+        intInp.value = minInterval;
+    } else if (cbs.length === 0) {
         intInp.value = '';
-    } else {
-        nBox.style.display = 'none';
-        const opt = sSel.options[sSel.selectedIndex];
-        if (opt && opt.dataset.interval) intInp.value = opt.dataset.interval;
     }
 };
 
 window.mnModalAddServico = function() {
     const cSel = document.getElementById('mn-m-cat');
-    const sSel = document.getElementById('mn-m-serv');
+    const cbs = document.querySelectorAll('.mn-serv-cb:checked');
     const nInp = document.getElementById('mn-m-serv-novo');
     const kmInp = document.getElementById('mn-m-km');
     const intInp = document.getElementById('mn-m-intervalo');
 
-    if (!cSel.value && window._mnModalServicos.length===0 && !sSel.value) return alert('Selecione uma categoria e um serviço');
+    if (!cSel.value) return alert('Selecione uma categoria');
+    if (cbs.length === 0) return alert('Selecione ao menos um serviço');
     
-    let nome = '', servId = '';
-    if (sSel.value === 'novo') {
-        if (!nInp.value.trim()) return alert('Digite o nome do novo serviço');
-        nome = nInp.value.trim();
-    } else if (sSel.value) {
-        nome = sSel.options[sSel.selectedIndex].text;
-        servId = sSel.value;
-    } else if (window._mnModalServicos.length===0) {
-        return alert('Selecione um serviço');
-    } else {
-        return;
-    }
+    let hasNovo = false;
+    cbs.forEach(cb => {
+        let nome = cb.dataset.nome;
+        let servId = cb.value;
+        
+        if (servId === 'novo') {
+            if (!nInp.value.trim()) { hasNovo = true; return; }
+            nome = nInp.value.trim();
+            servId = '';
+        }
 
-    window._mnModalServicos.push({
-        cat_id: cSel.value,
-        servico_id: servId,
-        nome: nome,
-        km: kmInp.value,
-        intervalo: intInp.value
+        window._mnModalServicos.push({
+            cat_id: cSel.value,
+            servico_id: servId,
+            nome: nome,
+            km: kmInp.value,
+            intervalo: cb.dataset.interval && cb.dataset.interval !== 'undefined' ? cb.dataset.interval : intInp.value
+        });
     });
+    
+    if (hasNovo) return alert('Digite o nome do novo serviço');
 
-    sSel.value = '';
+    document.querySelectorAll('.mn-serv-cb').forEach(c => c.checked = false);
     nInp.value = '';
     document.getElementById('mn-m-serv-novo-box').style.display = 'none';
     window.mnModalRenderServicos();

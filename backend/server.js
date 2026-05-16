@@ -11136,7 +11136,7 @@ db.serialize(() => {
 
 // GET - listar todos os veículos da frota
 app.get('/api/frota/veiculos', authenticateToken, (req, res) => {
-    db.all('SELECT id, placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_filename, foto_base64, created_at, updated_at FROM frota_veiculos ORDER BY placa ASC', [], (err, rows) => {
+    db.all('SELECT id, placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_filename, foto_base64, created_at, updated_at, (SELECT km_atual FROM frota_quilometragem q WHERE q.veiculo_id = frota_veiculos.id ORDER BY data_registro DESC, id DESC LIMIT 1) as km_atual FROM frota_veiculos ORDER BY placa ASC', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
     });
@@ -13710,7 +13710,19 @@ app.get('/api/frota/force-dedup', (req, res) => {
     const db = require('./database');
     db.run(`DELETE FROM frota_categorias_manutencao WHERE id NOT IN (SELECT MIN(id) FROM frota_categorias_manutencao GROUP BY nome)`);
     db.run(`DELETE FROM frota_servicos_catalogo WHERE id NOT IN (SELECT MIN(id) FROM frota_servicos_catalogo GROUP BY categoria_id, nome)`);
-    setTimeout(() => res.json({ success: true, dedup_only: true }), 1000);
+    
+    setTimeout(() => {
+        db.all('SELECT COUNT(*) as c FROM frota_categorias_manutencao', [], (err, rows1) => {
+            db.all('SELECT COUNT(*) as s FROM frota_servicos_catalogo', [], (err, rows2) => {
+                res.json({ 
+                    success: true, 
+                    dedup_only: true, 
+                    categorias: rows1[0].c,
+                    servicos: rows2[0].s
+                });
+            });
+        });
+    }, 1000);
 });
 
 app.get('/api/frota/force-seed', (req, res) => {
