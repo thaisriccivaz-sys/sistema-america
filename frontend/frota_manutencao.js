@@ -432,75 +432,48 @@ window.abrirModalManutencao = async function(id, opts = {}) {
 
     const catOpts = [{v:'', l:'Selecione...'}].concat((window._manutCategorias||[]).map(c => ({v:c.id, l:c.nome})));
 
-    ov.innerHTML = `<div style="background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);">
-<div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#fffbeb;position:sticky;top:0;z-index:10;">
+    ov.innerHTML = `<div style="background:#fff;border-radius:16px;width:100%;max-width:1100px;height:88vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);overflow:hidden;">
+<div style="padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#fffbeb;flex-shrink:0;">
     <div style="font-size:1rem;font-weight:700;color:#92400e;display:flex;align-items:center;gap:8px;">
         <div style="background:#d97706;color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-wrench"></i></div>
         ${id ? 'Editar Manutenção' : (m.tipo==='preventiva' ? 'Nova Preventiva' : 'Nova Corretiva')}
     </div>
     <button onclick="document.getElementById('modal-manut-ov').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;"><i class="ph ph-x"></i></button>
 </div>
-<div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
+<div style="display:grid;grid-template-columns:1fr 1fr;flex:1;overflow:hidden;">
+  <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;border-right:1px solid #e2e8f0;">
     <datalist id="lista-fornecedores">${fornListOpts}</datalist>
-
-    <div>
-        ${lbl('Veículo *')}
-        <select id="mn-m-veiculo" onchange="window.mnModalVeiculoChanged()" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;">
-            <option value="">Selecione...</option>${veicOpts}
-        </select>
-    </div>
+    <div>${lbl('Veículo *')}<select id="mn-m-veiculo" onchange="window.mnModalVeiculoChanged()" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;"><option value="">Selecione...</option>${veicOpts}</select></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-        <div>
-            ${lbl('Tipo *')}
-            ${sel('mn-m-tipo', [{v:'preventiva',l:'Preventiva'},{v:'corretiva',l:'Corretiva'}], m.tipo, opts.tipo!==undefined)}
-        </div>
-        <div>
-            ${lbl('Status *')}
-            ${sel('mn-m-status', [{v:'programada',l:'Programada'},{v:'agendada',l:'Agendada'},{v:'em_andamento',l:'Em Andamento'},{v:'concluida',l:'Concluída'},{v:'cancelada',l:'Cancelada'}], m.status||'programada', false)}
-        </div>
+        <div>${lbl('Tipo *')}${sel('mn-m-tipo', [{v:'preventiva',l:'Preventiva'},{v:'corretiva',l:'Corretiva'}], m.tipo, opts.tipo!==undefined)}</div>
+        <div>${lbl('Status *')}${sel('mn-m-status', [{v:'programada',l:'Programada'},{v:'agendada',l:'Agendada'},{v:'em_andamento',l:'Em Andamento'},{v:'concluida',l:'Concluída'},{v:'cancelada',l:'Cancelada'}], m.status||'programada', false)}</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
         <div>${lbl('Fornecedor / Oficina')}${inp('mn-m-forn', m.fornecedor, 'Digite para buscar ou criar...', 'text', 'lista-fornecedores')}</div>
         <div>${lbl('Data Agendamento')}${inp('mn-m-data-ag', m.data_agendamento, '', 'date')}</div>
     </div>
-    
-    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;margin-top:0.5rem;">
-        <h4 style="margin:0 0 1rem 0;font-size:0.9rem;color:#1e293b;display:flex;align-items:center;gap:6px;"><i class="ph ph-list-plus" style="color:#0284c7;"></i> Serviços</h4>
-        
-        <div style="display:flex;flex-direction:column;gap:1rem;margin-bottom:1rem;">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-                <div>${lbl('Categoria')}${sel('mn-m-cat', catOpts, '', false, 'window.mnModalCatChanged()')}</div>
-            </div>
-            
-            <div id="mn-m-serv-container" style="display:none;flex-direction:column;gap:1rem;">
-                <div>${lbl('Selecione os Serviços')}
-                     <div id="mn-m-serv-checkboxes" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem;max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
-                </div>
-                <div id="mn-m-serv-novo-box" style="display:none;">
-                    ${lbl('Nome do Novo Serviço')}
-                    ${inp('mn-m-serv-novo', '', 'Ex: Troca de válvula específica...')}
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-                    <div>${lbl('KM Atual (Realizada em)')}${inp('mn-m-km', m.km_na_manutencao, 'Ex: 120000', 'number')}</div>
-                    <div>${lbl('KM de intervalo para a proxima')}${inp('mn-m-intervalo', '', 'Ex: 10000', 'number')}</div>
-                </div>
-                <button id="mn-m-btn-add" onclick="window.mnModalAddServico()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.6rem;font-weight:600;cursor:pointer;font-size:0.85rem;">Adicionar Serviços Selecionados à Lista</button>
-            </div>
-        </div>
-
-        <div id="mn-m-servicos-lista" style="display:flex;flex-direction:column;gap:6px;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div>${lbl('KM Atual (Realizada em)')}${inp('mn-m-km', m.km_na_manutencao, 'Ex: 120000', 'number')}</div>
+        <div>${lbl('KM de intervalo para a proxima')}${inp('mn-m-intervalo', '', 'Ex: 10000', 'number')}</div>
     </div>
-
-    <div>
-        ${lbl('Observações')}
-        <textarea id="mn-m-obs" placeholder="Observações adicionais..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:60px;resize:vertical;">${m.observacoes||''}</textarea>
-    </div>
-    <div style="display:flex;gap:1rem;justify-content:flex-end;padding-top:1rem;border-top:1px solid #e2e8f0;">
+    <div style="flex:1;">${lbl('Observações')}<textarea id="mn-m-obs" placeholder="Observações adicionais..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:100px;resize:vertical;">${m.observacoes||''}</textarea></div>
+    <div style="display:flex;gap:1rem;justify-content:flex-end;padding-top:0.75rem;border-top:1px solid #e2e8f0;">
         <button onclick="document.getElementById('modal-manut-ov').remove()" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;color:#475569;">Cancelar</button>
-        <button onclick="window.salvarManutencao(${id||'null'})" style="background:#d97706;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.5rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
-            <i class="ph ph-floppy-disk"></i> ${id ? 'Salvar Alterações' : 'Registrar'}
-        </button>
+        <button onclick="window.salvarManutencao(${id||'null'})" style="background:#d97706;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.5rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> ${id ? 'Salvar Alterações' : 'Registrar'}</button>
     </div>
+  </div>
+  <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;">
+    <h4 style="margin:0;font-size:0.9rem;color:#1e293b;display:flex;align-items:center;gap:6px;"><i class="ph ph-list-plus" style="color:#0284c7;"></i> Serviços</h4>
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;display:flex;flex-direction:column;gap:1rem;">
+        <div>${lbl('Categoria')}${sel('mn-m-cat', catOpts, '', false, 'window.mnModalCatChanged()')}</div>
+        <div id="mn-m-serv-container" style="display:none;flex-direction:column;gap:1rem;">
+            <div>${lbl('Selecione os Serviços')}<div id="mn-m-serv-checkboxes" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div></div>
+            <div id="mn-m-serv-novo-box" style="display:none;">${lbl('Nome do Novo Serviço')}${inp('mn-m-serv-novo', '', 'Ex: Troca de válvula específica...')}</div>
+            <button id="mn-m-btn-add" onclick="window.mnModalAddServico()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.6rem;font-weight:600;cursor:pointer;font-size:0.85rem;">Adicionar Serviços Selecionados à Lista</button>
+        </div>
+    </div>
+    <div id="mn-m-servicos-lista" style="display:flex;flex-direction:column;gap:6px;"></div>
+  </div>
 </div></div>`;
     document.body.appendChild(ov);
     ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
@@ -573,25 +546,9 @@ window.mnModalCatChanged = function() {
 window.mnModalServCbChanged = function() {
     const cbs = document.querySelectorAll('.mn-serv-cb:checked');
     const nBox = document.getElementById('mn-m-serv-novo-box');
-    const intInp = document.getElementById('mn-m-intervalo');
-    
     let isNovo = false;
-    let minInterval = Infinity;
-    
-    cbs.forEach(cb => {
-        if (cb.value === 'novo') isNovo = true;
-        if (cb.dataset.interval && cb.dataset.interval !== 'undefined') {
-            const v = parseInt(cb.dataset.interval);
-            if (!isNaN(v) && v < minInterval) minInterval = v;
-        }
-    });
-    
+    cbs.forEach(cb => { if (cb.value === 'novo') isNovo = true; });
     nBox.style.display = isNovo ? 'block' : 'none';
-    if (!isNovo && minInterval !== Infinity) {
-        intInp.value = minInterval;
-    } else if (cbs.length === 0) {
-        intInp.value = '';
-    }
 };
 
 window.mnModalAddServico = function() {
@@ -640,15 +597,29 @@ window.mnModalRemoveServico = function(idx) {
 window.mnModalRenderServicos = function() {
     const list = document.getElementById('mn-m-servicos-lista');
     if (!list) return;
-    list.innerHTML = window._mnModalServicos.map((s, i) => `
-        <div style="display:flex;justify-content:space-between;align-items:center;background:#fff;padding:0.6rem 0.8rem;border:1px solid #e2e8f0;border-radius:8px;">
-            <div style="font-size:0.85rem;">
-                <strong style="color:#1e293b;">${s.nome}</strong>
-                <span style="color:#64748b;margin-left:8px;">KM: ${s.km||'\u2014'} | Int: ${s.intervalo||'\u2014'}</span>
+    // Group by category name
+    const cats = {};
+    window._mnModalServicos.forEach((s, i) => {
+        const catNome = (window._manutCategorias||[]).find(c => c.id == s.cat_id)?.nome || 'Serviços';
+        if (!cats[catNome]) cats[catNome] = [];
+        cats[catNome].push({...s, _idx: i});
+    });
+    list.innerHTML = Object.entries(cats).map(([catNome, itens]) => {
+        const uid = 'mn-cat-acc-' + catNome.replace(/\W/g,'');
+        const rows = itens.map(s => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0.6rem;background:#f8fafc;border-radius:6px;margin-bottom:4px;">
+                <span style="font-size:0.83rem;color:#1e293b;">${s.nome}<span style="color:#94a3b8;margin-left:8px;font-size:0.75rem;">KM: ${s.km||'—'} | Int: ${s.intervalo||'—'}</span></span>
+                <button onclick="window.mnModalRemoveServico(${s._idx})" style="background:none;border:none;color:#dc2626;cursor:pointer;padding:0;"><i class="ph ph-trash"></i></button>
             </div>
-            <button onclick="window.mnModalRemoveServico(${i})" style="background:none;border:none;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>
-        </div>
-    `).join('');
+        `).join('');
+        return `<div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+            <button onclick="const d=document.getElementById('${uid}'); d.style.display=d.style.display==='none'?'block':'none'; this.querySelector('i').className='ph ph-'+(d.style.display==='none'?'caret-right':'caret-down')" style="width:100%;background:#f1f5f9;border:none;padding:0.6rem 0.8rem;display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:0.85rem;color:#1e293b;cursor:pointer;">
+                <span><i class="ph ph-folder" style="color:#d97706;margin-right:6px;"></i>${catNome} <span style="font-weight:400;color:#64748b;">(${itens.length})</span></span>
+                <i class="ph ph-caret-down"></i>
+            </button>
+            <div id="${uid}" style="display:block;padding:0.5rem;">${rows}</div>
+        </div>`;
+    }).join('');
 };
 
 window.salvarManutencao = async function(idEdit) {
