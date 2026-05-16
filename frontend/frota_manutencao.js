@@ -555,6 +555,9 @@ window.mnModalCatChanged = function() {
     // Checkbox to select all
     const htmlAll = `<label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:700;color:#0284c7;cursor:pointer;padding-bottom:6px;border-bottom:1px solid #e2e8f0;">
         <input type="checkbox" onchange="const cbs=document.querySelectorAll('.mn-serv-cb'); cbs.forEach(c=>{c.checked=this.checked; window.mnModalServCbChanged();})"> Selecionar Todos
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:#d97706;cursor:pointer;margin-top:6px;margin-bottom:6px;font-weight:600;">
+        <input type="checkbox" class="mn-serv-cb" value="novo" data-nome="novo" onchange="window.mnModalServCbChanged()"> + Novo Serviço...
     </label>`;
     
     let htmlCbs = catItens.map(s => `
@@ -562,10 +565,6 @@ window.mnModalCatChanged = function() {
             <input type="checkbox" class="mn-serv-cb" value="${s.id}" data-nome="${s.nome}" data-interval="${s.periodicidade_padrao}" onchange="window.mnModalServCbChanged()"> ${s.nome}
         </label>
     `).join('');
-    
-    htmlCbs += `<label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:#d97706;cursor:pointer;margin-top:4px;font-weight:600;">
-            <input type="checkbox" class="mn-serv-cb" value="novo" data-nome="novo" onchange="window.mnModalServCbChanged()"> + Novo Serviço...
-        </label>`;
         
     sBox.innerHTML = htmlAll + htmlCbs;
     document.getElementById('mn-m-intervalo').value = '';

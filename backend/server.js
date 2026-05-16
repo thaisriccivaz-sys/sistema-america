@@ -11136,7 +11136,7 @@ db.serialize(() => {
 
 // GET - listar todos os veículos da frota
 app.get('/api/frota/veiculos', authenticateToken, (req, res) => {
-    db.all('SELECT id, placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_filename, foto_base64, created_at, updated_at, (SELECT km_atual FROM frota_quilometragem q WHERE q.veiculo_id = frota_veiculos.id ORDER BY data_registro DESC, id DESC LIMIT 1) as km_atual FROM frota_veiculos ORDER BY placa ASC', [], (err, rows) => {
+    db.all('SELECT id, placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_filename, foto_base64, created_at, updated_at, km_atual FROM frota_veiculos ORDER BY placa ASC', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
     });
