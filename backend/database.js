@@ -1074,11 +1074,12 @@ db.run("PRAGMA foreign_keys = ON;");
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY(categoria_id) REFERENCES frota_categorias_manutencao(id)
                 )
-            `);
-
-            // Seed das categorias e serviços (garantindo que será preenchido)
-            db.get('SELECT COUNT(*) as n FROM frota_categorias_manutencao', [], (err, row) => {
-                if (err || (row && row.n > 0)) return;
+                )
+            `, (err) => {
+                if(err) return;
+                // Seed das categorias e serviços (garantindo que será preenchido)
+                db.get('SELECT COUNT(*) as n FROM frota_categorias_manutencao', [], (err, row) => {
+                    if (err || (row && row.n > 0)) return;
                 const cats = [
                     [1,'Motor','engine',1],[2,'Freios','disc',2],[3,'Pneus e Rodagem','tire',3],
                     [4,'Suspensão e Direção','car',4],[5,'Transmissão','gear-six',5],
@@ -1152,6 +1153,7 @@ db.run("PRAGMA foreign_keys = ON;");
                     'INSERT OR IGNORE INTO frota_servicos_catalogo(categoria_id,nome,tipo_controle,periodicidade_padrao,unidade,criticidade,tempo_medio_horas,exige_parada,obrigatorio,impede_operacao,padrao) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
                     s
                 ));
+                });
             });
 
             // Tabela de plano de manutenção preventiva por km
