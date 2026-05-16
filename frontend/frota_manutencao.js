@@ -85,7 +85,7 @@ function mnRenderPreventivaTela(sub) {
             <span id="mn-prev-km-label" style="font-size:0.82rem;color:#64748b;"></span>
         </div>
         <button onclick="window.abrirModalManutencaoPreventiva()" style="background:#d97706;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:600;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:6px;margin-left:auto;">
-            <i class="ph ph-plus"></i> Registrar Manutenção
+            <i class="ph ph-plus"></i> Registrar Revisão
         </button>
     </div>
     <div id="mn-prev-plano"><div style="padding:3rem;text-align:center;color:#94a3b8;">Selecione um ve\u00edculo para ver o plano preventivo.</div></div>`;
