@@ -14612,9 +14612,7 @@ window.filtrarAssinaturas = function () {
         const isSigned = d.assinafy_status === 'Assinado';
         const statusBadge = isSigned
             ? '<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-check-circle"></i> Assinado</span>'
-            : d.assinafy_status === 'Pendente'
-                ? '<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-clock"></i> Aguardando</span>'
-                : '<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;">—</span>';
+            : '<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-clock"></i> Aguardando</span>';
 
         let viewBtn = `<span style="color:#94a3b8;font-size:0.78rem;">—</span>`;
         if (isSigned) {
