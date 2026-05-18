@@ -6375,13 +6375,12 @@ window.toggleAtestadoPeriodFields = function () {
     if (tipo === 'dias') {
         document.getElementById('atestado-dias-fields').style.display = 'flex';
         document.getElementById('atestado-horas-fields').style.display = 'none';
-        if (cidWrap) { cidWrap.style.display = ''; cidWrap.querySelector('label').textContent = ' CID-10'; }
+        if (cidWrap) cidWrap.style.display = '';
         if (tituloWrap) tituloWrap.style.display = 'none';
     } else {
         document.getElementById('atestado-dias-fields').style.display = 'none';
         document.getElementById('atestado-horas-fields').style.display = 'flex';
-        // Horas: mostra Título + CID (opcional)
-        if (cidWrap) { cidWrap.style.display = ''; cidWrap.querySelector('label').innerHTML = '<i class="ph ph-magnifying-glass"></i> CID-10 <span style="font-weight:400;color:#94a3b8;">(opcional)</span>'; }
+        if (cidWrap) cidWrap.style.display = 'none';
         if (tituloWrap) tituloWrap.style.display = '';
     }
 }
@@ -6424,8 +6423,7 @@ window.uploadAtestadoWithCID = async function (inputEl) {
         const titulo = (document.getElementById('atestado-titulo-horas')?.value?.trim() || 'Atestado de Horas');
         const tituloNorm = titulo.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_').substring(0, 30);
         customName = `HORAS_${tituloNorm}_${nomeColabNorm}_${dd}${mm}${aa}`;
-        // Se CID foi selecionado, incluir no tipo
-        typeIn = selectedCID ? `${titulo} - ${selectedCID.code}` : titulo;
+        typeIn = titulo;
     } else {
         customName = `${selectedCID.code}_${nomeColabNorm}_${dd}${mm}${aa}`;
         typeIn = `${selectedCID.code} - ${selectedCID.desc.substring(0, 60)}`;
