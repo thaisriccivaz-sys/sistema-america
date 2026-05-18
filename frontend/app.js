@@ -6260,7 +6260,11 @@ window.renderAtestadosTab = function (container, filteredDocs) {
                     </div>
 
                     <!-- Campos Horas -->
-                    <div id="atestado-horas-fields" style="display:none; gap:1rem; flex-shrink:0;">
+                    <div id="atestado-horas-fields" style="display:none; gap:1rem; flex-shrink:0; align-items:flex-end;">
+                        <div>
+                            <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Data do Atestado</label>
+                            <input type="date" id="atestado_data_hora" class="form-control" style="padding:0.4rem; width:130px;">
+                        </div>
                         <div>
                             <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Horário Início</label>
                             <input type="time" id="atestado_inicio_hora" class="form-control" style="padding:0.4rem; width:110px;">
@@ -6395,7 +6399,9 @@ window.calcAtestadoFim = function () {
 
 window.uploadAtestadoWithCID = async function (inputEl) {
     const file = inputEl.files[0];
-    if (!file || !selectedCID) return;
+    if (!file) return;
+    const tipo = document.getElementById('atestado_tipo')?.value || 'dias';
+    if (tipo !== 'horas' && !selectedCID) return; // CID obrigatório só para 'dias'
     if (!viewedColaborador) { alert('Colaborador não selecionado.'); return; }
 
     // Loading state
@@ -6412,7 +6418,6 @@ window.uploadAtestadoWithCID = async function (inputEl) {
     const nomeColabNorm = (viewedColaborador.nome_completo || viewedColaborador.nome || 'COLAB')
         .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
 
-    const tipo = document.getElementById('atestado_tipo').value;
     let customName, typeIn;
     if (tipo === 'horas') {
         const titulo = (document.getElementById('atestado-titulo-horas')?.value?.trim() || 'Atestado de Horas');
@@ -6444,6 +6449,9 @@ window.uploadAtestadoWithCID = async function (inputEl) {
         formData.append('atestado_inicio', inicioVal);
         formData.append('atestado_fim', fimVal || inicioVal);
     } else {
+        // Horas: data do atestado + horários
+        const dataHora = document.getElementById('atestado_data_hora')?.value || today.toISOString().split('T')[0];
+        formData.append('atestado_data', dataHora);
         formData.append('atestado_inicio', document.getElementById('atestado_inicio_hora').value);
         formData.append('atestado_fim', document.getElementById('atestado_fim_hora').value);
     }
