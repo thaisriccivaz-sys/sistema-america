@@ -5554,7 +5554,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         </div>` : (assStatusIcon ? `<div style="display:flex;align-items:center;gap:0.5rem; justify-content:flex-end; width:100%; margin-top:0.35rem;">${assStatusIcon}</div>` : '');
         })()}
 
-                    ${(tabId === 'Atestados' && isSaved) ? `
+                    ${(tabId === 'Atestados' && isSaved && existingDoc.atestado_tipo !== 'horas') ? `
                     <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end;">
                         <input type="text" id="contab-email-${existingDoc.id}"
                                value="vanessa.santana@grupowp.com.br; vanessa.caroline@grupowp.com.br"
