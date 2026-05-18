@@ -3097,17 +3097,10 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                 }
             }
 
-            if (data.status !== 'Incompleto') {
-                try {
-                    if (!fs.existsSync(newDir)) fs.mkdirSync(newDir, { recursive: true });
-                    FOLDERS.forEach(p => {
-                        const caminho = path.join(newDir, p);
-                        if (!fs.existsSync(caminho)) fs.mkdirSync(caminho, { recursive: true });
-                    });
-                } catch (erro) { console.error("ERRO AO GARANTIR PASTAS NO PUT:", erro); }
+            // Nota: criação de pastas NÃO ocorre no PUT.
+            // Pastas são criadas somente ao cadastrar novo colaborador (POST).
+            // Aqui apenas renomeamos se o nome mudou (bloco acima).
 
-                // (Movidopara o final do fluxo PUT)
-            }
 
             // Atualizar chaves
             db.run("DELETE FROM colaborador_chaves WHERE colaborador_id = ?", [id], (errD) => {
