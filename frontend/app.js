@@ -6358,8 +6358,10 @@ window.triggerAtestadoUpload = function () {
             return;
         }
     } else {
-        if (!selectedCID) {
-            alert('Selecione primeiro qual é o CID (código) do atestado digitando na barra de busca!');
+        // CID é opcional: aceita código válido OU título livre digitado no campo
+        const cidText = document.getElementById('cid-search')?.value?.trim();
+        if (!selectedCID && !cidText) {
+            alert('Digite um CID ou um título para o atestado antes de anexar o arquivo.');
             const s = document.getElementById('cid-search');
             if (s) { s.focus(); s.style.border = '2px solid red'; setTimeout(() => s.style.border = '', 2000); }
             return;
@@ -6425,8 +6427,16 @@ window.uploadAtestadoWithCID = async function (inputEl) {
         customName = `HORAS_${tituloNorm}_${nomeColabNorm}_${dd}${mm}${aa}`;
         typeIn = titulo;
     } else {
-        customName = `${selectedCID.code}_${nomeColabNorm}_${dd}${mm}${aa}`;
-        typeIn = `${selectedCID.code} - ${selectedCID.desc.substring(0, 60)}`;
+        // CID válido selecionado OU texto livre digitado no campo
+        const cidText = document.getElementById('cid-search')?.value?.trim() || 'Atestado';
+        if (selectedCID) {
+            customName = `${selectedCID.code}_${nomeColabNorm}_${dd}${mm}${aa}`;
+            typeIn = `${selectedCID.code} - ${selectedCID.desc.substring(0, 60)}`;
+        } else {
+            const cidNorm = cidText.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_').substring(0, 30);
+            customName = `DIAS_${cidNorm}_${nomeColabNorm}_${dd}${mm}${aa}`;
+            typeIn = cidText;
+        }
     }
 
     const year = document.getElementById('atestados_year') ? document.getElementById('atestados_year').value : today.getFullYear().toString();
