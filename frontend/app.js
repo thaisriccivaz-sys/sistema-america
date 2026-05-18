@@ -14594,7 +14594,8 @@ window.filtrarAssinaturas = function () {
     const filtered = dados.filter(d => {
         const matchSearch = !search || (d.nome_documento || '').toLowerCase().includes(search);
         const matchColab = !filterColab || (d.colaborador_nome || '').toLowerCase().includes(filterColab);
-        const matchStatus = !filterStatus || d.assinafy_status === filterStatus;
+        const matchStatus = !filterStatus ||
+            (filterStatus === 'Pendente' ? d.assinafy_status !== 'Assinado' : d.assinafy_status === filterStatus);
         const matchTipo = !filterTipo || d.nome_documento === filterTipo;
         return matchSearch && matchColab && matchStatus && matchTipo;
     });
@@ -14632,7 +14633,8 @@ window.filtrarAssinaturas = function () {
             } else {
                 viewBtn = `<button onclick="window.openSignedDocPopup(${d.id}, '${nomeEsc}', event)" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button>`;
             }
-        } else if (d.assinafy_status === 'Pendente') {
+        } else if (d.assinafy_id) {
+            // Qualquer status não-assinado com assinafy_id → pode reenviar
             viewBtn = `<button onclick="window.reenviarAssinatura(${d.id}, '${d.source}', this)" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Copiar link ou Enviar WhatsApp"><i class="ph ph-paper-plane-right"></i> Reenviar</button>`;
         }
 
