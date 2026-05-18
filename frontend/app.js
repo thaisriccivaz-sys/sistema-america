@@ -3549,6 +3549,8 @@ window.editColaborador = async function (id) {
         toggleFormacaoFields(participa);
 
         if (document.getElementById('colab-faculdade-data-termino')) document.getElementById('colab-faculdade-data-termino').value = c.faculdade_data_termino || '';
+        if (document.getElementById('colab-faculdade-data-inicio')) document.getElementById('colab-faculdade-data-inicio').value = c.faculdade_data_inicio || '';
+        if (document.getElementById('colab-faculdade-curso') && c.faculdade_curso_id) document.getElementById('colab-faculdade-curso').value = c.faculdade_curso_id;
 
         // Academia
         const participaAcad = c.academia_participa || 'Não';
