@@ -14243,15 +14243,18 @@ function syncToLogistica(uuid, tipoEvento, payload) {
         const dataLimite = payload.prazo_identificacao_condutor || payload.vencimento_multa || null;
         const localInfracao = payload.local || payload.local_infracao || payload.cidade || null;
         const statusMonaco = payload.status_notificacao || tipoEvento;
+        const linkFormulario = payload.link_indicacao || payload.link_formulario || payload.url_formulario || payload.link || null;
 
         if (row) {
             // Atualizar multa existente
             let updateSql = `UPDATE multas_logistica SET
                 monaco_uuid = ?, placa = ?, data_infracao = ?, hora_infracao = ?,
-                motivo = ?, valor_multa = ?, pontuacao = ?, local_infracao = ?, data_limite = ?, status_monaco = ?`;
+                motivo = ?, valor_multa = ?, pontuacao = ?, local_infracao = ?, data_limite = ?, status_monaco = ?,
+                link_formulario = COALESCE(?, link_formulario)`;
             let params = [
                 uuid, payload.placa, payload.data_da_infracao, payload.hora_da_infracao,
-                payload.descricao, payload.valor_da_infracao, payload.pontos, localInfracao, dataLimite, statusMonaco
+                payload.descricao, payload.valor_da_infracao, payload.pontos, localInfracao, dataLimite, statusMonaco,
+                linkFormulario
             ];
 
             // Só atualiza PDF se a multa não tiver um PDF anexado manualmente
@@ -14272,11 +14275,11 @@ function syncToLogistica(uuid, tipoEvento, payload) {
             db.run(`INSERT INTO multas_logistica (
                 monaco_uuid, numero_ait, placa, data_infracao, hora_infracao,
                 motivo, valor_multa, pontuacao, local_infracao, data_limite,
-                status, created_by_nome, observacao, documento_base64, documento_nome, status_monaco
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Conferência', 'Integração Mônaco', 'Multa importada automaticamente da Mônaco via webhook.', ?, ?, ?)`, [
+                status, created_by_nome, observacao, documento_base64, documento_nome, status_monaco, link_formulario
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Conferência', 'Integração Mônaco', 'Multa importada automaticamente da Mônaco via webhook.', ?, ?, ?, ?)`, [
                 uuid, payload.numero_ait, payload.placa, payload.data_da_infracao, payload.hora_da_infracao,
                 payload.descricao, payload.valor_da_infracao, payload.pontos, localInfracao, dataLimite,
-                docBase64, docNome, statusMonaco
+                docBase64, docNome, statusMonaco, linkFormulario
             ], function (errInsert) {
                 if (errInsert) console.error('[MONACO SYNC] Erro insert:', errInsert);
                 else {
