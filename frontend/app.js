@@ -6221,11 +6221,15 @@ window.renderAtestadosTab = function (container, filteredDocs) {
                         </select>
                     </div>
                     
-                    <!-- CID-10 -->
-                    <div class="cid-input-group" style="flex:2; min-width:150px; position:relative;">
+                    <!-- CID-10 ou Título (horas) -->
+                    <div class="cid-input-group" id="cid-field-wrap" style="flex:2; min-width:150px; position:relative;">
                         <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;"><i class="ph ph-magnifying-glass"></i> CID-10</label>
                         <input type="text" id="cid-search" class="form-control" placeholder="J06 - Outros exames..." autocomplete="off" oninput="searchCID(this.value)" style="padding:.4rem;">
                         <div id="cid-dropdown" class="cid-dropdown" style="display:none;"></div>
+                    </div>
+                    <div id="titulo-field-wrap" style="flex:2; min-width:150px; display:none;">
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;"><i class="ph ph-text-t"></i> Título do Atestado</label>
+                        <input type="text" id="atestado-titulo-horas" class="form-control" placeholder="Ex: Consulta médica, Acompanhamento..." style="padding:.4rem;">
                     </div>
 
                     <!-- Tipo de Atestado -->
@@ -6338,23 +6342,40 @@ window.selectCID = function (code, desc) {
 }
 
 window.triggerAtestadoUpload = function () {
-    if (!selectedCID) {
-        alert('Selecione primeiro qual é o CID (código) do atestado digitando na barra de busca!');
-        const s = document.getElementById('cid-search');
-        if (s) { s.focus(); s.style.border = '2px solid red'; setTimeout(() => s.style.border = '', 2000); }
-        return;
+    const tipo = document.getElementById('atestado_tipo')?.value || 'dias';
+    if (tipo === 'horas') {
+        const titulo = document.getElementById('atestado-titulo-horas')?.value?.trim();
+        if (!titulo) {
+            alert('Digite o título do atestado de horas!');
+            const s = document.getElementById('atestado-titulo-horas');
+            if (s) { s.focus(); s.style.border = '2px solid red'; setTimeout(() => s.style.border = '', 2000); }
+            return;
+        }
+    } else {
+        if (!selectedCID) {
+            alert('Selecione primeiro qual é o CID (código) do atestado digitando na barra de busca!');
+            const s = document.getElementById('cid-search');
+            if (s) { s.focus(); s.style.border = '2px solid red'; setTimeout(() => s.style.border = '', 2000); }
+            return;
+        }
     }
     document.getElementById('cid-file-input').click();
 }
 
 window.toggleAtestadoPeriodFields = function () {
     const tipo = document.getElementById('atestado_tipo').value;
+    const cidWrap = document.getElementById('cid-field-wrap');
+    const tituloWrap = document.getElementById('titulo-field-wrap');
     if (tipo === 'dias') {
         document.getElementById('atestado-dias-fields').style.display = 'flex';
         document.getElementById('atestado-horas-fields').style.display = 'none';
+        if (cidWrap) cidWrap.style.display = '';
+        if (tituloWrap) tituloWrap.style.display = 'none';
     } else {
         document.getElementById('atestado-dias-fields').style.display = 'none';
         document.getElementById('atestado-horas-fields').style.display = 'flex';
+        if (cidWrap) cidWrap.style.display = 'none';
+        if (tituloWrap) tituloWrap.style.display = '';
     }
 }
 
@@ -6388,9 +6409,19 @@ window.uploadAtestadoWithCID = async function (inputEl) {
     const aa = String(today.getFullYear()).slice(2);
     const nomeColabNorm = (viewedColaborador.nome_completo || viewedColaborador.nome || 'COLAB')
         .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
-    const customName = `${selectedCID.code}_${nomeColabNorm}_${dd}${mm}${aa}`;
 
-    const typeIn = `${selectedCID.code} - ${selectedCID.desc.substring(0, 60)}`;
+    const tipo = document.getElementById('atestado_tipo').value;
+    let customName, typeIn;
+    if (tipo === 'horas') {
+        const titulo = (document.getElementById('atestado-titulo-horas')?.value?.trim() || 'Atestado de Horas');
+        const tituloNorm = titulo.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_').substring(0, 30);
+        customName = `HORAS_${tituloNorm}_${nomeColabNorm}_${dd}${mm}${aa}`;
+        typeIn = titulo;
+    } else {
+        customName = `${selectedCID.code}_${nomeColabNorm}_${dd}${mm}${aa}`;
+        typeIn = `${selectedCID.code} - ${selectedCID.desc.substring(0, 60)}`;
+    }
+
     const year = document.getElementById('atestados_year') ? document.getElementById('atestados_year').value : today.getFullYear().toString();
 
     const formData = new FormData();
