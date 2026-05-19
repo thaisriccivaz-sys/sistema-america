@@ -8,14 +8,18 @@
  *  3. Faz o match com os colaboradores cadastrados no banco
  *  4. Gera PDFs individuais por colaborador
  *  5. Envia para assinatura via Assinafy (mesmo fluxo de documentos existente)
+ *
+ * IMPORTANTE: usa o pacote "pdfreader" (CJS puro) em vez de pdf-parse / pdfjs-dist,
+ * pois esses últimos travam indefinidamente no servidor Linux (Render) com certos PDFs.
  */
 
 'use strict';
 
-const fs      = require('fs');
-const path    = require('path');
+const fs            = require('fs');
+const path          = require('path');
+const { PdfReader } = require('pdfreader');
 const { PDFDocument } = require('pdf-lib');
-const db      = require('./database');
+const db            = require('./database');
 
 // Normaliza string para comparação: remove acentos, caixa alta, espaços extras
 function normalizarNome(str) {
@@ -28,23 +32,24 @@ function normalizarNome(str) {
 }
 
 // Extrai nome do colaborador do texto de uma página do PDF
-// O PDF de adiantamento contém "Nome do Funcionário" seguido do nome em maiúsculas
-function extrairNomeDaPagina(texto, tipoDocumento) {
+// O PDF de adiantamento contém "Código NOME Nome do Funcionário" na mesma linha
+function extrairNomeDaPagina(texto) {
     if (!texto) return null;
 
-    // Padrão 1: "Nome do Funcionário\nNOME AQUI" ou "Código NOME Nome do Funcionário"
     const padroes = [
+        // "Código ABNER ABRAHÃO Nome do Funcionário" — padrão principal dos holerites
         /C[óo]digo\s+([A-ZÁÀÂÃÉÊÍÓÔÕÚÙÜÇÑ][A-ZÁÀÂÃÉÊÍÓÔÕÚÙÜÇÑ \-']{2,60})\s+Nome\s+do\s+Funcion[aá]rio/i,
+        // "Nome do Funcionário\nNOME AQUI"
         /Nome\s+do\s+Funcion[aá]rio\s*[\n\r]+\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÙÜÇÑ][A-ZÁÀÂÃÉÊÍÓÔÕÚÙÜÇÑ \-']{2,60})/i,
+        // "Nome do Funcionário NOME AQUI" (sem quebra)
         /Nome\s+do\s+Funcion[aá]rio\s+([A-ZÁÀÂÃÉÊÍÓÔÕÚÙÜÇÑ][A-ZÁÀÂÃÉÊÍÓÔÕÚÙÜÇÑ \-']{2,60})/i,
-        // Padrão alternativo: texto pode vir colado
-        /Funcion[aá]rio\s*([A-Z][A-ZÁÀÂÃÉÊÍÓÔÕÚÙÜÇÑ \-']{2,60})(?:\s*CBO|\s*Código|\s*\d)/i,
+        // Fallback: texto colado antes de CBO ou Código
+        /Funcion[aá]rio\s*([A-Z][A-ZÁÀÂÃÉÊÍÓÔÕÚÙÜÇÑ \-']{2,60})(?:\s*CBO|\s*C[óo]digo|\s*\d)/i,
     ];
 
     for (const regex of padroes) {
         const match = texto.match(regex);
         if (match && match[1]) {
-            // Limpa espaços extras e valida que parece um nome
             const nome = match[1].trim().replace(/\s+/g, ' ');
             if (nome.length >= 4 && nome.includes(' ')) {
                 return nome;
@@ -57,7 +62,6 @@ function extrairNomeDaPagina(texto, tipoDocumento) {
     for (let i = 0; i < linhas.length; i++) {
         const linha = linhas[i].trim();
         if (/Funcion[aá]rio/i.test(linha)) {
-            // Pega próximas linhas até achar um nome válido
             for (let j = i + 1; j <= i + 5 && j < linhas.length; j++) {
                 const candidato = linhas[j].trim();
                 if (/^[A-ZÁÀÂÃÉÊÍÓÔÕÚÙÜÇÑ][A-ZÁÀÂÃÉÊÍÓÔÕÚÙÜÇÑ \-']{3,}$/.test(candidato) && candidato.includes(' ')) {
@@ -87,7 +91,7 @@ function buscarColaboradorPorNome(nomeExtraido, todosColaboradores) {
     });
     if (encontrado) return { colaborador: encontrado, confianca: 'parcial' };
 
-    // Match por primeiras palavras (primeiro e último nome)
+    // Match por primeiro e último nome
     const partes = nomeNorm.split(' ').filter(Boolean);
     if (partes.length >= 2) {
         const primeiro = partes[0];
@@ -103,57 +107,60 @@ function buscarColaboradorPorNome(nomeExtraido, todosColaboradores) {
 }
 
 /**
+ * Extrai texto por página do PDF usando o pacote pdfreader (CJS puro, sem bugs no Linux).
+ * Retorna um array onde pageTexts[0] = texto da página 1, etc.
+ */
+function extrairTextosPorPagina(bufferPDF) {
+    return new Promise((resolve, reject) => {
+        const pageTexts = [];
+        let currentPage = 0;
+
+        new PdfReader().parseBuffer(bufferPDF, (err, item) => {
+            if (err) {
+                return reject(new Error('Falha na leitura do PDF: ' + err.message));
+            }
+            if (!item) {
+                // Fim do arquivo
+                return resolve(pageTexts);
+            }
+            if (item.page) {
+                currentPage = item.page;
+                pageTexts[currentPage - 1] = ''; // inicializa página (índice 0-based)
+            } else if (item.text && currentPage > 0) {
+                pageTexts[currentPage - 1] += item.text + ' ';
+            }
+        });
+    });
+}
+
+/**
  * Processa o PDF consolidado:
  * - Extrai texto de cada página
  * - Detecta nome do colaborador
  * - Faz match com banco de dados
- * Retorna array de { pagina, nomeDetectado, colaborador, confianca }
+ * Retorna { totalPaginas, resultado[], totalColaboradores }
  */
 async function processarPDF(bufferPDF, tipoDocumento) {
-    // 1. Extrair texto por página
-    const pageTexts = [];
-    let totalPaginas = 0;
+    console.log('[PAGAMENTOS-MASSA] Iniciando extração de texto via pdfreader...');
+    const t0 = Date.now();
 
+    let pageTexts;
     try {
-        console.log('[PAGAMENTOS-MASSA] Iniciando extração de texto via pdfjs-dist...');
-        const t0 = Date.now();
-        
-        const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-        const doc = await pdfjs.getDocument({
-            data: new Uint8Array(bufferPDF),
-            disableFontFace: true,
-            standardFontDataUrl: 'node_modules/pdfjs-dist/standard_fonts/'
-        }).promise;
-        
-        totalPaginas = doc.numPages;
-        
-        for (let i = 1; i <= totalPaginas; i++) {
-            const page = await doc.getPage(i);
-            const textContent = await page.getTextContent();
-            
-            // Reconstruir o texto da página usando a mesma lógica que o regex espera
-            let lastY, text = '';
-            for (let item of textContent.items) {
-                if (lastY == item.transform[5] || !lastY) {
-                    text += item.str;
-                } else {
-                    text += '\n' + item.str;
-                }    
-                lastY = item.transform[5];
-            }
-            
-            pageTexts.push(text);
-        }
-        
-        console.log(`[PAGAMENTOS-MASSA] Extração concluída em ${Date.now() - t0}ms. Total de páginas: ${totalPaginas}`);
+        pageTexts = await extrairTextosPorPagina(bufferPDF);
     } catch (e) {
-        console.error(`[PAGAMENTOS-MASSA] Falhou ao extrair texto do PDF:`, e.message);
-        throw new Error('Falha ao extrair texto do PDF: ' + e.message);
+        console.error('[PAGAMENTOS-MASSA] Falha ao extrair texto:', e.message);
+        throw e;
     }
 
-    console.log('[PAGAMENTOS-MASSA] Buscando colaboradores no banco...');
+    const totalPaginas = pageTexts.length;
+    console.log(`[PAGAMENTOS-MASSA] Extração concluída em ${Date.now() - t0}ms. Total de páginas: ${totalPaginas}`);
 
-    // 2. Buscar todos colaboradores ativos do banco
+    if (totalPaginas === 0) {
+        throw new Error('O PDF não contém páginas legíveis. Verifique se o arquivo está correto.');
+    }
+
+    // Buscar todos colaboradores ativos do banco
+    console.log('[PAGAMENTOS-MASSA] Buscando colaboradores no banco...');
     const colaboradores = await new Promise((resolve, reject) => {
         db.all(
             `SELECT id, nome_completo, email, email_corporativo, departamento, cargo
@@ -165,22 +172,22 @@ async function processarPDF(bufferPDF, tipoDocumento) {
         );
     });
 
-    // 3. Processar cada página
+    // Processar cada página
     const resultado = [];
     for (let i = 0; i < totalPaginas; i++) {
         const texto = pageTexts[i] || '';
-        const nomeDetectado = extrairNomeDaPagina(texto, tipoDocumento);
+        const nomeDetectado = extrairNomeDaPagina(texto);
         const match = nomeDetectado ? buscarColaboradorPorNome(nomeDetectado, colaboradores) : null;
 
         resultado.push({
-            pagina: i + 1,               // número da página (1-indexed)
-            nomeDetectado: nomeDetectado || null,
-            colaborador_id: match?.colaborador?.id || null,
+            pagina:           i + 1,
+            nomeDetectado:    nomeDetectado || null,
+            colaborador_id:   match?.colaborador?.id || null,
             colaborador_nome: match?.colaborador?.nome_completo || null,
             colaborador_email: match?.colaborador?.email || match?.colaborador?.email_corporativo || null,
-            departamento: match?.colaborador?.departamento || null,
-            cargo: match?.colaborador?.cargo || null,
-            confianca: match?.confianca || null, // 'exato', 'parcial', 'aproximado', null
+            departamento:     match?.colaborador?.departamento || null,
+            cargo:            match?.colaborador?.cargo || null,
+            confianca:        match?.confianca || null, // 'exato', 'parcial', 'aproximado', null
         });
     }
 
@@ -201,18 +208,15 @@ async function extrairPagina(bufferPDF, numeroPagina) {
 
 /**
  * Salva o PDF individual no disco e insere no banco de dados
- * Retorna o docId inserido
+ * Retorna { docId, filePath }
  */
 async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nomeArquivo, tipoDocumento, ano, mes, basePath }) {
-    // Diretório de destino
-    const safeColab = nomeColab.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '_').replace(/_+/g, '_');
     const colabDir = path.join(basePath, `colab_${colaboradorId}`);
     if (!fs.existsSync(colabDir)) fs.mkdirSync(colabDir, { recursive: true });
 
     const filePath = path.join(colabDir, nomeArquivo);
     fs.writeFileSync(filePath, bufferPDF);
 
-    // Inserir no banco
     const docId = await new Promise((resolve, reject) => {
         db.run(
             `INSERT INTO documentos
