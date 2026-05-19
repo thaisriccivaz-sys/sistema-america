@@ -90,30 +90,31 @@ function uploadForm(urlPath, form) {
 // IMPORTANTE: A API Assinafy pode ignorar o filtro ?email= e retornar todos os signatários.
 // Por isso validamos SEMPRE que o e-mail do resultado bate exatamente com o solicitado.
 async function resolverSignatario({ full_name, email, tax_id, whatsapp_phone_number }) {
+    const emailLower = email.toLowerCase();
+
     // 1. Tentar encontrar pelo e-mail exato
     const searchByEmail = await req('GET', `/v1/accounts/${ACCOUNT_ID}/signers?email=${encodeURIComponent(email)}`, null);
-    const listaEmail = searchByEmail.json?.data || [];
-    // Validar que o retorno realmente tem o e-mail correto (API pode ignorar o filtro)
-    const exactEmailMatch = Array.isArray(listaEmail)
-        ? listaEmail.find(s => s.email && s.email.toLowerCase() === email.toLowerCase())
-        : null;
+    const listaEmail = Array.isArray(searchByEmail.json?.data)
+        ? searchByEmail.json.data
+        : (searchByEmail.json?.data ? [searchByEmail.json.data] : []);
+    const exactEmailMatch = listaEmail.find(s => s.email && s.email.toLowerCase() === emailLower);
     if (exactEmailMatch) {
         console.log(`[SIGNER] Encontrado por e-mail: ID=${exactEmailMatch.id} (${email})`);
         return exactEmailMatch.id;
     }
 
     // 2. Tentar encontrar pelo CPF
-    const searchByCpf = await req('GET', `/v1/accounts/${ACCOUNT_ID}/signers?tax_id=${tax_id}`, null);
-    const listaCpf = searchByCpf.json?.data || [];
-    // Validar que o retorno realmente tem o CPF correto (API pode ignorar o filtro)
-    const exactCpfMatch = Array.isArray(listaCpf)
-        ? listaCpf.find(s => s.tax_id && s.tax_id.replace(/\D/g, '') === tax_id)
-        : null;
+    const cpfClean = (tax_id || '').replace(/\D/g, '');
+    const searchByCpf = await req('GET', `/v1/accounts/${ACCOUNT_ID}/signers?tax_id=${cpfClean}`, null);
+    const listaCpf = Array.isArray(searchByCpf.json?.data)
+        ? searchByCpf.json.data
+        : (searchByCpf.json?.data ? [searchByCpf.json.data] : []);
+    const exactCpfMatch = listaCpf.find(s => s.tax_id && s.tax_id.replace(/\D/g, '') === cpfClean);
 
     if (exactCpfMatch) {
         const id = exactCpfMatch.id;
         const emailAtual = exactCpfMatch.email;
-        if (emailAtual.toLowerCase() === email.toLowerCase()) {
+        if (emailAtual.toLowerCase() === emailLower) {
             console.log(`[SIGNER] Encontrado por CPF com e-mail correto: ID=${id} (${email})`);
             return id;
         }
@@ -137,12 +138,38 @@ async function resolverSignatario({ full_name, email, tax_id, whatsapp_phone_num
         full_name, email, tax_id,
         ...(whatsapp_phone_number ? { whatsapp_phone_number } : {})
     });
-    if (r.status < 200 || r.status >= 300)
-        throw new Error(`Erro ao criar signatário (HTTP ${r.status}): ${r.json?.message || r.raw.substring(0, 150)}`);
-    const newId = r.json?.data?.id || r.json?.id;
-    console.log(`[SIGNER] Criado ID=${newId}`);
-    return newId;
+
+    // Sucesso
+    if (r.status >= 200 && r.status < 300) {
+        const newId = r.json?.data?.id || r.json?.id;
+        console.log(`[SIGNER] Criado ID=${newId}`);
+        return newId;
+    }
+
+    // HTTP 400 "já existe" — buscar na lista completa como último recurso
+    const msgLower = (r.json?.message || r.raw || '').toLowerCase();
+    if (r.status === 400 && (msgLower.includes('já existe') || msgLower.includes('ja existe') || msgLower.includes('already exist'))) {
+        console.warn(`[SIGNER] POST 400 "já existe". Buscando signatário na lista completa por e-mail...`);
+        const listaTodos = await req('GET', `/v1/accounts/${ACCOUNT_ID}/signers`, null);
+        const todos = Array.isArray(listaTodos.json?.data)
+            ? listaTodos.json.data
+            : (listaTodos.json?.data ? [listaTodos.json.data] : []);
+        const encontrado = todos.find(s => s.email && s.email.toLowerCase() === emailLower);
+        if (encontrado) {
+            console.log(`[SIGNER] Encontrado na lista completa: ID=${encontrado.id} (${email})`);
+            return encontrado.id;
+        }
+        // Se ainda assim não encontrou, buscar com paginação
+        const encontradoPag = (listaTodos.json?.data?.data || []).find(s => s.email && s.email.toLowerCase() === emailLower);
+        if (encontradoPag) {
+            console.log(`[SIGNER] Encontrado via paginação: ID=${encontradoPag.id} (${email})`);
+            return encontradoPag.id;
+        }
+    }
+
+    throw new Error(`Erro ao criar signatário (HTTP ${r.status}): ${r.json?.message || r.raw.substring(0, 150)}`);
 }
+
 
 // ─── FUNÇÃO PRINCIPAL ─────────────────────────────────────────────────────────
 async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
