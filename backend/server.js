@@ -2680,6 +2680,26 @@ app.get('/api/test/america', authenticateToken, async (req, res) => {
 });
 
 /**
+ * ROTA DE DIAGNÓSTICO: Buscar colaborador por e-mail
+ * GET /api/maintenance/buscar-email?email=xxx
+ */
+app.get('/api/maintenance/buscar-email', authenticateToken, (req, res) => {
+    const addr = (req.query.email || '').toLowerCase().trim();
+    if (!addr) return res.status(400).json({ error: 'Parâmetro ?email= obrigatório' });
+    db.all(
+        `SELECT id, nome_completo, email, email_corporativo, status, departamento, cargo
+         FROM colaboradores
+         WHERE LOWER(email) LIKE ? OR LOWER(email_corporativo) LIKE ?
+         ORDER BY nome_completo`,
+        [`%${addr}%`, `%${addr}%`],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ email_buscado: addr, total: rows.length, colaboradores: rows });
+        }
+    );
+});
+
+/**
  * ROTA DE DIAGNÓSTICO: Verificar Persistência do Banco
  */
 app.get('/api/maintenance/db-info', authenticateToken, (req, res) => {

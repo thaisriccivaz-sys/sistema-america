@@ -2473,6 +2473,7 @@ function aplicarFiltrosColaboradores() {
 
     const f = {
         nome: (document.getElementById('f-nome')?.value || '').toLowerCase().trim(),
+        email: (document.getElementById('f-email')?.value || '').toLowerCase().trim(),
         cpf: (document.getElementById('f-cpf')?.value || '').replace(/\D/g, ''),
         nascIni: document.getElementById('f-nasc-ini')?.value || '',
         nascFim: document.getElementById('f-nasc-fim')?.value || '',
@@ -2496,6 +2497,7 @@ function aplicarFiltrosColaboradores() {
 
     const lista = _todosColaboradores.filter(c => {
         if (f.nome && !(c.nome_completo || '').toLowerCase().includes(f.nome)) return false;
+        if (f.email && !((c.email || '') + '|' + (c.email_corporativo || '')).toLowerCase().includes(f.email)) return false;
         if (f.cpf && !(c.cpf || '').replace(/\D/g, '').includes(f.cpf)) return false;
         if (f.nascIni && c.data_nascimento && c.data_nascimento < f.nascIni) return false;
         if (f.nascFim && c.data_nascimento && c.data_nascimento > f.nascFim) return false;
@@ -2883,6 +2885,10 @@ function renderColaboradores(lista) {
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">CPF</label>
                     <input id="f-cpf" type="text" placeholder="Pesquisar CPF..." oninput="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">E-mail</label>
+                    <input id="f-email" type="text" placeholder="Pesquisar e-mail..." oninput="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                 </div>
                 <div style="display:flex; gap:1rem;">
                     <div style="flex:1;">
