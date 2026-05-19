@@ -14,9 +14,6 @@
 
 const fs      = require('fs');
 const path    = require('path');
-// pdf-parse tem bug em produção: tenta ler arquivo de teste na inicialização.
-// Usar o caminho interno evita esse problema.
-const pdfParse = require('pdf-parse/lib/pdf-parse.js');
 const { PDFDocument } = require('pdf-lib');
 const db      = require('./database');
 
