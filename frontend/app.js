@@ -14867,8 +14867,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">COLABORADOR</th>
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">DEPARTAMENTO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">MATCH</th>
-                      <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">E-MAIL</th>
-                    </tr>
+                     </tr>
                   </thead>
                   <tbody id="pm-tbody"></tbody>
                 </table>
@@ -15079,12 +15078,8 @@ window.reenviarAssinatura = async function (id, source, btn) {
                 <td style="padding:0.5rem 0.75rem;">
                   <span style="background:${bg};padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:600;">${matchLabels[item.confianca]||matchLabels[null]}</span>
                 </td>
-                <td style="padding:0.5rem 0.75rem;text-align:center;">
-                  <input type="checkbox" ${item.enviarEmail?'checked':''} onchange="window._pmToggleEmail(${realIdx},this.checked)"
-                    style="width:15px;height:15px;cursor:pointer;" title="Enviar e-mail para assinatura" ${!item.colaborador_id||!item.selecionado?'disabled':''}>
-                </td>
             </tr>`;
-        }).join('') || '<tr><td colspan="7" style="text-align:center;padding:2rem;color:#9ca3af;">Nenhum item encontrado com os filtros.</td></tr>';
+        }).join('') || '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#9ca3af;">Nenhum item encontrado com os filtros.</td></tr>';
     }
 
     // ── Helpers de estado ──────────────────────────────────────────────────────
@@ -15144,7 +15139,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
                     itens: itensSelecionados.map(i => ({
                         pagina: i.pagina,
                         colaborador_id: i.colaborador_id,
-                        enviarEmail: i.enviarEmail !== false,
+                        enviarEmail: true, // sempre envia - selecionado = deve enviar
                     })),
                 }),
             });

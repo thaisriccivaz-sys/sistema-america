@@ -182,12 +182,12 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
     if (!doc)   throw new Error('Documento não encontrado no banco.');
     if (!colab) throw new Error('Colaborador não encontrado no banco.');
 
-    const email = (colab.email || '').trim();
+    const email = (colab.email || colab.email_corporativo || '').trim();
     const cpf   = (colab.cpf   || '').replace(/\D/g, '');
     const fone  = (colab.telefone || '').replace(/\D/g, '');
     const nome  = colab.nome_completo || 'Colaborador';
 
-    if (!email) throw new Error(`Colaborador "${nome}" não tem e-mail cadastrado.`);
+    if (!email) throw new Error(`Colaborador "${nome}" não tem e-mail cadastrado (nem e-mail pessoal, nem corporativo).`);
     if (!cpf)   throw new Error('CPF do colaborador é obrigatório.');
 
     console.log(`[1] ${nome} | email=${email} | CPF: ${cpf}`);
