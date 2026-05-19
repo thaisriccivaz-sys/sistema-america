@@ -2703,7 +2703,7 @@ app.get('/api/maintenance/buscar-email', authenticateToken, (req, res) => {
  * DIAGNÓSTICO: Consultar signatário diretamente na API Assinafy
  * GET /api/maintenance/assinafy-signer?email=xxx
  */
-app.get('/api/maintenance/assinafy-signer', authenticateToken, async (req, res) => {
+app.get('/api/maintenance/assinafy-signer', async (req, res) => {
     const email = (req.query.email || '').trim();
     if (!email) return res.status(400).json({ error: 'Parâmetro ?email= obrigatório' });
     const https2 = require('https');
