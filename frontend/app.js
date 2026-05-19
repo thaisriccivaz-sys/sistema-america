@@ -14752,30 +14752,26 @@ window.reenviarAssinatura = async function (id, source, btn) {
           <!-- Corpo scrollável -->
           <div style="flex:1;overflow:auto;padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1.25rem;">
 
-            <!-- ETAPA 1: Upload -->
+            <!-- ETAPA 1: Tipo de Documento (OBRIGATÓRIO primeiro) -->
             <div id="pm-upload-section" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.5rem;">
               <h3 style="margin:0 0 1rem;font-size:0.95rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:0.5rem;">
                 <span style="background:#f503c5;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">1</span>
-                Selecionar PDF Consolidado
+                Configurar e Selecionar PDF
               </h3>
-              <div id="pm-dropzone"
-                style="border:2px dashed #d1d5db;border-radius:10px;padding:2.5rem 1rem;text-align:center;cursor:pointer;transition:all 0.2s;background:#f8fafc;"
-                onclick="document.getElementById('pm-file-input').click()"
-                ondragover="event.preventDefault();this.style.borderColor='#f503c5';this.style.background='#fdf4ff';"
-                ondragleave="this.style.borderColor='#d1d5db';this.style.background='#f8fafc';"
-                ondrop="window._pmHandleDrop(event)">
-                <i class="ph ph-file-pdf" style="font-size:3rem;color:#f503c5;display:block;margin-bottom:0.75rem;"></i>
-                <p style="margin:0;font-weight:600;color:#374151;">Arraste o PDF aqui ou clique para selecionar</p>
-                <p style="margin:0.25rem 0 0;font-size:0.8rem;color:#6b7280;">Apenas arquivos PDF • Máx. 50 MB</p>
-              </div>
-              <input id="pm-file-input" type="file" accept=".pdf" style="display:none" onchange="window._pmHandleFile(this.files[0])">
 
-              <!-- Tipo de documento -->
-              <div style="display:flex;gap:1rem;margin-top:1rem;flex-wrap:wrap;">
-                <div style="flex:1;min-width:200px;">
-                  <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Tipo de Documento</label>
-                  <select id="pm-tipo-doc" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
+              <!-- Tipo de documento PRIMEIRO -->
+              <div style="display:flex;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap;padding:1rem;background:#fdf4ff;border:1px solid #f9a8d4;border-radius:10px;">
+                <div style="flex:2;min-width:200px;">
+                  <label style="font-size:0.75rem;font-weight:700;color:#86198f;display:block;margin-bottom:4px;">⚠️ Tipo de Documento <span style="color:#ef4444;">*</span></label>
+                  <select id="pm-tipo-doc" onchange="window._pmOnTipoChange()" style="width:100%;padding:0.5rem;border:2px solid #f9a8d4;border-radius:8px;font-size:0.85rem;background:#fff;font-weight:600;">
+                    <option value="">-- Selecione o tipo antes de anexar --</option>
                     <option value="Holerite Adiantamento">Holerite Adiantamento</option>
+                    <option value="Holerite Salario">Holerite Salário</option>
+                    <option value="Ferias">Férias</option>
+                    <option value="Rescisao">Rescisão / FGTS</option>
+                    <option value="Vale Alimentacao">Vale Alimentação</option>
+                    <option value="Vale Transporte">Vale Transporte</option>
+                    <option value="Outro">Outro</option>
                   </select>
                 </div>
                 <div style="flex:1;min-width:120px;">
@@ -14791,6 +14787,19 @@ window.reenviarAssinatura = async function (id, source, btn) {
                     style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
                 </div>
               </div>
+
+              <!-- Dropzone (bloqueado até escolher tipo) -->
+              <div id="pm-dropzone"
+                style="border:2px dashed #d1d5db;border-radius:10px;padding:2.5rem 1rem;text-align:center;cursor:not-allowed;transition:all 0.2s;background:#f1f5f9;opacity:0.5;"
+                onclick="window._pmDropzoneClick()"
+                ondragover="event.preventDefault();if(window._pmTipoOk()){this.style.borderColor='#f503c5';this.style.background='#fdf4ff';}"
+                ondragleave="this.style.borderColor='#d1d5db';this.style.background=window._pmTipoOk()?'#f8fafc':'#f1f5f9';"
+                ondrop="window._pmHandleDrop(event)">
+                <i class="ph ph-file-pdf" style="font-size:3rem;color:#94a3b8;display:block;margin-bottom:0.75rem;"></i>
+                <p style="margin:0;font-weight:600;color:#94a3b8;">Selecione o tipo de documento acima primeiro</p>
+                <p style="margin:0.25rem 0 0;font-size:0.8rem;color:#94a3b8;">Apenas arquivos PDF • Máx. 50 MB</p>
+              </div>
+              <input id="pm-file-input" type="file" accept=".pdf" style="display:none" onchange="window._pmHandleFile(this.files[0])">
 
               <div id="pm-processing" style="display:none;margin-top:1rem;padding:1rem;background:#f0fdf4;border-radius:8px;color:#166534;font-size:0.85rem;">
                 <i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i>
@@ -14898,6 +14907,41 @@ window.reenviarAssinatura = async function (id, source, btn) {
             .catch(() => {});
     };
 
+    // ── Controle do tipo de documento ─────────────────────────────────────────
+    window._pmTipoOk = function() {
+        const t = document.getElementById('pm-tipo-doc');
+        return t && t.value !== '';
+    };
+
+    window._pmOnTipoChange = function() {
+        const dz = document.getElementById('pm-dropzone');
+        if (!dz) return;
+        if (window._pmTipoOk()) {
+            dz.style.cursor    = 'pointer';
+            dz.style.opacity   = '1';
+            dz.style.background = '#f8fafc';
+            dz.querySelector('i').style.color = '#f503c5';
+            dz.querySelectorAll('p').forEach(p => p.style.color = p === dz.querySelector('p') ? '#374151' : '#6b7280');
+            dz.querySelector('p').textContent = 'Arraste o PDF aqui ou clique para selecionar';
+            dz.querySelectorAll('p')[1].textContent = 'Apenas arquivos PDF • Máx. 50 MB';
+        } else {
+            dz.style.cursor    = 'not-allowed';
+            dz.style.opacity   = '0.5';
+            dz.style.background = '#f1f5f9';
+        }
+    };
+
+    window._pmDropzoneClick = function() {
+        if (!window._pmTipoOk()) {
+            Swal.fire({ icon:'warning', title:'Selecione o tipo', text:'Escolha o Tipo de Documento antes de anexar o PDF.', timer:2500, showConfirmButton:false });
+            document.getElementById('pm-tipo-doc').focus();
+            document.getElementById('pm-tipo-doc').style.borderColor = '#ef4444';
+            setTimeout(()=>{ const s=document.getElementById('pm-tipo-doc'); if(s) s.style.borderColor='#f9a8d4'; }, 2000);
+            return;
+        }
+        document.getElementById('pm-file-input').click();
+    };
+
     // ── Drag & drop ────────────────────────────────────────────────────────────
     window._pmHandleDrop = function (e) {
         e.preventDefault();
@@ -14908,6 +14952,10 @@ window.reenviarAssinatura = async function (id, source, btn) {
     };
 
     window._pmHandleFile = async function (file) {
+        if (!window._pmTipoOk()) {
+            Swal.fire({ icon:'warning', title:'Selecione o tipo', text:'Escolha o Tipo de Documento antes de anexar o PDF.', timer:2500, showConfirmButton:false });
+            return;
+        }
         if (!file || file.type !== 'application/pdf') {
             alert('Por favor selecione um arquivo PDF válido.'); return;
         }
@@ -14923,6 +14971,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
         dz.innerHTML = `<i class="ph ph-file-pdf" style="font-size:2.5rem;color:#f503c5;display:block;margin-bottom:0.5rem;"></i>
             <p style="margin:0;font-weight:700;color:#374151;">${file.name}</p>
             <p style="margin:0.25rem 0 0;font-size:0.8rem;color:#6b7280;">${(file.size/1024/1024).toFixed(2)} MB • Clique para trocar</p>`;
+        dz.onclick = window._pmDropzoneClick;
 
         // Processar
         document.getElementById('pm-processing').style.display = 'block';
@@ -14934,13 +14983,20 @@ window.reenviarAssinatura = async function (id, source, btn) {
                 headers: { Authorization: 'Bearer ' + localStorage.getItem('token') },
                 body: formData,
             });
+            // Verificar se a resposta é JSON antes de parsear
+            const contentType = r.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                const text = await r.text();
+                console.error('[PM] Resposta inesperada do servidor:', text.substring(0, 200));
+                throw new Error(`Servidor retornou status ${r.status}. Verifique se o backend está online.`);
+            }
             const data = await r.json();
             if (!r.ok) throw new Error(data.error || 'Erro ao processar');
             document.getElementById('pm-processing').style.display = 'none';
             _pmCarregarResultado(data.resultado);
         } catch (e) {
             document.getElementById('pm-processing').style.display = 'none';
-            alert('Erro ao processar PDF: ' + e.message);
+            Swal.fire({ icon:'error', title:'Erro ao processar PDF', text: e.message });
         }
     };
 
