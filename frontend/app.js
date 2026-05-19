@@ -414,7 +414,7 @@ const BREADCRUMB_MAP = {
     // Telas principais
     'integracao': { path: 'Integração', code: 'RHAD06' },
     'assinaturas-digitais': { path: 'Assinaturas Digitais', code: 'RHAD07' },
-    'pagamentos-massa': { path: 'Envio em Massa de Pagamentos', code: 'RHPG01' },
+    'pagamentos-massa': { path: 'Docs em Massa', code: 'RHPG01' },
     'dashboard': { path: 'Dashboard', code: 'RH001' },
     'colaboradores': { path: 'Colaboradores', code: 'RHCL00' },
     'form-colaborador': { path: 'Colaboradores → Cadastro / Edição' },
@@ -653,7 +653,7 @@ const TAB_META = {
     'ficha-epi': { color: '#f503c5', icon: 'ph-shield-check', title: 'Ficha EPI' },
     'gerenciar-avaliacoes': { color: '#f503c5', icon: 'ph-clipboard-text', title: 'Avaliações' },
     'assinaturas-digitais': { color: '#f503c5', icon: 'ph-signature', title: 'Assinaturas' },
-    'pagamentos-massa': { color: '#f503c5', icon: 'ph-currency-dollar', title: 'Pag. em Massa' },
+    'pagamentos-massa': { color: '#f503c5', icon: 'ph-currency-dollar', title: 'Docs em Massa' },
     'dissidio': { color: '#f503c5', icon: 'ph-trend-up', title: 'Dissídio' },
     'ferias': { color: '#f503c5', icon: 'ph-airplane-tilt', title: 'Férias' },
     'experiencia': { color: '#f503c5', icon: 'ph-user-check', title: 'Experiência' },

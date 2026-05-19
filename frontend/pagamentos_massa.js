@@ -1,6 +1,6 @@
 /**
  * pagamentos_massa.js
- * Módulo de Pagamentos em Massa — RH
+ * Módulo de Docs em Massa — RH
  *
  * Permite selecionar colaboradores ativos, definir tipo de pagamento,
  * valor/percentual, e exportar planilha para repasse à contabilidade.
@@ -52,7 +52,7 @@
       "><i class="ph ph-currency-dollar"></i></div>
       <div>
         <h2 style="margin:0;font-size:1.15rem;color:#1e293b;font-weight:700;">
-            Pagamentos em Massa</h2>
+            Docs em Massa</h2>
         <p style="margin:0;font-size:0.8rem;color:#64748b;">
             Selecione colaboradores e defina os valores para repasse</p>
       </div>
