@@ -15109,6 +15109,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
         item.colaborador_nome = colab?.nome_completo || null;
         item.departamento = colab?.departamento || null;
         item.cargo = colab?.cargo || null;
+        item.setor = colab?.departamento_tipo || null; // 'Administrativo' ou 'Operacional'
         item.confianca = colabId ? 'manual' : null;
         item.selecionado = !!colabId;
         _pmFiltrar();
