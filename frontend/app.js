@@ -14952,6 +14952,10 @@ window.reenviarAssinatura = async function (id, source, btn) {
     };
 
     window._pmHandleFile = async function (file) {
+        // Permitir selecionar o mesmo arquivo novamente (resetando o input)
+        const fileInput = document.getElementById('pm-file-input');
+        if (fileInput) fileInput.value = '';
+
         if (!window._pmTipoOk()) {
             Swal.fire({ icon:'warning', title:'Selecione o tipo', text:'Escolha o Tipo de Documento antes de anexar o PDF.', timer:2500, showConfirmButton:false });
             return;
