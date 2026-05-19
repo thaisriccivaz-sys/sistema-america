@@ -118,28 +118,36 @@ async function processarPDF(bufferPDF, tipoDocumento) {
     let totalPaginas = 0;
 
     try {
-        console.log('[PAGAMENTOS-MASSA] Iniciando extração de texto via pdfreader...');
+        console.log('[PAGAMENTOS-MASSA] Iniciando extração de texto via pdfjs-dist...');
         const t0 = Date.now();
         
-        const { PdfReader } = require('pdfreader');
+        const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+        const doc = await pdfjs.getDocument({
+            data: new Uint8Array(bufferPDF),
+            disableFontFace: true,
+            standardFontDataUrl: 'node_modules/pdfjs-dist/standard_fonts/'
+        }).promise;
         
-        await new Promise((resolve, reject) => {
-            let currentPage = 0;
-            new PdfReader().parseBuffer(bufferPDF, function(err, item) {
-                if (err) {
-                    reject(err);
-                } else if (!item) {
-                    resolve();
-                } else if (item.page) {
-                    currentPage = item.page;
-                    pageTexts[currentPage - 1] = ''; // Inicializa a página
-                } else if (item.text && currentPage > 0) {
-                    pageTexts[currentPage - 1] += item.text + ' ';
-                }
-            });
-        });
+        totalPaginas = doc.numPages;
         
-        totalPaginas = pageTexts.length;
+        for (let i = 1; i <= totalPaginas; i++) {
+            const page = await doc.getPage(i);
+            const textContent = await page.getTextContent();
+            
+            // Reconstruir o texto da página usando a mesma lógica que o regex espera
+            let lastY, text = '';
+            for (let item of textContent.items) {
+                if (lastY == item.transform[5] || !lastY) {
+                    text += item.str;
+                } else {
+                    text += '\n' + item.str;
+                }    
+                lastY = item.transform[5];
+            }
+            
+            pageTexts.push(text);
+        }
+        
         console.log(`[PAGAMENTOS-MASSA] Extração concluída em ${Date.now() - t0}ms. Total de páginas: ${totalPaginas}`);
     } catch (e) {
         console.error(`[PAGAMENTOS-MASSA] Falhou ao extrair texto do PDF:`, e.message);
