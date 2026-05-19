@@ -5594,6 +5594,104 @@ db.run(`CREATE TABLE IF NOT EXISTS admissao_assinaturas (
     UNIQUE(colaborador_id, nome_documento)
 )`);
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENVIO EM MASSA DE DOCUMENTOS
+// ═══════════════════════════════════════════════════════════════════════════════
+let pagamentosMassa = null;
+try {
+    pagamentosMassa = require('./pagamentos_massa');
+    console.log('[PAGAMENTOS-MASSA] Módulo carregado com sucesso.');
+} catch (e) {
+    console.error('[PAGAMENTOS-MASSA] ERRO ao carregar módulo:', e.message);
+}
+const _massaJobs = {}; // jobId → { total, done, erros, resultados }
+
+// POST: Upload e processamento do PDF consolidado
+app.post('/api/pagamentos-massa/processar', authenticateToken, multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }).single('pdf'), async (req, res) => {
+    try {
+        if (!pagamentosMassa) return res.status(503).json({ error: 'Módulo de processamento PDF não disponível. Verifique os logs do servidor.' });
+        if (!req.file) return res.status(400).json({ error: 'Nenhum PDF enviado' });
+        const resultado = await pagamentosMassa.processarPDF(req.file.buffer);
+        res.json({ ok: true, ...resultado });
+    } catch (e) {
+        console.error('[PAGAMENTOS-MASSA] Erro ao processar PDF:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// POST: Enviar documentos individuais para assinatura (em massa)
+app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => {
+    const { pdfBase64, itens, tipoDocumento, ano, mes } = req.body;
+    if (!pdfBase64 || !itens || !itens.length) return res.status(400).json({ error: 'Parâmetros inválidos' });
+
+    const jobId = Date.now().toString();
+    _massaJobs[jobId] = { total: itens.length, done: 0, erros: 0, resultados: [] };
+    res.json({ ok: true, jobId }); // responde imediatamente
+
+    // Processa em background
+    const bufferPDF = Buffer.from(pdfBase64, 'base64');
+    const novoProcesso = require('./novo_processo_assinafy');
+    const tipo = tipoDocumento || 'Holerite Adiantamento';
+    const anoDoc = ano || String(new Date().getFullYear());
+    const mesDoc = mes || String(new Date().getMonth() + 1).padStart(2, '0');
+
+    for (const item of itens) {
+        try {
+            // 1. Extrair página individual
+            const bufPagina = await pagamentosMassa.extrairPagina(bufferPDF, item.pagina);
+
+            // 2. Buscar colaborador
+            const colab = await new Promise((resolve, reject) =>
+                db.get('SELECT * FROM colaboradores WHERE id = ?', [item.colaborador_id], (e, r) => e ? reject(e) : resolve(r))
+            );
+            if (!colab) throw new Error(`Colaborador ID ${item.colaborador_id} não encontrado`);
+
+            // 3. Gerar nome do arquivo
+            const safeNome = pagamentosMassa.normalizarNome(colab.nome_completo).replace(/\s+/g, '_');
+            const safeTipo = tipo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
+            const nomeArquivo = `${safeTipo}_${safeNome}_${mesDoc}${anoDoc}.pdf`;
+
+            // 4. Salvar no banco
+            const { docId, filePath } = await pagamentosMassa.salvarDocumentoNoBanco({
+                colaboradorId: item.colaborador_id,
+                nomeColab: colab.nome_completo,
+                bufferPDF: bufPagina,
+                nomeArquivo,
+                tipoDocumento: tipo,
+                ano: anoDoc,
+                mes: mesDoc,
+                basePath: BASE_UPLOAD_PATH,
+            });
+
+            // 5. Enviar para Assinafy (se solicitado)
+            let urlAssinatura = null;
+            if (item.enviarEmail !== false) {
+                const resultado = await novoProcesso.enviarDocumentoParaAssinafy(docId, item.colaborador_id);
+                urlAssinatura = resultado.urlAssinatura;
+            }
+
+            // 6. Upload OneDrive
+            try { await uploadDocToOneDrive(docId); } catch(e2) { console.warn('[PAGAMENTOS-MASSA] OneDrive skip:', e2.message); }
+
+            _massaJobs[jobId].done++;
+            _massaJobs[jobId].resultados.push({ colaborador_id: item.colaborador_id, nome: colab.nome_completo, ok: true, docId, urlAssinatura });
+        } catch (e) {
+            console.error(`[PAGAMENTOS-MASSA] Erro colab ${item.colaborador_id}:`, e.message);
+            _massaJobs[jobId].erros++;
+            _massaJobs[jobId].done++;
+            _massaJobs[jobId].resultados.push({ colaborador_id: item.colaborador_id, ok: false, erro: e.message });
+        }
+    }
+    _massaJobs[jobId].concluido = true;
+});
+
+// GET: Status do job de envio em massa
+app.get('/api/pagamentos-massa/status/:jobId', authenticateToken, (req, res) => {
+    const job = _massaJobs[req.params.jobId];
+    if (!job) return res.status(404).json({ error: 'Job não encontrado' });
+    res.json(job);
+});
+
 // GET: buscar assinaturas de um colaborador
 app.get('/api/admissao-assinaturas/:colaborador_id', authenticateToken, (req, res) => {
     db.all(`
