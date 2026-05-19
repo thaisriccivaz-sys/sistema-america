@@ -15060,13 +15060,15 @@ window.reenviarAssinatura = async function (id, source, btn) {
         tbody.innerHTML = itens.map((item, idx) => {
             const realIdx = _itensProcessados.indexOf(item);
             const bg = matchColors[item.confianca] || matchColors[null];
-            return `<tr style="border-bottom:1px solid #f1f5f9;${!item.colaborador_id?'opacity:0.7':''}">
+            const nomeColor = item.colaborador_id ? '#374151' : '#ef4444'; // Red if no match
+            const nomeWeight = item.colaborador_id ? 'normal' : '700';
+            return `<tr style="border-bottom:1px solid #f1f5f9;${!item.colaborador_id?'opacity:0.9':''}">
                 <td style="padding:0.5rem 0.75rem;text-align:center;">
                   <input type="checkbox" ${item.selecionado&&item.colaborador_id?'checked':''} ${!item.colaborador_id?'disabled':''} onchange="window._pmToggle(${realIdx},this.checked)"
                     style="width:15px;height:15px;cursor:pointer;">
                 </td>
                 <td style="padding:0.5rem 0.75rem;font-size:0.8rem;color:#64748b;font-weight:600;">${item.pagina}</td>
-                <td style="padding:0.5rem 0.75rem;font-size:0.82rem;color:#374151;">${item.nomeDetectado || '<span style="color:#9ca3af">Não detectado</span>'}</td>
+                <td style="padding:0.5rem 0.75rem;font-size:0.82rem;color:${nomeColor};font-weight:${nomeWeight};">${item.nomeDetectado || '<span style="color:#9ca3af">Não detectado</span>'}</td>
                 <td style="padding:0.5rem 0.75rem;">
                   <select onchange="window._pmCorrigirColab(${realIdx},this.value)"
                     style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.8rem;background:${bg};">

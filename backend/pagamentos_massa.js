@@ -160,7 +160,7 @@ async function processarPDF(bufferPDF, tipoDocumento) {
     // 2. Buscar todos colaboradores ativos do banco
     const colaboradores = await new Promise((resolve, reject) => {
         db.all(
-            `SELECT id, nome_completo, email, email_corporativo, departamento, cargo, setor
+            `SELECT id, nome_completo, email, email_corporativo, departamento, cargo
              FROM colaboradores
              WHERE status != 'Desligado' OR status IS NULL
              ORDER BY nome_completo`,
@@ -184,7 +184,6 @@ async function processarPDF(bufferPDF, tipoDocumento) {
             colaborador_email: match?.colaborador?.email || match?.colaborador?.email_corporativo || null,
             departamento: match?.colaborador?.departamento || null,
             cargo: match?.colaborador?.cargo || null,
-            setor: match?.colaborador?.setor || null,
             confianca: match?.confianca || null, // 'exato', 'parcial', 'aproximado', null
         });
     }
