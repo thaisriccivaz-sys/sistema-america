@@ -118,41 +118,32 @@ async function processarPDF(bufferPDF, tipoDocumento) {
     let totalPaginas = 0;
 
     try {
-        console.log('[PAGAMENTOS-MASSA] Iniciando extração de texto via pdfParse...');
+        console.log('[PAGAMENTOS-MASSA] Iniciando extração de texto via pdfreader...');
         const t0 = Date.now();
         
-        // Timeout de 20 segundos para evitar travamento infinito no pdf-parse
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout na extração do PDF (20s)')), 20000));
+        const { PdfReader } = require('pdfreader');
         
-        const parsePromise = pdfParse(bufferPDF, {
-            pagerender: function(pageData) {
-                return pageData.getTextContent().then(function(textContent) {
-                    const texto = textContent.items.map(item => item.str).join(' ');
-                    pageTexts.push(texto);
-                    return texto;
-                });
-            }
+        await new Promise((resolve, reject) => {
+            let currentPage = 0;
+            new PdfReader().parseBuffer(bufferPDF, function(err, item) {
+                if (err) {
+                    reject(err);
+                } else if (!item) {
+                    resolve();
+                } else if (item.page) {
+                    currentPage = item.page;
+                    pageTexts[currentPage - 1] = ''; // Inicializa a página
+                } else if (item.text && currentPage > 0) {
+                    pageTexts[currentPage - 1] += item.text + ' ';
+                }
+            });
         });
-
-        await Promise.race([parsePromise, timeoutPromise]);
         
         totalPaginas = pageTexts.length;
         console.log(`[PAGAMENTOS-MASSA] Extração concluída em ${Date.now() - t0}ms. Total de páginas: ${totalPaginas}`);
     } catch (e) {
-        console.log(`[PAGAMENTOS-MASSA] Erro na extração primária, tentando fallback. Erro:`, e.message);
-        try {
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout no fallback (20s)')), 20000));
-            const data = await Promise.race([pdfParse(bufferPDF), timeoutPromise]);
-            totalPaginas = data.numpages;
-            const chunkSize = Math.ceil(data.text.length / totalPaginas);
-            for (let i = 0; i < totalPaginas; i++) {
-                pageTexts.push(data.text.substring(i * chunkSize, (i + 1) * chunkSize));
-            }
-            console.log(`[PAGAMENTOS-MASSA] Fallback concluído. Total de páginas (aprox): ${totalPaginas}`);
-        } catch (fallbackError) {
-            console.error(`[PAGAMENTOS-MASSA] Fallback falhou:`, fallbackError.message);
-            throw new Error('Falha ao extrair texto do PDF: ' + fallbackError.message);
-        }
+        console.error(`[PAGAMENTOS-MASSA] Falhou ao extrair texto do PDF:`, e.message);
+        throw new Error('Falha ao extrair texto do PDF: ' + e.message);
     }
 
     console.log('[PAGAMENTOS-MASSA] Buscando colaboradores no banco...');
