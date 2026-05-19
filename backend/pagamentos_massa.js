@@ -220,7 +220,7 @@ async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nom
     const docId = await new Promise((resolve, reject) => {
         db.run(
             `INSERT INTO documentos
-             (colaborador_id, tab_name, document_type, file_path, file_name, year, month, assinafy_status, created_at)
+             (colaborador_id, tab_name, document_type, file_path, file_name, year, month, assinafy_status, upload_date)
              VALUES (?, 'Pagamentos', ?, ?, ?, ?, ?, 'Pendente', datetime('now'))`,
             [colaboradorId, tipoDocumento, filePath, nomeArquivo, ano, mes || ''],
             function(err) {
