@@ -32,7 +32,7 @@ function normalizarNome(str) {
 
 // Extrai nome do colaborador do texto de uma página do PDF
 // O PDF de adiantamento contém "Nome do Funcionário" seguido do nome em maiúsculas
-function extrairNomeDaPagina(texto) {
+function extrairNomeDaPagina(texto, tipoDocumento) {
     if (!texto) return null;
 
     // Padrão 1: "Nome do Funcionário\nNOME AQUI" (texto extraído pode ter quebras)
@@ -111,15 +111,19 @@ function buscarColaboradorPorNome(nomeExtraido, todosColaboradores) {
  * - Faz match com banco de dados
  * Retorna array de { pagina, nomeDetectado, colaborador, confianca }
  */
-async function processarPDF(bufferPDF) {
+async function processarPDF(bufferPDF, tipoDocumento) {
     // 1. Extrair texto por página
     const pageTexts = [];
     let totalPaginas = 0;
 
     try {
-        // pdf-parse extrai texto de todas as páginas no campo .text
-        // Precisamos do texto por página — usamos o render_page callback
-        await pdfParse(bufferPDF, {
+        console.log('[PAGAMENTOS-MASSA] Iniciando extração de texto via pdfParse...');
+        const t0 = Date.now();
+        
+        // Timeout de 20 segundos para evitar travamento infinito no pdf-parse
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout na extração do PDF (20s)')), 20000));
+        
+        const parsePromise = pdfParse(bufferPDF, {
             pagerender: function(pageData) {
                 return pageData.getTextContent().then(function(textContent) {
                     const texto = textContent.items.map(item => item.str).join(' ');
@@ -128,17 +132,29 @@ async function processarPDF(bufferPDF) {
                 });
             }
         });
+
+        await Promise.race([parsePromise, timeoutPromise]);
+        
         totalPaginas = pageTexts.length;
+        console.log(`[PAGAMENTOS-MASSA] Extração concluída em ${Date.now() - t0}ms. Total de páginas: ${totalPaginas}`);
     } catch (e) {
-        // Fallback: extrai tudo como bloco único e divide por heurística
-        const data = await pdfParse(bufferPDF);
-        totalPaginas = data.numpages;
-        // Divide o texto pelo número de páginas (aproximado)
-        const chunkSize = Math.ceil(data.text.length / totalPaginas);
-        for (let i = 0; i < totalPaginas; i++) {
-            pageTexts.push(data.text.substring(i * chunkSize, (i + 1) * chunkSize));
+        console.log(`[PAGAMENTOS-MASSA] Erro na extração primária, tentando fallback. Erro:`, e.message);
+        try {
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout no fallback (20s)')), 20000));
+            const data = await Promise.race([pdfParse(bufferPDF), timeoutPromise]);
+            totalPaginas = data.numpages;
+            const chunkSize = Math.ceil(data.text.length / totalPaginas);
+            for (let i = 0; i < totalPaginas; i++) {
+                pageTexts.push(data.text.substring(i * chunkSize, (i + 1) * chunkSize));
+            }
+            console.log(`[PAGAMENTOS-MASSA] Fallback concluído. Total de páginas (aprox): ${totalPaginas}`);
+        } catch (fallbackError) {
+            console.error(`[PAGAMENTOS-MASSA] Fallback falhou:`, fallbackError.message);
+            throw new Error('Falha ao extrair texto do PDF: ' + fallbackError.message);
         }
     }
+
+    console.log('[PAGAMENTOS-MASSA] Buscando colaboradores no banco...');
 
     // 2. Buscar todos colaboradores ativos do banco
     const colaboradores = await new Promise((resolve, reject) => {
@@ -156,7 +172,7 @@ async function processarPDF(bufferPDF) {
     const resultado = [];
     for (let i = 0; i < totalPaginas; i++) {
         const texto = pageTexts[i] || '';
-        const nomeDetectado = extrairNomeDaPagina(texto);
+        const nomeDetectado = extrairNomeDaPagina(texto, tipoDocumento);
         const match = nomeDetectado ? buscarColaboradorPorNome(nomeDetectado, colaboradores) : null;
 
         resultado.push({

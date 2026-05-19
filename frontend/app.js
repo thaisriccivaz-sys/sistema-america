@@ -14982,6 +14982,10 @@ window.reenviarAssinatura = async function (id, source, btn) {
         try {
             const formData = new FormData();
             formData.append('pdf', file);
+            formData.append('tipoDocumento', document.getElementById('pm-tipo-doc').value);
+            formData.append('mes', document.getElementById('pm-mes').value);
+            formData.append('ano', document.getElementById('pm-ano').value);
+            
             const r = await fetch('/api/pagamentos-massa/processar', {
                 method: 'POST',
                 headers: { Authorization: 'Bearer ' + localStorage.getItem('token') },

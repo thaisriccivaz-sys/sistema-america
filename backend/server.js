@@ -5611,7 +5611,8 @@ app.post('/api/pagamentos-massa/processar', authenticateToken, multer({ storage:
     try {
         if (!pagamentosMassa) return res.status(503).json({ error: 'Módulo de processamento PDF não disponível. Verifique os logs do servidor.' });
         if (!req.file) return res.status(400).json({ error: 'Nenhum PDF enviado' });
-        const resultado = await pagamentosMassa.processarPDF(req.file.buffer);
+        const tipoDocumento = req.body.tipoDocumento || 'Holerite Adiantamento';
+        const resultado = await pagamentosMassa.processarPDF(req.file.buffer, tipoDocumento);
         res.json({ ok: true, ...resultado });
     } catch (e) {
         console.error('[PAGAMENTOS-MASSA] Erro ao processar PDF:', e.message);
