@@ -2707,8 +2707,8 @@ app.get('/api/maintenance/assinafy-signer', async (req, res) => {
     const email = (req.query.email || '').trim();
     if (!email) return res.status(400).json({ error: 'Parâmetro ?email= obrigatório' });
     const https2 = require('https');
-    const _AK    = '6mPX9DpdGQkzF2VOCokYQARRMIUgq5ddyKOucKvaSm8y9DIin9TN0UfxrOL_bHyt';
-    const _ACID  = '10237785fb23cf473d54845a013e';
+    const _AK   = '6mPX9DpdGQkzF2VOCokYQARRMIUgq5ddyKOucKvaSm8y9DIin9TN0UfxrOL_bHyt';
+    const _ACID = '10237785fb23cf473d54845a013e';
     const callApi = (urlPath) => new Promise((resolve, reject) => {
         const r2 = https2.request({ hostname: 'api.assinafy.com.br', path: urlPath, method: 'GET',
             headers: { 'X-Api-Key': _AK, 'Accept': 'application/json' } }, (r) => {
@@ -2718,27 +2718,19 @@ app.get('/api/maintenance/assinafy-signer', async (req, res) => {
         });
         r2.on('error', reject); r2.setTimeout(15000, () => r2.destroy(new Error('Timeout'))); r2.end();
     });
-    const extractList = (j) => {
-        if (!j) return [];
-        if (Array.isArray(j.data)) return j.data;
-        if (Array.isArray(j.data?.data)) return j.data.data;
-        if (j.data && typeof j.data === 'object') return [j.data];
-        return [];
-    };
     try {
         const emailLow = email.toLowerCase();
-        const byEmail = await callApi(`/v1/accounts/${_ACID}/signers?email=${encodeURIComponent(email)}`);
-        const listAll  = await callApi(`/v1/accounts/${_ACID}/signers`);
-        const listaEmail = extractList(byEmail.json);
-        const listaTodos = extractList(listAll.json);
-        res.json({
-            email_buscado: email,
-            byEmail: { status: byEmail.status, data_is_array: Array.isArray(byEmail.json?.data),
-                lista: listaEmail, found: listaEmail.find(s => s.email?.toLowerCase() === emailLow) || null },
-            listAll: { status: listAll.status, total: listaTodos.length,
-                found: listaTodos.find(s => s.email?.toLowerCase() === emailLow) || null,
-                raw_snippet: listAll.raw },
-        });
+        // Busca paginada em todas as páginas
+        let page = 1, found = null, totalScanned = 0, pagesScanned = 0;
+        while (page <= 20 && !found) {
+            const r = await callApi(`/v1/accounts/${_ACID}/signers?page=${page}&per_page=20`);
+            const lista = Array.isArray(r.json?.data) ? r.json.data : [];
+            totalScanned += lista.length; pagesScanned++;
+            found = lista.find(s => s.email?.toLowerCase() === emailLow) || null;
+            if (lista.length < 20) break;
+            page++;
+        }
+        res.json({ email_buscado: email, found, pages_scanned: pagesScanned, total_scanned: totalScanned });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
