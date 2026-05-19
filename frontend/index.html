@@ -114,6 +114,8 @@
                         Avalia&ccedil;&otilde;es</a>
                     <a href="#" class="nav-item" data-target="dissidio"><i class="ph ph-trend-up"></i>
                         Diss&iacute;dio</a>
+                    <a href="#" class="nav-item" data-target="pagamentos-massa" onclick="navigateTo('pagamentos-massa'); return false;"><i class="ph ph-currency-dollar"></i>
+                        Pag. em Massa</a>
                 </div>
             </div>
 
@@ -3267,7 +3269,12 @@
                     </div>
                 </section>
 
-                <!-- VIEW: F�0RIAS -->
+                <!-- VIEW: PAGAMENTOS EM MASSA -->
+                <section id="view-pagamentos-massa" class="content-view" style="padding:0;background:#f8fafc;">
+                    <div id="main-content" style="height:100%;display:flex;flex-direction:column;"></div>
+                </section>
+
+                <!-- VIEW: FERIAS -->
                 <section id="view-ferias" class="content-view">
                     <div id="ferias-container">
                         <!-- Renderizado por ferias.js -->
@@ -4709,6 +4716,7 @@
     <script src="integracao.js"></script>
     <script src="dissidio.js?v=1778869020176"></script>
     <script src="ferias.js?v=1778869020176"></script>
+    <script src="pagamentos_massa.js"></script>
     <script src="pipeline.js?v=1778869020176"></script>
     <script src="clientes_itinerantes.js?v=1778869020176"></script>
     <script src="multas_logistica.js?v=1778869020176"></script>

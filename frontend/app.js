@@ -414,6 +414,7 @@ const BREADCRUMB_MAP = {
     // Telas principais
     'integracao': { path: 'Integração', code: 'RHAD06' },
     'assinaturas-digitais': { path: 'Assinaturas Digitais', code: 'RHAD07' },
+    'pagamentos-massa': { path: 'Envio em Massa de Pagamentos', code: 'RHPG01' },
     'dashboard': { path: 'Dashboard', code: 'RH001' },
     'colaboradores': { path: 'Colaboradores', code: 'RHCL00' },
     'form-colaborador': { path: 'Colaboradores → Cadastro / Edição' },
@@ -652,6 +653,7 @@ const TAB_META = {
     'ficha-epi': { color: '#f503c5', icon: 'ph-shield-check', title: 'Ficha EPI' },
     'gerenciar-avaliacoes': { color: '#f503c5', icon: 'ph-clipboard-text', title: 'Avaliações' },
     'assinaturas-digitais': { color: '#f503c5', icon: 'ph-signature', title: 'Assinaturas' },
+    'pagamentos-massa': { color: '#f503c5', icon: 'ph-currency-dollar', title: 'Pag. em Massa' },
     'dissidio': { color: '#f503c5', icon: 'ph-trend-up', title: 'Dissídio' },
     'ferias': { color: '#f503c5', icon: 'ph-airplane-tilt', title: 'Férias' },
     'experiencia': { color: '#f503c5', icon: 'ph-user-check', title: 'Experiência' },
@@ -916,6 +918,8 @@ function navigateTo(target) {
         if (typeof window.renderItinerantesPage === 'function') setTimeout(() => window.renderItinerantesPage(), 80);
     } else if (target === 'rh-agenda') {
         if (typeof window.renderAgendaRH === 'function') setTimeout(() => window.renderAgendaRH(), 80);
+    } else if (target === 'pagamentos-massa') {
+        if (typeof window.renderPagamentosMassa === 'function') setTimeout(() => window.renderPagamentosMassa(), 80);
     } else if (target === 'logistica-agenda') {
         if (typeof window.renderAgendaLogistica === 'function') setTimeout(() => window.renderAgendaLogistica(), 80);
     } else if (target === 'comercial-credenciamento') {
@@ -14712,9 +14716,431 @@ window.reenviarAssinatura = async function (id, source, btn) {
         });
     }
 })();
+})();
 
 
-// === SISTEMA DE HISTÓRICO DE AUDITORIA ===
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENVIO EM MASSA DE PAGAMENTOS
+// ═══════════════════════════════════════════════════════════════════════════════
+(function () {
+    'use strict';
+
+    let _pdfBase64 = null;        // PDF original em base64
+    let _itensProcessados = [];   // [{pagina, colaborador_id, colaborador_nome, departamento, cargo, setor, confianca, selecionado, enviarEmail}]
+    let _todosColabs = [];        // cache de colaboradores do banco (para dropdown de correção)
+    let _jobId = null;
+    let _pollTimer = null;
+
+    // ── Render da tela ─────────────────────────────────────────────────────────
+    window.renderPagamentosMassa = function () {
+        const main = document.getElementById('main-content');
+        if (!main) return;
+        main.innerHTML = `
+        <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;">
+
+          <!-- Header -->
+          <div style="padding:1.25rem 1.5rem 0.75rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:1rem;flex-shrink:0;">
+            <div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#f503c5,#a21caf);display:flex;align-items:center;justify-content:center;">
+              <i class="ph ph-currency-dollar" style="color:#fff;font-size:1.25rem;"></i>
+            </div>
+            <div>
+              <h2 style="margin:0;font-size:1.2rem;font-weight:700;color:#1e293b;">Envio em Massa de Pagamentos</h2>
+              <p style="margin:0;font-size:0.78rem;color:#64748b;">Carregue o PDF consolidado, revise os colaboradores e dispare as assinaturas em massa.</p>
+            </div>
+          </div>
+
+          <!-- Corpo scrollável -->
+          <div style="flex:1;overflow:auto;padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1.25rem;">
+
+            <!-- ETAPA 1: Upload -->
+            <div id="pm-upload-section" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.5rem;">
+              <h3 style="margin:0 0 1rem;font-size:0.95rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:0.5rem;">
+                <span style="background:#f503c5;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">1</span>
+                Selecionar PDF Consolidado
+              </h3>
+              <div id="pm-dropzone"
+                style="border:2px dashed #d1d5db;border-radius:10px;padding:2.5rem 1rem;text-align:center;cursor:pointer;transition:all 0.2s;background:#f8fafc;"
+                onclick="document.getElementById('pm-file-input').click()"
+                ondragover="event.preventDefault();this.style.borderColor='#f503c5';this.style.background='#fdf4ff';"
+                ondragleave="this.style.borderColor='#d1d5db';this.style.background='#f8fafc';"
+                ondrop="window._pmHandleDrop(event)">
+                <i class="ph ph-file-pdf" style="font-size:3rem;color:#f503c5;display:block;margin-bottom:0.75rem;"></i>
+                <p style="margin:0;font-weight:600;color:#374151;">Arraste o PDF aqui ou clique para selecionar</p>
+                <p style="margin:0.25rem 0 0;font-size:0.8rem;color:#6b7280;">Apenas arquivos PDF • Máx. 50 MB</p>
+              </div>
+              <input id="pm-file-input" type="file" accept=".pdf" style="display:none" onchange="window._pmHandleFile(this.files[0])">
+
+              <!-- Tipo de documento -->
+              <div style="display:flex;gap:1rem;margin-top:1rem;flex-wrap:wrap;">
+                <div style="flex:1;min-width:200px;">
+                  <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Tipo de Documento</label>
+                  <select id="pm-tipo-doc" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
+                    <option value="Holerite Adiantamento">Holerite Adiantamento</option>
+                  </select>
+                </div>
+                <div style="flex:1;min-width:120px;">
+                  <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Mês</label>
+                  <select id="pm-mes" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
+                    ${['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+                      .map((m,i) => `<option value="${String(i+1).padStart(2,'0')}" ${i+1===new Date().getMonth()+1?'selected':''}>${m}</option>`).join('')}
+                  </select>
+                </div>
+                <div style="flex:1;min-width:100px;">
+                  <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Ano</label>
+                  <input id="pm-ano" type="number" value="${new Date().getFullYear()}" min="2020" max="2099"
+                    style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
+                </div>
+              </div>
+
+              <div id="pm-processing" style="display:none;margin-top:1rem;padding:1rem;background:#f0fdf4;border-radius:8px;color:#166534;font-size:0.85rem;">
+                <i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i>
+                Processando PDF e detectando colaboradores...
+              </div>
+            </div>
+
+            <!-- ETAPA 2: Revisão e Filtros (oculto até processar) -->
+            <div id="pm-review-section" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.5rem;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
+                <h3 style="margin:0;font-size:0.95rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:0.5rem;">
+                  <span style="background:#f503c5;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">2</span>
+                  Revisar e Selecionar Colaboradores
+                  <span id="pm-badge-total" style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:600;"></span>
+                </h3>
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                  <button onclick="window._pmSelecionarTodos(true)" style="padding:0.4rem 0.9rem;border-radius:7px;border:1px solid #e2e8f0;background:#fff;font-size:0.8rem;cursor:pointer;font-weight:600;">
+                    <i class="ph ph-check-square"></i> Selecionar Todos
+                  </button>
+                  <button onclick="window._pmSelecionarTodos(false)" style="padding:0.4rem 0.9rem;border-radius:7px;border:1px solid #e2e8f0;background:#fff;font-size:0.8rem;cursor:pointer;font-weight:600;">
+                    <i class="ph ph-square"></i> Desmarcar Todos
+                  </button>
+                </div>
+              </div>
+
+              <!-- Filtros -->
+              <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem;padding:0.75rem;background:#f8fafc;border-radius:8px;">
+                <div style="flex:2;min-width:160px;">
+                  <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Nome</label>
+                  <input id="pm-f-nome" type="text" placeholder="Filtrar por nome..." oninput="window._pmFiltrar()"
+                    style="width:100%;padding:0.4rem 0.6rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;">
+                </div>
+                <div style="flex:1;min-width:140px;">
+                  <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Departamento</label>
+                  <select id="pm-f-depto" onchange="window._pmFiltrar()" style="width:100%;padding:0.4rem 0.6rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;">
+                    <option value="">Todos</option>
+                  </select>
+                </div>
+                <div style="flex:1;min-width:140px;">
+                  <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Cargo</label>
+                  <select id="pm-f-cargo" onchange="window._pmFiltrar()" style="width:100%;padding:0.4rem 0.6rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;">
+                    <option value="">Todos</option>
+                  </select>
+                </div>
+                <div style="flex:1;min-width:120px;">
+                  <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Status Match</label>
+                  <select id="pm-f-match" onchange="window._pmFiltrar()" style="width:100%;padding:0.4rem 0.6rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;">
+                    <option value="">Todos</option>
+                    <option value="exato">Match exato</option>
+                    <option value="parcial">Match parcial</option>
+                    <option value="aproximado">Match aproximado</option>
+                    <option value="sem_match">Sem match</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Tabela -->
+              <div style="overflow:auto;max-height:450px;border:1px solid #e2e8f0;border-radius:8px;">
+                <table style="width:100%;border-collapse:collapse;min-width:700px;">
+                  <thead style="position:sticky;top:0;z-index:2;background:#f8fafc;outline:1px solid #e2e8f0;">
+                    <tr>
+                      <th style="padding:0.5rem 0.75rem;text-align:center;width:40px;"><i class="ph ph-check-square" style="color:#64748b;"></i></th>
+                      <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">PÁG.</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">NOME DETECTADO</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">COLABORADOR</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">DEPARTAMENTO</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">MATCH</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">E-MAIL</th>
+                    </tr>
+                  </thead>
+                  <tbody id="pm-tbody"></tbody>
+                </table>
+              </div>
+
+              <!-- Botão Enviar -->
+              <div style="margin-top:1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
+                <div id="pm-selecionados-info" style="font-size:0.85rem;color:#64748b;"></div>
+                <button id="pm-btn-enviar" onclick="window._pmEnviar()"
+                  style="padding:0.65rem 1.5rem;background:linear-gradient(135deg,#f503c5,#a21caf);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:0.5rem;">
+                  <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
+                </button>
+              </div>
+            </div>
+
+            <!-- ETAPA 3: Progresso -->
+            <div id="pm-progress-section" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.5rem;">
+              <h3 style="margin:0 0 1rem;font-size:0.95rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:0.5rem;">
+                <span style="background:#f503c5;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">3</span>
+                Enviando...
+              </h3>
+              <div style="background:#f1f5f9;border-radius:8px;height:12px;overflow:hidden;margin-bottom:0.75rem;">
+                <div id="pm-progress-bar" style="height:100%;background:linear-gradient(90deg,#f503c5,#a21caf);width:0%;transition:width 0.4s;"></div>
+              </div>
+              <p id="pm-progress-text" style="margin:0;font-size:0.85rem;color:#64748b;text-align:center;"></p>
+              <div id="pm-result-list" style="margin-top:1rem;max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:0.4rem;"></div>
+            </div>
+
+          </div>
+        </div>
+        <style>@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}</style>`;
+
+        // Carregar colaboradores para dropdown de correção
+        fetch('/api/colaboradores?status=Ativo', { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } })
+            .then(r => r.json()).then(data => { _todosColabs = data.colaboradores || data || []; })
+            .catch(() => {});
+    };
+
+    // ── Drag & drop ────────────────────────────────────────────────────────────
+    window._pmHandleDrop = function (e) {
+        e.preventDefault();
+        const dz = document.getElementById('pm-dropzone');
+        dz.style.borderColor = '#d1d5db'; dz.style.background = '#f8fafc';
+        const file = e.dataTransfer.files[0];
+        if (file) window._pmHandleFile(file);
+    };
+
+    window._pmHandleFile = async function (file) {
+        if (!file || file.type !== 'application/pdf') {
+            alert('Por favor selecione um arquivo PDF válido.'); return;
+        }
+        // Ler como base64
+        const arrayBuf = await file.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuf);
+        let binary = '';
+        bytes.forEach(b => binary += String.fromCharCode(b));
+        _pdfBase64 = btoa(binary);
+
+        // Atualizar dropzone
+        const dz = document.getElementById('pm-dropzone');
+        dz.innerHTML = `<i class="ph ph-file-pdf" style="font-size:2.5rem;color:#f503c5;display:block;margin-bottom:0.5rem;"></i>
+            <p style="margin:0;font-weight:700;color:#374151;">${file.name}</p>
+            <p style="margin:0.25rem 0 0;font-size:0.8rem;color:#6b7280;">${(file.size/1024/1024).toFixed(2)} MB • Clique para trocar</p>`;
+
+        // Processar
+        document.getElementById('pm-processing').style.display = 'block';
+        try {
+            const formData = new FormData();
+            formData.append('pdf', file);
+            const r = await fetch('/api/pagamentos-massa/processar', {
+                method: 'POST',
+                headers: { Authorization: 'Bearer ' + localStorage.getItem('token') },
+                body: formData,
+            });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error || 'Erro ao processar');
+            document.getElementById('pm-processing').style.display = 'none';
+            _pmCarregarResultado(data.resultado);
+        } catch (e) {
+            document.getElementById('pm-processing').style.display = 'none';
+            alert('Erro ao processar PDF: ' + e.message);
+        }
+    };
+
+    // ── Carregar resultado na tabela ───────────────────────────────────────────
+    function _pmCarregarResultado(resultado) {
+        _itensProcessados = resultado.map(item => ({
+            ...item,
+            selecionado: !!item.colaborador_id,
+            enviarEmail: true,
+        }));
+
+        // Popular filtros
+        const deptos = [...new Set(_itensProcessados.map(i => i.departamento).filter(Boolean))].sort();
+        const cargos = [...new Set(_itensProcessados.map(i => i.cargo).filter(Boolean))].sort();
+        const selDepto = document.getElementById('pm-f-depto');
+        const selCargo = document.getElementById('pm-f-cargo');
+        if (selDepto) { selDepto.innerHTML = '<option value="">Todos</option>' + deptos.map(d => `<option>${d}</option>`).join(''); }
+        if (selCargo) { selCargo.innerHTML = '<option value="">Todos</option>' + cargos.map(c => `<option>${c}</option>`).join(''); }
+
+        document.getElementById('pm-review-section').style.display = 'block';
+        _pmFiltrar();
+    }
+
+    // ── Filtrar e renderizar tabela ────────────────────────────────────────────
+    window._pmFiltrar = function () {
+        const fNome  = (document.getElementById('pm-f-nome')?.value || '').toLowerCase().trim();
+        const fDepto = (document.getElementById('pm-f-depto')?.value || '').toLowerCase();
+        const fCargo = (document.getElementById('pm-f-cargo')?.value || '').toLowerCase();
+        const fMatch = (document.getElementById('pm-f-match')?.value || '');
+
+        const filtrados = _itensProcessados.filter(item => {
+            if (fNome && !(item.colaborador_nome || item.nomeDetectado || '').toLowerCase().includes(fNome)) return false;
+            if (fDepto && (item.departamento || '').toLowerCase() !== fDepto) return false;
+            if (fCargo && (item.cargo || '').toLowerCase() !== fCargo) return false;
+            if (fMatch === 'sem_match' && item.colaborador_id) return false;
+            if (fMatch && fMatch !== 'sem_match' && item.confianca !== fMatch) return false;
+            return true;
+        });
+
+        _pmRenderTabela(filtrados);
+        _pmAtualizarInfo();
+    };
+
+    function _pmRenderTabela(itens) {
+        const tbody = document.getElementById('pm-tbody');
+        if (!tbody) return;
+        const matchColors = { exato: '#dcfce7', parcial: '#fef9c3', aproximado: '#ffedd5', null: '#fee2e2' };
+        const matchLabels = { exato: '✅ Exato', parcial: '🟡 Parcial', aproximado: '🟠 Aprox.', null: '❌ Sem match' };
+
+        const dropdownOpts = [{ id: '', nome_completo: '— Não atribuir —' }, ..._todosColabs]
+            .map(c => `<option value="${c.id||''}">${c.nome_completo||''}</option>`).join('');
+
+        tbody.innerHTML = itens.map((item, idx) => {
+            const realIdx = _itensProcessados.indexOf(item);
+            const bg = matchColors[item.confianca] || matchColors[null];
+            return `<tr style="border-bottom:1px solid #f1f5f9;${!item.colaborador_id?'opacity:0.7':''}">
+                <td style="padding:0.5rem 0.75rem;text-align:center;">
+                  <input type="checkbox" ${item.selecionado&&item.colaborador_id?'checked':''} ${!item.colaborador_id?'disabled':''} onchange="window._pmToggle(${realIdx},this.checked)"
+                    style="width:15px;height:15px;cursor:pointer;">
+                </td>
+                <td style="padding:0.5rem 0.75rem;font-size:0.8rem;color:#64748b;font-weight:600;">${item.pagina}</td>
+                <td style="padding:0.5rem 0.75rem;font-size:0.82rem;color:#374151;">${item.nomeDetectado || '<span style="color:#9ca3af">Não detectado</span>'}</td>
+                <td style="padding:0.5rem 0.75rem;">
+                  <select onchange="window._pmCorrigirColab(${realIdx},this.value)"
+                    style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.8rem;background:${bg};">
+                    ${dropdownOpts.replace(`value="${item.colaborador_id||''}"`, `value="${item.colaborador_id||''}" selected`)}
+                  </select>
+                </td>
+                <td style="padding:0.5rem 0.75rem;font-size:0.8rem;color:#64748b;">${item.departamento || '-'}</td>
+                <td style="padding:0.5rem 0.75rem;">
+                  <span style="background:${bg};padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:600;">${matchLabels[item.confianca]||matchLabels[null]}</span>
+                </td>
+                <td style="padding:0.5rem 0.75rem;text-align:center;">
+                  <input type="checkbox" ${item.enviarEmail?'checked':''} onchange="window._pmToggleEmail(${realIdx},this.checked)"
+                    style="width:15px;height:15px;cursor:pointer;" title="Enviar e-mail para assinatura" ${!item.colaborador_id||!item.selecionado?'disabled':''}>
+                </td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="7" style="text-align:center;padding:2rem;color:#9ca3af;">Nenhum item encontrado com os filtros.</td></tr>';
+    }
+
+    // ── Helpers de estado ──────────────────────────────────────────────────────
+    window._pmToggle = function (idx, val) {
+        if (_itensProcessados[idx]) { _itensProcessados[idx].selecionado = val; _pmAtualizarInfo(); }
+    };
+    window._pmToggleEmail = function (idx, val) {
+        if (_itensProcessados[idx]) _itensProcessados[idx].enviarEmail = val;
+    };
+    window._pmCorrigirColab = function (idx, colabId) {
+        const item = _itensProcessados[idx];
+        if (!item) return;
+        const colab = _todosColabs.find(c => String(c.id) === String(colabId));
+        item.colaborador_id = colabId || null;
+        item.colaborador_nome = colab?.nome_completo || null;
+        item.departamento = colab?.departamento || null;
+        item.cargo = colab?.cargo || null;
+        item.confianca = colabId ? 'manual' : null;
+        item.selecionado = !!colabId;
+        _pmFiltrar();
+    };
+    window._pmSelecionarTodos = function (val) {
+        _itensProcessados.forEach(i => { if (i.colaborador_id) { i.selecionado = val; i.enviarEmail = val; } });
+        _pmFiltrar();
+    };
+    function _pmAtualizarInfo() {
+        const selecionados = _itensProcessados.filter(i => i.selecionado && i.colaborador_id).length;
+        const total = _itensProcessados.length;
+        const semMatch = _itensProcessados.filter(i => !i.colaborador_id).length;
+        const badge = document.getElementById('pm-badge-total');
+        const info = document.getElementById('pm-selecionados-info');
+        if (badge) badge.textContent = `${total} páginas`;
+        if (info) info.innerHTML = `<strong>${selecionados}</strong> selecionados para envio${semMatch ? ` • <span style="color:#ef4444">${semMatch} sem match</span>` : ''}`;
+    }
+
+    // ── Enviar ─────────────────────────────────────────────────────────────────
+    window._pmEnviar = async function () {
+        const itensSelecionados = _itensProcessados.filter(i => i.selecionado && i.colaborador_id);
+        if (!itensSelecionados.length) { alert('Selecione pelo menos um colaborador para enviar.'); return; }
+        if (!_pdfBase64) { alert('PDF não carregado.'); return; }
+        if (!confirm(`Enviar documentos para ${itensSelecionados.length} colaborador(es)?`)) return;
+
+        const btn = document.getElementById('pm-btn-enviar');
+        btn.disabled = true; btn.style.opacity = '0.6';
+
+        const tipo = document.getElementById('pm-tipo-doc')?.value || 'Holerite Adiantamento';
+        const mes  = document.getElementById('pm-mes')?.value || String(new Date().getMonth()+1).padStart(2,'0');
+        const ano  = document.getElementById('pm-ano')?.value || String(new Date().getFullYear());
+
+        try {
+            const r = await fetch('/api/pagamentos-massa/enviar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('token') },
+                body: JSON.stringify({
+                    pdfBase64: _pdfBase64,
+                    tipoDocumento: tipo, mes, ano,
+                    itens: itensSelecionados.map(i => ({
+                        pagina: i.pagina,
+                        colaborador_id: i.colaborador_id,
+                        enviarEmail: i.enviarEmail !== false,
+                    })),
+                }),
+            });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error);
+            _jobId = data.jobId;
+
+            document.getElementById('pm-progress-section').style.display = 'block';
+            document.getElementById('pm-progress-section').scrollIntoView({ behavior: 'smooth' });
+            _pmPollStatus(itensSelecionados.length);
+        } catch (e) {
+            btn.disabled = false; btn.style.opacity = '1';
+            alert('Erro ao iniciar envio: ' + e.message);
+        }
+    };
+
+    function _pmPollStatus(total) {
+        clearInterval(_pollTimer);
+        _pollTimer = setInterval(async () => {
+            try {
+                const r = await fetch(`/api/pagamentos-massa/status/${_jobId}`, {
+                    headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }
+                });
+                const job = await r.json();
+                const pct = total > 0 ? Math.round((job.done / total) * 100) : 0;
+                const bar = document.getElementById('pm-progress-bar');
+                const txt = document.getElementById('pm-progress-text');
+                if (bar) bar.style.width = pct + '%';
+                if (txt) txt.textContent = `${job.done} de ${total} processados... (${job.erros} erro${job.erros!==1?'s':''})`;
+
+                // Mostrar resultados
+                const listEl = document.getElementById('pm-result-list');
+                if (listEl && job.resultados) {
+                    listEl.innerHTML = job.resultados.map(res => `
+                        <div style="padding:0.4rem 0.75rem;border-radius:6px;font-size:0.82rem;
+                          background:${res.ok?'#f0fdf4':'#fef2f2'};color:${res.ok?'#166534':'#991b1b'};
+                          display:flex;align-items:center;gap:0.5rem;">
+                          <i class="ph ${res.ok?'ph-check-circle':'ph-x-circle'}"></i>
+                          <strong>${res.nome || 'ID ' + res.colaborador_id}</strong>
+                          ${res.ok ? (res.urlAssinatura ? '— link enviado' : '— salvo (sem e-mail)') : '— ' + (res.erro||'erro')}
+                        </div>`).join('');
+                }
+
+                if (job.concluido) {
+                    clearInterval(_pollTimer);
+                    const txt2 = document.getElementById('pm-progress-text');
+                    if (txt2) txt2.innerHTML = `<strong style="color:${job.erros?'#ef4444':'#16a34a'}">
+                        ✅ Concluído! ${job.done - job.erros} enviado(s) com sucesso${job.erros?' • '+job.erros+' erro(s)':''}</strong>`;
+                    const btn = document.getElementById('pm-btn-enviar');
+                    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+                }
+            } catch(e) { clearInterval(_pollTimer); }
+        }, 2000);
+    }
+
+    // ── Navegação ──────────────────────────────────────────────────────────────
+    document.addEventListener('click', function (e) {
+        const link = e.target.closest('[data-target="pagamentos-massa"]');
+        if (link) setTimeout(() => window.renderPagamentosMassa(), 150);
+    });
+})();
+
 window._historyData = [];
 window._historyPage = 1;
 const HISTORY_PER_PAGE = 20;
