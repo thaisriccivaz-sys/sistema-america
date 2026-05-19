@@ -14902,7 +14902,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
         <style>@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}</style>`;
 
         // Carregar colaboradores para dropdown de correção
-        fetch('/api/colaboradores?status=Ativo', { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } })
+        fetch('/api/colaboradores?status=Ativo', { headers: { Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) } })
             .then(r => r.json()).then(data => { _todosColabs = data.colaboradores || data || []; })
             .catch(() => {});
     };
@@ -14988,7 +14988,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
             
             const r = await fetch('/api/pagamentos-massa/processar', {
                 method: 'POST',
-                headers: { Authorization: 'Bearer ' + localStorage.getItem('token') },
+                headers: { Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) },
                 body: formData,
             });
             // Verificar se a resposta é JSON antes de parsear
@@ -15137,7 +15137,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
         try {
             const r = await fetch('/api/pagamentos-massa/enviar', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('token') },
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) },
                 body: JSON.stringify({
                     pdfBase64: _pdfBase64,
                     tipoDocumento: tipo, mes, ano,
@@ -15166,7 +15166,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
         _pollTimer = setInterval(async () => {
             try {
                 const r = await fetch(`/api/pagamentos-massa/status/${_jobId}`, {
-                    headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }
+                    headers: { Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) }
                 });
                 const job = await r.json();
                 const pct = total > 0 ? Math.round((job.done / total) * 100) : 0;
