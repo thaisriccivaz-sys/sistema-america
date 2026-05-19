@@ -35,8 +35,9 @@ function normalizarNome(str) {
 function extrairNomeDaPagina(texto, tipoDocumento) {
     if (!texto) return null;
 
-    // Padrão 1: "Nome do Funcionário\nNOME AQUI" (texto extraído pode ter quebras)
+    // Padrão 1: "Nome do Funcionário\nNOME AQUI" ou "Código NOME Nome do Funcionário"
     const padroes = [
+        /C[óo]digo\s+([A-ZÁÀÂÃÉÊÍÓÔÕÚÙÜÇÑ][A-ZÁÀÂÃÉÊÍÓÔÕÚÙÜÇÑ \-']{2,60})\s+Nome\s+do\s+Funcion[aá]rio/i,
         /Nome\s+do\s+Funcion[aá]rio\s*[\n\r]+\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÙÜÇÑ][A-ZÁÀÂÃÉÊÍÓÔÕÚÙÜÇÑ \-']{2,60})/i,
         /Nome\s+do\s+Funcion[aá]rio\s+([A-ZÁÀÂÃÉÊÍÓÔÕÚÙÜÇÑ][A-ZÁÀÂÃÉÊÍÓÔÕÚÙÜÇÑ \-']{2,60})/i,
         // Padrão alternativo: texto pode vir colado
