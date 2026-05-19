@@ -14854,6 +14854,14 @@ window.reenviarAssinatura = async function (id, source, btn) {
                     <option value="sem_match">Sem match</option>
                   </select>
                 </div>
+                <div style="flex:1;min-width:120px;">
+                  <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Setor</label>
+                  <select id="pm-f-setor" onchange="window._pmFiltrar()" style="width:100%;padding:0.4rem 0.6rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;">
+                    <option value="">Todos</option>
+                    <option value="Administrativo">Administrativo</option>
+                    <option value="Operacional">Operacional</option>
+                  </select>
+                </div>
               </div>
 
               <!-- Tabela -->
@@ -15028,22 +15036,26 @@ window.reenviarAssinatura = async function (id, source, btn) {
     }
 
     // ── Filtrar e renderizar tabela ────────────────────────────────────────────
+    let _itensFiltrados = []; // itens atualmente visíveis (com filtro)
+
     window._pmFiltrar = function () {
         const fNome  = (document.getElementById('pm-f-nome')?.value || '').toLowerCase().trim();
         const fDepto = (document.getElementById('pm-f-depto')?.value || '').toLowerCase();
         const fCargo = (document.getElementById('pm-f-cargo')?.value || '').toLowerCase();
         const fMatch = (document.getElementById('pm-f-match')?.value || '');
+        const fSetor = (document.getElementById('pm-f-setor')?.value || '');
 
-        const filtrados = _itensProcessados.filter(item => {
+        _itensFiltrados = _itensProcessados.filter(item => {
             if (fNome && !(item.colaborador_nome || item.nomeDetectado || '').toLowerCase().includes(fNome)) return false;
             if (fDepto && (item.departamento || '').toLowerCase() !== fDepto) return false;
             if (fCargo && (item.cargo || '').toLowerCase() !== fCargo) return false;
             if (fMatch === 'sem_match' && item.colaborador_id) return false;
             if (fMatch && fMatch !== 'sem_match' && item.confianca !== fMatch) return false;
+            if (fSetor && (item.setor || '') !== fSetor) return false;
             return true;
         });
 
-        _pmRenderTabela(filtrados);
+        _pmRenderTabela(_itensFiltrados);
         _pmAtualizarInfo();
     };
 
@@ -15102,7 +15114,9 @@ window.reenviarAssinatura = async function (id, source, btn) {
         _pmFiltrar();
     };
     window._pmSelecionarTodos = function (val) {
-        _itensProcessados.forEach(i => { if (i.colaborador_id) { i.selecionado = val; i.enviarEmail = val; } });
+        // Aplica apenas nos itens atualmente visíveis (respeitando filtros)
+        const alvo = _itensFiltrados.length > 0 ? _itensFiltrados : _itensProcessados;
+        alvo.forEach(i => { if (i.colaborador_id) { i.selecionado = val; i.enviarEmail = val; } });
         _pmFiltrar();
     };
     function _pmAtualizarInfo() {

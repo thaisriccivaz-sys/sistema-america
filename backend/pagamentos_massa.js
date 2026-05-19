@@ -163,10 +163,12 @@ async function processarPDF(bufferPDF, tipoDocumento) {
     console.log('[PAGAMENTOS-MASSA] Buscando colaboradores no banco...');
     const colaboradores = await new Promise((resolve, reject) => {
         db.all(
-            `SELECT id, nome_completo, email, email_corporativo, departamento, cargo
-             FROM colaboradores
-             WHERE status != 'Desligado' OR status IS NULL
-             ORDER BY nome_completo`,
+            `SELECT c.id, c.nome_completo, c.email, c.email_corporativo, c.departamento, c.cargo,
+                    COALESCE(d.tipo, 'Operacional') AS setor
+             FROM colaboradores c
+             LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
+             WHERE c.status != 'Desligado' OR c.status IS NULL
+             ORDER BY c.nome_completo`,
             [],
             (err, rows) => err ? reject(err) : resolve(rows || [])
         );
@@ -187,6 +189,7 @@ async function processarPDF(bufferPDF, tipoDocumento) {
             colaborador_email: match?.colaborador?.email || match?.colaborador?.email_corporativo || null,
             departamento:     match?.colaborador?.departamento || null,
             cargo:            match?.colaborador?.cargo || null,
+            setor:            match?.colaborador?.setor || null, // 'Administrativo' ou 'Operacional'
             confianca:        match?.confianca || null, // 'exato', 'parcial', 'aproximado', null
         });
     }
