@@ -1931,10 +1931,13 @@ app.post('/api/auth/login', (req, res) => {
 // --- CID-10 SEARCH ---
 const CID10_PATH = path.join(__dirname, 'cid10.min.json');
 let cid10Data = [];
-try { cid10Data = JSON.parse(fs.readFileSync(CID10_PATH, 'utf8')); } catch (e) { console.error('Erro ao carregar CID-10:', e.message); }
+let cidError = null;
+try { cid10Data = JSON.parse(fs.readFileSync(CID10_PATH, 'utf8')); } catch (e) { cidError = e.message; console.error('Erro ao carregar CID-10:', e.message); }
 
 app.get('/api/cid10', (req, res) => {
+    if (cid10Data.length === 0 && cidError) return res.status(500).json({ error: cidError });
     const q = (req.query.q || '').toLowerCase().trim();
+    fs.appendFileSync(path.join(__dirname, 'cid_debug.log'), `[${new Date().toISOString()}] GET /api/cid10?q=${q}\n`);
     if (!q || q.length < 2) return res.json([]);
     const results = cid10Data.filter(c =>
         c.code.toLowerCase().startsWith(q) || c.desc.toLowerCase().includes(q)
