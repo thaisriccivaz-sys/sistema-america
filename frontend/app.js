@@ -6092,7 +6092,10 @@ window.searchModalCID = async function (val) {
              </div>`
         ).join('');
         dd.style.display = 'block';
-    } catch (e) { dd.style.display = 'none'; }
+    } catch (e) { 
+        console.error('Erro na busca de CID (modal):', e);
+        dd.style.display = 'none'; 
+    }
 };
 
 window.selectModalCID = function (code, desc) {
@@ -6236,7 +6239,7 @@ window.renderAtestadosTab = function (container, filteredDocs) {
                     <!-- CID-10 ou Título (horas) -->
                     <div class="cid-input-group" id="cid-field-wrap" style="flex:2; min-width:150px; position:relative;">
                         <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;"><i class="ph ph-magnifying-glass"></i> CID-10</label>
-                        <input type="text" id="cid-search" class="form-control" placeholder="J06 - Outros exames..." autocomplete="off" oninput="searchCID(this.value)" style="padding:.4rem;">
+                        <input type="text" id="cid-search" class="form-control" placeholder="J06 - Outros exames..." autocomplete="off" oninput="window.searchCID(this.value)" style="padding:.4rem;">
                         <div id="cid-dropdown" class="cid-dropdown" style="display:none;"></div>
                     </div>
                     <div id="titulo-field-wrap" style="flex:2; min-width:150px; display:none;">
@@ -6338,12 +6341,15 @@ window.searchCID = async function (val) {
         const data = await res.json();
         if (!data.length) { dd.style.display = 'none'; return; }
         dd.innerHTML = data.map((c, i) =>
-            `<div class="cid-option" data-code="${c.code}" data-desc="${c.desc.replace(/"/g, '&quot;')}" onclick="selectCID('${c.code}', this.dataset.desc)">
+            `<div class="cid-option" data-code="${c.code}" data-desc="${c.desc.replace(/"/g, '&quot;')}" onclick="window.selectCID('${c.code}', this.dataset.desc)">
                 <strong>${c.code}</strong> — ${c.desc}
              </div>`
         ).join('');
         dd.style.display = 'block';
-    } catch (e) { dd.style.display = 'none'; }
+    } catch (e) { 
+        console.error('Erro na busca de CID:', e);
+        dd.style.display = 'none'; 
+    }
 }
 
 window.selectCID = function (code, desc) {
