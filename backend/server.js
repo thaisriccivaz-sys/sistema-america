@@ -1934,6 +1934,10 @@ let cid10Data = [];
 let cidError = null;
 try { cid10Data = JSON.parse(fs.readFileSync(CID10_PATH, 'utf8')); } catch (e) { cidError = e.message; console.error('Erro ao carregar CID-10:', e.message); }
 
+app.get('/api/debug-cid', (req, res) => {
+    res.json({ length: cid10Data.length, isArray: Array.isArray(cid10Data), firstItem: cid10Data[0] || null });
+});
+
 app.get('/api/cid10', (req, res) => {
     if (cid10Data.length === 0 && cidError) return res.status(500).json({ error: cidError });
     const q = (req.query.q || '').toLowerCase().trim();
