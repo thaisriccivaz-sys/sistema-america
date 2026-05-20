@@ -6912,10 +6912,13 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
  * Envio de Boleto de Faculdade para o Financeiro
  */
 app.post('/api/send-boleto-financeiro', authenticateToken, async (req, res) => {
-    const { document_id, email_to } = req.body;
+    let { document_id, email_to } = req.body;
     if (!document_id || !email_to) {
         return res.status(400).json({ sucesso: false, error: 'document_id e email_to são obrigatórios.' });
     }
+
+    // Nodemailer requer vírgula para múltiplos destinatários, substituindo ; por ,
+    email_to = email_to.replace(/;/g, ',');
 
     try {
         const doc = await new Promise((resolve, reject) =>

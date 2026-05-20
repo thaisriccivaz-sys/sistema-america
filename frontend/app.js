@@ -5504,9 +5504,9 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     ${(tabId === 'Faculdade' && isSaved && docType === 'Boleto') ? ` 
                     <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end; width:100%; border-top: 1px dashed #e2e8f0; padding-top: 0.5rem;">
                         <div style="display:flex; gap:0.5rem; align-items:center; justify-content:flex-end; width:100%;">
-                            <input type="email" id="faculdade-financeiro-email-${existingDoc.id}"
-                                   value="thais.ricci@americarental.com.br"
-                                   style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; max-width:250px;">
+                            <input type="text" id="faculdade-financeiro-email-${existingDoc.id}"
+                                   value="financeiro1@americarental.com.br; financeiro@americarental.com.br; contas@americarental.com.br"
+                                   style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; max-width:500px;">
                             <button type="button"
                                     onclick="window.enviarBoletoFinanceiro(${existingDoc.id}, 'faculdade-financeiro-email-${existingDoc.id}', this)"
                                     style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#16a34a; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; max-width:250px;">
@@ -5579,9 +5579,9 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     ${(tabId === 'Faculdade' && isSaved && docType === 'Boleto') ? `
                     <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end; width:100%; border-top: 1px dashed #e2e8f0; padding-top: 0.5rem;">
                         <div style="display:flex; gap:0.5rem; align-items:center; justify-content:flex-end; width:100%;">
-                            <input type="email" id="faculdade-financeiro-email-${existingDoc.id}"
-                                   value="thais.ricci@americarental.com.br"
-                                   style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; max-width:260px;">
+                            <input type="text" id="faculdade-financeiro-email-${existingDoc.id}"
+                                   value="financeiro1@americarental.com.br; financeiro@americarental.com.br; contas@americarental.com.br"
+                                   style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; max-width:500px;">
                             <button type="button"
                                     onclick="window.enviarBoletoFinanceiro(${existingDoc.id}, 'faculdade-financeiro-email-${existingDoc.id}', this)"
                                     style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#16a34a; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap;">
