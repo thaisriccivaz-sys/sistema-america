@@ -327,6 +327,9 @@ function filtrarMultasLogistica() {
         } else {
             va = (a[_multasSortCol] || '').toString().toLowerCase();
             vb = (b[_multasSortCol] || '').toString().toLowerCase();
+            // Vazios sempre ficam por último, independente da direção
+            if (!va && vb) return 1;
+            if (va && !vb) return -1;
             if (va < vb) return _multasSortDir === 'asc' ? -1 : 1;
             if (va > vb) return _multasSortDir === 'asc' ? 1 : -1;
         }
