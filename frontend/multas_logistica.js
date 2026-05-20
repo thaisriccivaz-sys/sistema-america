@@ -998,7 +998,11 @@ function atualizarValoresMultaModal() {
     // Parse value (e.g. "R$ 130,16" or "130.16")
     let valorOriginal = 0;
     if (valorOriginalStr) {
-        const numeric = String(valorOriginalStr).replace(/[^\d,-]/g, '').replace(',', '.');
+        let str = String(valorOriginalStr).trim();
+        if (str.includes(',')) {
+            str = str.replace(/\./g, '').replace(',', '.');
+        }
+        const numeric = str.replace(/[^\d.-]/g, '');
         valorOriginal = parseFloat(numeric) || 0;
     }
 
