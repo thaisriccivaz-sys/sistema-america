@@ -445,10 +445,10 @@ window.abrirModalManutencao = async function(id, opts = {}) {
     <datalist id="lista-fornecedores">${fornListOpts}</datalist>
     <div>${lbl('Veículo *')}<select id="mn-m-veiculo" onchange="window.mnModalVeiculoChanged()" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;"><option value="">Selecione...</option>${veicOpts}</select></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-        <div>${lbl('Tipo *')}${sel('mn-m-tipo', [{v:'preventiva',l:'Preventiva'},{v:'corretiva',l:'Corretiva'}], m.tipo, opts.tipo!==undefined)}</div>
+        <div>${lbl('Tipo *')}${sel('mn-m-tipo', [{v:'preventiva',l:'Preventiva'},{v:'corretiva',l:'Corretiva'}], m.tipo, opts.tipo!==undefined, 'const box=document.getElementById("mn-forn-data-box"); if(box) box.style.display=this.value==="preventiva"?"none":"grid";')}</div>
         <div>${lbl('Status *')}${sel('mn-m-status', [{v:'programada',l:'Programada'},{v:'agendada',l:'Agendada'},{v:'em_andamento',l:'Em Andamento'},{v:'concluida',l:'Concluída'},{v:'cancelada',l:'Cancelada'}], m.status||'programada', false)}</div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+    <div id="mn-forn-data-box" style="display:${m.tipo==='preventiva'?'none':'grid'};grid-template-columns:1fr 1fr;gap:1rem;">
         <div>${lbl('Fornecedor / Oficina')}${inp('mn-m-forn', m.fornecedor, 'Digite para buscar ou criar...', 'text', 'lista-fornecedores')}</div>
         <div>${lbl('Data Agendamento')}${inp('mn-m-data-ag', m.data_agendamento, '', 'date')}</div>
     </div>
