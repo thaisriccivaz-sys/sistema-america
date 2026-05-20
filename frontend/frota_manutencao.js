@@ -784,13 +784,9 @@ window.mnEditarSelecionados = function() {
         return `
         <tr style="border-bottom:1px solid #e2e8f0;" data-idx="${idx}">
             <td style="padding:0.5rem;"><input type="hidden" class="me-id" value="${d.id}"><input type="text" class="me-nome" value="${d.nome}" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:4px;"></td>
-            <td style="padding:0.5rem;">
-                <select class="me-criticidade" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:4px;">
-                    <option value="Baixa" ${d.criticidade==='Baixa'?'selected':''}>Baixa</option>
-                    <option value="Media" ${!d.criticidade||d.criticidade==='Media'?'selected':''}>Média</option>
-                    <option value="Alta" ${d.criticidade==='Alta'?'selected':''}>Alta</option>
-                    <option value="Critica" ${d.criticidade==='Critica'?'selected':''}>Crítica</option>
-                </select>
+            <td style="padding:0.5rem;text-align:center;color:#64748b;font-size:0.75rem;">
+                <input type="hidden" class="me-criticidade" value="${d.criticidade}">
+                <em>Automática</em>
             </td>
             <td style="padding:0.5rem;">
                 <select class="me-controle" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:4px;">

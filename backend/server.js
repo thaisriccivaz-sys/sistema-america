@@ -11564,13 +11564,25 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                         const kmRest = kmProx - kmAtual;
 
                         let statusItem = 'ok';
-                        if (kmRest <= 0) statusItem = 'vencida';
-                        else if (kmRest <= alerta) statusItem = 'proxima';
+                        let criticidadeDinamica = 'Baixa';
+
+                        if (kmRest <= 0) {
+                            statusItem = 'vencida';
+                            criticidadeDinamica = 'Critica';
+                        }
+                        else if (kmRest <= alerta) {
+                            statusItem = 'proxima';
+                            criticidadeDinamica = 'Alta';
+                        }
+                        else if (kmRest <= alerta * 3) { // Até 30% do intervalo
+                            criticidadeDinamica = 'Media';
+                        }
 
                         resolve({
                             ...item, km_ultima: kmUlt, km_proxima: kmProx,
                             km_restante: kmRest, data_ultima: ultima?.data_conclusao || null,
-                            status_item: statusItem
+                            status_item: statusItem,
+                            criticidade: criticidadeDinamica // Sobrescreve a do catálogo
                         });
                     }
                 );
