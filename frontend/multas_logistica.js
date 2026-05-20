@@ -1574,3 +1574,13 @@ window.processarPDFMulta = async function(input) {
     }
 };
 
+// Fecha os menus dropdown "custom-multi-select" da tela de multas ao clicar fora
+document.addEventListener('click', function(e) {
+    const clickedSelect = e.target.closest('.custom-multi-select');
+    document.querySelectorAll('.custom-multi-select').forEach(selectDiv => {
+        if (selectDiv !== clickedSelect) {
+            const container = selectDiv.querySelector('.options-container');
+            if (container) container.style.display = 'none';
+        }
+    });
+});
