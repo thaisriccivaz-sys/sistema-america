@@ -932,19 +932,24 @@ window.mnAgendarSelecionados = function() {
                 headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._manutTok },
                 body: JSON.stringify({ veiculo_id: vid, servicos_ids: servsIds, fornecedor, data_agendamento: dataAg, observacoes: obs })
             });
+            const data = res.ok ? await res.json() : null;
+            const errData = !res.ok ? await res.text() : null;
             if (res.ok) {
                 ov.remove();
+                // Esconder barra ANTES de recarregar (elemento ainda existe)
+                const bar = document.getElementById('mn-prev-mass-actions');
+                if (bar) bar.style.display = 'none';
                 alert(`✅ ${cbs.length} manutenção(oes) agendada(s) com sucesso!`);
                 window.mnCarregarPreventivoVeiculo();
-                document.getElementById('mn-prev-mass-actions').style.display = 'none';
             } else {
-                const err = await res.json();
-                alert('Erro: ' + (err.error || 'Desconhecido'));
+                let errMsg = 'Erro desconhecido';
+                try { errMsg = JSON.parse(errData).error || errData; } catch(ex) { errMsg = errData || 'Erro ' + res.status; }
+                alert('Erro ao agendar: ' + errMsg);
                 btn.disabled = false;
                 btn.innerHTML = '<i class="ph ph-calendar-plus"></i> Agendar';
             }
         } catch(e) {
-            alert('Erro de conexão');
+            alert('Erro de conexão: ' + e.message);
             btn.disabled = false;
             btn.innerHTML = '<i class="ph ph-calendar-plus"></i> Agendar';
         }
@@ -1007,21 +1012,25 @@ window.mnFinalizarAgendado = function() {
                 headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._manutTok },
                 body: JSON.stringify({ veiculo_id: vid, servicos_ids: servsIds, data_conclusao: dataConc, observacoes: obs })
             });
+            const errData = !res.ok ? await res.text() : null;
             if (res.ok) {
                 ov.remove();
-                alert(`✅ ${cbs.length} manutenção(oes) finalizada(s) com sucesso!`);
-                window.mnCarregarPreventivoVeiculo();
-                document.getElementById('mn-prev-mass-actions').style.display = 'none';
+                // Esconder barra ANTES de recarregar (elemento ainda existe)
+                const bar = document.getElementById('mn-prev-mass-actions');
+                if (bar) bar.style.display = 'none';
                 // Desmarcar todos os checkboxes
                 document.querySelectorAll('.mn-prev-cb').forEach(c => c.checked = false);
+                alert(`✅ ${cbs.length} manutenção(oes) finalizada(s) com sucesso!`);
+                window.mnCarregarPreventivoVeiculo();
             } else {
-                const err = await res.json();
-                alert('Erro: ' + (err.error || 'Desconhecido'));
+                let errMsg = 'Erro desconhecido';
+                try { errMsg = JSON.parse(errData).error || errData; } catch(ex) { errMsg = errData || 'Erro ' + res.status; }
+                alert('Erro ao finalizar: ' + errMsg);
                 btn.disabled = false;
                 btn.innerHTML = '<i class="ph ph-check-circle"></i> Finalizar';
             }
         } catch(e) {
-            alert('Erro de conexão');
+            alert('Erro de conexão: ' + e.message);
             btn.disabled = false;
             btn.innerHTML = '<i class="ph ph-check-circle"></i> Finalizar';
         }
