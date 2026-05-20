@@ -11552,9 +11552,9 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
             const checks = (servicos||[]).map(item => new Promise(resolve => {
                 db.get(
                     `SELECT km_na_manutencao, data_conclusao, observacoes FROM frota_manutencoes
-                     WHERE veiculo_id=? AND servico_catalogo_id=? AND status='concluida'
+                     WHERE veiculo_id=? AND descricao=? AND status='concluida'
                      ORDER BY COALESCE(km_na_manutencao,0) DESC LIMIT 1`,
-                    [vid, item.id],
+                    [vid, item.nome],
                     (e, ultima) => {
                         const kmUlt = ultima?.km_na_manutencao || 0;
                         const dataUlt = ultima?.data_conclusao ? new Date(ultima.data_conclusao) : null;
@@ -11706,20 +11706,25 @@ app.put('/api/frota/manutencoes/em-massa-intervalo-obs', authenticateToken, (req
 
             // 2. Atualizar observações na última manutenção concluída deste veículo e serviço
             if (observacoes !== undefined && observacoes !== null && observacoes !== '') {
-                db.get(
-                    `SELECT id FROM frota_manutencoes WHERE veiculo_id=? AND servico_catalogo_id=? AND status='concluida' ORDER BY COALESCE(km_na_manutencao,0) DESC LIMIT 1`,
-                    [veiculo_id, servico_id],
-                    (err, row) => {
-                        if (err) { console.error(err); errorOccurred = err.message; return; }
-                        if (row && row.id) {
-                            db.run(
-                                'UPDATE frota_manutencoes SET observacoes=? WHERE id=?',
-                                [observacoes, row.id],
-                                err2 => { if (err2) { console.error(err2); errorOccurred = err2.message; } }
-                            );
-                        }
+                db.get('SELECT nome FROM frota_servicos_catalogo WHERE id=?', [servico_id], (errSrv, srv) => {
+                    if (errSrv) { console.error(errSrv); errorOccurred = errSrv.message; return; }
+                    if (srv && srv.nome) {
+                        db.get(
+                            `SELECT id FROM frota_manutencoes WHERE veiculo_id=? AND descricao=? AND status='concluida' ORDER BY COALESCE(km_na_manutencao,0) DESC LIMIT 1`,
+                            [veiculo_id, srv.nome],
+                            (err, row) => {
+                                if (err) { console.error(err); errorOccurred = err.message; return; }
+                                if (row && row.id) {
+                                    db.run(
+                                        'UPDATE frota_manutencoes SET observacoes=? WHERE id=?',
+                                        [observacoes, row.id],
+                                        err2 => { if (err2) { console.error(err2); errorOccurred = err2.message; } }
+                                    );
+                                }
+                            }
+                        );
                     }
-                );
+                });
             }
         });
 
