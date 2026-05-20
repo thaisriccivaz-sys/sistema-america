@@ -11952,44 +11952,45 @@ app.put('/api/frota/veiculos/:id/km', authenticateToken, (req, res) => {
     const hoje = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     db.run('UPDATE frota_veiculos SET km_atual=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [km_atual, vid], (err) => {
         if (err) return res.status(500).json({ error: err.message });
-        // Salvar no histórico diário (INSERT OR REPLACE para atualizar se já tem registro do dia)
-        db.run(
-            'INSERT INTO frota_km_historico(veiculo_id, km, data) VALUES(?,?,?) ON CONFLICT(veiculo_id, data) DO UPDATE SET km=excluded.km',
-            [vid, km_atual, hoje],
-            (err2) => { if (err2) console.error('[FROTA KM HIST]', err2.message); }
-        );
+        // Salvar no histórico diário usando INSERT OR REPLACE (mais compatível)
+        db.run('DELETE FROM frota_km_historico WHERE veiculo_id=? AND data=?', [vid, hoje], () => {
+            db.run(
+                'INSERT INTO frota_km_historico(veiculo_id, km, data) VALUES(?,?,?)',
+                [vid, km_atual, hoje],
+                (err2) => { if (err2) console.error('[FROTA KM HIST]', err2.message); }
+            );
+        });
         res.json({ message: 'Quilometragem atualizada' });
     });
 });
 
 // POST - agendar manutenções preventivas em massa
-app.post('/api/frota/manutencoes/agendar-selecionados', authenticateToken, (req, res) => {
+app.post('/api/frota/manutencoes/agendar-selecionados', authenticateToken, async (req, res) => {
     const { veiculo_id, servicos_ids, fornecedor, data_agendamento, observacoes } = req.body;
     if (!veiculo_id || !Array.isArray(servicos_ids) || servicos_ids.length === 0) {
         return res.status(400).json({ error: 'veiculo_id e servicos_ids são obrigatórios' });
     }
     const usuario_nome = req.user?.username || 'sistema';
-    let count = 0;
-    let errorMsg = null;
-    servicos_ids.forEach(servico_id => {
-        // Buscar nome do serviço no catálogo
-        db.get('SELECT nome FROM frota_servicos_catalogo WHERE id=?', [servico_id], (err, srv) => {
-            if (err || !srv) { count++; if (count === servicos_ids.length && !errorMsg) res.json({ message: 'Agendamentos criados' }); return; }
-            db.run(
-                `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, data_agendamento, fornecedor, observacoes, usuario_nome)
-                 VALUES (?,?,?,?,?,?,?,?)`,
-                [veiculo_id, 'preventiva', srv.nome, 'agendada', data_agendamento || null, fornecedor || null, observacoes || null, usuario_nome],
-                function(err2) {
-                    if (err2) { errorMsg = err2.message; }
-                    count++;
-                    if (count === servicos_ids.length) {
-                        if (errorMsg) return res.status(500).json({ error: errorMsg });
-                        res.json({ message: `${servicos_ids.length} manutenção(ões) agendada(s) com sucesso` });
-                    }
-                }
-            );
-        });
-    });
+    try {
+        for (const servico_id of servicos_ids) {
+            await new Promise((resolve, reject) => {
+                db.get('SELECT nome FROM frota_servicos_catalogo WHERE id=?', [servico_id], (err, srv) => {
+                    if (err) return reject(err);
+                    if (!srv) return resolve(); // serviço não encontrado, pula
+                    db.run(
+                        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, data_agendamento, fornecedor, observacoes, usuario_nome)
+                         VALUES (?,?,?,?,?,?,?,?)`,
+                        [veiculo_id, 'preventiva', srv.nome, 'agendada', data_agendamento || null, fornecedor || null, observacoes || null, usuario_nome],
+                        (err2) => { if (err2) return reject(err2); resolve(); }
+                    );
+                });
+            });
+        }
+        res.json({ message: `${servicos_ids.length} manutenção(ões) agendada(s) com sucesso` });
+    } catch (e) {
+        console.error('[AGENDAR-SEL]', e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // POST - finalizar manutenções agendadas em massa
