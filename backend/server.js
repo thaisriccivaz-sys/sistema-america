@@ -11698,9 +11698,9 @@ app.put('/api/frota/manutencoes/em-massa-intervalo-obs', authenticateToken, (req
             // 1. Atualizar intervalo no catálogo (afeta todos os veículos)
             if (intervalo) {
                 db.run(
-                    'UPDATE frota_servicos_catalogo SET periodicidade_padrao=? WHERE id=?',
+                    `UPDATE frota_servicos_catalogo SET periodicidade_padrao=? WHERE id=?`,
                     [intervalo, servico_id],
-                    err => { if (err) { console.error(err); errorOccurred = true; } }
+                    err => { if (err) { console.error(err); errorOccurred = err.message; } }
                 );
             }
 
@@ -11710,12 +11710,12 @@ app.put('/api/frota/manutencoes/em-massa-intervalo-obs', authenticateToken, (req
                     `SELECT id FROM frota_manutencoes WHERE veiculo_id=? AND servico_catalogo_id=? AND status='concluida' ORDER BY COALESCE(km_na_manutencao,0) DESC LIMIT 1`,
                     [veiculo_id, servico_id],
                     (err, row) => {
-                        if (err) { console.error(err); errorOccurred = true; return; }
+                        if (err) { console.error(err); errorOccurred = err.message; return; }
                         if (row && row.id) {
                             db.run(
                                 'UPDATE frota_manutencoes SET observacoes=? WHERE id=?',
                                 [observacoes, row.id],
-                                err2 => { if (err2) { console.error(err2); errorOccurred = true; } }
+                                err2 => { if (err2) { console.error(err2); errorOccurred = err2.message; } }
                             );
                         }
                     }
@@ -11727,7 +11727,7 @@ app.put('/api/frota/manutencoes/em-massa-intervalo-obs', authenticateToken, (req
         // A better approach in serialize is just to wait a tick, or use a counter. We'll use a simple timeout for safety in this transaction.
         setTimeout(() => {
             db.run(errorOccurred ? 'ROLLBACK' : 'COMMIT', err => {
-                if (err || errorOccurred) return res.status(500).json({ error: 'Erro ao salvar edições' });
+                if (err || errorOccurred) return res.status(500).json({ error: 'Erro ao salvar edições: ' + (errorOccurred || err.message) });
                 res.json({ message: 'Edições salvas com sucesso' });
             });
         }, 1000);
