@@ -111,7 +111,7 @@ async function carregarMultasLogistica() {
 }
 
 function renderMultasLogistica(container) {
-    const STATUS_OPTS = ['Conferência','Conferido','Indicado','Multa NIC','Não Se Aplica'];
+    const STATUS_OPTS = ['Conferência','Conferido','Indicado','Multa NIC','Não Se Aplica','Antiga'];
     const optsStatus = STATUS_OPTS.map(s => `<option value="${s}">${s}</option>`).join('');
 
     let html = `
@@ -204,6 +204,7 @@ function renderMultasLogistica(container) {
             else if (m.status === 'Indicado') statusColor = '#bbf7d0';
             else if (m.status === 'Multa NIC') statusColor = '#fecaca';
             else if (m.status === 'Não Se Aplica') statusColor = '#cbd5e1';
+            else if (m.status === 'Antiga') statusColor = '#e7e5e4';
 
             let statusMonacoHtml = '';
             if (m.status_monaco) {
@@ -310,6 +311,7 @@ function filtrarMultasLogistica() {
         else if (m.status === 'Indicado') statusColor = '#bbf7d0';
         else if (m.status === 'Multa NIC') statusColor = '#fecaca';
         else if (m.status === 'Não Se Aplica') statusColor = '#cbd5e1';
+        else if (m.status === 'Antiga') statusColor = '#e7e5e4';
         return `
             <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                 <td style="padding:1rem;"><strong>${m.numero_ait||'—'}</strong></td>
@@ -462,6 +464,7 @@ function abrirModalNovaMulta() {
                                     <option value="Multa NIC">💳 Optou por Pagar Multa NIC</option>
                                     <option value="Conferido">Conferido</option>
                                     <option value="Não Se Aplica">Não Se Aplica</option>
+                                    <option value="Antiga">🕰️ Antiga (não comunica RH)</option>
                                 </select>
                             </div>
                             <div style="flex:1; min-width:120px;">
@@ -728,7 +731,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
         optionsMotoristas += `<option value="${c.id}" ${sel}>${nome}</option>`;
     });
 
-    const statusOpts = ['Conferência', 'Conferido', 'Indicado', 'Multa NIC', 'Não Se Aplica'];
+    const statusOpts = ['Conferência', 'Conferido', 'Indicado', 'Multa NIC', 'Não Se Aplica', 'Antiga'];
     let optionsStatus = '';
     statusOpts.forEach(s => {
         const sel = (multa.status === s) ? 'selected' : '';
