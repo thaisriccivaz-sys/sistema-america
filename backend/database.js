@@ -1246,12 +1246,14 @@ db.run("PRAGMA foreign_keys = ON;");
                     veiculo_id INTEGER NOT NULL,
                     km INTEGER NOT NULL,
                     data TEXT NOT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(veiculo_id, data),
-                    FOREIGN KEY(veiculo_id) REFERENCES frota_veiculos(id) ON DELETE CASCADE
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             `, (err) => {
-                if (!err) console.log('[FROTA] Tabela frota_km_historico OK.');
+                if (!err) {
+                    console.log('[FROTA] Tabela frota_km_historico OK.');
+                    // Criar índice único separado para compatibilidade máxima
+                    db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_km_hist_veiculo_data ON frota_km_historico(veiculo_id, data)', () => {});
+                }
             });
 
 module.exports = db;
