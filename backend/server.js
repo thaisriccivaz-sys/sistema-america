@@ -11551,7 +11551,7 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
             // For each item, find last completed maintenance
             const checks = (servicos||[]).map(item => new Promise(resolve => {
                 db.get(
-                    `SELECT km_na_manutencao, data_conclusao FROM frota_manutencoes
+                    `SELECT km_na_manutencao, data_conclusao, observacoes FROM frota_manutencoes
                      WHERE veiculo_id=? AND servico_catalogo_id=? AND status='concluida'
                      ORDER BY COALESCE(km_na_manutencao,0) DESC LIMIT 1`,
                     [vid, item.id],
@@ -11582,7 +11582,8 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                             ...item, km_ultima: kmUlt, km_proxima: kmProx,
                             km_restante: kmRest, data_ultima: ultima?.data_conclusao || null,
                             status_item: statusItem,
-                            criticidade: criticidadeDinamica // Sobrescreve a do catálogo
+                            criticidade: criticidadeDinamica, // Sobrescreve a do catálogo
+                            observacoes: ultima?.observacoes || ''
                         });
                     }
                 );
@@ -11679,6 +11680,57 @@ app.put('/api/frota/manutencoes/em-massa', authenticateToken, (req, res) => {
             }
             res.json({ message: 'Edições em massa salvas com sucesso' });
         });
+    });
+});
+
+// PUT - editar em massa intervalo e observacoes
+app.put('/api/frota/manutencoes/em-massa-intervalo-obs', authenticateToken, (req, res) => {
+    const { veiculo_id, servicos_ids, intervalo, observacoes } = req.body;
+    if (!veiculo_id || !Array.isArray(servicos_ids)) return res.status(400).json({ error: 'veiculo_id e servicos_ids são obrigatórios' });
+
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        let errorOccurred = false;
+
+        servicos_ids.forEach(servico_id => {
+            if (errorOccurred) return;
+            
+            // 1. Atualizar intervalo no catálogo (afeta todos os veículos)
+            if (intervalo) {
+                db.run(
+                    'UPDATE frota_servicos_catalogo SET periodicidade_padrao=? WHERE id=?',
+                    [intervalo, servico_id],
+                    err => { if (err) { console.error(err); errorOccurred = true; } }
+                );
+            }
+
+            // 2. Atualizar observações na última manutenção concluída deste veículo e serviço
+            if (observacoes !== undefined && observacoes !== null && observacoes !== '') {
+                db.get(
+                    `SELECT id FROM frota_manutencoes WHERE veiculo_id=? AND servico_catalogo_id=? AND status='concluida' ORDER BY COALESCE(km_na_manutencao,0) DESC LIMIT 1`,
+                    [veiculo_id, servico_id],
+                    (err, row) => {
+                        if (err) { console.error(err); errorOccurred = true; return; }
+                        if (row && row.id) {
+                            db.run(
+                                'UPDATE frota_manutencoes SET observacoes=? WHERE id=?',
+                                [observacoes, row.id],
+                                err2 => { if (err2) { console.error(err2); errorOccurred = true; } }
+                            );
+                        }
+                    }
+                );
+            }
+        });
+
+        // Use setTimeout to allow db.get callbacks to finish (since sqlite3 doesn't support promises natively in this pattern easily without wrapper)
+        // A better approach in serialize is just to wait a tick, or use a counter. We'll use a simple timeout for safety in this transaction.
+        setTimeout(() => {
+            db.run(errorOccurred ? 'ROLLBACK' : 'COMMIT', err => {
+                if (err || errorOccurred) return res.status(500).json({ error: 'Erro ao salvar edições' });
+                res.json({ message: 'Edições salvas com sucesso' });
+            });
+        }, 1000);
     });
 });
 

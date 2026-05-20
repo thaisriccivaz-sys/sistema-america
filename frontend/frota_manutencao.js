@@ -117,7 +117,7 @@ function mnRenderPlanoAgrupado(data) {
     let html = `
     <div id="mn-prev-mass-actions" style="display:none; background:#fffbeb; border:1px solid #fde68a; padding:0.8rem 1rem; border-radius:12px; margin-bottom:1rem; align-items:center; gap:1rem;">
         <span style="font-weight:700; color:#b45309;"><span id="mn-prev-sel-count">0</span> itens selecionados</span>
-        <button onclick="window.mnRegistrarSelecionados()" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.8rem;font-weight:600;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-pencil"></i> Editar</button>
+        <button onclick="window.mnEditarIntervaloObsSelecionados()" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.8rem;font-weight:600;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-pencil"></i> Editar Selecionados</button>
     </div>
     <div style="display:flex;flex-direction:column;gap:1rem;">`;
     Object.entries(grupos).forEach(([catNome, cat]) => {
@@ -138,6 +138,7 @@ function mnRenderPlanoAgrupado(data) {
                     <div style="display:flex;align-items:center;gap:6px;">
                         <i class="ph ph-${icone}" style="color:${cor};"></i>
                         <span style="font-weight:600;color:#1e293b;font-size:0.85rem;">${item.nome}</span>
+                        ${item.observacoes ? `<i class="ph ph-chat-text" style="color:#0284c7;cursor:pointer;font-size:1.1rem;margin-left:4px;" title="Ver Observação da Última Manutenção" onclick="alert('Observação da Última Manutenção:\\n\\n' + '${item.observacoes.replace(/'/g, "\\'").replace(/\n/g, '\\n')}')"></i>` : ''}
                         ${item.impede_operacao ? '<span style="background:#dc262622;color:#dc2626;padding:1px 6px;border-radius:20px;font-size:0.7rem;font-weight:700;">Para Op.</span>' : ''}
                     </div>
                 </td>
@@ -484,6 +485,9 @@ window.abrirModalManutencao = async function(id, opts = {}) {
     document.body.appendChild(ov);
     ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
 
+    // Auto-fill KM if vehicle is already selected
+    if (m.veiculo_id) setTimeout(() => { if (window.mnModalVeiculoChanged) window.mnModalVeiculoChanged(); }, 50);
+
     window._mnModalServicos = [];
     
     if (opts.multi_servicos && opts.multi_servicos.length > 0) {
@@ -765,29 +769,80 @@ window.mnPrevCbChanged = function() {
     }
 };
 
-window.mnRegistrarSelecionados = function() {
+window.mnEditarIntervaloObsSelecionados = function() {
     const cbs = document.querySelectorAll('.mn-prev-cb:checked');
     if(!cbs.length) return;
     const vid = document.getElementById('mn-prev-veiculo')?.value;
     if(!vid) return alert('Selecione o veículo');
-    const servs = Array.from(cbs).map(cb => ({
-        cat_id: '',
-        servico_id: cb.dataset.id,
-        nome: cb.dataset.nome,
-        km: '',
-        intervalo: cb.dataset.intervalo || ''
-    }));
-    window.abrirModalManutencao(null, { tipo: 'preventiva', vid: vid, multi_servicos: servs });
+
+    const servsIds = Array.from(cbs).map(cb => cb.dataset.id);
+
+    let ov = document.getElementById('modal-mass-edit-obs'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'modal-mass-edit-obs';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    
+    ov.innerHTML = `<div style="background:#fff;border-radius:12px;width:100%;max-width:500px;display:flex;flex-direction:column;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);overflow:hidden;">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:1rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px;"><i class="ph ph-pencil-simple" style="color:#0284c7;"></i> Editar ${cbs.length} Serviço(s)</div>
+            <button onclick="document.getElementById('modal-mass-edit-obs').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;"><i class="ph ph-x"></i></button>
+        </div>
+        <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
+            <div style="background:#e0f2fe;color:#0369a1;padding:0.75rem;border-radius:8px;font-size:0.85rem;display:flex;gap:8px;">
+                <i class="ph ph-info" style="font-size:1.2rem;"></i>
+                <span>Preencha apenas o que deseja alterar para todos os serviços selecionados. O que deixar em branco não será alterado.</span>
+            </div>
+            <div>
+                <label style="font-size:0.85rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">KM de intervalo para a próxima</label>
+                <input id="me-obs-intervalo" type="number" placeholder="Ex: 10000" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">
+            </div>
+            <div>
+                <label style="font-size:0.85rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Observações</label>
+                <textarea id="me-obs-texto" placeholder="Observações..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:100px;resize:vertical;"></textarea>
+            </div>
+        </div>
+        <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:1rem;background:#f8fafc;">
+            <button onclick="document.getElementById('modal-mass-edit-obs').remove()" style="background:#fff;border:1px solid #cbd5e1;color:#475569;padding:0.5rem 1rem;border-radius:6px;font-weight:600;cursor:pointer;">Cancelar</button>
+            <button id="btn-me-obs-salvar" style="background:#0284c7;color:#fff;border:none;padding:0.5rem 1.2rem;border-radius:6px;font-weight:600;cursor:pointer;">Salvar Alterações</button>
+        </div>
+    </div>`;
+    document.body.appendChild(ov);
+
+    document.getElementById('btn-me-obs-salvar').onclick = async () => {
+        const intv = document.getElementById('me-obs-intervalo').value;
+        const obs = document.getElementById('me-obs-texto').value;
+        
+        if (!intv && !obs) {
+            alert('Preencha ao menos um dos campos para alterar.');
+            return;
+        }
+
+        try {
+            document.getElementById('btn-me-obs-salvar').textContent = 'Salvando...';
+            document.getElementById('btn-me-obs-salvar').disabled = true;
+            
+            const res = await fetch('/api/frota/manutencoes/em-massa-intervalo-obs', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._manutTok },
+                body: JSON.stringify({ veiculo_id: vid, servicos_ids: servsIds, intervalo: intv, observacoes: obs })
+            });
+
+            if (res.ok) {
+                ov.remove();
+                alert('Serviços atualizados com sucesso!');
+                window.mnCarregarPreventivoVeiculo();
+            } else {
+                const err = await res.json();
+                alert('Erro: ' + (err.error || 'Desconhecido'));
+                document.getElementById('btn-me-obs-salvar').textContent = 'Salvar Alterações';
+                document.getElementById('btn-me-obs-salvar').disabled = false;
+            }
+        } catch (e) {
+            alert('Erro de conexão');
+            document.getElementById('btn-me-obs-salvar').textContent = 'Salvar Alterações';
+            document.getElementById('btn-me-obs-salvar').disabled = false;
+        }
+    };
 };
-
-window.mnEditarSelecionados = function() {
-    const cbs = document.querySelectorAll('.mn-prev-cb:checked');
-    if(!cbs.length) return;
-    const vid = document.getElementById('mn-prev-veiculo')?.value;
-    if(!vid) return alert('Selecione o veículo');
-
-    let ov = document.getElementById('modal-mass-edit-ov'); if (ov) ov.remove();
-    ov = document.createElement('div'); ov.id = 'modal-mass-edit-ov';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
 
     const linhas = Array.from(cbs).map((cb, idx) => {
