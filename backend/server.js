@@ -4852,6 +4852,36 @@ app.get('/api/logistica/multas/:id/documento', (req, res) => {
     });
 });
 
+// GET /api/logistica/multas/:id/termo-desconto — serve o PDF da declaração de desconto (armazenado como base64 no banco)
+app.get('/api/logistica/multas/:id/termo-desconto', (req, res) => {
+    const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Não autorizado' });
+    try {
+        const jwt = require('jsonwebtoken');
+        jwt.verify(token, SECRET_KEY);
+    } catch (e) {
+        return res.status(401).json({ error: 'Token inválido' });
+    }
+
+    db.get('SELECT termo_desconto_base64, termo_desconto_nome FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
+
+        if (!row.termo_desconto_base64) return res.status(404).json({ error: 'Termo de desconto não disponível.' });
+
+        const nome = row.termo_desconto_nome || 'termo_desconto.pdf';
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(nome)}"`);
+        
+        let contentType = 'application/pdf';
+        if (nome.toLowerCase().endsWith('.png')) contentType = 'image/png';
+        else if (nome.toLowerCase().endsWith('.jpg') || nome.toLowerCase().endsWith('.jpeg')) contentType = 'image/jpeg';
+        
+        res.setHeader('Content-Type', contentType);
+
+        const buf = Buffer.from(row.termo_desconto_base64, 'base64');
+        return res.end(buf);
+    });
+});
+
 // MIGRATION: coluna documentos_extras (JSON array de base64)
 db.run("ALTER TABLE multas_logistica ADD COLUMN documentos_extras TEXT DEFAULT '[]'", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION multas_logistica documentos_extras]', err.message);
@@ -13557,18 +13587,18 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                     });
             });
 
-            // Agenda: falta/ausencia marcada na agenda da logística para essa data referente ao colaborador
+            // Agenda: falta/ausencia/terapia marcada na agenda da logística para essa data referente ao colaborador
             const pAgenda = new Promise(resolve => {
-                db.all(`SELECT referente_ids, tipo FROM logistica_agenda WHERE data = ? AND tipo IN ('falta','afastado','ferias')`, [data], (e, rows) => {
+                db.all(`SELECT referente_ids, tipo FROM logistica_agenda WHERE data = ? AND tipo IN ('falta','afastado','ferias','terapia')`, [data], (e, rows) => {
                     const agendaMap = new Map(); // id -> tipo
                     (rows || []).forEach(r => {
                         try {
                             const refs = JSON.parse(r.referente_ids || '[]');
                             refs.forEach(rid => {
                                 const idNum = Number(rid);
-                                // Prioridade: falta > afastado > ferias
+                                // Prioridade: falta > afastado > ferias > terapia
                                 const prev = agendaMap.get(idNum);
-                                if (!prev || r.tipo === 'falta' || (r.tipo === 'afastado' && prev === 'ferias')) {
+                                if (!prev || r.tipo === 'falta' || (r.tipo === 'afastado' && (prev === 'ferias' || prev === 'terapia')) || (r.tipo === 'ferias' && prev === 'terapia')) {
                                     agendaMap.set(idNum, r.tipo);
                                 }
                             });
@@ -13645,12 +13675,13 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                     // Falta registrada na tabela de faltas
                     if (faltSet[c.id]) { status = 'falta'; motivo = 'Falta registrada no dia'; }
 
-                    // Agenda logística — respeita o tipo do card (falta, afastado ou ferias)
+                    // Agenda logística — respeita o tipo do card (falta, afastado, ferias ou terapia)
                     if (agendaMap.has(c.id)) {
                         const tipoAgenda = agendaMap.get(c.id);
                         if (tipoAgenda === 'falta') { status = 'falta'; motivo = 'Ausência lançada na Agenda'; }
                         else if (tipoAgenda === 'afastado') { status = 'afastado'; motivo = 'Ausência lançada na Agenda'; }
                         else if (tipoAgenda === 'ferias' && status === 'disponivel') { status = 'ferias'; motivo = 'Férias lançadas na Agenda Logística'; }
+                        else if (tipoAgenda === 'terapia' && status === 'disponivel') { status = 'terapia'; motivo = 'Terapia agendada para hoje'; }
                     }
 
                     // Folga da escala (só se ainda disponível)
@@ -14469,13 +14500,31 @@ function syncToLogistica(uuid, tipoEvento, payload) {
 
         let docBase64 = null;
         let docNome = null;
+        let termoBase64 = null;
+        let termoNome = null;
+        
         // Monaco envia o campo como 'Arquivos' (maiúsculo) — suportamos ambos
         const arquivosArr = payload.Arquivos || payload.arquivos || [];
+        
+        // 1. Tentar buscar no campo direto termo_desconto
+        if (payload.termo_desconto && typeof payload.termo_desconto === 'string' && payload.termo_desconto.length > 100) {
+            termoBase64 = payload.termo_desconto;
+            termoNome = 'termo_desconto.pdf';
+        }
+
         if (arquivosArr.length > 0) {
-            const arq = arquivosArr[0];
-            if (arq.base64) {
-                docBase64 = arq.base64;
-                docNome = arq.Nome || arq.nome || 'anexo_monaco.pdf';
+            for (let arq of arquivosArr) {
+                const nomeArq = arq.Nome || arq.nome || '';
+                const nomeUpper = nomeArq.toUpperCase();
+                // 2. Tentar buscar no array de arquivos (caso enviem como um anexo normal)
+                if (nomeUpper.includes('DECLARAÇÃO') || nomeUpper.includes('DECLARACAO') || nomeUpper.includes('TERMO') || nomeUpper.includes('DESCONTO')) {
+                    termoBase64 = arq.base64;
+                    termoNome = nomeArq || 'termo_desconto.pdf';
+                } else if (!docBase64 && arq.base64) {
+                    // Pega o primeiro arquivo que NÃO seja o termo como notificação padrão
+                    docBase64 = arq.base64;
+                    docNome = nomeArq || 'anexo_monaco.pdf';
+                }
             }
         }
 
@@ -14503,6 +14552,11 @@ function syncToLogistica(uuid, tipoEvento, payload) {
                 updateSql += `, documento_base64 = ?, documento_nome = ?`;
                 params.push(docBase64, docNome);
             }
+            
+            if (termoBase64) {
+                updateSql += `, termo_desconto_base64 = ?, termo_desconto_nome = ?`;
+                params.push(termoBase64, termoNome);
+            }
 
             updateSql += ` WHERE id = ?`;
             params.push(row.id);
@@ -14516,12 +14570,12 @@ function syncToLogistica(uuid, tipoEvento, payload) {
             db.run(`INSERT INTO multas_logistica (
                 monaco_uuid, numero_ait, placa, data_infracao, hora_infracao,
                 motivo, valor_multa, pontuacao, local_infracao, data_limite,
-                status, created_by_nome, observacao, documento_base64, documento_nome, status_monaco, link_formulario
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Integração Mônaco', 'Multa importada automaticamente da Mônaco via webhook.', ?, ?, ?, ?)`, [
+                status, created_by_nome, observacao, documento_base64, documento_nome, status_monaco, link_formulario, termo_desconto_base64, termo_desconto_nome
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Integração Mônaco', 'Multa importada automaticamente da Mônaco via webhook.', ?, ?, ?, ?, ?, ?)`, [
                 uuid, payload.numero_ait, payload.placa, payload.data_da_infracao, payload.hora_da_infracao,
                 payload.descricao, payload.valor_da_infracao, payload.pontos, localInfracao, dataLimite,
                 isAitAntiga(payload.numero_ait) ? 'Antiga' : 'Conferência',
-                docBase64, docNome, statusMonaco, linkFormulario
+                docBase64, docNome, statusMonaco, linkFormulario, termoBase64, termoNome
             ], function (errInsert) {
                 if (errInsert) console.error('[MONACO SYNC] Erro insert:', errInsert);
                 else {

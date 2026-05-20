@@ -103,6 +103,9 @@ function _buildMultaRow(m) {
     const btnDoc = (m.documento_base64 || m.documento_path)
         ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>` : '';
 
+    const btnTermo = (m.termo_desconto_base64)
+        ? `<button onclick="visualizarTermoDescontoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; margin-right:8px;" title="Termo de Desconto Assinado (Mônaco)"><img src="assets/icone_termo_desconto.png" alt="Termo" style="width:1.2rem; height:1.2rem; object-fit:contain; filter: brightness(0); opacity: 0.8;"></button>` : '';
+
     return `
         <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
             <td style="padding:1rem;"><strong>${m.numero_ait || '—'}</strong></td>
@@ -114,7 +117,7 @@ function _buildMultaRow(m) {
             <td style="padding:1rem;">${_statusMonacoBadge(m)}</td>
             <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite)}</td>
             <td style="padding:1rem; text-align:center; min-width:140px; white-space:nowrap;">
-                ${btnEditar}${olhoAzul}${olhoVerde}${btnDoc}${btnLink}${btnExcluir}
+                ${btnEditar}${olhoAzul}${olhoVerde}${btnDoc}${btnTermo}${btnLink}${btnExcluir}
             </td>
         </tr>`;
 }
@@ -1318,6 +1321,12 @@ function visualizarDocumentoMulta(id) {
     const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
     // Abre em nova aba usando a rota de download autenticada
     const url = `/api/logistica/multas/${id}/documento?token=${encodeURIComponent(token)}`;
+    window.open(url, '_blank');
+}
+
+function visualizarTermoDescontoMulta(id) {
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    const url = `/api/logistica/multas/${id}/termo-desconto?token=${encodeURIComponent(token)}`;
     window.open(url, '_blank');
 }
 

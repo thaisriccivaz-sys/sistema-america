@@ -33,6 +33,7 @@
         { value: 'afastado', label: 'Afastado', icon: 'ph-first-aid', color: '#ca8a04' },
         { value: 'ferias',  label: 'Férias', icon: 'ph-airplane-tilt', color: '#ea580c' },
         { value: 'aso',     label: 'ASO Agendado', icon: 'ph-heartbeat', color: '#0891b2' },
+        { value: 'terapia', label: 'Terapia', icon: 'ph-brain', color: '#eab308' },
         { value: 'outro',   label: 'Outro',           icon: 'ph-calendar',      color: '#6b7280' },
     ];
     function getTipo(v) { return TIPOS.find(t => t.value === v) || TIPOS[6]; }
@@ -241,6 +242,7 @@
             afastado:   { bg: '#fefce8', color: '#ca8a04', border: '#fde68a' },
             falta:      { bg: '#fef2f2', color: '#dc2626', border: '#fca5a5' },
             aso:        { bg: '#f8fafc', color: '#64748b', border: '#cbd5e1' },
+            terapia:    { bg: '#fefce8', color: '#ca8a04', border: '#fde047' },
         };
 
         for (const dObj of diasRender) {
@@ -278,7 +280,7 @@
                     const avatarHTML = `<div style="width:20px;height:20px;border-radius:50%;background:${st.bg};border:1.5px solid ${st.border};display:${colab.foto_base64?'none':'flex'};align-items:center;justify-content:center;font-size:9px;font-weight:800;color:${st.color};flex-shrink:0;">${inicial}</div>`;
                     const sublabel = status === 'disponivel' && colab.horario_entrada
                         ? `${colab.horario_entrada}${colab.horario_saida?'-'+colab.horario_saida:''}`
-                        : ({disponivel:'Disponível',folga:'Folga',ferias:'Férias',afastado:'Afastado',falta:'Falta',aso:'ASO'}[status]||'');
+                        : ({disponivel:'Disponível',folga:'Folga',ferias:'Férias',afastado:'Afastado',falta:'Falta',aso:'ASO',terapia:'Terapia'}[status]||'');
                     return `<div style="display:flex;align-items:center;gap:4px;padding:3px 5px;margin-bottom:2px;border-radius:6px;background:${st.bg};border:1px solid ${st.border};">
                         ${fotoHTML}${avatarHTML}
                         <div style="overflow:hidden;min-width:0;">
@@ -403,6 +405,7 @@
                     {k:'folga',    label:'⚪ Folga',    color:'#94a3b8', bg:'#f1f5f9'},
                     {k:'ferias',   label:'🟠 Férias',   color:'#ea580c', bg:'#fff7ed'},
                     {k:'afastado', label:'🟡 Afastado', color:'#ca8a04', bg:'#fefce8'},
+                    {k:'terapia',  label:'🟡 Terapia',  color:'#eab308', bg:'#fefce8'},
                     {k:'falta',    label:'🔴 Falta',    color:'#dc2626', bg:'#fef2f2'},
                     {k:'aso',      label:'⚪ ASO',      color:'#64748b', bg:'#f8fafc'},
                 ].map(f => `<button onclick="agendaSetEscalaFiltro('${f.k}')"
@@ -601,6 +604,11 @@
         }).join('');
 
         const colabOptions = agendaColabs
+            .filter(c => {
+                const st = (c.status || '').toLowerCase().trim();
+                return st !== 'desligado' && st !== 'inativo' && st !== 'demitido' && st !== 'rescindido';
+            })
+            .sort((a, b) => (a.nome_completo || '').trim().localeCompare((b.nome_completo || '').trim(), 'pt-BR', { sensitivity: 'base' }))
             .map(c => `<option value="${c.id}">${c.nome_completo}</option>`)
             .join('');
 
