@@ -866,7 +866,14 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                     <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap;">
                         <div style="flex:1; min-width:150px;">
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Data da Infração</label>
-                            <input type="date" id="gm-data" value="${multa.data_infracao || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                            <input type="date" id="gm-data" value="${(function(){
+                                let d = multa.data_infracao || '';
+                                if (d.includes('/')) {
+                                    const p = d.split('/');
+                                    if(p.length === 3) return p[2] + '-' + p[1] + '-' + p[0];
+                                }
+                                return d;
+                            })()}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                         </div>
                         <div style="flex:1; min-width:150px;">
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Hora</label>
