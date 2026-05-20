@@ -391,6 +391,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     local_infracao TEXT,
                     monaco_uuid TEXT,
                     status_monaco TEXT,
+                    termo_desconto_base64 TEXT,
+                    termo_desconto_nome TEXT,
                     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
                     atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
@@ -497,6 +499,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('created_by_nome')) db.run("ALTER TABLE multas_logistica ADD COLUMN created_by_nome TEXT");
                     if (!cols.includes('monaco_uuid')) db.run("ALTER TABLE multas_logistica ADD COLUMN monaco_uuid TEXT");
                     if (!cols.includes('status_monaco')) db.run("ALTER TABLE multas_logistica ADD COLUMN status_monaco TEXT");
+                    if (!cols.includes('termo_desconto_base64')) db.run("ALTER TABLE multas_logistica ADD COLUMN termo_desconto_base64 TEXT");
+                    if (!cols.includes('termo_desconto_nome')) db.run("ALTER TABLE multas_logistica ADD COLUMN termo_desconto_nome TEXT");
                 });
 
                 // Avaliacoes (Migracao estrutural para Drop and Recreate caso a tabela antiga nao tenha 'tipo')
@@ -1153,6 +1157,8 @@ db.run("PRAGMA foreign_keys = ON;");
                     'INSERT OR IGNORE INTO frota_servicos_catalogo(categoria_id,nome,tipo_controle,periodicidade_padrao,unidade,criticidade,tempo_medio_horas,exige_parada,obrigatorio,impede_operacao,padrao) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
                     s
                 ));
+                // Remove duplicatas caso tenham ocorrido
+                db.run(`DELETE FROM frota_servicos_catalogo WHERE id NOT IN (SELECT MIN(id) FROM frota_servicos_catalogo GROUP BY categoria_id, nome)`);
                 });
             });
 
@@ -1231,6 +1237,21 @@ db.run("PRAGMA foreign_keys = ON;");
                 const cols = rows.map(r => r.name);
                 if (!cols.includes('km_atual')) db.run("ALTER TABLE frota_veiculos ADD COLUMN km_atual INTEGER DEFAULT 0");
                 if (!cols.includes('em_manutencao')) db.run("ALTER TABLE frota_veiculos ADD COLUMN em_manutencao INTEGER DEFAULT 0");
+            });
+
+            // Tabela de histórico diário de KM por veículo
+            db.run(`
+                CREATE TABLE IF NOT EXISTS frota_km_historico (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    veiculo_id INTEGER NOT NULL,
+                    km INTEGER NOT NULL,
+                    data TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(veiculo_id, data),
+                    FOREIGN KEY(veiculo_id) REFERENCES frota_veiculos(id) ON DELETE CASCADE
+                )
+            `, (err) => {
+                if (!err) console.log('[FROTA] Tabela frota_km_historico OK.');
             });
 
 module.exports = db;

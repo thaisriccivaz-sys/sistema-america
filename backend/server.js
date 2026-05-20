@@ -11948,11 +11948,137 @@ app.get('/api/frota/alertas-todos', authenticateToken, (req, res) => {
 app.put('/api/frota/veiculos/:id/km', authenticateToken, (req, res) => {
     const { km_atual } = req.body;
     if (!km_atual) return res.status(400).json({ error: 'km_atual é obrigatório' });
-    db.run('UPDATE frota_veiculos SET km_atual=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [km_atual, req.params.id], (err) => {
+    const vid = req.params.id;
+    const hoje = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    db.run('UPDATE frota_veiculos SET km_atual=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [km_atual, vid], (err) => {
         if (err) return res.status(500).json({ error: err.message });
+        // Salvar no histórico diário (INSERT OR REPLACE para atualizar se já tem registro do dia)
+        db.run(
+            'INSERT INTO frota_km_historico(veiculo_id, km, data) VALUES(?,?,?) ON CONFLICT(veiculo_id, data) DO UPDATE SET km=excluded.km',
+            [vid, km_atual, hoje],
+            (err2) => { if (err2) console.error('[FROTA KM HIST]', err2.message); }
+        );
         res.json({ message: 'Quilometragem atualizada' });
     });
 });
+
+// POST - agendar manutenções preventivas em massa
+app.post('/api/frota/manutencoes/agendar-selecionados', authenticateToken, (req, res) => {
+    const { veiculo_id, servicos_ids, fornecedor, data_agendamento, observacoes } = req.body;
+    if (!veiculo_id || !Array.isArray(servicos_ids) || servicos_ids.length === 0) {
+        return res.status(400).json({ error: 'veiculo_id e servicos_ids são obrigatórios' });
+    }
+    const usuario_nome = req.user?.username || 'sistema';
+    let count = 0;
+    let errorMsg = null;
+    servicos_ids.forEach(servico_id => {
+        // Buscar nome do serviço no catálogo
+        db.get('SELECT nome FROM frota_servicos_catalogo WHERE id=?', [servico_id], (err, srv) => {
+            if (err || !srv) { count++; if (count === servicos_ids.length && !errorMsg) res.json({ message: 'Agendamentos criados' }); return; }
+            db.run(
+                `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, data_agendamento, fornecedor, observacoes, usuario_nome)
+                 VALUES (?,?,?,?,?,?,?,?)`,
+                [veiculo_id, 'preventiva', srv.nome, 'agendada', data_agendamento || null, fornecedor || null, observacoes || null, usuario_nome],
+                function(err2) {
+                    if (err2) { errorMsg = err2.message; }
+                    count++;
+                    if (count === servicos_ids.length) {
+                        if (errorMsg) return res.status(500).json({ error: errorMsg });
+                        res.json({ message: `${servicos_ids.length} manutenção(ões) agendada(s) com sucesso` });
+                    }
+                }
+            );
+        });
+    });
+});
+
+// POST - finalizar manutenções agendadas em massa
+app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, res) => {
+    const { veiculo_id, servicos_ids, data_conclusao, observacoes } = req.body;
+    if (!veiculo_id || !Array.isArray(servicos_ids) || servicos_ids.length === 0 || !data_conclusao) {
+        return res.status(400).json({ error: 'veiculo_id, servicos_ids e data_conclusao são obrigatórios' });
+    }
+
+    // 1. Buscar KM do veículo na data informada (histórico ou atual)
+    db.get(
+        `SELECT km FROM frota_km_historico WHERE veiculo_id=? AND data <= ? ORDER BY data DESC LIMIT 1`,
+        [veiculo_id, data_conclusao],
+        (err, histRow) => {
+            let kmNaData = histRow ? histRow.km : null;
+
+            // Se não tem histórico, usa o KM atual do veículo
+            const resolveKm = (callback) => {
+                if (kmNaData) return callback(kmNaData);
+                db.get('SELECT km_atual FROM frota_veiculos WHERE id=?', [veiculo_id], (e, v) => {
+                    kmNaData = v ? v.km_atual : 0;
+                    callback(kmNaData);
+                });
+            };
+
+            resolveKm((km) => {
+                let count = 0;
+                let errorMsg = null;
+
+                servicos_ids.forEach(servico_id => {
+                    // Buscar intervalo do serviço no catálogo para calcular próxima KM
+                    db.get('SELECT nome, periodicidade_padrao FROM frota_servicos_catalogo WHERE id=?', [servico_id], (errSrv, srv) => {
+                        if (errSrv || !srv) {
+                            count++;
+                            if (count === servicos_ids.length) {
+                                if (errorMsg) return res.status(500).json({ error: errorMsg });
+                                res.json({ message: 'Manutenções finalizadas com sucesso' });
+                            }
+                            return;
+                        }
+
+                        const kmProxima = km && srv.periodicidade_padrao ? (parseInt(km) + parseInt(srv.periodicidade_padrao)) : null;
+                        const nomeServico = srv.nome;
+
+                        // Buscar manutenção agendada existente para este veículo/serviço
+                        db.get(
+                            `SELECT id FROM frota_manutencoes WHERE veiculo_id=? AND descricao=? AND status='agendada' ORDER BY id DESC LIMIT 1`,
+                            [veiculo_id, nomeServico],
+                            (errFind, existing) => {
+                                if (existing) {
+                                    // Atualizar registro agendado existente
+                                    db.run(
+                                        `UPDATE frota_manutencoes SET status='concluida', km_na_manutencao=?, km_proxima_manutencao=?, data_conclusao=?, observacoes=COALESCE(NULLIF(?,''), observacoes), updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+                                        [km, kmProxima, data_conclusao, observacoes || '', existing.id],
+                                        (errUpd) => {
+                                            if (errUpd) errorMsg = errUpd.message;
+                                            count++;
+                                            if (count === servicos_ids.length) {
+                                                if (errorMsg) return res.status(500).json({ error: errorMsg });
+                                                res.json({ message: 'Manutenções finalizadas com sucesso' });
+                                            }
+                                        }
+                                    );
+                                } else {
+                                    // Criar novo registro concluído
+                                    const usuario_nome = req.user?.username || 'sistema';
+                                    db.run(
+                                        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_conclusao, observacoes, usuario_nome)
+                                         VALUES (?,?,?,?,?,?,?,?,?)`,
+                                        [veiculo_id, 'preventiva', nomeServico, 'concluida', km, kmProxima, data_conclusao, observacoes || null, usuario_nome],
+                                        (errIns) => {
+                                            if (errIns) errorMsg = errIns.message;
+                                            count++;
+                                            if (count === servicos_ids.length) {
+                                                if (errorMsg) return res.status(500).json({ error: errorMsg });
+                                                res.json({ message: 'Manutenções finalizadas com sucesso' });
+                                            }
+                                        }
+                                    );
+                                }
+                            }
+                        );
+                    });
+                });
+            });
+        }
+    );
+});
+
 
 // GET - status de manutenção de todos os veículos (para os cards)
 app.get('/api/frota/status-manutencao', authenticateToken, (req, res) => {

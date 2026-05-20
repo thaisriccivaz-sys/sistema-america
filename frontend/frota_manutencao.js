@@ -115,9 +115,11 @@ function mnRenderPlanoAgrupado(data) {
     const vid = document.getElementById('mn-prev-veiculo')?.value;
 
     let html = `
-    <div id="mn-prev-mass-actions" style="display:none; background:#fffbeb; border:1px solid #fde68a; padding:0.8rem 1rem; border-radius:12px; margin-bottom:1rem; align-items:center; gap:1rem;">
+    <div id="mn-prev-mass-actions" style="display:none; background:#fffbeb; border:1px solid #fde68a; padding:0.8rem 1rem; border-radius:12px; margin-bottom:1rem; align-items:center; gap:0.75rem; flex-wrap:wrap;">
         <span style="font-weight:700; color:#b45309;"><span id="mn-prev-sel-count">0</span> itens selecionados</span>
         <button onclick="window.mnEditarIntervaloObsSelecionados()" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.8rem;font-weight:600;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-pencil"></i> Editar Selecionados</button>
+        <button onclick="window.mnAgendarSelecionados()" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.8rem;font-weight:600;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-calendar-plus"></i> Agendar Selecionados</button>
+        <button onclick="window.mnFinalizarAgendado()" style="background:#2d9e5f;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.8rem;font-weight:600;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-check-circle"></i> Finalizar Agendado</button>
     </div>
     <div style="display:flex;flex-direction:column;gap:1rem;">`;
     Object.entries(grupos).forEach(([catNome, cat]) => {
@@ -870,6 +872,160 @@ window.mnExcluirServicoModal = async function(id, idx) {
     } catch (e) {
         alert('Erro de conexão ao excluir.');
     }
+};
+
+
+window.mnAgendarSelecionados = function() {
+    const cbs = document.querySelectorAll('.mn-prev-cb:checked');
+    if (!cbs.length) return;
+    const vid = document.getElementById('mn-prev-veiculo')?.value;
+    if (!vid) return alert('Selecione o veículo');
+    const servsIds = Array.from(cbs).map(cb => cb.dataset.id);
+    const nomes = Array.from(cbs).map(cb => cb.dataset.nome).join(', ');
+
+    let ov = document.getElementById('modal-agendar-sel'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'modal-agendar-sel';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+    const hoje = new Date().toISOString().slice(0, 10);
+
+    ov.innerHTML = `<div style="background:#fff;border-radius:12px;width:100%;max-width:520px;display:flex;flex-direction:column;box-shadow:0 20px 40px rgba(0,0,0,0.2);overflow:hidden;">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;background:#f5f3ff;display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:1rem;font-weight:700;color:#5b21b6;display:flex;align-items:center;gap:8px;"><i class="ph ph-calendar-plus" style="color:#7c3aed;"></i> Agendar ${cbs.length} Serviço(s)</div>
+            <button onclick="document.getElementById('modal-agendar-sel').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;"><i class="ph ph-x"></i></button>
+        </div>
+        <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
+            <div style="background:#f5f3ff;color:#5b21b6;padding:0.75rem;border-radius:8px;font-size:0.82rem;"><i class="ph ph-info"></i> <strong>Serviços:</strong> ${nomes}</div>
+            <div style="background:#e0f2fe;color:#0369a1;padding:0.65rem;border-radius:8px;font-size:0.82rem;">
+                <i class="ph ph-lightbulb"></i> A KM será contabilizada apenas no dia da finalização da manutenção, não no agendamento.
+            </div>
+            <div>
+                <label style="font-size:0.85rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Fornecedor / Oficina</label>
+                <input id="ag-sel-fornecedor" type="text" placeholder="Nome da oficina ou fornecedor..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">
+            </div>
+            <div>
+                <label style="font-size:0.85rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Data do Agendamento</label>
+                <input id="ag-sel-data" type="date" value="${hoje}" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">
+            </div>
+            <div>
+                <label style="font-size:0.85rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Observações</label>
+                <textarea id="ag-sel-obs" placeholder="Observações do agendamento..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:80px;resize:vertical;"></textarea>
+            </div>
+        </div>
+        <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:1rem;background:#f8fafc;">
+            <button onclick="document.getElementById('modal-agendar-sel').remove()" style="background:#fff;border:1px solid #cbd5e1;color:#475569;padding:0.5rem 1rem;border-radius:6px;font-weight:600;cursor:pointer;">Cancelar</button>
+            <button id="btn-ag-sel-salvar" style="background:#7c3aed;color:#fff;border:none;padding:0.5rem 1.5rem;border-radius:6px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-calendar-plus"></i> Agendar</button>
+        </div>
+    </div>`;
+    document.body.appendChild(ov);
+
+    document.getElementById('btn-ag-sel-salvar').onclick = async () => {
+        const fornecedor = document.getElementById('ag-sel-fornecedor').value.trim();
+        const dataAg = document.getElementById('ag-sel-data').value;
+        const obs = document.getElementById('ag-sel-obs').value.trim();
+        const btn = document.getElementById('btn-ag-sel-salvar');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Agendando...';
+        try {
+            const res = await fetch('/api/frota/manutencoes/agendar-selecionados', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._manutTok },
+                body: JSON.stringify({ veiculo_id: vid, servicos_ids: servsIds, fornecedor, data_agendamento: dataAg, observacoes: obs })
+            });
+            if (res.ok) {
+                ov.remove();
+                alert(`✅ ${cbs.length} manutenção(oes) agendada(s) com sucesso!`);
+                window.mnCarregarPreventivoVeiculo();
+                document.getElementById('mn-prev-mass-actions').style.display = 'none';
+            } else {
+                const err = await res.json();
+                alert('Erro: ' + (err.error || 'Desconhecido'));
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-calendar-plus"></i> Agendar';
+            }
+        } catch(e) {
+            alert('Erro de conexão');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ph ph-calendar-plus"></i> Agendar';
+        }
+    };
+};
+
+window.mnFinalizarAgendado = function() {
+    const cbs = document.querySelectorAll('.mn-prev-cb:checked');
+    if (!cbs.length) return;
+    const vid = document.getElementById('mn-prev-veiculo')?.value;
+    if (!vid) return alert('Selecione o veículo');
+    const servsIds = Array.from(cbs).map(cb => cb.dataset.id);
+    const nomes = Array.from(cbs).map(cb => cb.dataset.nome).join(', ');
+    const veiculo = (window._manutFrota || []).find(x => x.id == vid);
+
+    let ov = document.getElementById('modal-finalizar-ag'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'modal-finalizar-ag';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+    const hoje = new Date().toISOString().slice(0, 10);
+
+    ov.innerHTML = `<div style="background:#fff;border-radius:12px;width:100%;max-width:520px;display:flex;flex-direction:column;box-shadow:0 20px 40px rgba(0,0,0,0.2);overflow:hidden;">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;background:#f0fdf4;display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:1rem;font-weight:700;color:#166534;display:flex;align-items:center;gap:8px;"><i class="ph ph-check-circle" style="color:#2d9e5f;"></i> Finalizar ${cbs.length} Manutenção(oes)</div>
+            <button onclick="document.getElementById('modal-finalizar-ag').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;"><i class="ph ph-x"></i></button>
+        </div>
+        <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
+            <div style="background:#f0fdf4;color:#166534;padding:0.75rem;border-radius:8px;font-size:0.82rem;"><i class="ph ph-info"></i> <strong>Serviços:</strong> ${nomes}</div>
+            <div style="background:#fffbeb;color:#92400e;padding:0.65rem;border-radius:8px;font-size:0.82rem;">
+                <i class="ph ph-lightbulb"></i> O sistema usará automaticamente a <strong>KM registrada na data informada</strong> para calcular o próximo intervalo.
+                ${veiculo ? `<br><span style="color:#64748b;margin-top:4px;display:block;">KM atual do veículo: <strong>${Number(veiculo.km_atual||0).toLocaleString('pt-BR')} km</strong></span>` : ''}
+            </div>
+            <div>
+                <label style="font-size:0.85rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Data da Finalização *</label>
+                <input id="fin-ag-data" type="date" value="${hoje}" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">
+                <span style="font-size:0.75rem;color:#94a3b8;margin-top:4px;display:block;">Para datas retroativas, o sistema buscará o KM registrado naquele dia.</span>
+            </div>
+            <div>
+                <label style="font-size:0.85rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Observações</label>
+                <textarea id="fin-ag-obs" placeholder="Observações da manutenção realizada..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:80px;resize:vertical;"></textarea>
+            </div>
+        </div>
+        <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:1rem;background:#f8fafc;">
+            <button onclick="document.getElementById('modal-finalizar-ag').remove()" style="background:#fff;border:1px solid #cbd5e1;color:#475569;padding:0.5rem 1rem;border-radius:6px;font-weight:600;cursor:pointer;">Cancelar</button>
+            <button id="btn-fin-ag-salvar" style="background:#2d9e5f;color:#fff;border:none;padding:0.5rem 1.5rem;border-radius:6px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-check-circle"></i> Finalizar</button>
+        </div>
+    </div>`;
+    document.body.appendChild(ov);
+
+    document.getElementById('btn-fin-ag-salvar').onclick = async () => {
+        const dataConc = document.getElementById('fin-ag-data').value;
+        const obs = document.getElementById('fin-ag-obs').value.trim();
+        if (!dataConc) return alert('Informe a data de finalização');
+        const btn = document.getElementById('btn-fin-ag-salvar');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Finalizando...';
+        try {
+            const res = await fetch('/api/frota/manutencoes/finalizar-agendado', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._manutTok },
+                body: JSON.stringify({ veiculo_id: vid, servicos_ids: servsIds, data_conclusao: dataConc, observacoes: obs })
+            });
+            if (res.ok) {
+                ov.remove();
+                alert(`✅ ${cbs.length} manutenção(oes) finalizada(s) com sucesso!`);
+                window.mnCarregarPreventivoVeiculo();
+                document.getElementById('mn-prev-mass-actions').style.display = 'none';
+                // Desmarcar todos os checkboxes
+                document.querySelectorAll('.mn-prev-cb').forEach(c => c.checked = false);
+            } else {
+                const err = await res.json();
+                alert('Erro: ' + (err.error || 'Desconhecido'));
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-check-circle"></i> Finalizar';
+            }
+        } catch(e) {
+            alert('Erro de conexão');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ph ph-check-circle"></i> Finalizar';
+        }
+    };
 };
 
 })();
