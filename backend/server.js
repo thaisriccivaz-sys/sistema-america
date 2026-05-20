@@ -14768,6 +14768,24 @@ app.post('/api/monaco/multa-paga', monacoAuth, (req, res) => {
     upsertMonaco(uuid, 'multa-paga', payload, res);
 });
 
+// ── POST /api/monaco/retornoCondutor ──────────────────────────────────────────
+app.post('/api/monaco/retornoCondutor', monacoAuth, (req, res) => {
+    const payload = req.body || {};
+    const uuid = payload.uuid;
+    const retorno_condutor = payload.retorno_condutor;
+    
+    if (!uuid) return res.status(400).json({ codError: 400, message: 'Campo uuid obrigatório' });
+    
+    db.run(`UPDATE multas_monaco SET retorno_condutor = ?, status_visualizacao = 'atualizado', visualizada = 0, updated_at = datetime('now') WHERE uuid = ?`, 
+    [retorno_condutor, uuid], function(err) {
+        if (err) {
+            console.error('[MONACO] Erro ao atualizar retorno_condutor:', err);
+            return res.status(500).json({ codError: 500, message: 'Erro ao atualizar' });
+        }
+        res.status(200).json({ mensagem: 'Status enviado com sucesso' });
+    });
+});
+
 // ── PATCH /api/monaco/multas/:id/visualizar ───────────────────────────────────
 app.patch('/api/monaco/multas/:id/visualizar', authenticateToken, (req, res) => {
     db.run(`UPDATE multas_monaco SET visualizada = 1, status_visualizacao = 'vista', updated_at = datetime('now') WHERE id = ?`,

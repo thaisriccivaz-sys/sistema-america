@@ -200,6 +200,21 @@ function _renderRows() {
             statusVisBadge = `<span style="color:#94a3b8;font-size:0.75rem;margin-left:5px;vertical-align:middle;"><i class="ph ph-check"></i> Vista</span>`;
         }
 
+        let termoHtml = '';
+        if (m.arquivos_json && m.arquivos_json !== '[]') {
+            try {
+                const arqs = JSON.parse(m.arquivos_json);
+                const termoArq = arqs.find(a => {
+                    const n = (a.nome || a.Nome || '').toUpperCase();
+                    return n.includes('DECLARACAO') || n.includes('DECLARAÇÃO') || n.includes('TERMO') || n.includes('DESCONTO');
+                });
+                if (termoArq && (termoArq.base64 || termoArq.arquivo || termoArq.conteudo || termoArq.content)) {
+                    const b64 = termoArq.base64 || termoArq.arquivo || termoArq.conteudo || termoArq.content;
+                    termoHtml = `<button onclick="window._monacoVerPDF('${b64}','${termoArq.nome||'termo.pdf'}')" style="background:transparent; border:none; cursor:pointer; margin-right:8px;" title="Termo de Desconto Assinado"><img src="assets/icone_termo_desconto.png" alt="Termo" style="width:1.2rem; height:1.2rem; object-fit:contain; filter: brightness(0); opacity: 0.8;"></button>`;
+                }
+            } catch(e) {}
+        }
+
         const rowBg = (sv === 'nova' || sv === 'atualizado') ? '#fffbf0' : 'transparent';
         const rowBgHover = '#f8fafc';
         return `<tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s; background:${rowBg};" onmouseover="this.style.background='${rowBgHover}'" onmouseout="this.style.background='${rowBg}'">
@@ -212,6 +227,7 @@ function _renderRows() {
                 <td style="padding:1rem; white-space:nowrap;">${dataLimiteHtml}</td>
                 <td style="padding:1rem; text-align:center; min-width:140px; white-space:nowrap;">
                     <button onclick="window._monacoAbrirDetalhe(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Detalhes / Gerenciar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>
+                    ${termoHtml}
                     ${(m.arquivos_json && m.arquivos_json !== '[]') ? `<button onclick="window._monacoAbrirDetalhe(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Ver Documentos"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>` : ''}
                 </td>
             </tr>`;
