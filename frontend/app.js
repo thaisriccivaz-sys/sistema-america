@@ -6348,6 +6348,7 @@ window.searchCID = async function (val) {
         dd.style.display = 'block';
     } catch (e) { 
         console.error('Erro na busca de CID:', e);
+        alert('Erro ao buscar CID: ' + e.message);
         dd.style.display = 'none'; 
     }
 }
@@ -6419,7 +6420,12 @@ window.uploadAtestadoWithCID = async function (inputEl) {
     const file = inputEl.files[0];
     if (!file) return;
     const tipo = document.getElementById('atestado_tipo')?.value || 'dias';
-    if (tipo !== 'horas' && !selectedCID) return; // CID obrigatório só para 'dias'
+    
+    // Na hora de fazer o upload, verifica se tem CID selecionado OU se tem texto livre
+    if (tipo !== 'horas') {
+        const cidText = document.getElementById('cid-search')?.value?.trim();
+        if (!selectedCID && !cidText) return; 
+    }
     if (!viewedColaborador) { alert('Colaborador não selecionado.'); return; }
 
     // Loading state
