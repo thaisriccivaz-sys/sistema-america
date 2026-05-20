@@ -11,6 +11,49 @@ const pdfParse = require('pdf-parse');
 const cron = require('node-cron');
 const cloudinary = require('cloudinary').v2;
 
+// ─── MULTAS ANTIGAS: AITs já tratados e encerrados ──────────────────────────
+// Quando o sistema detectar qualquer um desses AITs (criação manual ou webhook
+// Mônaco), registra automaticamente com status "Antiga".
+const AITS_ANTIGAS = new Set([
+  '0V82981665','1AA135241','1AA1501101','1VB7579069','R001153761','1AJX015807',
+  'AQ0R208401','GRA7711405','1V6332156','1VC492996','1V6423825','E423441509',
+  'Y660799607','1D03245071','1D03214561','1298263778','1DEQ847471','1B9358456',
+  '1096868768','1B9588438','1D9588448','1B9700563','1AJ0222133','G00820001',
+  'C83115015','1C1835515','Q000290581','C03558105','1D4E870591','1C4248848',
+  '1DE5395471','1D2748951','HRA91048428','1DE5394711','1C1184648',
+  'A00300447','A003194711','1D73217721','1AJ5051015','1LB5591141','017371304M',
+  'J758714571','AN00382500','AA073871562','A003516605','AN07397845',
+  '6Z410439161','6Z410478361','A741625950','6Z41013061','F470001000',
+  'R005897030','0V00421807','1V01148215','AA11862103','1DQ0218031','1D2963498',
+  '1DG3611501','1DQ0229832','AV21804997','GRA1317137','N000181807','0VA1143604',
+  'Q0013202727','AA16649443','M001141860','R001175094','S1C3236266',
+  '1D1967447','1D1964157','QVD98760056','N706574383','S1C2618072',
+  '7V145831802','NQ30033089','1Q2896791','1LU0702731','NQ05832679',
+  'S1C2695708','S1A1117863','1V41017489','1A17141319',
+  '000145447','1J746814741','1178867C7',
+  'SC20114440','1VS165426','SC271414','1V30788407','4A84/74175','0V4116407',
+  '1N38117887','1N37017641','N507711499','SC27147618','AA43044519','000488070',
+  '1312470641','1N4443061','1104473061','134909741','1E34027418','1A00341727',
+  '1AA0115077','0V41445066','KRA1079505','6AA1725005','GRA1725005',
+  '4843417601','0003097272','1403008714',
+  '1D3486844','8484031250','1D1963201','1D1495771','1D1497711','S1C3078078',
+  '6CA1047979','1D1841351','0VAB909053','6VA1890855','6CA1031971','6CA1029386',
+  '6VA1828048','6VA1744628','GRA1031275','1ZA1077928','1AJ3058533','FRA3386125',
+  '1D17025731','3VA1508210','R005306819','2700469217','J005471005','J005471003',
+  '7VVA2153407','7VVA2159575',
+  'S1C2659082','1ZA1100957','BZA1266757','GVA2345758','6VA1023401','6VA2251763',
+  '6VA21164932','GVA2178198','8VA22510630','1ZA1090658','1ZA10918380',
+  'GRA22511163','8ZA1446930',
+  '6VA22134980','1VA2535356','6VA22355599','6VAA2918769','1ZA1098237',
+  '6VA2253888','1ZA1096997','S1C4579682','1ZA1101419','1ZA1096879'
+].map(v => v.toUpperCase().trim()));
+
+/** Retorna true se o AIT está na lista de multas antigas */
+function isAitAntiga(ait) {
+  if (!ait) return false;
+  return AITS_ANTIGAS.has(String(ait).toUpperCase().trim());
+}
+
 // ── PDF helpers ─────────────────────────────────────────────────────────────
 // Nota: conversão PDF→imagem via Puppeteer desabilitada (OOM em 512MB).
 // PDFs são exibidos via <embed> no documento HTML.
@@ -4604,7 +4647,8 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
         }
     }
 
-    const finalStatus = status || 'Conferência';
+    // Se o AIT está na lista de multas antigas, força status 'Antiga'
+    const finalStatus = isAitAntiga(numero_ait) ? 'Antiga' : (status || 'Conferência');
     // Captura usuário logado
     const createdById = req.user ? req.user.id : null;
     const createdByNome = req.user ? (req.user.nome || req.user.username || null) : null;
@@ -13890,6 +13934,27 @@ app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log('Versão do Servidor: V31_OS_LOGISTICA_MODULE');
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
+
+    // ── Migração automática: marcar multas antigas existentes ──────────────────
+    // Atualiza multas já cadastradas cujo AIT está na lista AITS_ANTIGAS e que
+    // ainda não estejam com status 'Antiga'.
+    const aitsArr = [...AITS_ANTIGAS];
+    if (aitsArr.length > 0) {
+        const placeholders = aitsArr.map(() => '?').join(',');
+        db.run(
+            `UPDATE multas_logistica SET status = 'Antiga'
+             WHERE UPPER(TRIM(numero_ait)) IN (${placeholders})
+               AND (status IS NULL OR status != 'Antiga')`,
+            aitsArr,
+            function(err) {
+                if (err) {
+                    console.error('[INIT] Erro ao migrar multas antigas:', err.message);
+                } else if (this.changes > 0) {
+                    console.log(`[INIT] ${this.changes} multa(s) marcada(s) como Antiga automaticamente.`);
+                }
+            }
+        );
+    }
 });
 
 
@@ -14427,15 +14492,19 @@ function syncToLogistica(uuid, tipoEvento, payload) {
                 monaco_uuid, numero_ait, placa, data_infracao, hora_infracao,
                 motivo, valor_multa, pontuacao, local_infracao, data_limite,
                 status, created_by_nome, observacao, documento_base64, documento_nome, status_monaco, link_formulario
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Conferência', 'Integração Mônaco', 'Multa importada automaticamente da Mônaco via webhook.', ?, ?, ?, ?)`, [
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Integração Mônaco', 'Multa importada automaticamente da Mônaco via webhook.', ?, ?, ?, ?)`, [
                 uuid, payload.numero_ait, payload.placa, payload.data_da_infracao, payload.hora_da_infracao,
                 payload.descricao, payload.valor_da_infracao, payload.pontos, localInfracao, dataLimite,
+                isAitAntiga(payload.numero_ait) ? 'Antiga' : 'Conferência',
                 docBase64, docNome, statusMonaco, linkFormulario
             ], function (errInsert) {
                 if (errInsert) console.error('[MONACO SYNC] Erro insert:', errInsert);
                 else {
                     console.log(`[MONACO SYNC] Nova multa logistica inserida ID=${this.lastID}`);
-                    enviarNotificacaoNovaMultaMonaco(payload, this.lastID);
+                    // Não notifica para multas antigas
+                    if (!isAitAntiga(payload.numero_ait)) {
+                        enviarNotificacaoNovaMultaMonaco(payload, this.lastID);
+                    }
                 }
             });
         }
