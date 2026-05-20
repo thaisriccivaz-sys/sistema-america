@@ -118,8 +118,15 @@ function mnRenderPlanoAgrupado(data) {
     const critCor = { Critica:'#dc2626', Alta:'#d97706', Media:'#0284c7', Baixa:'#2d9e5f' };
     const vid = document.getElementById('mn-prev-veiculo')?.value;
 
-    let html = `<div style="display:flex;flex-direction:column;gap:1rem;">`;
+    let html = `
+    <div id="mn-prev-mass-actions" style="display:none; background:#fffbeb; border:1px solid #fde68a; padding:0.8rem 1rem; border-radius:12px; margin-bottom:1rem; align-items:center; gap:1rem;">
+        <span style="font-weight:700; color:#b45309;"><span id="mn-prev-sel-count">0</span> itens selecionados</span>
+        <button onclick="window.mnRegistrarSelecionados()" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.8rem;font-weight:600;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-plus"></i> Registrar Todos</button>
+        <button onclick="window.mnEditarSelecionados()" style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.8rem;font-weight:600;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-pencil"></i> Editar Último KM</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:1rem;">`;
     Object.entries(grupos).forEach(([catNome, cat]) => {
+        const catIdSeg = catNome.replace(/\W/g,'');
         const rows = cat.itens.map(item => {
             let cor = '#2d9e5f', bg = '#ecfdf5', icone = 'check-circle';
             if (item.status_item==='vencida') { cor='#dc2626'; bg='#fef2f2'; icone='warning'; }
@@ -129,6 +136,9 @@ function mnRenderPlanoAgrupado(data) {
                 : `<span style="color:${cor};font-weight:700;">Restam ${Math.round(item.km_restante).toLocaleString('pt-BR')} ${item.unidade}</span>`;
             const criticBadge = `<span style="background:${critCor[item.criticidade]||'#94a3b8'}22;color:${critCor[item.criticidade]||'#94a3b8'};padding:1px 7px;border-radius:20px;font-size:0.72rem;font-weight:700;">${item.criticidade||'Media'}</span>`;
             return `<tr style="background:${bg};border-bottom:1px solid #e2e8f0;">
+                <td style="padding:0.6rem 0.9rem;text-align:center;">
+                    <input type="checkbox" class="mn-prev-cb mn-prev-cb-cat-${catIdSeg}" data-cat="${catIdSeg}" data-id="${item.id}" data-nome="${item.nome.replace(/"/g,'&quot;')}" data-controle="${item.tipo_controle}" onchange="window.mnPrevCbChanged()">
+                </td>
                 <td style="padding:0.6rem 0.9rem;">
                     <div style="display:flex;align-items:center;gap:6px;">
                         <i class="ph ph-${icone}" style="color:${cor};"></i>
@@ -157,6 +167,7 @@ function mnRenderPlanoAgrupado(data) {
             </div>
             <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.83rem;">
                 <thead><tr style="background:#f1f5f9;">
+                    <th style="padding:0.5rem 0.9rem;text-align:center;width:30px;"><input type="checkbox" onchange="window.mnPrevToggleCat(this, '${catIdSeg}')"></th>
                     <th style="padding:0.5rem 0.9rem;text-align:left;color:#64748b;font-weight:600;">Servi\u00e7o</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Criticidade</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Controle</th>
@@ -480,7 +491,24 @@ window.abrirModalManutencao = async function(id, opts = {}) {
 
     window._mnModalServicos = [];
     
-    if (m.descricao) {
+    if (opts.multi_servicos && opts.multi_servicos.length > 0) {
+        window._mnModalServicos = opts.multi_servicos.map(s => {
+            let interv = s.intervalo;
+            if (!interv && s.servico_id) {
+                const catItem = (window._manutCatalogo||[]).find(c => c.id == s.servico_id);
+                if (catItem) interv = catItem.periodicidade_padrao;
+            }
+            return {
+                id: null,
+                cat_id: s.cat_id || '',
+                servico_id: s.servico_id,
+                nome: s.nome,
+                km: s.km || '',
+                intervalo: interv || ''
+            };
+        });
+        window.mnModalRenderServicos();
+    } else if (m.descricao) {
         let interv = '';
         if (m.servico_catalogo_id) {
             const catItem = (window._manutCatalogo||[]).find(c => c.id == m.servico_catalogo_id);
@@ -710,6 +738,43 @@ window.excluirManutencao = async function(id) {
     const manut = await fetch('/api/frota/manutencoes', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json());
     window._manutDados = manut || [];
     mnRenderLista();
+};
+
+window.mnPrevToggleCat = function(cb, catId) {
+    document.querySelectorAll('.mn-prev-cb-cat-'+catId).forEach(c => c.checked = cb.checked);
+    window.mnPrevCbChanged();
+};
+
+window.mnPrevCbChanged = function() {
+    const cbs = document.querySelectorAll('.mn-prev-cb:checked');
+    const bar = document.getElementById('mn-prev-mass-actions');
+    const cnt = document.getElementById('mn-prev-sel-count');
+    if(!bar) return;
+    if(cbs.length > 0) {
+        bar.style.display = 'flex';
+        cnt.textContent = cbs.length;
+    } else {
+        bar.style.display = 'none';
+    }
+};
+
+window.mnRegistrarSelecionados = function() {
+    const cbs = document.querySelectorAll('.mn-prev-cb:checked');
+    if(!cbs.length) return;
+    const vid = document.getElementById('mn-prev-veiculo')?.value;
+    if(!vid) return alert('Selecione o veículo');
+    const servs = Array.from(cbs).map(cb => ({
+        cat_id: '',
+        servico_id: cb.dataset.id,
+        nome: cb.dataset.nome,
+        km: '',
+        intervalo: cb.dataset.intervalo || ''
+    }));
+    window.abrirModalManutencao(null, { tipo: 'preventiva', vid: vid, multi_servicos: servs });
+};
+
+window.mnEditarSelecionados = function() {
+    alert('Em breve! A edição de múltiplos itens será liberada assim que você confirmar no chat se deseja editar o KM realizado no veículo ou se deseja alterar as configurações no Catálogo de Serviços.');
 };
 
 })();
