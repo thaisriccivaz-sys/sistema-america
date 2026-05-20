@@ -117,8 +117,7 @@ function mnRenderPlanoAgrupado(data) {
     let html = `
     <div id="mn-prev-mass-actions" style="display:none; background:#fffbeb; border:1px solid #fde68a; padding:0.8rem 1rem; border-radius:12px; margin-bottom:1rem; align-items:center; gap:1rem;">
         <span style="font-weight:700; color:#b45309;"><span id="mn-prev-sel-count">0</span> itens selecionados</span>
-        <button onclick="window.mnRegistrarSelecionados()" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.8rem;font-weight:600;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-plus"></i> Registrar Todos</button>
-        <button onclick="window.mnEditarSelecionados()" style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.8rem;font-weight:600;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-pencil"></i> Editar Último KM</button>
+        <button onclick="window.mnRegistrarSelecionados()" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.8rem;font-weight:600;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-pencil"></i> Editar</button>
     </div>
     <div style="display:flex;flex-direction:column;gap:1rem;">`;
     Object.entries(grupos).forEach(([catNome, cat]) => {
@@ -460,7 +459,7 @@ window.abrirModalManutencao = async function(id, opts = {}) {
         <div>${lbl('Data Agendamento')}${inp('mn-m-data-ag', m.data_agendamento, '', 'date')}</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-        <div>${lbl('KM Atual (Realizada em)')}${inp('mn-m-km', m.km_na_manutencao, 'Ex: 120000', 'number')}</div>
+        <div>${lbl('KM Atual (Realizada em)')}<input id="mn-m-km" value="${m.km_na_manutencao||''}" type="number" readonly style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;background:#f8fafc;cursor:not-allowed;color:#64748b;" title="Apenas visualização. Edite o KM na Gestão de Frota."></div>
         <div>${lbl('KM de intervalo para a proxima')}${inp('mn-m-intervalo', '', 'Ex: 10000', 'number')}</div>
     </div>
     <div style="flex:1;">${lbl('Observações')}<textarea id="mn-m-obs" placeholder="Observações adicionais..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:100px;resize:vertical;">${m.observacoes||''}</textarea></div>
@@ -618,6 +617,15 @@ window.mnModalRemoveServico = function(idx) {
     window.mnModalRenderServicos();
 };
 
+window.mnModalEditarIntervaloServico = function(idx) {
+    const serv = window._mnModalServicos[idx];
+    const n = prompt(`Novo intervalo para ${serv.nome}:`, serv.intervalo || '');
+    if (n !== null) {
+        serv.intervalo = n;
+        window.mnModalRenderServicos();
+    }
+};
+
 window.mnModalRenderServicos = function() {
     const list = document.getElementById('mn-m-servicos-lista');
     if (!list) return;
@@ -633,7 +641,10 @@ window.mnModalRenderServicos = function() {
         const rows = itens.map(s => `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0.6rem;background:#f8fafc;border-radius:6px;margin-bottom:4px;">
                 <span style="font-size:0.83rem;color:#1e293b;">${s.nome}<span style="color:#94a3b8;margin-left:8px;font-size:0.75rem;">KM: ${s.km||'—'} | Int: ${s.intervalo||'—'}</span></span>
-                <button onclick="window.mnModalRemoveServico(${s._idx})" style="background:none;border:none;color:#dc2626;cursor:pointer;padding:0;"><i class="ph ph-trash"></i></button>
+                <div style="display:flex;gap:8px;">
+                    <button onclick="window.mnModalEditarIntervaloServico(${s._idx})" style="background:none;border:none;color:#0284c7;cursor:pointer;padding:0;" title="Editar Intervalo"><i class="ph ph-pencil-simple"></i></button>
+                    <button onclick="window.mnModalRemoveServico(${s._idx})" style="background:none;border:none;color:#dc2626;cursor:pointer;padding:0;" title="Remover"><i class="ph ph-trash"></i></button>
+                </div>
             </div>
         `).join('');
         return `<div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
