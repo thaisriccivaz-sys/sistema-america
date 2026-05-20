@@ -11618,6 +11618,50 @@ app.post('/api/frota/manutencoes', authenticateToken, (req, res) => {
     );
 });
 
+// PUT - editar em massa (catálogo e histórico)
+app.put('/api/frota/manutencoes/em-massa', authenticateToken, (req, res) => {
+    const { veiculo_id, itens } = req.body;
+    if (!veiculo_id || !Array.isArray(itens)) return res.status(400).json({ error: 'veiculo_id e itens são obrigatórios' });
+    const usuario_nome = req.user?.username || 'sistema';
+
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        let errorOccurred = false;
+
+        itens.forEach(item => {
+            if (errorOccurred) return;
+            // 1. Atualizar o catálogo
+            if (item.servico_id) {
+                db.run(
+                    `UPDATE frota_servicos_catalogo 
+                     SET nome=?, criticidade=?, tipo_controle=?, periodicidade_padrao=? 
+                     WHERE id=?`,
+                    [item.nome, item.criticidade, item.tipo_controle, item.periodicidade_padrao, item.servico_id],
+                    err => { if (err) { console.error('Erro atualizar catalogo', err); errorOccurred = true; } }
+                );
+            }
+            
+            // 2. Inserir histórico de manutenção concluída se km_ultima ou data_ultima foi informado
+            if (item.km_ultima || item.data_ultima) {
+                db.run(
+                    `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, data_conclusao, usuario_nome, servico_catalogo_id, criticidade)
+                     VALUES (?, 'preventiva', ?, 'concluida', ?, ?, ?, ?, ?)`,
+                    [veiculo_id, item.nome, item.km_ultima || null, item.data_ultima || null, usuario_nome, item.servico_id || null, item.criticidade || 'Media'],
+                    err => { if (err) { console.error('Erro inserir historico', err); errorOccurred = true; } }
+                );
+            }
+        });
+
+        db.run('COMMIT', err => {
+            if (err || errorOccurred) {
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: 'Erro ao salvar edições em massa' });
+            }
+            res.json({ message: 'Edições em massa salvas com sucesso' });
+        });
+    });
+});
+
 // PUT - atualizar manutenção
 app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
     const { status, descricao, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, tipo } = req.body;

@@ -78,11 +78,7 @@ function mnRenderPreventivaTela(sub) {
         <div id="mn-prev-km-box" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
             <i class="ph ph-gauge" style="color:#d97706;font-size:1.1rem;"></i>
             <span style="font-size:0.85rem;color:#64748b;font-weight:600;">KM atual:</span>
-            <input type="number" id="mn-prev-km" placeholder="Ex: 125000" style="padding:0.45rem 0.75rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;width:130px;outline:none;">
-            <button onclick="window.mnSalvarKmPreventivo()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:600;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:6px;">
-                <i class="ph ph-floppy-disk"></i> Salvar KM
-            </button>
-            <span id="mn-prev-km-label" style="font-size:0.82rem;color:#64748b;"></span>
+            <span id="mn-prev-km-label" style="font-size:0.82rem;color:#64748b;font-weight:700;"></span>
         </div>
         <button onclick="window.abrirModalManutencaoPreventiva()" style="background:#d97706;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:600;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:6px;margin-left:auto;">
             <i class="ph ph-plus"></i> Registrar Revisão
@@ -137,7 +133,7 @@ function mnRenderPlanoAgrupado(data) {
             const criticBadge = `<span style="background:${critCor[item.criticidade]||'#94a3b8'}22;color:${critCor[item.criticidade]||'#94a3b8'};padding:1px 7px;border-radius:20px;font-size:0.72rem;font-weight:700;">${item.criticidade||'Media'}</span>`;
             return `<tr style="background:${bg};border-bottom:1px solid #e2e8f0;">
                 <td style="padding:0.6rem 0.9rem;text-align:center;">
-                    <input type="checkbox" class="mn-prev-cb mn-prev-cb-cat-${catIdSeg}" data-cat="${catIdSeg}" data-id="${item.id}" data-nome="${item.nome.replace(/"/g,'&quot;')}" data-controle="${item.tipo_controle}" onchange="window.mnPrevCbChanged()">
+                    <input type="checkbox" class="mn-prev-cb mn-prev-cb-cat-${catIdSeg}" data-cat="${catIdSeg}" data-id="${item.id}" data-nome="${item.nome.replace(/"/g,'&quot;')}" data-controle="${item.tipo_controle}" data-criticidade="${item.criticidade}" data-intervalo="${item.periodicidade_padrao}" data-ultimakm="${item.km_ultima||''}" data-ultimadata="${item.data_ultima||''}" onchange="window.mnPrevCbChanged()">
                 </td>
                 <td style="padding:0.6rem 0.9rem;">
                     <div style="display:flex;align-items:center;gap:6px;">
@@ -774,7 +770,114 @@ window.mnRegistrarSelecionados = function() {
 };
 
 window.mnEditarSelecionados = function() {
-    alert('Em breve! A edição de múltiplos itens será liberada assim que você confirmar no chat se deseja editar o KM realizado no veículo ou se deseja alterar as configurações no Catálogo de Serviços.');
+    const cbs = document.querySelectorAll('.mn-prev-cb:checked');
+    if(!cbs.length) return;
+    const vid = document.getElementById('mn-prev-veiculo')?.value;
+    if(!vid) return alert('Selecione o veículo');
+
+    let ov = document.getElementById('modal-mass-edit-ov'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'modal-mass-edit-ov';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+    const linhas = Array.from(cbs).map((cb, idx) => {
+        const d = cb.dataset;
+        return `
+        <tr style="border-bottom:1px solid #e2e8f0;" data-idx="${idx}">
+            <td style="padding:0.5rem;"><input type="hidden" class="me-id" value="${d.id}"><input type="text" class="me-nome" value="${d.nome}" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:4px;"></td>
+            <td style="padding:0.5rem;">
+                <select class="me-criticidade" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:4px;">
+                    <option value="Baixa" ${d.criticidade==='Baixa'?'selected':''}>Baixa</option>
+                    <option value="Media" ${!d.criticidade||d.criticidade==='Media'?'selected':''}>Média</option>
+                    <option value="Alta" ${d.criticidade==='Alta'?'selected':''}>Alta</option>
+                    <option value="Critica" ${d.criticidade==='Critica'?'selected':''}>Crítica</option>
+                </select>
+            </td>
+            <td style="padding:0.5rem;">
+                <select class="me-controle" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:4px;">
+                    <option value="KM" ${d.controle==='KM'?'selected':''}>KM</option>
+                    <option value="Tempo" ${d.controle==='Tempo'?'selected':''}>Tempo</option>
+                    <option value="KM/Tempo" ${d.controle==='KM/Tempo'?'selected':''}>KM/Tempo</option>
+                </select>
+            </td>
+            <td style="padding:0.5rem;"><input type="number" class="me-intervalo" value="${d.intervalo}" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:4px;"></td>
+            <td style="padding:0.5rem;"><input type="number" class="me-ultimakm" value="${d.ultimakm}" placeholder="Ex: 100000" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:4px;"></td>
+            <td style="padding:0.5rem;"><input type="date" class="me-ultimadata" value="${d.ultimadata}" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:4px;"></td>
+        </tr>
+        `;
+    }).join('');
+
+    ov.innerHTML = `<div style="background:#fff;border-radius:12px;width:100%;max-width:900px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);overflow:hidden;">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:1rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px;"><i class="ph ph-pencil-simple" style="color:#10b981;"></i> Edição em Massa</div>
+            <button onclick="document.getElementById('modal-mass-edit-ov').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;"><i class="ph ph-x"></i></button>
+        </div>
+        <div style="padding:1rem;overflow-y:auto;flex:1;">
+            <div style="background:#fffbeb;color:#92400e;padding:0.75rem;border-radius:8px;font-size:0.85rem;margin-bottom:1rem;display:flex;gap:8px;">
+                <i class="ph ph-info" style="font-size:1.2rem;"></i>
+                <span><strong>Atenção:</strong> Alterar Nome, Criticidade, Controle ou Intervalo afetará o <strong>Catálogo Geral</strong> (todos os veículos). Alterar o Último KM/Data afetará <strong>apenas</strong> este veículo atual.</span>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                <thead>
+                    <tr style="background:#f1f5f9;text-align:left;">
+                        <th style="padding:0.5rem;color:#475569;">Serviço</th>
+                        <th style="padding:0.5rem;color:#475569;">Criticidade</th>
+                        <th style="padding:0.5rem;color:#475569;">Controle</th>
+                        <th style="padding:0.5rem;color:#475569;">Intervalo</th>
+                        <th style="padding:0.5rem;color:#475569;">Último KM</th>
+                        <th style="padding:0.5rem;color:#475569;">Última Data</th>
+                    </tr>
+                </thead>
+                <tbody id="me-tbody">${linhas}</tbody>
+            </table>
+        </div>
+        <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:1rem;background:#f8fafc;">
+            <button onclick="document.getElementById('modal-mass-edit-ov').remove()" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:0.5rem 1rem;font-weight:600;cursor:pointer;color:#475569;">Cancelar</button>
+            <button onclick="window.mnSalvarEdicaoMassa()" style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.5rem 1.5rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-check"></i> Salvar Alterações</button>
+        </div>
+    </div>`;
+    document.body.appendChild(ov);
+};
+
+window.mnSalvarEdicaoMassa = async function() {
+    const vid = document.getElementById('mn-prev-veiculo')?.value;
+    if(!vid) return;
+    const tbody = document.getElementById('me-tbody');
+    if(!tbody) return;
+    const rows = tbody.querySelectorAll('tr');
+    const itens = [];
+    rows.forEach(tr => {
+        itens.push({
+            servico_id: tr.querySelector('.me-id').value,
+            nome: tr.querySelector('.me-nome').value,
+            criticidade: tr.querySelector('.me-criticidade').value,
+            tipo_controle: tr.querySelector('.me-controle').value,
+            periodicidade_padrao: tr.querySelector('.me-intervalo').value,
+            km_ultima: tr.querySelector('.me-ultimakm').value,
+            data_ultima: tr.querySelector('.me-ultimadata').value
+        });
+    });
+
+    try {
+        const btn = document.querySelector('#modal-mass-edit-ov button:last-child');
+        if(btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Salvando...'; }
+        
+        const res = await fetch('/api/frota/manutencoes/em-massa', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._manutTok },
+            body: JSON.stringify({ veiculo_id: vid, itens })
+        });
+        if(res.ok) {
+            document.getElementById('modal-mass-edit-ov').remove();
+            // recarregar
+            window.mnCarregarPreventivoVeiculo();
+            document.getElementById('mn-prev-mass-actions').style.display = 'none';
+        } else {
+            const err = await res.json();
+            alert('Erro: ' + (err.error || 'Erro desconhecido'));
+        }
+    } catch(e) {
+        alert('Erro de conexão ao salvar');
+    }
 };
 
 })();
