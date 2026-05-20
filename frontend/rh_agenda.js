@@ -33,7 +33,7 @@
         { value: 'afastado', label: 'Afastado', icon: 'ph-first-aid', color: '#ca8a04' },
         { value: 'ferias',  label: 'Férias', icon: 'ph-airplane-tilt', color: '#ea580c' },
         { value: 'aso',     label: 'ASO Agendado', icon: 'ph-heartbeat', color: '#0891b2' },
-        { value: 'terapia', label: 'Terapia', icon: 'ph-brain', color: '#eab308' },
+        { value: 'terapia', label: 'Terapia', icon: 'ph-brain', color: '#ec4899' },
         { value: 'outro',   label: 'Outro',           icon: 'ph-calendar',      color: '#6b7280' },
     ];
     function getTipo(v) { return TIPOS.find(t => t.value === v) || TIPOS[6]; }
@@ -243,7 +243,7 @@
             afastado:   { bg: '#fefce8', color: '#ca8a04', border: '#fde68a' },
             falta:      { bg: '#fef2f2', color: '#dc2626', border: '#fca5a5' },
             aso:        { bg: '#f8fafc', color: '#64748b', border: '#cbd5e1' },
-            terapia:    { bg: '#fefce8', color: '#ca8a04', border: '#fde047' },
+            terapia:    { bg: '#fdf2f8', color: '#db2777', border: '#fbcfe8' },
         };
 
         for (const dObj of diasRender) {
@@ -406,7 +406,7 @@
                     {k:'folga',    label:'⚪ Folga',    color:'#94a3b8', bg:'#f1f5f9'},
                     {k:'ferias',   label:'🟠 Férias',   color:'#ea580c', bg:'#fff7ed'},
                     {k:'afastado', label:'🟡 Afastado', color:'#ca8a04', bg:'#fefce8'},
-                    {k:'terapia',  label:'🟡 Terapia',  color:'#eab308', bg:'#fefce8'},
+                    {k:'terapia',  label:'💗 Terapia',  color:'#ec4899', bg:'#fdf2f8'},
                     {k:'falta',    label:'🔴 Falta',    color:'#dc2626', bg:'#fef2f2'},
                     {k:'aso',      label:'⚪ ASO',      color:'#64748b', bg:'#f8fafc'},
                 ].map(f => `<button onclick="rhAgendaSetEscalaFiltro('${f.k}')"

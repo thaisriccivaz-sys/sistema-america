@@ -798,7 +798,7 @@ function _rrRenderCorpo() {
             if (status === 'disponivel') return null; // só alerta se indisponível
             
             if (status === 'terapia') {
-                return `<div style="background:#fefce8;color:#ca8a04;padding:8px 16px;border-bottom:1px solid #fde047;font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:8px;">
+                return `<div style="background:#fdf2f8;color:#db2777;padding:8px 16px;border-bottom:1px solid #fbcfe8;font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:8px;">
                     <i class="ph ph-brain" style="font-size:1rem;"></i>
                     <span><b>${nome}</b> — Terapia${motivo && motivo !== 'Terapia' && motivo !== 'Terapia agendada para hoje' ? ': ' + motivo : ' agendada para o dia da rota'}</span>
                 </div>`;
