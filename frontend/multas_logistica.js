@@ -31,6 +31,94 @@ function _dataLimiteBadge(dl) {
     return `<span style="white-space:nowrap;">${fmt}</span>`;
 }
 
+// Helper: badge do status Monaco + data de atualização
+function _statusMonacoBadge(m) {
+    if (m.status_monaco) {
+        // Formata updated_at para exibir como "13/05/2026" ou hora
+        let dataAtuFmt = '';
+        const upd = m.updated_at || m.atualizado_em || '';
+        if (upd) {
+            try {
+                const d = new Date(upd);
+                if (!isNaN(d)) {
+                    const dd = String(d.getDate()).padStart(2,'0');
+                    const mm = String(d.getMonth()+1).padStart(2,'0');
+                    const yy = d.getFullYear();
+                    dataAtuFmt = `${dd}/${mm}/${yy}`;
+                }
+            } catch(_) {}
+        }
+        return `<span style="background:#f1f5f9; color:#475569; padding:4px 8px; border-radius:12px; font-size:0.75rem; font-weight:700; white-space:nowrap; border:1px solid #cbd5e1;"><i class="ph ph-police-car"></i> ${m.status_monaco}</span>${dataAtuFmt ? `<br><span style="color:#94a3b8; font-size:0.72rem;">${dataAtuFmt}</span>` : ''}`;
+    }
+    return `<span style="color:#94a3b8; font-size:0.8rem;">—</span>`;
+}
+
+// Helper: cor do badge Status RH
+function _statusRHColor(status) {
+    if (status === 'Conferência') return '#fef08a';
+    if (status === 'Conferido')   return '#bfdbfe';
+    if (status === 'Indicado')    return '#bbf7d0';
+    if (status === 'Multa NIC')   return '#fecaca';
+    if (status === 'Não Se Aplica') return '#cbd5e1';
+    if (status === 'Antiga')      return '#e7e5e4';
+    return '#e2e8f0';
+}
+
+// Helper: gera o HTML completo de uma linha da tabela de multas
+function _buildMultaRow(m) {
+    const dataInfracao = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
+    const statusColor = _statusRHColor(m.status);
+
+    let motoristaHtml = '';
+    if (m.motorista_id && m.motorista_nome) {
+        const nomeCurto = m.motorista_nome.length > 15 ? m.motorista_nome.substring(0, 15) + '...' : m.motorista_nome;
+        if (String(m.motorista_id) === '-1') {
+            motoristaHtml = `<span style="font-weight:600; color:#ef4444;" title="Ex Colaborador: ${m.motorista_nome}">${nomeCurto}</span>`;
+        } else {
+            motoristaHtml = `<span style="font-weight:600; color:#0f172a;" title="${m.motorista_nome}">${nomeCurto}</span>`;
+        }
+    } else {
+        if (m.status === 'Indicado' || m.status === 'Multa NIC') {
+            motoristaHtml = `<span style="color:#94a3b8; font-size:0.8rem;">—</span>`;
+        } else {
+            motoristaHtml = `<button onclick="abrirModalGerenciarMulta(${m.id}, true)" style="background:#f1f5f9; color:#2563eb; border:1px solid #cbd5e1; padding:0.3rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:600;">+ Adicionar Motorista</button>`;
+        }
+    }
+
+    let docsExtrasList = [];
+    try { docsExtrasList = JSON.parse(m.documentos_extras || '[]'); } catch(e){}
+    const olhoAzul  = docsExtrasList[0] ? `<button onclick="visualizarDocExtra(${m.id}, 0)" style="background:transparent; border:none; cursor:pointer; color:#3b82f6; margin-right:8px;" title="Visualizar Documento 1"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : '';
+    const olhoVerde = docsExtrasList[1] ? `<button onclick="visualizarDocExtra(${m.id}, 1)" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento 2"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : '';
+
+    const btnEditar = (m.status === 'Indicado' || m.status === 'Multa NIC')
+        ? `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#64748b; margin-right:8px;" title="Visualizar"><i class="ph ph-magnifying-glass" style="font-size:1.2rem;"></i></button>`
+        : `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>`;
+
+    const btnExcluir = (m.status === 'Indicado' || m.status === 'Multa NIC') ? '' :
+        `<button onclick="confirmarExcluirMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#ef4444;" title="Excluir"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>`;
+
+    const btnLink = m.link_formulario
+        ? `<button onclick="window.open(String('${m.link_formulario}').startsWith('http') ? '${m.link_formulario}' : 'https://${m.link_formulario}', '_blank')" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:8px;" title="Abrir Formulário Externo"><i class="ph ph-link" style="font-size:1.2rem;"></i></button>` : '';
+
+    const btnDoc = (m.documento_base64 || m.documento_path)
+        ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>` : '';
+
+    return `
+        <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+            <td style="padding:1rem;"><strong>${m.numero_ait || '—'}</strong></td>
+            <td style="padding:1rem; font-weight:600; color:#334155; white-space:nowrap;">${m.placa || '—'}</td>
+            <td style="padding:1rem;">${dataInfracao}<br><span style="color:#64748b; font-size:0.8rem;">${m.hora_infracao || '—'}</span></td>
+            <td style="padding:1rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${m.motivo || ''}">${m.motivo || '—'}</td>
+            <td style="padding:1rem;">${motoristaHtml}</td>
+            <td style="padding:1rem;"><span style="background:${statusColor}; color:#0f172a; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">${m.status || '—'}</span></td>
+            <td style="padding:1rem;">${_statusMonacoBadge(m)}</td>
+            <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite)}</td>
+            <td style="padding:1rem; text-align:center; min-width:140px; white-space:nowrap;">
+                ${btnEditar}${olhoAzul}${olhoVerde}${btnDoc}${btnLink}${btnExcluir}
+            </td>
+        </tr>`;
+}
+
 // Ordenação da tabela
 function ordenarMultas(col) {
     if (_multasSortCol === col) {
@@ -179,73 +267,7 @@ function renderMultasLogistica(container) {
     if (listaFiltrada.length === 0) {
         html += `<tr><td colspan="9" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada.</td></tr>`;
     } else {
-        listaFiltrada.forEach(m => {
-            const dataInfracao = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
-            
-            let motoristaHtml = '';
-            if (m.motorista_id && m.motorista_nome) {
-                const nomeCurto = m.motorista_nome.length > 15 ? m.motorista_nome.substring(0, 15) + '...' : m.motorista_nome;
-                if (String(m.motorista_id) === '-1') {
-                    motoristaHtml = `<span style="font-weight:600; color:#ef4444;" title="Ex Colaborador: ${m.motorista_nome}">${nomeCurto}</span>`;
-                } else {
-                    motoristaHtml = `<span style="font-weight:600; color:#0f172a;" title="${m.motorista_nome}">${nomeCurto}</span>`;
-                }
-            } else {
-                if (m.status === 'Indicado' || m.status === 'Multa NIC') {
-                    motoristaHtml = `<span style="color:#94a3b8; font-size:0.8rem;">—</span>`;
-                } else {
-                    motoristaHtml = `<button onclick="abrirModalGerenciarMulta(${m.id}, true)" style="background:#f1f5f9; color:#2563eb; border:1px solid #cbd5e1; padding:0.3rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:600;">+ Adicionar Motorista</button>`;
-                }
-            }
-
-            let statusColor = '#e2e8f0';
-            if (m.status === 'Conferência') statusColor = '#fef08a';
-            else if (m.status === 'Conferido') statusColor = '#bfdbfe';
-            else if (m.status === 'Indicado') statusColor = '#bbf7d0';
-            else if (m.status === 'Multa NIC') statusColor = '#fecaca';
-            else if (m.status === 'Não Se Aplica') statusColor = '#cbd5e1';
-            else if (m.status === 'Antiga') statusColor = '#e7e5e4';
-
-            let statusMonacoHtml = '';
-            if (m.status_monaco) {
-                statusMonacoHtml = `<span style="background:#f1f5f9; color:#475569; padding:4px 8px; border-radius:12px; font-size:0.75rem; font-weight:700; white-space:nowrap; border:1px solid #cbd5e1;"><i class="ph ph-police-car"></i> ${m.status_monaco}</span>`;
-            } else {
-                statusMonacoHtml = `<span style="color:#94a3b8; font-size:0.8rem;">—</span>`;
-            }
-
-            let docsExtrasList = [];
-            try { docsExtrasList = JSON.parse(m.documentos_extras || '[]'); } catch(e){}
-            const olhoAzul = docsExtrasList[0] ? `<button onclick="visualizarDocExtra(${m.id}, 0)" style="background:transparent; border:none; cursor:pointer; color:#3b82f6; margin-right:8px;" title="Visualizar Documento 1"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : '';
-            const olhoVerde = docsExtrasList[1] ? `<button onclick="visualizarDocExtra(${m.id}, 1)" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento 2"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : '';
-
-            html += `
-                <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                    <td style="padding:1rem;"><strong>${m.numero_ait || '—'}</strong></td>
-                    <td style="padding:1rem; font-weight:600; color:#334155; white-space:nowrap;">${m.placa || '—'}</td>
-                    <td style="padding:1rem;">${dataInfracao}<br><span style="color:#64748b; font-size:0.8rem;">${m.hora_infracao || '—'}</span></td>
-                    <td style="padding:1rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${m.motivo || ''}">${m.motivo || '—'}</td>
-                    <td style="padding:1rem;">${motoristaHtml}</td>
-                    <td style="padding:1rem;">
-                        <span style="background:${statusColor}; color:#0f172a; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">
-                            ${m.status || '—'}
-                        </span>
-                    </td>
-                    <td style="padding:1rem;">${statusMonacoHtml}</td>
-                    <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite)}</td>
-                    <td style="padding:1rem; text-align:center; min-width:140px; white-space:nowrap;">
-                        ${(m.status === 'Indicado' || m.status === 'Multa NIC') ?
-                            `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#64748b; margin-right:8px;" title="Visualizar"><i class="ph ph-magnifying-glass" style="font-size:1.2rem;"></i></button>`
-                            :
-                            `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>`
-                        }
-                        ${olhoAzul}
-                        ${olhoVerde}
-                        ${m.link_formulario ? `<button onclick="window.open(String('${m.link_formulario}').startsWith('http') ? '${m.link_formulario}' : 'https://${m.link_formulario}', '_blank')" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:8px;" title="Abrir Formulário Externo"><i class="ph ph-link" style="font-size:1.2rem;"></i></button>` : ''}
-                        ${(m.status === 'Indicado' || m.status === 'Multa NIC') ? '' : `<button onclick="confirmarExcluirMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#ef4444;" title="Excluir"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>`}
-                    </td>
-                </tr>
-            `;
-        });
+        html += listaFiltrada.map(m => _buildMultaRow(m)).join('');
     }
 
     html += `
@@ -285,50 +307,38 @@ function filtrarMultasLogistica() {
 
     const listaFiltrada = _aplicarFiltrosMultas(multasLogistica);
 
-    // Aplicar ordenação
+    // Colunas de data: comparar como timestamp para ordenar do mais novo para o mais antigo
+    const DATE_COLS = ['data_infracao', 'data_limite', 'criado_em', 'atualizado_em', 'updated_at'];
     listaFiltrada.sort((a, b) => {
-        let va = (a[_multasSortCol] || '').toString().toLowerCase();
-        let vb = (b[_multasSortCol] || '').toString().toLowerCase();
-        if (va < vb) return _multasSortDir === 'asc' ? -1 : 1;
-        if (va > vb) return _multasSortDir === 'asc' ? 1 : -1;
+        const isDate = DATE_COLS.includes(_multasSortCol);
+        let va, vb;
+        if (isDate) {
+            const parseDate = v => {
+                if (!v) return 0;
+                // Tenta DD/MM/YYYY
+                const m = String(v).match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+                if (m) return new Date(`${m[3]}-${m[2]}-${m[1]}T12:00:00`).getTime();
+                return new Date(v).getTime() || 0;
+            };
+            va = parseDate(a[_multasSortCol]);
+            vb = parseDate(b[_multasSortCol]);
+            if (va < vb) return _multasSortDir === 'asc' ? -1 : 1;
+            if (va > vb) return _multasSortDir === 'asc' ? 1 : -1;
+        } else {
+            va = (a[_multasSortCol] || '').toString().toLowerCase();
+            vb = (b[_multasSortCol] || '').toString().toLowerCase();
+            if (va < vb) return _multasSortDir === 'asc' ? -1 : 1;
+            if (va > vb) return _multasSortDir === 'asc' ? 1 : -1;
+        }
         return 0;
     });
 
     if (listaFiltrada.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada com esses filtros.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada com esses filtros.</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = listaFiltrada.map(m => {
-
-        const dataInfracao = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
-        let motoristaHtml = m.motorista_id && m.motorista_nome
-            ? (String(m.motorista_id) === '-1' ? `<span style="font-weight:600; color:#ef4444;" title="Ex Colaborador">${m.motorista_nome}</span>` : `<span style="font-weight:600; color:#0f172a;">${m.motorista_nome}</span>`)
-            : `<button onclick="abrirModalGerenciarMulta(${m.id}, true)" style="background:#f1f5f9; color:#2563eb; border:1px solid #cbd5e1; padding:0.3rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:600;">+ Adicionar Motorista</button>`;
-        let statusColor = '#e2e8f0';
-        if (m.status === 'Conferência') statusColor = '#fef08a';
-        else if (m.status === 'Conferido') statusColor = '#bfdbfe';
-        else if (m.status === 'Indicado') statusColor = '#bbf7d0';
-        else if (m.status === 'Multa NIC') statusColor = '#fecaca';
-        else if (m.status === 'Não Se Aplica') statusColor = '#cbd5e1';
-        else if (m.status === 'Antiga') statusColor = '#e7e5e4';
-        return `
-            <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                <td style="padding:1rem;"><strong>${m.numero_ait||'—'}</strong></td>
-                <td style="padding:1rem; font-weight:600; color:#334155; white-space:nowrap;">${m.placa||'—'}</td>
-                <td style="padding:1rem;">${dataInfracao}<br><span style="color:#64748b; font-size:0.8rem;">${m.hora_infracao||'—'}</span></td>
-                <td style="padding:1rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${m.motivo||''}">${m.motivo||'—'}</td>
-                <td style="padding:1rem;">${motoristaHtml}</td>
-                <td style="padding:1rem;"><span style="background:${statusColor}; color:#0f172a; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">${m.status||'—'}</span></td>
-                <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite)}</td>
-                <td style="padding:1rem; text-align:center;">
-                    <button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>
-                    ${(m.documento_base64||m.documento_path) ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>` : ''}
-                    ${m.link_formulario ? `<button onclick="window.open(String('${m.link_formulario}').startsWith('http') ? '${m.link_formulario}' : 'https://${m.link_formulario}', '_blank')" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:8px;" title="Abrir Formulário Externo"><i class="ph ph-link" style="font-size:1.2rem;"></i></button>` : ''}
-                    <button onclick="confirmarExcluirMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#ef4444;" title="Excluir"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>
-                </td>
-            </tr>`;
-    }).join('');
+    tbody.innerHTML = listaFiltrada.map(m => _buildMultaRow(m)).join('');
 }
 
 function limparFiltrosMultas() {
