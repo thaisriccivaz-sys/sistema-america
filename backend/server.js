@@ -14379,18 +14379,22 @@ function syncToLogistica(uuid, tipoEvento, payload) {
 
         let docBase64 = null;
         let docNome = null;
-        if (payload.arquivos && payload.arquivos.length > 0) {
-            const arq = payload.arquivos[0];
+        // Monaco envia o campo como 'Arquivos' (maiúsculo) — suportamos ambos
+        const arquivosArr = payload.Arquivos || payload.arquivos || [];
+        if (arquivosArr.length > 0) {
+            const arq = arquivosArr[0];
             if (arq.base64) {
                 docBase64 = arq.base64;
-                docNome = arq.nome || 'anexo_monaco.pdf';
+                docNome = arq.Nome || arq.nome || 'anexo_monaco.pdf';
             }
         }
 
         const dataLimite = payload.prazo_identificacao_condutor || payload.vencimento_multa || null;
         const localInfracao = payload.local || payload.local_infracao || payload.cidade || null;
         const statusMonaco = payload.status_notificacao || tipoEvento;
-        const linkFormulario = payload.link_indicacao || payload.link_formulario || payload.url_formulario || payload.link || null;
+        // Monaco pode enviar o link de indicação em vários campos
+        const linkFormulario = payload.link_indicacao || payload.link_formulario || payload.url_formulario ||
+                               payload.Link || payload.LinkIndicacao || payload.link || null;
 
         if (row) {
             // Atualizar multa existente
@@ -14495,8 +14499,9 @@ function enviarNotificacaoNovaMultaMonaco(payload, logisticaId) {
 
 // Helper para salvar/atualizar um registro Monaco
 function upsertMonaco(uuid, tipoEvento, payload, res) {
-    // Serializar arquivos
-    const arquivosJson = JSON.stringify(payload.arquivos || []);
+    // Serializar arquivos — Monaco envia como 'Arquivos' (maiúsculo)
+    const arquivosArr = payload.Arquivos || payload.arquivos || [];
+    const arquivosJson = JSON.stringify(arquivosArr);
 
     // Verificar se já existe
     db.get('SELECT id, tipo_evento FROM multas_monaco WHERE uuid = ?', [uuid], (err, existing) => {

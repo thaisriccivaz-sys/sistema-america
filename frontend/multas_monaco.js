@@ -349,6 +349,15 @@ window._monacoAbrirDetalhe = async function(id) {
             ${m.controle_notificacao ? _campoFull('Controle Notificação', m.controle_notificacao) : ''}
             ${m.controle_da_multa ? _campoFull('Controle da Multa', m.controle_da_multa) : ''}
 
+            ${m.link_formulario ? `
+            <div style="background:#eff6ff;border:1.5px solid #3b82f6;border-radius:8px;padding:1rem;">
+                <p style="margin:0 0 6px;font-size:0.75rem;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.05em;">🔗 Link para Indicação do Condutor</p>
+                <a href="${m.link_formulario}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;padding:8px 14px;font-size:0.85rem;font-weight:600;">
+                    <i class="ph ph-arrow-square-out"></i> Acessar Formulário de Indicação
+                </a>
+                <p style="margin:6px 0 0;font-size:0.75rem;color:#64748b;word-break:break-all;">${m.link_formulario}</p>
+            </div>` : ''}
+
             ${arquivosHtml}
 
             <!-- Obs interna -->
