@@ -11525,6 +11525,14 @@ app.post('/api/frota/catalogo', authenticateToken, (req, res) => {
     );
 });
 
+// DELETE - excluir serviço do catálogo
+app.delete('/api/frota/catalogo/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM frota_servicos_catalogo WHERE id=?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Serviço excluído' });
+    });
+});
+
 // GET - preventivo por veiculo usando catálogo (plano ou padrão)
 app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req, res) => {
     const vid = req.params.veiculo_id;

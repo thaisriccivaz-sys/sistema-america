@@ -802,6 +802,11 @@ window.mnEditarSelecionados = function() {
             <td style="padding:0.5rem;"><input type="number" class="me-intervalo" value="${d.intervalo}" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:4px;"></td>
             <td style="padding:0.5rem;"><input type="number" class="me-ultimakm" value="${d.ultimakm}" placeholder="Ex: 100000" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:4px;"></td>
             <td style="padding:0.5rem;"><input type="date" class="me-ultimadata" value="${d.ultimadata}" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:4px;"></td>
+            <td style="padding:0.5rem;text-align:center;">
+                <button onclick="window.mnExcluirServicoModal(${d.id}, ${idx})" style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:0.4rem;cursor:pointer;" title="Excluir do Catálogo">
+                    <i class="ph ph-trash"></i>
+                </button>
+            </td>
         </tr>
         `;
     }).join('');
@@ -825,6 +830,7 @@ window.mnEditarSelecionados = function() {
                         <th style="padding:0.5rem;color:#475569;">Intervalo</th>
                         <th style="padding:0.5rem;color:#475569;">Último KM</th>
                         <th style="padding:0.5rem;color:#475569;">Última Data</th>
+                        <th style="padding:0.5rem;color:#475569;width:40px;"></th>
                     </tr>
                 </thead>
                 <tbody id="me-tbody">${linhas}</tbody>
@@ -877,6 +883,33 @@ window.mnSalvarEdicaoMassa = async function() {
         }
     } catch(e) {
         alert('Erro de conexão ao salvar');
+    }
+};
+
+window.mnExcluirServicoModal = async function(id, idx) {
+    const s = prompt('Digite a senha para confirmar a exclusão:');
+    if (s !== 'EXu2499!') {
+        if (s !== null) alert('Senha incorreta!');
+        return;
+    }
+    
+    if (!confirm('Tem certeza que deseja excluir este serviço do Catálogo Geral? Isso afetará todos os veículos.')) return;
+    
+    try {
+        const res = await fetch('/api/frota/catalogo/' + id, {
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer ' + window._manutTok }
+        });
+        if (res.ok) {
+            const tr = document.querySelector(`tr[data-idx="${idx}"]`);
+            if (tr) tr.remove();
+            alert('Serviço excluído do catálogo.');
+        } else {
+            const err = await res.json();
+            alert('Erro ao excluir: ' + (err.error || 'Desconhecido'));
+        }
+    } catch (e) {
+        alert('Erro de conexão ao excluir.');
     }
 };
 
