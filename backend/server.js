@@ -6504,10 +6504,13 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                     try { vtLinhasTR = JSON.parse(req.body.vt_linhas_tr || '[]'); } catch(e) {}
                     const buildRows = (linhas, title) => {
                         let rows = '';
-                        for (let i = 0; i < 6; i++) {
-                            const l = linhas[i] || {};
+                        const validLinhas = linhas.filter(l => (l.empresa || '').trim() !== '' || (l.tarifa || '').trim() !== '');
+                        if (validLinhas.length === 0) return rows;
+
+                        for (let i = 0; i < validLinhas.length; i++) {
+                            const l = validLinhas[i];
                             if (i === 0) {
-                                rows += `<tr><td style="border:1px solid #000;padding:3px 5px;text-align:center;font-size:9px;writing-mode:vertical-rl;transform:rotate(180deg);font-weight:bold;" rowspan="6">${title}</td><td style="border:1px solid #000; padding:3px 6px; text-align:center; font-weight:bold; width:20px;">${i+1}</td><td style="border:1px solid #000; padding:3px 6px;">${l.empresa || ''}</td><td style="border:1px solid #000; padding:3px 6px; text-align:center; width:100px;">${l.tarifa || ''}</td></tr>`;
+                                rows += `<tr><td style="border:1px solid #000;padding:3px 5px;text-align:center;font-size:9px;writing-mode:vertical-rl;transform:rotate(180deg);font-weight:bold;" rowspan="${validLinhas.length}">${title}</td><td style="border:1px solid #000; padding:3px 6px; text-align:center; font-weight:bold; width:20px;">${i+1}</td><td style="border:1px solid #000; padding:3px 6px;">${l.empresa || ''}</td><td style="border:1px solid #000; padding:3px 6px; text-align:center; width:100px;">${l.tarifa || ''}</td></tr>`;
                             } else {
                                 rows += `<tr><td style="border:1px solid #000; padding:3px 6px; text-align:center; font-weight:bold;">${i+1}</td><td style="border:1px solid #000; padding:3px 6px;">${l.empresa || ''}</td><td style="border:1px solid #000; padding:3px 6px; text-align:center;">${l.tarifa || ''}</td></tr>`;
                             }
