@@ -3719,8 +3719,9 @@ const multerUploadMemoria = require('multer')({ storage: require('multer').memor
 app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arquivo'), async (req, res) => {
     try {
         if (!req.file) throw new Error('BO nao enviado.');
-        const pdfP = require('pdf-parse');
-        const pdfData = await pdfP(req.file.buffer);
+        const { PDFParse } = require('pdf-parse');
+        const parser = new PDFParse({ data: req.file.buffer });
+        const pdfData = await parser.getText();
         const text = pdfData.text || '';
         // Eliminar espacos duplicados para ajudar a regex
         const cleanText = text.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ');
