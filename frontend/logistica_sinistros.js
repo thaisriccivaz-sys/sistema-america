@@ -403,11 +403,15 @@ window._calcLogSinParcela = function() {
 };
 
 window.logSinSalvarFinal = async function() {
+    if (window._isSavingSinistro) return;
+
     const colabId = document.getElementById('log-sin-colab-select').value;
     if (!colabId) return alert('Colaborador não selecionado.');
 
     const fileBO = document.getElementById('log-sinistro-file-bo').files[0];
     if (!fileBO) return alert('O arquivo do BO não foi encontrado. Volte ao passo anterior.');
+
+    window._isSavingSinistro = true;
 
     const temDesconto = 'Sim'; // Sempre passamos Sim para o RH avaliar
     const parcelas = temDesconto === 'Sim' ? (document.getElementById('log-sin-parcelas')?.value || 1) : null;
@@ -493,5 +497,6 @@ window.logSinSalvarFinal = async function() {
     } finally {
         btn.innerHTML = oldText;
         btn.disabled = false;
+        window._isSavingSinistro = false;
     }
 };

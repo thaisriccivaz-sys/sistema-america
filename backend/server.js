@@ -3721,9 +3721,9 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
             || cleanText.match(/Boletim[^\d]*(\d+[-]\d+\/\d{4})/i);
         if (matBO) boletim = matBO[1].replace(/\s/g, '').toUpperCase();
 
-        // Ocorrencia: "13/04/2026 as 13:30"
+        // Ocorrencia: "13/04/2026 as 13:30" ou "Ocorrência: Comunicação: 11/05/2026 às 11:30"
         let dataHoraStr = '';
-        const matOc = cleanText.match(/Ocorr[eê]ncia[:\s]+(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s+(\d{2}:\d{2})/i)
+        const matOc = cleanText.match(/Ocorr[eê]ncia.*?(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s+(\d{2}:\d{2})/i)
             || cleanText.match(/Data.*?Ocorr.*?:?\s*(\d{2}\/\d{2}\/\d{4}).*?(\d{2}:\d{2})/i)
             || cleanText.match(/(\d{2}\/\d{2}\/\d{4})\s*.*?(\d{2}:\d{2})/i); // aggressive fallback
         if (matOc) dataHoraStr = matOc[1] + ' às ' + matOc[2];
@@ -3744,14 +3744,13 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
         const matMM = cleanText.match(/Marca\/Modelo[^\w]*([A-Z0-9\/\-\s]{3,30}?)(?:Ano\s|Cor\s|Chassi|Placa)/i);
         if (matMM) marcaModelo = matMM[1].trim();
 
-        // Placa: "TLR0H81" (ou "TLR0H811" com typo do PDF real)
+        // Placa: "TLR0H81"
         let placa = '';
-        const matPl = cleanText.match(/Placa[^\w]*([A-Z]{3}[-\s]*\d[A-Z0-9]\d{2,3})/i)
-            || cleanText.match(/Placa[^\w]*([A-Z]{3}[-\s]*\d{4,5})/i)
-            || cleanText.match(/(?:^|\s)([A-Z]{3}[-\s]*[0-9][A-Z0-9]{3,4})(?:[-\s]|$)/i); // aggressive fallback
+        const matPl = cleanText.match(/\b([A-Z]{3}[-\s]*[0-9][A-Z0-9]{3,4})\b/i)
+            || cleanText.match(/Placa[^\w]*([A-Z]{3}[-\s]*\d{4,5})/i);
         if (matPl) {
             placa = matPl[1].replace(/[-\s]/g, '').toUpperCase();
-            if (placa.length > 7) placa = placa.substring(0, 7); // Força 7 caracteres para remover lixo do pdf-parse
+            if (placa.length > 7) placa = placa.substring(0, 7); // Força 7 caracteres
         }
 
         console.log('[BO] boletim=' + boletim + ' | data=' + dataHoraStr + ' | natureza=' + natureza + ' | placa=' + placa + ' | modelo=' + marcaModelo);
