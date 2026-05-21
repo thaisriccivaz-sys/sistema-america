@@ -983,7 +983,13 @@ window.abrirFinalizarSinistro = async function(sinId, colabId) {
                 <label style="font-size:0.85rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Tipo do Sinistro *</label>
                 <select id="fs1-tipo" class="form-control"><option value="">Selecione...</option>${tipoOpts}</select>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+            
+            <div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;">
+                <input type="checkbox" id="fs1-nao-gera-cobranca" onchange="window._fs1ToggleCobranca(this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:#059669;">
+                <label for="fs1-nao-gera-cobranca" style="font-size:0.85rem;font-weight:700;color:#059669;cursor:pointer;">Não gera cobrança ao colaborador</label>
+            </div>
+
+            <div id="fs1-cobranca-area" style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
                 <div>
                     <label style="font-size:0.85rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Valor Total do Desconto (R$) *</label>
                     <input type="text" id="fs1-valor" class="form-control" value="${s.valor_total||''}" placeholder="Ex: 1.200,00" oninput="window._fs1Calc()">
@@ -993,7 +999,7 @@ window.abrirFinalizarSinistro = async function(sinId, colabId) {
                     <select id="fs1-parcelas" class="form-control" onchange="window._fs1Calc()">${parcOpts}</select>
                 </div>
             </div>
-            <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:0.75rem;text-align:center;">
+            <div id="fs1-cobranca-resumo" style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:0.75rem;text-align:center;">
                 <span style="font-size:0.8rem;color:#166534;">Valor por parcela:</span>
                 <strong id="fs1-display" style="color:#15803d;font-size:1.1rem;display:block;">R$ 0,00</strong>
             </div>
@@ -1009,6 +1015,22 @@ window.abrirFinalizarSinistro = async function(sinId, colabId) {
     setTimeout(() => window._fs1Calc(), 100);
 };
 
+window._fs1ToggleCobranca = function(isChecked) {
+    const area = document.getElementById('fs1-cobranca-area');
+    const resumo = document.getElementById('fs1-cobranca-resumo');
+    const valorInput = document.getElementById('fs1-valor');
+    if (isChecked) {
+        area.style.display = 'none';
+        resumo.style.display = 'none';
+        valorInput.value = '0,00';
+    } else {
+        area.style.display = 'grid';
+        resumo.style.display = 'block';
+        if(valorInput.value === '0,00') valorInput.value = '';
+    }
+    window._fs1Calc();
+};
+
 window._fs1Calc = function() {
     const v = parseFloat((document.getElementById('fs1-valor')?.value||'0').replace(/[^0-9,]/g,'').replace(',','.')) || 0;
     const q = parseInt(document.getElementById('fs1-parcelas')?.value) || 1;
@@ -1020,9 +1042,13 @@ window._fs1Confirmar = async function(sinId, colabId) {
     const tipo = document.getElementById('fs1-tipo').value;
     const valorStr = document.getElementById('fs1-valor').value;
     const qtd = parseInt(document.getElementById('fs1-parcelas').value) || 1;
+    const isIsento = document.getElementById('fs1-nao-gera-cobranca')?.checked;
+
     if (!tipo) return alert('Selecione o Tipo do Sinistro.');
+    
     const valorRaw = parseFloat(valorStr.replace(/[^0-9,]/g,'').replace(',','.')) || 0;
-    if (valorRaw <= 0) return alert('Informe o valor do desconto (maior que zero).');
+    if (!isIsento && valorRaw <= 0) return alert('Informe o valor do desconto (maior que zero).');
+    
     const valorParcela = (valorRaw/qtd).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
     const btn = document.getElementById('fs1-btn-confirmar');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando documento...'; }

@@ -4020,11 +4020,14 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         htmlFinal = htmlFinal.replace(/\{SINISTRO_NATUREZA\}|\{NATUREZA\}/gi, sin.natureza || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_PLACA\}|\{PLACA\}/gi, sin.placa || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_VEICULO\}|\{VEICULO\}|\{MARCA_MODELO\}/gi, sin.veiculo || '');
+        const isIsento = (sin.valor_total === '0,00' || sin.valor_total === '0' || sin.valor_total === 0);
+        const condicoesTexto = isIsento ? 'ISENTO DE COBRANÇA' : `${sin.parcelas || 1}x de ${sin.valor_parcela || ''}`;
+        
         htmlFinal = htmlFinal.replace(/\{SINISTRO_PARCELAS\}|\{QTDE_PARCELAS\}/gi, String(sin.parcelas || 1));
         htmlFinal = htmlFinal.replace(/\{SINISTRO_VALOR_PARCELA\}|\{VALOR_PARCELA\}/gi, sin.valor_parcela || '');
         htmlFinal = htmlFinal.replace(/\{VALOR_TOTAL\}|\{VALOR_DANO\}/gi, sin.valor_total || sin.valor_parcela || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_TIPO\}|\{TIPO_SINISTRO\}/gi, sin.tipo_sinistro || '');
-        htmlFinal = htmlFinal.replace(/\{SINISTRO_CONDICOES\}|\{DESCRICAO_DESCONTO\}/gi, `${sin.parcelas || 1}x de ${sin.valor_parcela || ''}`);
+        htmlFinal = htmlFinal.replace(/\{SINISTRO_CONDICOES\}|\{DESCRICAO_DESCONTO\}/gi, condicoesTexto);
         // Substituições com chaves duplas (padrão {{CAMPO}})
         const dataAtualFmt = new Date().toLocaleDateString('pt-BR');
         htmlFinal = htmlFinal.replace(/\{\{DATA_ATUAL\}\}/gi, dataAtualFmt);
