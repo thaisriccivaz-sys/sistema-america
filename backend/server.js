@@ -680,20 +680,15 @@ GERADORES_PERFIL.forEach(nome => {
     </tr>
   </table>
   <table style="width:100%;border-collapse:collapse;border:2px solid #000;border-top:none;">
-    <tr><td colspan="3" style="text-align:center;font-weight:bold;padding:5px;border:1px solid #000;font-size:12px;">MEIO DE TRANSPORTE</td></tr>
+    <tr><td colspan="4" style="text-align:center;font-weight:bold;padding:5px;border:1px solid #000;font-size:12px;">MEIO DE TRANSPORTE</td></tr>
     <tr>
       <td style="border:1px solid #000;padding:4px 6px;width:30px;"></td>
+      <td style="border:1px solid #000;padding:4px 8px;text-align:center;font-weight:bold;width:30px;">#</td>
       <td style="border:1px solid #000;padding:4px 8px;text-align:center;font-weight:bold;">EMPRESA TRANSPORTADORA</td>
-      <td style="border:1px solid #000;padding:4px 8px;text-align:center;font-weight:bold;white-space:nowrap;">TARIFA R$</td>
+      <td style="border:1px solid #000;padding:4px 8px;text-align:center;font-weight:bold;white-space:nowrap;width:100px;">TARIFA R$</td>
     </tr>
-    <tr>
-      <td style="border:1px solid #000;padding:3px 5px;text-align:center;font-size:9px;writing-mode:vertical-rl;transform:rotate(180deg);font-weight:bold;" rowspan="6">RESIDÊNCIA/TRABALHO</td>
-      \${VT_LINHAS_RESIDENCIA_TRABALHO}
-    </tr>
-    <tr>
-      <td style="border:1px solid #000;padding:3px 5px;text-align:center;font-size:9px;writing-mode:vertical-rl;transform:rotate(180deg);font-weight:bold;" rowspan="6">TRABALHO/RESIDÊNCIA</td>
-      \${VT_LINHAS_TRABALHO_RESIDENCIA}
-    </tr>
+    \${VT_LINHAS_RESIDENCIA_TRABALHO}
+    \${VT_LINHAS_TRABALHO_RESIDENCIA}
   </table>
 </div>`;
 
@@ -6505,16 +6500,20 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                     let vtLinhasTR = [];
                     try { vtLinhasRT = JSON.parse(req.body.vt_linhas_rt || '[]'); } catch(e) {}
                     try { vtLinhasTR = JSON.parse(req.body.vt_linhas_tr || '[]'); } catch(e) {}
-                    const buildRows = (linhas) => {
+                    const buildRows = (linhas, title) => {
                         let rows = '';
                         for (let i = 0; i < 6; i++) {
                             const l = linhas[i] || {};
-                            rows += `<tr><td style="border:1px solid #000; padding:3px 6px; text-align:center;">${i+1}</td><td style="border:1px solid #000; padding:3px 6px;">${l.empresa || ''}</td><td style="border:1px solid #000; padding:3px 6px; text-align:center;">${l.tarifa || ''}</td></tr>`;
+                            if (i === 0) {
+                                rows += `<tr><td style="border:1px solid #000;padding:3px 5px;text-align:center;font-size:9px;writing-mode:vertical-rl;transform:rotate(180deg);font-weight:bold;" rowspan="6">${title}</td><td style="border:1px solid #000; padding:3px 6px; text-align:center; font-weight:bold; width:20px;">${i+1}</td><td style="border:1px solid #000; padding:3px 6px;">${l.empresa || ''}</td><td style="border:1px solid #000; padding:3px 6px; text-align:center; width:100px;">${l.tarifa || ''}</td></tr>`;
+                            } else {
+                                rows += `<tr><td style="border:1px solid #000; padding:3px 6px; text-align:center; font-weight:bold;">${i+1}</td><td style="border:1px solid #000; padding:3px 6px;">${l.empresa || ''}</td><td style="border:1px solid #000; padding:3px 6px; text-align:center;">${l.tarifa || ''}</td></tr>`;
+                            }
                         }
                         return rows;
                     };
-                    mapping['VT_LINHAS_RESIDENCIA_TRABALHO'] = buildRows(vtLinhasRT);
-                    mapping['VT_LINHAS_TRABALHO_RESIDENCIA'] = buildRows(vtLinhasTR);
+                    mapping['VT_LINHAS_RESIDENCIA_TRABALHO'] = buildRows(vtLinhasRT, 'RESIDÊNCIA/TRABALHO');
+                    mapping['VT_LINHAS_TRABALHO_RESIDENCIA'] = buildRows(vtLinhasTR, 'TRABALHO/RESIDÊNCIA');
 
                     // Endereço residencial (campos individuais)
                     const end = req.body.vt_endereco || '';
