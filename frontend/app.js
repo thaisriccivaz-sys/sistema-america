@@ -10534,6 +10534,15 @@ window.gerarContratoAvulso = async function () {
     const geradorId = hidden ? hidden.value : '';
     if (!geradorId) return alert('Selecione um documento.');
 
+    const gNome = document.getElementById('ca-gerador-search')?.value || '';
+
+    // ── Intercepção especial para Solicitação de VT ────────────────────────────
+    if ((gNome || '').toLowerCase().includes('solicita') && (gNome || '').toLowerCase().includes('vt')) {
+        document.getElementById('modal-contrato-avulso')?.remove();
+        window._abrirPopupVT(geradorId, gNome);
+        return;
+    }
+
     const btn = document.getElementById('ca-btn-gerar');
     btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...';
     btn.disabled = true;
