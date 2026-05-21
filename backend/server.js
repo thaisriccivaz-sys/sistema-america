@@ -5034,6 +5034,17 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
     let file_name = req.file.originalname;
     try { file_name = Buffer.from(file_name, 'latin1').toString('utf8'); } catch (e) { }
 
+    const isBO = ((document_type || '').toUpperCase().includes('BO_') && (tab_name || '').toUpperCase().includes('SINISTRO')) ||
+                 ((tab_name || '').toUpperCase().includes('BOLETIM'));
+    if (isBO && file_path.toLowerCase().endsWith('.pdf')) {
+        try {
+            const { censorBOPdf } = require('./censorPDF.js');
+            await censorBOPdf(file_path, file_path);
+        } catch (e) {
+            console.error('[CENSOR] Falha ao tentar censurar BO:', e.message);
+        }
+    }
+
     if (tab_name === 'CONTRATOS_AVULSOS' || tab_name === 'CONTRATOS') {
         const uniqueCode = Date.now().toString().slice(-6);
         let safeTab = formatarPasta(document_type || 'Contrato');
