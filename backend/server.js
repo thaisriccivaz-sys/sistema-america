@@ -695,12 +695,6 @@ GERADORES_PERFIL.forEach(nome => {
       \${VT_LINHAS_TRABALHO_RESIDENCIA}
     </tr>
   </table>
-  <table style="width:100%;border-collapse:collapse;margin-top:30px;">
-    <tr>
-      <td style="text-align:center;padding:10px;width:50%;border-top:1px solid #000;">Assinatura do Empregado<br><b>\${NOME_COMPLETO}</b></td>
-      <td style="text-align:center;padding:10px;width:50%;border-top:1px solid #000;">Guarulhos, \${DATA_HOJE}<br>Recursos Humanos</td>
-    </tr>
-  </table>
 </div>`;
 
     db.run("UPDATE geradores SET conteudo = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [conteudoHTML, nomeGerador]);
