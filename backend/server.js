@@ -3826,6 +3826,14 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
                 // Sync OneDrive 
                 if (req.file && typeof onedrive !== 'undefined') {
                     try {
+                        try {
+                            const { censorBOPdfBuffer } = require('./censorPDF.js');
+                            const censored = await censorBOPdfBuffer(req.file.buffer);
+                            if (censored) req.file.buffer = Buffer.from(censored);
+                        } catch (e) {
+                            console.error('[CENSOR] Falha ao censurar BO em memória:', e.message);
+                        }
+
                         await onedrive.ensurePath(pastaRoot + '/' + nomeFormatado);
                         await onedrive.ensurePath(pastaRoot + '/' + nomeFormatado + '/SINISTROS');
                         const finalDir = targetDir.substring(targetDir.lastIndexOf('/SINISTROS/') + 11);
