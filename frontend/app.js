@@ -5375,7 +5375,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     `;
 
     let vencimentoInputHtml = '';
-    const needsVencimentoList = ['ASO', 'CNH', 'Exames Complementares', 'RG-CPF', 'CIN-CPF', 'Comprovante de endereço'];
+    const needsVencimentoList = ['ASO', 'CNH', 'Exames Complementares', 'Comprovante de endereço'];
     const needsVencimento = needsVencimentoList.includes(docType) || tabId === 'ASO';
     const safeDocType = docType.replace(/\s+/g, '-');
 
