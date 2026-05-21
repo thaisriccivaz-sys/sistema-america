@@ -6529,15 +6529,15 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                         for (let i = 0; i < validLinhas.length; i++) {
                             const l = validLinhas[i];
                             if (i === 0) {
-                                rows += `<tr><td style="border:1px solid #000;padding:2px;text-align:center;font-size:10px;writing-mode:vertical-rl;transform:rotate(180deg);font-weight:bold;white-space:nowrap;" rowspan="${validLinhas.length}">${title}</td><td style="border:1px solid #000; padding:2px 4px; text-align:center; font-weight:bold; width:20px; height:25px;">${i+1}</td><td style="border:1px solid #000; padding:2px 4px;">${l.empresa || ''}</td><td style="border:1px solid #000; padding:2px 4px; text-align:center; width:100px;">${l.tarifa || ''}</td></tr>`;
+                                rows += `<tr><td style="border:1px solid #000;padding:2px;text-align:center;font-size:10px;font-weight:bold;white-space:nowrap;width:40px;" rowspan="${validLinhas.length}">${title}</td><td style="border:1px solid #000; padding:2px 4px; text-align:center; font-weight:bold; width:20px; height:25px;">${i+1}</td><td style="border:1px solid #000; padding:2px 4px;">${l.empresa || ''}</td><td style="border:1px solid #000; padding:2px 4px; text-align:center; width:100px;">${l.tarifa || ''}</td></tr>`;
                             } else {
                                 rows += `<tr><td style="border:1px solid #000; padding:2px 4px; text-align:center; font-weight:bold; height:25px;">${i+1}</td><td style="border:1px solid #000; padding:2px 4px;">${l.empresa || ''}</td><td style="border:1px solid #000; padding:2px 4px; text-align:center;">${l.tarifa || ''}</td></tr>`;
                             }
                         }
                         return rows;
                     };
-                    mapping['VT_LINHAS_RESIDENCIA_TRABALHO'] = buildRows(vtLinhasRT, 'Resid. - Trab.');
-                    mapping['VT_LINHAS_TRABALHO_RESIDENCIA'] = buildRows(vtLinhasTR, 'Trab. - Resid.');
+                    mapping['VT_LINHAS_RESIDENCIA_TRABALHO'] = buildRows(vtLinhasRT, 'Ida');
+                    mapping['VT_LINHAS_TRABALHO_RESIDENCIA'] = buildRows(vtLinhasTR, 'Volta');
 
                     // Endereço residencial (campos individuais)
                     const end = req.body.vt_endereco || '';
