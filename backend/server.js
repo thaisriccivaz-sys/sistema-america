@@ -3881,6 +3881,85 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
     }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH: Editar sinistro (somente se status = 'pendente' — sem assinaturas)
+// ─────────────────────────────────────────────────────────────────────────────
+app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, multerUploadMemoria.none(), async (req, res) => {
+    try {
+        const { id: colabId, sinistroId } = req.params;
+        const body = req.body;
+
+        // Buscar o sinistro atual
+        const sinistro = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM sinistros WHERE id = ? AND colaborador_id = ?', [sinistroId, colabId], (err, row) => {
+                if (err) reject(err); else resolve(row);
+            });
+        });
+
+        if (!sinistro) return res.status(404).json({ error: 'Sinistro não encontrado.' });
+        if (sinistro.status !== 'pendente') {
+            return res.status(403).json({ error: 'Edição não permitida: sinistro já possui assinaturas.' });
+        }
+
+        // Atualizar campos básicos
+        await new Promise((resolve, reject) => {
+            db.run(
+                `UPDATE sinistros SET
+                    numero_boletim = COALESCE(?, numero_boletim),
+                    data_hora      = COALESCE(?, data_hora),
+                    natureza       = COALESCE(?, natureza),
+                    veiculo        = COALESCE(?, veiculo),
+                    placa          = COALESCE(?, placa)
+                WHERE id = ?`,
+                [
+                    body.numero_boletim || null,
+                    body.data_hora      || null,
+                    body.natureza       || null,
+                    body.veiculo        || null,
+                    body.placa          || null,
+                    sinistroId
+                ],
+                err => { if (err) reject(err); else resolve(); }
+            );
+        });
+
+        // Novos orçamentos (acrescentar à lista existente)
+        if (body.orcamentos_base64) {
+            try {
+                const novosOrcs = JSON.parse(body.orcamentos_base64);
+                const existentes = sinistro.orcamentos_paths ? JSON.parse(sinistro.orcamentos_paths) : [];
+                const targetDir = sinistro.boletim_path
+                    ? sinistro.boletim_path.substring(0, sinistro.boletim_path.lastIndexOf('/'))
+                    : `Sinistros/Colaborador_${colabId}`;
+
+                const caminhos = [...existentes];
+                for (let i = 0; i < novosOrcs.length; i++) {
+                    const dataUrl = novosOrcs[i];
+                    const mimeMatch = dataUrl.match(/^data:([^;]+);/);
+                    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                    const extMap = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png' };
+                    const ext = extMap[mime] || 'jpg';
+                    const orcBuf = Buffer.from(dataUrl.split(',')[1], 'base64');
+                    const orcNome = 'Orcamento_' + (existentes.length + i + 1) + '.' + ext;
+                    await onedrive.uploadToOneDrive(targetDir, orcNome, orcBuf);
+                    caminhos.push(targetDir + '/' + orcNome);
+                }
+                await new Promise((resolve, reject) => {
+                    db.run('UPDATE sinistros SET orcamentos_paths = ? WHERE id = ?', [JSON.stringify(caminhos), sinistroId], err => {
+                        if (err) reject(err); else resolve();
+                    });
+                });
+            } catch (e) { console.error('[PATCH sinistro] erro orçamentos:', e); }
+        }
+
+        res.json({ sucesso: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
+
 // Upload multer de media com limite maior
 const multerMediaStorage = multer.diskStorage({
     destination: (req, file, cb) => {
