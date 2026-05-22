@@ -4161,7 +4161,8 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         }
 
 
-        // Anexar imagens e mídias ao documento
+
+        // ===== ANEXOS DO SINISTRO (ordem: BO → Fotos → Vídeos → Orçamentos) =====
         try {
             let anxsHtml = '';
             let added = false;
@@ -4180,15 +4181,13 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 return buf ? buf.toString('base64') : null;
             };
 
-            // Helper: PDF → client-side rendering via PDF.js
-            // O servidor gera um div com data-pdf-b64; o browser chama window._renderSinPdfs() para converter em imagens
-            let _pdfJsInjected = false;
+            // Helper: PDF → renderização client-side via PDF.js (cada página ocupa sua própria área)
             const pdfBufToImgHtml = async (buf, label) => {
                 const b64 = buf.toString('base64');
                 return `<div class="sin-pdf-render" data-pdf-b64="${b64}" style="page-break-before:always;width:100%;margin-bottom:0;"><p style="font-size:0.85rem;font-weight:700;color:#333;margin:6px 0;text-align:center;">${label}</p><div class="sin-pdf-pages" style="width:100%;min-height:200px;"><p style="text-align:center;color:#888;padding:2rem;font-size:0.8rem;">&#x1F4C4; Carregando PDF...</p></div></div>`;
             };
 
-            // 0) Boletim de Ocorrência (PDF do OneDrive)
+            // 1) BOLETIM DE OCORRÊNCIA — páginas 2, 3, 4 (cada página do PDF fica sequencial)
             if (sin.boletim_path) {
                 try {
                     const buf = await downloadToBuffer(sin.boletim_path);
@@ -4199,7 +4198,55 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 } catch (e) { console.error('[Anexo BO]', e.message); }
             }
 
-            // 1) Orçamentos: armazenados como paths do OneDrive (strings)
+            // 2) FOTOS — cada foto em sua própria página (max 1 página por foto)
+            let mids = []; try { mids = JSON.parse(sin.midias_paths || '[]'); } catch (e) { }
+            const videoLinks = []; // coleta vídeos para exibir depois de todas as fotos
+
+            for (let m of mids) {
+                if (!m) continue;
+                const url = typeof m === 'string' ? m : m.url;
+                const tipo = typeof m === 'object' ? (m.tipo || '') : '';
+                if (!url) continue;
+                const ext = (url.split('.').pop() || '').toLowerCase().split('?')[0];
+                const isImage = tipo.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext);
+                const isVideo = tipo.startsWith('video/') || ['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext);
+
+                if (isImage) {
+                    try {
+                        const imgRes = await fetch(url);
+                        if (imgRes.ok) {
+                            const b64 = Buffer.from(await imgRes.arrayBuffer()).toString('base64');
+                            const mime = tipo || 'image/jpeg';
+                            // Página exclusiva para cada foto
+                            anxsHtml += `<div style="page-break-before:always;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:1.5rem 2rem;">
+                                <p style="font-size:0.85rem;font-weight:700;color:#333;margin:0 0 10px;text-align:center;">&#x1F4F7; Foto do Dano${m.nome ? ' — ' + m.nome : ''}</p>
+                                <img src="data:${mime};base64,${b64}" style="max-width:100%;max-height:90vh;object-fit:contain;border:1px solid #ddd;border-radius:4px;"/>
+                            </div>`;
+                            added = true;
+                        }
+                    } catch (e) { console.error('[Anexo FOTO]', e.message); }
+                } else if (isVideo) {
+                    // Acumula vídeos para exibir todos em uma única página depois
+                    videoLinks.push({ url, nome: m.nome || '' });
+                    added = true;
+                }
+            }
+
+            // 3) LINKS DE VÍDEOS — todos em uma única página após as fotos
+            if (videoLinks.length > 0) {
+                let videoHtml = `<div style="page-break-before:always;padding:2rem 2.5rem;">
+                    <h3 style="font-size:1rem;font-weight:700;color:#1e293b;border-bottom:2px solid #334155;padding-bottom:0.6rem;margin-bottom:1.5rem;text-align:center;">&#x1F3A5; V&iacute;deos do Dano</h3>`;
+                videoLinks.forEach((v, i) => {
+                    videoHtml += `<div style="margin-bottom:1rem;padding:0.75rem 1rem;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;">
+                        <p style="margin:0 0 4px;font-weight:700;font-size:0.9rem;color:#0f172a;">V&iacute;deo ${i + 1}${v.nome ? ' &mdash; ' + v.nome : ''}</p>
+                        <a href="${v.url}" style="word-break:break-all;font-size:0.8rem;color:#2563eb;">${v.url}</a>
+                    </div>`;
+                });
+                videoHtml += `</div>`;
+                anxsHtml += videoHtml;
+            }
+
+            // 4) ORÇAMENTOS — após os vídeos (cada um em sua página)
             let orcs = []; try { orcs = JSON.parse(sin.orcamentos_paths || '[]'); } catch (e) { }
             for (let p of orcs) {
                 if (!p || typeof p !== 'string') continue;
@@ -4209,7 +4256,10 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                         const b64 = await downloadToB64(p);
                         if (b64) {
                             const mime = ext === 'png' ? 'image/png' : (ext === 'webp' ? 'image/webp' : 'image/jpeg');
-                            anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;"><p style="font-size:0.8rem;color:#666;margin-bottom:4px;">Orçamento</p><img src="data:${mime};base64,${b64}" style="max-width:100%;max-height:900px;object-fit:contain;border:1px solid #ccc;"/></div>`;
+                            anxsHtml += `<div style="page-break-before:always;width:100%;display:flex;flex-direction:column;align-items:center;padding:1.5rem 2rem;">
+                                <p style="font-size:0.85rem;font-weight:700;color:#333;margin-bottom:10px;text-align:center;">Or&ccedil;amento</p>
+                                <img src="data:${mime};base64,${b64}" style="max-width:100%;max-height:90vh;object-fit:contain;border:1px solid #ccc;"/>
+                            </div>`;
                             added = true;
                         }
                     } catch (e) { console.error('[Anexo ORC imagem]', e.message); }
@@ -4217,48 +4267,23 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                     try {
                         const buf = await downloadToBuffer(p);
                         if (buf) {
-                            anxsHtml += await pdfBufToImgHtml(buf, `Orçamento`);
+                            anxsHtml += await pdfBufToImgHtml(buf, 'Or&ccedil;amento');
                             added = true;
                         }
                     } catch (e) { console.error('[Anexo ORC PDF]', e.message); }
                 }
             }
 
-            // 2) Mídias: armazenadas como objetos {url, tipo, nome} com URL pública do R2
-            let mids = []; try { mids = JSON.parse(sin.midias_paths || '[]'); } catch (e) { }
-            for (let m of mids) {
-                if (!m) continue;
-                const url = typeof m === 'string' ? m : m.url;
-                const tipo = typeof m === 'object' ? (m.tipo || '') : '';
-                if (!url) continue;
-                const ext = (url.split('.').pop() || '').toLowerCase().split('?')[0];
-                const isImage = tipo.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext);
-                const isVideo = tipo.startsWith('video/');
-                if (isImage) {
-                    try {
-                        const imgRes = await fetch(url);
-                        if (imgRes.ok) {
-                            const b64 = Buffer.from(await imgRes.arrayBuffer()).toString('base64');
-                            const mime = tipo || 'image/jpeg';
-                            anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;"><p style="font-size:0.8rem;color:#666;margin-bottom:4px;">Foto do dano${m.nome ? ' — ' + m.nome : ''}</p><img src="data:${mime};base64,${b64}" style="max-width:100%;max-height:900px;object-fit:contain;border:1px solid #ccc;"/></div>`;
-                            added = true;
-                        }
-                    } catch (e) { console.error('[Anexo MIDIA R2]', e.message); }
-                } else if (isVideo) {
-                    anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;padding:1rem;border:1px solid #ccc;background:#f9f9f9;"><p><strong>Vídeo do dano${m.nome ? ' — ' + m.nome : ''}:</strong> disponível em <a href="${url}" target="_blank">${url}</a></p></div>`;
-                    added = true;
-                }
-            }
-
-            if (added) {
-                const sectionHtml = `<div style="page-break-before:always;margin-top:2rem;padding:1rem 2rem;"><h2 style="text-align:center;font-size:1.1rem;margin-bottom:1.5rem;color:#333;border-bottom:2px solid #333;padding-bottom:0.5rem;">ANEXOS DO SINISTRO</h2>${anxsHtml}</div>`;
+            // Injeta todos os anexos no final do HTML (sem wrapper/cabeçalho extra)
+            if (added && anxsHtml) {
                 if (htmlFinal.includes('</body>')) {
-                    htmlFinal = htmlFinal.replace('</body>', sectionHtml + '</body>');
+                    htmlFinal = htmlFinal.replace('</body>', anxsHtml + '</body>');
                 } else {
-                    htmlFinal += sectionHtml;
+                    htmlFinal += anxsHtml;
                 }
             }
         } catch (e) { console.error('[Anexar imagens sinistro]', e.message); }
+
 
         // Salvar HTML
         db.run('UPDATE sinistros SET documento_html = ? WHERE id = ?', [htmlFinal, sin.id]);
