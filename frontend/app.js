@@ -1,4 +1,4 @@
-const API_URL = '/api';
+﻿const API_URL = '/api';
 
 
 
@@ -14012,7 +14012,7 @@ window.filterTabsList = function (q) {
     document.querySelectorAll('#tabs-list li').forEach(li => {
         const text = li.textContent.trim().toLowerCase();
         // Never hide the hidden ones (Boletim, Conjuge) unless they match
-        const originallyHidden = li.id === 'tab-conjuge' || li.dataset.tab === 'Boletim de ocorrência';
+        const originallyHidden = li.id === 'tab-conjuge' || false /* Boletim de ocorrencia removido */;
         if (!q) {
             li.style.display = originallyHidden ? 'none' : '';
         } else {
@@ -17290,4 +17290,5 @@ window.destacarCamposVazios = function () {
         showToast('Todos os campos visíveis estão preenchidos!', 'success');
     }
 };
+
 
