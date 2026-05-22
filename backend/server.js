@@ -3846,8 +3846,14 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
                             const orcs = JSON.parse(body.orcamentos_base64);
                             let paths = [];
                             for (let i = 0; i < orcs.length; i++) {
-                                const orcBuf = Buffer.from(orcs[i].split(',')[1], 'base64');
-                                const orcNome = 'Orcamento_' + (i + 1) + '.pdf';
+                                // Detectar extensao real a partir do data URL (image/jpeg, image/png, etc.)
+                                const dataUrl = orcs[i];
+                                const mimeMatch = dataUrl.match(/^data:([^;]+);/);
+                                const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                                const extMap = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf' };
+                                const ext = extMap[mime] || 'jpg';
+                                const orcBuf = Buffer.from(dataUrl.split(',')[1], 'base64');
+                                const orcNome = 'Orcamento_' + (i + 1) + '.' + ext;
                                 await onedrive.uploadToOneDrive(targetDir, orcNome, orcBuf);
                                 paths.push(targetDir + '/' + orcNome);
                             }

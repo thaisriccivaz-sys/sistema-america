@@ -252,24 +252,39 @@ window.logSinAbrirModalNovo = function() {
                         <div id="area-log-sinistro-desconto" style="display:none;"></div>
                         
                         <div style="background:#f8fafc; padding:1rem; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:1rem;">
-                            <p style="margin:0 0 10px; font-weight:600; font-size:0.9rem;"><i class="ph ph-paperclip"></i> Anexar Orçamentos</p>
-                            <div id="log-sin-orc-upload">
-                                <div id="log-sin-orcamentos-list" style="display:flex; flex-direction:column; gap:8px;">
-                                    <input type="file" name="log_sin_orc_file" accept=".pdf,image/*" class="form-control" style="font-size:0.8rem;">
-                                </div>
-                                <button type="button" class="btn btn-sm" onclick="window._addLogSinOrcField()" style="margin-top:8px; width:100%; border:1px dashed #cbd5e1; background:#fff; color:#475569;"><i class="ph ph-plus"></i> Adicionar mais orçamentos</button>
+                            <p style="margin:0 0 8px; font-weight:600; font-size:0.9rem;"><i class="ph ph-receipt"></i> Orçamentos (fotos JPG/PNG)</p>
+                            <div id="log-sin-orc-dropzone"
+                                style="border:2px dashed #cbd5e1; border-radius:10px; background:#f1f5f9; padding:1.2rem 1rem; text-align:center; cursor:pointer; transition:all .2s;"
+                                onclick="document.getElementById('log-sin-orcs-file').click()"
+                                ondragover="event.preventDefault(); this.style.background='#e2e8f0'; this.style.borderColor='#94a3b8';"
+                                ondragleave="this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1';"
+                                ondrop="event.preventDefault(); this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1'; window._logSinAdicionarOrcs(event.dataTransfer.files);">
+                                <i class="ph ph-image" style="font-size:1.8rem; color:#94a3b8; display:block; margin-bottom:4px;"></i>
+                                <p style="margin:0; font-weight:600; font-size:0.82rem; color:#475569;">Arraste fotos dos orçamentos aqui</p>
+                                <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique para selecionar &bull; apenas JPG e PNG &bull; múltiplos de uma vez</p>
+                                <input type="file" id="log-sin-orcs-file" multiple accept="image/jpeg,image/png,.jpg,.png" style="display:none;"
+                                    onchange="window._logSinAdicionarOrcs(this.files); this.value='';">
                             </div>
+                            <div id="log-sin-orcs-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+                            <p id="log-sin-orcs-count" style="margin:6px 0 0; font-size:0.75rem; color:#475569; display:none;"></p>
                         </div>
 
                         <div style="background:#f0f9ff; padding:1rem; border-radius:8px; border:1px solid #bae6fd; margin-bottom:1rem;">
-                            <p style="margin:0 0 10px; font-weight:600; font-size:0.9rem; color:#0369a1;"><i class="ph ph-camera"></i> Fotos e Vídeos dos ítens danificados</p>
-                            <p style="font-size:0.8rem; color:#0ea5e9; margin-bottom:8px;">Selecione uma ou mais imagens/vídeos que comprovem a avaria (Máx. 500MB).</p>
-                            <div id="log-sin-midias-upload">
-                                <div id="log-sin-midias-list" style="display:flex; flex-direction:column; gap:8px;">
-                                    <input type="file" name="log_sin_midia_file" accept="image/*,video/*" class="form-control" style="font-size:0.8rem;">
-                                </div>
-                                <button type="button" class="btn btn-sm" onclick="window._addLogSinMidiaField()" style="margin-top:8px; width:100%; border:1px dashed #7dd3fc; background:#fff; color:#0ea5e9;"><i class="ph ph-plus"></i> Adicionar mais mídias</button>
+                            <p style="margin:0 0 8px; font-weight:600; font-size:0.9rem; color:#0369a1;"><i class="ph ph-camera"></i> Fotos e Vídeos dos Itens Danificados</p>
+                            <div id="log-sin-dropzone"
+                                style="border:2px dashed #7dd3fc; border-radius:10px; background:#e0f2fe; padding:1.5rem 1rem; text-align:center; cursor:pointer; transition:all .2s;"
+                                onclick="document.getElementById('log-sin-midias-file').click()"
+                                ondragover="event.preventDefault(); this.style.background='#bae6fd'; this.style.borderColor='#0ea5e9';"
+                                ondragleave="this.style.background='#e0f2fe'; this.style.borderColor='#7dd3fc';"
+                                ondrop="event.preventDefault(); this.style.background='#e0f2fe'; this.style.borderColor='#7dd3fc'; window._logSinAdicionarMidias(event.dataTransfer.files);">
+                                <i class="ph ph-upload-simple" style="font-size:2rem; color:#0ea5e9; display:block; margin-bottom:6px;"></i>
+                                <p style="margin:0; font-weight:600; font-size:0.85rem; color:#0369a1;">Arraste fotos e vídeos aqui</p>
+                                <p style="margin:2px 0 0; font-size:0.75rem; color:#38bdf8;">ou clique para selecionar &bull; múltiplos arquivos &bull; Máx. 500MB cada</p>
+                                <input type="file" id="log-sin-midias-file" multiple accept="image/*,video/*" style="display:none;"
+                                    onchange="window._logSinAdicionarMidias(this.files); this.value='';">
                             </div>
+                            <div id="log-sin-midias-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+                            <p id="log-sin-midias-count" style="margin:6px 0 0; font-size:0.75rem; color:#0369a1; display:none;"></p>
                         </div>
 
                         <div class="alert alert-warning" style="font-size: 0.85rem; margin-bottom: 1rem;">
@@ -296,32 +311,139 @@ window.logSinAbrirModalNovo = function() {
     if (orcList) {
         orcList.innerHTML = '<input type="file" name="log_sin_orc_file" accept=".pdf,image/*" class="form-control" style="font-size:0.8rem;">';
     }
-    const midiaList = document.getElementById('log-sin-midias-list');
-    if (midiaList) {
-        midiaList.innerHTML = '<input type="file" name="log_sin_midia_file" accept="image/*,video/*" class="form-control" style="font-size:0.8rem;">';
-    }
+    window._logSinMidiasFiles = [];
+    if (typeof window._logSinAtualizarPreviewMidias === 'function') window._logSinAtualizarPreviewMidias();
 
     m.style.display = 'flex';
 };
 
-window._addLogSinOrcField = function() {
-    const d = document.createElement('input');
-    d.type = 'file';
-    d.name = 'log_sin_orc_file';
-    d.accept = '.pdf,image/*';
-    d.className = 'form-control';
-    d.style.fontSize = '0.8rem';
-    document.getElementById('log-sin-orcamentos-list').appendChild(d);
+// _addLogSinOrcField removido - usar _logSinAdicionarOrcs com drag-and-drop
+
+// ============================================================
+// GERENCIADOR DE MÍDIAS DA LOGÍSTICA - drag-and-drop + multi-select
+// ============================================================
+window._logSinMidiasFiles = [];
+
+window._logSinAdicionarMidias = function(fileList) {
+    if (!fileList || !fileList.length) return;
+    Array.from(fileList).forEach(function(f) {
+        var jaExiste = window._logSinMidiasFiles.some(function(x) { return x.name === f.name && x.size === f.size; });
+        if (!jaExiste) window._logSinMidiasFiles.push(f);
+    });
+    window._logSinAtualizarPreviewMidias();
 };
 
-window._addLogSinMidiaField = function() {
-    const d = document.createElement('input');
-    d.type = 'file';
-    d.name = 'log_sin_midia_file';
-    d.accept = 'image/*,video/*';
-    d.className = 'form-control';
-    d.style.fontSize = '0.8rem';
-    document.getElementById('log-sin-midias-list').appendChild(d);
+window._logSinRemoverMidia = function(idx) {
+    window._logSinMidiasFiles.splice(idx, 1);
+    window._logSinAtualizarPreviewMidias();
+};
+
+window._logSinAtualizarPreviewMidias = function() {
+    var previewEl = document.getElementById('log-sin-midias-preview');
+    var countEl   = document.getElementById('log-sin-midias-count');
+    if (!previewEl) return;
+    var files = window._logSinMidiasFiles;
+    if (!files.length) {
+        previewEl.style.display = 'none';
+        if (countEl) countEl.style.display = 'none';
+        return;
+    }
+    previewEl.style.display = 'flex';
+    previewEl.innerHTML = '';
+    if (countEl) {
+        var nFotos  = files.filter(function(f){ return f.type.startsWith('image/'); }).length;
+        var nVideos = files.filter(function(f){ return f.type.startsWith('video/'); }).length;
+        var partes = [];
+        if (nFotos)  partes.push(nFotos  + ' foto'  + (nFotos  > 1 ? 's' : ''));
+        if (nVideos) partes.push(nVideos + ' vídeo' + (nVideos > 1 ? 's' : ''));
+        countEl.textContent = 'Selecionado: ' + partes.join(' e ');
+        countEl.style.display = 'block';
+    }
+    files.forEach(function(f, idx) {
+        var card = document.createElement('div');
+        card.title = f.name;
+        card.style.cssText = 'position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;border:2px solid #bae6fd;background:#f0f9ff;flex-shrink:0;';
+        if (f.type.startsWith('image/')) {
+            var img = document.createElement('img');
+            img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            var reader = new FileReader();
+            reader.onload = function(ev) { img.src = ev.target.result; };
+            reader.readAsDataURL(f);
+            card.appendChild(img);
+        } else {
+            var icon = document.createElement('div');
+            icon.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#1e293b;';
+            icon.innerHTML = '<i class="ph ph-video" style="font-size:1.6rem;color:#60a5fa;"></i><span style="font-size:0.55rem;color:#94a3b8;margin-top:2px;padding:0 4px;overflow:hidden;word-break:break-all;">' + f.name.slice(0,14) + '</span>';
+            card.appendChild(icon);
+        }
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.innerHTML = '&times;';
+        btn.style.cssText = 'position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;border:none;background:rgba(239,68,68,0.9);color:#fff;font-size:0.8rem;cursor:pointer;padding:0;';
+        btn.setAttribute('onclick', 'window._logSinRemoverMidia(' + idx + ')');
+        card.appendChild(btn);
+        previewEl.appendChild(card);
+    });
+};
+
+// ============================================================
+// GERENCIADOR DE ORÇAMENTOS DA LOGÍSTICA - drag-and-drop, JPG/PNG
+// ============================================================
+window._logSinOrcFiles = [];
+
+window._logSinAdicionarOrcs = function(fileList) {
+    if (!fileList || !fileList.length) return;
+    Array.from(fileList).forEach(function(f) {
+        var ext = f.name.split('.').pop().toLowerCase();
+        if (!['jpg','jpeg','png'].includes(ext)) {
+            alert('Apenas imagens JPG ou PNG são aceitas para orçamentos. Arquivo ignorado: ' + f.name);
+            return;
+        }
+        var jaExiste = window._logSinOrcFiles.some(function(x) { return x.name === f.name && x.size === f.size; });
+        if (!jaExiste) window._logSinOrcFiles.push(f);
+    });
+    window._logSinAtualizarPreviewOrcs();
+};
+
+window._logSinRemoverOrc = function(idx) {
+    window._logSinOrcFiles.splice(idx, 1);
+    window._logSinAtualizarPreviewOrcs();
+};
+
+window._logSinAtualizarPreviewOrcs = function() {
+    var previewEl = document.getElementById('log-sin-orcs-preview');
+    var countEl   = document.getElementById('log-sin-orcs-count');
+    if (!previewEl) return;
+    var files = window._logSinOrcFiles;
+    if (!files.length) {
+        previewEl.style.display = 'none';
+        if (countEl) countEl.style.display = 'none';
+        return;
+    }
+    previewEl.style.display = 'flex';
+    previewEl.innerHTML = '';
+    if (countEl) {
+        countEl.textContent = files.length + ' orçamento' + (files.length > 1 ? 's' : '') + ' selecionado' + (files.length > 1 ? 's' : '');
+        countEl.style.display = 'block';
+    }
+    files.forEach(function(f, idx) {
+        var card = document.createElement('div');
+        card.title = f.name;
+        card.style.cssText = 'position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;border:2px solid #d1d5db;background:#f9fafb;flex-shrink:0;';
+        var img = document.createElement('img');
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        var reader = new FileReader();
+        reader.onload = function(ev) { img.src = ev.target.result; };
+        reader.readAsDataURL(f);
+        card.appendChild(img);
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.innerHTML = '&times;';
+        btn.style.cssText = 'position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;border:none;background:rgba(239,68,68,0.9);color:#fff;font-size:0.8rem;cursor:pointer;padding:0;';
+        btn.setAttribute('onclick', 'window._logSinRemoverOrc(' + idx + ')');
+        card.appendChild(btn);
+        previewEl.appendChild(card);
+    });
 };
 
 window.logSinProcessarLeituraBO = async function() {
@@ -428,9 +550,7 @@ window.logSinSalvarFinal = async function() {
     // Valor/parcelas serão definidos pelo RH ao finalizar
 
     // Orçamentos
-    const fileInputs = document.querySelectorAll('input[name="log_sin_orc_file"]');
-    const filesOrc = [];
-    fileInputs.forEach(i => { if(i.files && i.files.length > 0) for(let f of i.files) filesOrc.push(f); });
+    const filesOrc = window._logSinOrcFiles || [];
     if (filesOrc.length > 0) {
         const orcsBase64 = [];
         for (const f of filesOrc) {
@@ -440,9 +560,7 @@ window.logSinSalvarFinal = async function() {
         formData.append('orcamentos_base64', JSON.stringify(orcsBase64));
     }
 
-    const midiaInputs = document.querySelectorAll('input[name="log_sin_midia_file"]');
-    const filesMidia = [];
-    midiaInputs.forEach(i => { if(i.files && i.files.length > 0) for(let f of i.files) filesMidia.push(f); });
+    const filesMidia = window._logSinMidiasFiles || [];
 
     const btn = document.querySelector('#log-sinistro-step-2 button.btn-primary');
     const oldText = btn.innerHTML;
