@@ -4330,9 +4330,9 @@ async function salvarPDFSinistroNoOneDrive(colaboradorId, sinistroId, htmlDoc, n
             await onedrive.uploadToOneDrive(targetDir, nomeArquivo, pdfBuffer);
         }
 
-        // Atualiza path no banco
+        // Atualiza path do documento assinado no banco (campo separado do BO)
         const pdfPath = targetDir + '/' + nomeArquivo;
-        db.run('UPDATE sinistros SET boletim_path = ? WHERE id = ?', [pdfPath, sinistroId]);
+        db.run('UPDATE sinistros SET documento_path = ? WHERE id = ?', [pdfPath, sinistroId]);
 
         console.log('[Sinistro] PDF salvo em:', pdfPath);
         return pdfPath;
