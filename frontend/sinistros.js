@@ -1,4 +1,4 @@
-﻿// ABA SINISTROS - PROCESSOS DE BOLETINS DE OCORRÊNCIA
+// ABA SINISTROS - PROCESSOS DE BOLETINS DE OCORRÊNCIA
 // Segue o padrão de renderMultasMotoristaTab em app.js
 
 window._recarregarListaSinistros = async function(colabId) {
@@ -618,17 +618,7 @@ window.verDocumentoSinistro = async function(sinId, colabId) {
         document.getElementById('modal-preview-doc').style.display = 'block';
     };
 
-    // Para documentos já assinados, usa o HTML salvo (preserva assinaturas)
-    try {
-        const sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
-        const sin = sinistros ? sinistros.find(x => x.id == sinId) : null;
-        if (sin && sin.status === 'assinado' && sin.documento_html) {
-            showModal(sin.documento_html);
-            return;
-        }
-    } catch(e) { /* continua para regerar */ }
-
-    // Documentos não assinados: regera para garantir template atualizado
+    // Documentos não assinados: regera para garantir template atualizado e orçamentos
     const rGen = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/gerar-documento`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
