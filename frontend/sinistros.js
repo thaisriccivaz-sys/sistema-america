@@ -1,4 +1,4 @@
-// ABA SINISTROS - PROCESSOS DE BOLETINS DE OCORRÊNCIA
+﻿// ABA SINISTROS - PROCESSOS DE BOLETINS DE OCORRÊNCIA
 // Segue o padrão de renderMultasMotoristaTab em app.js
 
 window._recarregarListaSinistros = async function(colabId) {
@@ -303,9 +303,23 @@ window.abrirModalNovoSinistro = function() {
                         </div>
 
                         <div style="background:#f0f9ff; padding:1rem; border-radius:8px; border:1px solid #bae6fd; margin-bottom:1rem;">
-                            <p style="margin:0 0 10px; font-weight:600; font-size:0.9rem; color:#0369a1;"><i class="ph ph-camera"></i> Anexar Fotos e Vídeos do Veículo - Fotos e Vídeos dos ítens danificados</p>
-                            <p style="font-size:0.8rem; color:#0ea5e9; margin-bottom:8px;">Selecione uma ou mais imagens/vídeos que comprovem a avaria (Máx. 500MB).</p>
-                            <input type="file" id="sin-midias-file" multiple accept="image/*,video/*" class="form-control" style="padding:10px; font-size:0.8rem;">
+                            <p style="margin:0 0 8px; font-weight:600; font-size:0.9rem; color:#0369a1;"><i class="ph ph-camera"></i> Fotos e Vídeos dos Itens Danificados</p>
+                            <!-- Zona drag-and-drop -->
+                            <div id="sin-dropzone"
+                                style="border:2px dashed #7dd3fc; border-radius:10px; background:#e0f2fe; padding:1.5rem 1rem; text-align:center; cursor:pointer; transition:all .2s; position:relative;"
+                                onclick="document.getElementById('sin-midias-file').click()"
+                                ondragover="event.preventDefault(); this.style.background='#bae6fd'; this.style.borderColor='#0ea5e9';"
+                                ondragleave="this.style.background='#e0f2fe'; this.style.borderColor='#7dd3fc';"
+                                ondrop="event.preventDefault(); this.style.background='#e0f2fe'; this.style.borderColor='#7dd3fc'; window._sinAdicionarMidias(event.dataTransfer.files);">
+                                <i class="ph ph-upload-simple" style="font-size:2rem; color:#0ea5e9; display:block; margin-bottom:6px;"></i>
+                                <p style="margin:0; font-weight:600; font-size:0.85rem; color:#0369a1;">Arraste fotos e vídeos aqui</p>
+                                <p style="margin:2px 0 0; font-size:0.75rem; color:#38bdf8;">ou clique para selecionar &bull; múltiplos arquivos &bull; Máx. 500MB cada</p>
+                                <input type="file" id="sin-midias-file" multiple accept="image/*,video/*" style="display:none;"
+                                    onchange="window._sinAdicionarMidias(this.files); this.value='';">
+                            </div>
+                            <!-- Preview dos arquivos selecionados -->
+                            <div id="sin-midias-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+                            <p id="sin-midias-count" style="margin:6px 0 0; font-size:0.75rem; color:#0369a1; display:none;"></p>
                         </div>
 
                         <button type="button" class="btn btn-primary" onclick="window.salvarSinistroFinal()" style="width:100%; background:#059669; border:none;">
@@ -322,6 +336,8 @@ window.abrirModalNovoSinistro = function() {
     document.getElementById('sinistro-step-1').style.display = 'block';
     document.getElementById('sinistro-step-2').style.display = 'none';
     document.getElementById('sinistro-file-bo').value = '';
+    window._sinMidiasFiles = [];
+    if (typeof window._sinAtualizarPreviewMidias === 'function') window._sinAtualizarPreviewMidias();
     m.style.display = 'flex';
 };
 
@@ -466,8 +482,7 @@ window.salvarSinistroFinal = async function() {
             });
         }
 
-        const midiasInput = document.getElementById('sin-midias-file');
-        const filesMidia = midiasInput && midiasInput.files ? Array.from(midiasInput.files) : [];
+        const filesMidia = window._sinMidiasFiles || [];
 
         // Upload media files to R2
         if (filesMidia.length > 0 && responseData.id) {
@@ -944,6 +959,73 @@ window._addSinOrcField = function() {
     list.appendChild(input);
 };
 
+
+// =====================================================
+// GERENCIADOR DE MIDIAS - drag-and-drop + multi-select
+// =====================================================
+window._sinMidiasFiles = [];
+
+window._sinAdicionarMidias = function(fileList) {
+    if (!fileList || !fileList.length) return;
+    Array.from(fileList).forEach(function(f) {
+        var jaExiste = window._sinMidiasFiles.some(function(x) { return x.name === f.name && x.size === f.size; });
+        if (!jaExiste) window._sinMidiasFiles.push(f);
+    });
+    window._sinAtualizarPreviewMidias();
+};
+
+window._sinRemoverMidia = function(idx) {
+    window._sinMidiasFiles.splice(idx, 1);
+    window._sinAtualizarPreviewMidias();
+};
+
+window._sinAtualizarPreviewMidias = function() {
+    var previewEl = document.getElementById('sin-midias-preview');
+    var countEl   = document.getElementById('sin-midias-count');
+    if (!previewEl) return;
+    var files = window._sinMidiasFiles;
+    if (!files.length) {
+        previewEl.style.display = 'none';
+        if (countEl) countEl.style.display = 'none';
+        return;
+    }
+    previewEl.style.display = 'flex';
+    previewEl.innerHTML = '';
+    if (countEl) {
+        var nFotos  = files.filter(function(f){ return f.type.startsWith('image/'); }).length;
+        var nVideos = files.filter(function(f){ return f.type.startsWith('video/'); }).length;
+        var partes = [];
+        if (nFotos)  partes.push(nFotos  + ' foto'  + (nFotos  > 1 ? 's' : ''));
+        if (nVideos) partes.push(nVideos + ' video' + (nVideos > 1 ? 's' : ''));
+        countEl.textContent = 'Selecionado: ' + partes.join(' e ');
+        countEl.style.display = 'block';
+    }
+    files.forEach(function(f, idx) {
+        var card = document.createElement('div');
+        card.title = f.name;
+        card.style.cssText = 'position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;border:2px solid #bae6fd;background:#f0f9ff;flex-shrink:0;';
+        if (f.type.startsWith('image/')) {
+            var img = document.createElement('img');
+            img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            var reader = new FileReader();
+            reader.onload = function(ev) { img.src = ev.target.result; };
+            reader.readAsDataURL(f);
+            card.appendChild(img);
+        } else {
+            var icon = document.createElement('div');
+            icon.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#1e293b;';
+            icon.innerHTML = '<i class="ph ph-video" style="font-size:1.6rem;color:#60a5fa;"></i><span style="font-size:0.55rem;color:#94a3b8;margin-top:2px;padding:0 4px;overflow:hidden;word-break:break-all;">' + f.name.slice(0,14) + '</span>';
+            card.appendChild(icon);
+        }
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.innerHTML = '&times;';
+        btn.style.cssText = 'position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;border:none;background:rgba(239,68,68,0.9);color:#fff;font-size:0.8rem;cursor:pointer;padding:0;';
+        btn.setAttribute('onclick', 'window._sinRemoverMidia(' + idx + ')');
+        card.appendChild(btn);
+        previewEl.appendChild(card);
+    });
+};
 window._calcSinParcela = function() {
     const vTotalStr = document.getElementById('sin-valor-total').value || '0';
     const vTotalRaw = parseFloat(vTotalStr.replace(/[^0-9,]/g,'').replace(',','.')) || 0;
@@ -1309,3 +1391,5 @@ window._abrirTelaCondutorSinistro = async function(sinId, colabId) {
         if (p) { p.style.display = 'flex'; p.style.flexDirection = 'column'; }
     }, 400);
 };
+
+
