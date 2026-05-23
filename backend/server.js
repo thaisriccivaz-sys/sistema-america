@@ -3866,13 +3866,55 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
                     } catch (e) { console.error('Erro OneDrive:', e); }
                 }
 
-                // Notificar usuarios configurados
+                // Notificar usuarios configurados e enviar e-mail
                 db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'novo_sinistro'", [], (errC, rowsC) => {
                     if (!errC && rowsC && rowsC.length > 0) {
                         const msg = `Novo sinistro registrado para ${colab.nome_completo || 'Colaborador'}`;
                         const dadosStr = JSON.stringify({ sinistro_id: sinId, colaborador_id: id });
+                        
+                        const idsArr = rowsC.map(c => c.usuario_id);
                         rowsC.forEach(c => {
                             db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'novo_sinistro', msg, dadosStr]);
+                        });
+
+                        const placeholders = idsArr.map(() => '?').join(',');
+                        db.all(`SELECT u.email FROM usuarios u WHERE u.id IN (${placeholders}) AND u.email IS NOT NULL AND u.email != ''`, idsArr, async (errE, emailRows) => {
+                            if (!errE && emailRows && emailRows.length > 0) {
+                                const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                                const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #eee;">
+                                    <div style="background:linear-gradient(135deg,#1e293b,#334155);padding:20px;text-align:center;">
+                                        <img src="cid:logo-sinistro" style="max-height:60px;" alt="América Rental">
+                                    </div>
+                                    <div style="padding:24px;">
+                                        <h2 style="color:#059669;margin-top:0;">⚠️ Novo Sinistro Registrado</h2>
+                                        <p>Olá!</p>
+                                        <p>Um novo boletim de ocorrência de sinistro foi registrado para o colaborador <strong>${colab.nome_completo || 'Colaborador'}</strong>.</p>
+                                        <div style="background:#f0fdf4;border-left:4px solid #059669;border-radius:8px;padding:16px;margin:16px 0;">
+                                            <p style="margin:4px 0;"><strong>Boletim:</strong> ${numero_boletim || 'N/A'}</p>
+                                            <p style="margin:4px 0;"><strong>Data da Ocorrência:</strong> ${data_hora || 'N/A'}</p>
+                                            <p style="margin:4px 0;"><strong>Veículo:</strong> ${veiculo || 'N/A'}</p>
+                                            <p style="margin:4px 0;"><strong>Placa:</strong> ${placa || 'N/A'}</p>
+                                        </div>
+                                        <p style="color:#64748b;font-size:0.9em;">Acesse o sistema no prontuário do colaborador para mais detalhes e visualização dos anexos.</p>
+                                        <p style="margin-top:24px;color:#94a3b8;font-size:0.85em;">Atenciosamente,<br>Sistema América Rental</p>
+                                    </div>
+                                </div>`;
+                                
+                                for (const eRow of emailRows) {
+                                    try {
+                                        await sendMailHelper({
+                                            from: `"Logística América Rental" <${SMTP_CONFIG.auth.user}>`,
+                                            to: eRow.email,
+                                            subject: `[Sinistro] Novo registro para ${colab.nome_completo || 'Colaborador'}`,
+                                            html,
+                                            attachments: [{ filename: 'logo.png', path: logoPath, cid: 'logo-sinistro' }]
+                                        });
+                                        console.log(`E-mail de novo sinistro enviado para ${eRow.email}`);
+                                    } catch(mailErr) {
+                                        console.error('Erro ao enviar e-mail de novo sinistro:', mailErr.message);
+                                    }
+                                }
+                            }
                         });
                     }
                 });
