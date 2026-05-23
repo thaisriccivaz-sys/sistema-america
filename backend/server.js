@@ -3878,56 +3878,69 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
                         });
 
                         const placeholders = idsArr.map(() => '?').join(',');
-                        db.all(`
-                            SELECT 
-                                u.id as usuario_id,
-                                u.email as u_email,
-                                c.email_corporativo as c_email_corp,
-                                c.email as c_email
-                            FROM usuarios u
-                            LEFT JOIN colaboradores c ON LOWER(TRIM(c.nome_completo)) = LOWER(TRIM(u.nome))
-                            WHERE u.id IN (${placeholders})
-                        `, idsArr, async (errE, emailRows) => {
-                            if (!errE && emailRows && emailRows.length > 0) {
-                                const rawEmails = emailRows.map(r => r.c_email_corp || r.c_email || r.u_email);
-                                const emails = [...new Set(rawEmails.filter(e => e && e.trim() !== ''))];
+                        db.all(`SELECT id, username, nome, email as u_email FROM usuarios WHERE id IN (${placeholders})`, idsArr, async (errE, userRows) => {
+                            if (!errE && userRows && userRows.length > 0) {
+                                db.all(`SELECT nome_completo, cpf, email_corporativo, email FROM colaboradores WHERE email_corporativo IS NOT NULL OR email IS NOT NULL`, [], async (errCol, allColabs) => {
+                                    const norm = (s) => s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';
+                                    const emails = new Set();
+                                    const colabsArr = allColabs || [];
 
-                                if (emails.length > 0) {
-                                    const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-                                    const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #eee;">
-                                        <div style="background:linear-gradient(135deg,#1e293b,#334155);padding:20px;text-align:center;">
-                                            <img src="cid:logo-sinistro" style="max-height:60px;" alt="América Rental">
-                                        </div>
-                                        <div style="padding:24px;">
-                                            <h2 style="color:#059669;margin-top:0;">⚠️ Novo Sinistro Registrado</h2>
-                                            <p>Olá!</p>
-                                            <p>Um novo boletim de ocorrência de sinistro foi registrado para o colaborador <strong>${colab.nome_completo || 'Colaborador'}</strong>.</p>
-                                            <div style="background:#f0fdf4;border-left:4px solid #059669;border-radius:8px;padding:16px;margin:16px 0;">
-                                                <p style="margin:4px 0;"><strong>Boletim:</strong> ${body.numero_boletim || 'N/A'}</p>
-                                                <p style="margin:4px 0;"><strong>Data da Ocorrência:</strong> ${body.data_hora || 'N/A'}</p>
-                                                <p style="margin:4px 0;"><strong>Veículo:</strong> ${body.veiculo || 'N/A'}</p>
-                                                <p style="margin:4px 0;"><strong>Placa:</strong> ${body.placa || 'N/A'}</p>
-                                            </div>
-                                            <p style="color:#64748b;font-size:0.9em;">Acesse o sistema no prontuário do colaborador para mais detalhes e visualização dos anexos.</p>
-                                            <p style="margin-top:24px;color:#94a3b8;font-size:0.85em;">Atenciosamente,<br>Sistema América Rental</p>
-                                        </div>
-                                    </div>`;
-                                    
-                                    for (const eAddr of emails) {
-                                        try {
-                                            await sendMailHelper({
-                                                from: `"Logística América Rental" <${SMTP_CONFIG.auth.user}>`,
-                                                to: eAddr,
-                                                subject: `[Sinistro] Novo registro para ${colab.nome_completo || 'Colaborador'}`,
-                                                html,
-                                                attachments: [{ filename: 'logo.png', path: logoPath, cid: 'logo-sinistro' }]
+                                    for (const u of userRows) {
+                                        const uNome = norm(u.nome);
+                                        const uUser = norm(u.username);
+                                        
+                                        let c = colabsArr.find(col => norm(col.nome_completo) === uNome || norm(col.cpf) === uUser);
+                                        if (!c) {
+                                            c = colabsArr.find(col => {
+                                                const cNome = norm(col.nome_completo);
+                                                return cNome && uNome && (cNome.includes(uNome) || uNome.includes(cNome));
                                             });
-                                            console.log(`E-mail de novo sinistro enviado para ${eAddr}`);
-                                        } catch(mailErr) {
-                                            console.error('Erro ao enviar e-mail de novo sinistro:', mailErr.message);
+                                        }
+
+                                        if (c && c.email_corporativo) emails.add(c.email_corporativo.trim());
+                                        else if (c && c.email) emails.add(c.email.trim());
+                                        else if (u.u_email) emails.add(u.u_email.trim());
+                                    }
+
+                                    const emailsArr = [...emails].filter(e => e !== '');
+
+                                    if (emailsArr.length > 0) {
+                                        const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                                        const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #eee;">
+                                            <div style="background:linear-gradient(135deg,#1e293b,#334155);padding:20px;text-align:center;">
+                                                <img src="cid:logo-sinistro" style="max-height:60px;" alt="América Rental">
+                                            </div>
+                                            <div style="padding:24px;">
+                                                <h2 style="color:#059669;margin-top:0;">⚠️ Novo Sinistro Registrado</h2>
+                                                <p>Olá!</p>
+                                                <p>Um novo boletim de ocorrência de sinistro foi registrado para o colaborador <strong>${colab.nome_completo || 'Colaborador'}</strong>.</p>
+                                                <div style="background:#f0fdf4;border-left:4px solid #059669;border-radius:8px;padding:16px;margin:16px 0;">
+                                                    <p style="margin:4px 0;"><strong>Boletim:</strong> ${body.numero_boletim || 'N/A'}</p>
+                                                    <p style="margin:4px 0;"><strong>Data da Ocorrência:</strong> ${body.data_hora || 'N/A'}</p>
+                                                    <p style="margin:4px 0;"><strong>Veículo:</strong> ${body.veiculo || 'N/A'}</p>
+                                                    <p style="margin:4px 0;"><strong>Placa:</strong> ${body.placa || 'N/A'}</p>
+                                                </div>
+                                                <p style="color:#64748b;font-size:0.9em;">Acesse o sistema no prontuário do colaborador para mais detalhes e visualização dos anexos.</p>
+                                                <p style="margin-top:24px;color:#94a3b8;font-size:0.85em;">Atenciosamente,<br>Sistema América Rental</p>
+                                            </div>
+                                        </div>`;
+                                        
+                                        for (const eAddr of emailsArr) {
+                                            try {
+                                                await sendMailHelper({
+                                                    from: `"Logística América Rental" <${SMTP_CONFIG.auth.user}>`,
+                                                    to: eAddr,
+                                                    subject: `[Sinistro] Novo registro para ${colab.nome_completo || 'Colaborador'}`,
+                                                    html,
+                                                    attachments: [{ filename: 'logo.png', path: logoPath, cid: 'logo-sinistro' }]
+                                                });
+                                                console.log(`E-mail de novo sinistro enviado para ${eAddr}`);
+                                            } catch(mailErr) {
+                                                console.error('Erro ao enviar e-mail de novo sinistro:', mailErr.message);
+                                            }
                                         }
                                     }
-                                }
+                                });
                             }
                         });
                     }
