@@ -1,4 +1,4 @@
-﻿const API_URL = '/api';
+const API_URL = '/api';
 
 
 
@@ -12664,6 +12664,15 @@ async function checkUserNotificacoes() {
                         <div style="color:#0f172a;font-weight:600;font-size:1rem;margin-bottom:4px;">${nomeLicenca}</div>
                         <div style="color:#64748b;font-size:0.85rem;"><i class="ph ph-calendar-blank"></i> Vencimento: ${dataVenc}</div>
                     `;
+                } else if (notif.tipo === 'novo_sinistro') {
+                    const nomeStr = notif.mensagem.replace('Novo sinistro registrado para', '').trim();
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#0f172a;font-weight:800;font-size:1.15rem;margin-bottom:4px;">${nomeStr}</div>
+                        <div style="color:#64748b;font-size:0.85rem;">Um novo boletim de ocorrência foi anexado.</div>
+                    `;
                 } else {
                     contentHTML = `
                         <div style="font-weight:700;font-size:0.9rem;color:#0f172a;margin-bottom:4px;">
@@ -12676,7 +12685,7 @@ async function checkUserNotificacoes() {
                 }
                 let btnOnClick = `window.markUserNotifLida('${notif.id}'); navigateTo('${navTarget}'); this.closest('[data-notif-id]').remove();`;
                 if (notif.tipo === 'novo_sinistro' && dados.colaborador_id) {
-                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); if (window.userPermissions && window.userPermissions.includes('colaboradores')) { window.verProntuarioColaborador('${dados.colaborador_id}', 'Sinistros'); } else { navigateTo('dashboard'); }`;
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Sinistros');`;
                 }
 
                 popup.innerHTML = `

@@ -32,9 +32,14 @@ window.renderLogisticaSinistros = async function() {
                     <p style="margin:0; color:#64748b; font-size:0.85rem;">Boletins de Ocorrência · Logística</p>
                 </div>
             </div>
-            <button onclick="window.logSinAbrirModalNovo()" style="background:#059669; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:0.9rem;">
-                <i class="ph ph-plus"></i> Novo Sinistro
-            </button>
+            <div style="display:flex; gap:10px;">
+                <button onclick="window.abrirModalVideoLogistica()" style="background:#f1f5f9; color:#0369a1; border:1px solid #bae6fd; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:0.9rem; transition:all .2s;" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#f1f5f9'">
+                    <i class="ph ph-play-circle"></i> Vídeo Explicativo
+                </button>
+                <button onclick="window.logSinAbrirModalNovo()" style="background:#059669; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:0.9rem; transition:all .2s;" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#059669'">
+                    <i class="ph ph-plus"></i> Novo Sinistro
+                </button>
+            </div>
         </div>
 
         <!-- Lista global de sinistros -->
