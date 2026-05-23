@@ -33,11 +33,11 @@ window.renderLogisticaSinistros = async function() {
                 </div>
             </div>
             <div style="display:flex; gap:10px;">
-                <button onclick="window.abrirModalVideoLogistica()" style="background:#f1f5f9; color:#0369a1; border:1px solid #bae6fd; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:0.9rem; transition:all .2s;" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#f1f5f9'">
-                    <i class="ph ph-play-circle"></i> Vídeo Explicativo
-                </button>
                 <button onclick="window.logSinAbrirModalNovo()" style="background:#059669; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:0.9rem; transition:all .2s;" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#059669'">
                     <i class="ph ph-plus"></i> Novo Sinistro
+                </button>
+                <button onclick="window.abrirModalVideoLogistica()" style="background:#f1f5f9; color:#0369a1; border:1px solid #bae6fd; padding:10px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1.2rem; transition:all .2s;" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#f1f5f9'" title="Vídeo Explicativo">
+                    <i class="ph ph-play-circle"></i>
                 </button>
             </div>
         </div>
@@ -1103,3 +1103,36 @@ window.logSinSalvarEdicao = async function() {
         if (btn) { btn.disabled = false; btn.innerHTML = oldTxt; }
     }
 }
+
+// ============================================================
+// MODAL DE VÍDEO EXPLICATIVO
+// ============================================================
+window.abrirModalVideoLogistica = function() {
+    let m = document.getElementById('modal-video-logistica');
+    if (!m) {
+        m = document.createElement('div');
+        m.id = 'modal-video-logistica';
+        m.className = 'modal';
+        m.style.zIndex = '9999999';
+        m.innerHTML = `
+            <div class="modal-content" style="max-width:800px; padding:0; overflow:hidden; background:#0f172a;">
+                <div class="modal-header" style="background:#1e293b; border-bottom:1px solid #334155; padding:12px 20px;">
+                    <h3 style="color:#fff; margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+                        <i class="ph ph-play-circle" style="color:#38bdf8;"></i> Vídeo Explicativo - Sinistros Logística
+                    </h3>
+                    <button onclick="document.getElementById('modal-video-logistica').style.display='none'; document.getElementById('logistica-video-player').pause();" class="btn-close" style="color:#94a3b8; background:transparent; border:none; cursor:pointer; font-size:1.2rem;"><i class="ph ph-x"></i></button>
+                </div>
+                <div style="background:#000; width:100%; aspect-ratio: 16/9;">
+                    <video id="logistica-video-player" controls style="width:100%; height:100%;">
+                        <source src="./assets/videos/Logistica - Sinistro.mp4" type="video/mp4">
+                        Seu navegador não suporta a tag de vídeo.
+                    </video>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(m);
+    }
+    m.style.display = 'flex';
+    const video = document.getElementById('logistica-video-player');
+    if (video) video.play();
+};
