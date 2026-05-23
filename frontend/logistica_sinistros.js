@@ -1115,14 +1115,14 @@ window.abrirModalVideoLogistica = function() {
         m.className = 'modal';
         m.style.zIndex = '9999999';
         m.innerHTML = `
-            <div class="modal-content" style="max-width:800px; padding:0; overflow:hidden; background:#0f172a;">
+            <div class="modal-content" style="width:90vw; max-width:1400px; height:90vh; display:flex; flex-direction:column; padding:0; overflow:hidden; background:#0f172a;">
                 <div class="modal-header" style="background:#1e293b; border-bottom:1px solid #334155; padding:12px 20px;">
                     <h3 style="color:#fff; margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
                         <i class="ph ph-play-circle" style="color:#38bdf8;"></i> Vídeo Explicativo - Sinistros Logística
                     </h3>
                     <button onclick="document.getElementById('modal-video-logistica').style.display='none'; document.getElementById('logistica-video-player').pause();" class="btn-close" style="color:#94a3b8; background:transparent; border:none; cursor:pointer; font-size:1.2rem;"><i class="ph ph-x"></i></button>
                 </div>
-                <div style="background:#000; width:100%; aspect-ratio: 16/9;">
+                <div style="background:#000; flex:1; width:100%;">
                     <video id="logistica-video-player" controls style="width:100%; height:100%;">
                         <source src="./assets/videos/Logistica - Sinistro.mp4" type="video/mp4">
                         Seu navegador não suporta a tag de vídeo.

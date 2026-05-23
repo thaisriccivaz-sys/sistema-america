@@ -16300,6 +16300,47 @@ window.imprimirFichaSantander = function () {
     }
 };
 
+window.verProntuarioColaborador = async function (id, tabName) {
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch(`/api/colaboradores/${id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Falha ao buscar colaborador');
+        const colab = await res.json();
+        
+        await window.openProntuario(
+            colab.id,
+            colab.nome_completo || colab.nome,
+            colab.cargo_nome_exibindo || colab.cargo,
+            colab.cpf,
+            colab.genero || colab.sexo,
+            colab.data_admissao || colab.admissao,
+            colab.status
+        );
+        
+        if (tabName) {
+            setTimeout(() => {
+                const tabLi = document.querySelector(`li[data-tab="${tabName}"]`);
+                if (tabLi) {
+                    tabLi.click();
+                } else {
+                    const allTabs = document.querySelectorAll('#tabs-list li');
+                    for (const t of allTabs) {
+                        if (t.textContent.includes(tabName)) {
+                            t.click();
+                            break;
+                        }
+                    }
+                }
+            }, 500);
+        }
+    } catch (err) {
+        console.error('Erro em verProntuarioColaborador:', err);
+        alert('Não foi possível carregar o prontuário deste colaborador.');
+    }
+};
+
 window.irAoProntuarioDigital = async function (tabName) {
     console.log('[irAoProntuarioDigital] Iniciado com aba alvo:', tabName);
     const colab = window._admissaoColabSelecionado || viewedColaborador;
