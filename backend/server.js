@@ -12783,6 +12783,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                 console.log(`[CRED] Validando ${cNome} | docs no sistema: [${cDocs.join(', ')}]`);
 
                 for (let reqDoc of docs_exigidos) {
+                    if (reqDoc === 'apenas_dados') continue;
                     if (reqDoc === 'cnh' && !isMotorista) continue; // Não exige CNH se não for motorista
                     if (reqDoc === 'cpf' && isMotorista) continue;  // Não exige CPF separado se for motorista
 
@@ -13062,11 +13063,11 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
             });
         });
 
-        // Buscar foto_base64 dos colaboradores
+        // Buscar foto_base64, cpf e cnh dos colaboradores
         const colabFotoPromise = new Promise((resolve) => {
             if (colabIds.length === 0) return resolve([]);
             const placeholders = colabIds.map(() => '?').join(',');
-            db.all(`SELECT id, foto_base64, foto_path FROM colaboradores WHERE id IN (${placeholders})`, colabIds, (err, rows) => {
+            db.all(`SELECT id, cpf, cnh, foto_base64, foto_path FROM colaboradores WHERE id IN (${placeholders})`, colabIds, (err, rows) => {
                 resolve(rows || []);
             });
         });
@@ -13145,7 +13146,9 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
             });
 
             // Função para saber se um documento é permitido
+            const isApenasDados = docsExigidos.includes('apenas_dados');
             const isPermitido = (d) => {
+                if (isApenasDados) return false; // Se for apenas dados, não envia nenhum documento
                 if (tiposPermitidos.size === 0) return true; // se não há filtro, libera tudo
                 const dn = norm(d.document_type);
                 return Array.from(tiposPermitidos).some(acc => dn.includes(acc) || acc.includes(dn));
@@ -13165,11 +13168,14 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
                 cliente_nome: cred.cliente_nome,
                 validade: cred.valid_until,
                 colaboradores: colabs.map(c => {
-                    const fotoRow = colabFotos.find(f => String(f.id) === String(c.id));
-                    const foto_base64 = fotoExigida ? (fotoRow ? fotoRow.foto_base64 || null : null) : null;
+                    const row = colabFotos.find(f => String(f.id) === String(c.id));
+                    const foto_base64 = fotoExigida ? (row ? row.foto_base64 || null : null) : null;
                     return {
                         ...c,
+                        cpf: row ? row.cpf || c.cpf : c.cpf,
+                        cnh: row ? row.cnh : null,
                         foto_base64,
+                        is_apenas_dados: isApenasDados,
                         documentos: (() => {
                             const filtrados = docsComEPI
                                 .filter(d => d.colaborador_id === c.id && isPermitido(d))

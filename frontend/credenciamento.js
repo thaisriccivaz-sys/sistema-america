@@ -984,11 +984,11 @@ window._renderizarTabelaHistorico = function(dados) {
         let statusBadge = '';
         if (cred.status === 'solicitado') {
             statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado</span>`;
-        } else if (expirado) {
-            statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
         } else if (cred.acessado_em) {
             const acessStr = window.formatUTCDate ? window.formatUTCDate(cred.acessado_em).replace(',', ' às') : cred.acessado_em;
-            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Acessado</span>`;
+            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-eye"></i> Visualizado</span>`;
+        } else if (expirado) {
+            statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
         } else {
             statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>`;
         }
