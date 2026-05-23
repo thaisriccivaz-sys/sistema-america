@@ -108,7 +108,12 @@ window._renderSinistroCard = function(s, colabId, container) {
 
     let actionsHtml = '';
     if (s.status === 'assinado') {
-        actionsHtml = `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-eye"></i> Ver Documento</button>`;
+        actionsHtml = `<div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;width:100%;">
+            <button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-eye"></i> Ver Documento</button>`;
+        if (isRH) {
+            actionsHtml += `<button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent;"><i class="ph ph-trash"></i> Excluir</button>`;
+        }
+        actionsHtml += `</div>`;
     } else {
         actionsHtml = `<div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;width:100%;">`;
         if (isRH) {
@@ -127,7 +132,7 @@ window._renderSinistroCard = function(s, colabId, container) {
         if (s.documento_html) {
             actionsHtml += `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#64748b;background:#f1f5f9;border:none;"><i class="ph ph-eye"></i> Preview</button>`;
         }
-        if (isRH && s.status !== 'assinado_testemunhas') {
+        if (isRH) {
             actionsHtml += `<button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent;"><i class="ph ph-trash"></i> Excluir</button>`;
         }
         actionsHtml += `</div>`;
@@ -1050,10 +1055,19 @@ window.salvarAssinaturaCondutorSinistro = async function(sinId, colabId) {
 
 window.excluirSinistro = async function(sinId, colabId) {
     if (!confirm('Tem certeza que deseja excluir este sinistro permanentemente?')) return;
+    
+    const senha = prompt('Para excluir o sinistro, digite a senha de autorização:');
+    if (senha !== 'EXL2499!') {
+        return alert('Senha incorreta. Exclusão cancelada.');
+    }
+
     try {
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}`, {
             method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
+            headers: { 
+                'Authorization': `Bearer ${localStorage.getItem('erp_token')}`,
+                'X-Delete-Password': senha
+            }
         });
         const data = await res.json();
         if (!data.sucesso) throw new Error(data.error);
