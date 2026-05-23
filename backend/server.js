@@ -4012,6 +4012,43 @@ app.post('/api/sinistros/:id/midia', authenticateToken, uploadMediaFile.single('
     }
 });
 
+// DELETE: Remove uma mídia específica do sinistro pelo índice (só se status=pendente)
+app.delete('/api/sinistros/:id/midia/:idx', authenticateToken, async (req, res) => {
+    try {
+        const { id: sinId, idx } = req.params;
+        const index = parseInt(idx);
+
+        const sinistro = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM sinistros WHERE id = ?', [sinId], (err, row) => err ? reject(err) : resolve(row));
+        });
+        if (!sinistro) return res.status(404).json({ error: 'Sinistro não encontrado.' });
+        if (sinistro.status !== 'pendente') {
+            return res.status(403).json({ error: 'Remoção não permitida: sinistro já possui assinaturas.' });
+        }
+
+        let midias = [];
+        try { midias = JSON.parse(sinistro.midias_paths || '[]'); } catch (e) { }
+
+        if (index < 0 || index >= midias.length) {
+            return res.status(400).json({ error: 'Índice de mídia inválido.' });
+        }
+
+        // Remove do array
+        midias.splice(index, 1);
+
+        await new Promise((resolve, reject) => {
+            db.run('UPDATE sinistros SET midias_paths = ? WHERE id = ?', [JSON.stringify(midias), sinId],
+                err => err ? reject(err) : resolve());
+        });
+
+        res.json({ sucesso: true, total: midias.length });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
+
 app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authenticateToken, async (req, res) => {
     try {
         const { id, sinistroId } = req.params;
