@@ -618,7 +618,48 @@ window.verDocumentoSinistro = async function(sinId, colabId) {
         document.getElementById('modal-preview-doc').style.display = 'block';
     };
 
-    // Documentos não assinados: regera para garantir template atualizado e orçamentos
+    // Para documentos já assinados: usa o HTML salvo (evita regeneração pesada que causa OOM no servidor)
+    // Adiciona os orçamentos como links separados ao final, sem precisar baixar imagens
+    try {
+        const sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
+        const sin = sinistros ? sinistros.find(x => x.id == sinId) : null;
+        if (sin && sin.status === 'assinado' && sin.documento_html) {
+            let htmlExibir = sin.documento_html;
+
+            // Injetar links de orçamentos ao final, se existirem e não estiverem no HTML
+            if (sin.orcamentos_paths && !htmlExibir.includes('Orçamento')) {
+                try {
+                    const orcs = JSON.parse(sin.orcamentos_paths || '[]');
+                    if (orcs.length > 0) {
+                        const orcsLinksHtml = `
+                        <div style="page-break-before:always; padding:2rem 2.5rem;">
+                            <h3 style="font-size:1rem; font-weight:700; color:#1e293b; border-bottom:2px solid #334155; padding-bottom:0.6rem; margin-bottom:1.5rem; text-align:center;">
+                                📎 Orçamentos Anexados
+                            </h3>
+                            ${orcs.map((p, i) => `
+                            <div style="margin-bottom:0.75rem; padding:0.75rem 1rem; border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc; display:flex; align-items:center; gap:10px;">
+                                <i class="ph ph-image" style="font-size:1.2rem; color:#0369a1;"></i>
+                                <a href="javascript:void(0)" onclick="window.abrirArquivoOneDrive('${p}')"
+                                   style="color:#0369a1; font-weight:600; font-size:0.9rem; text-decoration:none;">
+                                    Orçamento ${i + 1}
+                                </a>
+                            </div>`).join('')}
+                        </div>`;
+                        if (htmlExibir.includes('</body>')) {
+                            htmlExibir = htmlExibir.replace('</body>', orcsLinksHtml + '</body>');
+                        } else {
+                            htmlExibir += orcsLinksHtml;
+                        }
+                    }
+                } catch(e) { /* ignore */ }
+            }
+
+            showModal(htmlExibir);
+            return;
+        }
+    } catch(e) { /* continua para regerar */ }
+
+    // Documentos pendentes: regera para mostrar orçamentos e dados atuais
     const rGen = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/gerar-documento`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }

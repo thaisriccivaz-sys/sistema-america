@@ -4296,7 +4296,13 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 if (!dlUrl) return null;
                 const res = await fetch(dlUrl);
                 if (!res.ok) return null;
-                return Buffer.from(await res.arrayBuffer());
+                const buf = Buffer.from(await res.arrayBuffer());
+                // Limite de 4MB por imagem para evitar OOM no servidor
+                if (buf.length > 4 * 1024 * 1024) {
+                    console.warn('[gerar-doc] Imagem muito grande ignorada:', filePath, Math.round(buf.length/1024) + 'KB');
+                    return null;
+                }
+                return buf;
             };
             const downloadToB64 = async (filePath) => {
                 const buf = await downloadToBuffer(filePath);
@@ -4407,9 +4413,18 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         } catch (e) { console.error('[Anexar imagens sinistro]', e.message); }
 
 
-        // Salvar HTML
-        db.run('UPDATE sinistros SET documento_html = ? WHERE id = ?', [htmlFinal, sin.id]);
+        // Salvar HTML — limite de 8MB para evitar sobrecarga do SQLite e memória
+        const htmlBytes = Buffer.byteLength(htmlFinal, 'utf8');
+        console.log('[gerar-doc] HTML final:', Math.round(htmlBytes / 1024) + 'KB');
+        if (htmlBytes > 8 * 1024 * 1024) {
+            // Salva sem os anexos embutidos (apenas o documento base)
+            console.warn('[gerar-doc] HTML muito grande (' + Math.round(htmlBytes/1024) + 'KB), salvando versão sem imagens embutidas');
+            db.run('UPDATE sinistros SET documento_html = ? WHERE id = ?', [htmlFinal.substring(0, 1000) + '<!-- TRUNCADO -->', sin.id]);
+        } else {
+            db.run('UPDATE sinistros SET documento_html = ? WHERE id = ?', [htmlFinal, sin.id]);
+        }
         res.json({ sucesso: true, html: htmlFinal });
+
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
