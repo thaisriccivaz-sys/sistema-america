@@ -4263,6 +4263,63 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
             (nParc === 3 ? '(<strong>X</strong>) 3x' : '(   ) 3x')
         );
 
+        // ===== AJUSTES PARA SINISTRO ISENTO DE COBRANÇA =====
+        if (isIsento) {
+            // 1. Remove linhas que exibam "Valor total do dano: R$ 0,00" ou similar
+            //    Padrão: <p ...>Valor total do dano: R$ 0,00</p> ou em <td>, <span>, etc.
+            htmlFinal = htmlFinal.replace(
+                /<[^>]+>[^<]*Valor\s+total\s+do\s+dano[^<]*R\$\s*0[,.]?00[^<]*<\/[^>]+>/gi,
+                ''
+            );
+            htmlFinal = htmlFinal.replace(
+                /<[^>]+>[^<]*Valor\s+do\s+dano[^<]*R\$\s*0[,.]?00[^<]*<\/[^>]+>/gi,
+                ''
+            );
+            // Remove qualquer "R$ 0,00" isolado próximo a "valor" ou "dano"
+            htmlFinal = htmlFinal.replace(
+                /Valor\s+(?:total\s+)?do\s+dano[^<\n]{0,60}R\$\s*0[,.]?00/gi,
+                ''
+            );
+
+            // 2. Altera CLÁUSULA PRIMEIRA – DO OBJETO (texto 1.1)
+            //    Substitui o texto da 1.1 sobre "autorização de desconto em folha" pelo texto de ciência
+            htmlFinal = htmlFinal.replace(
+                /1\.1\.\s*O\s+presente\s+termo\s+tem\s+por\s+objeto\s+formalizar\s+a\s+autoriza[çc][ãa]o\s+de\s+desconto\s+em\s+folha[\s\S]{0,400}?danos\s+ao\s+ve[íi]culo\s+da\s+pr[óo]pria\s+empresa\s+e\/ou\s+a\s+terceiros\./gi,
+                '1.1. O presente termo tem por objeto formalizar a ci\u00eancia do colaborador sobre o sinistro aberto.'
+            );
+
+            // 3. Remove CLÁUSULA TERCEIRA – DO VALOR DO DANO (inclui 3.1 e 3.2)
+            //    Padrão flexível que captura o bloco todo até a próxima cláusula ou fim
+            htmlFinal = htmlFinal.replace(
+                /CL[ÁA]USULA\s+TERCEIRA\s*[–\-]\s*DO\s+VALOR\s+DO\s+DANO[\s\S]{0,800}?(?=CL[ÁA]USULA\s+QUARTA|CL[ÁA]USULA\s+4)/gi,
+                ''
+            );
+
+            // 4. Substitui CLÁUSULA QUARTA – DA AUTORIZAÇÃO DE DESCONTO
+            //    pelo novo texto simplificado renomeado como CLÁUSULA TERCEIRA
+            htmlFinal = htmlFinal.replace(
+                /CL[ÁA]USULA\s+QUARTA\s*[–\-]\s*DA\s+AUTORIZA[ÇC][ÃA]O\s+DE\s+DESCONTO[\s\S]{0,800}?(?=CL[ÁA]USULA\s+QUINTA|CL[ÁA]USULA\s+5|<\/p>[\s\S]{0,50}<p[^>]*>[\s\S]{0,10}CL[ÁA]USULA)/gi,
+                'CL\u00c1USULA TERCEIRA \u2013 DO VALOR DO DANO\n3.1. Colaborador fica <strong>ISENTO DE COBRAN\u00c7A</strong> para o dano relatado no BO.'
+            );
+
+            // Fallback: se não encontrou a cláusula quarta, procura pelo texto de autorização de desconto direto
+            if (htmlFinal.includes('4.1.') && htmlFinal.includes('artigo 462')) {
+                htmlFinal = htmlFinal.replace(
+                    /4\.1\.\s*O\s+colaborador\s+autoriza[\s\S]{0,500}?ISENTO\s+DE\s+COBRAN[ÇC]A/gi,
+                    'CL\u00c1USULA TERCEIRA \u2013 DO VALOR DO DANO\n3.1. Colaborador fica <strong>ISENTO DE COBRAN\u00c7A</strong> para o dano relatado no BO.'
+                );
+            }
+
+            // 5. Renomear o título do termo
+            htmlFinal = htmlFinal.replace(
+                /TERMO\s+DE\s+AUTORIZA[ÇC][ÃA]O\s+DE\s+DESCONTO\s+EM\s+FOLHA/gi,
+                'TERMO DE AUTORIZA\u00c7\u00c3O DE CI\u00caNCIA DE SINISTRO'
+            );
+        }
+
+
+
+
         // ===== LOGO =====
         // Injeta logo da América Rental no topo — usa Base64 para garantir que apareça no PDF gerado server-side
         const _logoB64ForBanner = getLogoBase64DataUri();
