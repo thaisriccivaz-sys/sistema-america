@@ -12484,7 +12484,8 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                 WHERE u.ativo = 1 
                   AND (gp.departamento LIKE '%ogíst%' OR gp.departamento LIKE '%ogist%' 
                        OR u.departamento LIKE '%ogíst%' OR u.departamento LIKE '%ogist%'
-                       OR u.role LIKE '%ogist%')
+                       OR u.role LIKE '%ogist%'
+                       OR gp.permissoes LIKE '%logistica-credenciamento%')
                 UNION
                 SELECT email_corporativo, email as c_email, null as u_email
                 FROM colaboradores 
@@ -12691,7 +12692,8 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                 // Build HTML...
                 let htmlCols = (colaboradores || []).map(c => {
                     const cpfInfo = c.cpf ? ` - CPF: ${c.cpf}` : '';
-                    return `<li><b>${c.nome || c.nome_completo}</b>${cpfInfo}</li>`;
+                    const cnhInfo = (c.isMotorista && c.cnh) ? ` - CNH: ${c.cnh}` : '';
+                    return `<li><b>${c.nome || c.nome_completo}</b>${cpfInfo}${cnhInfo}</li>`;
                 }).join('');
                 let htmlVeics = (veiculos || []).map(v => {
                     return `<li><b>${v.placa}</b> - ${v.marca_modelo_versao}</li>`;

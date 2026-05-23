@@ -566,6 +566,7 @@ async function validarVencimentosCredenciamento() {
                 const nomeColab = c ? c.nome_completo : `ID ${idStr}`;
 
                 for (const reqDoc of requiredValues) {
+                    if (reqDoc === 'apenas_dados') continue;
                     if (reqDoc === 'cnh' && !isMotorista) continue;
                     if (reqDoc === 'cpf' && isMotorista) continue;
 
@@ -631,7 +632,7 @@ window.gerarEnviarCredenciamento = async function() {
         os: osValue,
         colaboradores: credenciamentoState.selecionadosColabs.map(idStr => {
             const c = credenciamentoState.colaboradores.find(col => String(col.id) === idStr);
-            return { id: parseInt(idStr), nome: c ? c.nome_completo : idStr, cpf: c ? c.cpf : '' };
+            return { id: parseInt(idStr), nome: c ? c.nome_completo : idStr, cpf: c ? c.cpf : '', cnh: c ? c.cnh : '', isMotorista: c && c.cargo && c.cargo.toUpperCase().includes('MOTORISTA') };
         }),
         veiculos: credenciamentoState.selecionadosVeic.map(idStr => {
             const v = credenciamentoState.veiculos.find(ve => String(ve.id) === idStr);
@@ -692,7 +693,7 @@ window.gerarEnviarCredenciamento = async function() {
 
 // ── Modal de Novo Credenciamento ─────────────────────────────────────────────
 window._credSolicitacaoId = null;
-    window._credLimites = { colabs: 0, veics: 0 };
+    window._credLimites = { colabs: -1, veics: -1 };
     const spanColabs = document.getElementById('cred-limit-colabs-span'); if (spanColabs) spanColabs.textContent = '(Ilimitado)';
     const spanVeics = document.getElementById('cred-limit-veics-span'); if (spanVeics) spanVeics.textContent = '(Ilimitado)';
     const spanModalColabs = document.getElementById('cred-modal-limit-colabs-span'); if (spanModalColabs) spanModalColabs.textContent = '(Ilimitado)';
@@ -731,12 +732,12 @@ window.abrirModalCumprirSolicitacao = function(id) {
     window._credSolicitacaoId = id;
 
     window._credLimites = {
-        colabs: dados ? parseInt(dados.qtd_max_colaboradores || 0) : 0,
-        veics: dados ? parseInt(dados.qtd_max_veiculos || 0) : 0
+        colabs: dados && dados.qtd_max_colaboradores === 'Todos' ? -1 : (dados ? parseInt(dados.qtd_max_colaboradores) || 0 : -1),
+        veics: dados && dados.qtd_max_veiculos === 'Todos' ? -1 : (dados ? parseInt(dados.qtd_max_veiculos) || 0 : -1)
     };
     
-    const maxColabsText = window._credLimites.colabs > 0 ? `(Máx: ${window._credLimites.colabs})` : '(Ilimitado)';
-    const maxVeicsText = window._credLimites.veics > 0 ? `(Máx: ${window._credLimites.veics})` : '(Ilimitado)';
+    const maxColabsText = window._credLimites.colabs === -1 ? '(Ilimitado)' : `(Máx: ${window._credLimites.colabs})`;
+    const maxVeicsText = window._credLimites.veics === -1 ? '(Ilimitado)' : `(Máx: ${window._credLimites.veics})`;
     
     const spanColabs = document.getElementById('cred-limit-colabs-span');
     if (spanColabs) spanColabs.textContent = maxColabsText;
@@ -1047,6 +1048,7 @@ window._renderizarTabelaHistorico = function(dados) {
                     
                     <div style="flex:1; min-width:250px;">
                         <div style="color:#3b82f6; font-weight:600; margin-bottom:8px;">Envio do Credenciamento:</div>
+                        ${(cred.status === 'enviado' || cred.enviado_em) ? `
                         <div style="display:flex; align-items:center; gap:10px;">
                             <div style="width:32px; height:32px; border-radius:50%; background:#bfdbfe; display:flex; align-items:center; justify-content:center; color:#1e40af; font-weight:700;">
                                 ${(cred.env_nome_usuario || cred.env_username || cred.enviado_por_nome || 'UL').substring(0, 2).toUpperCase()}
@@ -1056,6 +1058,17 @@ window._renderizarTabelaHistorico = function(dados) {
                                 <div style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-calendar-blank"></i> ${cred.enviado_em ? (window.formatUTCDate ? window.formatUTCDate(cred.enviado_em) : cred.enviado_em) : 'Data não registrada'}</div>
                             </div>
                         </div>
+                        ` : `
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="width:32px; height:32px; border-radius:50%; background:#e2e8f0; display:flex; align-items:center; justify-content:center; color:#64748b; font-weight:700;">
+                                AE
+                            </div>
+                            <div>
+                                <div style="font-weight:600; color:#475569;">Aguardando Envio</div>
+                                <div style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-calendar-blank"></i> Data não registrada</div>
+                            </div>
+                        </div>
+                        `}
                     </div>
                     
                     <div style="flex:1; min-width:250px;">
