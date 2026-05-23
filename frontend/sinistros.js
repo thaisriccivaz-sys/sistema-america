@@ -624,7 +624,7 @@ window.gerarDocumentoSinistro = async function(sinId, colabId) {
 };
 
 window.verDocumentoSinistro = async function(sinId, colabId) {
-    const showModal = (html) => {
+        const showModal = (html) => {
         const modalBody = document.getElementById('preview-doc-body');
         if (!modalBody) return alert('Visualizador padrão não encontrado.');
         modalBody.innerHTML = html;
@@ -637,6 +637,13 @@ window.verDocumentoSinistro = async function(sinId, colabId) {
                 <button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'"><i class="ph ph-x"></i> Fechar</button>`;
         }
         document.getElementById('modal-preview-doc').style.display = 'block';
+        
+        // Trigger PDF.js render for the attached BO if it exists
+        setTimeout(() => {
+            if (typeof window._renderSinPdfs === 'function') {
+                window._renderSinPdfs(modalBody);
+            }
+        }, 200);
     };
 
     // Para documentos já assinados: usa o HTML salvo (evita regeneração pesada que causa OOM no servidor)
