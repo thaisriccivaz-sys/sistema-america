@@ -1509,3 +1509,418 @@ window._abrirTelaCondutorSinistro = async function(sinId, colabId) {
 };
 
 
+// =============================================================
+// MODAL DE EDIÇÃO DE SINISTRO — prontuário RH
+// Edita dados básicos, fotos/vídeos e orçamentos antes das assinaturas
+// =============================================================
+window._rhEdit = {
+    sinId: null,
+    colabId: null,
+    orcFiles: [],
+    midiaFiles: [],
+    midiasExistentes: []   // { url, nome, tipo, idx }
+};
+
+window.rhSinAbrirModalEditar = async function(sinId, colabId) {
+    window._rhEdit.sinId    = sinId;
+    window._rhEdit.colabId  = colabId;
+    window._rhEdit.orcFiles  = [];
+    window._rhEdit.midiaFiles = [];
+
+    // Buscar sinistro atualizado
+    let sinistro = null;
+    try {
+        const lista = await apiGet(`/colaboradores/${colabId}/sinistros`);
+        sinistro = (lista || []).find(s => s.id == sinId);
+    } catch(e) { return alert('Erro ao carregar sinistro.'); }
+    if (!sinistro) return alert('Sinistro não encontrado.');
+    if (sinistro.status !== 'pendente') {
+        return alert('Este sinistro já possui assinaturas e não pode ser editado.');
+    }
+
+    // Mídias existentes
+    let mids = [];
+    try { mids = JSON.parse(sinistro.midias_paths || '[]'); } catch(e) {}
+    window._rhEdit.midiasExistentes = mids.map((m, i) => ({
+        url: typeof m === 'string' ? m : m.url,
+        nome: m.nome || '',
+        tipo: m.tipo || '',
+        idx: i
+    }));
+
+    // Orçamentos existentes
+    let orcs = [];
+    try { orcs = JSON.parse(sinistro.orcamentos_paths || '[]'); } catch(e) {}
+
+    // Criar/resetar modal
+    let modal = document.getElementById('modal-rh-sin-editar');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-rh-sin-editar';
+        modal.className = 'modal';
+        document.body.appendChild(modal);
+    }
+
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width:680px; max-height:92vh; overflow-y:auto;">
+            <div class="modal-header" style="background:linear-gradient(135deg,#0f172a,#1e293b); position:sticky; top:0; z-index:10;">
+                <h3 style="color:#fff; margin:0; display:flex; align-items:center; gap:8px;">
+                    <i class="ph ph-pencil-simple" style="color:#fbbf24;"></i> Editar Sinistro #${sinId}
+                    <span style="font-size:0.72rem; background:#fbbf24; color:#1e293b; border-radius:12px; padding:2px 10px; font-weight:700; margin-left:4px;">PENDENTE</span>
+                </h3>
+                <button onclick="document.getElementById('modal-rh-sin-editar').style.display='none'" class="btn-close" style="background:rgba(255,255,255,0.15); color:#fff;">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:1rem;">
+
+                <div style="background:#fef9c3; border:1px solid #fde047; border-radius:8px; padding:0.6rem 0.85rem; font-size:0.82rem; color:#713f12; display:flex; align-items:center; gap:6px;">
+                    <i class="ph ph-lock-open"></i>
+                    Edição disponível apenas antes das assinaturas. Após assinar, não é mais possível alterar.
+                </div>
+
+                <!-- DADOS BÁSICOS -->
+                <div>
+                    <p style="font-weight:700; font-size:0.85rem; color:#1e293b; margin:0 0 8px; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-file-text" style="color:#d97706;"></i> Dados do Boletim
+                    </p>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:0.75rem;">
+                        <div class="input-group">
+                            <label>Boletim Nº</label>
+                            <input type="text" id="rh-edit-bo" class="form-control" value="${sinistro.numero_boletim || ''}">
+                        </div>
+                        <div class="input-group">
+                            <label>Data e Hora da Ocorrência</label>
+                            <input type="text" id="rh-edit-data" class="form-control" value="${sinistro.data_hora || ''}">
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-bottom:0.75rem;">
+                        <label>Natureza da Ocorrência</label>
+                        <input type="text" id="rh-edit-natureza" class="form-control" value="${(sinistro.natureza || '').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim()}">
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                        <div class="input-group">
+                            <label>Marca/Modelo</label>
+                            <input type="text" id="rh-edit-veiculo" class="form-control" value="${sinistro.veiculo || ''}">
+                        </div>
+                        <div class="input-group">
+                            <label>Placa</label>
+                            <input type="text" id="rh-edit-placa" class="form-control" value="${sinistro.placa || ''}">
+                        </div>
+                    </div>
+                </div>
+
+                <hr style="border-color:#e2e8f0; margin:0;">
+
+                <!-- FOTOS E VÍDEOS EXISTENTES -->
+                <div>
+                    <p style="font-weight:700; font-size:0.85rem; color:#1e293b; margin:0 0 8px; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-camera" style="color:#0369a1;"></i>
+                        Fotos e Vídeos Anexados
+                        <span id="rh-edit-midias-badge" style="background:#e0f2fe; color:#0369a1; border-radius:12px; padding:1px 8px; font-size:0.72rem; font-weight:700;">${mids.length}</span>
+                    </p>
+                    <div id="rh-edit-midias-grid" style="display:flex; flex-wrap:wrap; gap:8px; min-height:36px;"></div>
+                </div>
+
+                <!-- ADICIONAR MÍDIAS -->
+                <div style="background:#f0f9ff; padding:0.85rem; border-radius:8px; border:1px solid #bae6fd;">
+                    <p style="margin:0 0 8px; font-weight:600; font-size:0.85rem; color:#0369a1;"><i class="ph ph-upload-simple"></i> Adicionar fotos / vídeos</p>
+                    <div style="border:2px dashed #7dd3fc; border-radius:10px; background:#e0f2fe; padding:1rem; text-align:center; cursor:pointer;"
+                        onclick="document.getElementById('rh-edit-midia-file').click()"
+                        ondragover="event.preventDefault(); this.style.background='#bae6fd';"
+                        ondragleave="this.style.background='#e0f2fe';"
+                        ondrop="event.preventDefault(); this.style.background='#e0f2fe'; window._rhEditAddMidias(event.dataTransfer.files);">
+                        <i class="ph ph-upload-simple" style="font-size:1.8rem; color:#0ea5e9; display:block; margin-bottom:4px;"></i>
+                        <p style="margin:0; font-weight:600; font-size:0.82rem; color:#0369a1;">Arraste fotos e vídeos aqui</p>
+                        <p style="margin:2px 0 0; font-size:0.72rem; color:#38bdf8;">ou clique • múltiplos arquivos</p>
+                        <input type="file" id="rh-edit-midia-file" multiple accept="image/*,video/*" style="display:none;"
+                            onchange="window._rhEditAddMidias(this.files); this.value='';">
+                    </div>
+                    <div id="rh-edit-novas-midias-preview" style="display:none; margin-top:8px; flex-wrap:wrap; gap:8px;"></div>
+                </div>
+
+                <hr style="border-color:#e2e8f0; margin:0;">
+
+                <!-- ORÇAMENTOS EXISTENTES -->
+                ${orcs.length > 0 ? `
+                <div>
+                    <p style="font-weight:700; font-size:0.85rem; color:#374151; margin:0 0 6px;"><i class="ph ph-receipt"></i> Orçamentos já anexados (${orcs.length})</p>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                        ${orcs.map((p, i) => `
+                        <a href="javascript:void(0)" onclick="window.abrirArquivoOneDrive('${p}')"
+                            style="display:inline-flex; align-items:center; gap:4px; font-size:0.78rem; color:#0369a1; background:#e0f2fe; padding:4px 8px; border-radius:4px; text-decoration:none;">
+                            <i class="ph ph-image"></i> Orç. ${i + 1}
+                        </a>`).join('')}
+                    </div>
+                </div>` : ''}
+
+                <!-- ADICIONAR ORÇAMENTOS -->
+                <div style="background:#f8fafc; padding:0.85rem; border-radius:8px; border:1px solid #e2e8f0;">
+                    <p style="margin:0 0 8px; font-weight:600; font-size:0.85rem;"><i class="ph ph-image"></i> Adicionar orçamentos (JPG/PNG)</p>
+                    <div style="border:2px dashed #cbd5e1; border-radius:10px; background:#f1f5f9; padding:1rem; text-align:center; cursor:pointer;"
+                        onclick="document.getElementById('rh-edit-orc-file').click()"
+                        ondragover="event.preventDefault(); this.style.background='#e2e8f0';"
+                        ondragleave="this.style.background='#f1f5f9';"
+                        ondrop="event.preventDefault(); this.style.background='#f1f5f9'; window._rhEditAddOrcs(event.dataTransfer.files);">
+                        <i class="ph ph-upload-simple" style="font-size:1.8rem; color:#94a3b8; display:block; margin-bottom:4px;"></i>
+                        <p style="margin:0; font-size:0.82rem; font-weight:600; color:#475569;">Arraste imagens dos orçamentos</p>
+                        <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique • apenas JPG e PNG</p>
+                        <input type="file" id="rh-edit-orc-file" multiple accept="image/jpeg,image/png,.jpg,.png" style="display:none;"
+                            onchange="window._rhEditAddOrcs(this.files); this.value='';">
+                    </div>
+                    <div id="rh-edit-orcs-preview" style="display:none; margin-top:8px; flex-wrap:wrap; gap:8px;"></div>
+                    <p id="rh-edit-orcs-count" style="margin:4px 0 0; font-size:0.75rem; color:#475569; display:none;"></p>
+                </div>
+
+                <div id="rh-edit-msg" style="display:none; padding:0.6rem 0.85rem; border-radius:8px; font-size:0.82rem;"></div>
+            </div>
+
+            <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:0.5rem; padding:1rem 1.25rem; border-top:1px solid #e2e8f0; background:#f8fafc; position:sticky; bottom:0; z-index:10;">
+                <button onclick="document.getElementById('modal-rh-sin-editar').style.display='none'"
+                    style="border:1px solid #e2e8f0; background:#fff; color:#374151; border-radius:8px; padding:0.5rem 1rem; font-size:0.85rem; font-weight:600; cursor:pointer;">
+                    Cancelar
+                </button>
+                <button id="rh-edit-btn-salvar" onclick="window.rhSinSalvar()"
+                    style="border:none; background:#059669; color:#fff; border-radius:8px; padding:0.5rem 1.25rem; font-size:0.85rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                    <i class="ph ph-floppy-disk"></i> Salvar Alterações
+                </button>
+            </div>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+    window._rhEditRenderMidias();
+};
+
+// Renderiza grade de mídias existentes com botão excluir
+window._rhEditRenderMidias = function() {
+    const grid  = document.getElementById('rh-edit-midias-grid');
+    const badge = document.getElementById('rh-edit-midias-badge');
+    if (!grid) return;
+    const mids = window._rhEdit.midiasExistentes;
+    if (badge) badge.textContent = mids.length;
+    if (!mids.length) {
+        grid.innerHTML = '<p style="font-size:0.8rem;color:#94a3b8;margin:0;">Nenhuma mídia anexada.</p>';
+        return;
+    }
+    grid.innerHTML = '';
+    mids.forEach((m, i) => {
+        const isVideo = (m.tipo && m.tipo.startsWith('video/')) ||
+            ['mp4','mov','avi','mkv','webm'].includes((m.url || '').split('.').pop().toLowerCase().split('?')[0]);
+        const card = document.createElement('div');
+        card.style.cssText = 'position:relative;width:88px;height:88px;border-radius:10px;overflow:hidden;border:2px solid #bae6fd;background:#f0f9ff;flex-shrink:0;';
+        if (!isVideo) {
+            const img = document.createElement('img');
+            img.src = m.url;
+            img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            card.appendChild(img);
+        } else {
+            const ico = document.createElement('div');
+            ico.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#1e293b;';
+            ico.innerHTML = `<i class="ph ph-video" style="font-size:2rem;color:#60a5fa;"></i><span style="font-size:0.55rem;color:#94a3b8;margin-top:4px;padding:0 4px;text-align:center;">${(m.nome||'Vídeo').slice(0,12)}</span>`;
+            card.appendChild(ico);
+        }
+        // Overlay excluir
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.title = 'Excluir';
+        del.innerHTML = '<i class="ph ph-trash"></i>';
+        del.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:none;background:rgba(239,68,68,0);color:transparent;cursor:pointer;font-size:1.4rem;display:flex;align-items:center;justify-content:center;transition:all .2s;';
+        del.onmouseover = function() { this.style.background='rgba(239,68,68,0.78)'; this.style.color='#fff'; };
+        del.onmouseout  = function() { this.style.background='rgba(239,68,68,0)'; this.style.color='transparent'; };
+        del.onclick = function() { window._rhEditExcluirMidia(i); };
+        card.appendChild(del);
+        const lbl = document.createElement('span');
+        lbl.style.cssText = 'position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.55);color:#fff;font-size:0.52rem;border-radius:3px;padding:1px 4px;pointer-events:none;';
+        lbl.textContent = isVideo ? 'Vídeo' : 'Foto';
+        card.appendChild(lbl);
+        grid.appendChild(card);
+    });
+};
+
+window._rhEditExcluirMidia = async function(localIdx) {
+    const { sinId } = window._rhEdit;
+    const mids = window._rhEdit.midiasExistentes;
+    if (!sinId || localIdx < 0 || localIdx >= mids.length) return;
+    const m = mids[localIdx];
+    if (!confirm(`Excluir "${m.nome || 'Mídia ' + (localIdx+1)}"? Não pode ser desfeito.`)) return;
+
+    const grid = document.getElementById('rh-edit-midias-grid');
+    if (grid) grid.style.opacity = '0.5';
+    try {
+        const res = await fetch(`${API_URL}/sinistros/${sinId}/midia/${m.idx}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao excluir.');
+        mids.splice(localIdx, 1);
+        mids.forEach((x, i) => { x.idx = i; });
+        window._rhEditRenderMidias();
+    } catch(e) {
+        alert('Erro: ' + e.message);
+    } finally {
+        if (grid) grid.style.opacity = '1';
+    }
+};
+
+window._rhEditAddMidias = function(fileList) {
+    if (!fileList || !fileList.length) return;
+    Array.from(fileList).forEach(f => {
+        if (!window._rhEdit.midiaFiles.some(x => x.name === f.name && x.size === f.size))
+            window._rhEdit.midiaFiles.push(f);
+    });
+    window._rhEditRenderNovasMidias();
+};
+
+window._rhEditRenderNovasMidias = function() {
+    const el = document.getElementById('rh-edit-novas-midias-preview');
+    if (!el) return;
+    const files = window._rhEdit.midiaFiles;
+    if (!files.length) { el.style.display = 'none'; return; }
+    el.style.display = 'flex';
+    el.innerHTML = '';
+    files.forEach((f, i) => {
+        const card = document.createElement('div');
+        card.style.cssText = 'position:relative;width:76px;height:76px;border-radius:8px;overflow:hidden;border:2px dashed #7dd3fc;background:#e0f2fe;flex-shrink:0;';
+        if (f.type.startsWith('image/')) {
+            const img = document.createElement('img');
+            img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            const rd = new FileReader(); rd.onload = ev => { img.src = ev.target.result; }; rd.readAsDataURL(f);
+            card.appendChild(img);
+        } else {
+            const ico = document.createElement('div');
+            ico.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#1e293b;';
+            ico.innerHTML = `<i class="ph ph-video" style="font-size:1.5rem;color:#60a5fa;"></i><span style="font-size:0.52rem;color:#94a3b8;margin-top:2px;">${f.name.slice(0,12)}</span>`;
+            card.appendChild(ico);
+        }
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.innerHTML = '&times;';
+        btn.style.cssText = 'position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;border:none;background:rgba(239,68,68,0.9);color:#fff;font-size:0.8rem;cursor:pointer;padding:0;';
+        btn.onclick = () => { window._rhEdit.midiaFiles.splice(i, 1); window._rhEditRenderNovasMidias(); };
+        card.appendChild(btn);
+        const novo = document.createElement('span');
+        novo.style.cssText = 'position:absolute;bottom:2px;left:2px;background:#059669;color:#fff;font-size:0.5rem;border-radius:3px;padding:1px 4px;font-weight:700;';
+        novo.textContent = 'NOVO';
+        card.appendChild(novo);
+        el.appendChild(card);
+    });
+};
+
+window._rhEditAddOrcs = function(fileList) {
+    if (!fileList || !fileList.length) return;
+    Array.from(fileList).forEach(f => {
+        const ext = f.name.split('.').pop().toLowerCase();
+        if (!['jpg','jpeg','png'].includes(ext)) { alert('Apenas JPG/PNG: ' + f.name); return; }
+        if (!window._rhEdit.orcFiles.some(x => x.name === f.name && x.size === f.size))
+            window._rhEdit.orcFiles.push(f);
+    });
+    window._rhEditRenderOrcs();
+};
+
+window._rhEditRenderOrcs = function() {
+    const el    = document.getElementById('rh-edit-orcs-preview');
+    const count = document.getElementById('rh-edit-orcs-count');
+    if (!el) return;
+    const files = window._rhEdit.orcFiles;
+    if (!files.length) { el.style.display = 'none'; if (count) count.style.display = 'none'; return; }
+    el.style.display = 'flex';
+    if (count) { count.textContent = `${files.length} orçamento(s) selecionado(s)`; count.style.display = 'block'; }
+    el.innerHTML = '';
+    files.forEach((f, i) => {
+        const card = document.createElement('div');
+        card.style.cssText = 'position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:2px solid #d1d5db;flex-shrink:0;';
+        const img = document.createElement('img');
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        const rd = new FileReader(); rd.onload = ev => { img.src = ev.target.result; }; rd.readAsDataURL(f);
+        card.appendChild(img);
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.innerHTML = '&times;';
+        btn.style.cssText = 'position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;border:none;background:rgba(239,68,68,0.9);color:#fff;font-size:0.8rem;cursor:pointer;padding:0;';
+        btn.onclick = () => { window._rhEdit.orcFiles.splice(i, 1); window._rhEditRenderOrcs(); };
+        card.appendChild(btn);
+        el.appendChild(card);
+    });
+};
+
+window.rhSinSalvar = async function() {
+    const { sinId, colabId, orcFiles, midiaFiles } = window._rhEdit;
+    if (!sinId || !colabId) return;
+
+    const btn   = document.getElementById('rh-edit-btn-salvar');
+    const msgEl = document.getElementById('rh-edit-msg');
+    const oldTxt = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
+
+    function showMsg(txt, ok) {
+        if (!msgEl) return;
+        msgEl.style.display = 'block';
+        msgEl.style.cssText = `display:block; padding:0.6rem 0.85rem; border-radius:8px; font-size:0.82rem; ${ok
+            ? 'background:#d1fae5; border:1px solid #6ee7b7; color:#065f46;'
+            : 'background:#fee2e2; border:1px solid #fca5a5; color:#991b1b;'}`;
+        msgEl.innerHTML = `<i class="ph ph-${ok ? 'check-circle' : 'warning'}"></i> ${txt}`;
+    }
+
+    try {
+        // 1) Campos básicos + orçamentos base64
+        const form = new URLSearchParams();
+        form.set('numero_boletim', document.getElementById('rh-edit-bo')?.value || '');
+        form.set('data_hora',      document.getElementById('rh-edit-data')?.value || '');
+        form.set('natureza',       document.getElementById('rh-edit-natureza')?.value || '');
+        form.set('veiculo',        document.getElementById('rh-edit-veiculo')?.value || '');
+        form.set('placa',          document.getElementById('rh-edit-placa')?.value || '');
+
+        if (orcFiles.length > 0) {
+            if (btn) btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando orçamentos...';
+            const b64arr = [];
+            for (const f of orcFiles) {
+                const b64 = await new Promise(res => { const rd = new FileReader(); rd.onload = () => res(rd.result); rd.readAsDataURL(f); });
+                b64arr.push(b64);
+            }
+            form.set('orcamentos_base64', JSON.stringify(b64arr));
+        }
+
+        const r1 = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('erp_token')}`,
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: form.toString()
+        });
+        const d1 = await r1.json();
+        if (!r1.ok) throw new Error(d1.error || 'Erro ao salvar campos.');
+
+        // 2) Upload de novas mídias
+        if (midiaFiles.length > 0) {
+            for (let j = 0; j < midiaFiles.length; j++) {
+                if (btn) btn.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Enviando mídia ${j+1}/${midiaFiles.length}...`;
+                const fd = new FormData();
+                fd.append('file', midiaFiles[j]);
+                const rm = await fetch(`${API_URL}/sinistros/${sinId}/midia`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
+                    body: fd
+                });
+                if (!rm.ok) {
+                    const em = await rm.json().catch(() => ({}));
+                    console.warn('Falha ao enviar:', midiaFiles[j].name, em.error);
+                }
+            }
+        }
+
+        showMsg('Sinistro atualizado com sucesso!', true);
+        setTimeout(async () => {
+            document.getElementById('modal-rh-sin-editar').style.display = 'none';
+            // Recarregar lista de sinistros do prontuário
+            if (typeof window._recarregarListaSinistros === 'function') {
+                await window._recarregarListaSinistros(colabId);
+            }
+        }, 1200);
+
+    } catch(e) {
+        showMsg(e.message, false);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = oldTxt; }
+    }
+};
