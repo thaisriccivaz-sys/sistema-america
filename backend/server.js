@@ -4315,8 +4315,28 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 /TERMO\s+DE\s+AUTORIZA[ÇC][ÃA]O\s+DE\s+DESCONTO\s+EM\s+FOLHA/gi,
                 'TERMO DE AUTORIZA\u00c7\u00c3O DE CI\u00caNCIA DE SINISTRO'
             );
-        }
+        } else {
+            // ===== AJUSTES PARA SINISTRO COM COBRANÇA =====
 
+            // 1. Remove a cláusula 3.2 (fica acordado o desconto a título de ressarcimento)
+            htmlFinal = htmlFinal.replace(
+                /3\.2\.\s*Fica\s+acordado\s+entre\s+as\s+partes\s+o\s+desconto\s+a\s+t[íi]tulo\s+de\s+ressarcimento\s+dos\s+preju[íi]zos\s+decorrentes\s+do\s+sinistro\./gi,
+                ''
+            );
+
+            // 2. Altera cláusula 4.1 — acrescenta "a título de ressarcimento dos prejuízos decorrentes do sinistro"
+            htmlFinal = htmlFinal.replace(
+                /(4\.1\.\s*O\s+colaborador\s+autoriza[\s\S]{0,400}?artigo\s+462\s+da\s*\n?\s*CLT)\s*\./gi,
+                '$1 a t\u00edtulo de ressarcimento dos preju\u00edzos decorrentes do sinistro.'
+            );
+            // Fallback sem quebra de linha antes do ponto
+            if (!htmlFinal.match(/4\.1\.[\s\S]{0,500}ressarcimento\s+dos\s+preju[íi]zos\s+decorrentes\s+do\s+sinistro/i)) {
+                htmlFinal = htmlFinal.replace(
+                    /(4\.1\.\s*O\s+colaborador\s+autoriza[\s\S]{0,400}?artigo\s+462\s+da\s*CLT)\./gi,
+                    '$1 a t\u00edtulo de ressarcimento dos preju\u00edzos decorrentes do sinistro.'
+                );
+            }
+        }
 
 
 
