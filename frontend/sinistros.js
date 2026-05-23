@@ -1,6 +1,14 @@
 // ABA SINISTROS - PROCESSOS DE BOLETINS DE OCORRÊNCIA
 // Segue o padrão de renderMultasMotoristaTab em app.js
 
+// Helper: remove data URI base64 do HTML antes de enviar ao servidor (evita OOM)
+function _sinStripBase64(html) {
+    if (!html) return html;
+    return html
+        .replace(/src="data:[^"]{100,}"/g, 'src="[IMG]"')
+        .replace(/data-pdf-b64="[A-Za-z0-9+/=]{100,}"/g, 'data-pdf-b64=""');
+}
+
 window._recarregarListaSinistros = async function(colabId) {
     const tabContent = document.getElementById('docs-list-container');
     if (tabContent && typeof window.renderSinistrosTab === 'function') {
@@ -104,6 +112,14 @@ window._renderSinistroCard = function(s, colabId, container) {
     } else {
         actionsHtml = `<div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;width:100%;">`;
         if (isRH) {
+            // Botão Editar — apenas antes de qualquer assinatura
+            if (s.status === 'pendente') {
+                actionsHtml += `<button class="btn btn-sm" onclick="window.rhSinAbrirModalEditar(${s.id}, ${colabId})"
+                    style="background:#f1f5f9; border:1.5px solid #cbd5e1; color:#475569; font-weight:700; padding:5px 12px;"
+                    title="Editar sinistro (disponível apenas antes das assinaturas)">
+                    <i class="ph ph-pencil-simple"></i> Editar
+                </button>`;
+            }
             let label = s.documento_html ? 'Continuar Finalização' : 'Finalizar Sinistro';
             if (s.status === 'assinado_testemunhas') label = 'Assinar Condutor';
             actionsHtml += `<button class="btn btn-sm" onclick="window.abrirFinalizarSinistro(${s.id}, ${colabId})" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;font-weight:600;padding:6px 14px;"><i class="ph ph-flag-checkered"></i> ${label}</button>`;
@@ -916,7 +932,7 @@ window.salvarAssinaturaTestemunhasSinistro = async function(sinId, colabId, fina
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/assinar-testemunhas`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
-            body: JSON.stringify({ t1_nome: t1Nome, t1_base64: t1Ass, t2_nome: t2Nome || null, t2_base64: t2Ass, html_atualizado: docHtml, finalizar_sem_condutor: finalizarSemCondutor })
+            body: JSON.stringify({ t1_nome: t1Nome, t1_base64: t1Ass, t2_nome: t2Nome || null, t2_base64: t2Ass, html_atualizado: _sinStripBase64(docHtml), finalizar_sem_condutor: finalizarSemCondutor })
         });
         const data = await res.json();
         if (!data.sucesso) throw new Error(data.error);
@@ -1017,7 +1033,7 @@ window.salvarAssinaturaCondutorSinistro = async function(sinId, colabId) {
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/assinar-condutor`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
-            body: JSON.stringify({ assinatura_base64: assinaturaBase64, documento_html: docHtml })
+            body: JSON.stringify({ assinatura_base64: assinaturaBase64, documento_html: _sinStripBase64(docHtml) })
         });
         const data = await res.json();
         if (!data.sucesso) throw new Error(data.error);
@@ -1416,7 +1432,7 @@ window._finSalvarTestemunhas = async function(sinId, colabId, finalizarSemCondut
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/assinar-testemunhas`, {
             method: 'POST',
             headers: {'Content-Type':'application/json','Authorization':`Bearer ${localStorage.getItem('erp_token')}`},
-            body: JSON.stringify({t1_nome:t1Nome, t1_base64:t1Ass, t2_nome:t2Nome||null, t2_base64:t2Ass, html_atualizado:docHtml, finalizar_sem_condutor:finalizarSemCondutor})
+            body: JSON.stringify({t1_nome:t1Nome, t1_base64:t1Ass, t2_nome:t2Nome||null, t2_base64:t2Ass, html_atualizado:_sinStripBase64(docHtml), finalizar_sem_condutor:finalizarSemCondutor})
         });
         const data = await res.json();
         if (!data.sucesso) throw new Error(data.error);

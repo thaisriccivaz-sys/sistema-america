@@ -1107,8 +1107,8 @@ const uploadFoto = multer({ storage: storageFoto });
 
 // --- CONFIGURAÃ‡ÃƒO DE MIDDLEWARES ---
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ limit: '5mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
 app.get('/api/version', (req, res) => res.json({ version: 'V51_FIX_CONTRATOS_AVULSOS_PATH' }));
@@ -4413,17 +4413,19 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         } catch (e) { console.error('[Anexar imagens sinistro]', e.message); }
 
 
-        // Salvar HTML — limite de 8MB para evitar sobrecarga do SQLite e memória
-        const htmlBytes = Buffer.byteLength(htmlFinal, 'utf8');
-        console.log('[gerar-doc] HTML final:', Math.round(htmlBytes / 1024) + 'KB');
-        if (htmlBytes > 8 * 1024 * 1024) {
-            // Salva sem os anexos embutidos (apenas o documento base)
-            console.warn('[gerar-doc] HTML muito grande (' + Math.round(htmlBytes/1024) + 'KB), salvando versão sem imagens embutidas');
-            db.run('UPDATE sinistros SET documento_html = ? WHERE id = ?', [htmlFinal.substring(0, 1000) + '<!-- TRUNCADO -->', sin.id]);
-        } else {
-            db.run('UPDATE sinistros SET documento_html = ? WHERE id = ?', [htmlFinal, sin.id]);
+        // Salvar versão LEVE no banco (sem base64 — evita OOM na requisição de assinatura)
+        // A versão completa com imagens é retornada ao cliente apenas para exibição
+        function _stripBase64(html) {
+            return html
+                .replace(/src="data:[^"]{20,}"/g, 'src="[IMG]"')
+                .replace(/data-pdf-b64="[A-Za-z0-9+/=]{20,}"/g, 'data-pdf-b64=""');
         }
-        res.json({ sucesso: true, html: htmlFinal });
+        const htmlLeve = _stripBase64(htmlFinal);
+        const htmlBytes = Buffer.byteLength(htmlLeve, 'utf8');
+        console.log('[gerar-doc] HTML completo:', Math.round(Buffer.byteLength(htmlFinal,'utf8')/1024) + 'KB | Leve:', Math.round(htmlBytes/1024) + 'KB');
+        db.run('UPDATE sinistros SET documento_html = ? WHERE id = ?', [htmlLeve, sin.id]);
+        res.json({ sucesso: true, html: htmlFinal }); // retorna versão completa ao cliente
+
 
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -4533,24 +4535,28 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', aut
                 err => err ? reject(err) : resolve())
         );
 
-        // Gerar e salvar PDF com assinaturas das testemunhas
-        if (html_atualizado) {
-            const sin = await new Promise((resolve, reject) =>
-                db.get('SELECT * FROM sinistros WHERE id = ?', [sinistroId], (err, row) => err ? reject(err) : resolve(row))
-            );
-            const colab = await new Promise((resolve, reject) =>
-                db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row))
-            );
-            const nomeFormatado = (colab?.nome_completo || colab?.nome || 'COLAB')
-                .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                .replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
-            const dataStr = (sin?.data_hora || '').split(' ')[0].replace(/\//g, '-').replace(/-/g, '') || String(Date.now());
-            const nomeArquivo = `Sinistro_${dataStr}_${nomeFormatado}.pdf`;
-
-            await salvarPDFSinistroNoOneDrive(id, sinistroId, html_atualizado, nomeArquivo);
-        }
-
+        // Responde imediatamente — PDF gerado de forma assíncrona para não causar OOM
         res.json({ sucesso: true });
+
+        // Geração de PDF em background (fire-and-forget)
+        if (html_atualizado) {
+            setImmediate(async () => {
+                try {
+                    const sin2 = await new Promise((resolve, reject) =>
+                        db.get('SELECT * FROM sinistros WHERE id = ?', [sinistroId], (err, row) => err ? reject(err) : resolve(row))
+                    );
+                    const colab2 = await new Promise((resolve, reject) =>
+                        db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row))
+                    );
+                    const nomeFormatado2 = (colab2?.nome_completo || colab2?.nome || 'COLAB')
+                        .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                        .replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+                    const dataStr2 = (sin2?.data_hora || '').split(' ')[0].replace(/\//g, '-').replace(/-/g, '') || String(Date.now());
+                    const nomeArquivo2 = `Sinistro_${dataStr2}_${nomeFormatado2}.pdf`;
+                    await salvarPDFSinistroNoOneDrive(id, sinistroId, html_atualizado, nomeArquivo2);
+                } catch(pdfErr) { console.error('[PDF bg] assinar-testemunhas:', pdfErr.message); }
+            });
+        }
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -4567,24 +4573,28 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authen
                 err => err ? reject(err) : resolve())
         );
 
-        // Gerar e salvar PDF final (condutor + testemunhas) sobrepondo o arquivo anterior
-        if (documento_html) {
-            const sin = await new Promise((resolve, reject) =>
-                db.get('SELECT * FROM sinistros WHERE id = ?', [sinistroId], (err, row) => err ? reject(err) : resolve(row))
-            );
-            const colab = await new Promise((resolve, reject) =>
-                db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row))
-            );
-            const nomeFormatado = (colab?.nome_completo || colab?.nome || 'COLAB')
-                .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                .replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
-            const dataStr = (sin?.data_hora || '').split(' ')[0].replace(/\//g, '-').replace(/-/g, '') || String(Date.now());
-            const nomeArquivo = `Sinistro_${dataStr}_${nomeFormatado}.pdf`; // mesmo nome = sobrepõe
-
-            await salvarPDFSinistroNoOneDrive(id, sinistroId, documento_html, nomeArquivo);
-        }
-
+        // Responde imediatamente — PDF gerado de forma assíncrona para não causar OOM
         res.json({ sucesso: true });
+
+        // Geração de PDF em background (fire-and-forget)
+        if (documento_html) {
+            setImmediate(async () => {
+                try {
+                    const sin3 = await new Promise((resolve, reject) =>
+                        db.get('SELECT * FROM sinistros WHERE id = ?', [sinistroId], (err, row) => err ? reject(err) : resolve(row))
+                    );
+                    const colab3 = await new Promise((resolve, reject) =>
+                        db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row))
+                    );
+                    const nomeFormatado3 = (colab3?.nome_completo || colab3?.nome || 'COLAB')
+                        .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                        .replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+                    const dataStr3 = (sin3?.data_hora || '').split(' ')[0].replace(/\//g, '-').replace(/-/g, '') || String(Date.now());
+                    const nomeArquivo3 = `Sinistro_${dataStr3}_${nomeFormatado3}.pdf`;
+                    await salvarPDFSinistroNoOneDrive(id, sinistroId, documento_html, nomeArquivo3);
+                } catch(pdfErr) { console.error('[PDF bg] assinar-condutor:', pdfErr.message); }
+            });
+        }
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
