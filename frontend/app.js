@@ -12710,7 +12710,9 @@ async function checkUserNotificacoes() {
                 `;
                 popup.setAttribute('data-notif-id', notif.id);
                 document.body.appendChild(popup);
-                setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
+                if (notif.tipo !== 'novo_sinistro') {
+                    setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
+                }
             } catch (parseErr) { }
         }
     } catch (e) { }

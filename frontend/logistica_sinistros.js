@@ -1122,8 +1122,8 @@ window.abrirModalVideoLogistica = function() {
                     </h3>
                     <button onclick="document.getElementById('modal-video-logistica').style.display='none'; document.getElementById('logistica-video-player').pause();" class="btn-close" style="color:#94a3b8; background:transparent; border:none; cursor:pointer; font-size:1.2rem;"><i class="ph ph-x"></i></button>
                 </div>
-                <div style="background:#000; flex:1; width:100%;">
-                    <video id="logistica-video-player" controls style="width:100%; height:100%;">
+                <div style="background:#000; flex:1; width:100%; min-height:0; display:flex; justify-content:center; align-items:center;">
+                    <video id="logistica-video-player" controls style="max-width:100%; max-height:100%; object-fit:contain;">
                         <source src="./assets/videos/Logistica - Sinistro.mp4" type="video/mp4">
                         Seu navegador não suporta a tag de vídeo.
                     </video>
