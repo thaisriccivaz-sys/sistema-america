@@ -3890,10 +3890,10 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
                                         <p>Olá!</p>
                                         <p>Um novo boletim de ocorrência de sinistro foi registrado para o colaborador <strong>${colab.nome_completo || 'Colaborador'}</strong>.</p>
                                         <div style="background:#f0fdf4;border-left:4px solid #059669;border-radius:8px;padding:16px;margin:16px 0;">
-                                            <p style="margin:4px 0;"><strong>Boletim:</strong> ${numero_boletim || 'N/A'}</p>
-                                            <p style="margin:4px 0;"><strong>Data da Ocorrência:</strong> ${data_hora || 'N/A'}</p>
-                                            <p style="margin:4px 0;"><strong>Veículo:</strong> ${veiculo || 'N/A'}</p>
-                                            <p style="margin:4px 0;"><strong>Placa:</strong> ${placa || 'N/A'}</p>
+                                            <p style="margin:4px 0;"><strong>Boletim:</strong> ${body.numero_boletim || 'N/A'}</p>
+                                            <p style="margin:4px 0;"><strong>Data da Ocorrência:</strong> ${body.data_hora || 'N/A'}</p>
+                                            <p style="margin:4px 0;"><strong>Veículo:</strong> ${body.veiculo || 'N/A'}</p>
+                                            <p style="margin:4px 0;"><strong>Placa:</strong> ${body.placa || 'N/A'}</p>
                                         </div>
                                         <p style="color:#64748b;font-size:0.9em;">Acesse o sistema no prontuário do colaborador para mais detalhes e visualização dos anexos.</p>
                                         <p style="margin-top:24px;color:#94a3b8;font-size:0.85em;">Atenciosamente,<br>Sistema América Rental</p>
