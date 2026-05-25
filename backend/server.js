@@ -9834,6 +9834,7 @@ db.run(`CREATE TABLE IF NOT EXISTS experiencia_formularios (
     FOREIGN KEY (colaborador_id) REFERENCES colaboradores(id)
 )`, () => {
     db.run("ALTER TABLE experiencia_formularios ADD COLUMN data_envio_email TEXT", () => { });
+    db.run("ALTER TABLE experiencia_formularios ADD COLUMN notificacao_7d_enviada INTEGER DEFAULT 0", () => { });
 });
 
 db.run(`CREATE TABLE IF NOT EXISTS experiencia_notificacoes_pendentes (
@@ -10320,68 +10321,78 @@ function verificarExperienciasVencendo() {
             const prazos = calcPrazoExp(r.data_admissao);
             if (!prazos) continue;
 
-            // Already sent or already has finalized form
-            // Removed notificacao_15d_enviada block to ensure it sends daily until answered
-            if (r.situacao === 'finalizado') continue;
+            // Formulário já finalizado: não enviar
             if (r.situacao === 'finalizado') continue;
 
             const diasRestantes = Math.ceil((new Date(prazos.prazo2_fim + 'T23:59:59') - hoje) / 86400000);
 
-            if (diasRestantes > 0 && diasRestantes <= 15) {
-                const emailDestino = r.resp_email;
-                if (!emailDestino) {
-                    console.log(`[Experiência CRON] Sem e-mail do responsável para ${r.nome_completo} (${r.departamento}).`);
-                    continue;
+            // Fora da janela de notificação
+            if (diasRestantes <= 0 || diasRestantes > 15) continue;
+
+            const emailDestino = r.resp_email;
+            if (!emailDestino) {
+                console.log(`[Experiência CRON] Sem e-mail do responsável para ${r.nome_completo} (${r.departamento}).`);
+                continue;
+            }
+
+            // ── REGRA: só envia UMA vez aos 15 dias e UMA vez aos 7 dias ──────
+            const deveEnviar15d = diasRestantes <= 15 && diasRestantes > 7 && !r.notificacao_15d_enviada;
+            const deveEnviar7d  = diasRestantes <= 7  && diasRestantes > 0  && !r.notificacao_7d_enviada;
+            if (!deveEnviar15d && !deveEnviar7d) {
+                console.log(`[Experiência CRON] ${r.nome_completo}: notificações já enviadas (15d=${r.notificacao_15d_enviada}, 7d=${r.notificacao_7d_enviada}). Pulando.`);
+                continue;
+            }
+
+            try {
+                let expiresInSeconds = 15 * 86400;
+                if (prazos && prazos.prazo2_fim) {
+                    const expDate = new Date(prazos.prazo2_fim + 'T23:59:59');
+                    expDate.setDate(expDate.getDate() + 1);
+                    const diff = Math.floor((expDate.getTime() - Date.now()) / 1000);
+                    if (diff > 0) expiresInSeconds = diff;
                 }
 
-                // Send email
-                try {
-                    const transporter = nodemailer.createTransport(SMTP_CONFIG);
+                const tokenPayload = jwt.sign({
+                    colab_id: r.id,
+                    form_id: r.form_id || null
+                }, SECRET_KEY, { expiresIn: expiresInSeconds });
 
-                    let expiresInSeconds = 15 * 86400; // default 15 days
-                    if (prazos && prazos.prazo2_fim) {
-                        const expDate = new Date(prazos.prazo2_fim + 'T23:59:59');
-                        expDate.setDate(expDate.getDate() + 1); // dia seguinte
-                        const diff = Math.floor((expDate.getTime() - Date.now()) / 1000);
-                        if (diff > 0) expiresInSeconds = diff;
-                    }
+                const baseUrl = process.env.BASE_URL || 'https://sistema-america.onrender.com';
+                const formLink = `${baseUrl}/avaliacao-publica.html?token=${tokenPayload}`;
+                const tipoAviso = deveEnviar7d ? '⚠️ URGENTE — 7 dias' : '15 dias';
 
-                    const tokenPayload = jwt.sign({
-                        colab_id: r.id,
-                        form_id: r.form_id || null
-                    }, SECRET_KEY, { expiresIn: expiresInSeconds });
+                await sendMailHelper({
+                    from: `"América Rental RH" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
+                    to: emailDestino,
+                    subject: `Avaliação de Experiência — ${r.nome_completo} (${diasRestantes} dias restantes)`,
+                    html: gerarEmailExperienciaHTML({
+                        respNome: r.resp_nome,
+                        nomeCompleto: r.nome_completo,
+                        cargo: r.cargo,
+                        prazos,
+                        diasRestantes,
+                        formLink,
+                        tipo: 'automatico'
+                    })
+                });
 
-                    const baseUrl = process.env.BASE_URL || 'https://sistema-america.onrender.com';
-                    const formLink = `${baseUrl}/avaliacao-publica.html?token=${tokenPayload}`;
+                const dataEnvio = new Date().toISOString();
+                const campos = deveEnviar7d
+                    ? `notificacao_7d_enviada = 1, data_envio_email = '${dataEnvio}'`
+                    : `notificacao_15d_enviada = 1, data_envio_email = '${dataEnvio}'`;
 
-                    await sendMailHelper({
-                        from: `"América Rental RH" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
-                        to: emailDestino,
-                        subject: `Avaliação de Experiência — ${r.nome_completo} (${diasRestantes} dias restantes)`,
-                        html: gerarEmailExperienciaHTML({
-                            respNome: r.resp_nome,
-                            nomeCompleto: r.nome_completo,
-                            cargo: r.cargo,
-                            prazos,
-                            diasRestantes,
-                            formLink,
-                            tipo: 'automatico'
-                        })
-                    });
-
-                    const dataEnvioDataTime = new Date().toISOString();
-                    // Mark notification as sent
-                    if (r.form_id) {
-                        db.run(`UPDATE experiencia_formularios SET notificacao_15d_enviada = 1, data_envio_email = ? WHERE id = ?`, [dataEnvioDataTime, r.form_id]);
-                    } else {
-                        // Create a form record to track notification sent
-                        db.run(`INSERT INTO experiencia_formularios (colaborador_id, situacao, notificacao_15d_enviada, data_envio_email) VALUES (?, 'enviado', 1, ?)`, [r.id, dataEnvioDataTime]);
-                    }
-
-                    console.log(`[Experiência CRON] E-mail enviado para ${emailDestino} sobre ${r.nome_completo}.`);
-                } catch (emailErr) {
-                    console.error(`[Experiência CRON] Erro no e-mail para ${r.nome_completo}:`, emailErr.message);
+                if (r.form_id) {
+                    db.run(`UPDATE experiencia_formularios SET ${campos} WHERE id = ?`, [r.form_id]);
+                } else {
+                    const col7 = deveEnviar7d ? 1 : 0;
+                    const col15 = deveEnviar15d ? 1 : 0;
+                    db.run(`INSERT INTO experiencia_formularios (colaborador_id, situacao, notificacao_15d_enviada, notificacao_7d_enviada, data_envio_email) VALUES (?, 'enviado', ?, ?, ?)`,
+                        [r.id, col15, col7, dataEnvio]);
                 }
+
+                console.log(`[Experiência CRON] ✅ E-mail (${tipoAviso}) enviado para ${emailDestino} — ${r.nome_completo} (${diasRestantes}d restantes).`);
+            } catch (emailErr) {
+                console.error(`[Experiência CRON] Erro no e-mail para ${r.nome_completo}:`, emailErr.message);
             }
         }
     });
@@ -10680,11 +10691,11 @@ app.get('/api/experiencia/cron/status', authenticateToken, (req, res) => {
     res.json({ ultimaExecucao: _cronUltimaExecucao });
 });
 
-// Executa uma vez ao iniciar o servidor (com delay de 15s para o DB estar pronto)
+// NÃO executa verificarExperienciasVencendo() na inicialização do servidor
+// para evitar disparo de e-mails a cada deploy/reinício.
+// O CRON diário às 08:00 já cobre todos os casos.
 setTimeout(() => {
-    console.log('[CRON] Verificação inicial ao iniciar servidor...');
-    _cronUltimaExecucao = new Date().toISOString();
-    verificarExperienciasVencendo();
+    console.log('[CRON] Verificação inicial ao iniciar servidor (apenas atestados)...');
     verificarAtestadosVencidos();
 }, 15000);
 
