@@ -107,8 +107,12 @@ window.mnCarregarPreventivoVeiculo = async function() {
     try {
         const res = await fetch('/api/frota/manutencoes/preventivo/' + vid, { headers: { Authorization: 'Bearer ' + tok } });
         const data = await res.json();
+        if (!res.ok) {
+            planoEl.innerHTML = `<div style="padding:1rem;color:#dc2626;font-size:0.85rem;"><b>Erro API (${res.status}):</b> ${data.error||'desconhecido'}</div>`;
+            return;
+        }
         planoEl.innerHTML = mnRenderPlanoAgrupado(data);
-    } catch(e) { planoEl.innerHTML = '<div style="padding:1rem;color:#dc2626;">Erro ao carregar plano.</div>'; }
+    } catch(e) { planoEl.innerHTML = `<div style="padding:1rem;color:#dc2626;">Erro: ${e.message}</div>`; }
 };
 
 function mnRenderPlanoAgrupado(data) {
