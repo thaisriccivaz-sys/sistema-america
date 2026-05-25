@@ -3114,7 +3114,7 @@ function renderTabelaColaboradores(lista) {
         }
 
         return `<tr>
-                            <td style="padding-left:1rem;"><div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:1px solid #e2e8f0;background:#f8fafc;"><img src="${photoUrl}" onerror="this.src='${fallbackIcon}'" style="width:100%;height:100%;object-fit:cover;"></div></td>
+                            <td style="padding-left:1rem;"><a href="${photoUrl}" target="_blank" style="display:block;width:36px;height:36px;border-radius:50%;overflow:hidden;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;" title="Clique para ampliar e baixar"><img src="${photoUrl}" onerror="this.src='${fallbackIcon}'; this.parentElement.removeAttribute('href'); this.parentElement.style.cursor='default'; this.parentElement.title='';" style="width:100%;height:100%;object-fit:cover;"></a></td>
                             <td><div style="display:flex;flex-direction:column;"><strong style="color:#334155;font-size:0.95rem;">${c.nome_completo || 'Sem Nome'}</strong>${experienceUnderName}</div></td>
                             <td style="color:#64748b;font-size:0.85rem;white-space:nowrap;">${c.cpf || '-'}</td>
                             <td style="color:#64748b;font-size:0.85rem;">${c.departamento || '-'}</td>

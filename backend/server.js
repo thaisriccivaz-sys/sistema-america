@@ -3396,6 +3396,9 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         const base64Data = `data:image/jpeg;base64,${processedBuffer.toString('base64')}`;
         db.run("UPDATE colaboradores SET foto_path = ?, foto_base64 = ? WHERE id = ?", [caminhoRelativo, base64Data, id]);
 
+        // Também registrar na aba "Fotos" do Prontuário Digital
+        db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path) VALUES (?, 'Fotos', 'Foto de Perfil', ?, ?)`, [id, filename, caminhoRelativo]);
+
         // 4. Upload assíncrono para OneDrive
         if (process.env.ONEDRIVE_CLIENT_ID) {
             (async () => {

@@ -45,7 +45,7 @@ function pipelineGetCorCard(tipoServico) {
 }
 
 function pipelineRenderVar(v) {
-    const vUp = v.trim().toUpperCase();
+    const vUp = v.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     for (const [key, style] of Object.entries(PIPELINE_VARS_CORES)) {
         if (vUp.includes(key)) {
             return `<span style="background:${style.bg};color:${style.text};border-radius:6px;padding:2px 9px;font-size:0.68rem;font-weight:700;display:inline-flex;align-items:center;gap:3px;">${style.icon} ${v.trim()}</span>`;
@@ -418,8 +418,8 @@ async function pipelineAbrirOS(osId, numeroOs) {
 // Monta o Título (coluna A do SimpliRoute) com ícones na ordem:
 // 1-Lua(noturno) 2-Produtos(entrega/retirada) 3-Serviço 4-Variáveis 5-Habilidades + Nome do cliente
 function pipelineBuildTitulo(r) {
-    const vars  = Array.isArray(r.variaveis)   ? r.variaveis.map(v => v.trim().toUpperCase()) : [];
-    const habs  = Array.isArray(r.habilidades) ? r.habilidades.map(h => h.trim().toUpperCase()) : [];
+    const vars  = Array.isArray(r.variaveis)   ? r.variaveis.map(v => v.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')) : [];
+    const habs  = Array.isArray(r.habilidades) ? r.habilidades.map(h => h.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')) : [];
     const prods = Array.isArray(r.produtos)    ? r.produtos : [];
     const ts    = (r.tipo_servico || '').toLowerCase();
     // Entrega e Retirada usam ícones de produto — seus ícones de serviço (🚛 ↩️) não existem no sistema
@@ -592,7 +592,7 @@ async function pipelineExportarExcel(registrosOverride) {
 
         // Ícones das variáveis que têm ícone cadastrado (PIPELINE_VARS_CORES)
         const icVar = variaveisArr.map(v => {
-            const vUp = (v || '').trim().toUpperCase();
+            const vUp = (v || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             for (const [key, style] of Object.entries(PIPELINE_VARS_CORES)) {
                 if (vUp.includes(key)) return style.icon;
             }
