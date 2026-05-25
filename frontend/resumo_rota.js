@@ -175,22 +175,30 @@ function _rrTipoObraEvento(lista) {
 function _rrMontarColB(v) {
     const lines = [];
 
-    // 1. OBS
+    // 1. OBS + Ícone de informações importantes
     const obsLinhas = [];
     v.os.forEach(os => {
-        if (!os.obs) return;
-        let icon = _rrObsIcon(os.obs);
-                let nome = (os.cliente || '').trim();
-        
-        // Remove os emojis do nome do cliente para que o texto fique limpo
+        // Determina ícone: checa tanto obs quanto notas_raw (habilidades/variáveis)
+        const textoParaIcone = [os.obs, os.notas_raw].filter(Boolean).join(' ');
+        let icon = _rrObsIcon(textoParaIcone);
+
+        // Se tem ícone de informações importantes, mostra o cliente MESMO SEM obs
+        const temInfoImportante = textoParaIcone.toUpperCase().includes('INFORMA') && textoParaIcone.toUpperCase().includes('IMPORTANTE');
+        if (!os.obs && !temInfoImportante) return;
+
+        let nome = (os.cliente || '').trim();
+        // Remove emojis do nome do cliente
         nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🔸]+/gu, '').trim();
-        
         nome = nome.substring(0, 25).trim();
-        
-        // Remove também do os.obs caso já venha com emojis como 🛒 no início
-        let obsLimpa = os.obs.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🛒]+/gu, '').trim().toUpperCase();
-        
-        obsLinhas.push(`${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`);
+
+        let obsLimpa = (os.obs || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🛒]+/gu, '').trim().toUpperCase();
+
+        if (obsLimpa) {
+            obsLinhas.push(`${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`);
+        } else if (temInfoImportante) {
+            // Só tem a marcação de informações importantes, sem obs de texto
+            obsLinhas.push(`🚨 ${nome}`);
+        }
     });
     if (obsLinhas.length) { lines.push(...obsLinhas); lines.push(''); }
 
@@ -547,11 +555,12 @@ window.rrImportarPlanilha = async function(input) {
         if (!p.servico && !p.produtos.length && !p.obs) return; // linha sem info relevante
         map[veiculo].os.push({
             cliente,
-            tipo:    _rrTipoServico(p.servico),
-            servico: p.servico,
-            produto: p.produto,
+            tipo:     _rrTipoServico(p.servico),
+            servico:  p.servico,
+            produto:  p.produto,
             produtos: p.produtos,
-            obs:     obsCol || p.obs,
+            obs:      obsCol || p.obs,
+            notas_raw: notas, // guarda notas brutas para detectar habilidades (ex: INFORMAÇÕES IMPORTANTES)
         });
     });
 
