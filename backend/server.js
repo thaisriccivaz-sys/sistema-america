@@ -11885,68 +11885,79 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
     db.get('SELECT km_atual, em_manutencao FROM frota_veiculos WHERE id=?', [vid], (err, v) => {
         if (err || !v) return res.status(404).json({ error: 'Não encontrado' });
         const kmAtual = v.km_atual || 0;
-        const hoje = new Date();
 
-        // Load all catalog items
-        db.all(`SELECT s.*, c.nome as categoria_nome, c.icone as categoria_icone
-                FROM frota_servicos_catalogo s
-                LEFT JOIN frota_categorias_manutencao c ON c.id=s.categoria_id
-                WHERE s.ativo=1 ORDER BY c.ordem, s.nome`, [], (err2, servicos) => {
+        // Apenas serviços registrados para este veículo (preventiva, concluída ou não)
+        db.all(`
+            SELECT
+                m.id,
+                m.descricao,
+                m.km_na_manutencao,
+                m.km_proxima_manutencao,
+                m.data_conclusao,
+                m.data_agendamento,
+                m.status,
+                m.observacoes,
+                m.custo,
+                m.fornecedor,
+                m.servico_catalogo_id,
+                COALESCE(s.periodicidade_padrao, m.km_proxima_manutencao - m.km_na_manutencao, 0) as periodicidade_padrao,
+                COALESCE(s.tipo_controle, 'KM') as tipo_controle,
+                COALESCE(s.unidade, 'km') as unidade,
+                COALESCE(c.nome, 'Geral') as categoria_nome,
+                COALESCE(c.icone, 'wrench') as categoria_icone,
+                COALESCE(s.criticidade, 'Media') as criticidade_cat
+            FROM frota_manutencoes m
+            LEFT JOIN frota_servicos_catalogo s ON s.id = m.servico_catalogo_id
+            LEFT JOIN frota_categorias_manutencao c ON c.id = s.categoria_id
+            WHERE m.veiculo_id = ? AND m.tipo = 'preventiva'
+            ORDER BY c.ordem, m.descricao, m.created_at DESC
+        `, [vid], (err2, rows) => {
             if (err2) return res.status(500).json({ error: err2.message });
 
-            // For each item, find last completed maintenance
-            const checks = (servicos||[]).map(item => new Promise(resolve => {
-                db.get(
-                    `SELECT km_na_manutencao, data_conclusao, observacoes FROM frota_manutencoes
-                     WHERE veiculo_id=? AND descricao=? AND status='concluida'
-                     ORDER BY COALESCE(km_na_manutencao,0) DESC LIMIT 1`,
-                    [vid, item.nome],
-                    (e, ultima) => {
-                        const kmUlt = ultima?.km_na_manutencao || 0;
-                        const dataUlt = ultima?.data_conclusao ? new Date(ultima.data_conclusao) : null;
-                        const intervKm = item.periodicidade_padrao || 10000;
-                        const alerta = Math.floor(intervKm * 0.1); // 10% do intervalo
-                        const kmProx = kmUlt + intervKm;
-                        const kmRest = kmProx - kmAtual;
-
-                        let statusItem = 'ok';
-                        let criticidadeDinamica = 'Baixa';
-
-                        if (kmRest <= 0) {
-                            statusItem = 'vencida';
-                            criticidadeDinamica = 'Critica';
-                        }
-                        else if (kmRest <= alerta) {
-                            statusItem = 'proxima';
-                            criticidadeDinamica = 'Alta';
-                        }
-                        else if (kmRest <= alerta * 3) { // Até 30% do intervalo
-                            criticidadeDinamica = 'Media';
-                        }
-
-                        resolve({
-                            ...item, km_ultima: kmUlt, km_proxima: kmProx,
-                            km_restante: kmRest, data_ultima: ultima?.data_conclusao || null,
-                            status_item: statusItem,
-                            criticidade: criticidadeDinamica, // Sobrescreve a do catálogo
-                            observacoes: ultima?.observacoes || ''
-                        });
-                    }
-                );
-            }));
-
-            Promise.all(checks).then(plano => {
-                const grupos = {};
-                plano.forEach(item => {
-                    const cat = item.categoria_nome || 'Geral';
-                    if (!grupos[cat]) grupos[cat] = { icone: item.categoria_icone, itens: [] };
-                    grupos[cat].itens.push(item);
-                });
-                res.json({ km_atual: kmAtual, em_manutencao: v.em_manutencao, grupos });
+            // Para cada serviço distinto, pegar o ÚLTIMO registro concluído
+            const porDescricao = {};
+            (rows || []).forEach(r => {
+                const key = r.servico_catalogo_id ? `cat_${r.servico_catalogo_id}` : `desc_${r.descricao}`;
+                if (!porDescricao[key]) {
+                    porDescricao[key] = r; // primeiro = mais recente (ORDER BY created_at DESC)
+                }
             });
+
+            const plano = Object.values(porDescricao).map(item => {
+                const kmUlt = item.km_na_manutencao || 0;
+                const intervKm = item.periodicidade_padrao || 10000;
+                const alerta = Math.floor(intervKm * 0.1);
+                const kmProx = item.km_proxima_manutencao || (kmUlt + intervKm);
+                const kmRest = kmProx - kmAtual;
+
+                let statusItem = 'ok';
+                let criticidade = 'Baixa';
+                if (kmRest <= 0) { statusItem = 'vencida'; criticidade = 'Critica'; }
+                else if (kmRest <= alerta) { statusItem = 'proxima'; criticidade = 'Alta'; }
+                else if (kmRest <= alerta * 3) { criticidade = 'Media'; }
+
+                return {
+                    ...item,
+                    km_ultima: kmUlt,
+                    km_proxima: kmProx,
+                    km_restante: kmRest,
+                    status_item: statusItem,
+                    criticidade
+                };
+            });
+
+            const grupos = {};
+            plano.forEach(item => {
+                const cat = item.categoria_nome || 'Geral';
+                if (!grupos[cat]) grupos[cat] = { icone: item.categoria_icone, itens: [] };
+                grupos[cat].itens.push(item);
+            });
+
+            res.json({ km_atual: kmAtual, em_manutencao: v.em_manutencao, grupos });
         });
     });
 });
+
 
 app.get('/api/frota/manutencoes', authenticateToken, (req, res) => {
     const { veiculo_id } = req.query;

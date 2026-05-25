@@ -113,67 +113,74 @@ window.mnCarregarPreventivoVeiculo = async function() {
 
 function mnRenderPlanoAgrupado(data) {
     const { km_atual, grupos } = data;
-    if (!grupos || !Object.keys(grupos).length) return '<div style="padding:2rem;text-align:center;color:#94a3b8;">Nenhum item encontrado.</div>';
+    if (!grupos || !Object.keys(grupos).length) return '<div style="padding:2rem;text-align:center;color:#94a3b8;"><i class="ph ph-wrench" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>Nenhuma manutenção preventiva registrada para este veículo.</div>';
     const critCor = { Critica:'#dc2626', Alta:'#d97706', Media:'#0284c7', Baixa:'#2d9e5f' };
-    const vid = document.getElementById('mn-prev-veiculo')?.value;
 
-    let html = `
-    <div id="mn-prev-mass-actions" style="display:none; background:#fffbeb; border:1px solid #fde68a; padding:0.8rem 1rem; border-radius:12px; margin-bottom:1rem; align-items:center; gap:0.75rem; flex-wrap:wrap;">
-        <span style="font-weight:700; color:#b45309;"><span id="mn-prev-sel-count">0</span> itens selecionados</span>
-        <button onclick="window.mnEditarIntervaloObsSelecionados()" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.8rem;font-weight:600;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-pencil"></i> Editar Selecionados</button>
-        <button onclick="window.mnAgendarSelecionados()" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.8rem;font-weight:600;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-calendar-plus"></i> Agendar Selecionados</button>
-        <button onclick="window.mnFinalizarAgendado()" style="background:#2d9e5f;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.8rem;font-weight:600;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-check-circle"></i> Finalizar Agendado</button>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:1rem;">`;
+    let html = `<div style="display:flex;flex-direction:column;gap:1rem;">`;
     Object.entries(grupos).forEach(([catNome, cat]) => {
-        const catIdSeg = catNome.replace(/\W/g,'');
         const rows = cat.itens.map(item => {
             let cor = '#2d9e5f', bg = '#ecfdf5', icone = 'check-circle';
             if (item.status_item==='vencida') { cor='#dc2626'; bg='#fef2f2'; icone='warning'; }
             else if (item.status_item==='proxima') { cor='#d97706'; bg='#fffbeb'; icone='clock'; }
+
+            const kmUltTxt = item.km_ultima
+                ? `<span style="font-weight:700;color:#475569;">${Number(item.km_ultima).toLocaleString('pt-BR')} km</span>`
+                : '<span style="color:#94a3b8;">—</span>';
+
+            const kmProxTxt = item.km_proxima
+                ? `<span style="font-weight:700;color:#0284c7;">${Number(item.km_proxima).toLocaleString('pt-BR')} km</span>`
+                : '<span style="color:#94a3b8;">—</span>';
+
             const kmRestTxt = item.km_restante <= 0
-                ? `<span style="color:#dc2626;font-weight:700;">Vencida h\u00e1 ${Math.abs(Math.round(item.km_restante)).toLocaleString('pt-BR')} ${item.unidade}</span>`
-                : `<span style="color:${cor};font-weight:700;">Restam ${Math.round(item.km_restante).toLocaleString('pt-BR')} ${item.unidade}</span>`;
+                ? `<span style="color:#dc2626;font-weight:700;">Vencida há ${Math.abs(Math.round(item.km_restante)).toLocaleString('pt-BR')} km</span>`
+                : `<span style="color:${cor};font-weight:700;">Restam ${Math.round(item.km_restante).toLocaleString('pt-BR')} km</span>`;
+
             const criticBadge = `<span style="background:${critCor[item.criticidade]||'#94a3b8'}22;color:${critCor[item.criticidade]||'#94a3b8'};padding:1px 7px;border-radius:20px;font-size:0.72rem;font-weight:700;">${item.criticidade||'Media'}</span>`;
+
+            const statusBadge = item.status === 'concluida'
+                ? `<span style="background:#ecfdf5;color:#2d9e5f;padding:1px 7px;border-radius:20px;font-size:0.72rem;font-weight:700;">Concluída</span>`
+                : `<span style="background:#fffbeb;color:#d97706;padding:1px 7px;border-radius:20px;font-size:0.72rem;font-weight:700;">${item.status||'Pendente'}</span>`;
+
+            const nome = item.descricao || item.nome || '—';
+            const obsIcon = item.observacoes
+                ? `<i class="ph ph-chat-text" style="color:#0284c7;cursor:pointer;font-size:1rem;margin-left:4px;" title="${item.observacoes.replace(/"/g,'&quot;')}" onclick="alert('Observações:\\n\\n${item.observacoes.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')"></i>`
+                : '';
+
             return `<tr style="background:${bg};border-bottom:1px solid #e2e8f0;">
-                <td style="padding:0.6rem 0.9rem;text-align:center;">
-                    <input type="checkbox" class="mn-prev-cb mn-prev-cb-cat-${catIdSeg}" data-cat="${catIdSeg}" data-id="${item.id}" data-nome="${item.nome.replace(/"/g,'&quot;')}" data-controle="${item.tipo_controle}" data-criticidade="${item.criticidade}" data-intervalo="${item.periodicidade_padrao}" data-ultimakm="${item.km_ultima||''}" data-ultimadata="${item.data_ultima||''}" onchange="window.mnPrevCbChanged()">
-                </td>
                 <td style="padding:0.6rem 0.9rem;">
                     <div style="display:flex;align-items:center;gap:6px;">
-                        <i class="ph ph-${icone}" style="color:${cor};"></i>
-                        <span style="font-weight:600;color:#1e293b;font-size:0.85rem;">${item.nome}</span>
-                        ${item.observacoes ? `<i class="ph ph-chat-text" style="color:#0284c7;cursor:pointer;font-size:1.1rem;margin-left:4px;" title="Ver Observação da Última Manutenção" onclick="alert('Observação da Última Manutenção:\\n\\n' + '${item.observacoes.replace(/'/g, "\\'").replace(/\n/g, '\\n')}')"></i>` : ''}
-                        ${item.impede_operacao ? '<span style="background:#dc262622;color:#dc2626;padding:1px 6px;border-radius:20px;font-size:0.7rem;font-weight:700;">Para Op.</span>' : ''}
+                        <i class="ph ph-${icone}" style="color:${cor};font-size:1rem;"></i>
+                        <span style="font-weight:600;color:#1e293b;font-size:0.85rem;">${nome}</span>
+                        ${obsIcon}
                     </div>
                 </td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${criticBadge}</td>
-                <td style="padding:0.6rem 0.9rem;text-align:center;color:#64748b;font-size:0.82rem;">${item.tipo_controle}</td>
-                <td style="padding:0.6rem 0.9rem;text-align:center;color:#475569;font-size:0.82rem;">A cada ${Number(item.periodicidade_padrao).toLocaleString('pt-BR')} ${item.unidade}</td>
-                <td style="padding:0.6rem 0.9rem;text-align:center;color:#64748b;font-size:0.82rem;">${item.km_ultima ? Number(item.km_ultima).toLocaleString('pt-BR') + ' ' + item.unidade : '\u2014'}</td>
+                <td style="padding:0.6rem 0.9rem;text-align:center;">${statusBadge}</td>
+                <td style="padding:0.6rem 0.9rem;text-align:center;font-size:0.82rem;">${kmUltTxt}</td>
+                <td style="padding:0.6rem 0.9rem;text-align:center;font-size:0.82rem;">${kmProxTxt}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${kmRestTxt}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">
-                    <button onclick="window.registrarManutPreventiva(${item.id},'${item.nome.replace(/'/g,'\\'+'')}',' ${item.tipo_controle}')" 
-                        style="background:#2d9e5f;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.7rem;font-size:0.75rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:4px;">
-                        <i class="ph ph-check"></i> Registrar
+                    <button onclick="window.abrirModalManutencao(${item.id})"
+                        style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Editar">
+                        <i class="ph ph-pencil"></i>
                     </button>
                 </td>
             </tr>`;
         }).join('');
+
         html += `<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
             <div style="background:#1e293b;padding:0.65rem 1rem;display:flex;align-items:center;gap:8px;">
                 <i class="ph ph-${cat.icone||'wrench'}" style="color:#f59e0b;font-size:1rem;"></i>
                 <span style="font-weight:700;color:#fff;font-size:0.9rem;">${catNome}</span>
-                <span style="margin-left:auto;font-size:0.78rem;color:#94a3b8;">${cat.itens.length} itens</span>
+                <span style="margin-left:auto;font-size:0.78rem;color:#94a3b8;">${cat.itens.length} serviços</span>
             </div>
             <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.83rem;">
                 <thead><tr style="background:#f1f5f9;">
-                    <th style="padding:0.5rem 0.9rem;text-align:center;width:30px;"><input type="checkbox" onchange="window.mnPrevToggleCat(this, '${catIdSeg}')"></th>
-                    <th style="padding:0.5rem 0.9rem;text-align:left;color:#64748b;font-weight:600;">Servi\u00e7o</th>
+                    <th style="padding:0.5rem 0.9rem;text-align:left;color:#64748b;font-weight:600;">Serviço</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Criticidade</th>
-                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Controle</th>
-                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Intervalo</th>
-                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">&Uacute;ltimo</th>
+                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Situação</th>
+                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">KM Realizado</th>
+                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Próximo KM</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Status</th>
                     <th style="padding:0.5rem 0.9rem;"></th>
                 </tr></thead>
@@ -184,6 +191,8 @@ function mnRenderPlanoAgrupado(data) {
     html += '</div>';
     return html;
 }
+
+
 
 window.registrarManutPreventiva = function(servicoId, nome, tipoControle) {
     const vid = document.getElementById('mn-prev-veiculo')?.value;
