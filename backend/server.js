@@ -11896,7 +11896,7 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
         const kmAtual = v?.km_atual || 0;
         const emManutencao = v?.em_manutencao || 0;
 
-        // Apenas serviços registrados para este veículo com tipo preventiva
+        // Apenas serviços registrados para este veículo (preventiva, concluída ou não)
         db.all(`
             SELECT
                 m.id,
@@ -11910,7 +11910,7 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                 m.custo,
                 m.fornecedor,
                 m.servico_catalogo_id,
-                COALESCE(s.periodicidade_padrao, 0) as periodicidade_padrao,
+                COALESCE(s.periodicidade_padrao, CASE WHEN m.km_proxima_manutencao IS NOT NULL AND m.km_na_manutencao IS NOT NULL THEN m.km_proxima_manutencao - m.km_na_manutencao ELSE 0 END, 0) as periodicidade_padrao,
                 COALESCE(s.tipo_controle, 'KM') as tipo_controle,
                 COALESCE(s.unidade, 'km') as unidade,
                 COALESCE(c.nome, 'Geral') as categoria_nome,
@@ -11920,9 +11920,9 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
             LEFT JOIN frota_servicos_catalogo s ON s.id = m.servico_catalogo_id
             LEFT JOIN frota_categorias_manutencao c ON c.id = s.categoria_id
             WHERE m.veiculo_id = ? AND m.tipo = 'preventiva'
-            ORDER BY m.created_at DESC
+            ORDER BY c.ordem, m.descricao, m.created_at DESC
         `, [vid], (err2, rows) => {
-            if (err2) { console.error('[PREV ERROR]', err2.message); return res.status(500).json({ error: err2.message }); }
+            if (err2) return res.status(500).json({ error: err2.message });
 
             console.log(`[PREV] veiculo_id=${vid} → ${(rows||[]).length} registros encontrados`);
 
@@ -11937,11 +11937,7 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
 
             const plano = Object.values(porDescricao).map(item => {
                 const kmUlt = item.km_na_manutencao || 0;
-                // Se não tem periodicidade no catálogo, calcula pela diferença de KM ou usa 10000 como padrão
-                const intervKm = item.periodicidade_padrao ||
-                    ((item.km_proxima_manutencao && item.km_na_manutencao)
-                        ? (item.km_proxima_manutencao - item.km_na_manutencao)
-                        : 10000);
+                const intervKm = item.periodicidade_padrao || 10000;
                 const alerta = Math.floor(intervKm * 0.1);
                 const kmProx = item.km_proxima_manutencao || (kmUlt + intervKm);
                 const kmRest = kmProx - kmAtual;
@@ -14620,6 +14616,21 @@ app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log('Versão do Servidor: V31_OS_LOGISTICA_MODULE');
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
+
+    // ── Migração automática: adicionar colunas novas a frota_manutencoes ──────
+    const colsMigration = [
+        { col: 'servico_catalogo_id', def: 'INTEGER' },
+        { col: 'criticidade', def: 'TEXT' }
+    ];
+    colsMigration.forEach(({ col, def }) => {
+        db.run(`ALTER TABLE frota_manutencoes ADD COLUMN ${col} ${def}`, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+                console.error(`[MIGRATE] Erro ao adicionar coluna ${col}:`, err.message);
+            } else if (!err) {
+                console.log(`[MIGRATE] Coluna ${col} adicionada em frota_manutencoes`);
+            }
+        });
+    });
 
     // ── Migração automática: marcar multas antigas existentes ──────────────────
     // Atualiza multas já cadastradas cujo AIT está na lista AITS_ANTIGAS e que
