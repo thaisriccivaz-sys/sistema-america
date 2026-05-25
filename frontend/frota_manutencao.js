@@ -429,7 +429,7 @@ window.abrirModalManutencao = async function(id, opts = {}) {
         m = (window._manutDados||[]).find(x => x.id === id) || {};
     } else {
         m = {
-            tipo: opts.tipo || 'corretiva',
+            tipo: opts.tipo || (window._mnSubAba === 'preventiva' ? 'preventiva' : 'corretiva'),
             veiculo_id: opts.vid || '',
             servico_catalogo_id: opts.servico_catalogo_id || '',
             descricao: opts.descricao || '',
@@ -479,10 +479,6 @@ window.abrirModalManutencao = async function(id, opts = {}) {
     <input type="hidden" id="mn-m-forn" value="${m.fornecedor||''}">
     <input type="hidden" id="mn-m-data-ag" value="${m.data_agendamento||''}">
     <div id="mn-forn-data-box" style="display:none;"></div>`}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-        <div>${lbl('KM Atual (Realizada em)')}<input id="mn-m-km" value="${m.km_na_manutencao||""}" type="number" readonly style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;background:#f8fafc;cursor:not-allowed;color:#64748b;" title="Apenas visualização. Edite o KM na Gestão de Frota."></div>
-        <div>${lbl('KM intervalo (todos os serviços)')}<div style="display:flex;gap:6px;">${inp('mn-m-intervalo', '', 'Ex: 10000', 'number')}<button onclick="window.mnAplicarIntervaloTodos()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0 10px;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;" title="Aplica este intervalo a todos os serviços da lista">Aplicar a todos</button></div></div>
-    </div>
     <div style="flex:1;">${lbl('Observações')}<textarea id="mn-m-obs" placeholder="Observações adicionais..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:100px;resize:vertical;">${m.observacoes||''}</textarea></div>
     <div style="display:flex;gap:1rem;justify-content:flex-end;padding-top:0.75rem;border-top:1px solid #e2e8f0;">
         <button onclick="document.getElementById('modal-manut-ov').remove()" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;color:#475569;">Cancelar</button>
@@ -500,6 +496,10 @@ window.abrirModalManutencao = async function(id, opts = {}) {
         </div>
     </div>
     <div id="mn-m-servicos-lista" style="display:flex;flex-direction:column;gap:6px;"></div>
+    <div style="border-top:1px solid #e2e8f0;padding-top:1rem;display:flex;flex-direction:column;gap:0.75rem;">
+        <div>${lbl('KM Atual (Realizada em)')}<input id="mn-m-km" value="${m.km_na_manutencao||""}" type="number" readonly style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;background:#f8fafc;cursor:not-allowed;color:#64748b;" title="Apenas visualização. Edite o KM na Gestão de Frota."></div>
+        <div>${lbl('KM intervalo — aplicar a todos os serviços')}<div style="display:flex;gap:6px;">${inp('mn-m-intervalo', '', 'Ex: 10000', 'number')}<button onclick="window.mnAplicarIntervaloTodos()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0 12px;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">Aplicar a todos</button></div></div>
+    </div>
   </div>
 </div></div>`;
     document.body.appendChild(ov);
