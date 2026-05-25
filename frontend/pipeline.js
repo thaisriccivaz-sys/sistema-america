@@ -1167,6 +1167,10 @@ function renderPipelinePage() {
             style="background:#3b82f6;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
             <i class="ph ph-arrows-clockwise" style="font-size:1rem;"></i> Atualizar
           </button>
+          <button onclick="pipelineToggleAgenda()" id="btn-toggle-agenda" title="Alternar entre Kanban e Agenda"
+            style="background:#7c3aed;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
+            <i class="ph ph-calendar" style="font-size:1rem;"></i> Agenda
+          </button>
           <button onclick="pipelineLimparFiltros()" title="Limpar filtros"
             style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#ef4444;font-weight:700;cursor:pointer;font-size:0.82rem;">
             ✕
@@ -1434,4 +1438,372 @@ async function pipelineExcluirSelecionadas() {
         if (typeof showToast === 'function') showToast('Erro ao excluir: ' + err.message, 'error');
         console.error('[Pipeline] Erro ao excluir OSs:', err);
     }
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  MÓDULO: VISUALIZAÇÃO DE AGENDA (Dia / Semana / Mês)
+// ══════════════════════════════════════════════════════════════════
+
+let _agendaModo = 'semana'; // 'dia' | 'semana' | 'mes'
+let _agendaDataBase = new Date();
+let _agendaAtiva = false;
+
+// ─── Helpers de cor por tipo de serviço ───────────────────────────
+function _agendaCorOS(os) {
+    const ts = (os.tipo_servico || '').toLowerCase();
+    const tContrato = _agendaInferirContrato(os);
+
+    // Cor de fundo baseada no tipo de serviço
+    let bg, border, textColor;
+    if (ts.includes('retirada')) {
+        bg = '#fef9c3'; border = '#fde047'; textColor = '#713f12';
+    } else if (ts.includes('entrega')) {
+        bg = '#dcfce7'; border = '#86efac'; textColor = '#14532d';
+    } else if ((ts.includes('manut') || ts.includes('manutenção')) && !ts.includes('avulsa')) {
+        bg = '#f1f5f9'; border = '#cbd5e1'; textColor = '#334155';
+    } else {
+        // avulso e outros
+        bg = '#ffffff'; border = '#e2e8f0'; textColor = '#1e293b';
+    }
+
+    // Sinalização obra/evento sobrescreve borda e adiciona badge
+    if (tContrato === 'obra') {
+        border = '#3b82f6';
+    } else if (tContrato === 'evento') {
+        border = '#8b5cf6';
+    }
+
+    return { bg, border, textColor, tContrato };
+}
+
+function _agendaInferirContrato(os) {
+    const ts = (os.tipo_servico || '').toLowerCase();
+    const prods = Array.isArray(os.produtos) ? os.produtos : [];
+    const vars  = Array.isArray(os.variaveis) ? os.variaveis : [];
+    let tc = (os.tipo_os || '').toLowerCase();
+    if (tc.includes('manut') || tc === 'entrega' || tc === 'retirada') tc = '';
+    if (!tc) {
+        if (ts.includes('obra'))   return 'obra';
+        if (ts.includes('evento')) return 'evento';
+    }
+    if (!tc) {
+        const pd = prods.map(p => (p.desc || p.produto || '').toUpperCase()).join(' ');
+        if (pd.includes('OBRA'))   return 'obra';
+        if (pd.includes('EVENTO')) return 'evento';
+    }
+    if (!tc) {
+        const vd = vars.join(' ').toUpperCase();
+        if (vd.includes('OBRA'))   return 'obra';
+        if (vd.includes('EVENTO')) return 'evento';
+    }
+    return tc || '';
+}
+
+function _agendaTotalEquipamentos(os) {
+    const prods = Array.isArray(os.produtos) ? os.produtos : [];
+    return prods.reduce((s, p) => s + (parseInt(p.qtd) || 1), 0);
+}
+
+// ─── Toggle Kanban ↔ Agenda ───────────────────────────────────────
+window.pipelineToggleAgenda = function() {
+    _agendaAtiva = !_agendaAtiva;
+    const btn = document.getElementById('btn-toggle-agenda');
+    const kanban = document.getElementById('pipeline-kanban');
+
+    if (_agendaAtiva) {
+        if (btn) { btn.innerHTML = '<i class="ph ph-kanban" style="font-size:1rem;"></i> Kanban'; btn.style.background = '#334155'; }
+        if (kanban) kanban.style.display = 'none';
+        _agendaRenderContainer();
+    } else {
+        if (btn) { btn.innerHTML = '<i class="ph ph-calendar" style="font-size:1rem;"></i> Agenda'; btn.style.background = '#7c3aed'; }
+        const ag = document.getElementById('pipeline-agenda');
+        if (ag) ag.remove();
+        if (kanban) kanban.style.display = '';
+    }
+};
+
+// ─── Container principal da agenda ────────────────────────────────
+function _agendaRenderContainer() {
+    let ag = document.getElementById('pipeline-agenda');
+    if (!ag) {
+        ag = document.createElement('div');
+        ag.id = 'pipeline-agenda';
+        ag.style.cssText = 'padding:0 1.2rem 2rem; font-family:Inter,sans-serif;';
+        const kanban = document.getElementById('pipeline-kanban');
+        if (kanban && kanban.parentNode) {
+            kanban.parentNode.insertBefore(ag, kanban.nextSibling);
+        } else {
+            document.getElementById('pipeline-container')?.appendChild(ag);
+        }
+    }
+    _agendaRender();
+}
+
+// ─── Renderizador principal ────────────────────────────────────────
+function _agendaRender() {
+    const ag = document.getElementById('pipeline-agenda');
+    if (!ag) return;
+
+    const todos = Object.values(_pipelineDados || {}).flat();
+
+    const modos = [['dia','Dia'],['semana','Semana'],['mes','Mês']];
+    const modoHtml = modos.map(([k,l]) => `
+        <button onclick="_agendaModo='${k}';_agendaRender()" 
+            style="padding:5px 16px;border:1.5px solid ${_agendaModo===k?'#7c3aed':'#cbd5e1'};border-radius:20px;font-size:0.78rem;font-weight:700;cursor:pointer;background:${_agendaModo===k?'#7c3aed':'white'};color:${_agendaModo===k?'#fff':'#475569'};transition:all 0.15s;">${l}</button>
+    `).join('');
+
+    const pad = n => String(n).padStart(2,'0');
+    let navLabel = '';
+    if (_agendaModo === 'dia') {
+        navLabel = _agendaDataBase.toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
+    } else if (_agendaModo === 'semana') {
+        const ini = _agendaInicioSemana(_agendaDataBase);
+        const fim = new Date(ini); fim.setDate(fim.getDate()+6);
+        navLabel = `${pad(ini.getDate())}/${pad(ini.getMonth()+1)} – ${pad(fim.getDate())}/${pad(fim.getMonth()+1)}/${fim.getFullYear()}`;
+    } else {
+        navLabel = _agendaDataBase.toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+    }
+
+    ag.innerHTML = `
+        <div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.07);padding:1rem 1.5rem;margin-bottom:1rem;">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span style="font-weight:800;font-size:1rem;color:#1e293b;"><i class="ph ph-calendar" style="color:#7c3aed;"></i> Agenda de OS</span>
+                <div style="display:flex;gap:5px;">${modoHtml}</div>
+                <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+                    <button onclick="_agendaNavegar(-1)" style="border:1px solid #e2e8f0;border-radius:8px;background:white;cursor:pointer;padding:4px 10px;font-size:1rem;color:#475569;">‹</button>
+                    <span style="font-weight:700;font-size:0.85rem;color:#334155;min-width:200px;text-align:center;text-transform:capitalize;">${navLabel}</span>
+                    <button onclick="_agendaNavegar(1)" style="border:1px solid #e2e8f0;border-radius:8px;background:white;cursor:pointer;padding:4px 10px;font-size:1rem;color:#475569;">›</button>
+                    <button onclick="_agendaDataBase=new Date();_agendaRender()" style="border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;cursor:pointer;padding:4px 10px;font-size:0.75rem;font-weight:700;color:#475569;">Hoje</button>
+                </div>
+            </div>
+            <!-- Legenda -->
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:0.75rem;">
+                ${[
+                    ['#dbeafe','#3b82f6','🔵 Obra'],
+                    ['#ede9fe','#8b5cf6','🟣 Evento'],
+                    ['#dcfce7','#86efac','🟢 Entrega'],
+                    ['#fef9c3','#fde047','🟡 Retirada'],
+                    ['#f1f5f9','#cbd5e1','⬜ Manutenção Recorrente'],
+                    ['#ffffff','#e2e8f0','◻️ Avulso/Outros'],
+                ].map(([bg,bd,label]) => `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:600;color:#475569;background:${bg};border:1.5px solid ${bd};border-radius:6px;padding:2px 8px;">${label}</span>`).join('')}
+            </div>
+        </div>
+        <div id="agenda-body"></div>
+    `;
+
+    if (_agendaModo === 'dia')    _agendaRenderDia(todos);
+    else if (_agendaModo === 'semana') _agendaRenderSemana(todos);
+    else                          _agendaRenderMes(todos);
+}
+
+// ─── Navegação ─────────────────────────────────────────────────────
+function _agendaNavegar(dir) {
+    if (_agendaModo === 'dia') {
+        _agendaDataBase.setDate(_agendaDataBase.getDate() + dir);
+    } else if (_agendaModo === 'semana') {
+        _agendaDataBase.setDate(_agendaDataBase.getDate() + dir * 7);
+    } else {
+        _agendaDataBase.setMonth(_agendaDataBase.getMonth() + dir);
+    }
+    _agendaRender();
+}
+window._agendaNavegar = _agendaNavegar;
+
+// ─── Início da semana (segunda-feira) ─────────────────────────────
+function _agendaInicioSemana(d) {
+    const dt = new Date(d);
+    const day = dt.getDay(); // 0=dom
+    const diff = (day === 0 ? -6 : 1 - day);
+    dt.setDate(dt.getDate() + diff);
+    dt.setHours(0,0,0,0);
+    return dt;
+}
+
+// ─── Normaliza data_os para yyyy-mm-dd ─────────────────────────────
+function _agendaNormData(s) {
+    if (!s) return null;
+    if (s.includes('-') && s.length >= 10) return s.substring(0,10);
+    if (s.includes('/')) {
+        const p = s.split('/');
+        if (p.length === 3 && p[2].length === 4) return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+    }
+    return null;
+}
+
+// ─── Filtra OS por data ─────────────────────────────────────────────
+function _agendaOsNaData(todos, dataStr) {
+    return todos.filter(os => {
+        const d = _agendaNormData(os.data_os);
+        return d === dataStr;
+    });
+}
+
+// ─── Renderiza mini card de OS ──────────────────────────────────────
+function _agendaRenderMiniCard(os, compact) {
+    const f = _fixMojibake || (x=>x);
+    const { bg, border, textColor, tContrato } = _agendaCorOS(os);
+    const qtd = _agendaTotalEquipamentos(os);
+    const cliente = f(os.cliente || '—');
+    const endereco = f(os.endereco || '');
+    const ts = (os.tipo_servico || '').toLowerCase();
+
+    const badgeContrato = tContrato === 'obra'
+        ? `<span style="background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 5px;font-size:0.6rem;font-weight:800;margin-left:3px;">OBRA</span>`
+        : tContrato === 'evento'
+        ? `<span style="background:#ede9fe;color:#6d28d9;border-radius:4px;padding:1px 5px;font-size:0.6rem;font-weight:800;margin-left:3px;">EVENTO</span>`
+        : '';
+
+    if (compact) {
+        return `<div onclick="pipelineAbrirOS(${os.id},'${(os.numero_os||'').replace(/'/g,"\\'")}')"
+            style="background:${bg};border-left:3px solid ${border};border-radius:5px;padding:3px 6px;margin-bottom:3px;cursor:pointer;font-size:0.68rem;color:${textColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+            title="${cliente} | ${endereco} | ${os.numero_os || ''} | ${qtd} equip.">
+            <span style="font-weight:700;">${os.numero_os || '—'}</span> ${badgeContrato} ${cliente}
+        </div>`;
+    }
+
+    return `<div onclick="pipelineAbrirOS(${os.id},'${(os.numero_os||'').replace(/'/g,"\\'")}')"
+        style="background:${bg};border-left:4px solid ${border};border-radius:8px;padding:8px 12px;margin-bottom:6px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.07);transition:box-shadow 0.15s;"
+        onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.13)'"
+        onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.07)'">
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;">
+            <span style="font-weight:800;font-size:0.78rem;color:#1e3a5f;">OS: ${os.numero_os || '—'}</span>
+            ${badgeContrato}
+        </div>
+        <div style="font-weight:700;font-size:0.8rem;color:${textColor};margin-bottom:2px;">${cliente}</div>
+        <div style="font-size:0.72rem;color:#64748b;margin-bottom:2px;"><i class="ph ph-map-pin" style="font-size:0.7rem;"></i> ${endereco || '—'}</div>
+        <div style="font-size:0.7rem;color:#94a3b8;"><i class="ph ph-toilet" style="font-size:0.7rem;"></i> ${qtd} equip. &nbsp;·&nbsp; <span style="font-style:italic;">${(os.tipo_servico||'').toUpperCase()}</span></div>
+    </div>`;
+}
+
+// ─── VIEW DIA ──────────────────────────────────────────────────────
+function _agendaRenderDia(todos) {
+    const body = document.getElementById('agenda-body');
+    if (!body) return;
+    const pad = n => String(n).padStart(2,'0');
+    const d = _agendaDataBase;
+    const dataStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const os = _agendaOsNaData(todos, dataStr);
+
+    body.innerHTML = `
+        <div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.07);padding:1.25rem 1.5rem;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
+                <span style="font-weight:800;font-size:0.95rem;color:#1e293b;text-transform:capitalize;">${d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})}</span>
+                <span style="background:#e2e8f0;color:#475569;border-radius:12px;padding:2px 10px;font-size:0.75rem;font-weight:700;">${os.length} OS</span>
+            </div>
+            ${os.length === 0
+                ? `<div style="text-align:center;padding:2rem;color:#94a3b8;"><i class="ph ph-calendar-x" style="font-size:2rem;display:block;"></i><p style="margin-top:8px;">Nenhuma OS para este dia</p></div>`
+                : os.map(o => _agendaRenderMiniCard(o, false)).join('')
+            }
+        </div>
+    `;
+}
+
+// ─── VIEW SEMANA ───────────────────────────────────────────────────
+function _agendaRenderSemana(todos) {
+    const body = document.getElementById('agenda-body');
+    if (!body) return;
+    const pad = n => String(n).padStart(2,'0');
+    const ini = _agendaInicioSemana(_agendaDataBase);
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+
+    const dias = [];
+    for (let i = 0; i < 7; i++) {
+        const dt = new Date(ini);
+        dt.setDate(dt.getDate() + i);
+        dias.push(dt);
+    }
+
+    const cols = dias.map(dt => {
+        const dataStr = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
+        const os = _agendaOsNaData(todos, dataStr);
+        const isHoje = dt.getTime() === hoje.getTime();
+        const nomeDia = dt.toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','');
+        const numDia  = `${pad(dt.getDate())}/${pad(dt.getMonth()+1)}`;
+
+        return `<div style="flex:1;min-width:120px;background:${isHoje?'#f5f3ff':'white'};border-radius:10px;border:${isHoje?'2px solid #8b5cf6':'1px solid #e2e8f0'};overflow:hidden;">
+            <div style="background:${isHoje?'#8b5cf6':'#f8fafc'};padding:8px;text-align:center;border-bottom:1px solid #e2e8f0;">
+                <div style="font-weight:800;font-size:0.8rem;color:${isHoje?'#fff':'#334155'};text-transform:capitalize;">${nomeDia}</div>
+                <div style="font-weight:700;font-size:0.85rem;color:${isHoje?'#ede9fe':'#1e293b'};">${numDia}</div>
+                <div style="font-size:0.68rem;color:${isHoje?'#ddd6fe':'#94a3b8'};">${os.length} OS</div>
+            </div>
+            <div style="padding:6px;min-height:100px;">
+                ${os.length === 0
+                    ? `<div style="text-align:center;padding:1rem 0;color:#cbd5e1;font-size:0.75rem;">—</div>`
+                    : os.map(o => _agendaRenderMiniCard(o, true)).join('')
+                }
+            </div>
+        </div>`;
+    }).join('');
+
+    body.innerHTML = `<div style="display:flex;gap:8px;">${cols}</div>`;
+}
+
+// ─── VIEW MÊS ──────────────────────────────────────────────────────
+function _agendaRenderMes(todos) {
+    const body = document.getElementById('agenda-body');
+    if (!body) return;
+    const pad = n => String(n).padStart(2,'0');
+    const ano  = _agendaDataBase.getFullYear();
+    const mes  = _agendaDataBase.getMonth();
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+
+    const primeiroDia = new Date(ano, mes, 1);
+    const ultimoDia  = new Date(ano, mes + 1, 0);
+
+    // começa na segunda-feira da semana do 1º dia
+    const inicio = _agendaInicioSemana(primeiroDia);
+
+    const NOMES_DIA = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+    const headerDias = NOMES_DIA.map(n =>
+        `<div style="text-align:center;font-weight:800;font-size:0.75rem;color:#64748b;padding:6px 0;">${n}</div>`
+    ).join('');
+
+    const celulas = [];
+    let cur = new Date(inicio);
+    while (cur <= ultimoDia || celulas.length % 7 !== 0) {
+        const dataStr = `${cur.getFullYear()}-${pad(cur.getMonth()+1)}-${pad(cur.getDate())}`;
+        const os = _agendaOsNaData(todos, dataStr);
+        const isHoje    = cur.getTime() === hoje.getTime();
+        const isMesAtual = cur.getMonth() === mes;
+        const numDia = cur.getDate();
+
+        // Agrupa por cor (para o mini resumo)
+        const resumo = {
+            entrega:   os.filter(o => (o.tipo_servico||'').toLowerCase().includes('entrega')).length,
+            retirada:  os.filter(o => (o.tipo_servico||'').toLowerCase().includes('retirada')).length,
+            manut:     os.filter(o => { const t=(o.tipo_servico||'').toLowerCase(); return (t.includes('manut')||t.includes('manutenção'))&&!t.includes('avulsa'); }).length,
+            avulso:    os.filter(o => { const t=(o.tipo_servico||'').toLowerCase(); return t.includes('avulso')||t.includes('avulsa'); }).length,
+        };
+
+        const resumoHtml = [
+            resumo.entrega  > 0 ? `<span style="background:#dcfce7;color:#14532d;border-radius:3px;padding:0 4px;font-size:0.6rem;font-weight:700;">${resumo.entrega}E</span>` : '',
+            resumo.retirada > 0 ? `<span style="background:#fef9c3;color:#713f12;border-radius:3px;padding:0 4px;font-size:0.6rem;font-weight:700;">${resumo.retirada}R</span>` : '',
+            resumo.manut    > 0 ? `<span style="background:#f1f5f9;color:#334155;border-radius:3px;padding:0 4px;font-size:0.6rem;font-weight:700;">${resumo.manut}M</span>` : '',
+            resumo.avulso   > 0 ? `<span style="background:#fff;border:1px solid #e2e8f0;color:#475569;border-radius:3px;padding:0 4px;font-size:0.6rem;font-weight:700;">${resumo.avulso}A</span>` : '',
+        ].join('');
+
+        const osHtml = os.slice(0,3).map(o => _agendaRenderMiniCard(o, true)).join('')
+            + (os.length > 3 ? `<div style="font-size:0.65rem;color:#94a3b8;text-align:center;padding:2px;">+${os.length-3} mais</div>` : '');
+
+        celulas.push(`
+            <div style="border:${isHoje?'2px solid #8b5cf6':'1px solid #e2e8f0'};border-radius:8px;background:${!isMesAtual?'#f8fafc':isHoje?'#f5f3ff':'white'};min-height:90px;padding:4px;overflow:hidden;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+                    <span style="font-weight:${isHoje?'900':'700'};font-size:0.78rem;color:${!isMesAtual?'#cbd5e1':isHoje?'#7c3aed':'#334155'};background:${isHoje?'#ede9fe':'transparent'};border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;">${numDia}</span>
+                    <div style="display:flex;gap:2px;">${resumoHtml}</div>
+                </div>
+                ${isMesAtual ? osHtml : ''}
+            </div>
+        `);
+
+        cur.setDate(cur.getDate() + 1);
+        if (celulas.length > 42) break; // máx 6 semanas
+    }
+
+    body.innerHTML = `
+        <div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.07);padding:1rem;">
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;">${headerDias}</div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">${celulas.join('')}</div>
+            <div style="margin-top:0.75rem;font-size:0.7rem;color:#94a3b8;text-align:right;">E=Entrega · R=Retirada · M=Manutenção · A=Avulso</div>
+        </div>
+    `;
 }
