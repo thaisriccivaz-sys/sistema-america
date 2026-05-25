@@ -4008,6 +4008,22 @@ if (formColab) {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
                 const dataSync = await syncRes.json();
+                
+                // Upload da foto caso tenha sido selecionada no input
+                const fotoInput = document.getElementById('colab-foto-input');
+                if (fotoInput && fotoInput.files && fotoInput.files[0]) {
+                    const fdFoto = new FormData();
+                    fdFoto.append('nome', data.nome_completo);
+                    fdFoto.append('foto', fotoInput.files[0]);
+                    await fetch(`${API_URL}/upload-foto/${colabId}`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${currentToken}` },
+                        body: fdFoto
+                    });
+                    // Limpar input após upload para não reenviar sem necessidade
+                    fotoInput.value = '';
+                }
+                
                 // Navegação silenciosa — sem alertas de confirmação
             } else {
                 // Colaborador salvo sem sync (novo colaborador)
