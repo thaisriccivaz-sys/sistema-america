@@ -868,7 +868,37 @@ async function pipelineExportarExcel(registrosOverride) {
     }
 }
 
+// ── Toggle colapsável da barra de filtros ─────────────────────────────────
+let _pipeFiltrosRecolhidos = false;
+window.pipelineToggleFiltros = function() {
+    _pipeFiltrosRecolhidos = !_pipeFiltrosRecolhidos;
+    const area  = document.getElementById('pipe-filtros-area');
+    const icon  = document.getElementById('pipe-collapse-icon');
+    const btn   = document.getElementById('pipe-collapse-btn');
+    if (!area) return;
+    if (_pipeFiltrosRecolhidos) {
+        area.style.maxHeight  = '0px';
+        area.style.paddingBottom = '0';
+        if (icon) { icon.className = 'ph ph-caret-down'; }
+        if (btn)  { btn.style.borderColor = '#3b82f6'; btn.style.color = '#3b82f6'; }
+    } else {
+        area.style.maxHeight  = '200px';
+        area.style.paddingBottom = '0.65rem';
+        if (icon) { icon.className = 'ph ph-caret-up'; }
+        if (btn)  { btn.style.borderColor = '#e2e8f0'; btn.style.color = '#64748b'; }
+    }
+    // Recalcula o top do sticky header para os cards
+    setTimeout(() => {
+        const headerEl = document.getElementById('pipeline-header-bar');
+        if (headerEl) {
+            const h = headerEl.getBoundingClientRect().height;
+            document.documentElement.style.setProperty('--pipe-header-height', (h + 65) + 'px');
+        }
+    }, 320);
+};
+
 let _pipelineDebounceTimer;
+
 function buscarPipelineDebounced() {
     clearTimeout(_pipelineDebounceTimer);
     _pipelineDebounceTimer = setTimeout(() => buscarPipeline(), 300);
@@ -1069,112 +1099,131 @@ function renderPipelinePage() {
     <div style="font-family:'Inter',sans-serif;background:#f1f5f9;min-height:100vh;">
 
       <!-- HEADER BRANCO fixo no topo -->
-      <div id="pipeline-header-bar" style="position: sticky; top: 60px; z-index: 100; display: flex; gap: 1rem; align-items: center; background: white; padding: 0.8rem 1.5rem; flex-wrap: wrap; border-bottom: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 1rem;">
-        <span style="color:#1e293b;font-size:1.1rem;font-weight:800;margin-right:8px;">Pipeline OS</span>
+      <div id="pipeline-header-bar" style="position: sticky; top: 60px; z-index: 100; background: white; border-bottom: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 1rem;">
 
-        <!-- OS -->
-        <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:#475569;font-size:0.78rem;font-weight:600;">OS:</label>
-          <input type="text" id="pipe-filtro-os" placeholder="OS"
-            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:85px;background:white;color:#1e293b;outline:none;"
-            oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
-        </div>
-        <!-- Cliente -->
-        <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Cliente:</label>
-          <input type="text" id="pipe-filtro-cliente" placeholder="Cliente"
-            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:240px;background:white;color:#1e293b;outline:none;"
-            oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
-        </div>
-        <!-- Contrato -->
-        <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Contrato:</label>
-          <input type="text" id="pipe-filtro-contrato" placeholder="Contrato"
-            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:95px;background:white;color:#1e293b;outline:none;"
-            oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
-        </div>
-        <!-- Servico -->
-        <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Serviço:</label>
-          <input type="text" id="pipe-filtro-servico" placeholder="Ex: VAC, Bomba"
-            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:110px;background:white;color:#1e293b;outline:none;"
-            oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
-        </div>
-        <!-- Data De / Até -->
-        <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:#475569;font-size:0.78rem;font-weight:600;">De:</label>
-          <input type="date" id="pipe-filtro-data-de" value="${today}"
-            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;"
-            onchange="_pipelineSalvarFiltros();buscarPipeline()">
-        </div>
-        <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Até:</label>
-          <input type="date" id="pipe-filtro-data-ate" value="${nextYear}"
-            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;"
-            onchange="_pipelineSalvarFiltros();buscarPipeline()">
-        </div>
+        <!-- LINHA 1: Título + Botões de ação + Seta (sempre visível) -->
+        <div style="display:flex; gap:0.75rem; align-items:center; padding:0.65rem 1.5rem; flex-wrap:wrap;">
+          <span style="color:#1e293b;font-size:1.1rem;font-weight:800;">Pipeline OS</span>
 
-        <div style="flex-basis: 100%; height: 0; margin: 0;"></div> <!-- QUEBRA DE LINHA -->
+          <!-- Seta de recolher -->
+          <button id="pipe-collapse-btn" onclick="pipelineToggleFiltros()" title="Recolher / expandir filtros"
+            style="background:none;border:1.5px solid #e2e8f0;border-radius:8px;padding:3px 8px;cursor:pointer;color:#64748b;font-size:0.85rem;display:flex;align-items:center;gap:3px;transition:all 0.2s;">
+            <i id="pipe-collapse-icon" class="ph ph-caret-up" style="font-size:1rem;transition:transform 0.25s;"></i>
+          </button>
 
-        <!-- Endereço -->
-        <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Endereço:</label>
-          <input type="text" id="pipe-filtro-endereco" placeholder="Endereço"
-            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:300px;background:white;color:#1e293b;outline:none;"
-            oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
-        </div>
-        <!-- Tipo OS -->
-        <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Tipo:</label>
-          <div style="display:flex;gap:3px;">
-            ${[['','Todos'],['obra','🔵 Obra'],['evento','🟣 Evento']].map(([val,label])=>`<button type="button" onclick="_pipeFiltrarTipo('${val}')" id="pipe-tipo-${val||'todos'}" style="border:1.5px solid #cbd5e1;border-radius:20px;padding:3px 9px;font-size:0.75rem;font-weight:700;cursor:pointer;background:white;color:#475569;transition:all 0.15s;">${label}</button>`).join('')}
+          <div style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <span id="pipeline-total-badge" style="background:#e2e8f0;color:#475569;border-radius:20px;padding:3px 12px;font-size:0.78rem;font-weight:700;">—</span>
+            <button id="pipeline-btn-simpli" onclick="pipelineExportarInteligente()" title="Exportar SimpliRoute"
+              style="background:#16a34a;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
+              <i class="ph ph-file-xls" style="font-size:1rem;"></i> <span id="pipeline-btn-simpli-txt">SimpliRoute</span>
+            </button>
+            <button onclick="pipelineAbrirModalImportar()" title="Importar OS via Excel"
+              style="display:none;background:#6366f1;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;align-items:center;gap:5px;">
+              <i class="ph ph-upload-simple" style="font-size:1rem;"></i> Importar OS
+            </button>
+            <button onclick="pipelineExcluirSelecionadas()" title="Excluir OS(s) selecionada(s) permanentemente"
+              style="display:none;background:#eab308;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;align-items:center;gap:5px;">
+              <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
+            </button>
+            <button onclick="buscarPipeline()" title="Atualizar pipeline com os filtros atuais"
+              style="background:#3b82f6;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
+              <i class="ph ph-arrows-clockwise" style="font-size:1rem;"></i> Atualizar
+            </button>
+            <button onclick="pipelineToggleAgenda()" id="btn-toggle-agenda" title="Alternar entre Kanban e Agenda"
+              style="background:#7c3aed;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
+              <i class="ph ph-calendar" style="font-size:1rem;"></i> Agenda
+            </button>
+            <button onclick="pipelineLimparFiltros()" title="Limpar filtros"
+              style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#ef4444;font-weight:700;cursor:pointer;font-size:0.82rem;">
+              ✕
+            </button>
           </div>
-          <input type="hidden" id="pipe-filtro-tipo-os" value="">
-        </div>
-        <!-- Turno -->
-        <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Turno:</label>
-          <div style="display:flex;gap:3px;">
-            ${[['','Todos'],['Diurno','☀️ Diurno'],['Noturno','🌘 Noturno']].map(([val,label])=>`<button type="button" onclick="_pipeFiltrarTurno('${val}')" id="pipe-turno-${val||'todos'}" style="border:1.5px solid #cbd5e1;border-radius:20px;padding:3px 9px;font-size:0.75rem;font-weight:700;cursor:pointer;background:white;color:#475569;transition:all 0.15s;">${label}</button>`).join('')}
-          </div>
-          <input type="hidden" id="pipe-filtro-turno" value="">
-        </div>
-        <!-- Dia: pílulas coloridas (Oculto) -->
-        <div style="display:none;align-items:center;gap:5px;">
-          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Dia:</label>
-          <div id="pipe-filtro-dia-group" style="display:flex;gap:3px;flex-wrap:wrap;">
-            ${[['','Todos','#64748b'],['Segunda','Seg','#ef4444'],['Terça','Ter','#f97316'],['Quarta','Qua','#ca8a04'],['Quinta','Qui','#16a34a'],['Sexta','Sex','#3b82f6'],['Sábado','Sáb','#8b5cf6'],['Domingo','Dom','#ec4899']].map(([val,label,cor])=>`<button type="button" onclick="_pipeFiltrarDia('${val}')" id="pipe-dia-${val||'todos'}" style="border:1.5px solid ${cor};border-radius:20px;padding:3px 9px;font-size:0.75rem;font-weight:700;cursor:pointer;background:white;color:${cor};transition:all 0.15s;">${label}</button>`).join('')}
-          </div>
-          <input type="hidden" id="pipe-filtro-dia" value="">
         </div>
 
-        <!-- Botões à direita -->
-        <div style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-          <span id="pipeline-total-badge" style="background:#e2e8f0;color:#475569;border-radius:20px;padding:3px 12px;font-size:0.78rem;font-weight:700;">—</span>
-          <button id="pipeline-btn-simpli" onclick="pipelineExportarInteligente()" title="Exportar SimpliRoute"
-            style="background:#16a34a;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
-            <i class="ph ph-file-xls" style="font-size:1rem;"></i> <span id="pipeline-btn-simpli-txt">SimpliRoute</span>
-          </button>
-          <button onclick="pipelineAbrirModalImportar()" title="Importar OS via Excel"
-            style="display:none;background:#6366f1;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;align-items:center;gap:5px;">
-            <i class="ph ph-upload-simple" style="font-size:1rem;"></i> Importar OS
-          </button>
-          <button onclick="pipelineExcluirSelecionadas()" title="Excluir OS(s) selecionada(s) permanentemente"
-            style="display:none;background:#eab308;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;align-items:center;gap:5px;">
-            <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
-          </button>
-          <button onclick="buscarPipeline()" title="Atualizar pipeline com os filtros atuais"
-            style="background:#3b82f6;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
-            <i class="ph ph-arrows-clockwise" style="font-size:1rem;"></i> Atualizar
-          </button>
-          <button onclick="pipelineToggleAgenda()" id="btn-toggle-agenda" title="Alternar entre Kanban e Agenda"
-            style="background:#7c3aed;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
-            <i class="ph ph-calendar" style="font-size:1rem;"></i> Agenda
-          </button>
-          <button onclick="pipelineLimparFiltros()" title="Limpar filtros"
-            style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#ef4444;font-weight:700;cursor:pointer;font-size:0.82rem;">
-            ✕
-          </button>
+        <!-- LINHA 2: Filtros (colapsável) -->
+        <div id="pipe-filtros-area" style="overflow:hidden;max-height:200px;transition:max-height 0.3s ease, padding 0.3s ease;padding:0 1.5rem 0.65rem 1.5rem;">
+          <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
+
+            <!-- OS -->
+            <div style="display:flex;align-items:center;gap:5px;">
+              <label style="color:#475569;font-size:0.78rem;font-weight:600;">OS:</label>
+              <input type="text" id="pipe-filtro-os" placeholder="OS"
+                style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:85px;background:white;color:#1e293b;outline:none;"
+                oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
+            </div>
+            <!-- Cliente -->
+            <div style="display:flex;align-items:center;gap:5px;">
+              <label style="color:#475569;font-size:0.78rem;font-weight:600;">Cliente:</label>
+              <input type="text" id="pipe-filtro-cliente" placeholder="Cliente"
+                style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:240px;background:white;color:#1e293b;outline:none;"
+                oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
+            </div>
+            <!-- Contrato -->
+            <div style="display:flex;align-items:center;gap:5px;">
+              <label style="color:#475569;font-size:0.78rem;font-weight:600;">Contrato:</label>
+              <input type="text" id="pipe-filtro-contrato" placeholder="Contrato"
+                style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:95px;background:white;color:#1e293b;outline:none;"
+                oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
+            </div>
+            <!-- Servico -->
+            <div style="display:flex;align-items:center;gap:5px;">
+              <label style="color:#475569;font-size:0.78rem;font-weight:600;">Serviço:</label>
+              <input type="text" id="pipe-filtro-servico" placeholder="Ex: VAC, Bomba"
+                style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:110px;background:white;color:#1e293b;outline:none;"
+                oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
+            </div>
+            <!-- Data De / Até -->
+            <div style="display:flex;align-items:center;gap:5px;">
+              <label style="color:#475569;font-size:0.78rem;font-weight:600;">De:</label>
+              <input type="date" id="pipe-filtro-data-de" value="${today}"
+                style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;"
+                onchange="_pipelineSalvarFiltros();buscarPipeline()">
+            </div>
+            <div style="display:flex;align-items:center;gap:5px;">
+              <label style="color:#475569;font-size:0.78rem;font-weight:600;">Até:</label>
+              <input type="date" id="pipe-filtro-data-ate" value="${nextYear}"
+                style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;"
+                onchange="_pipelineSalvarFiltros();buscarPipeline()">
+            </div>
+
+          </div>
+
+          <!-- Segunda linha de filtros -->
+          <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin-top:0.5rem;">
+
+            <!-- Endereço -->
+            <div style="display:flex;align-items:center;gap:5px;">
+              <label style="color:#475569;font-size:0.78rem;font-weight:600;">Endereço:</label>
+              <input type="text" id="pipe-filtro-endereco" placeholder="Endereço"
+                style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:300px;background:white;color:#1e293b;outline:none;"
+                oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
+            </div>
+            <!-- Tipo OS -->
+            <div style="display:flex;align-items:center;gap:5px;">
+              <label style="color:#475569;font-size:0.78rem;font-weight:600;">Tipo:</label>
+              <div style="display:flex;gap:3px;">
+                ${[['','Todos'],['obra','🔵 Obra'],['evento','🟣 Evento']].map(([val,label])=>`<button type="button" onclick="_pipeFiltrarTipo('${val}')" id="pipe-tipo-${val||'todos'}" style="border:1.5px solid #cbd5e1;border-radius:20px;padding:3px 9px;font-size:0.75rem;font-weight:700;cursor:pointer;background:white;color:#475569;transition:all 0.15s;">${label}</button>`).join('')}
+              </div>
+              <input type="hidden" id="pipe-filtro-tipo-os" value="">
+            </div>
+            <!-- Turno -->
+            <div style="display:flex;align-items:center;gap:5px;">
+              <label style="color:#475569;font-size:0.78rem;font-weight:600;">Turno:</label>
+              <div style="display:flex;gap:3px;">
+                ${[['','Todos'],['Diurno','☀️ Diurno'],['Noturno','🌘 Noturno']].map(([val,label])=>`<button type="button" onclick="_pipeFiltrarTurno('${val}')" id="pipe-turno-${val||'todos'}" style="border:1.5px solid #cbd5e1;border-radius:20px;padding:3px 9px;font-size:0.75rem;font-weight:700;cursor:pointer;background:white;color:#475569;transition:all 0.15s;">${label}</button>`).join('')}
+              </div>
+              <input type="hidden" id="pipe-filtro-turno" value="">
+            </div>
+            <!-- Dia: pílulas coloridas (Oculto) -->
+            <div style="display:none;align-items:center;gap:5px;">
+              <label style="color:#475569;font-size:0.78rem;font-weight:600;">Dia:</label>
+              <div id="pipe-filtro-dia-group" style="display:flex;gap:3px;flex-wrap:wrap;">
+                ${[['','Todos','#64748b'],['Segunda','Seg','#ef4444'],['Terça','Ter','#f97316'],['Quarta','Qua','#ca8a04'],['Quinta','Qui','#16a34a'],['Sexta','Sex','#3b82f6'],['Sábado','Sáb','#8b5cf6'],['Domingo','Dom','#ec4899']].map(([val,label,cor])=>`<button type="button" onclick="_pipeFiltrarDia('${val}')" id="pipe-dia-${val||'todos'}" style="border:1.5px solid ${cor};border-radius:20px;padding:3px 9px;font-size:0.75rem;font-weight:700;cursor:pointer;background:white;color:${cor};transition:all 0.15s;">${label}</button>`).join('')}
+              </div>
+              <input type="hidden" id="pipe-filtro-dia" value="">
+            </div>
+
+          </div>
         </div>
       </div>
 
