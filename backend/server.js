@@ -11883,8 +11883,9 @@ app.delete('/api/frota/catalogo/:id', authenticateToken, (req, res) => {
 app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req, res) => {
     const vid = req.params.veiculo_id;
     db.get('SELECT km_atual, em_manutencao FROM frota_veiculos WHERE id=?', [vid], (err, v) => {
-        if (err || !v) return res.status(404).json({ error: 'Não encontrado' });
-        const kmAtual = v.km_atual || 0;
+        // Se o veículo não estiver cadastrado em frota_veiculos, ainda assim tenta buscar manutenções
+        const kmAtual = v?.km_atual || 0;
+        const emManutencao = v?.em_manutencao || 0;
 
         // Apenas serviços registrados para este veículo (preventiva, concluída ou não)
         db.all(`
@@ -11900,7 +11901,7 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                 m.custo,
                 m.fornecedor,
                 m.servico_catalogo_id,
-                COALESCE(s.periodicidade_padrao, m.km_proxima_manutencao - m.km_na_manutencao, 0) as periodicidade_padrao,
+                COALESCE(s.periodicidade_padrao, CASE WHEN m.km_proxima_manutencao IS NOT NULL AND m.km_na_manutencao IS NOT NULL THEN m.km_proxima_manutencao - m.km_na_manutencao ELSE 0 END, 0) as periodicidade_padrao,
                 COALESCE(s.tipo_controle, 'KM') as tipo_controle,
                 COALESCE(s.unidade, 'km') as unidade,
                 COALESCE(c.nome, 'Geral') as categoria_nome,
@@ -11914,10 +11915,12 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
         `, [vid], (err2, rows) => {
             if (err2) return res.status(500).json({ error: err2.message });
 
-            // Para cada serviço distinto, pegar o ÚLTIMO registro concluído
+            console.log(`[PREV] veiculo_id=${vid} → ${(rows||[]).length} registros encontrados`);
+
+            // Para cada serviço distinto, pegar o registro mais recente
             const porDescricao = {};
             (rows || []).forEach(r => {
-                const key = r.servico_catalogo_id ? `cat_${r.servico_catalogo_id}` : `desc_${r.descricao}`;
+                const key = r.servico_catalogo_id ? `cat_${r.servico_catalogo_id}` : `desc_${r.descricao || r.id}`;
                 if (!porDescricao[key]) {
                     porDescricao[key] = r; // primeiro = mais recente (ORDER BY created_at DESC)
                 }
@@ -11953,10 +11956,11 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                 grupos[cat].itens.push(item);
             });
 
-            res.json({ km_atual: kmAtual, em_manutencao: v.em_manutencao, grupos });
+            res.json({ km_atual: kmAtual, em_manutencao: emManutencao, grupos });
         });
     });
 });
+
 
 
 app.get('/api/frota/manutencoes', authenticateToken, (req, res) => {

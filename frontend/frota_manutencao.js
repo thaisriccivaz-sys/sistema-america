@@ -731,7 +731,9 @@ window.salvarManutencao = async function(idEdit) {
                 }
             }
 
-            const kmManut = s.km ? parseInt(s.km) : null;
+            // Pega KM atual do campo (preenchido ao selecionar veículo)
+            const kmAtualCampo = document.getElementById('mn-m-km')?.value;
+            const kmManut = (s.km || kmAtualCampo) ? parseInt(s.km || kmAtualCampo) : null;
             const interv = s.intervalo ? parseInt(s.intervalo) : null;
             const kmProx = (kmManut && interv) ? (kmManut + interv) : null;
 
