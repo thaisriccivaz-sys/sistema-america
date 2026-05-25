@@ -3401,6 +3401,7 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
             (async () => {
                 try {
                     const onedriveBase = `RH/1.Colaboradores/Sistema/${safeNome}`;
+                    await onedrive.ensurePath(onedriveBase);
                     await onedrive.ensureFolder(`${onedriveBase}/01_FICHA_CADASTRAL`);
                     await onedrive.uploadToOneDrive(`${onedriveBase}/01_FICHA_CADASTRAL`, `Foto_${safeNome}.jpg`, processedBuffer);
                     await onedrive.ensureFolder(`${onedriveBase}/FOTOS`);
