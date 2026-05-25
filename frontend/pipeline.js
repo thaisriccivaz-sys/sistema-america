@@ -1689,6 +1689,7 @@ function _agendaRenderDia(todos) {
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
                 <span style="font-weight:800;font-size:0.95rem;color:#1e293b;text-transform:capitalize;">${d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})}</span>
                 <span style="background:#e2e8f0;color:#475569;border-radius:12px;padding:2px 10px;font-size:0.75rem;font-weight:700;">${os.length} OS</span>
+                <span style="background:#dbeafe;color:#1d4ed8;border-radius:12px;padding:2px 10px;font-size:0.75rem;font-weight:700;">${os.reduce((s,o)=>s+_agendaTotalEquipamentos(o),0)} equip.</span>
             </div>
             ${os.length === 0
                 ? `<div style="text-align:center;padding:2rem;color:#94a3b8;"><i class="ph ph-calendar-x" style="font-size:2rem;display:block;"></i><p style="margin-top:8px;">Nenhuma OS para este dia</p></div>`
@@ -1724,7 +1725,7 @@ function _agendaRenderSemana(todos) {
             <div style="background:${isHoje?'#8b5cf6':'#f8fafc'};padding:8px;text-align:center;border-bottom:1px solid #e2e8f0;">
                 <div style="font-weight:800;font-size:0.8rem;color:${isHoje?'#fff':'#334155'};text-transform:capitalize;">${nomeDia}</div>
                 <div style="font-weight:700;font-size:0.85rem;color:${isHoje?'#ede9fe':'#1e293b'};">${numDia}</div>
-                <div style="font-size:0.68rem;color:${isHoje?'#ddd6fe':'#94a3b8'};">${os.length} OS</div>
+                <div style="font-size:0.68rem;color:${isHoje?'#ddd6fe':'#94a3b8'};">${os.length} OS &nbsp;·&nbsp; ${os.reduce((s,o)=>s+_agendaTotalEquipamentos(o),0)} equip.</div>
             </div>
             <div style="padding:6px;min-height:100px;">
                 ${os.length === 0
