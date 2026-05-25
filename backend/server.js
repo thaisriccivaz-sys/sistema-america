@@ -11879,6 +11879,15 @@ app.delete('/api/frota/catalogo/:id', authenticateToken, (req, res) => {
     });
 });
 
+// DEBUG - ver últimas manutenções (temporário)
+app.get('/api/frota/debug/manutencoes', authenticateToken, (req, res) => {
+    db.all(`SELECT id, veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, created_at 
+            FROM frota_manutencoes ORDER BY id DESC LIMIT 30`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
 // GET - preventivo por veiculo usando catálogo (plano ou padrão)
 app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req, res) => {
     const vid = req.params.veiculo_id;
