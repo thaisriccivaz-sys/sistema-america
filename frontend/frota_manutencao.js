@@ -474,20 +474,21 @@ window.abrirModalManutencao = async function(id, opts = {}) {
         <div>${lbl('Fornecedor / Oficina')}${inp('mn-m-forn', m.fornecedor, 'Digite para buscar ou criar...', 'text', 'lista-fornecedores')}</div>
         <div>${lbl('Data Agendamento')}${inp('mn-m-data-ag', m.data_agendamento, '', 'date')}</div>
     </div>` : `
-    <input type="hidden" id="mn-m-tipo" value="${m.tipo||'corretiva'}">
+    <input type="hidden" id="mn-m-tipo" value="${m.tipo||'preventiva'}">
     <input type="hidden" id="mn-m-status" value="${m.status||'concluida'}">
     <input type="hidden" id="mn-m-forn" value="${m.fornecedor||''}">
     <input type="hidden" id="mn-m-data-ag" value="${m.data_agendamento||''}">
     <div id="mn-forn-data-box" style="display:none;"></div>`}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-        <div>${lbl('KM Atual (Realizada em)')}<input id="mn-m-km" value="${m.km_na_manutencao||''}" type="number" readonly style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;background:#f8fafc;cursor:not-allowed;color:#64748b;" title="Apenas visualização. Edite o KM na Gestão de Frota."></div>
-        <div>${lbl('KM de intervalo para a proxima')}${inp('mn-m-intervalo', '', 'Ex: 10000', 'number')}</div>
+        <div>${lbl('KM Atual (Realizada em)')}<input id="mn-m-km" value="${m.km_na_manutencao||""}" type="number" readonly style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;background:#f8fafc;cursor:not-allowed;color:#64748b;" title="Apenas visualização. Edite o KM na Gestão de Frota."></div>
+        <div>${lbl('KM intervalo (todos os serviços)')}<div style="display:flex;gap:6px;">${inp('mn-m-intervalo', '', 'Ex: 10000', 'number')}<button onclick="window.mnAplicarIntervaloTodos()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0 10px;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;" title="Aplica este intervalo a todos os serviços da lista">Aplicar a todos</button></div></div>
     </div>
     <div style="flex:1;">${lbl('Observações')}<textarea id="mn-m-obs" placeholder="Observações adicionais..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:100px;resize:vertical;">${m.observacoes||''}</textarea></div>
     <div style="display:flex;gap:1rem;justify-content:flex-end;padding-top:0.75rem;border-top:1px solid #e2e8f0;">
         <button onclick="document.getElementById('modal-manut-ov').remove()" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;color:#475569;">Cancelar</button>
         <button onclick="window.salvarManutencao(${id||'null'})" style="background:#d97706;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.5rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> ${id ? 'Salvar Alterações' : 'Registrar'}</button>
     </div>
+  </div>
   </div>
   <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;">
     <h4 style="margin:0;font-size:0.9rem;color:#1e293b;display:flex;align-items:center;gap:6px;"><i class="ph ph-list-plus" style="color:#0284c7;"></i> Serviços</h4>
@@ -641,7 +642,18 @@ window.mnModalRemoveServico = function(idx) {
     window.mnModalRenderServicos();
 };
 
+window.mnAplicarIntervaloTodos = function() {
+    const intInp = document.getElementById('mn-m-intervalo');
+    const val = intInp?.value?.trim();
+    if (!val) return alert('Digite o KM de intervalo antes de aplicar.');
+    if (!window._mnModalServicos.length) return alert('Adicione serviços à lista primeiro.');
+    window._mnModalServicos.forEach(s => { s.intervalo = val; });
+    window.mnModalRenderServicos();
+    if (typeof showToast === 'function') showToast(`Intervalo de ${Number(val).toLocaleString('pt-BR')} km aplicado a todos os ${window._mnModalServicos.length} serviços.`, 'success');
+};
+
 window.mnModalEditarIntervaloServico = function(idx) {
+
     const serv = window._mnModalServicos[idx];
     const n = prompt(`Novo intervalo para ${serv.nome}:`, serv.intervalo || '');
     if (n !== null) {
@@ -744,16 +756,29 @@ window.salvarManutencao = async function(idEdit) {
 
         document.getElementById('modal-manut-ov')?.remove();
         
-        const manut = await fetch('/api/frota/manutencoes', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json());
+        const [manut, frota] = await Promise.all([
+            fetch('/api/frota/manutencoes', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json()),
+            fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json())
+        ]);
         window._manutDados = manut || [];
-        const frota = await fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json());
+        window._manutFrota = frota || [];
         window._frotaDados = frota || [];
         
         if (window._mnSubAba === 'corretiva') {
             const sub = document.getElementById('mn-sub-conteudo');
             if (sub) mnRenderCorretivaTela(sub);
-        } else if (window._mnSubAba === 'preventiva') {
-            window.mnCarregarPreventivoVeiculo();
+        } else {
+            // Re-renderiza a aba preventiva COMPLETA (incluindo dropdown de veículos)
+            const sub = document.getElementById('mn-sub-conteudo');
+            if (sub) {
+                mnRenderPreventivaTela(sub);
+                // Seleciona automaticamente o veículo recém-salvo
+                const sel = document.getElementById('mn-prev-veiculo');
+                if (sel && vid) {
+                    sel.value = vid;
+                    window.mnCarregarPreventivoVeiculo();
+                }
+            }
         }
     } catch(e) { 
         alert('Erro: ' + e.message); 
