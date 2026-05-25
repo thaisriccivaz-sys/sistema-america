@@ -68,7 +68,10 @@ window.mnMudarSubAba = function(aba) {
 
 function mnRenderPreventivaTela(sub) {
     const frota = window._manutFrota || [];
-    const veicOpts = frota.map(v => `<option value="${v.id}">${v.placa} \u2014 ${(v.marca_modelo_versao||'').substring(0,28)}</option>`).join('');
+    // Apenas veículos com ao menos uma manutenção preventiva registrada
+    const idsComPrev = new Set((window._manutDados||[]).filter(m => m.tipo==='preventiva').map(m => String(m.veiculo_id)));
+    const frotaComPrev = frota.filter(v => idsComPrev.has(String(v.id)));
+    const veicOpts = frotaComPrev.map(v => `<option value="${v.id}">${v.placa} \u2014 ${(v.marca_modelo_versao||'').substring(0,28)}</option>`).join('');
     sub.innerHTML = `
     <div style="background:#fff;padding:1rem 1.25rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
         <label style="font-weight:700;color:#475569;font-size:0.9rem;">Veículo:</label>
@@ -453,6 +456,7 @@ window.abrirModalManutencao = async function(id, opts = {}) {
   <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;border-right:1px solid #e2e8f0;">
     <datalist id="lista-fornecedores">${fornListOpts}</datalist>
     <div>${lbl('Veículo *')}<select id="mn-m-veiculo" onchange="window.mnModalVeiculoChanged()" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;"><option value="">Selecione...</option>${veicOpts}</select></div>
+    ${id ? `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
         <div>${lbl('Tipo *')}${sel('mn-m-tipo', [{v:'preventiva',l:'Preventiva'},{v:'corretiva',l:'Corretiva'}], m.tipo, opts.tipo!==undefined, 'const box=document.getElementById("mn-forn-data-box"); if(box) box.style.display=this.value==="preventiva"?"none":"grid";')}</div>
         <div>${lbl('Status *')}${sel('mn-m-status', [{v:'programada',l:'Programada'},{v:'agendada',l:'Agendada'},{v:'em_andamento',l:'Em Andamento'},{v:'concluida',l:'Concluída'},{v:'cancelada',l:'Cancelada'}], m.status||'programada', false)}</div>
@@ -460,7 +464,12 @@ window.abrirModalManutencao = async function(id, opts = {}) {
     <div id="mn-forn-data-box" style="display:${m.tipo==='preventiva'?'none':'grid'};grid-template-columns:1fr 1fr;gap:1rem;">
         <div>${lbl('Fornecedor / Oficina')}${inp('mn-m-forn', m.fornecedor, 'Digite para buscar ou criar...', 'text', 'lista-fornecedores')}</div>
         <div>${lbl('Data Agendamento')}${inp('mn-m-data-ag', m.data_agendamento, '', 'date')}</div>
-    </div>
+    </div>` : `
+    <input type="hidden" id="mn-m-tipo" value="${m.tipo||'corretiva'}">
+    <input type="hidden" id="mn-m-status" value="${m.status||'concluida'}">
+    <input type="hidden" id="mn-m-forn" value="${m.fornecedor||''}">
+    <input type="hidden" id="mn-m-data-ag" value="${m.data_agendamento||''}">
+    <div id="mn-forn-data-box" style="display:none;"></div>`}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
         <div>${lbl('KM Atual (Realizada em)')}<input id="mn-m-km" value="${m.km_na_manutencao||''}" type="number" readonly style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;background:#f8fafc;cursor:not-allowed;color:#64748b;" title="Apenas visualização. Edite o KM na Gestão de Frota."></div>
         <div>${lbl('KM de intervalo para a proxima')}${inp('mn-m-intervalo', '', 'Ex: 10000', 'number')}</div>
