@@ -339,6 +339,12 @@ async function buscarPipeline() {
         }
 
         pipelineRenderKanban(_pipelineDados);
+
+        // Se a agenda estiver ativa, re-renderiza ela também com os dados filtrados
+        if (_agendaAtiva) {
+            _agendaRender();
+        }
+
     } catch(e) {
         const msg = (e.message || '').toLowerCase();
         const isAuth = msg.includes('token') || msg.includes('401') || msg.includes('403') || msg.includes('unauthorized');
