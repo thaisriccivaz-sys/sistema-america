@@ -33,6 +33,10 @@ window.initFrotaManutencoes = async function(containerEl) {
         style="padding:0.5rem 1.2rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;background:transparent;color:#64748b;">
         <i class="ph ph-wrench"></i> Corretiva
     </button>
+    <button id="mn-sub-btn-historico" onclick="window.mnMudarSubAba('historico')" 
+        style="padding:0.5rem 1.2rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;background:transparent;color:#64748b;">
+        <i class="ph ph-clock-counter-clockwise"></i> Histórico
+    </button>
 </div>
 
 <div id="mn-sub-conteudo"></div>
@@ -59,7 +63,7 @@ window.initFrotaManutencoes = async function(containerEl) {
 
 window.mnMudarSubAba = function(aba) {
     window._mnSubAba = aba;
-    ['preventiva','corretiva'].forEach(a => {
+    ['preventiva','corretiva','historico'].forEach(a => {
         const btn = document.getElementById('mn-sub-btn-' + a);
         if (!btn) return;
         btn.style.background = a === aba ? '#d97706' : 'transparent';
@@ -68,8 +72,146 @@ window.mnMudarSubAba = function(aba) {
     const sub = document.getElementById('mn-sub-conteudo');
     if (!sub) return;
     if (aba === 'preventiva') mnRenderPreventivaTela(sub);
-    else mnRenderCorretivaTela(sub);
+    else if (aba === 'corretiva') mnRenderCorretivaTela(sub);
+    else mnRenderHistoricoTela(sub);
 };
+
+window.mnRenderHistoricoTela = function(sub) {
+    sub.innerHTML = `
+    <div style="background:#fff;padding:1rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <i class="ph ph-funnel" style="color:#16a34a;font-size:1rem;flex-shrink:0;"></i>
+        <input id="mn-tab-hist-f-placa" type="text" placeholder="Placa..." style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;width:100px;outline:none;" oninput="window.mnFiltrarTabHistorico()">
+        <select id="mn-tab-hist-f-tm" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;outline:none;" onchange="window.mnFiltrarTabHistorico()">
+            <option value="">Tipo Manutenção</option>
+            <option value="preventiva">Preventiva</option>
+            <option value="corretiva">Corretiva</option>
+        </select>
+        <select id="mn-tab-hist-f-tipo" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;outline:none;" onchange="window.mnFiltrarTabHistorico()">
+            <option value="">Tipo veículo</option>
+            <option value="caminhão">Caminhão</option>
+            <option value="caminhonete">Caminhonete</option>
+            <option value="utilitário">Utilitário</option>
+            <option value="carretinha">Carretinha</option>
+            <option value="caminhão tanque">Caminhão Tanque</option>
+        </select>
+        <select id="mn-tab-hist-f-crit" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;outline:none;" onchange="window.mnFiltrarTabHistorico()">
+            <option value="">Criticidade</option>
+            <option value="Critica">Crítica</option>
+            <option value="Alta">Alta</option>
+            <option value="Media">Média</option>
+            <option value="Baixa">Baixa</option>
+        </select>
+        <span style="font-size:0.8rem;color:#94a3b8;">Realizada de</span>
+        <input id="mn-tab-hist-f-real-de" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;outline:none;" onchange="window.mnFiltrarTabHistorico()">
+        <span style="font-size:0.8rem;color:#94a3b8;">até</span>
+        <input id="mn-tab-hist-f-real-ate" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;outline:none;" onchange="window.mnFiltrarTabHistorico()">
+        <span style="font-size:0.8rem;color:#94a3b8;">Agendada de</span>
+        <input id="mn-tab-hist-f-ag-de" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;outline:none;" onchange="window.mnFiltrarTabHistorico()">
+        <span style="font-size:0.8rem;color:#94a3b8;">até</span>
+        <input id="mn-tab-hist-f-ag-ate" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;outline:none;" onchange="window.mnFiltrarTabHistorico()">
+        <button style="padding:4px 12px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-size:0.8rem;cursor:pointer;" onclick="['mn-tab-hist-f-placa','mn-tab-hist-f-tm','mn-tab-hist-f-tipo','mn-tab-hist-f-crit','mn-tab-hist-f-real-de','mn-tab-hist-f-real-ate','mn-tab-hist-f-ag-de','mn-tab-hist-f-ag-ate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});window.mnFiltrarTabHistorico();">Limpar</button>
+        <span id="mn-tab-hist-count" style="margin-left:auto;background:#dcfce7;color:#166534;border-radius:99px;padding:2px 10px;font-size:0.8rem;font-weight:700;"></span>
+    </div>
+    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                <thead>
+                    <tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">
+                        <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Placa</th>
+                        <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Tipo Veículo</th>
+                        <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Tipo Manut.</th>
+                        <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Serviço</th>
+                        <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Criticidade</th>
+                        <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Data Realizada / KM</th>
+                        <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Data Agendada</th>
+                        <th style="padding:10px;text-align:right;color:#475569;font-weight:700;">Próximo KM</th>
+                        <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Fornecedor</th>
+                    </tr>
+                </thead>
+                <tbody id="mn-tab-hist-tbody">
+                    <tr><td colspan="10" style="text-align:center;padding:20px;color:#94a3b8;"><i class="ph ph-circle-notch ph-spin"></i> Carregando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>`;
+    window.mnCarregarTabHistorico();
+};
+
+window._mnTabHistDados = [];
+
+window.mnCarregarTabHistorico = async function() {
+    try {
+        const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+        const res = await fetch('/api/frota/manutencoes/historico', { headers: { Authorization: 'Bearer ' + tok } });
+        window._mnTabHistDados = await res.json();
+        if (!Array.isArray(window._mnTabHistDados)) window._mnTabHistDados = [];
+        window.mnFiltrarTabHistorico();
+    } catch(e) {
+        const tbody = document.getElementById('mn-tab-hist-tbody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:#ef4444;">Erro ao carregar histórico.</td></tr>';
+    }
+};
+
+window.mnFiltrarTabHistorico = function() {
+    const tbody = document.getElementById('mn-tab-hist-tbody');
+    if (!tbody) return;
+    const fPlaca   = (document.getElementById('mn-tab-hist-f-placa')?.value   || '').trim().toLowerCase();
+    const fTm      = (document.getElementById('mn-tab-hist-f-tm')?.value      || '').toLowerCase();
+    const fTipo    = (document.getElementById('mn-tab-hist-f-tipo')?.value    || '').toLowerCase();
+    const fCrit    = (document.getElementById('mn-tab-hist-f-crit')?.value    || '').toLowerCase();
+    const fRealDe  = document.getElementById('mn-tab-hist-f-real-de')?.value  || '';
+    const fRealAte = document.getElementById('mn-tab-hist-f-real-ate')?.value || '';
+    const fAgDe    = document.getElementById('mn-tab-hist-f-ag-de')?.value    || '';
+    const fAgAte   = document.getElementById('mn-tab-hist-f-ag-ate')?.value   || '';
+
+    const lista = window._mnTabHistDados.filter(m => {
+        if (fPlaca   && !(m.placa||'').toLowerCase().includes(fPlaca)) return false;
+        if (fTm      && (m.tipo_manutencao||'').toLowerCase() !== fTm) return false;
+        if (fTipo    && !(m.tipo_veiculo||'').toLowerCase().includes(fTipo)) return false;
+        if (fCrit    && (m.criticidade||'').toLowerCase() !== fCrit) return false;
+        if (fRealDe  && (m.data_conclusao||'')   < fRealDe)  return false;
+        if (fRealAte && (m.data_conclusao||'')   > fRealAte) return false;
+        if (fAgDe    && (m.data_agendamento||'') < fAgDe)    return false;
+        if (fAgAte   && (m.data_agendamento||'') > fAgAte)   return false;
+        return true;
+    });
+
+    const count = document.getElementById('mn-tab-hist-count');
+    if (count) count.textContent = lista.length + ' registros';
+
+    if (!lista.length) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:#94a3b8;">Nenhuma manutenção encontrada.</td></tr>';
+        return;
+    }
+
+    const _critCor = { Critica:'#dc2626', Alta:'#d97706', Media:'#0284c7', Baixa:'#2d9e5f' };
+    const _fmtData = d => {
+        if (!d) return '—';
+        const [y,m,dia] = d.split('-');
+        return (dia||d) + '/' + (m||'') + '/' + (y||'').slice(2);
+    };
+
+    tbody.innerHTML = lista.map((m, i) => {
+        const bgRow = i % 2 === 0 ? '#fff' : '#fafafa';
+        const cor = _critCor[m.criticidade] || '#94a3b8';
+        const critBadge = m.criticidade
+            ? '<span style="background:' + cor + '22;color:' + cor + ';padding:2px 8px;border-radius:20px;font-size:0.75rem;font-weight:700;">' + m.criticidade + '</span>'
+            : '—';
+        const desc = (m.descricao || '—').replace(/"/g, '&quot;');
+        return '<tr style="background:' + bgRow + ';border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\\'#f0fdf4\\'" onmouseout="this.style.background=\\'' + bgRow + '\\'">' +
+            '<td style="padding:10px;font-weight:700;color:#1e293b;white-space:nowrap;">' + (m.placa||'—') + '</td>' +
+            '<td style="padding:10px;color:#64748b;white-space:nowrap;">' + (m.tipo_veiculo||'—') + '</td>' +
+            '<td style="padding:10px;text-align:center;color:#64748b;font-weight:600;white-space:nowrap;text-transform:capitalize;">' + (m.tipo_manutencao||'—') + '</td>' +
+            '<td style="padding:10px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + desc + '">' + (m.descricao||'—') + '</td>' +
+            '<td style="padding:10px;text-align:center;">' + critBadge + '</td>' +
+            '<td style="padding:10px;text-align:center;color:#2d9e5f;font-weight:600;white-space:nowrap;">' + _fmtData(m.data_conclusao) + '<br><span style="font-size:0.75rem;font-weight:400;color:#64748b;">' + (m.km_na_manutencao ? Number(m.km_na_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</span></td>' +
+            '<td style="padding:10px;text-align:center;color:#2563eb;white-space:nowrap;">' + _fmtData(m.data_agendamento) + '</td>' +
+            '<td style="padding:10px;text-align:right;color:#0284c7;font-weight:600;white-space:nowrap;">' + (m.km_proxima_manutencao ? Number(m.km_proxima_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</td>' +
+            '<td style="padding:10px;color:#64748b;">' + (m.fornecedor||'—') + '</td>' +
+            '</tr>';
+    }).join('');
+};
+
 
 function mnRenderPreventivaTela(sub) {
     const frota = window._manutFrota || [];
