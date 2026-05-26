@@ -11924,7 +11924,7 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
             LEFT JOIN frota_categorias_manutencao c ON c.id = s.categoria_id
             WHERE m.veiculo_id = ? AND m.tipo = 'preventiva'
             GROUP BY m.id
-            ORDER BY c.ordem, m.descricao, m.created_at DESC
+            ORDER BY m.km_na_manutencao DESC, m.created_at DESC
         `, [vid], (err2, rows) => {
             if (err2) { console.error('[PREV ERROR]', err2.message); return res.status(500).json({ error: err2.message }); }
 
@@ -12352,9 +12352,9 @@ app.post('/api/frota/manutencoes/agendar-selecionados', authenticateToken, async
                     if (err) return reject(err);
                     if (!srv) return resolve(); // serviço não encontrado, pula
                     db.run(
-                        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, data_agendamento, fornecedor, observacoes, usuario_nome)
-                         VALUES (?,?,?,?,?,?,?,?)`,
-                        [veiculo_id, 'preventiva', srv.nome, 'agendada', data_agendamento || null, fornecedor || null, observacoes || null, usuario_nome],
+                        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, data_agendamento, fornecedor, observacoes, usuario_nome, servico_catalogo_id)
+                         VALUES (?,?,?,?,?,?,?,?,?)`,
+                        [veiculo_id, 'preventiva', srv.nome, 'agendada', data_agendamento || null, fornecedor || null, observacoes || null, usuario_nome, servico_id],
                         (err2) => { if (err2) return reject(err2); resolve(); }
                     );
                 });

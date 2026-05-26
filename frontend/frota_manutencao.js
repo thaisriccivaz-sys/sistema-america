@@ -118,6 +118,7 @@ function mnRenderPlanoAgrupado(data) {
 
     let html = `<div style="display:flex;flex-direction:column;gap:1rem;">`;
     Object.entries(grupos).forEach(([catNome, cat]) => {
+        const catKey = catNome.replace(/[^a-zA-Z0-9]/g, '_');
         const rows = cat.itens.map(item => {
             let cor = '#2d9e5f', bg = '#ecfdf5', icone = 'check-circle';
             if (item.status_item==='vencida') { cor='#dc2626'; bg='#fef2f2'; icone='warning'; }
@@ -137,11 +138,13 @@ function mnRenderPlanoAgrupado(data) {
 
             const criticBadge = `<span style="background:${critCor[item.criticidade]||'#94a3b8'}22;color:${critCor[item.criticidade]||'#94a3b8'};padding:1px 7px;border-radius:20px;font-size:0.72rem;font-weight:700;">${item.criticidade||'Media'}</span>`;
 
-            const statusBadge = item.status === 'concluida'
-                ? `<span style="background:#ecfdf5;color:#2d9e5f;padding:1px 7px;border-radius:20px;font-size:0.72rem;font-weight:700;">Concluída</span>`
-                : `<span style="background:#fffbeb;color:#d97706;padding:1px 7px;border-radius:20px;font-size:0.72rem;font-weight:700;">${item.status||'Pendente'}</span>`;
+            const statusCor = {concluida:'#2d9e5f',agendada:'#2563eb',programada:'#7c3aed',em_andamento:'#d97706',cancelada:'#94a3b8'};
+            const statusLbl = {concluida:'Concluída',agendada:'Agendada',programada:'Programada',em_andamento:'Em Andamento',cancelada:'Cancelada'};
+            const sKey = item.status||'concluida';
+            const statusBadge = `<span style="background:${statusCor[sKey]||'#94a3b8'}22;color:${statusCor[sKey]||'#94a3b8'};padding:1px 7px;border-radius:20px;font-size:0.72rem;font-weight:700;">${statusLbl[sKey]||sKey}</span>`;
 
             const nome = item.descricao || item.nome || '—';
+            const nomeSafe = nome.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
             const obsIcon = item.observacoes
                 ? `<i class="ph ph-chat-text" style="color:#0284c7;cursor:pointer;font-size:1rem;margin-left:4px;" title="${item.observacoes.replace(/"/g,'&quot;')}" onclick="alert('Observações:\\n\\n${item.observacoes.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')"></i>`
                 : '';
@@ -149,6 +152,9 @@ function mnRenderPlanoAgrupado(data) {
             const catBadge = `<span style="display:inline-flex;align-items:center;gap:4px;background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:20px;font-size:0.72rem;font-weight:600;white-space:nowrap;"><i class="ph ph-${cat.icone||'wrench'}" style="font-size:0.75rem;"></i>${catNome}</span>`;
 
             return `<tr style="background:${bg};border-bottom:1px solid #e2e8f0;">
+                <td style="padding:0.6rem 0.5rem;text-align:center;">
+                    <input type="checkbox" class="mn-prev-cb mn-prev-cb-cat-${catKey}" data-id="${item.id}" data-nome="${nomeSafe}" onchange="window.mnPrevCbChanged()" style="width:15px;height:15px;cursor:pointer;">
+                </td>
                 <td style="padding:0.6rem 0.9rem;">
                     <div style="display:flex;align-items:center;gap:6px;">
                         <i class="ph ph-${icone}" style="color:${cor};font-size:1rem;"></i>
@@ -162,37 +168,63 @@ function mnRenderPlanoAgrupado(data) {
                 <td style="padding:0.6rem 0.9rem;text-align:center;font-size:0.82rem;">${kmUltTxt}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;font-size:0.82rem;">${kmProxTxt}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${kmRestTxt}</td>
-                <td style="padding:0.6rem 0.9rem;text-align:center;">
-                    <button onclick="window.abrirModalManutencao(${item.id})"
-                        style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Editar">
-                        <i class="ph ph-pencil"></i>
-                    </button>
+                <td style="padding:0.6rem 0.5rem;text-align:center;">
+                    <div style="display:flex;gap:4px;justify-content:center;">
+                        <button onclick="window.mnAgendarIndividual(${item.id}, '${nomeSafe}')"
+                            style="background:#7c3aed;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Agendar próxima">
+                            <i class="ph ph-calendar-plus"></i>
+                        </button>
+                        <button onclick="window.abrirModalManutencao(${item.id})"
+                            style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Editar">
+                            <i class="ph ph-pencil"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>`;
         }).join('');
 
         html += `<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
             <div style="background:#1e293b;padding:0.65rem 1rem;display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" onchange="window.mnPrevToggleCat(this, '${catKey}')"
+                    style="width:15px;height:15px;cursor:pointer;accent-color:#f59e0b;" title="Selecionar todos">
                 <i class="ph ph-${cat.icone||'wrench'}" style="color:#f59e0b;font-size:1rem;"></i>
                 <span style="font-weight:700;color:#fff;font-size:0.9rem;">${catNome}</span>
                 <span style="margin-left:auto;font-size:0.78rem;color:#94a3b8;">${cat.itens.length} serviços</span>
             </div>
             <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.83rem;">
                 <thead><tr style="background:#f1f5f9;">
+                    <th style="padding:0.5rem 0.5rem;width:36px;"></th>
                     <th style="padding:0.5rem 0.9rem;text-align:left;color:#64748b;font-weight:600;">Serviço</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Categoria</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Criticidade</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Situação</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">KM Realizado</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Próximo KM</th>
-                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Status</th>
-                    <th style="padding:0.5rem 0.9rem;"></th>
+                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Status KM</th>
+                    <th style="padding:0.5rem 0.5rem;width:70px;"></th>
                 </tr></thead>
                 <tbody>${rows}</tbody>
             </table></div>
         </div>`;
     });
-    html += '</div>';
+
+    // Barra de ações em massa
+    html += `</div>
+    <div id="mn-prev-mass-actions" style="display:none;position:sticky;bottom:0;background:#1e293b;color:#fff;padding:0.75rem 1rem;border-radius:10px;margin-top:0.5rem;flex-wrap:wrap;gap:8px;align-items:center;">
+        <i class="ph ph-check-square" style="color:#f59e0b;font-size:1.1rem;"></i>
+        <span style="font-weight:600;font-size:0.88rem;"><span id="mn-prev-sel-count">0</span> selecionado(s)</span>
+        <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
+            <button onclick="window.mnAgendarSelecionados()" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:600;font-size:0.83rem;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <i class="ph ph-calendar-plus"></i> Agendar Selecionados
+            </button>
+            <button onclick="window.mnFinalizarAgendado()" style="background:#2d9e5f;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:600;font-size:0.83rem;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <i class="ph ph-check-circle"></i> Finalizar Selecionados
+            </button>
+            <button onclick="window.mnEditarIntervaloObsSelecionados()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:600;font-size:0.83rem;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <i class="ph ph-pencil-simple"></i> Editar Intervalo
+            </button>
+        </div>
+    </div>`;
     return html;
 }
 
@@ -479,7 +511,7 @@ window.abrirModalManutencao = async function(id, opts = {}) {
         <div>${lbl('Data Agendamento')}${inp('mn-m-data-ag', m.data_agendamento, '', 'date')}</div>
     </div>` : `
     <input type="hidden" id="mn-m-tipo" value="${m.tipo||'preventiva'}">
-    <input type="hidden" id="mn-m-status" value="${m.status||'concluida'}">
+    <input type="hidden" id="mn-m-status" value="concluida">
     <input type="hidden" id="mn-m-forn" value="${m.fornecedor||''}">
     <input type="hidden" id="mn-m-data-ag" value="${m.data_agendamento||''}">
     <div id="mn-forn-data-box" style="display:none;"></div>`}
@@ -533,10 +565,18 @@ window.abrirModalManutencao = async function(id, opts = {}) {
         window.mnModalRenderServicos();
     } else if (m.descricao) {
         let interv = '';
+        // 1) busca pelo ID do serviço no catálogo
         if (m.servico_catalogo_id) {
             const catItem = (window._manutCatalogo||[]).find(c => c.id == m.servico_catalogo_id);
             if (catItem) interv = catItem.periodicidade_padrao;
-        } else if (m.km_proxima_manutencao && m.km_na_manutencao) {
+        }
+        // 2) fallback: busca pelo nome no catálogo
+        if (!interv && m.descricao) {
+            const catItem = (window._manutCatalogo||[]).find(c => c.nome === m.descricao);
+            if (catItem) interv = catItem.periodicidade_padrao;
+        }
+        // 3) fallback: km_proxima - km_na_manutencao
+        if (!interv && m.km_proxima_manutencao && m.km_na_manutencao) {
             interv = m.km_proxima_manutencao - m.km_na_manutencao;
         }
 
@@ -818,6 +858,18 @@ window.mnPrevCbChanged = function() {
         bar.style.display = 'none';
     }
 };
+
+// Agendar individualmente (botão roxo por linha)
+window.mnAgendarIndividual = function(itemId, nome) {
+    const vid = document.getElementById('mn-prev-veiculo')?.value;
+    if (!vid) return alert('Selecione um veículo primeiro');
+    // Desmarca todos e marca apenas este
+    document.querySelectorAll('.mn-prev-cb').forEach(c => c.checked = false);
+    const cb = document.querySelector(`.mn-prev-cb[data-id="${itemId}"]`);
+    if (cb) { cb.checked = true; window.mnPrevCbChanged(); }
+    window.mnAgendarSelecionados();
+};
+
 
 window.mnEditarIntervaloObsSelecionados = function() {
     const cbs = document.querySelectorAll('.mn-prev-cb:checked');
