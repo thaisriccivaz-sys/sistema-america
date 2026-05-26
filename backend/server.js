@@ -11930,20 +11930,34 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
 
             console.log(`[PREV] veiculo_id=${vid} → ${(rows||[]).length} registros encontrados`);
 
-            // Para cada serviço distinto, pegar o registro mais recente
+            // Para cada serviço distinto, guardar tanto o último concluído (km, data) quanto o agendado
             const porDescricao = {};
             (rows || []).forEach(r => {
                 const key = r.servico_catalogo_id ? `cat_${r.servico_catalogo_id}` : `desc_${r.descricao || r.id}`;
-                if (!porDescricao[key]) {
-                    porDescricao[key] = r; // primeiro = mais recente (ORDER BY created_at DESC)
+                if (!porDescricao[key]) porDescricao[key] = { concluida: null, agendada: null, base: null };
+
+                // O registro com maior KM = última manutenção concluída
+                if (r.status === 'concluida') {
+                    if (!porDescricao[key].concluida || (r.km_na_manutencao || 0) > (porDescricao[key].concluida.km_na_manutencao || 0)) {
+                        porDescricao[key].concluida = r;
+                    }
                 }
+                // Agendada mais recente
+                if (r.status === 'agendada') {
+                    if (!porDescricao[key].agendada) porDescricao[key].agendada = r;
+                }
+                // Fallback: qualquer registro como base
+                if (!porDescricao[key].base) porDescricao[key].base = r;
             });
 
-            const plano = Object.values(porDescricao).map(item => {
-                const kmUlt = item.km_na_manutencao || 0;
+            const plano = Object.values(porDescricao).map(({ concluida, agendada, base }) => {
+                const item = concluida || agendada || base;
+                const kmUlt = concluida ? (concluida.km_na_manutencao || 0) : 0;
                 const intervKm = item.periodicidade_padrao || 10000;
                 const alerta = Math.floor(intervKm * 0.1);
-                const kmProx = item.km_proxima_manutencao || (kmUlt + intervKm);
+                const kmProx = concluida
+                    ? (concluida.km_proxima_manutencao || (kmUlt + intervKm))
+                    : (item.km_proxima_manutencao || (kmUlt + intervKm));
                 const kmRest = kmProx - kmAtual;
 
                 let statusItem = 'ok';
@@ -11958,7 +11972,9 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                     km_proxima: kmProx,
                     km_restante: kmRest,
                     status_item: statusItem,
-                    criticidade
+                    criticidade,
+                    data_ultima_manutencao: concluida?.data_conclusao || null,
+                    data_agendamento: agendada?.data_agendamento || item.data_agendamento || null
                 };
             });
 

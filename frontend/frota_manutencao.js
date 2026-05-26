@@ -149,7 +149,16 @@ function mnRenderPlanoAgrupado(data) {
                 ? `<i class="ph ph-chat-text" style="color:#0284c7;cursor:pointer;font-size:1rem;margin-left:4px;" title="${item.observacoes.replace(/"/g,'&quot;')}" onclick="alert('Observações:\\n\\n${item.observacoes.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')"></i>`
                 : '';
 
-            const catBadge = `<span style="display:inline-flex;align-items:center;gap:4px;background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:20px;font-size:0.72rem;font-weight:600;white-space:nowrap;"><i class="ph ph-${cat.icone||'wrench'}" style="font-size:0.75rem;"></i>${catNome}</span>`;
+            // Última manutenção realizada
+            const fmtDate = d => {
+                if (!d) return '<span style="color:#94a3b8;">—</span>';
+                const [y,m,dia] = d.split('-');
+                return `<span style="font-weight:600;color:#475569;font-size:0.82rem;">${dia||d}/${m||''}/${(y||'').slice(2)}</span>`;
+            };
+            const ultimaManuTxt = fmtDate(item.data_ultima_manutencao);
+            const dataAgendadaTxt = item.data_agendamento
+                ? `<span style="font-weight:700;color:#2563eb;font-size:0.82rem;">${fmtDate(item.data_agendamento).replace(/<[^>]+>/g,'').trim()}</span>`
+                : '<span style="color:#94a3b8;">—</span>';
 
             return `<tr style="background:${bg};border-bottom:1px solid #e2e8f0;">
                 <td style="padding:0.6rem 0.5rem;text-align:center;">
@@ -162,9 +171,10 @@ function mnRenderPlanoAgrupado(data) {
                         ${obsIcon}
                     </div>
                 </td>
-                <td style="padding:0.6rem 0.9rem;text-align:center;">${catBadge}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${criticBadge}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${statusBadge}</td>
+                <td style="padding:0.6rem 0.9rem;text-align:center;">${ultimaManuTxt}</td>
+                <td style="padding:0.6rem 0.9rem;text-align:center;">${dataAgendadaTxt}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;font-size:0.82rem;">${kmUltTxt}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;font-size:0.82rem;">${kmProxTxt}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${kmRestTxt}</td>
@@ -195,9 +205,10 @@ function mnRenderPlanoAgrupado(data) {
                 <thead><tr style="background:#f1f5f9;">
                     <th style="padding:0.5rem 0.5rem;width:36px;"></th>
                     <th style="padding:0.5rem 0.9rem;text-align:left;color:#64748b;font-weight:600;">Serviço</th>
-                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Categoria</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Criticidade</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Situação</th>
+                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Última Manu.</th>
+                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Data Agendada</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">KM Realizado</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Próximo KM</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Status KM</th>
@@ -506,10 +517,11 @@ window.abrirModalManutencao = async function(id, opts = {}) {
         <div>${lbl('Tipo *')}${sel('mn-m-tipo', [{v:'preventiva',l:'Preventiva'},{v:'corretiva',l:'Corretiva'}], m.tipo, opts.tipo!==undefined, 'const box=document.getElementById("mn-forn-data-box"); if(box) box.style.display=this.value==="preventiva"?"none":"grid";')}</div>
         <div>${lbl('Status *')}${sel('mn-m-status', [{v:'programada',l:'Programada'},{v:'agendada',l:'Agendada'},{v:'em_andamento',l:'Em Andamento'},{v:'concluida',l:'Concluída'},{v:'cancelada',l:'Cancelada'}], m.status||'programada', false)}</div>
     </div>
-    <div id="mn-forn-data-box" style="display:${m.tipo==='preventiva'?'none':'grid'};grid-template-columns:1fr 1fr;gap:1rem;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
         <div>${lbl('Fornecedor / Oficina')}${inp('mn-m-forn', m.fornecedor, 'Digite para buscar ou criar...', 'text', 'lista-fornecedores')}</div>
-        <div>${lbl('Data Agendamento')}${inp('mn-m-data-ag', m.data_agendamento, '', 'date')}</div>
-    </div>` : `
+        <div>${lbl('Data Agendamento')}<input id="mn-m-data-ag" value="${m.data_agendamento||''}" type="date" onchange="window.mnModalDataAgChanged(this)" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;"></div>
+    </div>
+    <div id="mn-forn-data-box" style="display:none;"></div>` : `
     <input type="hidden" id="mn-m-tipo" value="${m.tipo||'preventiva'}">
     <input type="hidden" id="mn-m-status" value="concluida">
     <input type="hidden" id="mn-m-forn" value="${m.fornecedor||''}">
@@ -601,6 +613,24 @@ window.mnModalVeiculoChanged = function() {
         document.getElementById('mn-m-km').value = '';
     }
 };
+
+// Auto-muda status para 'agendada' ao preencher data de agendamento
+window.mnModalDataAgChanged = function(input) {
+    const statusSel = document.getElementById('mn-m-status');
+    if (!statusSel) return;
+    if (input.value) {
+        // Só muda para agendada se o status atual for programada ou concluida
+        if (statusSel.value === 'programada' || statusSel.value === 'concluida') {
+            statusSel.value = 'agendada';
+        }
+    } else {
+        // Se apagou a data, volta para programada (se estava agendada)
+        if (statusSel.value === 'agendada') {
+            statusSel.value = 'programada';
+        }
+    }
+};
+
 
 window.mnModalCatChanged = function() {
     const cid = document.getElementById('mn-m-cat').value;
