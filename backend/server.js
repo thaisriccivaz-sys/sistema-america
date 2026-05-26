@@ -12133,17 +12133,44 @@ app.put('/api/frota/manutencoes/em-massa-intervalo-obs', authenticateToken, (req
 
 // PUT - atualizar manutenção
 app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
-    const { status, descricao, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, tipo } = req.body;
+    const { status, descricao, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao,
+            custo, fornecedor, observacoes, tipo, _apenas_intervalo_obs, intervalo_km } = req.body;
     const mId = req.params.id;
 
     db.get('SELECT * FROM frota_manutencoes WHERE id=?', [mId], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Manutenção não encontrada' });
 
+        // Modo edição rápida: só atualiza observações e km_proxima_manutencao (calculado pelo intervalo)
+        if (_apenas_intervalo_obs) {
+            const kmBase = row.km_na_manutencao || 0;
+            const novoKmProx = intervalo_km ? (kmBase + parseInt(intervalo_km)) : row.km_proxima_manutencao;
+            const novaObs = observacoes !== undefined ? (observacoes || null) : row.observacoes;
+            db.run(
+                'UPDATE frota_manutencoes SET km_proxima_manutencao=?, observacoes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                [novoKmProx, novaObs, mId],
+                (err2) => {
+                    if (err2) return res.status(500).json({ error: err2.message });
+                    res.json({ message: 'Manutenção atualizada' });
+                }
+            );
+            return;
+        }
+
+        // Modo edição completa: preserva campos existentes com COALESCE
         db.run(
-            `UPDATE frota_manutencoes SET tipo=?, descricao=?, status=?, km_na_manutencao=?, km_proxima_manutencao=?,
-             data_agendamento=?, data_conclusao=?, custo=?, fornecedor=?, observacoes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-            [tipo||row.tipo, descricao||row.descricao, status||row.status, km_na_manutencao, km_proxima_manutencao,
-             data_agendamento, data_conclusao, custo, fornecedor, observacoes, mId],
+            `UPDATE frota_manutencoes SET
+             tipo=COALESCE(?,tipo), descricao=COALESCE(?,descricao), status=COALESCE(?,status),
+             km_na_manutencao=COALESCE(?,km_na_manutencao), km_proxima_manutencao=COALESCE(?,km_proxima_manutencao),
+             data_agendamento=COALESCE(?,data_agendamento), data_conclusao=COALESCE(?,data_conclusao),
+             custo=COALESCE(?,custo), fornecedor=COALESCE(?,fornecedor), observacoes=COALESCE(?,observacoes),
+             updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+            [tipo||null, descricao||null, status||null,
+             km_na_manutencao !== undefined ? km_na_manutencao : null,
+             km_proxima_manutencao !== undefined ? km_proxima_manutencao : null,
+             data_agendamento !== undefined ? data_agendamento : null,
+             data_conclusao !== undefined ? data_conclusao : null,
+             custo !== undefined ? custo : null,
+             fornecedor||null, observacoes||null, mId],
             (err2) => {
                 if (err2) return res.status(500).json({ error: err2.message });
 
@@ -12151,14 +12178,12 @@ app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
                 if (status === 'em_andamento') {
                     db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.veiculo_id]);
                 } else if (status === 'concluida' || status === 'cancelada') {
-                    // Verificar se ainda existe outra manutenção em andamento para este veículo
                     db.get("SELECT COUNT(*) as cnt FROM frota_manutencoes WHERE veiculo_id=? AND status='em_andamento' AND id!=?",
                         [row.veiculo_id, mId], (e3, r3) => {
                         if (!r3 || r3.cnt === 0) {
                             db.run('UPDATE frota_veiculos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.veiculo_id]);
                         }
                     });
-                    // Se conclusão, atualizar km do veículo
                     if (status === 'concluida' && km_na_manutencao) {
                         db.run('UPDATE frota_veiculos SET km_atual=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [km_na_manutencao, row.veiculo_id]);
                     }

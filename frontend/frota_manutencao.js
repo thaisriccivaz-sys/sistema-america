@@ -184,9 +184,13 @@ function mnRenderPlanoAgrupado(data) {
                             style="background:#7c3aed;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Agendar próxima">
                             <i class="ph ph-calendar-plus"></i>
                         </button>
-                        <button onclick="window.abrirModalManutencao(${item.id})"
-                            style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Editar">
+                        <button onclick="window.mnEditarRapido(${item.id}, '${nomeSafe}', ${item.periodicidade_padrao||0}, '${(item.observacoes||'').replace(/'/g,"\'")}')" 
+                            style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Editar intervalo e observação">
                             <i class="ph ph-pencil"></i>
+                        </button>
+                        <button onclick="window.excluirManutencao(${item.id})"
+                            style="background:#dc2626;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Excluir">
+                            <i class="ph ph-trash"></i>
                         </button>
                     </div>
                 </td>
@@ -874,9 +878,14 @@ window.excluirManutencao = async function(id) {
     if (!confirm('Excluir esta manutenção?')) return;
     const tok = window._manutTok;
     await fetch('/api/frota/manutencoes/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + tok } });
+    // Recarrega lista geral
     const manut = await fetch('/api/frota/manutencoes', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json());
     window._manutDados = manut || [];
     mnRenderLista();
+    // Se a aba preventiva estiver aberta, recarrega também
+    if (typeof window.mnCarregarPreventivoVeiculo === 'function') {
+        window.mnCarregarPreventivoVeiculo();
+    }
 };
 
 window.mnPrevToggleCat = function(cb, catId) {
@@ -906,6 +915,88 @@ window.mnAgendarIndividual = function(itemId, nome) {
     const cb = document.querySelector(`.mn-prev-cb[data-id="${itemId}"]`);
     if (cb) { cb.checked = true; window.mnPrevCbChanged(); }
     window.mnAgendarSelecionados();
+};
+
+// Popup rápido: editar apenas KM Intervalo e Observação
+window.mnEditarRapido = function(id, nome, intervaloAtual, obsAtual) {
+    let ov = document.getElementById('mn-editar-rapido-ov');
+    if (ov) ov.remove();
+
+    ov = document.createElement('div');
+    ov.id = 'mn-editar-rapido-ov';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.65);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+    ov.innerHTML = `
+    <div style="background:#fff;border-radius:14px;width:100%;max-width:420px;box-shadow:0 20px 50px rgba(0,0,0,0.25);overflow:hidden;">
+        <div style="background:#1e293b;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-pencil-simple" style="color:#f59e0b;font-size:1.1rem;"></i>
+                <span style="color:#fff;font-weight:700;font-size:0.95rem;">Editar Manutenção</span>
+            </div>
+            <button onclick="document.getElementById('mn-editar-rapido-ov').remove()" style="background:none;border:none;color:#94a3b8;font-size:1.3rem;cursor:pointer;line-height:1;"><i class="ph ph-x"></i></button>
+        </div>
+        <div style="padding:1.25rem;display:flex;flex-direction:column;gap:0.5rem;">
+            <p style="margin:0 0 0.75rem;font-size:0.83rem;color:#64748b;background:#f1f5f9;padding:0.5rem 0.75rem;border-radius:8px;">
+                <i class="ph ph-wrench" style="color:#0284c7;"></i> <strong style="color:#1e293b;">${nome}</strong>
+            </p>
+            <label style="font-size:0.83rem;font-weight:600;color:#475569;">KM Intervalo</label>
+            <input id="mn-er-intervalo" type="number" value="${intervaloAtual||''}" placeholder="Ex: 10000"
+                style="padding:0.6rem 0.75rem;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;width:100%;box-sizing:border-box;"
+                onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#cbd5e1'">
+            <label style="font-size:0.83rem;font-weight:600;color:#475569;margin-top:0.5rem;">Observações</label>
+            <textarea id="mn-er-obs" placeholder="Observações adicionais..." rows="3"
+                style="padding:0.6rem 0.75rem;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;width:100%;box-sizing:border-box;resize:vertical;"
+                onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#cbd5e1'">${obsAtual||''}</textarea>
+        </div>
+        <div style="padding:0.9rem 1.25rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:0.75rem;background:#f8fafc;">
+            <button onclick="document.getElementById('mn-editar-rapido-ov').remove()"
+                style="background:#fff;border:1px solid #cbd5e1;color:#475569;padding:0.5rem 1.1rem;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85rem;">Cancelar</button>
+            <button id="mn-er-salvar-btn"
+                style="background:#2563eb;color:#fff;border:none;padding:0.5rem 1.4rem;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:6px;">
+                <i class="ph ph-floppy-disk"></i> Salvar
+            </button>
+        </div>
+    </div>`;
+
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+
+    document.getElementById('mn-er-salvar-btn').onclick = async () => {
+        const intervalo = document.getElementById('mn-er-intervalo').value.trim();
+        const obs = document.getElementById('mn-er-obs').value.trim();
+        const btn = document.getElementById('mn-er-salvar-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Salvando...';
+
+        try {
+            // Busca os dados atuais do registro para não perder outros campos
+            const tok = window._manutTok;
+            const res = await fetch(`/api/frota/manutencoes/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                body: JSON.stringify({
+                    km_proxima_manutencao: null, // será recalculado pelo backend se intervalo mudar
+                    periodicidade_padrao_override: intervalo ? parseInt(intervalo) : null,
+                    observacoes: obs || null,
+                    _apenas_intervalo_obs: true,
+                    intervalo_km: intervalo ? parseInt(intervalo) : null
+                })
+            });
+            if (res.ok) {
+                ov.remove();
+                window.mnCarregarPreventivoVeiculo();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                alert('Erro ao salvar: ' + (err.error || res.status));
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar';
+            }
+        } catch(e) {
+            alert('Erro de conexão: ' + e.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar';
+        }
+    };
 };
 
 
