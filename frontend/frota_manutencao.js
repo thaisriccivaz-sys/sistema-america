@@ -238,6 +238,9 @@ function mnRenderPlanoAgrupado(data) {
             <button onclick="window.mnEditarIntervaloObsSelecionados()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:600;font-size:0.83rem;cursor:pointer;display:flex;align-items:center;gap:6px;">
                 <i class="ph ph-pencil-simple"></i> Editar Intervalo
             </button>
+            <button onclick="window.mnExcluirSelecionados()" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:600;font-size:0.83rem;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <i class="ph ph-trash"></i> Excluir Selecionadas
+            </button>
         </div>
     </div>`;
     return html;
@@ -886,6 +889,38 @@ window.excluirManutencao = async function(id) {
     if (typeof window.mnCarregarPreventivoVeiculo === 'function') {
         window.mnCarregarPreventivoVeiculo();
     }
+};
+
+window.mnExcluirSelecionados = async function() {
+    const cbs = document.querySelectorAll('.mn-prev-cb:checked');
+    if (!cbs.length) return;
+    const ids = Array.from(cbs).map(cb => cb.dataset.id);
+    const nomes = Array.from(cbs).map(cb => `• ${cb.dataset.nome}`).join('<br>');
+
+    const { isConfirmed } = await Swal.fire({
+        title: `Excluir ${ids.length} manutenção(ões)?`,
+        html: `<div style="text-align:left;font-size:0.85rem;max-height:200px;overflow-y:auto;">${nomes}</div>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#94a3b8',
+        confirmButtonText: `<i class="ph ph-trash"></i> Excluir todas`,
+        cancelButtonText: 'Cancelar',
+    });
+    if (!isConfirmed) return;
+
+    const tok = window._manutTok;
+    await Promise.all(ids.map(id =>
+        fetch('/api/frota/manutencoes/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + tok } })
+    ));
+
+    const manut = await fetch('/api/frota/manutencoes', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json());
+    window._manutDados = manut || [];
+    mnRenderLista();
+    if (typeof window.mnCarregarPreventivoVeiculo === 'function') {
+        window.mnCarregarPreventivoVeiculo();
+    }
+    if (typeof showToast === 'function') showToast(`${ids.length} manutenção(ões) excluída(s).`, 'success');
 };
 
 window.mnPrevToggleCat = function(cb, catId) {
