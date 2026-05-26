@@ -1155,6 +1155,8 @@ window.mnAgendarSelecionados = function() {
     if (!vid) return alert('Selecione o veículo');
     const servsIds = Array.from(cbs).map(cb => cb.dataset.id);
     const nomes = Array.from(cbs).map(cb => cb.dataset.nome).join(', ');
+    const veiculo = (window._manutFrota || []).find(x => x.id == vid);
+    const placa = veiculo?.placa || 'Veículo';
 
     let ov = document.getElementById('modal-agendar-sel'); if (ov) ov.remove();
     ov = document.createElement('div'); ov.id = 'modal-agendar-sel';
@@ -1168,7 +1170,10 @@ window.mnAgendarSelecionados = function() {
             <button onclick="document.getElementById('modal-agendar-sel').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;"><i class="ph ph-x"></i></button>
         </div>
         <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
-            <div style="background:#f5f3ff;color:#5b21b6;padding:0.75rem;border-radius:8px;font-size:0.82rem;"><i class="ph ph-info"></i> <strong>Serviços:</strong> ${nomes}</div>
+            <div style="background:#f5f3ff;color:#5b21b6;padding:0.75rem;border-radius:8px;font-size:0.82rem;">
+                <div style="margin-bottom:6px;"><i class="ph ph-car-profile"></i> Placa: <strong>${placa}</strong></div>
+                <div><i class="ph ph-info"></i> <strong>Serviços:</strong> ${nomes}</div>
+            </div>
             <div style="background:#e0f2fe;color:#0369a1;padding:0.65rem;border-radius:8px;font-size:0.82rem;">
                 <i class="ph ph-lightbulb"></i> A KM será contabilizada apenas no dia da finalização da manutenção, não no agendamento.
             </div>
@@ -1320,6 +1325,7 @@ window.mnConcluirIndividual = async function(itemId, nome) {
     const veiculo = (window._manutFrota || []).find(x => x.id == vid);
     const tok = window._manutTok;
     const kmAtual = veiculo?.km_atual || 0;
+    const placa = veiculo?.placa || 'Veículo';
     const hoje = new Date().toISOString().slice(0, 10);
 
     let ov = document.getElementById('modal-concluir-ind'); if (ov) ov.remove();
@@ -1336,7 +1342,8 @@ window.mnConcluirIndividual = async function(itemId, nome) {
             </div>
             <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
                 <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:0.75rem;font-size:0.83rem;color:#166534;">
-                    <i class="ph ph-wrench"></i> <strong>${nome}</strong>
+                    <div style="margin-bottom:6px;"><i class="ph ph-car-profile"></i> Placa: <strong>${placa}</strong></div>
+                    <div><i class="ph ph-wrench"></i> <strong>${nome}</strong></div>
                 </div>
                 <div>
                     <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Data da Manutenção *</label>
