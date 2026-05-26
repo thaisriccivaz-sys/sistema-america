@@ -126,16 +126,21 @@
         agendaCards = await carregarCards(inicio, fim);
         if (agendaFilterTipo === 'escala') {
             agendaEscalaData = await carregarEscala(inicio, fim);
-            // Enriquecer com faltas registradas nos cards da agenda
-            const faltaCards = agendaCards.filter(c => c.tipo === 'falta');
-            faltaCards.forEach(fc => {
-                const refs = (() => { try { return JSON.parse(fc.referente_ids || '[]'); } catch(e){ return []; } })();
+            // Enriquecer com ausências registradas manualmente nos cards da agenda
+            // (terapia, falta, afastado, ferias) — prioridade: falta > afastado > ferias > terapia
+            const PRIO = { falta: 4, afastado: 3, ferias: 2, terapia: 1, aso: 0 };
+            const ausCards = agendaCards.filter(c => ['falta','terapia','afastado','ferias','aso'].includes(c.tipo));
+            ausCards.forEach(ac => {
+                const refs = (() => { try { return JSON.parse(ac.referente_ids || '[]'); } catch(e){ return []; } })();
                 refs.forEach(colabId => {
                     const colab = agendaEscalaData.find(c => String(c.id) === String(colabId));
-                    if (colab) {
-                        const dia = (colab.dias || []).find(d => d.data === fc.data);
-                        if (dia && dia.status === 'disponivel') dia.status = 'falta';
-                        else if (!dia) colab.dias = [...(colab.dias||[]), { data: fc.data, status: 'falta' }];
+                    if (!colab) return;
+                    const dia = (colab.dias || []).find(d => d.data === ac.data);
+                    if (dia) {
+                        // Só substitui se a nova ausência tiver maior ou igual prioridade
+                        if ((PRIO[ac.tipo] || 0) >= (PRIO[dia.status] || 0)) dia.status = ac.tipo;
+                    } else {
+                        colab.dias = [...(colab.dias || []), { data: ac.data, status: ac.tipo }];
                     }
                 });
             });

@@ -13899,7 +13899,35 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                 });
         }));
 
-        Promise.all(promises).then(([ferSet, atestSet, faltSet]) => {
+        // Terapias e ausências registradas na agenda manual (logistica_agenda)
+        promises.push(new Promise(resolve => {
+            const ids = (colabs || []).map(c => c.id);
+            if (!ids.length) return resolve({});
+            db.all(`SELECT referente_ids, tipo, data FROM logistica_agenda
+                    WHERE data >= ? AND data <= ? AND tipo IN ('terapia','falta','afastado','ferias')`,
+                [inicio, fim], (e, rows) => {
+                    const agSet = {}; // id -> { data -> tipo }
+                    (rows || []).forEach(r => {
+                        try {
+                            const refs = JSON.parse(r.referente_ids || '[]');
+                            refs.forEach(rid => {
+                                const idNum = Number(rid);
+                                if (!ids.includes(idNum)) return;
+                                if (!agSet[idNum]) agSet[idNum] = {};
+                                const prev = agSet[idNum][r.data];
+                                // Prioridade: falta > afastado > ferias > terapia
+                                const prio = { falta: 4, afastado: 3, ferias: 2, terapia: 1 };
+                                if (!prev || (prio[r.tipo] || 0) > (prio[prev] || 0)) {
+                                    agSet[idNum][r.data] = r.tipo;
+                                }
+                            });
+                        } catch(ex) {}
+                    });
+                    resolve(agSet);
+                });
+        }));
+
+        Promise.all(promises).then(([ferSet, atestSet, faltSet, agendaSet]) => {
             // Gerar lista de datas no range
             const datas = [];
             let cur = new Date(inicio + 'T12:00:00');
@@ -13916,7 +13944,7 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                     const [d, m, y] = c.aso_exame_data.split('/');
                     if (d && m && y) asoData[`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`] = 'aso';
                 }
-                const ausencias = { ...asoData, ...((faltSet || {})[c.id] || {}), ...((atestSet || {})[c.id] || {}), ...((ferSet || {})[c.id] || {}) };
+                const ausencias = { ...asoData, ...((faltSet || {})[c.id] || {}), ...((atestSet || {})[c.id] || {}), ...((ferSet || {})[c.id] || {}), ...((agendaSet || {})[c.id] || {}) };
 
                 // Parse da escala
                 const escalaStr = (c.escala_tipo || '').toLowerCase();
@@ -14113,7 +14141,31 @@ app.get('/api/rh/escala', authenticateToken, (req, res) => {
                 });
         });
 
-        Promise.all([p1, p2, p3]).then(([ferSet, atestSet, faltSet]) => {
+        // Terapias e ausências registradas manualmente na agenda logistica
+        const p4 = new Promise(resolve => {
+            db.all(`SELECT referente_ids, tipo, data FROM logistica_agenda
+                    WHERE data >= ? AND data <= ? AND tipo IN ('terapia','falta','afastado','ferias')`,
+                [inicio, fim], (e, rows) => {
+                    const s = {}; // id -> { data -> tipo }
+                    const prio = { falta: 4, afastado: 3, ferias: 2, terapia: 1 };
+                    (rows || []).forEach(r => {
+                        try {
+                            const refs = JSON.parse(r.referente_ids || '[]');
+                            refs.forEach(rid => {
+                                const idNum = Number(rid);
+                                if (!s[idNum]) s[idNum] = {};
+                                const prev = s[idNum][r.data];
+                                if (!prev || (prio[r.tipo] || 0) > (prio[prev] || 0)) {
+                                    s[idNum][r.data] = r.tipo;
+                                }
+                            });
+                        } catch(ex) {}
+                    });
+                    resolve(s);
+                });
+        });
+
+        Promise.all([p1, p2, p3, p4]).then(([ferSet, atestSet, faltSet, agendaSet]) => {
             const datas = [];
             let cur = new Date(inicio + 'T12:00:00');
             const endD = new Date(fim + 'T12:00:00');
@@ -14124,7 +14176,7 @@ app.get('/api/rh/escala', authenticateToken, (req, res) => {
             const result = (colabs || []).map(c => {
                 const asoD = {};
                 if (c.aso_exame_data) { const [d,m,y] = c.aso_exame_data.split('/'); if(d&&m&&y) asoD[`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`]='aso'; }
-                const aus = { ...asoD, ...((faltSet||{})[c.id]||{}), ...((atestSet||{})[c.id]||{}), ...((ferSet||{})[c.id]||{}) };
+                const aus = { ...asoD, ...((faltSet||{})[c.id]||{}), ...((atestSet||{})[c.id]||{}), ...((ferSet||{})[c.id]||{}), ...((agendaSet||{})[c.id]||{}) };
                 const escStr = (c.escala_tipo||'').toLowerCase();
                 let fE = [];
                 try { const p = JSON.parse(c.escala_folgas||'[]'); fE = Array.isArray(p) ? p.map(f=>String(f).trim().toLowerCase()) : [String(p).trim().toLowerCase()]; }
