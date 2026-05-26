@@ -12356,26 +12356,28 @@ app.put('/api/frota/veiculos/:id/km', authenticateToken, (req, res) => {
     });
 });
 
-// POST - agendar manutenções preventivas em massa
+// POST - agendar manutenções preventivas em massa (atualiza registros existentes)
 app.post('/api/frota/manutencoes/agendar-selecionados', authenticateToken, async (req, res) => {
     const { veiculo_id, servicos_ids, fornecedor, data_agendamento, observacoes } = req.body;
     if (!veiculo_id || !Array.isArray(servicos_ids) || servicos_ids.length === 0) {
         return res.status(400).json({ error: 'veiculo_id e servicos_ids são obrigatórios' });
     }
+    if (!data_agendamento) {
+        return res.status(400).json({ error: 'data_agendamento é obrigatória' });
+    }
     const usuario_nome = req.user?.username || 'sistema';
     try {
-        for (const servico_id of servicos_ids) {
+        for (const manutencao_id of servicos_ids) {
             await new Promise((resolve, reject) => {
-                db.get('SELECT nome FROM frota_servicos_catalogo WHERE id=?', [servico_id], (err, srv) => {
-                    if (err) return reject(err);
-                    if (!srv) return resolve(); // serviço não encontrado, pula
-                    db.run(
-                        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, data_agendamento, fornecedor, observacoes, usuario_nome, servico_catalogo_id)
-                         VALUES (?,?,?,?,?,?,?,?,?)`,
-                        [veiculo_id, 'preventiva', srv.nome, 'agendada', data_agendamento || null, fornecedor || null, observacoes || null, usuario_nome, servico_id],
-                        (err2) => { if (err2) return reject(err2); resolve(); }
-                    );
-                });
+                // Atualiza o registro existente para status agendada
+                db.run(
+                    `UPDATE frota_manutencoes
+                     SET status='agendada', data_agendamento=?, fornecedor=COALESCE(NULLIF(?,''), fornecedor),
+                         observacoes=COALESCE(NULLIF(?,''), observacoes), usuario_nome=?, updated_at=CURRENT_TIMESTAMP
+                     WHERE id=? AND veiculo_id=?`,
+                    [data_agendamento, fornecedor || '', observacoes || '', usuario_nome, manutencao_id, veiculo_id],
+                    (err) => { if (err) return reject(err); resolve(); }
+                );
             });
         }
         res.json({ message: `${servicos_ids.length} manutenção(ões) agendada(s) com sucesso` });
