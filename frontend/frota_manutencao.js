@@ -161,7 +161,8 @@ function mnRenderPlanoAgrupado(data) {
                 const [y,m,dia] = d.split('-');
                 return `<span style="font-weight:600;color:#475569;font-size:0.82rem;">${dia||d}/${m||''}/${(y||'').slice(2)}</span>`;
             };
-            const ultimaManuTxt = fmtDate(item.data_ultima_manutencao);
+            const kmUltStr = item.km_ultima ? `<br><span style="font-size:0.68rem;font-weight:400;color:#64748b;">${Number(item.km_ultima).toLocaleString('pt-BR')} km</span>` : '';
+            const ultimaManuTxt = fmtDate(item.data_ultima_manutencao) + kmUltStr;
             const dataAgendadaTxt = item.data_agendamento
                 ? `<span style="font-weight:700;color:#2563eb;font-size:0.82rem;">${fmtDate(item.data_agendamento).replace(/<[^>]+>/g,'').trim()}</span>`
                 : '<span style="color:#94a3b8;">—</span>';
@@ -181,7 +182,6 @@ function mnRenderPlanoAgrupado(data) {
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${statusBadge}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${ultimaManuTxt}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${dataAgendadaTxt}</td>
-                <td style="padding:0.6rem 0.9rem;text-align:center;font-size:0.82rem;">${kmUltTxt}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;font-size:0.82rem;">${kmProxTxt}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${kmRestTxt}</td>
                 <td style="padding:0.6rem 0.5rem;text-align:center;">
@@ -223,7 +223,6 @@ function mnRenderPlanoAgrupado(data) {
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Situação</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Última Manu.</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Data Agendada</th>
-                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">KM Realizado</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Próximo KM</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Status KM</th>
                     <th style="padding:0.5rem 0.5rem;width:70px;"></th>
@@ -1500,6 +1499,12 @@ window._mnMontarDrawerHistoricoManut = function() {
                 <input id="mn-hist-f-placa" type="text" placeholder="Placa..."
                     style="border:1px solid #e2e8f0;border-radius:6px;padding:3px 8px;font-size:0.74rem;width:90px;height:24px;outline:none;"
                     oninput="window._mnFiltrarHistoricoManut()">
+                <select id="mn-hist-f-tm" style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 5px;font-size:0.74rem;height:24px;outline:none;"
+                    onchange="window._mnFiltrarHistoricoManut()">
+                    <option value="">Tipo Manutenção</option>
+                    <option value="preventiva">Preventiva</option>
+                    <option value="corretiva">Corretiva</option>
+                </select>
                 <select id="mn-hist-f-tipo" style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 5px;font-size:0.74rem;height:24px;outline:none;"
                     onchange="window._mnFiltrarHistoricoManut()">
                     <option value="">Tipo veículo</option>
@@ -1530,7 +1535,7 @@ window._mnMontarDrawerHistoricoManut = function() {
                 <input id="mn-hist-f-ag-ate" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 5px;font-size:0.72rem;height:24px;outline:none;"
                     onchange="window._mnFiltrarHistoricoManut()">
                 <button style="padding:2px 10px;background:#ef4444;color:#fff;border:none;border-radius:4px;font-size:0.7rem;cursor:pointer;height:24px;"
-                    onclick="['mn-hist-f-placa','mn-hist-f-tipo','mn-hist-f-crit','mn-hist-f-real-de','mn-hist-f-real-ate','mn-hist-f-ag-de','mn-hist-f-ag-ate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});window._mnFiltrarHistoricoManut();">
+                    onclick="['mn-hist-f-placa','mn-hist-f-tm','mn-hist-f-tipo','mn-hist-f-crit','mn-hist-f-real-de','mn-hist-f-real-ate','mn-hist-f-ag-de','mn-hist-f-ag-ate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});window._mnFiltrarHistoricoManut();">
                     Limpar
                 </button>
             </div>
@@ -1540,6 +1545,7 @@ window._mnMontarDrawerHistoricoManut = function() {
                         <tr style="background:#f1f5f9;position:sticky;top:0;z-index:2;">
                             <th style="padding:5px 10px;text-align:left;color:#475569;font-weight:700;white-space:nowrap;">Placa</th>
                             <th style="padding:5px 10px;text-align:left;color:#475569;font-weight:700;white-space:nowrap;">Tipo Veículo</th>
+                            <th style="padding:5px 10px;text-align:center;color:#475569;font-weight:700;white-space:nowrap;">Tipo Manut.</th>
                             <th style="padding:5px 10px;text-align:left;color:#475569;font-weight:700;">Serviço</th>
                             <th style="padding:5px 10px;text-align:center;color:#475569;font-weight:700;">Criticidade</th>
                             <th style="padding:5px 10px;text-align:center;color:#475569;font-weight:700;white-space:nowrap;">Data Realizada / KM</th>
@@ -1549,7 +1555,7 @@ window._mnMontarDrawerHistoricoManut = function() {
                         </tr>
                     </thead>
                     <tbody id="mn-hist-tbody">
-                        <tr><td colspan="8" style="text-align:center;padding:16px;color:#94a3b8;">Carregando...</td></tr>
+                        <tr><td colspan="10" style="text-align:center;padding:16px;color:#94a3b8;">Carregando...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1570,6 +1576,7 @@ window._mnMontarDrawerHistoricoManut = function() {
         const tbody = document.getElementById('mn-hist-tbody');
         if (!tbody) return;
         const fPlaca   = (document.getElementById('mn-hist-f-placa')?.value   || '').trim().toLowerCase();
+        const fTm      = (document.getElementById('mn-hist-f-tm')?.value      || '').toLowerCase();
         const fTipo    = (document.getElementById('mn-hist-f-tipo')?.value    || '').toLowerCase();
         const fCrit    = (document.getElementById('mn-hist-f-crit')?.value    || '').toLowerCase();
         const fRealDe  = document.getElementById('mn-hist-f-real-de')?.value  || '';
@@ -1579,6 +1586,7 @@ window._mnMontarDrawerHistoricoManut = function() {
 
         const lista = _dados.filter(m => {
             if (fPlaca   && !(m.placa||'').toLowerCase().includes(fPlaca)) return false;
+            if (fTm      && (m.tipo_manutencao||'').toLowerCase() !== fTm) return false;
             if (fTipo    && !(m.tipo_veiculo||'').toLowerCase().includes(fTipo)) return false;
             if (fCrit    && (m.criticidade||'').toLowerCase() !== fCrit) return false;
             if (fRealDe  && (m.data_conclusao||'')   < fRealDe)  return false;
@@ -1589,7 +1597,7 @@ window._mnMontarDrawerHistoricoManut = function() {
         });
 
         if (!lista.length) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:14px;color:#94a3b8;">Nenhuma manutenção encontrada.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:14px;color:#94a3b8;">Nenhuma manutenção encontrada.</td></tr>';
             return;
         }
 
@@ -1603,6 +1611,7 @@ window._mnMontarDrawerHistoricoManut = function() {
             return '<tr style="background:' + bgRow + ';border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#f0fdf4\'" onmouseout="this.style.background=\'' + bgRow + '\'">' +
                 '<td style="padding:5px 10px;font-weight:700;color:#1e293b;white-space:nowrap;">' + (m.placa||'—') + '</td>' +
                 '<td style="padding:5px 10px;color:#64748b;white-space:nowrap;">' + (m.tipo_veiculo||'—') + '</td>' +
+                '<td style="padding:5px 10px;text-align:center;color:#64748b;font-weight:600;white-space:nowrap;text-transform:capitalize;">' + (m.tipo_manutencao||'—') + '</td>' +
                 '<td style="padding:5px 10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + desc + '">' + (m.descricao||'—') + '</td>' +
                 '<td style="padding:5px 10px;text-align:center;">' + critBadge + '</td>' +
                 '<td style="padding:5px 10px;text-align:center;color:#2d9e5f;font-weight:600;white-space:nowrap;">' + _fmtData(m.data_conclusao) + '<br><span style="font-size:0.68rem;font-weight:400;color:#64748b;">' + (m.km_na_manutencao ? Number(m.km_na_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</span></td>' +
@@ -1624,7 +1633,7 @@ window._mnMontarDrawerHistoricoManut = function() {
             _renderLinhas();
         } catch(e) {
             const tbody = document.getElementById('mn-hist-tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:14px;color:#ef4444;">Erro ao carregar histórico.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:14px;color:#ef4444;">Erro ao carregar histórico.</td></tr>';
         }
     }
 
@@ -1636,6 +1645,13 @@ window._mnMontarDrawerHistoricoManut = function() {
         if (icon)  icon.className = _aberto ? 'ph ph-caret-down-bold' : 'ph ph-caret-up-bold';
         if (_aberto && !_dados.length) _carregar();
     };
+
+    document.addEventListener('mousedown', (e) => {
+        if (!_aberto) return;
+        if (e.target.closest('#mn-hist-wrapper')) return;
+        window._mnToggleHistoricoManut();
+    });
+
     window._mnRecarregarHistoricoManut = function() { _dados = []; _carregar(); };
     window._mnFiltrarHistoricoManut    = function() { _renderLinhas(); };
 };
