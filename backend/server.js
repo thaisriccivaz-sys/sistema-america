@@ -14747,13 +14747,13 @@ app.listen(PORT, () => {
     console.log('Versão do Servidor: V31_OS_LOGISTICA_MODULE');
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
 
-    // --- TEMPORÁRIO: Inserir KM fictícia para BXR no dia 2025-05-25 ---
-    db.get("SELECT id FROM frota_veiculos WHERE placa LIKE '%BXR%' LIMIT 1", [], (err, row) => {
+    // --- TEMPORÁRIO: Inserir KM fictícia para BXR no dia 2026-05-25 ---
+    db.get("SELECT id FROM frota_veiculos WHERE placa LIKE '%BXR4663%' LIMIT 1", [], (err, row) => {
         if (row && row.id) {
-            db.get("SELECT id FROM frota_km_historico WHERE veiculo_id = ? AND data = '2025-05-25'", [row.id], (err2, hist) => {
+            db.get("SELECT id FROM frota_km_historico WHERE veiculo_id = ? AND data = '2026-05-25'", [row.id], (err2, hist) => {
                 if (!hist) {
-                    db.run("INSERT INTO frota_km_historico (veiculo_id, km, data) VALUES (?, ?, ?)", [row.id, 500, '2025-05-25'], (err3) => {
-                        if (!err3) console.log("[TESTE] KM fictício (500) inserido para o veículo BXR na data 2025-05-25.");
+                    db.run("INSERT INTO frota_km_historico (veiculo_id, km, data) VALUES (?, ?, ?)", [row.id, 500, '2026-05-25'], (err3) => {
+                        if (!err3) console.log("[TESTE] KM fictício (500) inserido para o veículo BXR4663 na data 2026-05-25.");
                     });
                 }
             });
