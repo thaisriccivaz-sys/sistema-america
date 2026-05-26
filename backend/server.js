@@ -11963,8 +11963,8 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                 let statusItem = 'ok';
                 let criticidade = 'Baixa';
                 if (kmRest <= 0) { statusItem = 'vencida'; criticidade = 'Critica'; }
-                else if (kmRest <= alerta) { statusItem = 'proxima'; criticidade = 'Alta'; }
-                else if (kmRest <= alerta * 3) { criticidade = 'Media'; }
+                else if (kmRest <= intervKm * 0.1) { statusItem = 'proxima'; criticidade = 'Critica'; }
+                else if (kmRest <= intervKm * 0.2) { statusItem = 'ok'; criticidade = 'Media'; }
 
                 return {
                     ...item,
