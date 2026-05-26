@@ -12019,7 +12019,7 @@ app.post('/api/frota/manutencoes', authenticateToken, (req, res) => {
     db.run(
         `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, usuario_nome)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [veiculo_id, tipo||'preventiva', descricao, status||'agendada', km_na_manutencao||null, km_proxima_manutencao||null, data_agendamento||null, data_conclusao||null, custo||null, fornecedor||null, observacoes||null, usuario_nome],
+        [veiculo_id, tipo||'preventiva', descricao, status||'programada', km_na_manutencao||null, km_proxima_manutencao||null, data_agendamento||null, data_conclusao||null, custo||null, fornecedor||null, observacoes||null, usuario_nome],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             // Se status é 'em_andamento', marcar veículo como em manutenção

@@ -527,7 +527,7 @@ window.abrirModalManutencao = async function(id, opts = {}) {
     </div>
     <div id="mn-forn-data-box" style="display:none;"></div>` : `
     <input type="hidden" id="mn-m-tipo" value="${m.tipo||'preventiva'}">
-    <input type="hidden" id="mn-m-status" value="concluida">
+    <input type="hidden" id="mn-m-status" value="programada">
     <input type="hidden" id="mn-m-forn" value="${m.fornecedor||''}">
     <input type="hidden" id="mn-m-data-ag" value="${m.data_agendamento||''}">
     <div id="mn-forn-data-box" style="display:none;"></div>`}
