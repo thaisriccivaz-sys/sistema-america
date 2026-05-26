@@ -137,9 +137,10 @@ function mnRenderPlanoAgrupado(data) {
                 ? `<span style="font-weight:700;color:#0284c7;">${Number(item.km_proxima).toLocaleString('pt-BR')} km</span>`
                 : '<span style="color:#94a3b8;">—</span>';
 
-            const kmRestTxt = item.km_restante <= 0
+            const intervaloTxt = item.intervalo_configurado ? `<br><span style="font-size:0.68rem;font-weight:400;color:#64748b;">(Intervalo: ${Number(item.intervalo_configurado).toLocaleString('pt-BR')} km)</span>` : '';
+            const kmRestTxt = (item.km_restante <= 0
                 ? `<span style="color:#dc2626;font-weight:700;">Vencida há ${Math.abs(Math.round(item.km_restante)).toLocaleString('pt-BR')} km</span>`
-                : `<span style="color:${cor};font-weight:700;">Restam ${Math.round(item.km_restante).toLocaleString('pt-BR')} km</span>`;
+                : `<span style="color:${cor};font-weight:700;">Restam ${Math.round(item.km_restante).toLocaleString('pt-BR')} km</span>`) + intervaloTxt;
 
             const criticBadge = `<span style="background:${critCor[item.criticidade]||'#94a3b8'}22;color:${critCor[item.criticidade]||'#94a3b8'};padding:1px 7px;border-radius:20px;font-size:0.72rem;font-weight:700;">${item.criticidade||'Media'}</span>`;
 
@@ -590,9 +591,9 @@ window.abrirModalManutencao = async function(id, opts = {}) {
         });
         window.mnModalRenderServicos();
     } else if (m.descricao) {
-        let interv = '';
+        let interv = m.intervalo_configurado || '';
         // 1) busca pelo ID do serviço no catálogo
-        if (m.servico_catalogo_id) {
+        if (!interv && m.servico_catalogo_id) {
             const catItem = (window._manutCatalogo||[]).find(c => c.id == m.servico_catalogo_id);
             if (catItem) interv = catItem.periodicidade_padrao;
         }
@@ -1541,15 +1542,14 @@ window._mnMontarDrawerHistoricoManut = function() {
                             <th style="padding:5px 10px;text-align:left;color:#475569;font-weight:700;white-space:nowrap;">Tipo Veículo</th>
                             <th style="padding:5px 10px;text-align:left;color:#475569;font-weight:700;">Serviço</th>
                             <th style="padding:5px 10px;text-align:center;color:#475569;font-weight:700;">Criticidade</th>
-                            <th style="padding:5px 10px;text-align:right;color:#475569;font-weight:700;white-space:nowrap;">KM Realizado</th>
-                            <th style="padding:5px 10px;text-align:center;color:#475569;font-weight:700;white-space:nowrap;">Data Realizada</th>
+                            <th style="padding:5px 10px;text-align:center;color:#475569;font-weight:700;white-space:nowrap;">Data Realizada / KM</th>
                             <th style="padding:5px 10px;text-align:center;color:#475569;font-weight:700;white-space:nowrap;">Data Agendada</th>
                             <th style="padding:5px 10px;text-align:right;color:#475569;font-weight:700;white-space:nowrap;">Próximo KM</th>
                             <th style="padding:5px 10px;text-align:left;color:#475569;font-weight:700;">Fornecedor</th>
                         </tr>
                     </thead>
                     <tbody id="mn-hist-tbody">
-                        <tr><td colspan="9" style="text-align:center;padding:16px;color:#94a3b8;">Carregando...</td></tr>
+                        <tr><td colspan="8" style="text-align:center;padding:16px;color:#94a3b8;">Carregando...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1605,8 +1605,7 @@ window._mnMontarDrawerHistoricoManut = function() {
                 '<td style="padding:5px 10px;color:#64748b;white-space:nowrap;">' + (m.tipo_veiculo||'—') + '</td>' +
                 '<td style="padding:5px 10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + desc + '">' + (m.descricao||'—') + '</td>' +
                 '<td style="padding:5px 10px;text-align:center;">' + critBadge + '</td>' +
-                '<td style="padding:5px 10px;text-align:right;color:#475569;font-weight:600;white-space:nowrap;">' + (m.km_na_manutencao ? Number(m.km_na_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</td>' +
-                '<td style="padding:5px 10px;text-align:center;color:#2d9e5f;font-weight:600;white-space:nowrap;">' + _fmtData(m.data_conclusao) + '</td>' +
+                '<td style="padding:5px 10px;text-align:center;color:#2d9e5f;font-weight:600;white-space:nowrap;">' + _fmtData(m.data_conclusao) + '<br><span style="font-size:0.68rem;font-weight:400;color:#64748b;">' + (m.km_na_manutencao ? Number(m.km_na_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</span></td>' +
                 '<td style="padding:5px 10px;text-align:center;color:#2563eb;white-space:nowrap;">' + _fmtData(m.data_agendamento) + '</td>' +
                 '<td style="padding:5px 10px;text-align:right;color:#0284c7;font-weight:600;white-space:nowrap;">' + (m.km_proxima_manutencao ? Number(m.km_proxima_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</td>' +
                 '<td style="padding:5px 10px;color:#64748b;">' + (m.fornecedor||'—') + '</td>' +

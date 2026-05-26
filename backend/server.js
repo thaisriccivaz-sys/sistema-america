@@ -11973,6 +11973,7 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                     km_ultima: kmUlt,
                     km_proxima: kmProx,
                     km_restante: kmRest,
+                    intervalo_configurado: kmProx - kmUlt,
                     status_item: statusItem,
                     criticidade,
                     data_ultima_manutencao: concluida?.data_conclusao || null,
