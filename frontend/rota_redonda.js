@@ -554,7 +554,6 @@ async function geocodeEndereco() {
     const temCidade   = /s[ao]o paulo|guarulhos|campinas|mogi|osasco/i.test(endereco);
     const enderecoCompleto = !!cep && temCidade;
 
-    // Numero: primeiro grupo de digitos apos virgula/espaco
     const numeroMatch  = endereco.match(/(?:,\s*|\s+)(\d+[A-Za-z]?)(?:\s*[,\-\/]|\s|$)/);
     const numeroOriginal = numeroMatch ? numeroMatch[1].trim() : '';
 
@@ -4311,7 +4310,34 @@ function _rrMontarDrawerHistorico() {
         _carregar(); // atualiza cache e re-renderiza
     };
 
-    window._rrFiltrarHistorico = filtro => _renderLinhas(filtro);
+    window._rrFiltrarHistorico = async function(filtro) {
+        const term = (filtro || '').trim();
+        // 1. Filtra localmente primeiro
+        _renderLinhas(term);
+        // 2. Se não encontrou nada e o termo tem conteúdo, busca no servidor
+        if (term.length >= 2) {
+            const tbody = document.getElementById('rr-hist-tbody');
+            if (tbody && tbody.querySelector('td[colspan]')) {
+                // Nenhum resultado local — tenta busca no servidor
+                try {
+                    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+                    // Decide se é busca por número, cliente ou genérico
+                    const isNumero = /^\d+$/.test(term);
+                    const paramKey = isNumero ? 'numero_os' : 'cliente';
+                    const res = await fetch(`/api/logistica/os/buscar?${paramKey}=${encodeURIComponent(term)}`, { headers: { Authorization: `Bearer ${token}` } });
+                    if (res.ok) {
+                        const extra = await res.json();
+                        if (Array.isArray(extra) && extra.length > 0) {
+                            // Mescla com os dados locais sem duplicar
+                            const existIds = new Set(_dados.map(o => o.id));
+                            extra.forEach(o => { if (!existIds.has(o.id)) _dados.push(o); });
+                            _renderLinhas(term);
+                        }
+                    }
+                } catch(e) {}
+            }
+        }
+    };
 
     // ── Excluir OS do histórico ───────────────────────────────────────────────────
     window._rrExcluirOs = async function(osId, osNum) {

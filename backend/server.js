@@ -11070,7 +11070,7 @@ app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
     const { numero_os, cliente, contrato, endereco, patrimonio } = req.query;
     if (!numero_os && !cliente && !contrato && !endereco && !patrimonio) {
         db.all(
-            `SELECT * FROM os_logistica WHERE status = 'ativo' ORDER BY criado_em DESC LIMIT 200`,
+            `SELECT * FROM os_logistica WHERE status = 'ativo' ORDER BY criado_em DESC LIMIT 1000`,
             [],
             (err, rows) => {
                 if (err) return res.status(500).json({ error: err.message });
