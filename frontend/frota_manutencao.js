@@ -53,12 +53,8 @@ window.initFrotaManutencoes = async function(containerEl) {
     window._manutDados = manut || [];
 
     window.mnMudarSubAba(window._mnSubAba || 'preventiva');
-
-    // Monta drawer de histórico de manutenções realizadas (fixo na base da tela)
-    if (typeof window._mnMontarDrawerHistoricoManut === 'function') {
-        window._mnMontarDrawerHistoricoManut();
-    }
 };
+
 
 
 window.mnMudarSubAba = function(aba) {
@@ -77,8 +73,21 @@ window.mnMudarSubAba = function(aba) {
 };
 
 window.mnRenderHistoricoTela = function(sub) {
+    const viewMode = window._mnHistView || 'lista';
     sub.innerHTML = `
-    <div style="background:#fff;padding:1rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+    <!-- Barra de controles -->
+    <div style="background:#fff;padding:0.75rem 1rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <!-- Toggle Lista/Calendário -->
+        <div style="display:flex;gap:4px;background:#f1f5f9;padding:3px;border-radius:8px;margin-right:8px;">
+            <button id="mn-hist-view-lista" onclick="window._mnHistView='lista';window.mnRenderHistoricoTela(document.getElementById('mn-sub-conteudo'))" 
+                style="padding:4px 12px;border:none;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;background:${viewMode==='lista'?'#fff':'transparent'};color:${viewMode==='lista'?'#1e293b':'#64748b'};box-shadow:${viewMode==='lista'?'0 1px 3px rgba(0,0,0,0.1)':'none'};">
+                <i class="ph ph-list" style="margin-right:4px;"></i>Lista
+            </button>
+            <button id="mn-hist-view-cal" onclick="window._mnHistView='calendario';window.mnRenderHistoricoTela(document.getElementById('mn-sub-conteudo'))" 
+                style="padding:4px 12px;border:none;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;background:${viewMode==='calendario'?'#fff':'transparent'};color:${viewMode==='calendario'?'#1e293b':'#64748b'};box-shadow:${viewMode==='calendario'?'0 1px 3px rgba(0,0,0,0.1)':'none'};">
+                <i class="ph ph-calendar" style="margin-right:4px;"></i>Calendário
+            </button>
+        </div>
         <i class="ph ph-funnel" style="color:#16a34a;font-size:1rem;flex-shrink:0;"></i>
         <input id="mn-tab-hist-f-placa" type="text" placeholder="Placa..." style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;width:100px;outline:none;" oninput="window.mnFiltrarTabHistorico()">
         <select id="mn-tab-hist-f-tm" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;outline:none;" onchange="window.mnFiltrarTabHistorico()">
@@ -105,35 +114,11 @@ window.mnRenderHistoricoTela = function(sub) {
         <input id="mn-tab-hist-f-real-de" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;outline:none;" onchange="window.mnFiltrarTabHistorico()">
         <span style="font-size:0.8rem;color:#94a3b8;">até</span>
         <input id="mn-tab-hist-f-real-ate" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;outline:none;" onchange="window.mnFiltrarTabHistorico()">
-        <span style="font-size:0.8rem;color:#94a3b8;">Agendada de</span>
-        <input id="mn-tab-hist-f-ag-de" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;outline:none;" onchange="window.mnFiltrarTabHistorico()">
-        <span style="font-size:0.8rem;color:#94a3b8;">até</span>
-        <input id="mn-tab-hist-f-ag-ate" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;outline:none;" onchange="window.mnFiltrarTabHistorico()">
-        <button style="padding:4px 12px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-size:0.8rem;cursor:pointer;" onclick="['mn-tab-hist-f-placa','mn-tab-hist-f-tm','mn-tab-hist-f-tipo','mn-tab-hist-f-crit','mn-tab-hist-f-real-de','mn-tab-hist-f-real-ate','mn-tab-hist-f-ag-de','mn-tab-hist-f-ag-ate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});window.mnFiltrarTabHistorico();">Limpar</button>
+        <button style="padding:4px 12px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-size:0.8rem;cursor:pointer;" onclick="['mn-tab-hist-f-placa','mn-tab-hist-f-tm','mn-tab-hist-f-tipo','mn-tab-hist-f-crit','mn-tab-hist-f-real-de','mn-tab-hist-f-real-ate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});window.mnFiltrarTabHistorico();">Limpar</button>
         <span id="mn-tab-hist-count" style="margin-left:auto;background:#dcfce7;color:#166534;border-radius:99px;padding:2px 10px;font-size:0.8rem;font-weight:700;"></span>
     </div>
-    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
-        <div style="overflow-x:auto;">
-            <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
-                <thead>
-                    <tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">
-                        <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Placa</th>
-                        <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Tipo Veículo</th>
-                        <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Tipo Manut.</th>
-                        <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Serviço</th>
-                        <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Criticidade</th>
-                        <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Data Realizada / KM</th>
-                        <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Data Agendada</th>
-                        <th style="padding:10px;text-align:right;color:#475569;font-weight:700;">Próximo KM</th>
-                        <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Fornecedor</th>
-                    </tr>
-                </thead>
-                <tbody id="mn-tab-hist-tbody">
-                    <tr><td colspan="10" style="text-align:center;padding:20px;color:#94a3b8;"><i class="ph ph-circle-notch ph-spin"></i> Carregando...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>`;
+    <!-- Área de conteúdo: lista ou calendário -->
+    <div id="mn-hist-view-container"></div>`;
     window.mnCarregarTabHistorico();
 };
 
@@ -145,24 +130,28 @@ window.mnCarregarTabHistorico = async function() {
         const res = await fetch('/api/frota/manutencoes/historico', { headers: { Authorization: 'Bearer ' + tok } });
         window._mnTabHistDados = await res.json();
         if (!Array.isArray(window._mnTabHistDados)) window._mnTabHistDados = [];
-        window.mnFiltrarTabHistorico();
+        const viewMode = window._mnHistView || 'lista';
+        if (viewMode === 'calendario') {
+            window._mnRenderHistCalendario(window._mnTabHistDados||[]);
+        } else {
+            window._mnRenderHistLista(window._mnTabHistDados||[]);
+        }
     } catch(e) {
         const tbody = document.getElementById('mn-tab-hist-tbody');
         if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:#ef4444;">Erro ao carregar histórico.</td></tr>';
     }
 };
 
+// ─── CARREGAR HISTÓRICO (shared) ───────────────────────────────────────────────
+// ─── FILTRAR HISTÓRICO ─────────────────────────────────────────────────────────
 window.mnFiltrarTabHistorico = function() {
-    const tbody = document.getElementById('mn-tab-hist-tbody');
-    if (!tbody) return;
+    const viewMode = window._mnHistView || 'lista';
     const fPlaca   = (document.getElementById('mn-tab-hist-f-placa')?.value   || '').trim().toLowerCase();
     const fTm      = (document.getElementById('mn-tab-hist-f-tm')?.value      || '').toLowerCase();
     const fTipo    = (document.getElementById('mn-tab-hist-f-tipo')?.value    || '').toLowerCase();
     const fCrit    = (document.getElementById('mn-tab-hist-f-crit')?.value    || '').toLowerCase();
     const fRealDe  = document.getElementById('mn-tab-hist-f-real-de')?.value  || '';
     const fRealAte = document.getElementById('mn-tab-hist-f-real-ate')?.value || '';
-    const fAgDe    = document.getElementById('mn-tab-hist-f-ag-de')?.value    || '';
-    const fAgAte   = document.getElementById('mn-tab-hist-f-ag-ate')?.value   || '';
 
     const lista = window._mnTabHistDados.filter(m => {
         if (fPlaca   && !(m.placa||'').toLowerCase().includes(fPlaca)) return false;
@@ -171,27 +160,49 @@ window.mnFiltrarTabHistorico = function() {
         if (fCrit    && (m.criticidade||'').toLowerCase() !== fCrit) return false;
         if (fRealDe  && (m.data_conclusao||'')   < fRealDe)  return false;
         if (fRealAte && (m.data_conclusao||'')   > fRealAte) return false;
-        if (fAgDe    && (m.data_agendamento||'') < fAgDe)    return false;
-        if (fAgAte   && (m.data_agendamento||'') > fAgAte)   return false;
         return true;
     });
 
     const count = document.getElementById('mn-tab-hist-count');
     if (count) count.textContent = lista.length + ' registros';
 
+    if (viewMode === 'calendario') {
+        window._mnRenderHistCalendario(lista);
+    } else {
+        window._mnRenderHistLista(lista);
+    }
+};
+
+// ─── RENDER LISTA ──────────────────────────────────────────────────────────────
+window._mnRenderHistLista = function(lista) {
+    // Garante que o container tenha a tabela
+    const container = document.getElementById('mn-hist-view-container');
+    if (!container) return;
+    const _critCor = { Critica:'#dc2626', Alta:'#d97706', Media:'#0284c7', Baixa:'#2d9e5f' };
+    const _fmtD = d => { if(!d) return '—'; const [y,mo,di]=d.split('-'); return di+'/'+mo+'/'+y.slice(2); };
+
     if (!lista.length) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:#94a3b8;">Nenhuma manutenção encontrada.</td></tr>';
+        container.innerHTML = '<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:3rem;text-align:center;color:#94a3b8;">Nenhuma manutenção encontrada.</div>';
         return;
     }
 
-    const _critCor = { Critica:'#dc2626', Alta:'#d97706', Media:'#0284c7', Baixa:'#2d9e5f' };
-    const _fmtData = d => {
-        if (!d) return '—';
-        const [y,m,dia] = d.split('-');
-        return (dia||d) + '/' + (m||'') + '/' + (y||'').slice(2);
-    };
-
-    tbody.innerHTML = lista.map((m, i) => {
+    // Build or reuse table
+    let html = `<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+        <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+            <thead><tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">
+                <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Placa</th>
+                <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Tipo Veículo</th>
+                <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Tipo Manut.</th>
+                <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Serviço</th>
+                <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Criticidade</th>
+                <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Data Realizada / KM</th>
+                <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Data Agendada</th>
+                <th style="padding:10px;text-align:right;color:#475569;font-weight:700;">Próximo KM</th>
+                <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Fornecedor</th>
+            </tr></thead>
+            <tbody>`;
+    html += lista.map((m, i) => {
         const bgRow = i % 2 === 0 ? '#fff' : '#fafafa';
         const cor = _critCor[m.criticidade] || '#94a3b8';
         const critBadge = m.criticidade
@@ -204,12 +215,149 @@ window.mnFiltrarTabHistorico = function() {
             '<td style="padding:10px;text-align:center;color:#64748b;font-weight:600;white-space:nowrap;text-transform:capitalize;">' + (m.tipo_manutencao||'—') + '</td>' +
             '<td style="padding:10px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + desc + '">' + (m.descricao||'—') + '</td>' +
             '<td style="padding:10px;text-align:center;">' + critBadge + '</td>' +
-            '<td style="padding:10px;text-align:center;color:#2d9e5f;font-weight:600;white-space:nowrap;">' + _fmtData(m.data_conclusao) + '<br><span style="font-size:0.75rem;font-weight:400;color:#64748b;">' + (m.km_na_manutencao ? Number(m.km_na_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</span></td>' +
-            '<td style="padding:10px;text-align:center;color:#2563eb;white-space:nowrap;">' + _fmtData(m.data_agendamento) + '</td>' +
+            '<td style="padding:10px;text-align:center;color:#2d9e5f;font-weight:600;white-space:nowrap;">' + _fmtD(m.data_conclusao) + '<br><span style="font-size:0.75rem;font-weight:400;color:#64748b;">' + (m.km_na_manutencao ? Number(m.km_na_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</span></td>' +
+            '<td style="padding:10px;text-align:center;color:#2563eb;white-space:nowrap;">' + _fmtD(m.data_agendamento) + '</td>' +
             '<td style="padding:10px;text-align:right;color:#0284c7;font-weight:600;white-space:nowrap;">' + (m.km_proxima_manutencao ? Number(m.km_proxima_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</td>' +
             '<td style="padding:10px;color:#64748b;">' + (m.fornecedor||'—') + '</td>' +
             '</tr>';
     }).join('');
+    html += '</tbody></table></div></div>';
+    container.innerHTML = html;
+};
+
+// ─── RENDER CALENDÁRIO ─────────────────────────────────────────────────────────
+window._mnHistCalMes = window._mnHistCalMes || (()=>{const n=new Date();return {y:n.getFullYear(),m:n.getMonth()};})();
+
+window._mnRenderHistCalendario = function(lista) {
+    const container = document.getElementById('mn-hist-view-container');
+    if (!container) return;
+    const { y, m } = window._mnHistCalMes;
+    const mesNomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const diasSem  = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+    // Monta lookup dia → eventos (manutencoes realizadas naquele dia)
+    const eventosPorDia = {};
+    // Também mapeia períodos em_andamento (data_inicio → data_conclusao ou hoje)
+    const andamentoPorDia = {}; // dia_str -> [{placa, descricao}]
+
+    // Todos os dados (não filtrados) para os períodos em andamento
+    const todosAndamento = (window._mnTabHistDados||[]).filter(mm => mm.status_hist === 'em_andamento' || mm.em_andamento);
+
+    lista.forEach(mm => {
+        const dia = mm.data_conclusao || mm.data_agendamento;
+        if (!dia) return;
+        const [dy,dmo,ddi] = dia.split('-').map(Number);
+        if (dy === y && dmo-1 === m) {
+            const key = ddi;
+            if (!eventosPorDia[key]) eventosPorDia[key] = [];
+            eventosPorDia[key].push(mm);
+        }
+    });
+
+    // Mapear periodos em manutenção (do historico geral, status=em_andamento)
+    (window._mnTabHistDados||[]).forEach(mm => {
+        if (!mm.data_inicio) return;
+        const startDate = new Date(mm.data_inicio + 'T12:00:00');
+        const endDate   = mm.data_conclusao ? new Date(mm.data_conclusao + 'T12:00:00') : new Date();
+        const curDate   = new Date(startDate);
+        while (curDate <= endDate) {
+            if (curDate.getFullYear()===y && curDate.getMonth()===m) {
+                const d = curDate.getDate();
+                if (!andamentoPorDia[d]) andamentoPorDia[d]=[];
+                andamentoPorDia[d].push({ placa: mm.placa, descricao: mm.descricao });
+            }
+            curDate.setDate(curDate.getDate()+1);
+        }
+    });
+
+    const primeiroDia = new Date(y, m, 1).getDay();
+    const ultimoDia  = new Date(y, m+1, 0).getDate();
+
+    let grid = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">';
+    diasSem.forEach(d => {
+        grid += `<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#64748b;padding:6px 0;">${d}</div>`;
+    });
+    for (let i=0; i<primeiroDia; i++) grid += '<div></div>';
+    for (let d=1; d<=ultimoDia; d++) {
+        const hoje = new Date(); const ehHoje = d===hoje.getDate() && m===hoje.getMonth() && y===hoje.getFullYear();
+        const eventos = eventosPorDia[d] || [];
+        const andamento = andamentoPorDia[d] || [];
+        const temEvento = eventos.length > 0;
+        const temAndamento = andamento.length > 0;
+        const bgCell = ehHoje ? '#dbeafe' : (temAndamento ? '#fef3c7' : '#fff');
+        const borderCell = ehHoje ? '2px solid #2563eb' : (temAndamento ? '1.5px solid #f59e0b' : '1px solid #e2e8f0');
+        let title = '';
+        if (temAndamento) title += andamento.map(a => '🔧 '+a.placa+' — '+a.descricao).join('\n') + '\n';
+        if (temEvento) title += eventos.map(e => '✅ '+e.placa+(e.descricao?' — '+e.descricao:'')).join('\n');
+        const dots = (temAndamento ? '<span style="color:#d97706;font-size:1rem;" title="Em Manutenção">🔧</span>' : '') +
+            eventos.slice(0,3).map(e => '<span style="display:inline-block;width:7px;height:7px;background:#16a34a;border-radius:50%;margin:1px;" title="' + (e.placa||'') + '"></span>').join('');
+        grid += `<div style="background:${bgCell};border:${borderCell};border-radius:6px;padding:4px;min-height:58px;cursor:${(temEvento||temAndamento)?'pointer':'default'};position:relative;" title="${title.trim()}" onclick="window._mnCalDiaClick(${d}, ${y}, ${m})">
+            <div style="font-size:0.78rem;font-weight:${ehHoje?700:600};color:${ehHoje?'#2563eb':'#475569'};">${d}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:2px;">${dots}</div>
+        </div>`;
+    }
+    grid += '</div>';
+
+    container.innerHTML = `
+    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+        <div style="background:#1e293b;padding:0.75rem 1rem;display:flex;align-items:center;justify-content:space-between;">
+            <button onclick="window._mnHistNavMes(-1)" style="background:rgba(255,255,255,0.1);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;"><i class="ph ph-caret-left"></i></button>
+            <span style="font-weight:700;color:#fff;font-size:1rem;">${mesNomes[m]} ${y}</span>
+            <button onclick="window._mnHistNavMes(1)" style="background:rgba(255,255,255,0.1);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;"><i class="ph ph-caret-right"></i></button>
+        </div>
+        <div style="padding:0.75rem;">${grid}</div>
+        <div style="padding:0.5rem 1rem;border-top:1px solid #f1f5f9;display:flex;gap:1rem;align-items:center;font-size:0.75rem;color:#64748b;">
+            <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;background:#16a34a;border-radius:50%;"></span>Manutenção realizada</span>
+            <span style="display:flex;align-items:center;gap:4px;">🔧 Em manutenção (período)</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;background:#dbeafe;border:2px solid #2563eb;border-radius:2px;"></span>Hoje</span>
+        </div>
+        <div id="mn-cal-detail" style="padding:0.75rem 1rem;border-top:1px solid #f1f5f9;min-height:40px;"></div>
+    </div>`;
+};
+
+window._mnHistNavMes = function(dir) {
+    let {y, m} = window._mnHistCalMes;
+    m += dir;
+    if (m > 11) { m=0; y++; } else if (m < 0) { m=11; y--; }
+    window._mnHistCalMes = {y, m};
+    window.mnFiltrarTabHistorico();
+};
+
+window._mnCalDiaClick = function(dia, y, m) {
+    const detail = document.getElementById('mn-cal-detail');
+    if (!detail) return;
+    const _critCor = { Critica:'#dc2626', Alta:'#d97706', Media:'#0284c7', Baixa:'#2d9e5f' };
+    const eventos = (window._mnTabHistDados||[]).filter(mm => {
+        const d = mm.data_conclusao || mm.data_agendamento;
+        if (!d) return false;
+        const [dy,dmo,ddi]=d.split('-').map(Number);
+        return dy===y && dmo-1===m && ddi===dia;
+    });
+    // Periodos em andamento neste dia
+    const andamentos = (window._mnTabHistDados||[]).filter(mm => {
+        if (!mm.data_inicio) return false;
+        const start = new Date(mm.data_inicio+'T12:00:00');
+        const end   = mm.data_conclusao ? new Date(mm.data_conclusao+'T12:00:00') : new Date();
+        const check = new Date(y, m, dia);
+        return check >= new Date(start.getFullYear(),start.getMonth(),start.getDate()) &&
+               check <= new Date(end.getFullYear(),end.getMonth(),end.getDate());
+    });
+    let html = `<div style="font-weight:700;color:#1e293b;margin-bottom:6px;">${String(dia).padStart(2,'0')}/${String(m+1).padStart(2,'0')}/${y}</div>`;
+    if (!eventos.length && !andamentos.length) { detail.innerHTML = html + '<span style="color:#94a3b8;font-size:0.82rem;">Nenhuma manutenção neste dia.</span>'; return; }
+    if (andamentos.length) {
+        html += '<div style="font-size:0.8rem;font-weight:600;color:#d97706;margin-bottom:4px;">🔧 Em Manutenção:</div>';
+        andamentos.forEach(mm => {
+            html += `<div style="font-size:0.8rem;color:#78350f;padding:2px 0;">${mm.placa||''} — ${mm.descricao||'—'} (${mm.data_inicio} → ${mm.data_conclusao||'em andamento'})</div>`;
+        });
+    }
+    if (eventos.length) {
+        html += '<div style="font-size:0.8rem;font-weight:600;color:#16a34a;margin:6px 0 4px;">✅ Realizadas:</div>';
+        eventos.forEach(mm => {
+            const cor = _critCor[mm.criticidade] || '#94a3b8';
+            html += `<div style="font-size:0.8rem;color:#374151;padding:2px 0;">${mm.placa||''} — ${mm.descricao||'—'} <span style="color:${cor};font-weight:600;">(${mm.criticidade||''})</span></div>`;
+        });
+    }
+    detail.innerHTML = html;
 };
 
 
@@ -286,7 +434,7 @@ function mnRenderPlanoAgrupado(data) {
 
             const criticBadge = `<span style="background:${critCor[item.criticidade]||'#94a3b8'}22;color:${critCor[item.criticidade]||'#94a3b8'};padding:1px 7px;border-radius:20px;font-size:0.72rem;font-weight:700;">${item.criticidade||'Media'}</span>`;
 
-            const statusCor = {concluida:'#2d9e5f',agendada:'#d97706',programada:'#7c3aed',em_andamento:'#d97706',cancelada:'#94a3b8'};
+            const statusCor = {concluida:'#2d9e5f',agendada:'#2563eb',programada:'#7c3aed',em_andamento:'#d97706',cancelada:'#94a3b8'};
             const statusLbl = {concluida:'Concluída',agendada:'Agendada',programada:'Programada',em_andamento:'Em Andamento',cancelada:'Cancelada'};
             const sKey = item.status||'concluida';
             const statusBadge = `<span style="background:${statusCor[sKey]||'#94a3b8'}22;color:${statusCor[sKey]||'#94a3b8'};padding:1px 7px;border-radius:20px;font-size:0.72rem;font-weight:700;">${statusLbl[sKey]||sKey}</span>`;
@@ -329,6 +477,10 @@ function mnRenderPlanoAgrupado(data) {
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${kmRestTxt}</td>
                 <td style="padding:0.6rem 0.5rem;text-align:center;">
                     <div style="display:flex;gap:4px;justify-content:center;">
+                        ${item.status === 'em_andamento'
+                            ? `<button title="Em Andamento — clique para concluir" onclick="window.mnConcluirIndividual(${item.id}, '${nomeSafe}')" style="background:#16a34a;color:#fff;border:none;border-radius:6px;padding:0 8px;height:28px;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:0.7rem;font-weight:700;"><i class="ph ph-check-circle"></i> Em Andamento</button>`
+                            : `<button onclick="window.mnIniciarManutencao(${item.id}, '${nomeSafe}')" style="background:#d97706;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Iniciar Manutenção"><i class="ph ph-play"></i></button>`
+                        }
                         <button onclick="window.mnConcluirIndividual(${item.id}, '${nomeSafe}')"
                             style="background:#16a34a;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Registrar manutenção realizada">
                             <i class="ph ph-check-circle"></i>
@@ -337,7 +489,7 @@ function mnRenderPlanoAgrupado(data) {
                             style="background:#7c3aed;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Agendar próxima">
                             <i class="ph ph-calendar-plus"></i>
                         </button>
-                        <button onclick="window.mnEditarRapido(${item.id}, '${nomeSafe}', ${item.intervalo_configurado || item.periodicidade_padrao || 0}, '${(item.observacoes||'').replace(/'/g,"\'")}')" 
+                        <button onclick="window.mnEditarRapido(${item.id}, '${nomeSafe}', ${item.intervalo_configurado || item.periodicidade_padrao || 0}, '${(item.observacoes||'').replace(/'/g,"\\'")}', ${item.km_ultima || 0})" 
                             style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Editar intervalo e observação">
                             <i class="ph ph-pencil"></i>
                         </button>
@@ -433,7 +585,7 @@ window.mnSalvarKmPreventivo = async function() {
 function mnRenderCorretivaTela(sub) {
     const frota = window._manutFrota || [];
     const veicOpts = frota.map(v => `<option value="${v.id}">${v.placa}</option>`).join('');
-    const statusCor = {agendada:'#d97706',em_andamento:'#dc2626',concluida:'#2d9e5f',cancelada:'#94a3b8'};
+    const statusCor = {agendada:'#2563eb',em_andamento:'#dc2626',concluida:'#2d9e5f',cancelada:'#94a3b8'};
     const statusLbl = {agendada:'Agendada',em_andamento:'Em Andamento',concluida:'Concluída',cancelada:'Cancelada'};
     const rows = (window._manutDados||[]).filter(m => m.tipo==='corretiva');
     const makeRow = m => `<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
@@ -481,7 +633,7 @@ window.mnFiltrarCorretiva = function() {
     if (fS) rows = rows.filter(m=>m.status===fS);
     const tbody = document.getElementById('mn-corr-tbody');
     if (!tbody) return;
-    const statusCor={agendada:'#d97706',em_andamento:'#dc2626',concluida:'#2d9e5f',cancelada:'#94a3b8'};
+    const statusCor={agendada:'#2563eb',em_andamento:'#dc2626',concluida:'#2d9e5f',cancelada:'#94a3b8'};
     const statusLbl={agendada:'Agendada',em_andamento:'Em Andamento',concluida:'Concluída',cancelada:'Cancelada'};
     tbody.innerHTML = rows.length ? rows.map(m=>`<tr style="border-bottom:1px solid #f1f5f9;">
         <td style="padding:0.7rem 1rem;font-weight:700;">${m.placa||'—'}</td>
@@ -565,7 +717,7 @@ function mnRenderLista() {
         el.innerHTML = '<div style="padding:3rem;text-align:center;color:#94a3b8;"><i class="ph ph-wrench" style="font-size:2rem;"></i><br>Nenhuma manutenção encontrada.</div>';
         return;
     }
-    const statusCor = { agendada:'#d97706', em_andamento:'#dc2626', concluida:'#2d9e5f', cancelada:'#94a3b8' };
+    const statusCor = { agendada:'#2563eb', em_andamento:'#dc2626', concluida:'#2d9e5f', cancelada:'#94a3b8' };
     const statusLabel = { agendada:'Agendada', em_andamento:'Em Andamento', concluida:'Concluída', cancelada:'Cancelada' };
     const tipoCor = { preventiva:'#7c3aed', corretiva:'#d97706' };
     el.innerHTML = `<div style="overflow-x:auto;">
@@ -1105,7 +1257,7 @@ window.mnAgendarIndividual = function(itemId, nome) {
 };
 
 // Popup rápido: editar apenas KM Intervalo e Observação
-window.mnEditarRapido = function(id, nome, intervaloAtual, obsAtual) {
+window.mnEditarRapido = function(id, nome, intervaloAtual, obsAtual, kmUltima) {
     let ov = document.getElementById('mn-editar-rapido-ov');
     if (ov) ov.remove();
 
@@ -1162,11 +1314,10 @@ window.mnEditarRapido = function(id, nome, intervaloAtual, obsAtual) {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
                 body: JSON.stringify({
-                    km_proxima_manutencao: null, // será recalculado pelo backend se intervalo mudar
-                    periodicidade_padrao_override: intervalo ? parseInt(intervalo) : null,
                     observacoes: obs || null,
                     _apenas_intervalo_obs: true,
-                    intervalo_km: intervalo ? parseInt(intervalo) : null
+                    intervalo_km: intervalo ? parseInt(intervalo) : null,
+                    km_ultima: kmUltima != null ? parseInt(kmUltima) : null
                 })
             });
             if (res.ok) {

@@ -1,0 +1,1311 @@
+
+
+Manual de Integração Web Service SIGOR-MTR 
+ 
+Versão 1.15 - 21/08/2024 
+ 
+API ambiente de homologação: https://mtrr-hom.cetesb.sp.gov.br/apiws/rest 
+ 
+Importante:  
+Para utilização do ambiente de homologação é necessário criar empreendimentos e 
+usuários fictícios. O procedimento é idêntico ao do ambiente de produção.  
+ 
+Utilizar software para testes de serviços RESTful (Web APIs).  
+ 
+API ambiente de produção: https://mtrr.cetesb.sp.gov.br/apiws/rest 
+ 
+ 
+APIs Desenvolvidas 
+ 
+1 – GetToken 
+2 – Lista de Classes dos Resíduos 
+3 – Lista de Unidades 
+4 – Lista de Tratamentos 
+5 – Lista de Tipo Estados Físicos 
+6 – Lista de Tipo Acondicionamentos 
+7 – Lista de Resíduos 
+8 – Lista de Classe dos Resíduos por Resíduo 
+9 - Lista de Tipo Acondicionamentos por Estado Físico 
+10 – Gerar Manifesto em Lote 
+11 – Donwload do Manifesto 
+12 – Cancelar Manifesto 
+13 – Retorna Manifesto 
+14 – Receber Manifesto em Lote 
+15 – Gerar CDF 
+16 – Download do CDF 
+17 – Solicitação de alteração de Recebimento de MTR 
+18 – Aceite de Solicitação de alteração de Recebimento de MTR 
+19 – Cancelar Manifesto Lote 
+20 – Consulta MTR pelo ‘seuCodigo’ 
+21 – Gerar Manifesto Complementar 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+1 – GetToken 
+ 
+REQUISIÇÃO 
+ 
+POST {API}/gettoken 
+Content-Type: application/json 
+{ 
+    "cpfCnpj": "99999999999", 
+    "senha": "senha", 
+    "unidade": "99999" 
+} 
+Para adquirir os dados acima: 
+ 
+--------------------------- 
+Acesso ambiente de homologação: https://mtr-hom.cetesb.sp.gov.br 
+ 
+Caso o e-mail recebido apresente o link:  
+ 
+http://seguranca-hom/Home/DefinirSenha/<codigoenviado> 
+ 
+acrescentar o sufixo cetesb.sp.gov.br: 
+  
+http://seguranca-hom.cetesb.sp.gov.br/Home/DefinirSenha/<codigoenviado> 
+ 
+------------------------ 
+Acesso ambiente de produção: https://mtr.cetesb.sp.gov.br 
+ 
+- cpfCnpj e senha são adquiridos em:  
+PASSO 1: Efetue o cadastro da pessoa usuária no SISTEMAS DE CONTROLE DE ACESSO 
+CORPORATIVO. 
+OBS: O campo cpfCnpj deve ser o cpf do usuário do sistema.  
+ 
+- unidade pode ser adquirida em:  
+PASSO 2: Efetue o cadastro do Empreendimento (Gerador, Transportador, Destinador, 
+Armazenador Temporário)  
+ 
+RESPOSTA 
+{ 
+    "mensagem": "Sucesso!", 
+    "objetoResposta": "Bearer eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIxNDM2OCw0MjQiLCJyb2xlIjox
+LCJleHAiOjE2MTM2NDg0ODZ9.3Kd2-STv-
+
+iq8tS3_67d4XxSktjqomCxTBUWf5qwBfreW3dWBWYpIHVBIWcKIWY7mZAHM3N5Hwy4Ua6zdI
+E4Q-g", 
+    "erro": false 
+} 
+O Token deve ser armazenado em seu sistema e para cada requisição às APIs, incluído no header 
+da requisição. 
+ 
+TABELA DE RETORNO 
+Código Descrição 
+000 SUCESSO 
+001 Problema na autenticação! 
+002 parâmetro cpfCnpj deve ser informado não pode ser vazio! 
+003 parâmetro senha deve ser informado e não pode ser vazio! 
+004 parâmetro unidade deve ser informado e não pode ser vazio! 
+005 parâmetro cpfCnpj não é válido! 
+006 parâmetro unidade deve conter apenas números! 
+007 Autenticação inválida, verifique parâmetros 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+2 – Lista de Classes dos Resíduos 
+ 
+REQUISIÇÃO 
+ 
+POST {API}/retornaListaClasse 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+ 
+RESPOSTA 
+{ 
+    "mensagem": null, 
+    "objetoResposta": [ 
+        { 
+            "claCodigo": 11, 
+            "claDescricao": "CLASSE A (RCC)" 
+        }, 
+        { 
+            "claCodigo": 12, 
+            "claDescricao": "CLASSE B (RCC)" 
+
+        }, 
+ ... 
+ ] 
+} 
+ 
+3 – Lista de Unidades 
+REQUISIÇÃO 
+ 
+POST {API}/retornaListaUnidade 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+ 
+RESPOSTA 
+{ 
+    "mensagem": null, 
+    "objetoResposta": [ 
+        { 
+            "uniCodigo": 21, 
+            "uniDescricao": "Litro", 
+            "uniSigla": "Lt" 
+        }, 
+        { 
+            "uniCodigo": 20, 
+            "uniDescricao": "M³", 
+            "uniSigla": "M³" 
+        }, 
+... 
+] 
+} 
+ 
+4 – Lista de Tratamentos 
+REQUISIÇÃO 
+ 
+POST {API}/retornaListaTratamento 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+ 
+ 
+RESPOSTA 
+{ 
+    "mensagem": null, 
+    "objetoResposta": [ 
+        { 
+            "traCodigo": 4, 
+            "traDescricao": "Aterro Resíduos Classe I" 
+        }, 
+        { 
+            "traCodigo": 17, 
+            "traDescricao": "Aterro Resíduos Classes  IIA e IIB" 
+
+        }, 
+ ... 
+ ] 
+} 
+ 
+ 
+5 – Lista de Tipo Estados Físicos 
+REQUISIÇÃO 
+ 
+POST {API}/retornaListaEstadoFisico 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+ 
+ 
+RESPOSTA 
+{ 
+    "mensagem": null, 
+    "objetoResposta": [ 
+        { 
+            "tieCodigo": 2, 
+            "tieDescricao": "LIQUIDO" 
+        }, 
+        { 
+            "tieCodigo": 3, 
+            "tieDescricao": "GASOSO" 
+        }, 
+        .... 
+    ], 
+    "erro": false 
+} 
+6 – Lista Tipo Acondicionamentos 
+REQUISIÇÃO 
+ 
+POST {API}/retornaListaAcondicionamento 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+ 
+ 
+RESPOSTA 
+{ 
+    "mensagem": null, 
+    "objetoResposta": [ 
+        { 
+            "tiaCodigo": 3, 
+            "tiaDescricao": "CONTEINER" 
+        }, 
+        { 
+            "tiaCodigo": 4, 
+            "tiaDescricao": "CAÇAMBA ABERTA" 
+
+        }, 
+        ... 
+    ], 
+    "erro": false 
+} 
+ 
+7 – Lista de Resíduos 
+REQUISIÇÃO 
+ 
+POST {API}/retornaListaResiduo 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+ 
+ 
+RESPOSTA 
+{ 
+    "mensagem": null, 
+    "objetoResposta": [ 
+        { 
+            "resCodigoIbama": "060102(*)", 
+            "resDescricao": "Acido clorídrico" 
+        }, 
+        { 
+            "resCodigoIbama": "060103(*)", 
+            "resDescricao": "Acido fluorídrico" 
+        }, 
+ ... 
+ ] 
+} 
+ 
+8 – Lista de Classes dos Resíduos por Resíduo 
+ 
+REQUISIÇÃO 
+ 
+POST {API}/retornaListaClassePorResiduo/{resCodigoIbama} 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+ 
+Exemplo: {API}/retornaListaClassePorResiduo/180101(*) 
+ 
+ 
+RESPOSTA 
+{ 
+    "mensagem": null, 
+    "objetoResposta": [ 
+        { 
+            "claCodigo": 1, 
+            "claDescricao": "CLASSE I" 
+        }, 
+
+        { 
+            "claCodigo": 21, 
+            "claDescricao": "GRUPO A1 (RSS)" 
+        } 
+    ], 
+    "erro": false 
+} 
+ 
+9 - Lista de Tipo Acondicionamentos por Estado Físico 
+REQUISIÇÃO 
+ 
+POST {API}/ retornaListaAcondicionamentoPorEstadoFisico /{tieCodigo} 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+ 
+Exemplo: {API}/retornaListaAcondicionamentoPorEstadoFisico/1 
+ 
+RESPOSTA 
+{ 
+    "mensagem": null, 
+    "objetoResposta": [ 
+        { 
+            "tiaCodigo": 14, 
+            "tiaDescricao": "BOMBONA PLÁSTICA" 
+        }, 
+... 
+    ], 
+    "erro": false 
+} 
+ 
+10 - Gerar Manifesto em Lote 
+REQUISIÇÃO 
+ 
+POST {API}/salvarManifestoLote 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+[ 
+ { 
+  "nomeResponsavel":"nome responsavel", 
+  "seuCodigo":"abc123", 
+  "dataExpedicao":1622592000000, 
+  "nomeMotorista":"motorista", 
+  "placaVeiculo":"abc1234", 
+  "observacoes":"obs", 
+  "transportador":{ 
+   "unidade":99999, 
+   "cpfCnpj":"99999999999999" 
+  }, 
+  "destinador":{ 
+   "unidade":99999, 
+
+   "cpfCnpj":"99999999999999" 
+  },  
+  "armazenadorTemporario":{ 
+   "unidade":99999, 
+   "cpfCnpj":"99999999999999" 
+  },    
+  "listaManifestoResiduos":[ 
+   { 
+    "marQuantidade":10.0, 
+    "resCodigoIbama":"010101", 
+    "uniCodigo":3, 
+    "traCodigo":4, 
+    "tieCodigo":4, 
+    "tiaCodigo":26, 
+    "claCodigo":42, 
+                "marDensidade":1, 
+                "marNumeroONU": "5255", 
+                "marClasseRisco": "568", 
+                "marNomeEmbarque": "nome embarque", 
+                "greCodigo": 1          
+   }, 
+   { 
+    "marQuantidade":10.5, 
+    "resCodigoIbama":"010102", 
+    "uniCodigo":3, 
+    "traCodigo":4, 
+    "tieCodigo":4, 
+    "tiaCodigo":26, 
+    "claCodigo":42, 
+                "marDensidade":1, 
+                "marNumeroONU": "5255", 
+                "marClasseRisco": "568", 
+                "marNomeEmbarque": "nome embarque", 
+                "greCodigo": 1          
+   }                      
+  ] 
+ } 
+] 
+ 
+Tabela de Parâmetros 
+Parâmetro Tipo Exemplo/Formato Obrigatório 
+seuCodigo String Informe aqui um código 
+para rastreio e 
+verificação da 
+existência do MTR para 
+casos onde não retorna 
+o  número  do  MTR  e  o 
+mesmo foi gerado. 
+Consulte por este 
+código na API 20. 
+N 
+nomeResponsavel String  S 
+
+dataExpedicao Long 1614080104836 N 
+nomeMotorista String  N 
+placaVeiculo String Máximo  7  caracteres  = 
+abc1234 
+N 
+observacoes String  N 
+transportador - unidade Integer  S 
+transportador - cpfCnpj String Somente números S 
+destinador - unidade Integer  S 
+destinador - cpfCnpj String Somente números S 
+armazenadorTemporario - unidade Integer  S 
+armazenadorTemporario - cpfCnpj String Somente números S 
+listaManifestoResiduos (ver abaixo) List  S 
+ 
+listaManifestoResiduos 
+Parâmetro Tipo Exemplo/Formato Obrigatório 
+marQuantidade Double 23.7 S 
+resCodigoIbama String  S 
+uniCodigo Integer  S 
+traCodigo Integer  S 
+tieCodigo Integer  S 
+tiaCodigo Integer  S 
+claCodigo Integer  S 
+marDensidade Double  N 
+marNumeroONU String  N 
+marClasseRisco String  N 
+marNomeEmbarque String  N 
+greCodigo Integer  N 
+ 
+ 
+Observações: 
+- O campo “seuCodigo” deve ser controlado pelo gerador.  O sistema não irá permitir a repetição 
+deste campo. Este campo é do tipo String com tamanho máximo de 30 caracteres. 
+ 
+- O campo “marDensidade” deve ser informado quando a unidade for Litro ou Metro Cúbico. 
+ 
+- Armazenador Temporário: caso não tenha, não informar o campo: 
+"armazenadorTemporario":{ "unidade":99999, "cpfCnpj":"99999999999999" },. 
+ 
+- Placa do Veículo: não usar hífen. 
+ 
+- Os campos “marNumeroONU”, “marClasseRisco”, “marNomeEmbarque” e “greCodigo” devem 
+ser informados quando o resíduo for perigoso, os que possuem “(*)” no código ou para os 
+Resíduos com o Código do IBAMA igual a 200132, Grupo A, Grupo B, Grupo C, Grupo D, Grupo 
+E,   GrupoA1,   GrupoA2,   GrupoA3,   GrupoA4,   GrupoA5.   Valores   possíveis   para   o   campo 
+“greCodigo” -> 1= I, 2= II, 3= III, 4= N/A. 
+ 
+- Para  os  Resíduos  de  serviços  de  saúde  e  Resíd.uos com o  Código  do  IBAMA  igual  a  200132, 
+Grupo A, Grupo B, Grupo C, Grupo D, Grupo E, GrupoA1, GrupoA2, GrupoA3, GrupoA4, GrupoA5, 
+o campo unidade deve ser informado obrigatoriamente Quilograma ou Litro. 
+
+- Para  o  Resíduo  com  o  Código  do  IBAMA  igual  a  200304,  Lodos  de  fossas  sépticas,  o  campo 
+estado físico deve ser informado obrigatoriamente Líquido. 
+ 
+- Para o Resíduo com o Código do IBAMA igual a 200121(*), Lâmpadas fluorescentes, de vapor 
+de sódio e mercúrio e de luz mista, o campo unidade deve ser informado obrigatoriamente 
+Unidade. 
+- A Lista de classe depende do resíduo selecionado. Para consultar quais classe podem ser 
+usadas de acordo com cada resíduo, consumir a API 8 - Lista de Classes dos Resíduos por 
+Resíduo 
+- A Lista de Acondicionamentos depende do Estado Físico selecionado. Para consultar quais 
+acondicionamentos podem ser usados, consumir a API – 9 Lista de Tipo Acondicionamentos 
+por Estado Físico 
+ 
+RESPOSTA 
+{ 
+    "respostaApiwsManifestoDTO": [ 
+        { 
+            "restResponseValido": true, 
+            "restResponseMensagem": "Validação de campos efetuada com Sucesso!", 
+            "codigoGerado": 0, 
+            "manifestoCodigoEstadual": null, 
+            "manifestoNumeroEstadual": null, 
+            "manifestoNumeroNacional": 211000520453 , 
+            "possuiArmazenamentoTemporario": null, 
+            "armazenadorTemporario": null, 
+            "nomeResponsavel": "Kono Anxieta", 
+            "transportador": { 
+                "restResponseValido": true, 
+                "restResponseMensagem": "Validação OK", 
+                "cpfCnpj": "999999999999", 
+                "unidade": 99999 
+            }, 
+            "nomeMotorista": "motoris", 
+            "placaVeiculo": "ASD2234", 
+            "dataExpedicao": 1614185897058, 
+            "destinador": { 
+                "restResponseValido": true, 
+                "restResponseMensagem": "Validação OK", 
+                "cpfCnpj": "99999999999999", 
+                "unidade": 99999 
+            }, 
+            "gerador": null, 
+            "ufOrigemMtr": null, 
+            "tipoManifesto": null, 
+            "observacoes": "", 
+            "listaManifestoResiduos": [ 
+                { 
+                    "restResponseValido": true, 
+
+                    "restResponseMensagem": "Validação OK!", 
+                    "codigoGerado": null, 
+                    "manCodigo": null, 
+                    "resCodigoIbama": "010101", 
+                    "resCodigoIbamaNovo": null, 
+                    "marQuantidade": 5.0, 
+                    "marQuantidadeRecebida": null, 
+                    "uniCodigo": 3, 
+                    "tieCodigo": 1, 
+                    "claCodigo": 42, 
+                    "tiaCodigo": 21, 
+                    "traCodigo": 4, 
+                    "traCodigoNovo": null, 
+                    "marNumeroONU": null, 
+                    "marClasseRisco": null, 
+                    "marNomeEmbarque": null, 
+                    "greCodigo": null, 
+                    "marCodigoInterno": null, 
+                    "marDescricaoInterna": null, 
+                    "observacoes": null, 
+                    "marGrupoEmbalagem": null, 
+                    "marJustificativa": null, 
+                    "marDensidade": null 
+                } 
+            ] 
+        } 
+    ], 
+    "erroNacional": false, 
+    "mensagemErroNacional": null 
+} 
+ 
+Tabela de Retorno 
+Código Descrição 
+000 Validação de campos efetuada com Sucesso! – Manifesto Gerado 
+001 Problema ao recuperar o usuário, tente novamente mais tarde! 
+002 O Token de Acesso não é de um Gerador! 
+003 JSON não pode ser vazio ou está em desacordo com o modelo informado! 
+004 Campo nomeResponsavel deve ser informado e não pode ser vazio! 
+005 A Data de expedição não pode ser anterior a data atual! 
+006 campo listaManifestoResiduos deve ser informado e não pode ser vazio! 
+007 Para MTR de AT, permite apenas um resíduo! 
+999 Erro(s) encontrado(s)! (Observe as informações no JSON de retorno) 
+ 
+ 
+11 – Donwload do Manifesto 
+ 
+REQUISIÇÃO 
+ 
+POST {API}/downloadManifesto/{manNumero} 
+
+Content-Type: application/json 
+Authorization: Bearer {token} 
+ 
+“manNumero” é o número do MTR. 
+ 
+ 
+RESPOSTA 
+Arquivo PDF, se a requisição atender as regras do sistema. 
+Tratar a resposta que pode ser uma mensagem ou o arquivo PDF. 
+Possíveis Respostas: 
+1 - Manifesto não encontrado 
+2 - WS Não disponível no momento. 
+3 - O Token não pertence ao Gerador/Destinador/Transportador/Armazenador Temporário. 
+Caso a resposta não seja nenhuma das anteriores citadas e o status seja 200, tratar a resposta 
+como PDF. 
+ 
+ 
+ 
+12 – Cancelar Manifesto 
+REQUISIÇÃO 
+ 
+POST {API}/cancelarManifesto 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+{ 
+    "manNumero":"999999999999", 
+    "justificativa":"teste de api" 
+} 
+ 
+RESPOSTA 
+{ 
+    "mensagem": "Manifesto cancelado com sucesso", 
+    "objetoResposta": null, 
+    "erro": false 
+} 
+TABELA DE RETORNO 
+Manifesto cancelado com sucesso 
+Apenas o Gerador pode cancelar um Manifesto 
+O Manifesto não pertence ao Gerador 
+Manifesto com situação diferente de Ativo. Não pode ser cancelado! 
+Erro ao cancelar manifesto 
+Manifesto não encontrado! 
+ 
+ 
+ 
+ 
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+13 – Retorna Manifesto 
+ 
+REQUISIÇÃO 
+ 
+GET {API}/retornaManifesto/{manNumero} 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+ 
+“manNumero” é o número do MTR. 
+ 
+RESPOSTA 
+{ 
+    "mensagem": null, 
+    "objetoResposta": { 
+        "manNumero": "999999999999", 
+        "manData": 1614049200000, 
+        "manResponsavel": "nono no no", 
+        "manDataExpedicao": 1614049200000, 
+        "manNomeMotorista": "motorista", 
+        "manPlacaVeiculo": "ASD2234", 
+        "manObservacao": "", 
+        "manJustificativaCancelamento": "", 
+        "estado": { 
+            "estCodigo": 24, 
+            "estAbreviacao": "SC" 
+        }, 
+        "parceiroGerador": { 
+            "parCodigo": 99999, 
+            "parDescricao": "no no nono non nonono", 
+            "parCnpj": "99999999999999" 
+        }, 
+        "parceiroTransportador": { 
+              "parCodigo": 99999, 
+            "parDescricao": "no no nono non nonono", 
+            "parCnpj": "99999999999999" 
+        }, 
+        "parceiroDestinador": { 
+            "parCodigo": 99999, 
+            "parDescricao": "no no nono non nonono", 
+            "parCnpj": "99999999999999" 
+        }, 
+        "parceiroArmazenadorTemporario": { 
+            "parCodigo": null, 
+
+            "parDescricao": "", 
+            "parCnpj": null 
+        }, 
+        "situacaoManifesto": { 
+            "simCodigo": 3, 
+            "simDescricao": "Recebido", 
+            "simOrdem": 3 
+        }, 
+        "listaManifestoResiduo": [ 
+            { 
+                "residuo": { 
+                    "resCodigo": 559, 
+                    "resCodigoIbama": "180101(*)" 
+"resDescricao": "Culturas e ...." 
+                }, 
+                "unidade": { 
+                    "uniCodigo": 3, 
+                    "uniDescricao": "Tonelada", 
+                    "uniSigla": "TON" 
+                }, 
+                "tratamento": { 
+                    "traCodigo": 4, 
+                    "traDescricao": "Aterro Resíduos Classe I" 
+                }, 
+                "tipoEstado": { 
+                    "tieCodigo": 1, 
+                    "tieDescricao": "SEMISSÓLIDO" 
+                }, 
+                "tipoAcondicionamento": { 
+                    "tiaCodigo": 21, 
+                    "tiaDescricao": "CAIXA" 
+                }, 
+                "classe": { 
+                    "claCodigo": 1, 
+                    "claDescricao": "CLASSE I" 
+                }, 
+                "marQuantidade": 0.05, 
+                "marQuantidadeRecebida": null, 
+                "marDensidade": null, 
+                "marJustificativa": null, 
+                "marObservacao": null, 
+                "marNumeroONU": null, 
+                "marClasseRisco": null, 
+                "marNomeEmbarque": "nome embarque", 
+                "grupoEmbalagem": { 
+                    "greCodigo": 1, 
+                    "greDescricao": "I" 
+                }, 
+
+                "codigoInterno": null, 
+                "descricaoInterna": null 
+            } 
+        ], 
+        "manNumeroEstadual": null, 
+        "cdfCodigo": null, 
+        "manResponsavelRecebimento": null, 
+        "manDataRecebimentoArmazenamentoTemporario": "25/09/2023", 
+        "manDataRecebimentoDestinador": "25/09/2023", 
+    }, 
+    "erro": false 
+} 
+ 
+ 
+14 – Receber Manifesto em Lote 
+REQUISIÇÃO 
+ 
+POST {API}/receberManifestoLote 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+[ 
+    { 
+        "manNumero":"999999999999", 
+        "dataRecebimento":1614080104836, 
+        "nomeMotorista":"motoris", 
+        "placaVeiculo":"ASD2234", 
+        "nomeResponsavelRecebimento":"nome igual ao cadastrado", 
+        "observacoes":"obs do recebimento", 
+        "listaManifestoResiduo":[ 
+            { 
+                "resCodigoIbama":"010101", 
+                "marQuantidade":5, 
+                "marQuantidadeRecebida":10, 
+                "traCodigo":4, 
+  "uniCodigo": 3, 
+                "marJustificativa":"informar este campo caso a quantidade recebida for divergente da 
+informada na geração"             
+            }, 
+            { 
+                "resCodigoIbama":"010102", 
+                "resCodigoIbamaNovo":"020202", 
+                "marQuantidade":5, 
+                "marQuantidadeRecebida":10, 
+                "uniCodigo": 3, 
+                "traCodigo":4, 
+
+                "traCodigoNovo":17, 
+                "tieCodigo":1, 
+                "tiaCodigo":21, 
+                "claCodigo":42,                 
+                "marJustificativa":null             
+            }                       
+        ] 
+    } 
+] 
+Acima é um exemplo de JSON para receber o resíduo 010101 do MTR e substituir o resíduo 
+010102 pelo resíduo 020202. Nesse caso é obrigatório para o resíduo novo, informar os 
+campos, resCodigoNovo, uniCodigo,  traCodigoNovo, tieCodigo, tiaCodigo, claCodigo além dos 
+demais campos obrigatórios. Se não desejar adicionar resíduo novo no recebimento, não 
+informar o item 2 da lista de resíduos, e para isso deve-se informar apenas resCodigoIbama, 
+marQuantidade, marQuantidadeRecebida e traCodigo. Se a quantidade recebida for 
+divergente da quantidade informada na geração do MTR, deve-se informar o campo 
+marJustificativa. 
+ 
+ 
+Tabela de Parâmetros 
+Parâmetro Tipo Exemplo/Formato Obrigatório 
+manNumero String  S 
+dataRecebimento Long 1614080104836 S 
+nomeMotorista String  S 
+placaVeiculo String Máximo 7 caracteres = abc1234 S 
+nomeResponsavelRecebimento 
+ 
+String Deve ser idêntico ao cadastrado 
+no sistema 
+S 
+observacoes String  N 
+ 
+listaManifestoResiduo 
+Parâmetro Tipo Exemplo/Formato Obrigatório 
+marQuantidade Double 23.7 S 
+resCodigoIbama String  S 
+resCodigoIbamaNov
+o 
+String Informar apenas para resíduo novo N 
+uniCodigo Integer  S 
+traCodigo Integer  S 
+traCodigoNovo Integer Informar  apenas  para  resíduo  novo  ou  se 
+desejar  alterar  o  resíduo  que  esta  sedo 
+recebido 
+N 
+tieCodigo Integer  S 
+tiaCodigo Integer  S 
+claCodigo Integer  S 
+marDensidade Double  N 
+marNumeroONU String  N 
+marClasseRisco String  N 
+marNomeEmbarque String  N 
+greCodigo Integer  N 
+ 
+
+Observações:  
+- Para inserção de resíduos novos, vale as mesmas regras da API de Gerar Manifesto. 
+- O   resíduo   é   validado   no   momento   do   recebimento   pelos   campos   resCodigoIbama  + 
+marQuantidade + traCodigo, então deve informar exatamente o que está lançado no MTR. 
+Para alterar o tratamento no momento do recebimento, que é possível pelo sistema, informar 
+o novo tratamento no campo traCodigoNovo. 
+RESPOSTA 
+ 
+{ 
+    "mensagem": "Recebimento efetuado com Sucesso!", 
+    "objetoResposta": [ 
+        { 
+            "restResponseValido": true, 
+            "restResponseMensagem": "Validação OK!", 
+            "manNumero": "421000699361", 
+            "nomeMotorista": "motoris", 
+            "placaVeiculo": "ASD2234", 
+            "dataRecebimento": 1614080104836, 
+            "nomeResponsavelRecebimento": "nome teste", 
+            "observacoes": "obs do rcebimento", 
+            "listaManifestoResiduo": [ 
+                { 
+                    "restResponseValido": true, 
+                    "restResponseMensagem": "OK!", 
+                    "codigoGerado": null, 
+                    "manCodigo": null, 
+                    "resCodigoIbama": "010101", 
+                    "resCodigoIbamaNovo": null, 
+                    "marQuantidade": 5.0, 
+                    "marQuantidadeRecebida": 10.0, 
+                    "uniCodigo": null, 
+                    "tieCodigo": null, 
+                    "claCodigo": null, 
+                    "tiaCodigo": null, 
+                    "traCodigo": 4, 
+                    "traCodigoNovo": 17, 
+                    "marNumeroONU": null, 
+                    "marClasseRisco": null, 
+                    "marNomeEmbarque": null, 
+                    "greCodigo": null, 
+                    "marCodigoInterno": null, 
+                    "marDescricaoInterna": null, 
+                    "observacoes": null, 
+                    "marGrupoEmbalagem": null, 
+                    "marJustificativa": "jhashsgd", 
+                    "marDensidade": null 
+                } 
+            ], 
+            "erroNacional": false, 
+            "mensagemErroNacional": null 
+        } 
+    ], 
+
+    "erro": false 
+} 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+15 – Gerar CDF 
+ 
+Nesta API para gerar os CDFs deve-se informar o período de datas que corresponde aos MTRs 
+recebidos no período e, ou a lista de Geradores ou a lista de MTRs.  
+ 
+Modelo 1 – informando a lista de MTRs 
+ 
+REQUISIÇÃO 
+ 
+POST {API}/emiteCDF 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+{ 
+ "cerDataInicial":"1612148400000", 
+ "cerDataFinal":"1614261292971", 
+ "cerObservacao":"observacao do cdf", 
+ "parceiroDestinador":99999, 
+     "cnpjDestinador":"99999999999999", 
+ "tipoCertificadoDestinacao":1, 
+"listaManifesto":[{"manNumero":"111111111111"},{"manNumero":"222222222222"},
+{"manNumero":"333333333333"},{"manNumero":"444444444444"}], 
+ "listaParceiroGerador":[], 
+ "nomeResponsavel":"nome teste" 
+} 
+ 
+Modelo 2 – informando a lista de Geradores 
+ 
+REQUISIÇÃO 
+ 
+POST {API}/emiteCDF 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+{ 
+
+ "cerDataInicial":"1612148400000", 
+ "cerDataFinal":"1614261292971", 
+ "cerObservacao":"observacao do cdf", 
+ "parceiroDestinador":99999, 
+     "cnpjDestinador":"99999999999999", 
+ "tipoCertificadoDestinacao":1, 
+ "listaManifesto":[], 
+ "listaParceiroGerador":[{"unidade":88888,"cpfCnpj":"8888888888888"},{"unidade":99
+999"cpfCnpj":"99999999999999"}], 
+ "nomeResponsavel":"nome teste" 
+} 
+ 
+Tabela de Parâmetros 
+Parâmetro Tipo Exemplo/Formato Obrigatório 
+cerDataInicial Long  S 
+cerDataFinal Long  S 
+cerObservacao String Única para todos os CDFs N 
+parceiroDestinador Integer  S 
+cnpjDestinador String  S 
+tipoCertificadoDestinacao Integer Fixo = 1 S 
+nomeResponsavel String Com grafia idêntica ao 
+cadastrado 
+S 
+listaManifesto List  N 
+listaParceiroGerador List  N 
+ 
+listaManifesto 
+Parâmetro Tipo Exemplo/Formato Obrigatório 
+manNumero String  N 
+ 
+listaParceiroGerador 
+Parâmetro Tipo Exemplo/Formato Obrigatório 
+unidade Integer  N 
+cpfCnpj String  N 
+ 
+Observação: Deve-se informar ou a lista de MTRs ou a lista de Gerador 
+ 
+RETORNO 
+{ 
+    "mensagem": "CDF cadastrado com sucesso!", 
+    "objetoResposta": [ 
+        { 
+            "restResponseValido": true, 
+            "restResponseMensagem": "CDF(s) Gerados com sucesso!", 
+            "codigoGerado": 0, 
+            "cerDataInicial": 1612148400000, 
+            "cerDataFinal": 1614261292971, 
+            "nomeResponsavel": "nome teste api", 
+            "parceiroDestinador": 99999, 
+            "cnpjDestinador": null, 
+            "cerObservacao": "observacao do cdf", 
+
+            "listaParceiroGerador": [ 
+                { 
+                    "restResponseValido": true, 
+                    "restResponseMensagem": "OK", 
+                    "numeroCDF": 88888, 
+                    "cpfCnpj": null, 
+                    "unidade": 77777, 
+                    "listaManifesto": [ 
+                        { 
+                            "restResponseValido": true, 
+                            "restResponseMensagem": "OK", 
+                            "manNumero": "999999999999" 
+                        }, 
+                        { 
+                            "restResponseValido": true, 
+                            "restResponseMensagem": "OK", 
+                            "manNumero": "999999999999" 
+                        } 
+                    ] 
+                }, 
+                { 
+                    "restResponseValido": true, 
+                    "restResponseMensagem": "OK", 
+                    "numeroCDF": 66666, 
+                    "cpfCnpj": null, 
+                    "unidade": 55555, 
+                    "listaManifesto": [ 
+                        { 
+                            "restResponseValido": true, 
+                            "restResponseMensagem": "OK", 
+                            "manNumero": "999999999999" 
+                        } 
+                    ] 
+                } 
+            ] 
+        } 
+    ], 
+    "erro": false 
+} 
+ 
+ 
+ 
+16 – Donwload do CDF 
+ 
+REQUISIÇÃO 
+ 
+POST {API}/downloadCertificado/{numeroCDF} 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+ 
+ 
+ 
+
+RESPOSTA 
+Arquivo PDF, se a requisição atender as regras do sistema. 
+Tratar a resposta que pode ser uma mensagem ou o arquivo PDF. 
+Possíveis Respostas: 
+1 – Certificado não encontrado 
+2 - WS Não disponível no momento. 
+3 - O Token não pertence ao Gerador/Destinador. 
+Caso a resposta não seja nenhuma das anteriores citadas e o status seja 200, tratar a resposta 
+como PDF. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+17 – Solicitação de alteração de Recebimento de MTR 
+ 
+REQUISIÇÃO 
+ 
+POST {API}/alteraRecebimento 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+{ 
+    "parCodigoDestinador":99999, 
+    "remObservacao":"obs alteracao receb", 
+    "manifesto":{ 
+        "manNumero":"9999999999999", 
+        "listaManifestoResiduo":[ 
+            { 
+                "marQuantidade":2.5, 
+                "marQuantidadeRecebida":5.5, 
+                "resCodigoIbama":"010101", 
+                "claCodigo":43, 
+                "claCodigoNovo":42, 
+                "traCodigo":17,          
+                "traCodigoNovo":23   
+            } 
+        ] 
+    } 
+} 
+ 
+Tabela de Parâmetros 
+Parâmetro Tipo Exemplo/Formato Obrigatório 
+
+parCodigoDestinador Integer  S 
+remObservacao String   N 
+manifesto Object  S 
+ 
+manifesto 
+Parâmetro Tipo Exemplo/Formato Obrigatório 
+manNumero String   S 
+listaManifestoResidu
+o 
+List  S 
+ 
+listaManifestoResiduo 
+Parâmetro Tipo Exemplo/Formato Obrigatório 
+marQuantidade String   S 
+marQuantidadeRecebida List  S 
+resCodigoIbama String  S 
+claCodigo Integer  S 
+claCodigoNovo Integer  S 
+traCodigo Integer  S 
+traCodigoNovo Integer  S 
+ 
+ 
+RESPOSTA 
+{ 
+    "mensagem": "", 
+    "objetoResposta": { 
+        "restResponseValido": true, 
+        "restResponseMensagem": "Solicitação enviada com sucesso!", 
+        "codigoGerado": null, 
+        "parCodigoDestinador": 99999, 
+        "remObservacao": "obs alteracao receb", 
+        "manifesto": { 
+            "restResponseValido": false, 
+            "restResponseMensagem": null, 
+            "codigoGerado": null, 
+            "manNumero": "99999999999", 
+            "listaManifestoResiduo": [ 
+                { 
+                    "restResponseValido": true, 
+                    "restResponseMensagem": "OK!", 
+                    "codigoGerado": null, 
+                    "resCodigoIbama": "010101", 
+                    "marQuantidade": 2.5, 
+                    "marQuantidadeRecebida": 5.5, 
+                    "claCodigo": 43, 
+                    "claCodigoNovo": 42, 
+                    "traCodigo": 17, 
+                    "traCodigoNovo": 23 
+                } 
+            ] 
+
+        } 
+    }, 
+    "erro": false 
+} 
+ 
+Tabela de Retorno 
+Código Mensagem 
+0 Solicitação enviada com sucesso! 
+1 Manifesto não encontrado 
+2 Alteração Recebimento Já foi feita uma vez 
+3 Parceiro Destinador informado com situação diferente de Ativo 
+4 Parceiro do token não é destinador 
+5 Manifesto com situação diferente de recebido 
+6 Manifesto não pertence ao Destinador 
+7 Resíduo/Quantidade/Tratamento/Classe não encontrado 
+8 Campo resCodigoIbama deve ser informado, não pode ser vazio e não pode ser 
+0! 
+9 campo marQuantidade deve ser informado! 
+10 campo claCodigo deve ser informado, não pode ser vazio e não pode ser 0! 
+11 campo traCodigo deve ser informado, não pode ser vazio e não pode ser 0! 
+12 Classe informada para o resíduo 
+18 – Aceite de Solicitação de alteração de Recebimento de MTR 
+ 
+REQUISIÇÃO 
+ 
+POST {API}/aceiteAlteracaoRecebimento 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+{ 
+    "parCodigoGerador":99999, 
+    "manNumero":"999999999999", 
+    "aceite":"A" 
+} 
+ 
+Tabela de Parâmetro 
+Parâmetro Tipo Exemplo/Formato Obrigatório 
+parCodigoGerador Integer  S 
+manNumero String  S 
+aceite String Valores possíveis (A, R ou C) S 
+Valores possíveis para o parâmetro ‘aceite’: 
+A – Aceitar a solicitação do Destinador; 
+R – Recusa a solicitação do Destinador; 
+C – Consulta se o Manifesto tem solicitação. 
+ 
+RESPOSTA 
+{ 
+    "mensagem": "Alteração de Manifesto aceite!", 
+    "objetoResposta": { 
+        "restResponseValido": false, 
+
+        "restResponseMensagem": "Alteração de Manifesto aceite!", 
+        "parCodigoGerador": 99999, 
+        "manNumero": "99999999999", 
+        "aceite": "a" 
+    }, 
+    "erro": false 
+} 
+ 
+Tabela de Retorno 
+Código Mensagem 
+0 A = Alteração de Manifesto aceite!  
+R = Alteração de Manifesto recusada! 
+1 Opção inválida. Informe 'A' (Aceita), 'R' (Recusa) ou 'C' (Consulta)! 
+2 Manifesto não encontrado 
+3 Manifesto sem solicitação de alteração encontrado 
+4 Manifesto com solicitação de alteração finalizada 
+5 Parceiro Gerador informado com situação diferente de Ativo 
+6 Parceiro do token não é gerador 
+7 Manifesto com situação diferente de recebido 
+8 Manifesto não pertence ao Gerador 
+ 
+ 
+19 – Cancelar Manifesto 
+REQUISIÇÃO 
+ 
+POST {API}/cancelarManifestoLote 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+[ 
+{ 
+    "manNumero":"999999999999", 
+    "justificativa":"teste de api" 
+}, 
+{ 
+    "manNumero":"999999999999", 
+    "justificativa":"teste de api" 
+} 
+] 
+ 
+RESPOSTA 
+{ 
+    "mensagem": "Possui Erro em algum MTR", 
+    "objetoResposta": [ 
+        { 
+            "manNumero": "240000878723", 
+            "justificativa": "jhdgajhg", 
+
+            "erro": true, 
+            "mensgaemRetorno": "Manifesto com situação diferente de Ativo. Não pode ser 
+cancelado!", 
+            "situacao": null 
+        } 
+    ], 
+    "erro": true 
+} 
+ 
+TABELA DE RETORNO 
+Possíveis “mensgaemRetorno” 
+Manifesto cancelado com sucesso 
+Apenas o Gerador pode cancelar um Manifesto 
+O Manifesto não pertence ao Gerador 
+Manifesto com situação diferente de Ativo. Não pode ser cancelado! 
+Erro ao cancelar manifesto 
+Manifesto não encontrado! 
+ 
+ 
+ 
+20 – Consulta MTR pelo ‘seuCodigo’ 
+REQUISIÇÃO 
+ 
+POST {API}/retornaManifestoSeuCodigo 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+{ 
+    "suaUnidade":123, 
+    "seuCodigo":" abc123" 
+} 
+ 
+A RESPOSTA é igual a API 13 
+ 
+ 
+  
+
+21 - Gerar Manifesto Complementar 
+REQUISIÇÃO 
+ 
+POST {API}/salvarManifestoComplementar 
+Content-Type: application/json 
+Authorization: Bearer {token} 
+{ 
+    "nomeMotorista": "nome do motorista", 
+    "placaVeiculo": "asd-1212", 
+    "observacoes": "", 
+    "transportador": { 
+        "unidade": 2, 
+        "cpfCnpj": "00506545946" 
+    }, 
+    "listaManifesto": [ 
+        { 
+            "manNumero": "240002088896" 
+        }        
+    ] 
+} 
+ 
+ 
+Tabela de Parâmetros 
+Parâmetro Tipo Exemplo/Formato Obrigatório 
+nomeMotorista String  S 
+placaVeiculo String  S 
+observacoes Long 1614080104836 N 
+transportador - unidade Integer  S 
+transportador - cpfCnpj String Somente números S 
+listaManifesto (ver abaixo) List  S 
+ 
+listaManifestoResiduos 
+Parâmetro Tipo Exemplo/Formato Obrigatório 
+manNumero String  S 
+ 
+ 
+RESPOSTA 
+{ 
+    "mensagem": null, 
+    "objetoResposta": { 
+        "restResponseValido": true, 
+        "restResponseMensagem": null, 
+        "manifestoComplementar": 99999, 
+        "transportador": { 
+            "restResponseValido": true, 
+            "restResponseMensagem": null, 
+            "cpfCnpj": "99999999999", 
+            "unidade": 9999 
+        }, 
+        "nomeMotorista": "nome do motorista", 
+        "placaVeiculo": "asd-1212", 
+
+        "observacoes": "", 
+        "listaManifesto": [ 
+            { 
+                "restResponseValido": true, 
+                "restResponseMensagem": null, 
+                "manNumero": "99999999999" 
+            } 
+        ] 
+    }, 
+    "erro": false 
+} 

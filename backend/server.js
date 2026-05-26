@@ -11955,9 +11955,12 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                 const kmUlt = concluida ? (concluida.km_na_manutencao || 0) : 0;
                 const intervKm = item.periodicidade_padrao || 10000;
                 const alerta = Math.floor(intervKm * 0.1);
-                const kmProx = concluida
-                    ? (concluida.km_proxima_manutencao || (kmUlt + intervKm))
-                    : (item.km_proxima_manutencao || (kmUlt + intervKm));
+                // Preferência de kmProx: agendada (se já foi editada) > concluida > calculado
+                const kmProx = (agendada?.km_proxima_manutencao > 0)
+                    ? agendada.km_proxima_manutencao
+                    : (concluida
+                        ? (concluida.km_proxima_manutencao || (kmUlt + intervKm))
+                        : (item.km_proxima_manutencao || (kmUlt + intervKm)));
                 const kmRest = kmProx - kmAtual;
 
                 let statusItem = 'ok';
@@ -11966,9 +11969,13 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                 else if (kmRest <= intervKm * 0.1) { statusItem = 'proxima'; criticidade = 'Critica'; }
                 else if (kmRest <= intervKm * 0.2) { statusItem = 'ok'; criticidade = 'Media'; }
 
+                // em_andamento tem prioridade sobre agendada para exibição de status
+                const andamento = Object.values(porDescricao).length ? null : null; // placeholder
+                const emAndamentoItem = [concluida, agendada, base].find(r => r && r.status === 'em_andamento');
+                const statusFinal = emAndamentoItem ? 'em_andamento' : (agendada ? 'agendada' : 'programada');
                 return {
                     ...item,
-                    status: agendada ? 'agendada' : 'programada',
+                    status: statusFinal,
                     km_ultima: kmUlt,
                     km_proxima: kmProx,
                     km_restante: kmRest,
@@ -11977,6 +11984,7 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                     criticidade,
                     data_ultima_manutencao: concluida?.data_conclusao || null,
                     data_agendamento: agendada?.data_agendamento || null,
+                    data_inicio: emAndamentoItem?.data_inicio || agendada?.data_inicio || null,
                     observacoes_concluida: concluida?.observacoes || null,
                     observacoes_agendada: agendada?.observacoes || null
                 };
@@ -12136,7 +12144,7 @@ app.put('/api/frota/manutencoes/em-massa-intervalo-obs', authenticateToken, (req
 // PUT - atualizar manutenção
 app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
     const { status, descricao, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao,
-            custo, fornecedor, observacoes, tipo, _apenas_intervalo_obs, intervalo_km } = req.body;
+            custo, fornecedor, observacoes, tipo, _apenas_intervalo_obs, intervalo_km, data_inicio } = req.body;
     const mId = req.params.id;
 
     db.get('SELECT * FROM frota_manutencoes WHERE id=?', [mId], (err, row) => {
@@ -12144,14 +12152,32 @@ app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
 
         // Modo edição rápida: só atualiza observações e km_proxima_manutencao (calculado pelo intervalo)
         if (_apenas_intervalo_obs) {
-            const kmBase = row.km_na_manutencao || 0;
+            // km_ultima é passado pelo frontend para calcular corretamente mesmo em registros agendados
+            const kmBase = req.body.km_ultima != null ? parseInt(req.body.km_ultima) : (row.km_na_manutencao || 0);
             const novoKmProx = intervalo_km ? (kmBase + parseInt(intervalo_km)) : row.km_proxima_manutencao;
             const novaObs = observacoes !== undefined ? (observacoes || null) : row.observacoes;
+
+            // Atualiza o próprio registro (agendado OU concluído)
             db.run(
                 'UPDATE frota_manutencoes SET km_proxima_manutencao=?, observacoes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
                 [novoKmProx, novaObs, mId],
                 (err2) => {
                     if (err2) return res.status(500).json({ error: err2.message });
+
+                    // Se este registro é agendado, também atualiza o último concluído do mesmo veículo/descrição
+                    // para que o plano preventivo exiba o novo intervalo imediatamente
+                    if (row.status === 'agendada' && intervalo_km) {
+                        db.run(
+                            `UPDATE frota_manutencoes
+                             SET km_proxima_manutencao=?, updated_at=CURRENT_TIMESTAMP
+                             WHERE veiculo_id=? AND (descricao=? OR servico_catalogo_id=?)
+                               AND status='concluida'
+                               ORDER BY COALESCE(km_na_manutencao,0) DESC LIMIT 1`,
+                            [novoKmProx, row.veiculo_id, row.descricao, row.servico_catalogo_id],
+                            () => {} // ignora erro, não é crítico
+                        );
+                    }
+
                     res.json({ message: 'Manutenção atualizada' });
                 }
             );
@@ -12165,6 +12191,7 @@ app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
              km_na_manutencao=COALESCE(?,km_na_manutencao), km_proxima_manutencao=COALESCE(?,km_proxima_manutencao),
              data_agendamento=COALESCE(?,data_agendamento), data_conclusao=COALESCE(?,data_conclusao),
              custo=COALESCE(?,custo), fornecedor=COALESCE(?,fornecedor), observacoes=COALESCE(?,observacoes),
+             data_inicio=COALESCE(?,data_inicio),
              updated_at=CURRENT_TIMESTAMP WHERE id=?`,
             [tipo||null, descricao||null, status||null,
              km_na_manutencao !== undefined ? km_na_manutencao : null,
@@ -12172,7 +12199,8 @@ app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
              data_agendamento !== undefined ? data_agendamento : null,
              data_conclusao !== undefined ? data_conclusao : null,
              custo !== undefined ? custo : null,
-             fornecedor||null, observacoes||null, mId],
+             fornecedor||null, observacoes||null,
+             data_inicio !== undefined ? data_inicio : null, mId],
             (err2) => {
                 if (err2) return res.status(500).json({ error: err2.message });
 
@@ -14799,7 +14827,8 @@ app.listen(PORT, () => {
     // ── Migração automática: adicionar colunas novas a frota_manutencoes ──────
     const colsMigration = [
         { col: 'servico_catalogo_id', def: 'INTEGER' },
-        { col: 'criticidade', def: 'TEXT' }
+        { col: 'criticidade', def: 'TEXT' },
+        { col: 'data_inicio', def: 'TEXT' }
     ];
     colsMigration.forEach(({ col, def }) => {
         db.run(`ALTER TABLE frota_manutencoes ADD COLUMN ${col} ${def}`, (err) => {

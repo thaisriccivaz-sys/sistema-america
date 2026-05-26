@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Importador de OS</title>
+</head>
+<body>
+    <h1>Importador de OS</h1>
+    <button id="btn" style="padding: 20px; font-size: 20px;">Iniciar Importação</button>
+    <pre id="log" style="background: #f4f4f4; padding: 10px; min-height: 200px; border: 1px solid #ccc;"></pre>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        const log = document.getElementById('log');
+        function addLog(msg) {
+            log.innerHTML += msg + '\n';
+            console.log(msg);
+        }
+
+        async function readLocalFile() {
+            // Local file access via fetch usually blocked by CORS if opened as file://
+            // but if we run a local static server, we can fetch the JSON.
+            // Let's expect the data to be served from a local endpoint or we can select the file.
+        }
+    </script>
+</body>
+</html>

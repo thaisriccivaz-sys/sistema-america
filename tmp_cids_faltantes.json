@@ -1,0 +1,5918 @@
+[
+  {
+    "code": "A07",
+    "desc": "Outras doenças intestinais por protozoários"
+  },
+  {
+    "code": "A08",
+    "desc": "Infecções intestinais virais, outras e as não especi fi cadas"
+  },
+  {
+    "code": "A20",
+    "desc": "Peste"
+  },
+  {
+    "code": "A21",
+    "desc": "Tularemia"
+  },
+  {
+    "code": "A22",
+    "desc": "Carbúnculo"
+  },
+  {
+    "code": "A23",
+    "desc": "Brucelose"
+  },
+  {
+    "code": "A24",
+    "desc": "Mormo e melioidose"
+  },
+  {
+    "code": "A25",
+    "desc": "Febres transmitidas por mordedura de rato Versão 2008 de acordo com o Ministério da Saúde. Para mais informações sobre a CID-10, acesse o website do Ministério da Saúde: www.datasus.saude.gov.br. Sergipe Classificação Internacional de Doenças - CID 10"
+  },
+  {
+    "code": "A26",
+    "desc": "Erisipelóide"
+  },
+  {
+    "code": "A28",
+    "desc": "Outras doenças bacterianas zoonóticas não classi fi cadas em outra parte"
+  },
+  {
+    "code": "A30",
+    "desc": "Hanseníase [doença de Hansen] [lepra]"
+  },
+  {
+    "code": "A31",
+    "desc": "Infecções devidas a outras micobactérias"
+  },
+  {
+    "code": "A32",
+    "desc": "Listeriose [listeríase]"
+  },
+  {
+    "code": "A33",
+    "desc": "Tétano do recém-nascido [neonatal]"
+  },
+  {
+    "code": "A34",
+    "desc": "Tétano obstétrico"
+  },
+  {
+    "code": "A35",
+    "desc": "Outros tipos de tétano"
+  },
+  {
+    "code": "A36",
+    "desc": "Difteria"
+  },
+  {
+    "code": "A42",
+    "desc": "Actinomicose"
+  },
+  {
+    "code": "A43",
+    "desc": "Nocardiose"
+  },
+  {
+    "code": "A44",
+    "desc": "Bartonelose"
+  },
+  {
+    "code": "A57",
+    "desc": "Cancro mole"
+  },
+  {
+    "code": "A58",
+    "desc": "Granuloma inguinal"
+  },
+  {
+    "code": "A59",
+    "desc": "Tricomoníase"
+  },
+  {
+    "code": "A63",
+    "desc": "Outras doenças de transmissão predominantemente sexual, não classi fi cadas em outra parte"
+  },
+  {
+    "code": "A64",
+    "desc": "Doenças sexualmente transmitidas, não especi fi cadas"
+  },
+  {
+    "code": "A65",
+    "desc": "Sí fi lis não-venérea"
+  },
+  {
+    "code": "A66",
+    "desc": "Bouba"
+  },
+  {
+    "code": "A67",
+    "desc": "Pinta [carate]"
+  },
+  {
+    "code": "A68",
+    "desc": "Febres recorrentes [Borrelioses]"
+  },
+  {
+    "code": "A69",
+    "desc": "Outras infecções por espiroquetas"
+  },
+  {
+    "code": "A71",
+    "desc": "Tracoma"
+  },
+  {
+    "code": "A74",
+    "desc": "Outras doenças causadas por Clamídias"
+  },
+  {
+    "code": "A75",
+    "desc": "Tifo exantemático"
+  },
+  {
+    "code": "A77",
+    "desc": "Febre maculosa [rickettsioses transmitidas por carrapatos]"
+  },
+  {
+    "code": "A78",
+    "desc": "Febre Q"
+  },
+  {
+    "code": "A79",
+    "desc": "Outras rickettsioses"
+  },
+  {
+    "code": "A82",
+    "desc": "Raiva"
+  },
+  {
+    "code": "A83",
+    "desc": "Encefalite por vírus transmitidos por mosquitos"
+  },
+  {
+    "code": "A84",
+    "desc": "Encefalite por vírus transmitido por carrapatos"
+  },
+  {
+    "code": "A85",
+    "desc": "Outras encefalites virais, não classi fi cadas em outra parte"
+  },
+  {
+    "code": "A86",
+    "desc": "Encefalite viral, não especi fi cada"
+  },
+  {
+    "code": "A87",
+    "desc": "Meningite viral"
+  },
+  {
+    "code": "A88",
+    "desc": "Outras infecções virais do sistema nervoso central não classi fi cadas em outra parte"
+  },
+  {
+    "code": "A89",
+    "desc": "Infecções virais não especi fi cadas do sistema nervoso central"
+  },
+  {
+    "code": "A93",
+    "desc": "Outras febres por vírus transmitidas por artrópodes não classi fi cadas em outra parte"
+  },
+  {
+    "code": "A94",
+    "desc": "Febre viral transmitida por artrópodes, não especi fi cada"
+  },
+  {
+    "code": "A98",
+    "desc": "Outras febres hemorrágicas por vírus, não classi fi cadas em outra parte"
+  },
+  {
+    "code": "A99",
+    "desc": "Febres hemorrágicas virais não especi fi cadas"
+  },
+  {
+    "code": "B03",
+    "desc": "Varíola"
+  },
+  {
+    "code": "B04",
+    "desc": "Varíola dos macacos [Monkeypox]"
+  },
+  {
+    "code": "B09",
+    "desc": "Infecção viral não especi fi cada caracterizada por lesões da pele e membranas mucosas"
+  },
+  {
+    "code": "B26",
+    "desc": "Caxumba [Parotidite epidêmica]"
+  },
+  {
+    "code": "B27",
+    "desc": "Mononucleose infecciosa"
+  },
+  {
+    "code": "B33",
+    "desc": "Outras doenças por vírus não classi fi cada em outra parte"
+  },
+  {
+    "code": "B38",
+    "desc": "Coccidioidomicose"
+  },
+  {
+    "code": "B39",
+    "desc": "Histoplasmose"
+  },
+  {
+    "code": "B40",
+    "desc": "Blastomicose"
+  },
+  {
+    "code": "B41",
+    "desc": "Paracoccidioidomicose"
+  },
+  {
+    "code": "B42",
+    "desc": "Esporotricose"
+  },
+  {
+    "code": "B43",
+    "desc": "Cromomicose e abscesso feomicótico"
+  },
+  {
+    "code": "B45",
+    "desc": "Criptococose"
+  },
+  {
+    "code": "B46",
+    "desc": "Zigomicose"
+  },
+  {
+    "code": "B47",
+    "desc": "Micetoma"
+  },
+  {
+    "code": "B48",
+    "desc": "Outras micoses, não classi fi cadas em outra parte"
+  },
+  {
+    "code": "B51",
+    "desc": "Malária por Plasmodium vivax"
+  },
+  {
+    "code": "B52",
+    "desc": "Malária por Plasmodium malariae"
+  },
+  {
+    "code": "B53",
+    "desc": "Outras formas de malária con fi rmadas por exames parasitológicos"
+  },
+  {
+    "code": "B56",
+    "desc": "Tripanossomíase africana"
+  },
+  {
+    "code": "B57",
+    "desc": "Doença de Chagas"
+  },
+  {
+    "code": "B58",
+    "desc": "Toxoplasmose"
+  },
+  {
+    "code": "B59",
+    "desc": "Pneumocistose"
+  },
+  {
+    "code": "B60",
+    "desc": "Outras doenças devidas a protozoários, não classi fi cadas em outra parte"
+  },
+  {
+    "code": "B64",
+    "desc": "Doença não especi fi cada devida a protozoários"
+  },
+  {
+    "code": "B66",
+    "desc": "Outras infestações por trematódeos"
+  },
+  {
+    "code": "B67",
+    "desc": "Equinococose"
+  },
+  {
+    "code": "B68",
+    "desc": "Infestação por Taenia"
+  },
+  {
+    "code": "B69",
+    "desc": "Cisticercose"
+  },
+  {
+    "code": "B70",
+    "desc": "Di fi lobotríase e esparganose"
+  },
+  {
+    "code": "B71",
+    "desc": "Outras infestações por cestóides"
+  },
+  {
+    "code": "B72",
+    "desc": "Dracontíase"
+  },
+  {
+    "code": "B73",
+    "desc": "Oncocercose"
+  },
+  {
+    "code": "B74",
+    "desc": "Filariose"
+  },
+  {
+    "code": "B75",
+    "desc": "Triquinose"
+  },
+  {
+    "code": "B78",
+    "desc": "Estrongiloidíase"
+  },
+  {
+    "code": "B81",
+    "desc": "Outras helmintíases intestinais, não classi fi cadas em outra parte"
+  },
+  {
+    "code": "B83",
+    "desc": "Outras helmintíases"
+  },
+  {
+    "code": "B85",
+    "desc": "Pediculose e ftiríase"
+  },
+  {
+    "code": "B87",
+    "desc": "Miíase"
+  },
+  {
+    "code": "B88",
+    "desc": "Outras infestações"
+  },
+  {
+    "code": "B89",
+    "desc": "Doença parasitária não especi fi cada"
+  },
+  {
+    "code": "B90",
+    "desc": "Seqüelas de tuberculose"
+  },
+  {
+    "code": "B91",
+    "desc": "Seqüelas de poliomielite"
+  },
+  {
+    "code": "B92",
+    "desc": "Seqüelas de hanseníase [lepra]"
+  },
+  {
+    "code": "B94",
+    "desc": "Seqüelas de outras doenças infecciosas e parasitárias e das não especi fi cadas"
+  },
+  {
+    "code": "B95",
+    "desc": "Estreptococos e esta fi lococos como causa de doenças classi fi cadas em outros capítulos"
+  },
+  {
+    "code": "B96",
+    "desc": "Outros agentes bacterianos, como causa de doenças classi fi cadas em outros capítulos"
+  },
+  {
+    "code": "B97",
+    "desc": "Vírus como causa de doenças classi fi cadas em outros capítulos"
+  },
+  {
+    "code": "C02",
+    "desc": "Neoplasia maligna de outras partes e de partes não especi fi cadas da língua"
+  },
+  {
+    "code": "C03",
+    "desc": "Neoplasia maligna da gengiva"
+  },
+  {
+    "code": "C04",
+    "desc": "Neoplasia maligna do assoalho da boca"
+  },
+  {
+    "code": "C05",
+    "desc": "Neoplasia maligna do palato"
+  },
+  {
+    "code": "C06",
+    "desc": "Neoplasia maligna de outras partes e de partes não especi fi cadas da boca"
+  },
+  {
+    "code": "C07",
+    "desc": "Neoplasia maligna da glândula parótida"
+  },
+  {
+    "code": "C08",
+    "desc": "Neoplasia maligna de outras glândulas salivares maiores e as não especi fi cadas"
+  },
+  {
+    "code": "C09",
+    "desc": "Neoplasia maligna da amígdala"
+  },
+  {
+    "code": "C10",
+    "desc": "Neoplasia maligna da orofaringe"
+  },
+  {
+    "code": "C11",
+    "desc": "Neoplasia maligna da nasofaringe"
+  },
+  {
+    "code": "C12",
+    "desc": "Neoplasia maligna do seio piriforme"
+  },
+  {
+    "code": "C13",
+    "desc": "Neoplasia maligna da hipofaringe"
+  },
+  {
+    "code": "C14",
+    "desc": "Neoplasia maligna de outras localizações e de localizações mal de fi nida, do lábio, cavidade oral e faringe"
+  },
+  {
+    "code": "C17",
+    "desc": "Neoplasia maligna do intestino delgado"
+  },
+  {
+    "code": "C19",
+    "desc": "Neoplasia maligna da junção retossigmóide"
+  },
+  {
+    "code": "C21",
+    "desc": "Neoplasia maligna do ânus e do canal anal"
+  },
+  {
+    "code": "C23",
+    "desc": "Neoplasia maligna da vesícula biliar"
+  },
+  {
+    "code": "C24",
+    "desc": "Neoplasia maligna de outras partes, e de partes não especi fi cadas das vias biliares"
+  },
+  {
+    "code": "C26",
+    "desc": "Neoplasia maligna de outros órgãos digestivos e de localizações mal de fi nidas no aparelho digestivo"
+  },
+  {
+    "code": "C30",
+    "desc": "Neoplasia maligna da cavidade nasal e do ouvido médio"
+  },
+  {
+    "code": "C31",
+    "desc": "Neoplasia maligna dos seios da face"
+  },
+  {
+    "code": "C37",
+    "desc": "Neoplasia maligna do timo"
+  },
+  {
+    "code": "C38",
+    "desc": "Neoplasia maligna do coração, mediastino e pleura"
+  },
+  {
+    "code": "C39",
+    "desc": "Neoplasia maligna de outras localizações e de localizações mal de fi nidas do aparelho respiratório e dos órgãos intratorácicos"
+  },
+  {
+    "code": "C40",
+    "desc": "Neoplasia maligna dos ossos e cartilagens articulares dos membros"
+  },
+  {
+    "code": "C41",
+    "desc": "Neoplasia maligna dos ossos e das cartilagens articulares de outras localizações e de localizações não especi fi cadas"
+  },
+  {
+    "code": "C45",
+    "desc": "Mesotelioma"
+  },
+  {
+    "code": "C46",
+    "desc": "Sarcoma de Kaposi"
+  },
+  {
+    "code": "C47",
+    "desc": "Neoplasia maligna dos nervos periféricos e do sistema nervoso autônomo"
+  },
+  {
+    "code": "C48",
+    "desc": "Neoplasia maligna dos tecidos moles do retroperitônio e do peritônio"
+  },
+  {
+    "code": "C49",
+    "desc": "Neoplasia maligna do tecido conjuntivo e de outros tecidos moles"
+  },
+  {
+    "code": "C51",
+    "desc": "Neoplasia maligna da vulva"
+  },
+  {
+    "code": "C52",
+    "desc": "Neoplasia maligna da vagina"
+  },
+  {
+    "code": "C55",
+    "desc": "Neoplasia maligna do útero, porção não especi fi cada"
+  },
+  {
+    "code": "C57",
+    "desc": "Neoplasia maligna de outros órgãos genitais femininos e dos não especi fi cados"
+  },
+  {
+    "code": "C58",
+    "desc": "Neoplasia maligna da placenta"
+  },
+  {
+    "code": "C60",
+    "desc": "Neoplasia maligna do pênis"
+  },
+  {
+    "code": "C62",
+    "desc": "Neoplasia maligna dos testículos"
+  },
+  {
+    "code": "C63",
+    "desc": "Neoplasia maligna de outros órgãos genitais masculinos e dos não especi fi cados"
+  },
+  {
+    "code": "C65",
+    "desc": "Neoplasia maligna da pelve renal"
+  },
+  {
+    "code": "C66",
+    "desc": "Neoplasia maligna dos ureteres"
+  },
+  {
+    "code": "C68",
+    "desc": "Neoplasia maligna de outros órgãos urinários e dos não especi fi cados"
+  },
+  {
+    "code": "C69",
+    "desc": "Neoplasia maligna do olho e anexos"
+  },
+  {
+    "code": "C70",
+    "desc": "Neoplasia maligna das meninges"
+  },
+  {
+    "code": "C72",
+    "desc": "Neoplasia maligna da medula espinhal, dos nervos cranianos e de outras partes do sistema nervoso central"
+  },
+  {
+    "code": "C74",
+    "desc": "Neoplasia maligna da glândula supra-renal [Glândula adrenal]"
+  },
+  {
+    "code": "C75",
+    "desc": "Neoplasia maligna de outras glândulas endócrinas e de estruturas relacionadas"
+  },
+  {
+    "code": "C77",
+    "desc": "Neoplasia maligna secundária e não especi fi cada dos gânglios linfáticos"
+  },
+  {
+    "code": "C78",
+    "desc": "Neoplasia maligna secundária dos órgãos respiratórios e digestivos"
+  },
+  {
+    "code": "C79",
+    "desc": "Neoplasia maligna secundária de outras localizações"
+  },
+  {
+    "code": "C81",
+    "desc": "Doença de Hodgkin"
+  },
+  {
+    "code": "C82",
+    "desc": "Linfoma não-Hodgkin, folicular (nodular)"
+  },
+  {
+    "code": "C83",
+    "desc": "Linfoma não-Hodgkin difuso"
+  },
+  {
+    "code": "C84",
+    "desc": "Linfomas de células T cutâneas e periféricas"
+  },
+  {
+    "code": "C85",
+    "desc": "Linfoma não-Hodgkin de outros tipos e de tipo não especi fi cado"
+  },
+  {
+    "code": "C88",
+    "desc": "Doenças imunoproliferativas malignas"
+  },
+  {
+    "code": "C90",
+    "desc": "Mieloma múltiplo e neoplasias malignas de plasmócitos"
+  },
+  {
+    "code": "C91",
+    "desc": "Leucemia linfóide"
+  },
+  {
+    "code": "C92",
+    "desc": "Leucemia mielóide"
+  },
+  {
+    "code": "C93",
+    "desc": "Leucemia monocítica"
+  },
+  {
+    "code": "C94",
+    "desc": "Outras leucemias de células de tipo especi fi cado"
+  },
+  {
+    "code": "C95",
+    "desc": "Leucemia de tipo celular não especi fi cado"
+  },
+  {
+    "code": "C96",
+    "desc": "Outras neoplasias malignas e as não especi fi cadas dos tecidos linfático, hematopoético e tecidos correlatos"
+  },
+  {
+    "code": "C97",
+    "desc": "Neoplasias malignas de localizações múltiplas independentes (primárias)"
+  },
+  {
+    "code": "D00",
+    "desc": "Carcinoma in situ da cavidade oral, do esôfago e do estômago"
+  },
+  {
+    "code": "D01",
+    "desc": "Carcinoma in situ de outros órgãos digestivos"
+  },
+  {
+    "code": "D02",
+    "desc": "Carcinoma in situ do ouvido médio e do aparelho respiratório"
+  },
+  {
+    "code": "D03",
+    "desc": "Melanoma in situ"
+  },
+  {
+    "code": "D04",
+    "desc": "Carcinoma in situ da pele"
+  },
+  {
+    "code": "D05",
+    "desc": "Carcinoma in situ da mama"
+  },
+  {
+    "code": "D06",
+    "desc": "Carcinoma in situ do colo do útero (cérvix)"
+  },
+  {
+    "code": "D07",
+    "desc": "Carcinoma in situ de outros órgãos genitais e dos não especi fi cados"
+  },
+  {
+    "code": "D09",
+    "desc": "Carcinoma in situ de outras localizações e das não especi fi cadas"
+  },
+  {
+    "code": "D11",
+    "desc": "Neoplasia benigna de glândulas salivares maiores"
+  },
+  {
+    "code": "D12",
+    "desc": "Neoplasia benigna do cólon, reto, canal anal e ânus"
+  },
+  {
+    "code": "D13",
+    "desc": "Neoplasia benigna de outras partes e de partes mal de fi nidas do aparelho digestivo"
+  },
+  {
+    "code": "D14",
+    "desc": "Neoplasia benigna do ouvido médio e do aparelho respiratório"
+  },
+  {
+    "code": "D15",
+    "desc": "Neoplasia benigna de outros órgãos intratorácicos e dos não especi fi cados"
+  },
+  {
+    "code": "D16",
+    "desc": "Neoplasia benigna de osso e de cartilagem articular"
+  },
+  {
+    "code": "D17",
+    "desc": "Neoplasia lipomatosa benigna"
+  },
+  {
+    "code": "D18",
+    "desc": "Hemangioma e linfangioma de qualquer localização"
+  },
+  {
+    "code": "D19",
+    "desc": "Neoplasia benigna de tecido mesotelial"
+  },
+  {
+    "code": "D20",
+    "desc": "Neoplasia benigna de tecido mole do retroperitônio e do peritônio"
+  },
+  {
+    "code": "D22",
+    "desc": "Nevos melanocíticos"
+  },
+  {
+    "code": "D23",
+    "desc": "Outras neoplasias benignas da pele"
+  },
+  {
+    "code": "D24",
+    "desc": "Neoplasia benigna da mama"
+  },
+  {
+    "code": "D26",
+    "desc": "Outras neoplasias benignas do útero"
+  },
+  {
+    "code": "D27",
+    "desc": "Neoplasia benigna do ovário"
+  },
+  {
+    "code": "D28",
+    "desc": "Neoplasia benigna de outros órgãos genitais femininos e de órgãos não especi fi cados"
+  },
+  {
+    "code": "D29",
+    "desc": "Neoplasia benigna dos órgãos genitais masculinos"
+  },
+  {
+    "code": "D30",
+    "desc": "Neoplasia benigna dos órgãos urinários"
+  },
+  {
+    "code": "D31",
+    "desc": "Neoplasia benigna do olho e anexos"
+  },
+  {
+    "code": "D32",
+    "desc": "Neoplasia benigna das meninges"
+  },
+  {
+    "code": "D33",
+    "desc": "Neoplasia benigna do encéfalo e de outras partes do sistema nervoso central"
+  },
+  {
+    "code": "D34",
+    "desc": "Neoplasia benigna da glândula tireóide"
+  },
+  {
+    "code": "D35",
+    "desc": "Neoplasia benigna de outras glândulas endócrinas e das não especi fi cadas"
+  },
+  {
+    "code": "D36",
+    "desc": "Neoplasia benigna de outras localizações e de localizações não especi fi cadas"
+  },
+  {
+    "code": "D37",
+    "desc": "Neoplasia de comportamento incerto ou desconhecido da cavidade oral e dos órgãos digestivos"
+  },
+  {
+    "code": "D38",
+    "desc": "Neoplasia de comportamento incerto ou desconhecido do ouvido médio e dos órgãos respiratórios e intratorácicos"
+  },
+  {
+    "code": "D39",
+    "desc": "Neoplasia de comportamento incerto ou desconhecido dos órgãos genitais femininos"
+  },
+  {
+    "code": "D40",
+    "desc": "Neoplasia de comportamento incerto ou desconhecido dos órgãos genitais masculinos"
+  },
+  {
+    "code": "D41",
+    "desc": "Neoplasia de comportamento incerto ou desconhecido dos órgãos urinários"
+  },
+  {
+    "code": "D42",
+    "desc": "Neoplasia de comportamento incerto ou desconhecido das meninges"
+  },
+  {
+    "code": "D43",
+    "desc": "Neoplasia de comportamento incerto ou desconhecido do encéfalo e do sistema nervoso central"
+  },
+  {
+    "code": "D44",
+    "desc": "Neoplasia de comportamento incerto ou desconhecido das glândulas endócrinas"
+  },
+  {
+    "code": "D45",
+    "desc": "Policitemia vera"
+  },
+  {
+    "code": "D46",
+    "desc": "Síndromes mielodisplásicas"
+  },
+  {
+    "code": "D47",
+    "desc": "Outras neoplasias de comportamento incerto ou desconhecido dos tecidos linfático, hematopoético e tecidos correlatos"
+  },
+  {
+    "code": "D48",
+    "desc": "Neoplasia de comportamento incerto ou desconhecido de outras localizações e de localizações não especi fi cadas"
+  },
+  {
+    "code": "D53",
+    "desc": "Outras anemias nutricionais"
+  },
+  {
+    "code": "D58",
+    "desc": "Outras anemias hemolíticas hereditárias"
+  },
+  {
+    "code": "D59",
+    "desc": "Anemia hemolítica adquirida"
+  },
+  {
+    "code": "D62",
+    "desc": "Anemia aguda pós-hemorrágica"
+  },
+  {
+    "code": "D63",
+    "desc": "Anemia em doenças crônicas classi fi cadas em outra parte"
+  },
+  {
+    "code": "D65",
+    "desc": "Coagulação intravascular disseminada [síndrome de des fi brinação]"
+  },
+  {
+    "code": "D66",
+    "desc": "De fi ciência hereditária do fator VIII"
+  },
+  {
+    "code": "D67",
+    "desc": "De fi ciência hereditária do fator IX"
+  },
+  {
+    "code": "D68",
+    "desc": "Outros defeitos da coagulação"
+  },
+  {
+    "code": "D69",
+    "desc": "Púrpura e outras afecções hemorrágicas"
+  },
+  {
+    "code": "D71",
+    "desc": "Transtornos funcionais dos neutró fi los polimorfonucleares"
+  },
+  {
+    "code": "D72",
+    "desc": "Outros transtornos dos glóbulos brancos"
+  },
+  {
+    "code": "D74",
+    "desc": "Metemoglobinemia"
+  },
+  {
+    "code": "D75",
+    "desc": "Outras doenças do sangue e dos órgãos hematopoéticos"
+  },
+  {
+    "code": "D76",
+    "desc": "Algumas doenças que envolvem o tecido linforreticular e o sistema reticulohistiocítico"
+  },
+  {
+    "code": "D77",
+    "desc": "Outros transtornos do sangue e dos órgãos hematopoéticos em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "D80",
+    "desc": "Imunode fi ciência com predominância de defeitos de anticorpos"
+  },
+  {
+    "code": "D81",
+    "desc": "De fi ciências imunitárias combinadas"
+  },
+  {
+    "code": "D82",
+    "desc": "Imunode fi ciência associada com outros defeitos \"major\""
+  },
+  {
+    "code": "D83",
+    "desc": "Imunode fi ciência comum variável"
+  },
+  {
+    "code": "D84",
+    "desc": "Outras imunode fi ciências"
+  },
+  {
+    "code": "D86",
+    "desc": "Sarcoidose"
+  },
+  {
+    "code": "E02",
+    "desc": "Hipotireoidismo subclínico por de fi ciência de iodo"
+  },
+  {
+    "code": "E07",
+    "desc": "Outros transtornos da tireóide"
+  },
+  {
+    "code": "E12",
+    "desc": "Diabetes mellitus relacionado com a desnutrição"
+  },
+  {
+    "code": "E13",
+    "desc": "Outros tipos especi fi cados de diabetes mellitus"
+  },
+  {
+    "code": "E15",
+    "desc": "Coma hipoglicêmico não-diabético"
+  },
+  {
+    "code": "E24",
+    "desc": "Síndrome de Cushing"
+  },
+  {
+    "code": "E25",
+    "desc": "Transtornos adrenogenitais"
+  },
+  {
+    "code": "E26",
+    "desc": "Hiperaldosteronismo"
+  },
+  {
+    "code": "E30",
+    "desc": "Transtornos da puberdade não classi fi cados em outra parte"
+  },
+  {
+    "code": "E31",
+    "desc": "Disfunção poliglandular"
+  },
+  {
+    "code": "E32",
+    "desc": "Doenças do timo"
+  },
+  {
+    "code": "E34",
+    "desc": "Outros transtornos endócrinos"
+  },
+  {
+    "code": "E35",
+    "desc": "Transtornos das glândulas endócrinas em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "E42",
+    "desc": "Kwashiorkor marasmático"
+  },
+  {
+    "code": "E43",
+    "desc": "Desnutrição protéico-calórica grave não especi fi cada"
+  },
+  {
+    "code": "E45",
+    "desc": "Atraso do desenvolvimento devido à desnutrição protéico-calórica"
+  },
+  {
+    "code": "E46",
+    "desc": "Desnutrição protéico-calórica não especi fi cada"
+  },
+  {
+    "code": "E51",
+    "desc": "De fi ciência de tiamina"
+  },
+  {
+    "code": "E52",
+    "desc": "De fi ciência de niacina [pelagra]"
+  },
+  {
+    "code": "E53",
+    "desc": "De fi ciência de outras vitaminas do grupo B"
+  },
+  {
+    "code": "E54",
+    "desc": "De fi ciência de ácido ascórbico"
+  },
+  {
+    "code": "E56",
+    "desc": "Outras de fi ciências vitamínicas"
+  },
+  {
+    "code": "E59",
+    "desc": "De fi ciência de selênio da dieta"
+  },
+  {
+    "code": "E64",
+    "desc": "Seqüelas de desnutrição e de outras de fi ciências nutricionais"
+  },
+  {
+    "code": "E67",
+    "desc": "Outras formas de hiperalimentação"
+  },
+  {
+    "code": "E68",
+    "desc": "Seqüelas de hiperalimentação"
+  },
+  {
+    "code": "E70",
+    "desc": "Distúrbios do metabolismo de aminoácidos aromáticos"
+  },
+  {
+    "code": "E71",
+    "desc": "Distúrbios do metabolismo de aminoácidos de cadeia rami fi cada e do metabolismo dos ácidos graxos"
+  },
+  {
+    "code": "E72",
+    "desc": "Outros distúrbios do metabolismo de aminoácidos"
+  },
+  {
+    "code": "E73",
+    "desc": "Intolerância à lactose"
+  },
+  {
+    "code": "E74",
+    "desc": "Outros distúrbios do metabolismo de carboidratos"
+  },
+  {
+    "code": "E75",
+    "desc": "Distúrbios do metabolismo de es fi ngolípides e outros distúrbios de depósito de lípides"
+  },
+  {
+    "code": "E76",
+    "desc": "Distúrbios do metabolismo do glicosaminoglicano"
+  },
+  {
+    "code": "E77",
+    "desc": "Distúrbios do metabolismo de glicoproteínas"
+  },
+  {
+    "code": "E80",
+    "desc": "Distúrbios do metabolismo da por fi rina e da bilirrubina"
+  },
+  {
+    "code": "E83",
+    "desc": "Distúrbios do metabolismo de minerais"
+  },
+  {
+    "code": "E84",
+    "desc": "Fibrose cística"
+  },
+  {
+    "code": "E85",
+    "desc": "Amiloidose"
+  },
+  {
+    "code": "E88",
+    "desc": "Outros distúrbios metabólicos"
+  },
+  {
+    "code": "E89",
+    "desc": "Transtornos endócrinos e metabólicos pós-procedimentos, não classi fi cados em outra parte"
+  },
+  {
+    "code": "E90",
+    "desc": "Transtornos nutricionais e metabólicos em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "F04",
+    "desc": "Síndrome amnésica orgânica não induzida pelo álcool ou por outras substâncias psicoativas"
+  },
+  {
+    "code": "F06",
+    "desc": "Outros transtornos mentais devidos a lesão e disfunção cerebral e a doença física"
+  },
+  {
+    "code": "F07",
+    "desc": "Transtornos de personalidade e do comportamento devidos a doença, a lesão e a disfunção cerebral"
+  },
+  {
+    "code": "F09",
+    "desc": "Transtorno mental orgânico ou sintomático não especi fi cado"
+  },
+  {
+    "code": "F16",
+    "desc": "Transtornos mentais e comportamentais devidos ao uso de alucinógenos"
+  },
+  {
+    "code": "F18",
+    "desc": "Transtornos mentais e comportamentais devidos ao uso de solventes voláteis"
+  },
+  {
+    "code": "F19",
+    "desc": "Transtornos mentais e comportamentais devidos ao uso de múltiplas drogas e ao uso de outras substâncias psicoativas"
+  },
+  {
+    "code": "F21",
+    "desc": "Transtorno esquizotípico"
+  },
+  {
+    "code": "F22",
+    "desc": "Transtornos delirantes persistentes"
+  },
+  {
+    "code": "F23",
+    "desc": "Transtornos psicóticos agudos e transitórios"
+  },
+  {
+    "code": "F24",
+    "desc": "Transtorno delirante induzido"
+  },
+  {
+    "code": "F28",
+    "desc": "Outros transtornos psicóticos não-orgânicos"
+  },
+  {
+    "code": "F29",
+    "desc": "Psicose não-orgânica não especi fi cada"
+  },
+  {
+    "code": "F44",
+    "desc": "Transtornos dissociativos [de conversão]"
+  },
+  {
+    "code": "F52",
+    "desc": "Disfunção sexual, não causada por transtorno ou doença orgânica"
+  },
+  {
+    "code": "F53",
+    "desc": "Transtornos mentais e comportamentais associados ao puerpério, não classi fi cados em outra parte"
+  },
+  {
+    "code": "F54",
+    "desc": "Fatores psicológicos ou comportamentais associados a doença ou a transtornos classi fi cados em outra parte"
+  },
+  {
+    "code": "F55",
+    "desc": "Abuso de substâncias que não produzem dependência"
+  },
+  {
+    "code": "F59",
+    "desc": "Síndromes comportamentais associados a transtornos das funções fi siológicas e a fatores físicos, não especi fi cadas"
+  },
+  {
+    "code": "F61",
+    "desc": "Transtornos mistos da personalidade e outros transtornos da personalidade"
+  },
+  {
+    "code": "F62",
+    "desc": "Modi fi cações duradouras da personalidade não atribuíveis a lesão ou doença cerebral"
+  },
+  {
+    "code": "F63",
+    "desc": "Transtornos dos hábitos e dos impulsos"
+  },
+  {
+    "code": "F64",
+    "desc": "Transtornos da identidade sexual"
+  },
+  {
+    "code": "F65",
+    "desc": "Transtornos da preferência sexual"
+  },
+  {
+    "code": "F66",
+    "desc": "Transtornos psicológicos e comportamentais associados ao desenvolvimento sexual e à sua orientação"
+  },
+  {
+    "code": "F68",
+    "desc": "Outros transtornos da personalidade e do comportamento do adulto"
+  },
+  {
+    "code": "F69",
+    "desc": "Transtorno da personalidade e do comportamento do adulto, não especi fi cado"
+  },
+  {
+    "code": "F71",
+    "desc": "Retardo mental moderado"
+  },
+  {
+    "code": "F72",
+    "desc": "Retardo mental grave"
+  },
+  {
+    "code": "F73",
+    "desc": "Retardo mental profundo"
+  },
+  {
+    "code": "F78",
+    "desc": "Outro retardo mental"
+  },
+  {
+    "code": "F79",
+    "desc": "Retardo mental não especi fi cado"
+  },
+  {
+    "code": "F80",
+    "desc": "Transtornos especí fi cos do desenvolvimento da fala e da linguagem"
+  },
+  {
+    "code": "F81",
+    "desc": "Transtornos especí fi cos do desenvolvimento das habilidades escolares"
+  },
+  {
+    "code": "F82",
+    "desc": "Transtorno especí fi co do desenvolvimento motor"
+  },
+  {
+    "code": "F83",
+    "desc": "Transtornos especí fi cos misto do desenvolvimento"
+  },
+  {
+    "code": "F88",
+    "desc": "Outros transtornos do desenvolvimento psicológico"
+  },
+  {
+    "code": "F89",
+    "desc": "Transtorno do desenvolvimento psicológico não especi fi cado"
+  },
+  {
+    "code": "F92",
+    "desc": "Transtornos mistos de conduta e das emoções"
+  },
+  {
+    "code": "F93",
+    "desc": "Transtornos emocionais com início especi fi camente na infância"
+  },
+  {
+    "code": "F94",
+    "desc": "Transtornos do funcionamento social com início especi fi camente durante a infância ou a adolescência"
+  },
+  {
+    "code": "F95",
+    "desc": "Tiques"
+  },
+  {
+    "code": "F98",
+    "desc": "Outros transtornos comportamentais e emocionais com início habitualmente durante a infância ou a adolescência"
+  },
+  {
+    "code": "G01",
+    "desc": "Meningite em doenças bacterianas classi fi cadas em outra parte"
+  },
+  {
+    "code": "G02",
+    "desc": "Meningite em outras doenças infecciosas e parasitárias classi fi cadas em outra parte"
+  },
+  {
+    "code": "G05",
+    "desc": "Encefalite, mielite e encefalomielite em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "G07",
+    "desc": "Abscesso e granuloma intracranianos e intraspinais em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "G08",
+    "desc": "Flebite e trombo fi ebite intracranianas e intra-raquidianas"
+  },
+  {
+    "code": "G09",
+    "desc": "Seqüelas de doenças in fi amatórias do sistema nervoso central"
+  },
+  {
+    "code": "G10",
+    "desc": "Doença de Huntington"
+  },
+  {
+    "code": "G11",
+    "desc": "Ataxia hereditária"
+  },
+  {
+    "code": "G12",
+    "desc": "Atro fi a muscular espinal e síndromes correlatas"
+  },
+  {
+    "code": "G13",
+    "desc": "Atro fi as sistêmicas que afetam principalmente o sistema nervoso central em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "G22",
+    "desc": "Parkinsonismo em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "G23",
+    "desc": "Outras doenças degenerativas dos gânglios da base"
+  },
+  {
+    "code": "G24",
+    "desc": "Distonia"
+  },
+  {
+    "code": "G25",
+    "desc": "Outras doenças extrapiramidais e transtornos dos movimentos"
+  },
+  {
+    "code": "G26",
+    "desc": "Doenças extrapiramidais e transtornos dos movimentos em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "G31",
+    "desc": "Outras doenças degenerativas do sistema nervoso não classi fi cadas em outra parte"
+  },
+  {
+    "code": "G32",
+    "desc": "Outros transtornos degenerativos do sistema nervoso em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "G36",
+    "desc": "Outras desmielinizações disseminadas agudas"
+  },
+  {
+    "code": "G37",
+    "desc": "Outras doenças desmielinizantes do sistema nervoso central"
+  },
+  {
+    "code": "G41",
+    "desc": "Estado de mal epiléptico"
+  },
+  {
+    "code": "G46",
+    "desc": "Síndromes vasculares cerebrais que ocorrem em doenças cerebrovasculares"
+  },
+  {
+    "code": "G50",
+    "desc": "Transtornos do nervo trigêmeo"
+  },
+  {
+    "code": "G52",
+    "desc": "Transtornos de outros nervos cranianos"
+  },
+  {
+    "code": "G53",
+    "desc": "Transtornos dos nervos cranianos em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "G58",
+    "desc": "Outras mononeuropatias"
+  },
+  {
+    "code": "G59",
+    "desc": "Mononeuropatias em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "G60",
+    "desc": "Neuropatia hereditária e idiopática"
+  },
+  {
+    "code": "G61",
+    "desc": "Polineuropatia in fi amatória"
+  },
+  {
+    "code": "G63",
+    "desc": "Polineuropatia em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "G64",
+    "desc": "Outros transtornos do sistema nervoso periférico"
+  },
+  {
+    "code": "G70",
+    "desc": "Miastenia gravis e outros transtornos neuromusculares"
+  },
+  {
+    "code": "G71",
+    "desc": "Transtornos primários dos músculos"
+  },
+  {
+    "code": "G72",
+    "desc": "Outras miopatias"
+  },
+  {
+    "code": "G73",
+    "desc": "Transtornos da junção mioneural e dos músculos em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "G80",
+    "desc": "Paralisia cerebral"
+  },
+  {
+    "code": "G81",
+    "desc": "Hemiplegia"
+  },
+  {
+    "code": "G82",
+    "desc": "Paraplegia e tetraplegia"
+  },
+  {
+    "code": "G83",
+    "desc": "Outras síndromes paralíticas"
+  },
+  {
+    "code": "G90",
+    "desc": "Transtornos do sistema nervoso autônomo"
+  },
+  {
+    "code": "G91",
+    "desc": "Hidrocefalia"
+  },
+  {
+    "code": "G92",
+    "desc": "Encefalopatia tóxica"
+  },
+  {
+    "code": "G93",
+    "desc": "Outros transtornos do encéfalo"
+  },
+  {
+    "code": "G94",
+    "desc": "Outros transtornos do encéfalo em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "G95",
+    "desc": "Outras doenças da medula espinal"
+  },
+  {
+    "code": "G96",
+    "desc": "Outros transtornos do sistema nervoso central"
+  },
+  {
+    "code": "G97",
+    "desc": "Transtornos pós-procedimento do sistema nervoso não classi fi cados em outra parte"
+  },
+  {
+    "code": "G98",
+    "desc": "Outros transtornos do sistema nervoso não classi fi cados em outra parte"
+  },
+  {
+    "code": "G99",
+    "desc": "Outros transtornos do sistema nervoso em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H01",
+    "desc": "Outras in fi amações da pálpebra"
+  },
+  {
+    "code": "H02",
+    "desc": "Outros transtornos da pálpebra"
+  },
+  {
+    "code": "H03",
+    "desc": "Transtornos da pálpebra em doenças classi fi cadas em outras partes"
+  },
+  {
+    "code": "H04",
+    "desc": "Transtornos do aparelho lacrimal"
+  },
+  {
+    "code": "H05",
+    "desc": "Transtornos da órbita"
+  },
+  {
+    "code": "H06",
+    "desc": "Transtornos do aparelho lacrimal e da órbita em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H13",
+    "desc": "Transtornos da conjuntiva em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H15",
+    "desc": "Transtornos da esclerótica"
+  },
+  {
+    "code": "H17",
+    "desc": "Cicatrizes e opacidades da córnea"
+  },
+  {
+    "code": "H18",
+    "desc": "Outros transtornos da córnea"
+  },
+  {
+    "code": "H19",
+    "desc": "Transtorno da esclerótica e da córnea em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H20",
+    "desc": "Iridociclite"
+  },
+  {
+    "code": "H21",
+    "desc": "Outros transtornos da íris e do corpo ciliar"
+  },
+  {
+    "code": "H22",
+    "desc": "Transtornos da íris e do corpo ciliar em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H27",
+    "desc": "Outros transtornos do cristalino"
+  },
+  {
+    "code": "H28",
+    "desc": "Catarata e outros transtornos do cristalino em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H30",
+    "desc": "In fi amação coriorretiniana"
+  },
+  {
+    "code": "H31",
+    "desc": "Outros transtornos da coróide"
+  },
+  {
+    "code": "H32",
+    "desc": "Transtornos coriorretinianos em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H34",
+    "desc": "Oclusões vasculares da retina"
+  },
+  {
+    "code": "H36",
+    "desc": "Transtornos da retina em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H42",
+    "desc": "Glaucoma em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H43",
+    "desc": "Transtornos do humor vítreo"
+  },
+  {
+    "code": "H44",
+    "desc": "Transtornos do globo ocular"
+  },
+  {
+    "code": "H45",
+    "desc": "Transtornos do humor vítreo e do globo ocular em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H46",
+    "desc": "Neurite óptica"
+  },
+  {
+    "code": "H47",
+    "desc": "Outros transtornos do nervo óptico e das vias ópticas"
+  },
+  {
+    "code": "H48",
+    "desc": "Transtornos do nervo óptico [segundo par] e das vias ópticas em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H49",
+    "desc": "Estrabismo paralítico"
+  },
+  {
+    "code": "H50",
+    "desc": "Outros estrabismos"
+  },
+  {
+    "code": "H51",
+    "desc": "Outros transtornos do movimento binocular"
+  },
+  {
+    "code": "H53",
+    "desc": "Distúrbios visuais"
+  },
+  {
+    "code": "H54",
+    "desc": "Cegueira e visão subnormal"
+  },
+  {
+    "code": "H55",
+    "desc": "Nistagmo e outros movimentos irregulares do olho"
+  },
+  {
+    "code": "H57",
+    "desc": "Outros transtornos do olho e anexos"
+  },
+  {
+    "code": "H58",
+    "desc": "Outros transtornos do olho e anexos em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H59",
+    "desc": "Transtornos do olho e anexos pós-procedimento não classi fi cados em outra parte"
+  },
+  {
+    "code": "H61",
+    "desc": "Outros transtornos do ouvido externo"
+  },
+  {
+    "code": "H62",
+    "desc": "Transtornos do ouvido externo em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H67",
+    "desc": "Otite média em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H68",
+    "desc": "Salpingite e obstrução da trompa de Eustáquio"
+  },
+  {
+    "code": "H69",
+    "desc": "Outros transtornos da trompa de Eustáquio"
+  },
+  {
+    "code": "H70",
+    "desc": "Mastoidite e afecções correlatas"
+  },
+  {
+    "code": "H71",
+    "desc": "Colesteatoma do ouvido médio"
+  },
+  {
+    "code": "H73",
+    "desc": "Outros transtornos da membrana do tímpano"
+  },
+  {
+    "code": "H74",
+    "desc": "Outros transtornos do ouvido médio e da mastóide"
+  },
+  {
+    "code": "H75",
+    "desc": "Outros transtornos do ouvido médio e da mastóide em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H80",
+    "desc": "Otosclerose"
+  },
+  {
+    "code": "H82",
+    "desc": "Síndromes vertiginosas em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H92",
+    "desc": "Otalgia e secreção auditiva"
+  },
+  {
+    "code": "H93",
+    "desc": "Outros transtornos do ouvido não classi fi cados em outra parte"
+  },
+  {
+    "code": "H94",
+    "desc": "Outros transtornos do ouvido em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "H95",
+    "desc": "Transtornos do ouvido e da apó fi se mastóide pós-procedimentos, não classi fi cados em outra parte"
+  },
+  {
+    "code": "I01",
+    "desc": "Febre reumática com comprometimento do coração"
+  },
+  {
+    "code": "I02",
+    "desc": "Coréia reumática"
+  },
+  {
+    "code": "I06",
+    "desc": "Doenças reumáticas da valva aórtica"
+  },
+  {
+    "code": "I07",
+    "desc": "Doenças reumáticas da valva tricúspide"
+  },
+  {
+    "code": "I08",
+    "desc": "Doenças de múltiplas valvas"
+  },
+  {
+    "code": "I09",
+    "desc": "Outras doenças reumáticas do coração"
+  },
+  {
+    "code": "I15",
+    "desc": "Hipertensão secundária"
+  },
+  {
+    "code": "I22",
+    "desc": "Infarto do miocárdio recorrente"
+  },
+  {
+    "code": "I23",
+    "desc": "Algumas complicações atuais subseqüentes ao infarto agudo do miocárdio"
+  },
+  {
+    "code": "I24",
+    "desc": "Outras doenças isquêmicas agudas do coração"
+  },
+  {
+    "code": "I28",
+    "desc": "Outras doenças dos vasos pulmonares"
+  },
+  {
+    "code": "I31",
+    "desc": "Outras doenças do pericárdio"
+  },
+  {
+    "code": "I32",
+    "desc": "Pericardite em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "I36",
+    "desc": "Transtornos não-reumáticos da valva tricúspide"
+  },
+  {
+    "code": "I37",
+    "desc": "Transtornos da valva pulmonar"
+  },
+  {
+    "code": "I38",
+    "desc": "Endocardite de valva não especi fi cada"
+  },
+  {
+    "code": "I39",
+    "desc": "Endocardite e transtornos valvulares cardíacos em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "I40",
+    "desc": "Miocardite aguda"
+  },
+  {
+    "code": "I41",
+    "desc": "Miocardite em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "I43",
+    "desc": "Cardiomiopatia em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "I45",
+    "desc": "Outros transtornos de condução"
+  },
+  {
+    "code": "I46",
+    "desc": "Parada cardíaca"
+  },
+  {
+    "code": "I52",
+    "desc": "Outras afecções cardíacas em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "I62",
+    "desc": "Outras hemorragias intracranianas não-traumáticas"
+  },
+  {
+    "code": "I65",
+    "desc": "Oclusão e estenose de artérias pré-cerebrais que não resultam em infarto cerebral"
+  },
+  {
+    "code": "I66",
+    "desc": "Oclusão e estenose de artérias cerebrais que não resultam em infarto cerebral"
+  },
+  {
+    "code": "I68",
+    "desc": "Transtornos cerebrovasculares em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "I69",
+    "desc": "Seqüelas de doenças cerebrovasculares"
+  },
+  {
+    "code": "I71",
+    "desc": "Aneurisma e dissecção da aorta"
+  },
+  {
+    "code": "I77",
+    "desc": "Outras afecções das artérias e arteríolas"
+  },
+  {
+    "code": "I78",
+    "desc": "Doenças dos capilares"
+  },
+  {
+    "code": "I79",
+    "desc": "Transtornos das artérias, das arteríolas e dos capilares em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "I81",
+    "desc": "Trombose da veia porta"
+  },
+  {
+    "code": "I85",
+    "desc": "Varizes esofagianas"
+  },
+  {
+    "code": "I86",
+    "desc": "Varizes de outras localizações"
+  },
+  {
+    "code": "I88",
+    "desc": "Linfadenite inespecí fi ca"
+  },
+  {
+    "code": "I89",
+    "desc": "Outros transtornos não-infecciosos dos vasos linfáticos e dos gânglios linfáticos"
+  },
+  {
+    "code": "I97",
+    "desc": "Transtornos do aparelho circulatório, subseqüentes a procedimentos não classi fi cados em outra parte"
+  },
+  {
+    "code": "I98",
+    "desc": "Outros transtornos do aparelho circulatório em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "I99",
+    "desc": "Outros transtornos do aparelho circulatório e os não especi fi cados"
+  },
+  {
+    "code": "J12",
+    "desc": "Pneumonia viral não classi fi cada em outra parte"
+  },
+  {
+    "code": "J13",
+    "desc": "Pneumonia devida a Streptococcus pneumoniae"
+  },
+  {
+    "code": "J14",
+    "desc": "Pneumonia devida a Haemophilus infuenzae"
+  },
+  {
+    "code": "J15",
+    "desc": "Pneumonia bacteriana não classi fi cada em outra parte"
+  },
+  {
+    "code": "J16",
+    "desc": "Pneumonia devida a outros microorganismos infecciosos especi fi cados não classi fi cados em outra parte"
+  },
+  {
+    "code": "J17",
+    "desc": "Pneumonia em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "J33",
+    "desc": "Pólipo nasal"
+  },
+  {
+    "code": "J34",
+    "desc": "Outros transtornos do nariz e dos seios paranasais"
+  },
+  {
+    "code": "J36",
+    "desc": "Abscesso periamigdaliano"
+  },
+  {
+    "code": "J38",
+    "desc": "Doenças das cordas vocais e da laringe não classi fi cadas em outra parte"
+  },
+  {
+    "code": "J39",
+    "desc": "Outras doenças das vias aéreas superiores"
+  },
+  {
+    "code": "J47",
+    "desc": "Bronquectasia"
+  },
+  {
+    "code": "J60",
+    "desc": "Pneumoconiose dos mineiros de carvão"
+  },
+  {
+    "code": "J61",
+    "desc": "Pneumoconiose devida a amianto [asbesto] e outras fi bras minerais"
+  },
+  {
+    "code": "J62",
+    "desc": "Pneumoconiose devida a poeira que contenham sílica"
+  },
+  {
+    "code": "J63",
+    "desc": "Pneumoconiose devida a outras poeiras inorgânicas"
+  },
+  {
+    "code": "J64",
+    "desc": "Pneumoconiose não especi fi cada"
+  },
+  {
+    "code": "J65",
+    "desc": "Pneumoconiose associada com tuberculose"
+  },
+  {
+    "code": "J66",
+    "desc": "Doenças das vias aéreas devida a poeiras orgânicas especí fi cas"
+  },
+  {
+    "code": "J67",
+    "desc": "Pneumonite de hipersensibilidade devida a poeiras orgânicas"
+  },
+  {
+    "code": "J69",
+    "desc": "Pneumonite devida a sólidos e líquidos"
+  },
+  {
+    "code": "J81",
+    "desc": "Edema pulmonar, não especi fi cado de outra forma"
+  },
+  {
+    "code": "J82",
+    "desc": "Eosino fi lia pulmonar, não classi fi cada em outra parte"
+  },
+  {
+    "code": "J84",
+    "desc": "Outras doenças pulmonares intersticiais"
+  },
+  {
+    "code": "J85",
+    "desc": "Abscesso do pulmão e do mediastino"
+  },
+  {
+    "code": "J86",
+    "desc": "Piotórax"
+  },
+  {
+    "code": "J91",
+    "desc": "Derrame pleural em afecções classi fi cadas em outra parte"
+  },
+  {
+    "code": "J92",
+    "desc": "Placas pleurais"
+  },
+  {
+    "code": "J93",
+    "desc": "Pneumotórax"
+  },
+  {
+    "code": "J94",
+    "desc": "Outras afecções pleurais"
+  },
+  {
+    "code": "J95",
+    "desc": "Afecções respiratórias pós-procedimentos não classi fi cadas em outra parte"
+  },
+  {
+    "code": "J96",
+    "desc": "Insu fi ciência respiratória não classi fi cada de outra parte"
+  },
+  {
+    "code": "J99",
+    "desc": "Transtornos respiratórios em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "K01",
+    "desc": "Dentes inclusos e impactados"
+  },
+  {
+    "code": "K03",
+    "desc": "Outras doenças dos tecidos dentários duros"
+  },
+  {
+    "code": "K04",
+    "desc": "Doenças da polpa e dos tecidos periapicais"
+  },
+  {
+    "code": "K06",
+    "desc": "Outros transtornos da gengiva e do rebordo alveolar sem dentes"
+  },
+  {
+    "code": "K07",
+    "desc": "Anomalias dentofaciais (inclusive a maloclusão)"
+  },
+  {
+    "code": "K09",
+    "desc": "Cistos da região bucal não classi fi cados em outra parte"
+  },
+  {
+    "code": "K10",
+    "desc": "Outras doenças dos maxilares"
+  },
+  {
+    "code": "K11",
+    "desc": "Doenças das glândulas salivares"
+  },
+  {
+    "code": "K12",
+    "desc": "Estomatite e lesões correlatas"
+  },
+  {
+    "code": "K13",
+    "desc": "Outras doenças do lábio e da mucosa oral"
+  },
+  {
+    "code": "K14",
+    "desc": "Doenças da língua"
+  },
+  {
+    "code": "K22",
+    "desc": "Outras doenças do esôfago"
+  },
+  {
+    "code": "K23",
+    "desc": "Transtornos do esôfago em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "K27",
+    "desc": "Úlcera péptica de localização não especi fi cada"
+  },
+  {
+    "code": "K28",
+    "desc": "Úlcera gastrojejunal"
+  },
+  {
+    "code": "K31",
+    "desc": "Outras doenças do estômago e do duodeno"
+  },
+  {
+    "code": "K36",
+    "desc": "Outras formas de apendicite"
+  },
+  {
+    "code": "K38",
+    "desc": "Outras doenças do apêndice"
+  },
+  {
+    "code": "K43",
+    "desc": "Hérnia ventral"
+  },
+  {
+    "code": "K44",
+    "desc": "Hérnia diafragmática"
+  },
+  {
+    "code": "K45",
+    "desc": "Outras hérnias abdominais"
+  },
+  {
+    "code": "K55",
+    "desc": "Transtornos vasculares do intestino"
+  },
+  {
+    "code": "K56",
+    "desc": "Íleo paralítico e obstrução intestinal sem hérnia"
+  },
+  {
+    "code": "K60",
+    "desc": "Fissura e fístula das regiões anal e retal"
+  },
+  {
+    "code": "K61",
+    "desc": "Abscesso das regiões anal e retal"
+  },
+  {
+    "code": "K63",
+    "desc": "Outras doenças do intestino"
+  },
+  {
+    "code": "K65",
+    "desc": "Peritonite"
+  },
+  {
+    "code": "K66",
+    "desc": "Outros transtornos do peritônio"
+  },
+  {
+    "code": "K67",
+    "desc": "Comprometimento do peritônio, em doenças infecciosas classi fi cadas em outra parte"
+  },
+  {
+    "code": "K71",
+    "desc": "Doença hepática tóxica"
+  },
+  {
+    "code": "K75",
+    "desc": "Outras doenças in fi amatórias do fígado"
+  },
+  {
+    "code": "K77",
+    "desc": "Transtornos do fígado em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "K82",
+    "desc": "Outras doenças da vesícula biliar"
+  },
+  {
+    "code": "K83",
+    "desc": "Outras doenças das vias biliares"
+  },
+  {
+    "code": "K87",
+    "desc": "Transtornos da vesícula biliar, das vias biliares e do pâncreas em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "K90",
+    "desc": "Má-absorção intestinal"
+  },
+  {
+    "code": "K91",
+    "desc": "Transtornos do aparelho digestivo pós-procedimentos, não classi fi cados em outra parte"
+  },
+  {
+    "code": "K93",
+    "desc": "Transtornos de outros órgãos digestivos em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "L04",
+    "desc": "Linfadenite aguda"
+  },
+  {
+    "code": "L05",
+    "desc": "Cisto pilonidal"
+  },
+  {
+    "code": "L10",
+    "desc": "Pên fi go"
+  },
+  {
+    "code": "L11",
+    "desc": "Outras afecções acantolíticas"
+  },
+  {
+    "code": "L12",
+    "desc": "Pen fi góide"
+  },
+  {
+    "code": "L13",
+    "desc": "Outras afecções bolhosas"
+  },
+  {
+    "code": "L14",
+    "desc": "Afecções bolhosas em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "L21",
+    "desc": "Dermatite seborréica"
+  },
+  {
+    "code": "L22",
+    "desc": "Dermatite das fraldas"
+  },
+  {
+    "code": "L24",
+    "desc": "Dermatites de contato por irritantes"
+  },
+  {
+    "code": "L26",
+    "desc": "Dermatite esfoliativa"
+  },
+  {
+    "code": "L28",
+    "desc": "Líquen simples crônico e prurigo"
+  },
+  {
+    "code": "L41",
+    "desc": "Parapsoríase"
+  },
+  {
+    "code": "L42",
+    "desc": "Pitiríase rósea"
+  },
+  {
+    "code": "L43",
+    "desc": "Líquen plano"
+  },
+  {
+    "code": "L44",
+    "desc": "Outras afecções pápulo-descamativas"
+  },
+  {
+    "code": "L45",
+    "desc": "Afecções pápulo-descamativas em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "L51",
+    "desc": "Eritema polimorfo (eritema multiforme)"
+  },
+  {
+    "code": "L52",
+    "desc": "Eritema nodoso"
+  },
+  {
+    "code": "L53",
+    "desc": "Outras afecções eritematosas"
+  },
+  {
+    "code": "L54",
+    "desc": "Eritema em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "L56",
+    "desc": "Outras alterações agudas da pele devidas a radiação ultravioleta"
+  },
+  {
+    "code": "L57",
+    "desc": "Alterações da pele devidas à exposição crônica à radiação não ionizante"
+  },
+  {
+    "code": "L58",
+    "desc": "Radiodermatite"
+  },
+  {
+    "code": "L59",
+    "desc": "Outras afecções da pele e do tecido subcutâneo relacionadas com a radiação"
+  },
+  {
+    "code": "L62",
+    "desc": "Afecções das unhas em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "L63",
+    "desc": "Alopécia areata"
+  },
+  {
+    "code": "L64",
+    "desc": "Alopécia androgênica"
+  },
+  {
+    "code": "L65",
+    "desc": "Outras formas não cicatriciais da perda de cabelos ou pêlos"
+  },
+  {
+    "code": "L66",
+    "desc": "Alopécia cicatricial [perda de cabelos ou pêlos, cicatricial]"
+  },
+  {
+    "code": "L67",
+    "desc": "Anormalidades da cor e do pedículo dos cabelos e dos pêlos"
+  },
+  {
+    "code": "L68",
+    "desc": "Hipertricose"
+  },
+  {
+    "code": "L71",
+    "desc": "Rosácea"
+  },
+  {
+    "code": "L73",
+    "desc": "Outras afecções foliculares"
+  },
+  {
+    "code": "L74",
+    "desc": "Afecções das glândulas sudoríparas écrinas"
+  },
+  {
+    "code": "L75",
+    "desc": "Afecções das glândulas sudoríparas apócrinas"
+  },
+  {
+    "code": "L81",
+    "desc": "Outros transtornos da pigmentação"
+  },
+  {
+    "code": "L82",
+    "desc": "Ceratose seborréica"
+  },
+  {
+    "code": "L83",
+    "desc": "Acantose nigricans"
+  },
+  {
+    "code": "L84",
+    "desc": "Calos e calosidades"
+  },
+  {
+    "code": "L85",
+    "desc": "Outras formas de espessamento epidérmico"
+  },
+  {
+    "code": "L86",
+    "desc": "Ceratodermia em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "L87",
+    "desc": "Transtornos da eliminação transepidérmica"
+  },
+  {
+    "code": "L88",
+    "desc": "Piodermite gangrenosa"
+  },
+  {
+    "code": "L91",
+    "desc": "Afecções hipertró fi cas da pele"
+  },
+  {
+    "code": "L92",
+    "desc": "Afecções granulomatosas da pele e do tecido subcutâneo"
+  },
+  {
+    "code": "L93",
+    "desc": "Lúpus eritematoso"
+  },
+  {
+    "code": "L94",
+    "desc": "Outras afecções localizadas do tecido conjuntivo"
+  },
+  {
+    "code": "L95",
+    "desc": "Vasculite limitada a pele não classi fi cadas em outra parte"
+  },
+  {
+    "code": "L97",
+    "desc": "Úlcera dos membros inferiores não classi fi cada em outra parte"
+  },
+  {
+    "code": "L98",
+    "desc": "Outras afecções da pele e do tecido subcutâneo não classi fi cadas em outra parte"
+  },
+  {
+    "code": "M01",
+    "desc": "Infecções diretas da articulação em doenças infecciosas e parasitárias classi fi cadas em outra parte"
+  },
+  {
+    "code": "M02",
+    "desc": "Artropatias reacionais"
+  },
+  {
+    "code": "M03",
+    "desc": "Artropatias pós-infecciosas e reacionais em doenças infecciosas classi fi cadas em outra parte"
+  },
+  {
+    "code": "M07",
+    "desc": "Artropatias psoriásicas e enteropáticas"
+  },
+  {
+    "code": "M08",
+    "desc": "Artrite juvenil"
+  },
+  {
+    "code": "M09",
+    "desc": "Artrite juvenil em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "M11",
+    "desc": "Outras artropatias por deposição de cristais"
+  },
+  {
+    "code": "M12",
+    "desc": "Outras artropatias especi fi cadas"
+  },
+  {
+    "code": "M13",
+    "desc": "Outras artrites"
+  },
+  {
+    "code": "M14",
+    "desc": "Artropatias em outras doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "M18",
+    "desc": "Artrose da primeira articulação carpometacarpiana"
+  },
+  {
+    "code": "M21",
+    "desc": "Outras deformidades adquiridas dos membros"
+  },
+  {
+    "code": "M22",
+    "desc": "Transtornos da rótula [patela]"
+  },
+  {
+    "code": "M24",
+    "desc": "Outros transtornos articulares especí fi cos"
+  },
+  {
+    "code": "M30",
+    "desc": "Poliarterite nodosa e afecções correlatas"
+  },
+  {
+    "code": "M31",
+    "desc": "Outras vasculopatias necrotizantes"
+  },
+  {
+    "code": "M33",
+    "desc": "Dermatopoliomiosite"
+  },
+  {
+    "code": "M34",
+    "desc": "Esclerose sistêmica"
+  },
+  {
+    "code": "M36",
+    "desc": "Doenças sistêmicas do tecido conjuntivo em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "M46",
+    "desc": "Outras espondilopatias in fi amatórias"
+  },
+  {
+    "code": "M49",
+    "desc": "Espondilopatias em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "M53",
+    "desc": "Outras dorsopatias não classi fi cadas em outra parte"
+  },
+  {
+    "code": "M61",
+    "desc": "Calci fi cação e ossi fi cação do músculo"
+  },
+  {
+    "code": "M62",
+    "desc": "Outros transtornos musculares"
+  },
+  {
+    "code": "M63",
+    "desc": "Transtornos de músculo em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "M66",
+    "desc": "Ruptura espontânea de sinóvia e de tendão"
+  },
+  {
+    "code": "M67",
+    "desc": "Outros transtornos das sinóvias e dos tendões"
+  },
+  {
+    "code": "M68",
+    "desc": "Transtorno de sinóvias e de tendões em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "M70",
+    "desc": "Transtornos dos tecidos moles relacionados com o uso, uso excessivo e pressão"
+  },
+  {
+    "code": "M71",
+    "desc": "Outras bursopatias"
+  },
+  {
+    "code": "M73",
+    "desc": "Transtornos dos tecidos moles em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "M82",
+    "desc": "Osteoporose em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "M83",
+    "desc": "Osteomalácia do adulto"
+  },
+  {
+    "code": "M85",
+    "desc": "Outros transtornos da densidade e da estrutura ósseas"
+  },
+  {
+    "code": "M86",
+    "desc": "Osteomielite"
+  },
+  {
+    "code": "M87",
+    "desc": "Osteonecrose"
+  },
+  {
+    "code": "M88",
+    "desc": "Doença de Paget do osso (osteíte deformante)"
+  },
+  {
+    "code": "M89",
+    "desc": "Outros transtornos ósseos"
+  },
+  {
+    "code": "M90",
+    "desc": "Osteopatias em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "M91",
+    "desc": "Osteocondrose juvenil do quadril e da pelve"
+  },
+  {
+    "code": "M92",
+    "desc": "Outras osteocondroses juvenis"
+  },
+  {
+    "code": "M93",
+    "desc": "Outras osteocondropatias"
+  },
+  {
+    "code": "M94",
+    "desc": "Outros transtornos das cartilagens"
+  },
+  {
+    "code": "M95",
+    "desc": "Outras deformidades adquiridas do sistema osteomuscular e do tecido conjuntivo"
+  },
+  {
+    "code": "M96",
+    "desc": "Transtornos osteomusculares pós-procedimentos não classi fi cados em outra parte"
+  },
+  {
+    "code": "M99",
+    "desc": "Lesões biomecânicas não classi fi cadas em outra parte"
+  },
+  {
+    "code": "N01",
+    "desc": "Síndrome nefrítica rapidamente progressiva"
+  },
+  {
+    "code": "N02",
+    "desc": "Hematúria recidivante e persistente"
+  },
+  {
+    "code": "N04",
+    "desc": "Síndrome nefrótica"
+  },
+  {
+    "code": "N05",
+    "desc": "Síndrome nefrítica não especi fi cada"
+  },
+  {
+    "code": "N06",
+    "desc": "Proteinúria isolada com lesão morfológica especi fi cada"
+  },
+  {
+    "code": "N07",
+    "desc": "Nefropatia hereditária não classi fi cada em outra parte"
+  },
+  {
+    "code": "N08",
+    "desc": "Transtornos glomerulares em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "N12",
+    "desc": "Nefrite túbulo-intersticial não especi fi cada se aguda ou crônica"
+  },
+  {
+    "code": "N13",
+    "desc": "Uropatia obstrutiva e por re fi uxo"
+  },
+  {
+    "code": "N14",
+    "desc": "Afecções tubulares e túbulo-intersticiais induzidas por drogas ou metais pesados"
+  },
+  {
+    "code": "N15",
+    "desc": "Outras doenças renais túbulo-intersticiais"
+  },
+  {
+    "code": "N16",
+    "desc": "Transtornos renais túbulo-intersticiais em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "N19",
+    "desc": "Insu fi ciência renal não especi fi cada"
+  },
+  {
+    "code": "N21",
+    "desc": "Calculose do trato urinário inferior"
+  },
+  {
+    "code": "N22",
+    "desc": "Calculose do trato urinário inferior em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "N25",
+    "desc": "Transtornos resultantes de função renal tubular alterada"
+  },
+  {
+    "code": "N26",
+    "desc": "Rim contraído, não especi fi cado"
+  },
+  {
+    "code": "N27",
+    "desc": "Hipoplasia renal de causa desconhecida"
+  },
+  {
+    "code": "N28",
+    "desc": "Outros transtornos do rim e do ureter não classi fi cado em outra parte"
+  },
+  {
+    "code": "N29",
+    "desc": "Outros transtornos do rim e do ureter em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "N31",
+    "desc": "Disfunções neuromusculares da bexiga não classi fi cados em outra parte"
+  },
+  {
+    "code": "N32",
+    "desc": "Outros transtornos da bexiga"
+  },
+  {
+    "code": "N33",
+    "desc": "Transtornos da bexiga em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "N34",
+    "desc": "Uretrite e síndrome uretral"
+  },
+  {
+    "code": "N35",
+    "desc": "Estenose da uretra"
+  },
+  {
+    "code": "N36",
+    "desc": "Outros transtornos da uretra"
+  },
+  {
+    "code": "N37",
+    "desc": "Transtornos da uretra em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "N42",
+    "desc": "Outras afecções da próstata"
+  },
+  {
+    "code": "N44",
+    "desc": "Torção do testículo"
+  },
+  {
+    "code": "N46",
+    "desc": "Infertilidade masculina"
+  },
+  {
+    "code": "N47",
+    "desc": "Hipertro fi a do prepúcio, fi mose e para fi mose"
+  },
+  {
+    "code": "N49",
+    "desc": "Transtornos in fi amatórios de órgãos genitais masculinos, não classi fi cados em outra parte"
+  },
+  {
+    "code": "N50",
+    "desc": "Outros transtornos dos órgãos genitais masculinos"
+  },
+  {
+    "code": "N51",
+    "desc": "Transtornos dos órgãos genitais masculinos em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "N61",
+    "desc": "Transtornos in fi amatórios da mama"
+  },
+  {
+    "code": "N62",
+    "desc": "Hipertro fi a da mama"
+  },
+  {
+    "code": "N63",
+    "desc": "Nódulo mamário não especi fi cado"
+  },
+  {
+    "code": "N64",
+    "desc": "Outras doenças da mama"
+  },
+  {
+    "code": "N72",
+    "desc": "Doença in fi amatória do colo do útero"
+  },
+  {
+    "code": "N74",
+    "desc": "Transtornos in fi amatórios da pelve feminina em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "N77",
+    "desc": "Ulceração e in fi amação vulvovaginais em doenças classi fi cadas em outra parte"
+  },
+  {
+    "code": "N82",
+    "desc": "Fístulas do trato genital feminino"
+  },
+  {
+    "code": "N85",
+    "desc": "Outros transtornos não-in fi amatórios do útero, exceto do colo do útero"
+  },
+  {
+    "code": "N86",
+    "desc": "Erosão e ectrópio do colo do útero"
+  },
+  {
+    "code": "N88",
+    "desc": "Outros transtornos não-in fi amatórios do colo do útero"
+  },
+  {
+    "code": "N89",
+    "desc": "Outros transtornos não-in fi amatórios da vagina"
+  },
+  {
+    "code": "N90",
+    "desc": "Outros transtornos não-in fi amatórios da vulva e do períneo"
+  },
+  {
+    "code": "N96",
+    "desc": "Abortamento habitual"
+  },
+  {
+    "code": "N97",
+    "desc": "Infertilidade feminina"
+  },
+  {
+    "code": "N98",
+    "desc": "Complicações associadas à fecundação arti fi cial"
+  },
+  {
+    "code": "N99",
+    "desc": "Transtornos do trato geniturinário pós-procedimentos não classi fi cados em outra parte"
+  },
+  {
+    "code": "O01",
+    "desc": "Mola hidatiforme"
+  },
+  {
+    "code": "O02",
+    "desc": "Outros produtos anormais da concepção"
+  },
+  {
+    "code": "O03",
+    "desc": "Aborto espontâneo"
+  },
+  {
+    "code": "O04",
+    "desc": "Aborto por razões médicas e legais"
+  },
+  {
+    "code": "O05",
+    "desc": "Outros tipos de aborto"
+  },
+  {
+    "code": "O06",
+    "desc": "Aborto não especi fi cado"
+  },
+  {
+    "code": "O07",
+    "desc": "Falha de tentativa de aborto"
+  },
+  {
+    "code": "O08",
+    "desc": "Complicações conseqüentes a aborto e gravidez ectópica ou molar"
+  },
+  {
+    "code": "O10",
+    "desc": "Hipertensão pré-existente complicando a gravidez, o parto e o puerpério"
+  },
+  {
+    "code": "O11",
+    "desc": "Distúrbio hipertensivo pré-existente com proteinúria superposta"
+  },
+  {
+    "code": "O12",
+    "desc": "Edema e proteinúria gestacionais [induzidos pela gravidez], sem hipertensão"
+  },
+  {
+    "code": "O13",
+    "desc": "Hipertensão gestacional [induzida pela gravidez] sem proteinúria signi fi cativa"
+  },
+  {
+    "code": "O14",
+    "desc": "Hipertensão gestacional [induzida pela gravidez] com proteinúria signi fi cativa"
+  },
+  {
+    "code": "O15",
+    "desc": "Eclâmpsia"
+  },
+  {
+    "code": "O16",
+    "desc": "Hipertensão materna não especi fi cada"
+  },
+  {
+    "code": "O22",
+    "desc": "Complicações venosas na gravidez"
+  },
+  {
+    "code": "O23",
+    "desc": "Infecções do trato geniturinário na gravidez"
+  },
+  {
+    "code": "O24",
+    "desc": "Diabetes mellitus na gravidez"
+  },
+  {
+    "code": "O25",
+    "desc": "Desnutrição na gravidez"
+  },
+  {
+    "code": "O29",
+    "desc": "Complicações de anestesia administrada durante a gravidez"
+  },
+  {
+    "code": "O30",
+    "desc": "Gestação múltipla"
+  },
+  {
+    "code": "O31",
+    "desc": "Complicações especí fi cas de gestação múltipla"
+  },
+  {
+    "code": "O32",
+    "desc": "Assistência prestada à mãe por motivo de apresentação anormal, conhecida ou suspeitada, do feto"
+  },
+  {
+    "code": "O33",
+    "desc": "Assistência prestada à mãe por uma desproporção conhecida ou suspeita"
+  },
+  {
+    "code": "O34",
+    "desc": "Assistência prestada à mãe por anormalidade, conhecida ou suspeita, dos órgãos pélvicos maternos"
+  },
+  {
+    "code": "O35",
+    "desc": "Assistência prestada à mãe por anormalidade e lesão fetais, conhecidas ou suspeitadas"
+  },
+  {
+    "code": "O40",
+    "desc": "Polihidrâmnio"
+  },
+  {
+    "code": "O41",
+    "desc": "Outros transtornos das membranas e do líquido amniótico"
+  },
+  {
+    "code": "O42",
+    "desc": "Ruptura prematura de membranas"
+  },
+  {
+    "code": "O43",
+    "desc": "Transtornos da placenta"
+  },
+  {
+    "code": "O44",
+    "desc": "Placenta prévia"
+  },
+  {
+    "code": "O45",
+    "desc": "Descolamento prematuro da placenta [abruptio placentae]"
+  },
+  {
+    "code": "O46",
+    "desc": "Hemorragia anteparto não classi fi cada em outra parte"
+  },
+  {
+    "code": "O47",
+    "desc": "Falso trabalho de parto"
+  },
+  {
+    "code": "O61",
+    "desc": "Falha na indução do trabalho de parto"
+  },
+  {
+    "code": "O62",
+    "desc": "Anormalidades da contração uterina"
+  },
+  {
+    "code": "O63",
+    "desc": "Trabalho de parto prolongado"
+  },
+  {
+    "code": "O64",
+    "desc": "Obstrução do trabalho de parto devida à má-posição ou má-apresentação do feto"
+  },
+  {
+    "code": "O65",
+    "desc": "Obstrução do trabalho de parto devida a anormalidade pélvica da mãe"
+  },
+  {
+    "code": "O66",
+    "desc": "Outras formas de obstrução do trabalho de parto"
+  },
+  {
+    "code": "O67",
+    "desc": "Trabalho de parto e parto complicados por hemorragia intraparto não classi fi cados em outra parte"
+  },
+  {
+    "code": "O68",
+    "desc": "Trabalho de parto e parto complicados por sofrimento fetal"
+  },
+  {
+    "code": "O69",
+    "desc": "Trabalho de parto e parto complicados por anormalidade do cordão umbilical"
+  },
+  {
+    "code": "O70",
+    "desc": "Laceração do períneo durante o parto"
+  },
+  {
+    "code": "O71",
+    "desc": "Outros traumatismos obstétricos"
+  },
+  {
+    "code": "O72",
+    "desc": "Hemorragia pós-parto"
+  },
+  {
+    "code": "O73",
+    "desc": "Retenção da placenta e das membranas, sem hemorragias"
+  },
+  {
+    "code": "O74",
+    "desc": "Complicações de anestesia durante o trabalho de parto e o parto"
+  },
+  {
+    "code": "O75",
+    "desc": "Outras complicações do trabalho de parto e do parto não classi fi cadas em outra parte"
+  },
+  {
+    "code": "O81",
+    "desc": "Parto único por fórceps ou vácuo-extrator"
+  },
+  {
+    "code": "O83",
+    "desc": "Outros tipos de parto único assistido"
+  },
+  {
+    "code": "O85",
+    "desc": "Infecção puerperal"
+  },
+  {
+    "code": "O86",
+    "desc": "Outras infecções puerperais"
+  },
+  {
+    "code": "O87",
+    "desc": "Complicações venosas no puerpério"
+  },
+  {
+    "code": "O88",
+    "desc": "Embolia de origem obstétrica"
+  },
+  {
+    "code": "O89",
+    "desc": "Complicações da anestesia administrada durante o puerpério"
+  },
+  {
+    "code": "O90",
+    "desc": "Complicações do puerpério não classi fi cadas em outra parte"
+  },
+  {
+    "code": "O91",
+    "desc": "Infecções mamárias associadas ao parto"
+  },
+  {
+    "code": "O92",
+    "desc": "Outras afecções da mama e da lactação associadas ao parto"
+  },
+  {
+    "code": "O94",
+    "desc": "Seqüelas de complicações da gravidez, parto e puerpério"
+  },
+  {
+    "code": "O95",
+    "desc": "Morte obstétrica de causa não especi fi cada"
+  },
+  {
+    "code": "O96",
+    "desc": "Morte, por qualquer causa obstétrica, que ocorre mais de 42 dias, mas menos de 1 ano, após o parto"
+  },
+  {
+    "code": "O97",
+    "desc": "Morte por seqüelas de causas obstétricas diretas"
+  },
+  {
+    "code": "O98",
+    "desc": "Doenças infecciosas e parasitárias maternas classi fi cáveis em outra parte mas que compliquem a gravidez, o parto e o puerpério"
+  },
+  {
+    "code": "O99",
+    "desc": "Outras doenças da mãe, classi fi cadas em outra parte, mas que complicam a gravidez o parto e o puerpério"
+  },
+  {
+    "code": "P01",
+    "desc": "Feto e recém-nascido afetados por complicações maternas da gravidez"
+  },
+  {
+    "code": "P02",
+    "desc": "Feto e recém-nascido afetados por complicações da placenta, do cordão umbilical e das membranas"
+  },
+  {
+    "code": "P03",
+    "desc": "Feto e recém-nascido afetados por outras complicações do trabalho de parto e do parto"
+  },
+  {
+    "code": "P04",
+    "desc": "Feto e recém-nascido afetados por in fi uências nocivas transmitidas ao feto via placenta ou leite materno"
+  },
+  {
+    "code": "P05",
+    "desc": "Crescimento fetal retardado e desnutrição fetal"
+  },
+  {
+    "code": "P08",
+    "desc": "Transtornos relacionados com a gestação prolongada e peso elevado ao nascer"
+  },
+  {
+    "code": "P10",
+    "desc": "Laceração intracraniana e hemorragia devidas a traumatismo de parto"
+  },
+  {
+    "code": "P11",
+    "desc": "Outros traumatismos de parto do sistema nervoso central"
+  },
+  {
+    "code": "P12",
+    "desc": "Lesão do couro cabeludo devida a traumatismo de parto"
+  },
+  {
+    "code": "P13",
+    "desc": "Lesões do esqueleto devidas a traumatismo de parto"
+  },
+  {
+    "code": "P14",
+    "desc": "Lesões ao nascer do sistema nervoso periférico"
+  },
+  {
+    "code": "P15",
+    "desc": "Outros traumatismos de parto"
+  },
+  {
+    "code": "P23",
+    "desc": "Pneumonia congênita"
+  },
+  {
+    "code": "P24",
+    "desc": "Síndrome de aspiração neonatal"
+  },
+  {
+    "code": "P25",
+    "desc": "En fi sema intersticial e afecções correlatas originadas no período perinatal"
+  },
+  {
+    "code": "P26",
+    "desc": "Hemorragia pulmonar originada no período perinatal"
+  },
+  {
+    "code": "P27",
+    "desc": "Doença respiratória crônica originada no período perinatal"
+  },
+  {
+    "code": "P29",
+    "desc": "Transtornos cardiovasculares originados no período perinatal"
+  },
+  {
+    "code": "P35",
+    "desc": "Doenças virais congênitas"
+  },
+  {
+    "code": "P36",
+    "desc": "Septicemia bacteriana do recém-nascido"
+  },
+  {
+    "code": "P37",
+    "desc": "Outras doenças infecciosas e parasitárias congênitas"
+  },
+  {
+    "code": "P38",
+    "desc": "Onfalite do recém-nascido com ou sem hemorragia leve"
+  },
+  {
+    "code": "P39",
+    "desc": "Outras infecções especí fi cas do período perinatal"
+  },
+  {
+    "code": "P50",
+    "desc": "Perda sangüínea fetal"
+  },
+  {
+    "code": "P51",
+    "desc": "Hemorragia umbilical do recém-nascido"
+  },
+  {
+    "code": "P52",
+    "desc": "Hemorragia intracraniana não-traumática do feto e do recém-nascido"
+  },
+  {
+    "code": "P53",
+    "desc": "Doença hemorrágica do feto e do recém-nascido"
+  },
+  {
+    "code": "P54",
+    "desc": "Outras hemorragias neonatais"
+  },
+  {
+    "code": "P55",
+    "desc": "Doença hemolítica do feto e do recém-nascido"
+  },
+  {
+    "code": "P56",
+    "desc": "Hidropsia fetal devida a doença hemolítica"
+  },
+  {
+    "code": "P57",
+    "desc": "Kernicterus"
+  },
+  {
+    "code": "P58",
+    "desc": "Icterícia neonatal devida a outras hemólises excessivas"
+  },
+  {
+    "code": "P60",
+    "desc": "Coagulação intravascular disseminada do feto e do recém-nascido"
+  },
+  {
+    "code": "P61",
+    "desc": "Outros transtornos hematológicos perinatais"
+  },
+  {
+    "code": "P70",
+    "desc": "Transtornos transitórios do metabolismo dos carboidratos especí fi cos do feto e do recém-nascido"
+  },
+  {
+    "code": "P71",
+    "desc": "Transtornos transitórios do metabolismo do cálcio e do magnésio do período neonatal"
+  },
+  {
+    "code": "P72",
+    "desc": "Outros transtornos endócrinos transitórios do período neonatal"
+  },
+  {
+    "code": "P74",
+    "desc": "Outros distúrbios eletrolíticos e metabólicos transitórios do período neonatal"
+  },
+  {
+    "code": "P75",
+    "desc": "Íleo meconial"
+  },
+  {
+    "code": "P76",
+    "desc": "Outras obstruções intestinais do recém-nascido"
+  },
+  {
+    "code": "P77",
+    "desc": "Enterocolite necrotizante do feto e do recém-nascido"
+  },
+  {
+    "code": "P78",
+    "desc": "Outros transtornos do aparelho digestivo do período perinatal"
+  },
+  {
+    "code": "P80",
+    "desc": "Hipotermia do recém-nascido"
+  },
+  {
+    "code": "P81",
+    "desc": "Outros distúrbios da regulação térmica do recém-nascido"
+  },
+  {
+    "code": "P83",
+    "desc": "Outras afecções comprometendo o tegumento especí fi cas do feto e do recém-nascido"
+  },
+  {
+    "code": "P90",
+    "desc": "Convulsões do recém-nascido"
+  },
+  {
+    "code": "P91",
+    "desc": "Outros distúrbios da função cerebral do recém-nascido"
+  },
+  {
+    "code": "P92",
+    "desc": "Problemas de alimentação do recém-nascido"
+  },
+  {
+    "code": "P93",
+    "desc": "Reações e intoxicações devidas a drogas administradas ao feto e ao recém-nascido"
+  },
+  {
+    "code": "P94",
+    "desc": "Transtornos do tônus muscular do recém-nascido"
+  },
+  {
+    "code": "P95",
+    "desc": "Morte fetal de causa não especi fi cada"
+  },
+  {
+    "code": "P96",
+    "desc": "Outras afecções originadas no período perinatal"
+  },
+  {
+    "code": "Q01",
+    "desc": "Encefalocele"
+  },
+  {
+    "code": "Q02",
+    "desc": "Microcefalia"
+  },
+  {
+    "code": "Q03",
+    "desc": "Hidrocefalia congênita"
+  },
+  {
+    "code": "Q04",
+    "desc": "Outras malformações congênitas do cérebro"
+  },
+  {
+    "code": "Q06",
+    "desc": "Outras malformações congênitas da medula espinhal"
+  },
+  {
+    "code": "Q07",
+    "desc": "Outras malformações congênitas do sistema nervoso"
+  },
+  {
+    "code": "Q10",
+    "desc": "Malformações congênitas das pálpebras, do aparelho lacrimal e da órbita"
+  },
+  {
+    "code": "Q11",
+    "desc": "Anoftalmia, microftalmia e macroftalmia"
+  },
+  {
+    "code": "Q12",
+    "desc": "Malformações congênitas do cristalino"
+  },
+  {
+    "code": "Q13",
+    "desc": "Malformações congênitas da câmara anterior do olho"
+  },
+  {
+    "code": "Q14",
+    "desc": "Malformações congênitas da câmara posterior do olho"
+  },
+  {
+    "code": "Q15",
+    "desc": "Outras malformações congênitas do olho"
+  },
+  {
+    "code": "Q16",
+    "desc": "Malformações congênitas do ouvido causando comprometimento da audição"
+  },
+  {
+    "code": "Q17",
+    "desc": "Outras malformações congênitas da orelha"
+  },
+  {
+    "code": "Q18",
+    "desc": "Outras malformações congênitas da face e do pescoço"
+  },
+  {
+    "code": "Q22",
+    "desc": "Malformações congênitas das valvas pulmonar e tricúspide"
+  },
+  {
+    "code": "Q23",
+    "desc": "Malformações congênitas das valvas aórtica e mitral"
+  },
+  {
+    "code": "Q24",
+    "desc": "Outras malformações congênitas do coração"
+  },
+  {
+    "code": "Q25",
+    "desc": "Malformações congênitas das grandes artérias"
+  },
+  {
+    "code": "Q26",
+    "desc": "Malformações congênitas das grandes veias"
+  },
+  {
+    "code": "Q27",
+    "desc": "Outras malformações congênitas do sistema vascular periférico"
+  },
+  {
+    "code": "Q28",
+    "desc": "Outras malformações congênitas do aparelho circulatório"
+  },
+  {
+    "code": "Q30",
+    "desc": "Malformação congênita do nariz"
+  },
+  {
+    "code": "Q31",
+    "desc": "Malformações congênitas da laringe"
+  },
+  {
+    "code": "Q32",
+    "desc": "Malformações congênitas da traquéia e dos brônquios"
+  },
+  {
+    "code": "Q33",
+    "desc": "Malformações congênitas do pulmão"
+  },
+  {
+    "code": "Q34",
+    "desc": "Outras malformações congênitas do aparelho respiratório"
+  },
+  {
+    "code": "Q38",
+    "desc": "Outras malformações congênitas da língua, da boca e da faringe"
+  },
+  {
+    "code": "Q39",
+    "desc": "Malformações congênitas do esôfago"
+  },
+  {
+    "code": "Q40",
+    "desc": "Outras malformações congênitas do trato digestivo superior"
+  },
+  {
+    "code": "Q41",
+    "desc": "Ausência, atresia e estenose congênita do intestino delgado"
+  },
+  {
+    "code": "Q42",
+    "desc": "Ausência, atresia e estenose congênita do cólon"
+  },
+  {
+    "code": "Q43",
+    "desc": "Outras malformações congênitas do intestino"
+  },
+  {
+    "code": "Q44",
+    "desc": "Malformações congênitas da vesícula biliar, das vias biliares e do fígado"
+  },
+  {
+    "code": "Q45",
+    "desc": "Outras malformações congênitas do aparelho digestivo"
+  },
+  {
+    "code": "Q50",
+    "desc": "Malformações congênitas dos ovários, das trompas de Falópio e dos ligamentos largos"
+  },
+  {
+    "code": "Q51",
+    "desc": "Malformações congênitas do útero e do colo do útero"
+  },
+  {
+    "code": "Q52",
+    "desc": "Outras malformações congênitas dos órgãos genitais femininos"
+  },
+  {
+    "code": "Q53",
+    "desc": "Testículo não-descido"
+  },
+  {
+    "code": "Q54",
+    "desc": "Hipospádias"
+  },
+  {
+    "code": "Q55",
+    "desc": "Outras malformações congênitas dos órgãos genitais masculinos"
+  },
+  {
+    "code": "Q56",
+    "desc": "Sexo indeterminado e pseudo-hermafroditismo"
+  },
+  {
+    "code": "Q60",
+    "desc": "Agenesia renal e outros defeitos de redução do rim"
+  },
+  {
+    "code": "Q61",
+    "desc": "Doenças císticas do rim"
+  },
+  {
+    "code": "Q62",
+    "desc": "Anomalias congênitas obstrutivas da pelve renal e malformações congênitas do ureter"
+  },
+  {
+    "code": "Q63",
+    "desc": "Outras malformações congênitas do rim"
+  },
+  {
+    "code": "Q64",
+    "desc": "Outras malformações congênitas do aparelho urinário"
+  },
+  {
+    "code": "Q67",
+    "desc": "Deformidades osteomusculares congênitas da cabeça, da face, da coluna e do tórax"
+  },
+  {
+    "code": "Q68",
+    "desc": "Outras deformidades osteomusculares congênitas"
+  },
+  {
+    "code": "Q69",
+    "desc": "Polidactilia"
+  },
+  {
+    "code": "Q70",
+    "desc": "Sindactilia"
+  },
+  {
+    "code": "Q71",
+    "desc": "Defeitos, por redução, do membro superior"
+  },
+  {
+    "code": "Q72",
+    "desc": "Defeitos, por redução, do membro inferior"
+  },
+  {
+    "code": "Q73",
+    "desc": "Defeitos por redução de membro não especi fi cado"
+  },
+  {
+    "code": "Q74",
+    "desc": "Outras malformações congênitas dos membros"
+  },
+  {
+    "code": "Q75",
+    "desc": "Outras malformações congênitas dos ossos do crânio e da face"
+  },
+  {
+    "code": "Q76",
+    "desc": "Malformações congênitas da coluna vertebral e dos ossos do tórax"
+  },
+  {
+    "code": "Q77",
+    "desc": "Osteocondrodisplasia com anomalias de crescimento dos ossos longos e da coluna vertebral"
+  },
+  {
+    "code": "Q78",
+    "desc": "Outras osteocondrodisplasias"
+  },
+  {
+    "code": "Q79",
+    "desc": "Malformações congênitas do sistema osteomuscular não classi fi cadas em outra parte"
+  },
+  {
+    "code": "Q80",
+    "desc": "Ictiose congênita"
+  },
+  {
+    "code": "Q81",
+    "desc": "Epidermólise bolhosa"
+  },
+  {
+    "code": "Q82",
+    "desc": "Outras malformações congênitas da pele"
+  },
+  {
+    "code": "Q83",
+    "desc": "Malformações congênitas da mama"
+  },
+  {
+    "code": "Q84",
+    "desc": "Outras malformações congênitas do tegumento"
+  },
+  {
+    "code": "Q85",
+    "desc": "Facomatoses não classi fi cadas em outra parte"
+  },
+  {
+    "code": "Q86",
+    "desc": "Síndromes com malformações congênitas devidas a causas exógenas conhecidas, não classi fi cadas em outra parte"
+  },
+  {
+    "code": "Q87",
+    "desc": "Outras síndromes com malformações congênitas que acometem múltiplos sistemas"
+  },
+  {
+    "code": "Q89",
+    "desc": "Outras malformações congênitas não classi fi cadas em outra parte"
+  },
+  {
+    "code": "Q91",
+    "desc": "Síndrome de Edwards e síndrome de Patau"
+  },
+  {
+    "code": "Q92",
+    "desc": "Outras trissomias e trissomias parciais dos autossomos, não classi fi cadas em outra parte"
+  },
+  {
+    "code": "Q93",
+    "desc": "Monossomias e deleções dos autossomos, não classi fi cadas em outra parte"
+  },
+  {
+    "code": "Q95",
+    "desc": "Rearranjos equilibrados e marcadores estruturais, não classi fi cados em outra parte"
+  },
+  {
+    "code": "Q96",
+    "desc": "Síndrome de Turner"
+  },
+  {
+    "code": "Q97",
+    "desc": "Outras anomalias dos cromossomos sexuais, fenótipo feminino, não classi fi cadas em outra parte"
+  },
+  {
+    "code": "Q98",
+    "desc": "Outras anomalias dos cromossomos sexuais, fenótipo masculino, não classi fi cadas em outra parte"
+  },
+  {
+    "code": "Q99",
+    "desc": "Outras anomalias dos cromossomos, não classi fi cadas em outra parte"
+  },
+  {
+    "code": "R03",
+    "desc": "Valor anormal da pressão arterial sem diagnóstico"
+  },
+  {
+    "code": "R16",
+    "desc": "Hepatomegalia e esplenomegalia não classi fi cadas em outra parte"
+  },
+  {
+    "code": "R18",
+    "desc": "Ascite"
+  },
+  {
+    "code": "R22",
+    "desc": "Tumefação, massa ou tumoração localizadas da pele e do tecido subcutâneo"
+  },
+  {
+    "code": "R23",
+    "desc": "Outras alterações cutâneas"
+  },
+  {
+    "code": "R27",
+    "desc": "Outros distúrbios da coordenação"
+  },
+  {
+    "code": "R34",
+    "desc": "Anúria e oligúria"
+  },
+  {
+    "code": "R35",
+    "desc": "Poliúria"
+  },
+  {
+    "code": "R36",
+    "desc": "Secreção uretral"
+  },
+  {
+    "code": "R39",
+    "desc": "Outros sintomas e sinais relativos ao aparelho urinário"
+  },
+  {
+    "code": "R40",
+    "desc": "Sonolência, estupor e coma"
+  },
+  {
+    "code": "R41",
+    "desc": "Outros sintomas e sinais relativos à função cognitiva e à consciência"
+  },
+  {
+    "code": "R43",
+    "desc": "Distúrbios do olfato e do paladar"
+  },
+  {
+    "code": "R44",
+    "desc": "Outros sintomas e sinais relativos às sensações e às percepções gerais"
+  },
+  {
+    "code": "R45",
+    "desc": "Sintomas e sinais relativos ao estado emocional"
+  },
+  {
+    "code": "R46",
+    "desc": "Sintomas e sinais relativos à aparência e ao comportamento"
+  },
+  {
+    "code": "R47",
+    "desc": "Distúrbios da fala não classi fi cados em outra parte"
+  },
+  {
+    "code": "R48",
+    "desc": "Dislexia e outras disfunções simbólicas, não classi fi cadas em outra parte"
+  },
+  {
+    "code": "R49",
+    "desc": "Distúrbios da voz"
+  },
+  {
+    "code": "R54",
+    "desc": "Senilidade"
+  },
+  {
+    "code": "R58",
+    "desc": "Hemorragia não classi fi cada em outra parte"
+  },
+  {
+    "code": "R59",
+    "desc": "Aumento de volume dos gânglios linfáticos"
+  },
+  {
+    "code": "R61",
+    "desc": "Hiperidrose"
+  },
+  {
+    "code": "R62",
+    "desc": "Retardo do desenvolvimento fi siológico normal"
+  },
+  {
+    "code": "R64",
+    "desc": "Caquexia"
+  },
+  {
+    "code": "R69",
+    "desc": "Causas desconhecidas e não especi fi cadas de morbidade"
+  },
+  {
+    "code": "R70",
+    "desc": "Velocidade de hemossedimentação elevada e outras anormalidades da viscosidade plasmática"
+  },
+  {
+    "code": "R71",
+    "desc": "Anormalidade das hemácias"
+  },
+  {
+    "code": "R72",
+    "desc": "Anormalidade dos leucócitos não classi fi cada em outra parte"
+  },
+  {
+    "code": "R76",
+    "desc": "Outros achados imunológicos anormais no soro"
+  },
+  {
+    "code": "R77",
+    "desc": "Outras anormalidades das proteínas plasmáticas"
+  },
+  {
+    "code": "R78",
+    "desc": "Presença de drogas e de outras substâncias normalmente não encontradas no sangue"
+  },
+  {
+    "code": "R79",
+    "desc": "Outros achados anormais de exames químicos do sangue"
+  },
+  {
+    "code": "R80",
+    "desc": "Proteinúria isolada"
+  },
+  {
+    "code": "R81",
+    "desc": "Glicosúria"
+  },
+  {
+    "code": "R82",
+    "desc": "Outros achados anormais na urina"
+  },
+  {
+    "code": "R83",
+    "desc": "Achados anormais no líquido cefalorraquidiano"
+  },
+  {
+    "code": "R84",
+    "desc": "Achados anormais de material proveniente dos órgãos respiratórios e do tórax"
+  },
+  {
+    "code": "R85",
+    "desc": "Achados anormais de material proveniente dos órgãos digestivos e da cavidade abdominal"
+  },
+  {
+    "code": "R86",
+    "desc": "Achados anormais de material proveniente dos órgãos genitais masculinos"
+  },
+  {
+    "code": "R87",
+    "desc": "Achados anormais de material proveniente dos órgãos genitais femininos"
+  },
+  {
+    "code": "R89",
+    "desc": "Achados anormais de material proveniente de outros órgãos, aparelhos, sistemas e tecidos"
+  },
+  {
+    "code": "R90",
+    "desc": "Resultados anormais de exames para diagnóstico por imagem do sistema nervoso central"
+  },
+  {
+    "code": "R91",
+    "desc": "Achados anormais, de exames para diagnóstico por imagem, do pulmão"
+  },
+  {
+    "code": "R92",
+    "desc": "Achados anormais, de exames para diagnóstico por imagem, da mama"
+  },
+  {
+    "code": "R93",
+    "desc": "Achados anormais de exames para diagnóstico por imagem de outras estruturas do corpo"
+  },
+  {
+    "code": "R94",
+    "desc": "Resultados anormais de estudos de função"
+  },
+  {
+    "code": "R95",
+    "desc": "Síndrome da morte súbita na infância"
+  },
+  {
+    "code": "R96",
+    "desc": "Outras mortes súbitas de causa desconhecida"
+  },
+  {
+    "code": "R98",
+    "desc": "Morte sem assistência"
+  },
+  {
+    "code": "R99",
+    "desc": "Outras causas mal de fi nidas e as não especi fi cadas de mortalidade"
+  },
+  {
+    "code": "S02",
+    "desc": "Fratura do crânio e dos ossos da face"
+  },
+  {
+    "code": "S03",
+    "desc": "Luxação, entorse ou distensão das articulações e dos ligamentos da cabeça"
+  },
+  {
+    "code": "S04",
+    "desc": "Traumatismo dos nervos cranianos"
+  },
+  {
+    "code": "S05",
+    "desc": "Traumatismo do olho e da órbita ocular"
+  },
+  {
+    "code": "S07",
+    "desc": "Lesões por esmagamento da cabeça"
+  },
+  {
+    "code": "S08",
+    "desc": "Amputação traumática de parte da cabeça"
+  },
+  {
+    "code": "S11",
+    "desc": "Ferimento do pescoço"
+  },
+  {
+    "code": "S12",
+    "desc": "Fratura do pescoço"
+  },
+  {
+    "code": "S14",
+    "desc": "Traumatismo de nervos e da medula espinhal ao nível cervical"
+  },
+  {
+    "code": "S15",
+    "desc": "Traumatismo dos vasos sangüíneos ao nível do pescoço"
+  },
+  {
+    "code": "S16",
+    "desc": "Traumatismo de tendões e de músculos do pescoço"
+  },
+  {
+    "code": "S17",
+    "desc": "Lesões por esmagamento do pescoço"
+  },
+  {
+    "code": "S18",
+    "desc": "Amputação traumática ao nível do pescoço"
+  },
+  {
+    "code": "S19",
+    "desc": "Outros traumatismos do pescoço e os não especi fi cados"
+  },
+  {
+    "code": "S21",
+    "desc": "Ferimento do tórax"
+  },
+  {
+    "code": "S23",
+    "desc": "Luxação, entorse e distensão de articulações e dos ligamentos do tórax"
+  },
+  {
+    "code": "S24",
+    "desc": "Traumatismos de nervos e da medula espinhal ao nível do tórax"
+  },
+  {
+    "code": "S25",
+    "desc": "Traumatismo de vasos sangüíneos do tórax"
+  },
+  {
+    "code": "S26",
+    "desc": "Traumatismo do coração"
+  },
+  {
+    "code": "S27",
+    "desc": "Traumatismo de outros órgãos intratorácicos e dos não especi fi cados"
+  },
+  {
+    "code": "S28",
+    "desc": "Lesão por esmagamento do tórax e amputação traumática de parte do tórax"
+  },
+  {
+    "code": "S29",
+    "desc": "Outros traumatismos do tórax e os não especi fi cados"
+  },
+  {
+    "code": "S31",
+    "desc": "Ferimento do abdome, do dorso e da pelve"
+  },
+  {
+    "code": "S33",
+    "desc": "Luxação, entorse ou distensão das articulações e dos ligamentos da coluna lombar e da pelve"
+  },
+  {
+    "code": "S34",
+    "desc": "Traumatismo dos nervos e da medula lombar ao nível do abdome, do dorso e da pelve"
+  },
+  {
+    "code": "S35",
+    "desc": "Traumatismo de vasos sangüíneos ao nível do abdome, do dorso e da pelve"
+  },
+  {
+    "code": "S36",
+    "desc": "Traumatismo de órgãos intra-abdominais"
+  },
+  {
+    "code": "S37",
+    "desc": "Traumatismo do aparelho urinário e de órgãos pélvicos"
+  },
+  {
+    "code": "S38",
+    "desc": "Lesão por esmagamento e amputação traumática de parte do abdome, do dorso e da pelve"
+  },
+  {
+    "code": "S39",
+    "desc": "Outros traumatismos e os não especi fi cados do abdome, do dorso e da pelve"
+  },
+  {
+    "code": "S41",
+    "desc": "Ferimento do ombro e do braço"
+  },
+  {
+    "code": "S44",
+    "desc": "Traumatismo de nervos ao nível do ombro e do braço"
+  },
+  {
+    "code": "S45",
+    "desc": "Traumatismo dos vasos sangüíneos ao nível do ombro e do braço"
+  },
+  {
+    "code": "S47",
+    "desc": "Lesão por esmagamento do ombro e do braço"
+  },
+  {
+    "code": "S48",
+    "desc": "Amputação traumática do ombro e do braço"
+  },
+  {
+    "code": "S49",
+    "desc": "Outros traumatismos e os não especi fi cados do ombro e do braço"
+  },
+  {
+    "code": "S51",
+    "desc": "Ferimento do antebraço"
+  },
+  {
+    "code": "S53",
+    "desc": "Luxação, entorse e distensão das articulações e dos ligamentos do cotovelo"
+  },
+  {
+    "code": "S54",
+    "desc": "Traumatismo de nervos ao nível do antebraço"
+  },
+  {
+    "code": "S55",
+    "desc": "Traumatismo de vasos sangüíneos ao nível do antebraço"
+  },
+  {
+    "code": "S56",
+    "desc": "Traumatismo do músculo e tendão ao nível do antebraço"
+  },
+  {
+    "code": "S57",
+    "desc": "Lesão por esmagamento do antebraço"
+  },
+  {
+    "code": "S58",
+    "desc": "Amputação traumática do cotovelo e do antebraço"
+  },
+  {
+    "code": "S59",
+    "desc": "Outros traumatismos do antebraço e os não especi fi cados"
+  },
+  {
+    "code": "S63",
+    "desc": "Luxação, entorse e distensão das articulações e dos ligamentos ao nível do punho e da mão"
+  },
+  {
+    "code": "S64",
+    "desc": "Traumatismo de nervos ao nível do punho e da mão"
+  },
+  {
+    "code": "S65",
+    "desc": "Traumatismo de vasos sangüíneos ao nível do punho e da mão"
+  },
+  {
+    "code": "S66",
+    "desc": "Traumatismo de músculo e tendão ao nível do punho e da mão"
+  },
+  {
+    "code": "S67",
+    "desc": "Lesão por esmagamento do punho e da mão"
+  },
+  {
+    "code": "S68",
+    "desc": "Amputação traumática ao nível do punho e da mão"
+  },
+  {
+    "code": "S69",
+    "desc": "Outros traumatismos e os não especi fi cados do punho e da mão"
+  },
+  {
+    "code": "S71",
+    "desc": "Ferimento do quadril e da coxa"
+  },
+  {
+    "code": "S73",
+    "desc": "Luxação, entorse e distensão da articulação e dos ligamentos do quadril"
+  },
+  {
+    "code": "S74",
+    "desc": "Traumatismo de nervos ao nível do quadril e da coxa"
+  },
+  {
+    "code": "S75",
+    "desc": "Traumatismo de vasos sangüíneos ao nível do quadril e da coxa"
+  },
+  {
+    "code": "S76",
+    "desc": "Traumatismo de músculo e de tendão ao nível do quadril e da coxa"
+  },
+  {
+    "code": "S77",
+    "desc": "Lesão por esmagamento do quadril e da coxa"
+  },
+  {
+    "code": "S78",
+    "desc": "Amputação traumática do quadril e da coxa"
+  },
+  {
+    "code": "S79",
+    "desc": "Outros traumatismos e os não especi fi cados do quadril e da coxa"
+  },
+  {
+    "code": "S81",
+    "desc": "Ferimento da perna"
+  },
+  {
+    "code": "S85",
+    "desc": "Traumatismo de vasos sangüíneos da perna"
+  },
+  {
+    "code": "S86",
+    "desc": "Traumatismos de músculo e de tendão ao nível da perna"
+  },
+  {
+    "code": "S87",
+    "desc": "Traumatismo por esmagamento da perna"
+  },
+  {
+    "code": "S88",
+    "desc": "Amputação traumática da perna"
+  },
+  {
+    "code": "S89",
+    "desc": "Outros traumatismos e os não especi fi cados da perna"
+  },
+  {
+    "code": "S91",
+    "desc": "Ferimentos do tornozelo e do pé"
+  },
+  {
+    "code": "S94",
+    "desc": "Traumatismo dos nervos ao nível do tornozelo e do pé"
+  },
+  {
+    "code": "S95",
+    "desc": "Traumatismo de vasos sangüíneos ao nível do tornozelo e do pé"
+  },
+  {
+    "code": "S96",
+    "desc": "Traumatismos do músculo e tendão ao nível do tornozelo e do pé"
+  },
+  {
+    "code": "S97",
+    "desc": "Lesão por esmagamento do tornozelo e do pé"
+  },
+  {
+    "code": "S98",
+    "desc": "Amputação traumática do tornozelo e do pé"
+  },
+  {
+    "code": "S99",
+    "desc": "Outros traumatismos e os não especi fi cados do tornozelo e do pé"
+  },
+  {
+    "code": "T01",
+    "desc": "Ferimentos envolvendo múltiplas regiões do corpo"
+  },
+  {
+    "code": "T02",
+    "desc": "Fraturas envolvendo múltiplas regiões do corpo"
+  },
+  {
+    "code": "T03",
+    "desc": "Luxações, entorses e distensões envolvendo regiões múltiplas do corpo"
+  },
+  {
+    "code": "T04",
+    "desc": "Traumatismos por esmagamento envolvendo múltiplas regiões do corpo"
+  },
+  {
+    "code": "T05",
+    "desc": "Amputações traumáticas envolvendo múltiplas regiões do corpo"
+  },
+  {
+    "code": "T06",
+    "desc": "Outros traumatismos envolvendo regiões múltiplas do corpo, não classi fi cados em outra parte"
+  },
+  {
+    "code": "T08",
+    "desc": "Fratura da coluna, nível não especi fi cado"
+  },
+  {
+    "code": "T10",
+    "desc": "Fratura do membro superior, nível não especi fi cado"
+  },
+  {
+    "code": "T11",
+    "desc": "Outros traumatismos de membro superior, nível não especi fi cado"
+  },
+  {
+    "code": "T12",
+    "desc": "Fratura do membro inferior, nível não especi fi cado"
+  },
+  {
+    "code": "T13",
+    "desc": "Outros traumatismos de membro inferior, nível não especi fi cado"
+  },
+  {
+    "code": "T15",
+    "desc": "Corpo estranho na parte externa do olho"
+  },
+  {
+    "code": "T16",
+    "desc": "Corpo estranho no ouvido"
+  },
+  {
+    "code": "T17",
+    "desc": "Corpo estranho no trato respiratório"
+  },
+  {
+    "code": "T18",
+    "desc": "Corpo estranho no aparelho digestivo"
+  },
+  {
+    "code": "T19",
+    "desc": "Corpo estranho no trato geniturinário"
+  },
+  {
+    "code": "T20",
+    "desc": "Queimadura e corrosão da cabeça e pescoço"
+  },
+  {
+    "code": "T21",
+    "desc": "Queimadura e corrosão do tronco"
+  },
+  {
+    "code": "T22",
+    "desc": "Queimadura e corrosão do ombro e membro superior, exceto punho e mão"
+  },
+  {
+    "code": "T23",
+    "desc": "Queimadura e corrosão do punho e da mão"
+  },
+  {
+    "code": "T24",
+    "desc": "Queimadura e corrosão do quadril e membro inferior, exceto tornozelo e do pé"
+  },
+  {
+    "code": "T25",
+    "desc": "Queimadura e corrosão do tornozelo e do pé"
+  },
+  {
+    "code": "T26",
+    "desc": "Queimadura e corrosão limitadas ao olho e seus anexos"
+  },
+  {
+    "code": "T27",
+    "desc": "Queimadura e corrosão do trato respiratório"
+  },
+  {
+    "code": "T28",
+    "desc": "Queimadura e corrosão de outros órgãos internos"
+  },
+  {
+    "code": "T29",
+    "desc": "Queimaduras e corrosões de múltiplas regiões do corpo"
+  },
+  {
+    "code": "T31",
+    "desc": "Queimaduras classi fi cadas segundo a extensão da superfície corporal atingida"
+  },
+  {
+    "code": "T32",
+    "desc": "Corrosões classi fi cadas segundo a extensão da superfície corporal atingida"
+  },
+  {
+    "code": "T33",
+    "desc": "Geladura super fi cial"
+  },
+  {
+    "code": "T34",
+    "desc": "Geladura com necrose de tecidos"
+  },
+  {
+    "code": "T35",
+    "desc": "Geladura de múltiplas partes do corpo e das não especi fi cadas"
+  },
+  {
+    "code": "T37",
+    "desc": "Intoxicação por outras substâncias antiinfecciosas ou antiparasitárias sistêmicas"
+  },
+  {
+    "code": "T38",
+    "desc": "Intoxicação por hormônios, seus substitutos sintéticos e seus antagonistas não classi fi cados em outra parte"
+  },
+  {
+    "code": "T40",
+    "desc": "Intoxicação por narcóticos e psicodislépticos [alucinógenos]"
+  },
+  {
+    "code": "T41",
+    "desc": "Intoxicação por anestésicos e gases terapêuticos"
+  },
+  {
+    "code": "T42",
+    "desc": "Intoxicação por antiepilépticos, sedativos-hipnóticos e antiparkinsonianos"
+  },
+  {
+    "code": "T43",
+    "desc": "Intoxicação por drogas psicotrópicas não classi fi cadas em outra parte"
+  },
+  {
+    "code": "T44",
+    "desc": "Intoxicação por drogas que afetam principalmente o sistema nervoso autônomo"
+  },
+  {
+    "code": "T45",
+    "desc": "Intoxicação por substâncias de ação essencialmente sistêmica e substâncias hematológicas, não classi fi cadas em outra parte"
+  },
+  {
+    "code": "T46",
+    "desc": "Intoxicação por substâncias que atuam primariamente sobre o aparelho circulatório"
+  },
+  {
+    "code": "T47",
+    "desc": "Intoxicação por substâncias que atuam primariamente sobre o aparelho gastrointestinal"
+  },
+  {
+    "code": "T48",
+    "desc": "Intoxicação por substâncias que atuam primariamente sobre os músculos lisos e esqueléticos e sobre o aparelho respiratório"
+  },
+  {
+    "code": "T49",
+    "desc": "Intoxicação por substâncias de uso tópico que atuam primariamente sobre a pele e as mucosas e por medicamentos utilizados em oftalmologia, otorrinolar"
+  },
+  {
+    "code": "T50",
+    "desc": "Intoxicação por diuréticos e outras drogas, medicamentos e substâncias biológicas e as não especi fi cadas"
+  },
+  {
+    "code": "T52",
+    "desc": "Efeito tóxico de solventes orgânicos"
+  },
+  {
+    "code": "T53",
+    "desc": "Efeito tóxico de derivados halogênicos de hidrocarbonetos alifáticos e aromáticos"
+  },
+  {
+    "code": "T54",
+    "desc": "Efeito tóxico de corrosivos"
+  },
+  {
+    "code": "T55",
+    "desc": "Efeito tóxico de sabões e detergentes"
+  },
+  {
+    "code": "T56",
+    "desc": "Efeito tóxico de metais"
+  },
+  {
+    "code": "T57",
+    "desc": "Efeito tóxico de outras substâncias inorgânicas"
+  },
+  {
+    "code": "T58",
+    "desc": "Efeito tóxico do monóxido de carbono"
+  },
+  {
+    "code": "T59",
+    "desc": "Efeito tóxico de outros gases, fumaças e vapores"
+  },
+  {
+    "code": "T60",
+    "desc": "Efeito tóxico de pesticidas"
+  },
+  {
+    "code": "T61",
+    "desc": "Efeito tóxico de substâncias nocivas consumidas como fruto do mar"
+  },
+  {
+    "code": "T62",
+    "desc": "Efeito tóxico de outras substâncias nocivas ingeridas como alimento"
+  },
+  {
+    "code": "T63",
+    "desc": "Efeito tóxico de contato com animais venenosos"
+  },
+  {
+    "code": "T64",
+    "desc": "Efeito tóxico da a fi atoxina e de outras micotoxinas contaminantes de alimentos"
+  },
+  {
+    "code": "T65",
+    "desc": "Efeito tóxico de outras substâncias e as não especi fi cadas"
+  },
+  {
+    "code": "T66",
+    "desc": "Efeitos não especi fi cados de radiação"
+  },
+  {
+    "code": "T68",
+    "desc": "Hipotermia"
+  },
+  {
+    "code": "T69",
+    "desc": "Outros efeitos da temperatura reduzida"
+  },
+  {
+    "code": "T70",
+    "desc": "Efeitos da pressão atmosférica e da pressão da água"
+  },
+  {
+    "code": "T74",
+    "desc": "Síndromes de maus tratos"
+  },
+  {
+    "code": "T79",
+    "desc": "Algumas complicações precoces dos traumatismos não classi fi cadas em outra parte"
+  },
+  {
+    "code": "T80",
+    "desc": "Complicações conseqüentes à infusão, transfusão ou injeção terapêutica"
+  },
+  {
+    "code": "T82",
+    "desc": "Complicações de dispositivos protéticos, implantes e enxertos cardíacos e vasculares"
+  },
+  {
+    "code": "T83",
+    "desc": "Complicações de dispositivos protéticos, implantes e enxertos geniturinários internos"
+  },
+  {
+    "code": "T84",
+    "desc": "Complicações de dispositivos protéticos, implantes e enxertos ortopédicos internos"
+  },
+  {
+    "code": "T85",
+    "desc": "Complicações de outros dispositivos protéticos, implantes e enxertos internos"
+  },
+  {
+    "code": "T86",
+    "desc": "Falha e rejeição de órgãos e tecidos transplantados"
+  },
+  {
+    "code": "T87",
+    "desc": "Complicações próprias de reimplante e amputação"
+  },
+  {
+    "code": "T88",
+    "desc": "Outras complicações de cuidados médicos e cirúrgicos não classi fi cadas em outra parte"
+  },
+  {
+    "code": "T90",
+    "desc": "Seqüelas de traumatismo da cabeça"
+  },
+  {
+    "code": "T94",
+    "desc": "Seqüelas de traumatismos envolvendo múltiplas regiões do corpo e as não especi fi cadas"
+  },
+  {
+    "code": "T95",
+    "desc": "Seqüelas de queimaduras, corrosões e geladuras"
+  },
+  {
+    "code": "T96",
+    "desc": "Seqüelas de intoxicação por drogas, medicamentos e substâncias biológicas"
+  },
+  {
+    "code": "T97",
+    "desc": "Seqüelas de efeitos tóxicos de substâncias de origem predominantemente não-medicinal"
+  },
+  {
+    "code": "T98",
+    "desc": "Seqüelas de outros efeitos de causas externas e dos não especi fi cados"
+  },
+  {
+    "code": "U04",
+    "desc": "Síndrome respiratória aguda grave [severe acute respiratory syndrome SARS]"
+  },
+  {
+    "code": "U80",
+    "desc": "Agente resistente à penicilina e antibióticos relacionados"
+  },
+  {
+    "code": "U81",
+    "desc": "Agente resistente à vancomicina e antibióticos relacionados"
+  },
+  {
+    "code": "U88",
+    "desc": "Agente resistente a múltiplos antibióticos"
+  },
+  {
+    "code": "U89",
+    "desc": "Agente resistente a outros antibióticos e a antibióticos não especi fi cados"
+  },
+  {
+    "code": "U99",
+    "desc": "CID 10ª Revisão não disponível"
+  },
+  {
+    "code": "V01",
+    "desc": "Pedestre traumatizado em colisão com um veículo a pedal"
+  },
+  {
+    "code": "V02",
+    "desc": "Pedestre traumatizado em colisão com um veículo a motor de duas ou três rodas"
+  },
+  {
+    "code": "V03",
+    "desc": "Pedestre traumatizado em colisão com um automóvel [carro], \"pick up\" ou caminhonete"
+  },
+  {
+    "code": "V04",
+    "desc": "Pedestre traumatizado em colisão com um veículo de transporte pesado ou com um ônibus"
+  },
+  {
+    "code": "V05",
+    "desc": "Pedestre traumatizado em colisão com trem [comboio] ou um veículo ferroviário"
+  },
+  {
+    "code": "V06",
+    "desc": "Pedestre traumatizado em colisão com outro veículo não-motorizado"
+  },
+  {
+    "code": "V09",
+    "desc": "Pedestre traumatizado em outros acidentes de transporte e em acidentes de transporte não especi fi cados"
+  },
+  {
+    "code": "V10",
+    "desc": "Ciclista traumatizado em colisão com um pedestre ou um animal"
+  },
+  {
+    "code": "V11",
+    "desc": "Ciclista traumatizado em colisão com outro veículo a pedal"
+  },
+  {
+    "code": "V12",
+    "desc": "Ciclista traumatizado em colisão com um veículo a motor de duas ou três rodas"
+  },
+  {
+    "code": "V13",
+    "desc": "Ciclista traumatizado em colisão com um automóvel, \"pick up\" ou caminhonete"
+  },
+  {
+    "code": "V14",
+    "desc": "Ciclista traumatizado em colisão com um veículo de transporte pesado ou um ônibus"
+  },
+  {
+    "code": "V15",
+    "desc": "Ciclista traumatizado em colisão com um trem ou um veículo ferroviário"
+  },
+  {
+    "code": "V16",
+    "desc": "Ciclista traumatizado em colisão com outro veículo não-motorizado"
+  },
+  {
+    "code": "V17",
+    "desc": "Ciclista traumatizado em colisão com um objeto fi xo ou parado"
+  },
+  {
+    "code": "V18",
+    "desc": "Ciclista traumatizado em um acidente de transporte sem colisão"
+  },
+  {
+    "code": "V19",
+    "desc": "Ciclista traumatizado em outros acidentes de transporte e em acidentes de transporte não especi fi cados"
+  },
+  {
+    "code": "V20",
+    "desc": "Motociclista traumatizado em colisão com um pedestre ou um animal"
+  },
+  {
+    "code": "V21",
+    "desc": "Motociclista traumatizado em colisão com um veículo a pedal"
+  },
+  {
+    "code": "V22",
+    "desc": "Motociclista traumatizado em colisão com um veículo a motor de duas ou três rodas"
+  },
+  {
+    "code": "V23",
+    "desc": "Motociclista traumatizado em colisão com um automóvel [carro], \"pick up\" ou caminhonete"
+  },
+  {
+    "code": "V24",
+    "desc": "Motociclista traumatizado em colisão com um veículo de transporte pesado ou um ônibus"
+  },
+  {
+    "code": "V25",
+    "desc": "Motociclista traumatizado em colisão com um trem ou um veículo ferroviário"
+  },
+  {
+    "code": "V26",
+    "desc": "Motociclista traumatizado em colisão com outro veículo não-motorizado"
+  },
+  {
+    "code": "V27",
+    "desc": "Motociclista traumatizado em colisão com um objeto fi xo ou parado"
+  },
+  {
+    "code": "V28",
+    "desc": "Motociclista traumatizado em um acidente de transporte sem colisão"
+  },
+  {
+    "code": "V29",
+    "desc": "Motociclista traumatizado em outros acidentes de transporte e em acidentes de transporte não especi fi cados"
+  },
+  {
+    "code": "V30",
+    "desc": "Ocupante de um triciclo motorizado traumatizado em colisão com um pedestre ou um animal"
+  },
+  {
+    "code": "V31",
+    "desc": "Ocupante de um triciclo motorizado traumatizado em colisão com um veículo a pedal"
+  },
+  {
+    "code": "V32",
+    "desc": "Ocupante de um triciclo motorizado traumatizado em colisão com outro veículo a motor de duas ou três rodas"
+  },
+  {
+    "code": "V33",
+    "desc": "Ocupante de um triciclo motorizado traumatizado em colisão com um automóvel, \"pick up\" ou caminhonete"
+  },
+  {
+    "code": "V34",
+    "desc": "Ocupante de um triciclo motorizado traumatizado em colisão com um veículo de transporte pesado ou um ônibus"
+  },
+  {
+    "code": "V35",
+    "desc": "Ocupante de um triciclo motorizado traumatizado em colisão com um trem [comboio] ou um veículo ferroviário"
+  },
+  {
+    "code": "V36",
+    "desc": "Ocupante de um triciclo motorizado traumatizado em colisão com outro veículo não-motorizado"
+  },
+  {
+    "code": "V37",
+    "desc": "Ocupante de um triciclo motorizado traumatizado em colisão com um objeto fi xo ou parado"
+  },
+  {
+    "code": "V38",
+    "desc": "Ocupante de um triciclo motorizado traumatizado em um acidente de transporte sem colisão"
+  },
+  {
+    "code": "V39",
+    "desc": "Ocupante de um triciclo motorizado traumatizado em outros acidentes de transporte e em acidentes de transporte não especi fi cados"
+  },
+  {
+    "code": "V40",
+    "desc": "Ocupante de um automóvel [carro] traumatizado em colisão com um pedestre ou um animal"
+  },
+  {
+    "code": "V41",
+    "desc": "Ocupante de um automóvel [carro] traumatizado em colisão com um veículo a pedal"
+  },
+  {
+    "code": "V42",
+    "desc": "Ocupante de um automóvel [carro] traumatizado em colisão com outro veículo a motor de duas ou três rodas"
+  },
+  {
+    "code": "V43",
+    "desc": "Ocupante de um automóvel [carro] traumatizado em colisão com um automóvel [carro], \"pick up\" ou caminhonete"
+  },
+  {
+    "code": "V44",
+    "desc": "Ocupante de um automóvel [carro] traumatizado em colisão com um veículo de transporte pesado ou um ônibus"
+  },
+  {
+    "code": "V45",
+    "desc": "Ocupante de um automóvel [carro] traumatizado em colisão com um trem [comboio] ou um veículo ferroviário"
+  },
+  {
+    "code": "V46",
+    "desc": "Ocupante de um automóvel [carro] traumatizado em colisão com outro veículo não-motorizado"
+  },
+  {
+    "code": "V47",
+    "desc": "Ocupante de um automóvel [carro] traumatizado em colisão com um objeto fi xo ou parado"
+  },
+  {
+    "code": "V48",
+    "desc": "Ocupante de um automóvel [carro] traumatizado em um acidente de transporte sem colisão"
+  },
+  {
+    "code": "V49",
+    "desc": "Ocupante de um automóvel [carro] traumatizado em outro acidentes de transporte e em acidentes de transporte não especi fi cados"
+  },
+  {
+    "code": "V50",
+    "desc": "Ocupante de uma caminhonete traumatizado em colisão com um pedestre ou um animal"
+  },
+  {
+    "code": "V51",
+    "desc": "Ocupante de uma caminhonete traumatizado em colisão com um veículo a pedal"
+  },
+  {
+    "code": "V52",
+    "desc": "Ocupante de uma caminhonete traumatizado em colisão com veículo a motor de duas ou três rodas"
+  },
+  {
+    "code": "V53",
+    "desc": "Ocupante de uma caminhonete traumatizado em colisão com um automóvel [carro] ou uma caminhonete"
+  },
+  {
+    "code": "V54",
+    "desc": "Ocupante de uma caminhonete traumatizado em colisão com um veículo de transporte pesado ou um ônibus"
+  },
+  {
+    "code": "V55",
+    "desc": "Ocupante de uma caminhonete traumatizado em colisão com um trem [comboio] ou veículo ferroviário"
+  },
+  {
+    "code": "V56",
+    "desc": "Ocupante de uma caminhonete traumatizado em colisão com outro veículo não-motorizado"
+  },
+  {
+    "code": "V57",
+    "desc": "Ocupante de uma caminhonete traumatizado em colisão com um objeto fi xo ou parado"
+  },
+  {
+    "code": "V58",
+    "desc": "Ocupante de uma caminhonete traumatizado em um acidente de transporte sem colisão"
+  },
+  {
+    "code": "V59",
+    "desc": "Ocupante de uma caminhonete traumatizado em outros acidentes de transporte e em acidentes de transporte não especi fi cados"
+  },
+  {
+    "code": "V60",
+    "desc": "Ocupante de um veículo de transporte pesado traumatizado em colisão com um pedestre ou um animal"
+  },
+  {
+    "code": "V61",
+    "desc": "Ocupante de um veículo de transporte pesado traumatizado em colisão com um veículo a pedal"
+  },
+  {
+    "code": "V62",
+    "desc": "Ocupante de um veículo de transporte pesado traumatizado em colisão com um veículo a motor de duas ou três rodas"
+  },
+  {
+    "code": "V63",
+    "desc": "Ocupante de um veículo de transporte pesado traumatizado em colisão com um automóvel [carro] ou uma caminhonete"
+  },
+  {
+    "code": "V64",
+    "desc": "Ocupante de um veículo de transporte pesado traumatizado em colisão com um outro veículo de transporte pesado ou um ônibus"
+  },
+  {
+    "code": "V65",
+    "desc": "Ocupante de um veículo de transporte pesado traumatizado em colisão com um trem [comboio] ou um veículo ferroviário"
+  },
+  {
+    "code": "V66",
+    "desc": "Ocupante de um veículo de transporte pesado traumatizado em colisão com um outro veículo não-motorizado"
+  },
+  {
+    "code": "V67",
+    "desc": "Ocupante de um veículo de transporte pesado traumatizado em colisão com um objeto fi xo ou parado"
+  },
+  {
+    "code": "V68",
+    "desc": "Ocupante de um veículo de transporte pesado traumatizado em um acidente de transporte sem colisão"
+  },
+  {
+    "code": "V69",
+    "desc": "Ocupante de um veículo de transporte pesado traumatizado em outros acidentes de transporte não especi fi cados"
+  },
+  {
+    "code": "V70",
+    "desc": "Ocupante de um ônibus traumatizado em colisão com um pedestre ou um animal"
+  },
+  {
+    "code": "V71",
+    "desc": "Ocupante de um ônibus traumatizado em colisão com um veículo a pedal"
+  },
+  {
+    "code": "V72",
+    "desc": "Ocupante de um ônibus traumatizado em colisão com um outro veículo a motor de duas ou três rodas"
+  },
+  {
+    "code": "V73",
+    "desc": "Ocupante de um ônibus traumatizado em colisão com um automóvel [carro] ou uma caminhonete"
+  },
+  {
+    "code": "V74",
+    "desc": "Ocupante de um ônibus traumatizado em colisão com um veículo de transporte pesado ou um ônibus"
+  },
+  {
+    "code": "V75",
+    "desc": "Ocupante de um ônibus traumatizado em colisão com um trem [comboio] ou um veículo ferroviário"
+  },
+  {
+    "code": "V76",
+    "desc": "Ocupante de um ônibus traumatizado em colisão com outro veículo não-motorizado"
+  },
+  {
+    "code": "V77",
+    "desc": "Ocupante de um ônibus traumatizado em colisão com um objeto fi xo ou parado"
+  },
+  {
+    "code": "V78",
+    "desc": "Ocupante de um ônibus traumatizado em um acidente de transporte sem colisão"
+  },
+  {
+    "code": "V79",
+    "desc": "Ocupante de um ônibus traumatizado em outros acidentes de transporte e em acidentes de transporte não especi fi cados"
+  },
+  {
+    "code": "V80",
+    "desc": "Pessoa montada em animal ou ocupante de um veículo a tração animal traumatizado em um acidente de transporte"
+  },
+  {
+    "code": "V81",
+    "desc": "Ocupante de um trem [comboio] ou um veículo ferroviário traumatizado em um acidente de transporte"
+  },
+  {
+    "code": "V82",
+    "desc": "Ocupante de um bonde [carro elétrico] traumatizado em um acidente de transporte"
+  },
+  {
+    "code": "V83",
+    "desc": "Ocupante de um veículo especial a motor usado principalmente em áreas industriais traumatizado em um acidente de transporte"
+  },
+  {
+    "code": "V84",
+    "desc": "Ocupante de um veículo especial a motor de uso essencialmente agrícola traumatizado em um acidente de transporte"
+  },
+  {
+    "code": "V85",
+    "desc": "Ocupante de um veículo a motor especial de construções traumatizado em um acidente de transporte"
+  },
+  {
+    "code": "V86",
+    "desc": "Ocupante de um veículo especial para qualquer terreno ou de outro veículo a motor projetado essencialmente para uso não em via pública, traumatizado e"
+  },
+  {
+    "code": "V87",
+    "desc": "Acidente de trânsito de tipo especi fi cado, mas sendo desconhecido o modo de transporte da vítima"
+  },
+  {
+    "code": "V88",
+    "desc": "Acidente não-de-trânsito de tipo especi fi cado, mas sendo desconhecido o modo de transporte da vítima"
+  },
+  {
+    "code": "V89",
+    "desc": "Acidente com um veículo a motor ou não-motorizado, tipo(s) de veículo(s) não especi fi cado(s)"
+  },
+  {
+    "code": "V90",
+    "desc": "Acidente com embarcação causando afogamento e submersão"
+  },
+  {
+    "code": "V91",
+    "desc": "Acidente com embarcação causando outro tipo de traumatismo"
+  },
+  {
+    "code": "V92",
+    "desc": "Afogamento e submersão relacionados com transporte por água sem acidente com a embarcação"
+  },
+  {
+    "code": "V93",
+    "desc": "Acidente a bordo de uma embarcação, sem acidente da embarcação e não causando afogamento ou submersão m um acidente não-de-trânsito o"
+  },
+  {
+    "code": "V94",
+    "desc": "Outros acidentes de transporte por água e os não especi fi cados"
+  },
+  {
+    "code": "V95",
+    "desc": "Acidente de aeronave a motor causando traumatismo ao ocupante"
+  },
+  {
+    "code": "V96",
+    "desc": "Acidente de uma aeronave sem motor causando traumatismo a ocupante"
+  },
+  {
+    "code": "V97",
+    "desc": "Outros acidentes especi fi cados de transporte aéreo"
+  },
+  {
+    "code": "V98",
+    "desc": "Outros acidentes de transporte especi fi cados"
+  },
+  {
+    "code": "V99",
+    "desc": "Acidente de transporte não especi fi cado"
+  },
+  {
+    "code": "W00",
+    "desc": "Queda no mesmo nível envolvendo gelo e neve"
+  },
+  {
+    "code": "W02",
+    "desc": "Queda envolvendo patins de rodas ou para gelo, esqui ou pranchas de rodas"
+  },
+  {
+    "code": "W03",
+    "desc": "Outras quedas no mesmo nível por colisão com ou empurrão por outra pessoa"
+  },
+  {
+    "code": "W04",
+    "desc": "Queda, enquanto estava sendo carregado ou apoiado por outra(s) pessoa(s)"
+  },
+  {
+    "code": "W05",
+    "desc": "Queda envolvendo uma cadeira de rodas"
+  },
+  {
+    "code": "W07",
+    "desc": "Queda de uma cadeira"
+  },
+  {
+    "code": "W08",
+    "desc": "Queda de outro tipo de mobília"
+  },
+  {
+    "code": "W09",
+    "desc": "Queda envolvendo equipamento de \"playground\""
+  },
+  {
+    "code": "W12",
+    "desc": "Queda em ou de um andaime"
+  },
+  {
+    "code": "W13",
+    "desc": "Queda de ou para fora de edifícios ou outras estruturas"
+  },
+  {
+    "code": "W14",
+    "desc": "Queda de árvore"
+  },
+  {
+    "code": "W15",
+    "desc": "Queda de penhasco"
+  },
+  {
+    "code": "W16",
+    "desc": "Mergulho ou pulo na água causando outro traumatismo que não afogamento ou submersão"
+  },
+  {
+    "code": "W18",
+    "desc": "Outras quedas no mesmo nível"
+  },
+  {
+    "code": "W21",
+    "desc": "Impacto acidental ativo ou passivo causado por equipamento esportivo"
+  },
+  {
+    "code": "W23",
+    "desc": "Apertado, colhido, comprimido ou esmagado dentro de ou entre objetos"
+  },
+  {
+    "code": "W28",
+    "desc": "Contato com segadeira motorizada para cortar ou aparar a grama"
+  },
+  {
+    "code": "W30",
+    "desc": "Contato com maquinaria agrícola"
+  },
+  {
+    "code": "W32",
+    "desc": "Projétil de revólver"
+  },
+  {
+    "code": "W33",
+    "desc": "Ri fi e, espingarda e armas de fogo de maior tamanho"
+  },
+  {
+    "code": "W34",
+    "desc": "Projéteis de outras armas de fogo e das não especi fi cadas"
+  },
+  {
+    "code": "W35",
+    "desc": "Explosão ou ruptura de caldeira"
+  },
+  {
+    "code": "W36",
+    "desc": "Explosão ou ruptura de cilindro de gás"
+  },
+  {
+    "code": "W37",
+    "desc": "Explosão ou ruptura de pneumático, tubulação ou mangueira, pressurizados"
+  },
+  {
+    "code": "W38",
+    "desc": "Explosão ou ruptura de outros aparelhos pressurizados especi fi cados"
+  },
+  {
+    "code": "W39",
+    "desc": "Queima de fogos de artifício"
+  },
+  {
+    "code": "W40",
+    "desc": "Explosão de outros materiais"
+  },
+  {
+    "code": "W41",
+    "desc": "Exposição a um jato de alta pressão"
+  },
+  {
+    "code": "W42",
+    "desc": "Exposição ao ruído"
+  },
+  {
+    "code": "W43",
+    "desc": "Exposição à vibração"
+  },
+  {
+    "code": "W44",
+    "desc": "Penetração de corpo estranho no ou através de olho ou orifício natural"
+  },
+  {
+    "code": "W46",
+    "desc": "Contato com agulha hipodérmica"
+  },
+  {
+    "code": "W49",
+    "desc": "Exposição a outras forças mecânicas inanimadas e às não especi fi cadas"
+  },
+  {
+    "code": "W52",
+    "desc": "Esmagado, empurrado ou pisoteado por multidão ou debandada em massa de pessoas"
+  },
+  {
+    "code": "W53",
+    "desc": "Mordedura de rato"
+  },
+  {
+    "code": "W54",
+    "desc": "Mordedura ou golpe provocado por cão"
+  },
+  {
+    "code": "W56",
+    "desc": "Contato com animais marinhos"
+  },
+  {
+    "code": "W58",
+    "desc": "Mordedura ou golpe provocado por crocodilo ou aligátor"
+  },
+  {
+    "code": "W59",
+    "desc": "Mordedura ou esmagamento provocado por outros répteis"
+  },
+  {
+    "code": "W60",
+    "desc": "Contato com espinhos de plantas ou com folhas aguçadas"
+  },
+  {
+    "code": "W66",
+    "desc": "Afogamento e submersão consecutiva a queda dentro de uma banheira"
+  },
+  {
+    "code": "W67",
+    "desc": "Afogamento e submersão em piscina"
+  },
+  {
+    "code": "W68",
+    "desc": "Afogamento e submersão conseqüente a queda dentro de uma piscina"
+  },
+  {
+    "code": "W69",
+    "desc": "Afogamento e submersão em águas naturais"
+  },
+  {
+    "code": "W70",
+    "desc": "Afogamento e submersão conseqüentes a queda dentro de águas naturais"
+  },
+  {
+    "code": "W73",
+    "desc": "Outros afogamentos e submersão especi fi cados"
+  },
+  {
+    "code": "W74",
+    "desc": "Afogamento e submersão não especi fi cados"
+  },
+  {
+    "code": "W75",
+    "desc": "Sufocação e estrangulamento acidental na cama"
+  },
+  {
+    "code": "W76",
+    "desc": "Outro enforcamento e estrangulamento acidental"
+  },
+  {
+    "code": "W77",
+    "desc": "Risco a respiração devido a desmoronamento, queda de terra e de outras substâncias"
+  },
+  {
+    "code": "W78",
+    "desc": "Inalação do conteúdo gástrico"
+  },
+  {
+    "code": "W79",
+    "desc": "Inalação e ingestão de alimentos causando obstrução do trato respiratório"
+  },
+  {
+    "code": "W80",
+    "desc": "Inalação e ingestão de outros objetos causando obstrução do trato respiratório"
+  },
+  {
+    "code": "W81",
+    "desc": "Con fi nado ou aprisionado em um ambiente pobre em oxigênio"
+  },
+  {
+    "code": "W83",
+    "desc": "Outros riscos especi fi cados à respiração"
+  },
+  {
+    "code": "W84",
+    "desc": "Riscos não especi fi cados à respiração"
+  },
+  {
+    "code": "W85",
+    "desc": "Exposição a linhas de transmissão de corrente elétrica"
+  },
+  {
+    "code": "W86",
+    "desc": "Exposição a outra corrente elétrica especi fi cada"
+  },
+  {
+    "code": "W87",
+    "desc": "Exposição a corrente elétrica não especi fi cada"
+  },
+  {
+    "code": "W88",
+    "desc": "Exposição a radiação ionizante"
+  },
+  {
+    "code": "W89",
+    "desc": "Exposição a fontes luminosas arti fi ciais visíveis ou à luz ultravioleta"
+  },
+  {
+    "code": "W90",
+    "desc": "Exposição a outros tipos de radiação não-ionizante"
+  },
+  {
+    "code": "W91",
+    "desc": "Exposição a tipo não especi fi cado de radiação"
+  },
+  {
+    "code": "W92",
+    "desc": "Exposição a um calor excessivo de origem arti fi cial"
+  },
+  {
+    "code": "W93",
+    "desc": "Exposição a um frio excessivo de origem arti fi cial"
+  },
+  {
+    "code": "W94",
+    "desc": "Exposição a alta, baixa e a variações da pressão atmosférica"
+  },
+  {
+    "code": "W99",
+    "desc": "Exposição a outros fatores ambientais arti fi ciais e aos não especi fi cados"
+  },
+  {
+    "code": "X00",
+    "desc": "Exposição a fogo não-controlado em um edifício ou outro tipo de construção"
+  },
+  {
+    "code": "X01",
+    "desc": "Exposição a fogo não-controlado fora de um edifício ou de outro tipo de construção"
+  },
+  {
+    "code": "X02",
+    "desc": "Exposição a fogo controlado em um edifício ou outro tipo de construção"
+  },
+  {
+    "code": "X03",
+    "desc": "Exposição a fogo controlado fora de um edifício ou de outro tipo de construção"
+  },
+  {
+    "code": "X04",
+    "desc": "Exposição a combustão de substância muito in fi amável"
+  },
+  {
+    "code": "X05",
+    "desc": "Exposição a combustão de roupa de dormir"
+  },
+  {
+    "code": "X06",
+    "desc": "Exposição a combustão de outro tipo de roupa ou de acessórios"
+  },
+  {
+    "code": "X08",
+    "desc": "Exposição a outro tipo especi fi cado de fumaça, fogo ou chamas"
+  },
+  {
+    "code": "X09",
+    "desc": "Exposição a tipo não especi fi cado de fumaça, fogo ou chamas"
+  },
+  {
+    "code": "X10",
+    "desc": "Contato com bebidas, alimentos, gordura e óleo de cozinha quentes"
+  },
+  {
+    "code": "X11",
+    "desc": "Contato com água corrente quente de torneira"
+  },
+  {
+    "code": "X12",
+    "desc": "Contato com outros líquidos quentes"
+  },
+  {
+    "code": "X13",
+    "desc": "Contato com vapor d´água e com vapores quentes"
+  },
+  {
+    "code": "X14",
+    "desc": "Contato com ar e gases quentes"
+  },
+  {
+    "code": "X15",
+    "desc": "Contato com aparelhos domésticos quentes"
+  },
+  {
+    "code": "X16",
+    "desc": "Contato com aquecedores, radiadores e tubulação"
+  },
+  {
+    "code": "X17",
+    "desc": "Contato com motores, máquinas e ferramentas quentes"
+  },
+  {
+    "code": "X18",
+    "desc": "Contato com outros metais quentes"
+  },
+  {
+    "code": "X19",
+    "desc": "Contato com outras fontes de calor ou com substâncias quentes não especi fi cados"
+  },
+  {
+    "code": "X20",
+    "desc": "Contato com serpentes e lagartos venenosos"
+  },
+  {
+    "code": "X21",
+    "desc": "Contato com aranhas venenosas"
+  },
+  {
+    "code": "X22",
+    "desc": "Contato com escorpiões"
+  },
+  {
+    "code": "X23",
+    "desc": "Contato com abelhas, vespas e vespões"
+  },
+  {
+    "code": "X24",
+    "desc": "Contato com centopéias e miriápodes venenosas (tropicais)"
+  },
+  {
+    "code": "X25",
+    "desc": "Contato com outros artrópodes venenosos"
+  },
+  {
+    "code": "X26",
+    "desc": "Contato com animais e plantas marinhos venenosos"
+  },
+  {
+    "code": "X27",
+    "desc": "Contato com outros animais venenosos especi fi cados"
+  },
+  {
+    "code": "X28",
+    "desc": "Contato com outras plantas venenosas especi fi cadas"
+  },
+  {
+    "code": "X29",
+    "desc": "Contato com animais ou plantas venenosos, sem especi fi cação"
+  },
+  {
+    "code": "X30",
+    "desc": "Exposição a calor natural excessivo"
+  },
+  {
+    "code": "X31",
+    "desc": "Exposição a frio natural excessivo"
+  },
+  {
+    "code": "X32",
+    "desc": "Exposição à luz solar"
+  },
+  {
+    "code": "X33",
+    "desc": "Vítima de raio"
+  },
+  {
+    "code": "X34",
+    "desc": "Vítima de terremoto"
+  },
+  {
+    "code": "X35",
+    "desc": "Vítima de erupção vulcânica"
+  },
+  {
+    "code": "X36",
+    "desc": "Vítima de avalanche, desabamento de terra e outros movimentos da superfície terrestre"
+  },
+  {
+    "code": "X37",
+    "desc": "Vítima de tempestade cataclísmica"
+  },
+  {
+    "code": "X38",
+    "desc": "Vítima de inundação"
+  },
+  {
+    "code": "X39",
+    "desc": "Exposição a outras forças da natureza e às não especi fi cadas"
+  },
+  {
+    "code": "X40",
+    "desc": "Envenenamento [intoxicação] acidental por e exposição a analgésicos, antipiréticos e anti-reumáticos, não-opiáceos"
+  },
+  {
+    "code": "X41",
+    "desc": "Envenenamento [intoxicação] acidental por e exposição a anticonvulsivantes [antiepilépticos], sedativos, hipnóticos, antiparkinsonianos e psicotrópico"
+  },
+  {
+    "code": "X42",
+    "desc": "Envenenamento [intoxicação] acidental por e exposição a narcóticos e psicodislépticos [alucinógenos] não classi fi cados em outra parte"
+  },
+  {
+    "code": "X43",
+    "desc": "Envenenamento [intoxicação] acidental por e exposição a outras substâncias farmacológicas de ação sobre o sistema nervoso autônomo"
+  },
+  {
+    "code": "X44",
+    "desc": "Envenenamento [intoxicação] acidental por e exposição a outras drogas, medicamentos e substâncias biológicas não especi fi cadas"
+  },
+  {
+    "code": "X45",
+    "desc": "Envenenamento [intoxicação] acidental por e exposição ao álcool"
+  },
+  {
+    "code": "X46",
+    "desc": "Envenenamento [intoxicação] acidental por e exposição a solventes orgânicos e hidrocarbonetos halogenados e seus vapores"
+  },
+  {
+    "code": "X47",
+    "desc": "Intoxicação acidental por e exposição a outros gases e vapores"
+  },
+  {
+    "code": "X48",
+    "desc": "Envenenamento [intoxicação] acidental por e exposição a pesticidas"
+  },
+  {
+    "code": "X49",
+    "desc": "Envenenamento [intoxicação] acidental por e exposição a outras substâncias químicas nocivas e às não especi fi cadas"
+  },
+  {
+    "code": "X50",
+    "desc": "Excesso de exercícios e movimentos vigorosos ou repetitivos"
+  },
+  {
+    "code": "X51",
+    "desc": "Viagem e movimento"
+  },
+  {
+    "code": "X52",
+    "desc": "Estadia prolongada em ambiente agravitacional"
+  },
+  {
+    "code": "X53",
+    "desc": "Falta de alimento"
+  },
+  {
+    "code": "X54",
+    "desc": "Falta de água"
+  },
+  {
+    "code": "X57",
+    "desc": "Privação não especi fi cada"
+  },
+  {
+    "code": "X58",
+    "desc": "Exposição a outros fatores especi fi cados"
+  },
+  {
+    "code": "X59",
+    "desc": "Exposição a fatores não especi fi cados"
+  },
+  {
+    "code": "X60",
+    "desc": "Auto-intoxicação por e exposição, intencional, a analgésicos, antipiréticos e anti-reumáticos, não-opiáceos"
+  },
+  {
+    "code": "X61",
+    "desc": "Auto-intoxicação por e exposição, intencional, a drogas anticonvulsivantes [antiepilépticos] sedativos, hipnóticos, antiparkinsonianos e psicotrópicos"
+  },
+  {
+    "code": "X62",
+    "desc": "Auto-intoxicação por e exposição, intencional, a narcóticos e psicodislépticos [alucinógenos] não classi fi cados em outra parte"
+  },
+  {
+    "code": "X63",
+    "desc": "Auto-intoxicação por e exposição, intencional, a outras substâncias farmacológicas de ação sobre o sistema nervoso autônomo"
+  },
+  {
+    "code": "X64",
+    "desc": "Auto-intoxicação por e exposição, intencional, a outras drogas, medicamentos e substâncias biológicas e às não especi fi cadas"
+  },
+  {
+    "code": "X65",
+    "desc": "Auto-intoxicação voluntária por álcool"
+  },
+  {
+    "code": "X66",
+    "desc": "Auto-intoxicação intencional por solventes orgânicos, hidrocarbonetos halogenados e seus vapores"
+  },
+  {
+    "code": "X67",
+    "desc": "Auto-intoxicação intencional por outros gases e vapores"
+  },
+  {
+    "code": "X68",
+    "desc": "Auto-intoxicação por e exposição, intencional, a pesticidas"
+  },
+  {
+    "code": "X69",
+    "desc": "Auto-intoxicação por e exposição, intencional, a outros produtos químicos e substâncias nocivas não especi fi cadas"
+  },
+  {
+    "code": "X70",
+    "desc": "Lesão autoprovocada intencionalmente por enforcamento, estrangulamento e sufocação"
+  },
+  {
+    "code": "X71",
+    "desc": "Lesão autoprovocada intencionalmente por afogamento e submersão"
+  },
+  {
+    "code": "X72",
+    "desc": "Lesão autoprovocada intencionalmente por disparo de arma de fogo de mão"
+  },
+  {
+    "code": "X73",
+    "desc": "Lesão autoprovocada intencionalmente por disparo de espingarda, carabina, ou arma de fogo de maior calibre"
+  },
+  {
+    "code": "X74",
+    "desc": "Lesão autoprovocada intencionalmente por disparo de outra arma de fogo e de arma de fogo não especi fi cada"
+  },
+  {
+    "code": "X75",
+    "desc": "Lesão autoprovocada intencionalmente por dispositivos explosivos"
+  },
+  {
+    "code": "X76",
+    "desc": "Lesão autoprovocada intencionalmente pela fumaça, pelo fogo e por chamas"
+  },
+  {
+    "code": "X77",
+    "desc": "Lesão autoprovocada intencionalmente por vapor de água, gases ou objetos quentes"
+  },
+  {
+    "code": "X78",
+    "desc": "Lesão autoprovocada intencionalmente por objeto cortante ou penetrante"
+  },
+  {
+    "code": "X79",
+    "desc": "Lesão autoprovocada intencionalmente por objeto contundente"
+  },
+  {
+    "code": "X80",
+    "desc": "Lesão autoprovocada intencionalmente por precipitação de um lugar elevado"
+  },
+  {
+    "code": "X81",
+    "desc": "Lesão autoprovocada intencionalmente por precipitação ou permanência diante de um objeto em movimento"
+  },
+  {
+    "code": "X82",
+    "desc": "Lesão autoprovocada intencionalmente por impacto de um veículo a motor"
+  },
+  {
+    "code": "X83",
+    "desc": "Lesão autoprovocada intencionalmente por outros meios especi fi cados"
+  },
+  {
+    "code": "X84",
+    "desc": "Lesão autoprovocada intencionalmente por meios não especi fi cados"
+  },
+  {
+    "code": "X85",
+    "desc": "Agressão por meio de drogas, medicamentos e substâncias biológicas"
+  },
+  {
+    "code": "X86",
+    "desc": "Agressão por meio de substâncias corrosivas"
+  },
+  {
+    "code": "X87",
+    "desc": "Agressão por pesticidas"
+  },
+  {
+    "code": "X88",
+    "desc": "Agressão por meio de gases e vapores"
+  },
+  {
+    "code": "X89",
+    "desc": "Agressão por meio de outros produtos químicos e substâncias nocivas especi fi cados"
+  },
+  {
+    "code": "X90",
+    "desc": "Agressão por meio de produtos químicos e substâncias nocivas não especi fi cados"
+  },
+  {
+    "code": "X91",
+    "desc": "Agressão por meio de enforcamento, estrangulamento e sufocação"
+  },
+  {
+    "code": "X92",
+    "desc": "Agressão por meio de afogamento e submersão"
+  },
+  {
+    "code": "X93",
+    "desc": "Agressão por meio de disparo de arma de fogo de mão"
+  },
+  {
+    "code": "X94",
+    "desc": "Agressão por meio de disparo de espingarda, carabina ou arma de fogo de maior calibre"
+  },
+  {
+    "code": "X95",
+    "desc": "Agressão por meio de disparo de outra arma de fogo ou de arma não especi fi cada"
+  },
+  {
+    "code": "X96",
+    "desc": "Agressão por meio de material explosivo"
+  },
+  {
+    "code": "X97",
+    "desc": "Agressão por meio de fumaça, fogo e chamas"
+  },
+  {
+    "code": "X98",
+    "desc": "Agressão por meio de vapor de água, gases ou objetos quentes"
+  },
+  {
+    "code": "X99",
+    "desc": "Agressão por meio de objeto cortante ou penetrante"
+  },
+  {
+    "code": "Y00",
+    "desc": "Agressão por meio de um objeto contundente"
+  },
+  {
+    "code": "Y01",
+    "desc": "Agressão por meio de projeção de um lugar elevado"
+  },
+  {
+    "code": "Y02",
+    "desc": "Agressão por meio de projeção ou colocação da vítima diante de um objeto em movimento"
+  },
+  {
+    "code": "Y03",
+    "desc": "Agressão por meio de impacto de um veículo a motor"
+  },
+  {
+    "code": "Y04",
+    "desc": "Agressão por meio de força corporal"
+  },
+  {
+    "code": "Y05",
+    "desc": "Agressão sexual por meio de força física"
+  },
+  {
+    "code": "Y06",
+    "desc": "Negligência e abandono"
+  },
+  {
+    "code": "Y07",
+    "desc": "Outras síndromes de maus tratos"
+  },
+  {
+    "code": "Y08",
+    "desc": "Agressão por outros meios especi fi cados"
+  },
+  {
+    "code": "Y09",
+    "desc": "Agressão por meios não especi fi cados"
+  },
+  {
+    "code": "Y10",
+    "desc": "Envenenamento [intoxicação] por e exposição a analgésicos, antipiréticos e anti-reumáticos não-opiáceos, intenção não determinada"
+  },
+  {
+    "code": "Y11",
+    "desc": "Envenenamento [intoxicação] por e exposição a anticonvulsivantes [antiepilépticos], sedativos, hipnóticos, antiparkinsonianos e psicotrópicos não clas"
+  },
+  {
+    "code": "Y12",
+    "desc": "Envenenamento [intoxicação] por e exposição a narcóticos e a psicodislépticos [alucinógenos] não classi fi cados em outra parte, intenção não determinad"
+  },
+  {
+    "code": "Y13",
+    "desc": "Envenenamento [intoxicação] por e exposição a outras substâncias farmacológicas de ação sobre o sistema nervoso autônomo, intenção não determinada"
+  },
+  {
+    "code": "Y14",
+    "desc": "Envenenamento [intoxicação] por e exposição a outras drogas, medicamentos e substâncias biológicas e as não especi fi cadas, intenção não determinada"
+  },
+  {
+    "code": "Y15",
+    "desc": "Envenenamento [intoxicação] por e exposição ao álcool, intenção não determinada"
+  },
+  {
+    "code": "Y16",
+    "desc": "Envenenamento [intoxicação] por e exposição a solventes orgânicos e hidrocarbonetos halogenados e seus vapores, intenção não determinada"
+  },
+  {
+    "code": "Y17",
+    "desc": "Envenenamento [intoxicação] por e exposição a outros gases e vapores, intenção não determinada"
+  },
+  {
+    "code": "Y18",
+    "desc": "Envenenamento [intoxicação] por e exposição a pesticidas, intenção não determinada"
+  },
+  {
+    "code": "Y19",
+    "desc": "Envenenamento [intoxicação] por e exposição a outros produtos químicos e substâncias nocivas e aos não especi fi cados, intenção não determinada"
+  },
+  {
+    "code": "Y20",
+    "desc": "Enforcamento, estrangulamento e sufocação, intenção não determinada"
+  },
+  {
+    "code": "Y21",
+    "desc": "Afogamento e submersão, intenção não determinada"
+  },
+  {
+    "code": "Y22",
+    "desc": "Disparo de pistola, intenção não determinada"
+  },
+  {
+    "code": "Y23",
+    "desc": "Disparo de fuzil, carabina e arma de fogo de maior calibre, intenção não determinada"
+  },
+  {
+    "code": "Y24",
+    "desc": "Disparo de outra arma de fogo e de arma de fogo não especi fi cada, intenção não determinada"
+  },
+  {
+    "code": "Y25",
+    "desc": "Contato com material explosivo, intenção não determinada"
+  },
+  {
+    "code": "Y26",
+    "desc": "Exposição a fumaça, fogo e chamas, intenção não determinada"
+  },
+  {
+    "code": "Y27",
+    "desc": "Exposição a vapor de água, gases ou objetos quentes, intenção não determinada"
+  },
+  {
+    "code": "Y28",
+    "desc": "Contato com objeto cortante ou penetrante, intenção não determinada"
+  },
+  {
+    "code": "Y29",
+    "desc": "Contato com objeto contundente, intenção não determinada"
+  },
+  {
+    "code": "Y30",
+    "desc": "Queda, salto ou empurrado de um lugar elevado, intenção não determinada"
+  },
+  {
+    "code": "Y31",
+    "desc": "Queda, permanência ou corrida diante de um objeto em movimento, intenção não determinada"
+  },
+  {
+    "code": "Y32",
+    "desc": "Impacto de um veículo a motor, intenção não determinada"
+  },
+  {
+    "code": "Y33",
+    "desc": "Outros fatos ou eventos especi fi cados, intenção não determinada"
+  },
+  {
+    "code": "Y34",
+    "desc": "Fatos ou eventos não especi fi cados e intenção não determinada"
+  },
+  {
+    "code": "Y35",
+    "desc": "Intervenção legal"
+  },
+  {
+    "code": "Y36",
+    "desc": "Operações de guerra"
+  },
+  {
+    "code": "Y40",
+    "desc": "Efeitos adversos de antibióticos sistêmicos"
+  },
+  {
+    "code": "Y41",
+    "desc": "Efeitos adversos de outros antiinfecciosos e antiparasitários sistêmicos"
+  },
+  {
+    "code": "Y42",
+    "desc": "Efeitos adversos de hormônios e seus substitutos sintéticos e antagonistas, não classi fi cados em outra parte"
+  },
+  {
+    "code": "Y43",
+    "desc": "Efeitos adversos de substâncias de ação primariamente sistêmica"
+  },
+  {
+    "code": "Y44",
+    "desc": "Efeitos adversos de substâncias farmacológicas que atuam primariamente sobre os constituintes do sangue"
+  },
+  {
+    "code": "Y45",
+    "desc": "Efeitos adversos de substâncias analgésicas, antipiréticas e antiin fi amatórias"
+  },
+  {
+    "code": "Y46",
+    "desc": "Efeitos adversos de drogas anticonvulsivantes (antiepilépticas) e antiparkinsonianas"
+  },
+  {
+    "code": "Y47",
+    "desc": "Efeitos adversos de sedativos, hipnóticos e tranquilizantes [ansiolíticos]"
+  },
+  {
+    "code": "Y48",
+    "desc": "Efeitos adversos de anestésicos e gases terapêuticos"
+  },
+  {
+    "code": "Y49",
+    "desc": "Efeitos adversos de substâncias psicotrópicas, não classi fi cadas em outra parte"
+  },
+  {
+    "code": "Y50",
+    "desc": "Efeitos adversos de estimulantes do sistema nervoso central, não classi fi cados em outra parte"
+  },
+  {
+    "code": "Y51",
+    "desc": "Efeitos adversos de drogas que atuam primariamente sobre o sistema nervoso autônomo"
+  },
+  {
+    "code": "Y52",
+    "desc": "Efeitos adversos de substâncias que atuam primariamente sobre o aparelho cardiovascular"
+  },
+  {
+    "code": "Y53",
+    "desc": "Efeitos adversos de substâncias que atuam primariamente sobre o aparelho gastrointestinal"
+  },
+  {
+    "code": "Y54",
+    "desc": "Efeitos adversos de substâncias que atuam primariamente sobre o metabolismo da água, dos sais minerais e do ácido úrico"
+  },
+  {
+    "code": "Y55",
+    "desc": "Efeitos adversos de substâncias que atuam primariamente sobre os músculos lisos e esqueléticos e sobre o aparelho respiratório"
+  },
+  {
+    "code": "Y56",
+    "desc": "Efeitos adversos de substâncias de uso tópico que atuam primariamente sobre a pele e as membranas mucosas e drogas de uso oftalmológico, otorrinolarin"
+  },
+  {
+    "code": "Y57",
+    "desc": "Efeitos adversos de outras drogas e medicamentos e as não especi fi cadas"
+  },
+  {
+    "code": "Y58",
+    "desc": "Efeitos adversos de vacinas bacterianas"
+  },
+  {
+    "code": "Y59",
+    "desc": "Efeitos adversos de outras vacinas e substâncias biológicas e as não especi fi cadas"
+  },
+  {
+    "code": "Y60",
+    "desc": "Corte, punção, perfuração ou hemorragia acidentais durante a prestação de cuidados médicos ou cirúrgicos"
+  },
+  {
+    "code": "Y61",
+    "desc": "Objeto estranho deixado acidentalmente no corpo durante a prestação de cuidados cirúrgicos e médicos"
+  },
+  {
+    "code": "Y62",
+    "desc": "Assepsia insu fi ciente durante a prestação de cuidados cirúrgicos e médicos"
+  },
+  {
+    "code": "Y63",
+    "desc": "Erros de dosagem durante a prestação de cuidados médicos e cirúrgicos"
+  },
+  {
+    "code": "Y64",
+    "desc": "Medicamentos ou substâncias biológicas contaminados"
+  },
+  {
+    "code": "Y65",
+    "desc": "Outros acidentes durante a prestação de cuidados médicos e cirúrgicos"
+  },
+  {
+    "code": "Y66",
+    "desc": "Não administração de cuidado médico e cirúrgico"
+  },
+  {
+    "code": "Y69",
+    "desc": "Acidente não especi fi cado durante a prestação de cuidado médico e cirúrgico"
+  },
+  {
+    "code": "Y70",
+    "desc": "Dispositivos (aparelhos) de anestesiologia, associados a incidentes adversos"
+  },
+  {
+    "code": "Y71",
+    "desc": "Dispositivos (aparelhos) cardiovasculares, associados a incidentes adversos"
+  },
+  {
+    "code": "Y72",
+    "desc": "Dispositivos (aparelhos) utilizados em otorrinolaringologia, associados a incidentes adversos"
+  },
+  {
+    "code": "Y73",
+    "desc": "Dispositivos (aparelhos) usados em gastroenterologia e em urologia, associados a incidentes adversos"
+  },
+  {
+    "code": "Y74",
+    "desc": "Dispositivos (aparelhos) gerais de uso hospitalar ou pessoal, associados a incidentes adversos"
+  },
+  {
+    "code": "Y75",
+    "desc": "Dispositivos (aparelhos) utilizados em neurologia, associados a incidentes adversos o gológico e dentário e"
+  },
+  {
+    "code": "Y76",
+    "desc": "Dispositivos (aparelhos) utilizados em obstetrícia e em ginecologia, associados a incidentes adversos"
+  },
+  {
+    "code": "Y77",
+    "desc": "Dispositivos (aparelhos) utilizados em oftalmologia, associados a incidentes adversos"
+  },
+  {
+    "code": "Y78",
+    "desc": "Dispositivos (aparelhos) utilizados em radiologia, associados a incidentes adversos"
+  },
+  {
+    "code": "Y79",
+    "desc": "Dispositivos (aparelhos) ortopédicos, associado a incidentes adversos"
+  },
+  {
+    "code": "Y80",
+    "desc": "Dispositivos (aparelhos) utilizados em medicina física ( fi siatria), associado a incidentes adversos"
+  },
+  {
+    "code": "Y81",
+    "desc": "Dispositivos (aparelhos) utilizados em cirurgia geral ou cirurgia plástica, associados a incidente adversos"
+  },
+  {
+    "code": "Y82",
+    "desc": "Outros dispositivos (aparelhos) associados a incidentes adversos e os não especi fi cados"
+  },
+  {
+    "code": "Y83",
+    "desc": "Reação anormal em paciente ou complicação tardia, causadas por intervenção cirúrgica e por outros atos cirúrgicos, sem menção de acidente durante a in"
+  },
+  {
+    "code": "Y84",
+    "desc": "Reação anormal em paciente ou complicação tardia, causadas por outros procedimentos médicos, sem menção de acidente durante o procedimento"
+  },
+  {
+    "code": "Y85",
+    "desc": "Seqüelas de acidentes de transporte"
+  },
+  {
+    "code": "Y86",
+    "desc": "Seqüelas de outros acidentes"
+  },
+  {
+    "code": "Y87",
+    "desc": "Seqüelas de uma lesão autoprovocada intencionalmente, de agressão ou de um fato cuja intenção é indeterminada"
+  },
+  {
+    "code": "Y88",
+    "desc": "Seqüelas de cuidado médico ou cirúrgico considerados como uma causa externa"
+  },
+  {
+    "code": "Y89",
+    "desc": "Seqüelas de outras causas externas"
+  },
+  {
+    "code": "Y90",
+    "desc": "Evidência de alcoolismo determinada por taxas de alcoolemia"
+  },
+  {
+    "code": "Y91",
+    "desc": "Evidência de alcoolismo determinada pelo nível da intoxicação"
+  },
+  {
+    "code": "Y95",
+    "desc": "Circunstância relativa as condições nosocomiais (hospitalares)"
+  },
+  {
+    "code": "Y96",
+    "desc": "Circunstância relativa às condições de trabalho"
+  },
+  {
+    "code": "Y97",
+    "desc": "Circunstâncias relativas a condições de poluição ambiental"
+  },
+  {
+    "code": "Y98",
+    "desc": "Circunstâncias relativas a condições do modo de vida"
+  },
+  {
+    "code": "Z03",
+    "desc": "Observação e avaliação médica por doenças e afecções suspeitas"
+  },
+  {
+    "code": "Z04",
+    "desc": "Exame e observação por outras razões"
+  },
+  {
+    "code": "Z08",
+    "desc": "Exame de seguimento após tratamento por neoplasia maligna"
+  },
+  {
+    "code": "Z09",
+    "desc": "Exame de seguimento após tratamento de outras afecções que não neoplasias malignas"
+  },
+  {
+    "code": "Z11",
+    "desc": "Exame especial de rastreamento (\"screening\") de doenças infecciosas e parasitárias"
+  },
+  {
+    "code": "Z12",
+    "desc": "Exame especial de rastreamento (\"screening\") de neoplasias"
+  },
+  {
+    "code": "Z13",
+    "desc": "Exame especial de rastreamento (\"screening\") de outros transtornos e doenças"
+  },
+  {
+    "code": "Z20",
+    "desc": "Contato com e exposição a doenças transmissíveis"
+  },
+  {
+    "code": "Z21",
+    "desc": "Estado de infecção assintomática pelo vírus da imunode fi ciência humana [HIV] e"
+  },
+  {
+    "code": "Z22",
+    "desc": "Portador de doença infecciosa"
+  },
+  {
+    "code": "Z24",
+    "desc": "Necessidade de imunização contra algumas doenças virais únicas"
+  },
+  {
+    "code": "Z25",
+    "desc": "Necessidade de imunização contra outras doenças virais únicas"
+  },
+  {
+    "code": "Z26",
+    "desc": "Necessidade de imunização contra outras doenças infecciosas únicas"
+  },
+  {
+    "code": "Z27",
+    "desc": "Necessidade de imunização associada contra combinações de doenças infecciosas"
+  },
+  {
+    "code": "Z28",
+    "desc": "Imunização não realizada"
+  },
+  {
+    "code": "Z29",
+    "desc": "Necessidade de outras medidas pro fi láticas"
+  },
+  {
+    "code": "Z31",
+    "desc": "Medidas de procriação"
+  },
+  {
+    "code": "Z33",
+    "desc": "Gravidez como achado casual"
+  },
+  {
+    "code": "Z36",
+    "desc": "Rastreamento (\"screening\") pré-natal"
+  },
+  {
+    "code": "Z37",
+    "desc": "Resultado do parto"
+  },
+  {
+    "code": "Z38",
+    "desc": "Nascidos vivos [nado-vivos] segundo o local de nascimento"
+  },
+  {
+    "code": "Z40",
+    "desc": "Cirurgia pro fi lática"
+  },
+  {
+    "code": "Z42",
+    "desc": "Seguimento envolvendo cirurgia plástica"
+  },
+  {
+    "code": "Z44",
+    "desc": "Colocação e ajustamento de aparelhos de prótese externa"
+  },
+  {
+    "code": "Z45",
+    "desc": "Ajustamento e manuseio de dispositivo implantado"
+  },
+  {
+    "code": "Z46",
+    "desc": "Colocação e ajustamento de outros aparelhos"
+  },
+  {
+    "code": "Z49",
+    "desc": "Cuidados envolvendo diálise"
+  },
+  {
+    "code": "Z55",
+    "desc": "Problemas relacionados com a educação e com a alfabetização"
+  },
+  {
+    "code": "Z56",
+    "desc": "Problemas relacionados com o emprego e com o desemprego"
+  },
+  {
+    "code": "Z57",
+    "desc": "Exposição ocupacional a fatores de risco"
+  },
+  {
+    "code": "Z58",
+    "desc": "Problemas relacionados com o ambiente físico"
+  },
+  {
+    "code": "Z59",
+    "desc": "Problemas relacionados com a habitação e com as condições econômicas"
+  },
+  {
+    "code": "Z60",
+    "desc": "Problemas relacionados com o meio social"
+  },
+  {
+    "code": "Z61",
+    "desc": "Problemas relacionados com eventos negativos de vida na infância"
+  },
+  {
+    "code": "Z62",
+    "desc": "Outros problemas relacionados com a educação da criança"
+  },
+  {
+    "code": "Z63",
+    "desc": "Outros problemas relacionados com o grupo primário de apoio, inclusive com a situação familiar"
+  },
+  {
+    "code": "Z64",
+    "desc": "Problemas relacionados com algumas outras circunstâncias psicossociais"
+  },
+  {
+    "code": "Z65",
+    "desc": "Problemas relacionados com outras circunstâncias psicossociais"
+  },
+  {
+    "code": "Z74",
+    "desc": "Problemas relacionados com a dependência de uma pessoa que oferece cuidados de saúde"
+  },
+  {
+    "code": "Z82",
+    "desc": "História familiar de algumas incapacidades e doenças crônicas que conduzem a incapacitação"
+  },
+  {
+    "code": "Z83",
+    "desc": "História familiar de outros transtornos especí fi cos"
+  },
+  {
+    "code": "Z84",
+    "desc": "História familiar de outras afecções"
+  },
+  {
+    "code": "Z87",
+    "desc": "História pessoal de outras doenças e afecções"
+  },
+  {
+    "code": "Z88",
+    "desc": "História pessoal de alergia a drogas, medicamentos e a substâncias biológicas"
+  },
+  {
+    "code": "Z89",
+    "desc": "Ausência adquirida de membros"
+  },
+  {
+    "code": "Z90",
+    "desc": "Ausência adquirida de órgãos não classi fi cados em outra parte"
+  },
+  {
+    "code": "Z91",
+    "desc": "História pessoal de fatores de risco, não classi fi cados em outra parte"
+  },
+  {
+    "code": "Z92",
+    "desc": "História pessoal de tratamento médico"
+  },
+  {
+    "code": "Z93",
+    "desc": "Orifícios arti fi ciais"
+  },
+  {
+    "code": "Z94",
+    "desc": "Órgãos e tecidos transplantados"
+  },
+  {
+    "code": "Z95",
+    "desc": "Presença de implantes e enxertos cardíacos e vasculares a"
+  },
+  {
+    "code": "Z96",
+    "desc": "Presença de outros implantes funcionais"
+  },
+  {
+    "code": "Z97",
+    "desc": "Presença de outros dispositivos protéticos"
+  },
+  {
+    "code": "Z99",
+    "desc": "Dependência de máquinas e dispositivos capacitantes, não classi fi cados em outra parte"
+  }
+]

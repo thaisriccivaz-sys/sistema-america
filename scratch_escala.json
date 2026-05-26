@@ -1,0 +1,443 @@
+{
+  "errMsg": null,
+  "rows": [
+    {
+      "nome_completo": "Abner Abrahão",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": "10:42"
+    },
+    {
+      "nome_completo": "Adriano Duarte da Silva",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Aldeci de Sá Menezes",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Alay Aportela Herrera",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": "07:00"
+    },
+    {
+      "nome_completo": "Aline Silva do Nascimento de Oliveira",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Amanda Mariele Lima de Morais",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Antonio Carlos Sabino da Silva",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": "07:00"
+    },
+    {
+      "nome_completo": "Augusto Lima Nascimento",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Bruno Rodrigues da Silva",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Caroline Florêncio Pereira",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Daniel Almeida Santos",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Daniel Cabral Pinheiro",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Débora Alexandre Salvador",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Dereck Willians Patrick Philippe França de Oliveira",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Eduarda Silva Lima",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Eduardo Assis Morales",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Enilson Reinaldo de Souza",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Erik Gabriel Santos Santoprete",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Fernando Gabriel Barbosa de Oliveira",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Gustavo Rodrigues Correia",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Jailson Deoclécio da Silva Filho",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Jefferson Martins Sanches",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Jefferson Santos de Queiroz",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "João Vitor de Oliveira Barbosa",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Joaquim Santana Neri",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Johnata Victor Souza dos Santos",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Jonhnatan Johnson Pereira Ferreira Silva",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Josafá Neres dos Santos",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Jose Altino Mezuraro de Jesus",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Jose Henrique Vilas Boas da Silva",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Joselito Viana Ribeiro",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Josué Gomes Oliveira",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Juliana Gabriela Ribeiro da Silva",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Juliano Pereira da silva Filho",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Juliane Lima da Silva Mezuraro",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Juliene de Camargo Corrêa",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Julio Santos da Mota",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Kariny Gabrielly Silva Peixoto",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Késia de Jesus Andrade",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Kauã Eloi Pereira",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Leandro de Oliveira",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Leandro Silva da Conceição",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Levi Manoel da Silva",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Luís Henrique de Queiroz Ferreira",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Luiz Carlos Pereira Nascimento Junior",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Luiz Fernando Oliveira de Almeida",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Maísa Carolina dos Santos Moreira Ferreira",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Naelson Soares da Silva",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Nathan Rodrigues de Jesus",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Nathan Silva Queiroz",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Pedro Henriqy dos Anjos Almeida",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Rafael de Lima",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Rafael de Souza Lima",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Rai Leonidas Rodrigues Carvalho",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Renata Miki Yoda",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Renato Torok Oliveira",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Rivelino Correia de Oliveira",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Robson Da Costa Almeida",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Rodrigo Conceição de Freitas",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Soraia Aparecida Jesus Dos Santos",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Thayná Marques Barsotti",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Thaynara Cristiny de Oliveira Barbosa",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Thiago Gonçalves da Silva Costa",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Vitor Gabriel Cerqueira Gomes",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Vitor Leandro Gomes Carneiro",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Vivian Regina Araujo Costa",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Wagner Jose de Souza",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Wagner Minoru Hirata",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Walace Silva Souza",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Wellington Moisés Oliveira de Moraes",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Wendell Henrique Costa Santos",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Wesley Daniel Costa Santos",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    },
+    {
+      "nome_completo": "Ygor Silva de Moraes",
+      "escala_tipo": null,
+      "updated_at": "2026-04-19 20:02:19",
+      "horario_entrada": null
+    }
+  ]
+}
