@@ -11910,19 +11910,23 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                 m.custo,
                 m.fornecedor,
                 m.servico_catalogo_id,
-                COALESCE(s.periodicidade_padrao, CASE WHEN m.km_proxima_manutencao IS NOT NULL AND m.km_na_manutencao IS NOT NULL THEN m.km_proxima_manutencao - m.km_na_manutencao ELSE 0 END, 0) as periodicidade_padrao,
+                COALESCE(s.periodicidade_padrao, 0) as periodicidade_padrao,
                 COALESCE(s.tipo_controle, 'KM') as tipo_controle,
                 COALESCE(s.unidade, 'km') as unidade,
                 COALESCE(c.nome, 'Geral') as categoria_nome,
                 COALESCE(c.icone, 'wrench') as categoria_icone,
                 COALESCE(s.criticidade, 'Media') as criticidade_cat
             FROM frota_manutencoes m
-            LEFT JOIN frota_servicos_catalogo s ON s.id = m.servico_catalogo_id
+            LEFT JOIN frota_servicos_catalogo s ON (
+                s.id = m.servico_catalogo_id
+                OR (m.servico_catalogo_id IS NULL AND s.nome = m.descricao)
+            )
             LEFT JOIN frota_categorias_manutencao c ON c.id = s.categoria_id
             WHERE m.veiculo_id = ? AND m.tipo = 'preventiva'
+            GROUP BY m.id
             ORDER BY c.ordem, m.descricao, m.created_at DESC
         `, [vid], (err2, rows) => {
-            if (err2) return res.status(500).json({ error: err2.message });
+            if (err2) { console.error('[PREV ERROR]', err2.message); return res.status(500).json({ error: err2.message }); }
 
             console.log(`[PREV] veiculo_id=${vid} → ${(rows||[]).length} registros encontrados`);
 
