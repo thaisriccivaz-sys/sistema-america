@@ -12526,8 +12526,6 @@ app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, r
                     });
                 });
             });
-        }
-    );
 });
 
 
