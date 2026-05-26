@@ -107,12 +107,8 @@ window.mnCarregarPreventivoVeiculo = async function() {
     try {
         const res = await fetch('/api/frota/manutencoes/preventivo/' + vid, { headers: { Authorization: 'Bearer ' + tok } });
         const data = await res.json();
-        if (!res.ok) {
-            planoEl.innerHTML = `<div style="padding:1rem;color:#dc2626;font-size:0.85rem;"><b>Erro API (${res.status}):</b> ${data.error||'desconhecido'}</div>`;
-            return;
-        }
         planoEl.innerHTML = mnRenderPlanoAgrupado(data);
-    } catch(e) { planoEl.innerHTML = `<div style="padding:1rem;color:#dc2626;">Erro: ${e.message}</div>`; }
+    } catch(e) { planoEl.innerHTML = '<div style="padding:1rem;color:#dc2626;">Erro ao carregar plano.</div>'; }
 };
 
 function mnRenderPlanoAgrupado(data) {
@@ -150,6 +146,8 @@ function mnRenderPlanoAgrupado(data) {
                 ? `<i class="ph ph-chat-text" style="color:#0284c7;cursor:pointer;font-size:1rem;margin-left:4px;" title="${item.observacoes.replace(/"/g,'&quot;')}" onclick="alert('Observações:\\n\\n${item.observacoes.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')"></i>`
                 : '';
 
+            const catBadge = `<span style="display:inline-flex;align-items:center;gap:4px;background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:20px;font-size:0.72rem;font-weight:600;white-space:nowrap;"><i class="ph ph-${cat.icone||'wrench'}" style="font-size:0.75rem;"></i>${catNome}</span>`;
+
             return `<tr style="background:${bg};border-bottom:1px solid #e2e8f0;">
                 <td style="padding:0.6rem 0.9rem;">
                     <div style="display:flex;align-items:center;gap:6px;">
@@ -158,6 +156,7 @@ function mnRenderPlanoAgrupado(data) {
                         ${obsIcon}
                     </div>
                 </td>
+                <td style="padding:0.6rem 0.9rem;text-align:center;">${catBadge}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${criticBadge}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${statusBadge}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;font-size:0.82rem;">${kmUltTxt}</td>
@@ -181,6 +180,7 @@ function mnRenderPlanoAgrupado(data) {
             <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.83rem;">
                 <thead><tr style="background:#f1f5f9;">
                     <th style="padding:0.5rem 0.9rem;text-align:left;color:#64748b;font-weight:600;">Serviço</th>
+                    <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Categoria</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Criticidade</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">Situação</th>
                     <th style="padding:0.5rem 0.9rem;text-align:center;color:#64748b;font-weight:600;">KM Realizado</th>
