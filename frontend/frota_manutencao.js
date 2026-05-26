@@ -293,9 +293,11 @@ function mnRenderPlanoAgrupado(data) {
 
             const nome = item.descricao || item.nome || '—';
             const nomeSafe = nome.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-            const obsIcon = item.observacoes
-                ? `<i class="ph ph-chat-text" style="color:#0284c7;cursor:pointer;font-size:1rem;margin-left:4px;" title="${item.observacoes.replace(/"/g,'&quot;')}" onclick="alert('Observações:\\n\\n${item.observacoes.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')"></i>`
-                : '';
+            
+            const createObsIcon = (obs, color) => obs ? ` <i class="ph ph-chat-text" style="color:${color};cursor:pointer;font-size:1.1rem;margin-left:4px;vertical-align:middle;" title="${obs.replace(/"/g,'&quot;')}" onclick="alert('Observações:\\n\\n${obs.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')"></i>` : '';
+
+            const obsIconConcluida = createObsIcon(item.observacoes_concluida, '#0284c7');
+            const obsIconAgendada = createObsIcon(item.observacoes_agendada, '#2563eb');
 
             // Última manutenção realizada
             const fmtDate = d => {
@@ -303,10 +305,10 @@ function mnRenderPlanoAgrupado(data) {
                 const [y,m,dia] = d.split('-');
                 return `<span style="font-weight:600;color:#475569;font-size:0.82rem;">${dia||d}/${m||''}/${(y||'').slice(2)}</span>`;
             };
-            const kmUltStr = item.km_ultima ? `<br><span style="font-size:0.68rem;font-weight:400;color:#64748b;">${Number(item.km_ultima).toLocaleString('pt-BR')} km</span>` : '';
-            const ultimaManuTxt = fmtDate(item.data_ultima_manutencao) + kmUltStr;
+            const kmUltStr = item.km_ultima ? `<span style="font-size:0.68rem;font-weight:400;color:#64748b;">${Number(item.km_ultima).toLocaleString('pt-BR')} km</span>` : '';
+            const ultimaManuTxt = `<div style="display:flex;flex-direction:column;align-items:center;"><div>${fmtDate(item.data_ultima_manutencao)}${obsIconConcluida}</div>${kmUltStr}</div>`;
             const dataAgendadaTxt = item.data_agendamento
-                ? `<span style="font-weight:700;color:#2563eb;font-size:0.82rem;">${fmtDate(item.data_agendamento).replace(/<[^>]+>/g,'').trim()}</span>`
+                ? `<span style="font-weight:700;color:#2563eb;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:4px;">${fmtDate(item.data_agendamento).replace(/<[^>]+>/g,'').trim()}${obsIconAgendada}</span>`
                 : '<span style="color:#94a3b8;">—</span>';
 
             return `<tr style="background:${bg};border-bottom:1px solid #e2e8f0;">
@@ -317,7 +319,6 @@ function mnRenderPlanoAgrupado(data) {
                     <div style="display:flex;align-items:center;gap:6px;">
                         <i class="ph ph-${icone}" style="color:${cor};font-size:1rem;"></i>
                         <span style="font-weight:600;color:#1e293b;font-size:0.85rem;">${nome}</span>
-                        ${obsIcon}
                     </div>
                 </td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${criticBadge}</td>

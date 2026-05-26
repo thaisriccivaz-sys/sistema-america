@@ -11976,7 +11976,9 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                     status_item: statusItem,
                     criticidade,
                     data_ultima_manutencao: concluida?.data_conclusao || null,
-                    data_agendamento: agendada?.data_agendamento || null
+                    data_agendamento: agendada?.data_agendamento || null,
+                    observacoes_concluida: concluida?.observacoes || null,
+                    observacoes_agendada: agendada?.observacoes || null
                 };
             });
 
