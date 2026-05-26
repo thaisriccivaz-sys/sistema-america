@@ -1243,52 +1243,72 @@ window.mnFinalizarAgendado = function() {
     const nomes = Array.from(cbs).map(cb => cb.dataset.nome).join(', ');
     const veiculo = (window._manutFrota || []).find(x => x.id == vid);
 
+    const placa = veiculo?.placa || 'Veículo';
+    const kmAtual = veiculo?.km_atual || 0;
+
     let ov = document.getElementById('modal-finalizar-ag'); if (ov) ov.remove();
     ov = document.createElement('div'); ov.id = 'modal-finalizar-ag';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
 
     const hoje = new Date().toISOString().slice(0, 10);
+    window._mnConcluirVid = vid;
 
-    ov.innerHTML = `<div style="background:#fff;border-radius:12px;width:100%;max-width:520px;display:flex;flex-direction:column;box-shadow:0 20px 40px rgba(0,0,0,0.2);overflow:hidden;">
+    ov.innerHTML = `<div style="background:#fff;border-radius:16px;width:100%;max-width:480px;display:flex;flex-direction:column;box-shadow:0 25px 50px rgba(0,0,0,0.3);overflow:hidden;">
         <div style="padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;background:#f0fdf4;display:flex;justify-content:space-between;align-items:center;">
-            <div style="font-size:1rem;font-weight:700;color:#166534;display:flex;align-items:center;gap:8px;"><i class="ph ph-check-circle" style="color:#2d9e5f;"></i> Finalizar ${cbs.length} Manutenção(oes)</div>
+            <div style="font-size:1rem;font-weight:700;color:#166534;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-check-circle" style="color:#16a34a;font-size:1.3rem;"></i>
+                Registrar ${cbs.length} Serviço(s)
+            </div>
             <button onclick="document.getElementById('modal-finalizar-ag').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;"><i class="ph ph-x"></i></button>
         </div>
         <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
-            <div style="background:#f0fdf4;color:#166534;padding:0.75rem;border-radius:8px;font-size:0.82rem;"><i class="ph ph-info"></i> <strong>Serviços:</strong> ${nomes}</div>
-            <div style="background:#fffbeb;color:#92400e;padding:0.65rem;border-radius:8px;font-size:0.82rem;">
-                <i class="ph ph-lightbulb"></i> O sistema usará automaticamente a <strong>KM registrada na data informada</strong> para calcular o próximo intervalo.
-                ${veiculo ? `<br><span style="color:#64748b;margin-top:4px;display:block;">KM atual do veículo: <strong>${Number(veiculo.km_atual||0).toLocaleString('pt-BR')} km</strong></span>` : ''}
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:0.75rem;font-size:0.83rem;color:#166534;">
+                <div style="margin-bottom:6px;"><i class="ph ph-car-profile"></i> Placa: <strong>${placa}</strong></div>
+                <div><i class="ph ph-list-checks"></i> <strong>${nomes}</strong></div>
             </div>
             <div>
-                <label style="font-size:0.85rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Data da Finalização *</label>
-                <input id="fin-ag-data" type="date" value="${hoje}" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">
-                <span style="font-size:0.75rem;color:#94a3b8;margin-top:4px;display:block;">Para datas retroativas, o sistema buscará o KM registrado naquele dia.</span>
+                <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Data da Manutenção *</label>
+                <input id="ci-data" type="date" value="${hoje}"
+                    oninput="window.mnConcluirBuscarKmData(this.value)"
+                    style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">
+                <span id="ci-km-hint" style="font-size:0.75rem;color:#64748b;margin-top:4px;display:block;">KM atual do veículo: <strong>${Number(kmAtual).toLocaleString('pt-BR')} km</strong></span>
             </div>
             <div>
-                <label style="font-size:0.85rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Observações</label>
-                <textarea id="fin-ag-obs" placeholder="Observações da manutenção realizada..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:80px;resize:vertical;"></textarea>
+                <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">KM na Manutenção</label>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <input id="ci-km" type="number" value="${kmAtual||''}" min="0" placeholder="Ex: 85000"
+                        style="flex:1;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">
+                    <span style="font-size:0.8rem;color:#64748b;white-space:nowrap;">km</span>
+                </div>
+                <span style="font-size:0.72rem;color:#94a3b8;margin-top:3px;display:block;">Preenchido automaticamente — edite se necessário</span>
+            </div>
+            <div>
+                <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Observações</label>
+                <textarea id="ci-obs" placeholder="Observações sobre a manutenção realizada..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:70px;resize:vertical;"></textarea>
             </div>
         </div>
         <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:1rem;background:#f8fafc;">
             <button onclick="document.getElementById('modal-finalizar-ag').remove()" style="background:#fff;border:1px solid #cbd5e1;color:#475569;padding:0.5rem 1rem;border-radius:6px;font-weight:600;cursor:pointer;">Cancelar</button>
-            <button id="btn-fin-ag-salvar" style="background:#2d9e5f;color:#fff;border:none;padding:0.5rem 1.5rem;border-radius:6px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-check-circle"></i> Finalizar</button>
+            <button id="btn-fin-ag-salvar" style="background:#16a34a;color:#fff;border:none;padding:0.5rem 1.5rem;border-radius:6px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <i class="ph ph-check-circle"></i> Confirmar Realizada
+            </button>
         </div>
     </div>`;
     document.body.appendChild(ov);
 
     document.getElementById('btn-fin-ag-salvar').onclick = async () => {
-        const dataConc = document.getElementById('fin-ag-data').value;
-        const obs = document.getElementById('fin-ag-obs').value.trim();
+        const dataConc = document.getElementById('ci-data').value;
+        const kmVal    = parseInt(document.getElementById('ci-km').value) || null;
+        const obs      = document.getElementById('ci-obs').value.trim();
         if (!dataConc) return alert('Informe a data de finalização');
         const btn = document.getElementById('btn-fin-ag-salvar');
         btn.disabled = true;
-        btn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Finalizando...';
+        btn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Salvando...';
         try {
             const res = await fetch('/api/frota/manutencoes/finalizar-agendado', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._manutTok },
-                body: JSON.stringify({ veiculo_id: vid, servicos_ids: servsIds, data_conclusao: dataConc, observacoes: obs })
+                body: JSON.stringify({ veiculo_id: vid, servicos_ids: servsIds, data_conclusao: dataConc, observacoes: obs, km_realizado: kmVal })
             });
             const errData = !res.ok ? await res.text() : null;
             if (res.ok) {
