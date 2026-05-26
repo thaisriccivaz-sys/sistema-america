@@ -538,16 +538,14 @@ window.abrirModalManutencao = async function(id, opts = {}) {
     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;display:flex;flex-direction:column;gap:1rem;">
         <div>${lbl('Categoria')}${sel('mn-m-cat', catOpts, '', false, 'window.mnModalCatChanged()')}</div>
         <div id="mn-m-serv-container" style="display:none;flex-direction:column;gap:1rem;">
+            <div>${lbl('KM Intervalo')}<input id="mn-m-intervalo" type="number" placeholder="Ex: 10000" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;"></div>
             <div>${lbl('Selecione os Serviços')}<div id="mn-m-serv-checkboxes" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div></div>
             <div id="mn-m-serv-novo-box" style="display:none;">${lbl('Nome do Novo Serviço')}${inp('mn-m-serv-novo', '', 'Ex: Troca de válvula específica...')}</div>
             <button id="mn-m-btn-add" onclick="window.mnModalAddServico()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.6rem;font-weight:600;cursor:pointer;font-size:0.85rem;">Adicionar Serviços Selecionados à Lista</button>
         </div>
     </div>
     <div id="mn-m-servicos-lista" style="display:flex;flex-direction:column;gap:6px;"></div>
-    <div style="border-top:1px solid #e2e8f0;padding-top:1rem;display:flex;flex-direction:column;gap:0.75rem;">
-        <div>${lbl('KM Atual (Realizada em)')}<input id="mn-m-km" value="${m.km_na_manutencao||""}" type="number" readonly style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;background:#f8fafc;cursor:not-allowed;color:#64748b;" title="Apenas visualização. Edite o KM na Gestão de Frota."></div>
-        <div>${lbl('KM intervalo — aplicar a todos os serviços')}<div style="display:flex;gap:6px;">${inp('mn-m-intervalo', '', 'Ex: 10000', 'number')}<button onclick="window.mnAplicarIntervaloTodos()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0 12px;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">Aplicar a todos</button></div></div>
-    </div>
+    <input type="hidden" id="mn-m-km" value="${m.km_na_manutencao||''}">\r
   </div>
 </div></div>`;
     document.body.appendChild(ov);
@@ -693,12 +691,15 @@ window.mnModalAddServico = function() {
             servId = '';
         }
 
+        // Intervalo: usa o campo preenchido pelo usuário; se vazio, usa o padrão do catálogo
+        const intValAtual = intInp ? intInp.value.trim() : '';
+        const intervaloFinal = intValAtual || (cb.dataset.interval && cb.dataset.interval !== 'undefined' ? cb.dataset.interval : '');
         window._mnModalServicos.push({
             cat_id: cSel.value,
             servico_id: servId,
             nome: nome,
-            km: kmInp.value,
-            intervalo: cb.dataset.interval && cb.dataset.interval !== 'undefined' ? cb.dataset.interval : intInp.value
+            km: '',
+            intervalo: intervaloFinal
         });
     });
     
@@ -749,7 +750,7 @@ window.mnModalRenderServicos = function() {
         const uid = 'mn-cat-acc-' + catNome.replace(/\W/g,'');
         const rows = itens.map(s => `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0.6rem;background:#f8fafc;border-radius:6px;margin-bottom:4px;">
-                <span style="font-size:0.83rem;color:#1e293b;">${s.nome}<span style="color:#94a3b8;margin-left:8px;font-size:0.75rem;">KM: ${s.km||'—'} | Int: ${s.intervalo||'—'}</span></span>
+                <span style="font-size:0.83rem;color:#1e293b;">${s.nome}${s.intervalo ? `<span style="color:#94a3b8;margin-left:8px;font-size:0.75rem;">Int: ${s.intervalo} km</span>` : ''}</span>
                 <div style="display:flex;gap:8px;">
                     <button onclick="window.mnModalEditarIntervaloServico(${s._idx})" style="background:none;border:none;color:#0284c7;cursor:pointer;padding:0;" title="Editar Intervalo"><i class="ph ph-pencil-simple"></i></button>
                     <button onclick="window.mnModalRemoveServico(${s._idx})" style="background:none;border:none;color:#dc2626;cursor:pointer;padding:0;" title="Remover"><i class="ph ph-trash"></i></button>
