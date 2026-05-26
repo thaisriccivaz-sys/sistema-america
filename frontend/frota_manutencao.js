@@ -49,6 +49,11 @@ window.initFrotaManutencoes = async function(containerEl) {
     window._manutDados = manut || [];
 
     window.mnMudarSubAba(window._mnSubAba || 'preventiva');
+
+    // Monta drawer de histórico de manutenções realizadas (fixo na base da tela)
+    if (typeof window._mnMontarDrawerHistoricoManut === 'function') {
+        window._mnMontarDrawerHistoricoManut();
+    }
 };
 
 
@@ -180,6 +185,10 @@ function mnRenderPlanoAgrupado(data) {
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${kmRestTxt}</td>
                 <td style="padding:0.6rem 0.5rem;text-align:center;">
                     <div style="display:flex;gap:4px;justify-content:center;">
+                        <button onclick="window.mnConcluirIndividual(${item.id}, '${nomeSafe}')"
+                            style="background:#16a34a;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Registrar manutenção realizada">
+                            <i class="ph ph-check-circle"></i>
+                        </button>
                         <button onclick="window.mnAgendarIndividual(${item.id}, '${nomeSafe}')"
                             style="background:#7c3aed;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Agendar próxima">
                             <i class="ph ph-calendar-plus"></i>
@@ -1298,7 +1307,311 @@ window.mnFinalizarAgendado = function() {
             btn.disabled = false;
             btn.innerHTML = '<i class="ph ph-check-circle"></i> Finalizar';
         }
+
     };
+};
+
+// ──────────────────────────────────────────────────────────────
+//  BOTÃO VERDE: REGISTRAR MANUTENÇÃO REALIZADA (individual)
+// ──────────────────────────────────────────────────────────────
+window.mnConcluirIndividual = async function(itemId, nome) {
+    const vid = document.getElementById('mn-prev-veiculo')?.value;
+    if (!vid) return alert('Selecione um veículo primeiro');
+    const veiculo = (window._manutFrota || []).find(x => x.id == vid);
+    const tok = window._manutTok;
+    const kmAtual = veiculo?.km_atual || 0;
+    const hoje = new Date().toISOString().slice(0, 10);
+
+    let ov = document.getElementById('modal-concluir-ind'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'modal-concluir-ind';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    ov.innerHTML = `
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:480px;display:flex;flex-direction:column;box-shadow:0 25px 50px rgba(0,0,0,0.3);overflow:hidden;">
+            <div style="padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;background:#f0fdf4;display:flex;justify-content:space-between;align-items:center;">
+                <div style="font-size:1rem;font-weight:700;color:#166534;display:flex;align-items:center;gap:8px;">
+                    <i class="ph ph-check-circle" style="color:#16a34a;font-size:1.3rem;"></i>
+                    Registrar Manutenção Realizada
+                </div>
+                <button onclick="document.getElementById('modal-concluir-ind').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
+                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:0.75rem;font-size:0.83rem;color:#166534;">
+                    <i class="ph ph-wrench"></i> <strong>${nome}</strong>
+                </div>
+                <div>
+                    <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Data da Manutenção *</label>
+                    <input id="ci-data" type="date" value="${hoje}"
+                        oninput="window.mnConcluirBuscarKmData(this.value)"
+                        style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">
+                    <span id="ci-km-hint" style="font-size:0.75rem;color:#64748b;margin-top:4px;display:block;">KM atual do veículo: <strong>${Number(kmAtual).toLocaleString('pt-BR')} km</strong></span>
+                </div>
+                <div>
+                    <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">KM na Manutenção</label>
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <input id="ci-km" type="number" value="${kmAtual||''}" min="0" placeholder="Ex: 85000"
+                            style="flex:1;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">
+                        <span style="font-size:0.8rem;color:#64748b;white-space:nowrap;">km</span>
+                    </div>
+                    <span style="font-size:0.72rem;color:#94a3b8;margin-top:3px;display:block;">Preenchido automaticamente — edite se necessário</span>
+                </div>
+                <div>
+                    <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Observações</label>
+                    <textarea id="ci-obs" placeholder="Observações sobre a manutenção realizada..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:70px;resize:vertical;"></textarea>
+                </div>
+            </div>
+            <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:1rem;background:#f8fafc;">
+                <button onclick="document.getElementById('modal-concluir-ind').remove()" style="background:#fff;border:1px solid #cbd5e1;color:#475569;padding:0.5rem 1rem;border-radius:6px;font-weight:600;cursor:pointer;">Cancelar</button>
+                <button id="btn-ci-salvar" style="background:#16a34a;color:#fff;border:none;padding:0.5rem 1.5rem;border-radius:6px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-check-circle"></i> Confirmar Realizada
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+
+    window._mnConcluirVid    = vid;
+    window._mnConcluirItemId = itemId;
+
+    document.getElementById('btn-ci-salvar').onclick = async () => {
+        const dataConc = document.getElementById('ci-data').value;
+        const kmVal    = parseInt(document.getElementById('ci-km').value) || null;
+        const obs      = document.getElementById('ci-obs').value.trim();
+        if (!dataConc) return alert('Informe a data da manutenção');
+        const btn = document.getElementById('btn-ci-salvar');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Salvando...';
+        try {
+            const res = await fetch('/api/frota/manutencoes/finalizar-agendado', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                body: JSON.stringify({
+                    veiculo_id: window._mnConcluirVid,
+                    servicos_ids: [String(window._mnConcluirItemId)],
+                    data_conclusao: dataConc,
+                    observacoes: obs,
+                    km_realizado: kmVal
+                })
+            });
+            if (res.ok) {
+                ov.remove();
+                const bar = document.getElementById('mn-prev-mass-actions');
+                if (bar) bar.style.display = 'none';
+                window.mnCarregarPreventivoVeiculo();
+                if (typeof window._mnRecarregarHistoricoManut === 'function') window._mnRecarregarHistoricoManut();
+                if (typeof mostrarToastAviso === 'function') mostrarToastAviso('Manutenção registrada com sucesso!');
+                else alert('Manutenção registrada com sucesso!');
+            } else {
+                const errData = await res.text();
+                let errMsg = 'Erro desconhecido';
+                try { errMsg = JSON.parse(errData).error || errData; } catch(ex) { errMsg = errData || 'Erro ' + res.status; }
+                alert('Erro: ' + errMsg);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-check-circle"></i> Confirmar Realizada';
+            }
+        } catch(e) {
+            alert('Erro de conexão: ' + e.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ph ph-check-circle"></i> Confirmar Realizada';
+        }
+    };
+};
+
+// Ao mudar a data: busca KM do veículo naquele dia via histórico
+window.mnConcluirBuscarKmData = async function(data) {
+    const vid = window._mnConcluirVid;
+    if (!vid || !data) return;
+    try {
+        const tok = window._manutTok;
+        const res = await fetch('/api/frota/veiculos/' + vid + '/km-em-data?data=' + data, {
+            headers: { Authorization: 'Bearer ' + tok }
+        });
+        if (res.ok) {
+            const json = await res.json();
+            const km = json.km;
+            const hint = document.getElementById('ci-km-hint');
+            const inp  = document.getElementById('ci-km');
+            if (km != null) {
+                if (inp)  inp.value = km;
+                const d = data.split('-').reverse().join('/');
+                if (hint) hint.innerHTML = 'KM registrado em ' + d + ': <strong>' + Number(km).toLocaleString('pt-BR') + ' km</strong>';
+            } else {
+                if (hint) hint.innerHTML = '<span style="color:#d97706;">Sem registro de KM para esta data — usando KM atual</span>';
+                const veiculo = (window._manutFrota || []).find(x => x.id == vid);
+                if (inp && veiculo && veiculo.km_atual) inp.value = veiculo.km_atual;
+            }
+        }
+    } catch(e) {}
+};
+
+// ══════════════════════════════════════════════════════════════
+//  DRAWER DE HISTÓRICO DE MANUTENÇÕES REALIZADAS
+// ══════════════════════════════════════════════════════════════
+window._mnMontarDrawerHistoricoManut = function() {
+    document.getElementById('mn-hist-wrapper')?.remove();
+
+    const wrapper = document.createElement('div');
+    wrapper.id = 'mn-hist-wrapper';
+    wrapper.style.cssText = 'position:fixed;bottom:0;left:60px;right:0;z-index:9400;display:flex;flex-direction:column;align-items:flex-start;pointer-events:none;';
+
+    wrapper.innerHTML = `
+        <div id="mn-hist-btn-row" style="padding:0 0 0 12px;pointer-events:all;">
+            <button id="mn-hist-toggle-btn"
+                style="display:flex;align-items:center;gap:6px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-bottom:none;border-radius:8px 8px 0 0;padding:5px 16px;cursor:pointer;color:#166534;font-size:0.78rem;font-weight:700;box-shadow:0 -2px 8px rgba(0,0,0,0.06);transition:background 0.15s;white-space:nowrap;"
+                onmouseenter="this.style.background='#dcfce7'" onmouseleave="this.style.background='#f0fdf4'"
+                onclick="window._mnToggleHistoricoManut()">
+                <i id="mn-hist-icon" class="ph ph-caret-up-bold" style="font-size:0.85rem;"></i>
+                <i class="ph ph-clock-counter-clockwise" style="color:#16a34a;"></i>
+                Histórico de Manutenções
+                <span id="mn-hist-count" style="background:#dcfce7;color:#166534;border-radius:99px;padding:1px 8px;font-size:0.7rem;"></span>
+            </button>
+        </div>
+        <div id="mn-hist-panel"
+            style="width:100%;background:#fff;box-shadow:0 -4px 20px rgba(0,0,0,0.12);max-height:0;overflow:hidden;transition:max-height 0.35s cubic-bezier(.4,0,.2,1);order:-1;pointer-events:all;">
+            <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-bottom:1px solid #f1f5f9;background:#f8fafc;flex-wrap:wrap;">
+                <i class="ph ph-funnel" style="color:#16a34a;font-size:0.9rem;flex-shrink:0;"></i>
+                <input id="mn-hist-f-placa" type="text" placeholder="Placa..."
+                    style="border:1px solid #e2e8f0;border-radius:6px;padding:3px 8px;font-size:0.74rem;width:90px;height:24px;outline:none;"
+                    oninput="window._mnFiltrarHistoricoManut()">
+                <select id="mn-hist-f-tipo" style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 5px;font-size:0.74rem;height:24px;outline:none;"
+                    onchange="window._mnFiltrarHistoricoManut()">
+                    <option value="">Tipo veículo</option>
+                    <option value="caminhão">Caminhão</option>
+                    <option value="caminhonete">Caminhonete</option>
+                    <option value="utilitário">Utilitário</option>
+                    <option value="carretinha">Carretinha</option>
+                    <option value="caminhão tanque">Caminhão Tanque</option>
+                </select>
+                <select id="mn-hist-f-crit" style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 5px;font-size:0.74rem;height:24px;outline:none;"
+                    onchange="window._mnFiltrarHistoricoManut()">
+                    <option value="">Criticidade</option>
+                    <option value="Critica">Crítica</option>
+                    <option value="Alta">Alta</option>
+                    <option value="Media">Média</option>
+                    <option value="Baixa">Baixa</option>
+                </select>
+                <span style="font-size:0.7rem;color:#94a3b8;white-space:nowrap;">Realizada de</span>
+                <input id="mn-hist-f-real-de" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 5px;font-size:0.72rem;height:24px;outline:none;"
+                    onchange="window._mnFiltrarHistoricoManut()">
+                <span style="font-size:0.7rem;color:#94a3b8;">até</span>
+                <input id="mn-hist-f-real-ate" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 5px;font-size:0.72rem;height:24px;outline:none;"
+                    onchange="window._mnFiltrarHistoricoManut()">
+                <span style="font-size:0.7rem;color:#94a3b8;white-space:nowrap;">Agendada de</span>
+                <input id="mn-hist-f-ag-de" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 5px;font-size:0.72rem;height:24px;outline:none;"
+                    onchange="window._mnFiltrarHistoricoManut()">
+                <span style="font-size:0.7rem;color:#94a3b8;">até</span>
+                <input id="mn-hist-f-ag-ate" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 5px;font-size:0.72rem;height:24px;outline:none;"
+                    onchange="window._mnFiltrarHistoricoManut()">
+                <button style="padding:2px 10px;background:#ef4444;color:#fff;border:none;border-radius:4px;font-size:0.7rem;cursor:pointer;height:24px;"
+                    onclick="['mn-hist-f-placa','mn-hist-f-tipo','mn-hist-f-crit','mn-hist-f-real-de','mn-hist-f-real-ate','mn-hist-f-ag-de','mn-hist-f-ag-ate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});window._mnFiltrarHistoricoManut();">
+                    Limpar
+                </button>
+            </div>
+            <div style="overflow-y:auto;max-height:260px;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
+                    <thead>
+                        <tr style="background:#f1f5f9;position:sticky;top:0;z-index:2;">
+                            <th style="padding:5px 10px;text-align:left;color:#475569;font-weight:700;white-space:nowrap;">Placa</th>
+                            <th style="padding:5px 10px;text-align:left;color:#475569;font-weight:700;white-space:nowrap;">Tipo Veículo</th>
+                            <th style="padding:5px 10px;text-align:left;color:#475569;font-weight:700;">Serviço</th>
+                            <th style="padding:5px 10px;text-align:center;color:#475569;font-weight:700;">Criticidade</th>
+                            <th style="padding:5px 10px;text-align:right;color:#475569;font-weight:700;white-space:nowrap;">KM Realizado</th>
+                            <th style="padding:5px 10px;text-align:center;color:#475569;font-weight:700;white-space:nowrap;">Data Realizada</th>
+                            <th style="padding:5px 10px;text-align:center;color:#475569;font-weight:700;white-space:nowrap;">Data Agendada</th>
+                            <th style="padding:5px 10px;text-align:right;color:#475569;font-weight:700;white-space:nowrap;">Próximo KM</th>
+                            <th style="padding:5px 10px;text-align:left;color:#475569;font-weight:700;">Fornecedor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mn-hist-tbody">
+                        <tr><td colspan="9" style="text-align:center;padding:16px;color:#94a3b8;">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>`;
+
+    document.body.appendChild(wrapper);
+
+    let _aberto = false;
+    let _dados  = [];
+    const _critCor = { Critica:'#dc2626', Alta:'#d97706', Media:'#0284c7', Baixa:'#2d9e5f' };
+    const _fmtData = ds => {
+        if (!ds) return '—';
+        const p = ds.split('-');
+        return (p.length === 3) ? (p[2]+'/'+p[1]+'/'+p[0]) : ds;
+    };
+
+    function _renderLinhas() {
+        const tbody = document.getElementById('mn-hist-tbody');
+        if (!tbody) return;
+        const fPlaca   = (document.getElementById('mn-hist-f-placa')?.value   || '').trim().toLowerCase();
+        const fTipo    = (document.getElementById('mn-hist-f-tipo')?.value    || '').toLowerCase();
+        const fCrit    = (document.getElementById('mn-hist-f-crit')?.value    || '').toLowerCase();
+        const fRealDe  = document.getElementById('mn-hist-f-real-de')?.value  || '';
+        const fRealAte = document.getElementById('mn-hist-f-real-ate')?.value || '';
+        const fAgDe    = document.getElementById('mn-hist-f-ag-de')?.value    || '';
+        const fAgAte   = document.getElementById('mn-hist-f-ag-ate')?.value   || '';
+
+        const lista = _dados.filter(m => {
+            if (fPlaca   && !(m.placa||'').toLowerCase().includes(fPlaca)) return false;
+            if (fTipo    && !(m.tipo_veiculo||'').toLowerCase().includes(fTipo)) return false;
+            if (fCrit    && (m.criticidade||'').toLowerCase() !== fCrit) return false;
+            if (fRealDe  && (m.data_conclusao||'')   < fRealDe)  return false;
+            if (fRealAte && (m.data_conclusao||'')   > fRealAte) return false;
+            if (fAgDe    && (m.data_agendamento||'') < fAgDe)    return false;
+            if (fAgAte   && (m.data_agendamento||'') > fAgAte)   return false;
+            return true;
+        });
+
+        if (!lista.length) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:14px;color:#94a3b8;">Nenhuma manutenção encontrada.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = lista.map((m, i) => {
+            const bgRow = i % 2 === 0 ? '#fff' : '#fafafa';
+            const cor = _critCor[m.criticidade] || '#94a3b8';
+            const critBadge = m.criticidade
+                ? '<span style="background:' + cor + '22;color:' + cor + ';padding:1px 7px;border-radius:20px;font-size:0.7rem;font-weight:700;">' + m.criticidade + '</span>'
+                : '—';
+            const desc = (m.descricao || '—').replace(/"/g, '&quot;');
+            return '<tr style="background:' + bgRow + ';border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#f0fdf4\'" onmouseout="this.style.background=\'' + bgRow + '\'">' +
+                '<td style="padding:5px 10px;font-weight:700;color:#1e293b;white-space:nowrap;">' + (m.placa||'—') + '</td>' +
+                '<td style="padding:5px 10px;color:#64748b;white-space:nowrap;">' + (m.tipo_veiculo||'—') + '</td>' +
+                '<td style="padding:5px 10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + desc + '">' + (m.descricao||'—') + '</td>' +
+                '<td style="padding:5px 10px;text-align:center;">' + critBadge + '</td>' +
+                '<td style="padding:5px 10px;text-align:right;color:#475569;font-weight:600;white-space:nowrap;">' + (m.km_na_manutencao ? Number(m.km_na_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</td>' +
+                '<td style="padding:5px 10px;text-align:center;color:#2d9e5f;font-weight:600;white-space:nowrap;">' + _fmtData(m.data_conclusao) + '</td>' +
+                '<td style="padding:5px 10px;text-align:center;color:#2563eb;white-space:nowrap;">' + _fmtData(m.data_agendamento) + '</td>' +
+                '<td style="padding:5px 10px;text-align:right;color:#0284c7;font-weight:600;white-space:nowrap;">' + (m.km_proxima_manutencao ? Number(m.km_proxima_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</td>' +
+                '<td style="padding:5px 10px;color:#64748b;">' + (m.fornecedor||'—') + '</td>' +
+                '</tr>';
+        }).join('');
+    }
+
+    async function _carregar() {
+        try {
+            const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+            const res = await fetch('/api/frota/manutencoes/historico', { headers: { Authorization: 'Bearer ' + tok } });
+            _dados = await res.json();
+            if (!Array.isArray(_dados)) _dados = [];
+            const count = document.getElementById('mn-hist-count');
+            if (count) count.textContent = _dados.length;
+            _renderLinhas();
+        } catch(e) {
+            const tbody = document.getElementById('mn-hist-tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:14px;color:#ef4444;">Erro ao carregar histórico.</td></tr>';
+        }
+    }
+
+    window._mnToggleHistoricoManut = function() {
+        _aberto = !_aberto;
+        const panel = document.getElementById('mn-hist-panel');
+        const icon  = document.getElementById('mn-hist-icon');
+        if (panel) panel.style.maxHeight = _aberto ? '370px' : '0';
+        if (icon)  icon.className = _aberto ? 'ph ph-caret-down-bold' : 'ph ph-caret-up-bold';
+        if (_aberto && !_dados.length) _carregar();
+    };
+    window._mnRecarregarHistoricoManut = function() { _dados = []; _carregar(); };
+    window._mnFiltrarHistoricoManut    = function() { _renderLinhas(); };
 };
 
 })();

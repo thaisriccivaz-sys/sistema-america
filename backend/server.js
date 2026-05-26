@@ -12412,30 +12412,61 @@ app.post('/api/frota/manutencoes/agendar-selecionados', authenticateToken, async
     }
 });
 
+// GET - histórico de KM do veículo em uma data
+app.get('/api/frota/veiculos/:id/km-em-data', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { data } = req.query;
+    if (!data) return res.status(400).json({ error: 'data é obrigatória' });
+    db.get(
+        'SELECT km FROM frota_km_historico WHERE veiculo_id=? AND data <= ? ORDER BY data DESC LIMIT 1',
+        [id, data],
+        (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ km: row ? row.km : null });
+        }
+    );
+});
+
+// GET - histórico de manutenções realizadas (Drawer)
+app.get('/api/frota/manutencoes/historico', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT m.*, v.placa, v.marca_modelo_versao, v.tipo_veiculo
+        FROM frota_manutencoes m
+        JOIN frota_veiculos v ON v.id = m.veiculo_id
+        WHERE m.status = 'concluida'
+        ORDER BY m.data_conclusao DESC, m.id DESC
+        LIMIT 1000
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
 // POST - finalizar manutenções agendadas em massa
 app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, res) => {
-    const { veiculo_id, servicos_ids, data_conclusao, observacoes } = req.body;
+    const { veiculo_id, servicos_ids, data_conclusao, observacoes, km_realizado } = req.body;
     if (!veiculo_id || !Array.isArray(servicos_ids) || servicos_ids.length === 0 || !data_conclusao) {
         return res.status(400).json({ error: 'veiculo_id, servicos_ids e data_conclusao são obrigatórios' });
     }
 
-    // 1. Buscar KM do veículo na data informada (histórico ou atual)
-    db.get(
-        `SELECT km FROM frota_km_historico WHERE veiculo_id=? AND data <= ? ORDER BY data DESC LIMIT 1`,
-        [veiculo_id, data_conclusao],
-        (err, histRow) => {
-            let kmNaData = histRow ? histRow.km : null;
-
-            // Se não tem histórico, usa o KM atual do veículo
-            const resolveKm = (callback) => {
-                if (kmNaData) return callback(kmNaData);
+    // 1. Buscar KM do veículo na data informada ou usar km_realizado
+    const resolveKm = (callback) => {
+        if (km_realizado !== undefined && km_realizado !== null && km_realizado !== '') {
+            return callback(km_realizado);
+        }
+        db.get(
+            'SELECT km FROM frota_km_historico WHERE veiculo_id=? AND data <= ? ORDER BY data DESC LIMIT 1',
+            [veiculo_id, data_conclusao],
+            (err, histRow) => {
+                if (histRow && histRow.km != null) return callback(histRow.km);
                 db.get('SELECT km_atual FROM frota_veiculos WHERE id=?', [veiculo_id], (e, v) => {
-                    kmNaData = v ? v.km_atual : 0;
-                    callback(kmNaData);
+                    callback(v ? v.km_atual : 0);
                 });
-            };
+            }
+        );
+    };
 
-            resolveKm((km) => {
+    resolveKm((km) => {
                 let count = 0;
                 let errorMsg = null;
 
