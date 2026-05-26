@@ -194,7 +194,7 @@ function mnRenderPlanoAgrupado(data) {
                             style="background:#7c3aed;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Agendar próxima">
                             <i class="ph ph-calendar-plus"></i>
                         </button>
-                        <button onclick="window.mnEditarRapido(${item.id}, '${nomeSafe}', ${item.periodicidade_padrao||0}, '${(item.observacoes||'').replace(/'/g,"\'")}')" 
+                        <button onclick="window.mnEditarRapido(${item.id}, '${nomeSafe}', ${item.intervalo_configurado || item.periodicidade_padrao || 0}, '${(item.observacoes||'').replace(/'/g,"\'")}')" 
                             style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Editar intervalo e observação">
                             <i class="ph ph-pencil"></i>
                         </button>
@@ -1479,7 +1479,7 @@ window._mnMontarDrawerHistoricoManut = function() {
 
     const wrapper = document.createElement('div');
     wrapper.id = 'mn-hist-wrapper';
-    wrapper.style.cssText = 'position:fixed;bottom:0;left:60px;right:0;z-index:9400;display:flex;flex-direction:column;align-items:flex-start;pointer-events:none;';
+    wrapper.style.cssText = 'position:fixed;bottom:40px;left:60px;right:0;z-index:9400;display:flex;flex-direction:column;align-items:flex-start;pointer-events:none;';
 
     wrapper.innerHTML = `
         <div id="mn-hist-btn-row" style="padding:0 0 0 12px;pointer-events:all;">
