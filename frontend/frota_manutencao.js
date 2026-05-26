@@ -533,11 +533,14 @@ function mnRenderPlanoAgrupado(data) {
         <i class="ph ph-check-square" style="color:#f59e0b;font-size:1.1rem;"></i>
         <span style="font-weight:600;font-size:0.88rem;"><span id="mn-prev-sel-count">0</span> selecionado(s)</span>
         <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
-            <button onclick="window.mnAgendarSelecionados()" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:600;font-size:0.83rem;cursor:pointer;display:flex;align-items:center;gap:6px;">
-                <i class="ph ph-calendar-plus"></i> Agendar Selecionados
+            <button onclick="window.mnIniciarSelecionados()" style="background:#d97706;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:600;font-size:0.83rem;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <i class="ph ph-play"></i> Iniciar Programados
             </button>
             <button onclick="window.mnFinalizarAgendado()" style="background:#2d9e5f;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:600;font-size:0.83rem;cursor:pointer;display:flex;align-items:center;gap:6px;">
                 <i class="ph ph-check-circle"></i> Finalizar Selecionados
+            </button>
+            <button onclick="window.mnAgendarSelecionados()" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:600;font-size:0.83rem;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <i class="ph ph-calendar-plus"></i> Agendar Selecionados
             </button>
             <button onclick="window.mnEditarIntervaloObsSelecionados()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:600;font-size:0.83rem;cursor:pointer;display:flex;align-items:center;gap:6px;">
                 <i class="ph ph-pencil-simple"></i> Editar Intervalo
@@ -549,6 +552,7 @@ function mnRenderPlanoAgrupado(data) {
     </div>`;
     return html;
 }
+
 
 
 
@@ -1637,10 +1641,10 @@ window.mnConcluirIndividual = async function(itemId, nome) {
     const vid = document.getElementById('mn-prev-veiculo')?.value;
     if (!vid) return alert('Selecione um veículo primeiro');
     const veiculo = (window._manutFrota || []).find(x => x.id == vid);
-    const tok = window._manutTok;
+    const tok     = window._manutTok;
     const kmAtual = veiculo?.km_atual || 0;
-    const placa = veiculo?.placa || 'Veículo';
-    const hoje = new Date().toISOString().slice(0, 10);
+    const placa   = veiculo?.placa || 'Veículo';
+    const hoje    = new Date().toISOString().slice(0, 10);
 
     let ov = document.getElementById('modal-concluir-ind'); if (ov) ov.remove();
     ov = document.createElement('div'); ov.id = 'modal-concluir-ind';
@@ -1659,25 +1663,35 @@ window.mnConcluirIndividual = async function(itemId, nome) {
                     <div style="margin-bottom:6px;"><i class="ph ph-car-profile"></i> Placa: <strong>${placa}</strong></div>
                     <div><i class="ph ph-wrench"></i> <strong>${nome}</strong></div>
                 </div>
-                <div>
-                    <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Data da Manutenção *</label>
-                    <input id="ci-data" type="date" value="${hoje}"
-                        oninput="window.mnConcluirBuscarKmData(this.value)"
-                        style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">
-                    <span id="ci-km-hint" style="font-size:0.75rem;color:#64748b;margin-top:4px;display:block;">KM atual do veículo: <strong>${Number(kmAtual).toLocaleString('pt-BR')} km</strong></span>
+                <!-- Toggle Realizada / Não Realizada -->
+                <div style="display:flex;gap:8px;">
+                    <button id="ci-btn-real" onclick="window._mnToggleConcluir('realizada')" style="flex:1;padding:0.55rem;border-radius:8px;border:2px solid #16a34a;background:#16a34a;color:#fff;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><i class="ph ph-check-circle"></i> Realizada</button>
+                    <button id="ci-btn-nreal" onclick="window._mnToggleConcluir('nao_realizada')" style="flex:1;padding:0.55rem;border-radius:8px;border:2px solid #94a3b8;background:#fff;color:#64748b;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><i class="ph ph-x-circle"></i> Não Realizada</button>
                 </div>
-                <div>
-                    <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">KM na Manutenção</label>
-                    <div style="display:flex;gap:6px;align-items:center;">
-                        <input id="ci-km" type="number" value="${kmAtual||''}" min="0" placeholder="Ex: 85000"
-                            style="flex:1;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">
-                        <span style="font-size:0.8rem;color:#64748b;white-space:nowrap;">km</span>
+                <div id="ci-campos-realizacao">
+                    <div style="margin-bottom:0.75rem;">
+                        <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Data da Manutenção *</label>
+                        <input id="ci-data" type="date" value="${hoje}"
+                            oninput="window.mnConcluirBuscarKmData(this.value)"
+                            style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">
+                        <span id="ci-km-hint" style="font-size:0.75rem;color:#64748b;margin-top:4px;display:block;">KM atual do veículo: <strong>${Number(kmAtual).toLocaleString('pt-BR')} km</strong></span>
                     </div>
-                    <span style="font-size:0.72rem;color:#94a3b8;margin-top:3px;display:block;">Preenchido automaticamente — edite se necessário</span>
+                    <div style="margin-bottom:0.75rem;">
+                        <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">KM na Manutenção</label>
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <input id="ci-km" type="number" value="${kmAtual||''}" min="0" placeholder="Ex: 85000"
+                                style="flex:1;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;">
+                            <span style="font-size:0.8rem;color:#64748b;white-space:nowrap;">km</span>
+                        </div>
+                        <span style="font-size:0.72rem;color:#94a3b8;margin-top:3px;display:block;">Preenchido automaticamente — edite se necessário</span>
+                    </div>
+                    <div>
+                        <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Observações</label>
+                        <textarea id="ci-obs" placeholder="Observações sobre a manutenção realizada..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:60px;resize:vertical;"></textarea>
+                    </div>
                 </div>
-                <div>
-                    <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Observações</label>
-                    <textarea id="ci-obs" placeholder="Observações sobre a manutenção realizada..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:70px;resize:vertical;"></textarea>
+                <div id="ci-msg-nreal" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:0.75rem;font-size:0.83rem;color:#991b1b;">
+                    <i class="ph ph-info"></i> A manutenção será marcada como <strong>não realizada</strong>. A última data e KM registrados permanecerão inalterados.
                 </div>
             </div>
             <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:1rem;background:#f8fafc;">
@@ -1692,50 +1706,81 @@ window.mnConcluirIndividual = async function(itemId, nome) {
 
     window._mnConcluirVid    = vid;
     window._mnConcluirItemId = itemId;
+    window._mnConcluirModo   = 'realizada';
+
+    window._mnToggleConcluir = function(modo) {
+        window._mnConcluirModo = modo;
+        const bReal  = document.getElementById('ci-btn-real');
+        const bNreal = document.getElementById('ci-btn-nreal');
+        const campos = document.getElementById('ci-campos-realizacao');
+        const msgNr  = document.getElementById('ci-msg-nreal');
+        const btnSalvar = document.getElementById('btn-ci-salvar');
+        if (modo === 'realizada') {
+            bReal.style.cssText  = 'flex:1;padding:0.55rem;border-radius:8px;border:2px solid #16a34a;background:#16a34a;color:#fff;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;';
+            bNreal.style.cssText = 'flex:1;padding:0.55rem;border-radius:8px;border:2px solid #94a3b8;background:#fff;color:#64748b;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;';
+            campos.style.display = ''; msgNr.style.display = 'none';
+            btnSalvar.style.background = '#16a34a'; btnSalvar.innerHTML = '<i class="ph ph-check-circle"></i> Confirmar Realizada';
+        } else {
+            bNreal.style.cssText = 'flex:1;padding:0.55rem;border-radius:8px;border:2px solid #dc2626;background:#dc2626;color:#fff;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;';
+            bReal.style.cssText  = 'flex:1;padding:0.55rem;border-radius:8px;border:2px solid #94a3b8;background:#fff;color:#64748b;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;';
+            campos.style.display = 'none'; msgNr.style.display = '';
+            btnSalvar.style.background = '#dc2626'; btnSalvar.innerHTML = '<i class="ph ph-x-circle"></i> Confirmar Não Realizada';
+        }
+    };
 
     document.getElementById('btn-ci-salvar').onclick = async () => {
-        const dataConc = document.getElementById('ci-data').value;
-        const kmVal    = parseInt(document.getElementById('ci-km').value) || null;
-        const obs      = document.getElementById('ci-obs').value.trim();
-        if (!dataConc) return alert('Informe a data da manutenção');
-        const btn = document.getElementById('btn-ci-salvar');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Salvando...';
+        const modo  = window._mnConcluirModo;
+        const btn   = document.getElementById('btn-ci-salvar');
+        btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Salvando...';
         try {
-            const res = await fetch('/api/frota/manutencoes/finalizar-agendado', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
-                body: JSON.stringify({
-                    veiculo_id: window._mnConcluirVid,
-                    servicos_ids: [String(window._mnConcluirItemId)],
-                    data_conclusao: dataConc,
-                    observacoes: obs,
-                    km_realizado: kmVal
-                })
-            });
+            let res;
+            if (modo === 'realizada') {
+                const dataConc = document.getElementById('ci-data').value;
+                const kmVal    = parseInt(document.getElementById('ci-km').value) || null;
+                const obs      = document.getElementById('ci-obs').value.trim();
+                if (!dataConc) { btn.disabled=false; btn.innerHTML='<i class="ph ph-check-circle"></i> Confirmar Realizada'; return alert('Informe a data da manutenção'); }
+                res = await fetch('/api/frota/manutencoes/finalizar-agendado', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                    body: JSON.stringify({
+                        veiculo_id: window._mnConcluirVid,
+                        servicos_ids: [String(window._mnConcluirItemId)],
+                        data_conclusao: dataConc,
+                        observacoes: obs,
+                        km_realizado: kmVal
+                    })
+                });
+            } else {
+                res = await fetch('/api/frota/manutencoes/' + window._mnConcluirItemId, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                    body: JSON.stringify({ status: 'cancelada' })
+                });
+            }
             if (res.ok) {
                 ov.remove();
                 const bar = document.getElementById('mn-prev-mass-actions');
                 if (bar) bar.style.display = 'none';
                 window.mnCarregarPreventivoVeiculo();
                 if (typeof window._mnRecarregarHistoricoManut === 'function') window._mnRecarregarHistoricoManut();
-                if (typeof mostrarToastAviso === 'function') mostrarToastAviso('Manutenção registrada com sucesso!');
-                else alert('Manutenção registrada com sucesso!');
+                const msg = modo === 'realizada' ? 'Manutenção registrada com sucesso!' : 'Marcada como não realizada.';
+                if (typeof mostrarToastAviso === 'function') mostrarToastAviso(msg); else alert(msg);
             } else {
                 const errData = await res.text();
                 let errMsg = 'Erro desconhecido';
                 try { errMsg = JSON.parse(errData).error || errData; } catch(ex) { errMsg = errData || 'Erro ' + res.status; }
                 alert('Erro: ' + errMsg);
                 btn.disabled = false;
-                btn.innerHTML = '<i class="ph ph-check-circle"></i> Confirmar Realizada';
+                btn.innerHTML = '<i class="ph ph-check-circle"></i> Confirmar';
             }
         } catch(e) {
             alert('Erro de conexão: ' + e.message);
             btn.disabled = false;
-            btn.innerHTML = '<i class="ph ph-check-circle"></i> Confirmar Realizada';
+            btn.innerHTML = '<i class="ph ph-check-circle"></i> Confirmar';
         }
     };
 };
+
 
 // Ao mudar a data: busca KM do veículo naquele dia via histórico
 window.mnConcluirBuscarKmData = async function(data) {
