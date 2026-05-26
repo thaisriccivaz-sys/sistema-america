@@ -198,7 +198,7 @@ window.mnFiltrarTabHistorico = function() {
             ? '<span style="background:' + cor + '22;color:' + cor + ';padding:2px 8px;border-radius:20px;font-size:0.75rem;font-weight:700;">' + m.criticidade + '</span>'
             : '—';
         const desc = (m.descricao || '—').replace(/"/g, '&quot;');
-        return '<tr style="background:' + bgRow + ';border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\\'#f0fdf4\\'" onmouseout="this.style.background=\\'' + bgRow + '\\'">' +
+        return '<tr style="background:' + bgRow + ';border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#f0fdf4\'" onmouseout="this.style.background=\'' + bgRow + '\'">' +
             '<td style="padding:10px;font-weight:700;color:#1e293b;white-space:nowrap;">' + (m.placa||'—') + '</td>' +
             '<td style="padding:10px;color:#64748b;white-space:nowrap;">' + (m.tipo_veiculo||'—') + '</td>' +
             '<td style="padding:10px;text-align:center;color:#64748b;font-weight:600;white-space:nowrap;text-transform:capitalize;">' + (m.tipo_manutencao||'—') + '</td>' +

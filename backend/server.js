@@ -11951,7 +11951,7 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
             });
 
             const plano = Object.values(porDescricao).map(({ concluida, agendada, base }) => {
-                const item = concluida || agendada || base;
+                const item = agendada || base || concluida;
                 const kmUlt = concluida ? (concluida.km_na_manutencao || 0) : 0;
                 const intervKm = item.periodicidade_padrao || 10000;
                 const alerta = Math.floor(intervKm * 0.1);
@@ -11968,8 +11968,7 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
 
                 return {
                     ...item,
-                    // Se há registro agendado, exibe status como 'agendada' na tabela
-                    status: agendada ? 'agendada' : item.status,
+                    status: agendada ? 'agendada' : 'programada',
                     km_ultima: kmUlt,
                     km_proxima: kmProx,
                     km_restante: kmRest,
@@ -11977,7 +11976,7 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                     status_item: statusItem,
                     criticidade,
                     data_ultima_manutencao: concluida?.data_conclusao || null,
-                    data_agendamento: agendada?.data_agendamento || item.data_agendamento || null
+                    data_agendamento: agendada?.data_agendamento || null
                 };
             });
 
@@ -12395,15 +12394,33 @@ app.post('/api/frota/manutencoes/agendar-selecionados', authenticateToken, async
     try {
         for (const manutencao_id of servicos_ids) {
             await new Promise((resolve, reject) => {
-                // Atualiza o registro existente para status agendada
-                db.run(
-                    `UPDATE frota_manutencoes
-                     SET status='agendada', data_agendamento=?, fornecedor=COALESCE(NULLIF(?,''), fornecedor),
-                         observacoes=COALESCE(NULLIF(?,''), observacoes), usuario_nome=?, updated_at=CURRENT_TIMESTAMP
-                     WHERE id=? AND veiculo_id=?`,
-                    [data_agendamento, fornecedor || '', observacoes || '', usuario_nome, manutencao_id, veiculo_id],
-                    (err) => { if (err) return reject(err); resolve(); }
-                );
+                db.get('SELECT * FROM frota_manutencoes WHERE id=?', [manutencao_id], (err, row) => {
+                    if (err) return reject(err);
+                    if (!row) return resolve();
+                    
+                    if (row.status === 'concluida') {
+                        db.run(
+                            `INSERT INTO frota_manutencoes (
+                                veiculo_id, tipo, descricao, status, data_agendamento, fornecedor, observacoes, 
+                                servico_catalogo_id, usuario_nome, created_at, updated_at
+                            ) VALUES (?, 'preventiva', ?, 'agendada', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                            [
+                                row.veiculo_id, row.descricao, data_agendamento, fornecedor || '', observacoes || '',
+                                row.servico_catalogo_id, usuario_nome
+                            ],
+                            (err2) => { if (err2) return reject(err2); resolve(); }
+                        );
+                    } else {
+                        db.run(
+                            `UPDATE frota_manutencoes
+                             SET status='agendada', data_agendamento=?, fornecedor=COALESCE(NULLIF(?,''), fornecedor),
+                                 observacoes=COALESCE(NULLIF(?,''), observacoes), usuario_nome=?, updated_at=CURRENT_TIMESTAMP
+                             WHERE id=?`,
+                            [data_agendamento, fornecedor || '', observacoes || '', usuario_nome, manutencao_id],
+                            (err2) => { if (err2) return reject(err2); resolve(); }
+                        );
+                    }
+                });
             });
         }
         res.json({ message: `${servicos_ids.length} manutenção(ões) agendada(s) com sucesso` });
