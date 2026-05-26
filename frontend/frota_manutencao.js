@@ -286,7 +286,7 @@ function mnRenderPlanoAgrupado(data) {
 
             const criticBadge = `<span style="background:${critCor[item.criticidade]||'#94a3b8'}22;color:${critCor[item.criticidade]||'#94a3b8'};padding:1px 7px;border-radius:20px;font-size:0.72rem;font-weight:700;">${item.criticidade||'Media'}</span>`;
 
-            const statusCor = {concluida:'#2d9e5f',agendada:'#2563eb',programada:'#7c3aed',em_andamento:'#d97706',cancelada:'#94a3b8'};
+            const statusCor = {concluida:'#2d9e5f',agendada:'#d97706',programada:'#7c3aed',em_andamento:'#d97706',cancelada:'#94a3b8'};
             const statusLbl = {concluida:'Concluída',agendada:'Agendada',programada:'Programada',em_andamento:'Em Andamento',cancelada:'Cancelada'};
             const sKey = item.status||'concluida';
             const statusBadge = `<span style="background:${statusCor[sKey]||'#94a3b8'}22;color:${statusCor[sKey]||'#94a3b8'};padding:1px 7px;border-radius:20px;font-size:0.72rem;font-weight:700;">${statusLbl[sKey]||sKey}</span>`;
@@ -433,7 +433,7 @@ window.mnSalvarKmPreventivo = async function() {
 function mnRenderCorretivaTela(sub) {
     const frota = window._manutFrota || [];
     const veicOpts = frota.map(v => `<option value="${v.id}">${v.placa}</option>`).join('');
-    const statusCor = {agendada:'#2563eb',em_andamento:'#dc2626',concluida:'#2d9e5f',cancelada:'#94a3b8'};
+    const statusCor = {agendada:'#d97706',em_andamento:'#dc2626',concluida:'#2d9e5f',cancelada:'#94a3b8'};
     const statusLbl = {agendada:'Agendada',em_andamento:'Em Andamento',concluida:'Concluída',cancelada:'Cancelada'};
     const rows = (window._manutDados||[]).filter(m => m.tipo==='corretiva');
     const makeRow = m => `<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
@@ -481,7 +481,7 @@ window.mnFiltrarCorretiva = function() {
     if (fS) rows = rows.filter(m=>m.status===fS);
     const tbody = document.getElementById('mn-corr-tbody');
     if (!tbody) return;
-    const statusCor={agendada:'#2563eb',em_andamento:'#dc2626',concluida:'#2d9e5f',cancelada:'#94a3b8'};
+    const statusCor={agendada:'#d97706',em_andamento:'#dc2626',concluida:'#2d9e5f',cancelada:'#94a3b8'};
     const statusLbl={agendada:'Agendada',em_andamento:'Em Andamento',concluida:'Concluída',cancelada:'Cancelada'};
     tbody.innerHTML = rows.length ? rows.map(m=>`<tr style="border-bottom:1px solid #f1f5f9;">
         <td style="padding:0.7rem 1rem;font-weight:700;">${m.placa||'—'}</td>
@@ -565,7 +565,7 @@ function mnRenderLista() {
         el.innerHTML = '<div style="padding:3rem;text-align:center;color:#94a3b8;"><i class="ph ph-wrench" style="font-size:2rem;"></i><br>Nenhuma manutenção encontrada.</div>';
         return;
     }
-    const statusCor = { agendada:'#2563eb', em_andamento:'#dc2626', concluida:'#2d9e5f', cancelada:'#94a3b8' };
+    const statusCor = { agendada:'#d97706', em_andamento:'#dc2626', concluida:'#2d9e5f', cancelada:'#94a3b8' };
     const statusLabel = { agendada:'Agendada', em_andamento:'Em Andamento', concluida:'Concluída', cancelada:'Cancelada' };
     const tipoCor = { preventiva:'#7c3aed', corretiva:'#d97706' };
     el.innerHTML = `<div style="overflow-x:auto;">
