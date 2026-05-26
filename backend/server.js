@@ -11968,6 +11968,8 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
 
                 return {
                     ...item,
+                    // Se há registro agendado, exibe status como 'agendada' na tabela
+                    status: agendada ? 'agendada' : item.status,
                     km_ultima: kmUlt,
                     km_proxima: kmProx,
                     km_restante: kmRest,

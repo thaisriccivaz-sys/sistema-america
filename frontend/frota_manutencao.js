@@ -617,14 +617,14 @@ window.mnModalVeiculoChanged = function() {
 // Auto-muda status para 'agendada' ao preencher data de agendamento
 window.mnModalDataAgChanged = function(input) {
     const statusSel = document.getElementById('mn-m-status');
-    if (!statusSel) return;
+    if (!statusSel || statusSel.tagName !== 'SELECT') return; // só age se for select visível
     if (input.value) {
-        // Só muda para agendada se o status atual for programada ou concluida
-        if (statusSel.value === 'programada' || statusSel.value === 'concluida') {
+        // Muda para agendada (exceto se já está em andamento ou cancelada)
+        if (statusSel.value !== 'em_andamento' && statusSel.value !== 'cancelada') {
             statusSel.value = 'agendada';
         }
     } else {
-        // Se apagou a data, volta para programada (se estava agendada)
+        // Se apagou a data, volta para programada
         if (statusSel.value === 'agendada') {
             statusSel.value = 'programada';
         }
@@ -778,11 +778,18 @@ window.salvarManutencao = async function(idEdit) {
         if (window._mnModalServicos.length === 0) return alert('Adicione pelo menos um serviço à lista');
     }
 
+    const dataAg = g('mn-m-data-ag') || null;
+    let statusFinal = g('mn-m-status') || 'programada';
+    // Se tem data de agendamento, força status agendada (exceto se já está concluída/em_andamento/cancelada)
+    if (dataAg && (statusFinal === 'programada' || statusFinal === 'concluida')) {
+        statusFinal = 'agendada';
+    }
+
     const basePayload = {
         veiculo_id: vid,
         tipo: g('mn-m-tipo'),
-        status: g('mn-m-status'),
-        data_agendamento: g('mn-m-data-ag') || null,
+        status: statusFinal,
+        data_agendamento: dataAg,
         fornecedor: g('mn-m-forn'),
         observacoes: g('mn-m-obs')
     };
