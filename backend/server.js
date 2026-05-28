@@ -8256,6 +8256,32 @@ app.post('/api/epi-fichas/:id/save-onedrive', authenticateToken, async (req, res
     }
 });
 
+// GET: todas as entregas de EPI de um colaborador (todas as fichas)
+app.get('/api/colaboradores/:id/epi-entregas', authenticateToken, (req, res) => {
+    db.all(
+        `SELECT ee.id, ee.data_entrega, ee.epis_entregues, ef.grupo
+         FROM epi_entregas ee
+         JOIN colaborador_epi_fichas ef ON ef.id = ee.ficha_id
+         WHERE ee.colaborador_id = ?
+         ORDER BY ee.data_entrega DESC, ee.id DESC`,
+        [req.params.id],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            // Expande cada entrega em linhas individuais por EPI
+            const result = [];
+            (rows || []).forEach(r => {
+                const epis = JSON.parse(r.epis_entregues || '[]');
+                if (epis.length === 0) {
+                    result.push({ id: r.id, data_entrega: r.data_entrega, epi_nome: '—', grupo: r.grupo });
+                } else {
+                    epis.forEach(nome => result.push({ id: r.id, data_entrega: r.data_entrega, epi_nome: nome, grupo: r.grupo }));
+                }
+            });
+            res.json(result);
+        }
+    );
+});
+
 app.post('/api/epi-templates', authenticateToken, (req, res) => {
     const { grupo, departamentos, epis, termo_texto, rodape_texto, categoria } = req.body;
     const cat = categoria || 'Outros';

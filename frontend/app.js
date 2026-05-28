@@ -13206,11 +13206,12 @@ async function renderFichaEpiTab(container) {
     const colabId = viewedColaborador?.id;
     if (!colabId) { container.innerHTML = '<div class="alert alert-info">Colaborador não identificado.</div>'; return; }
 
-    let fichas = [], templates = [];
+    let fichas = [], templates = [], todasEntregas = [];
     try {
-        [fichas, templates] = await Promise.all([
+        [fichas, templates, todasEntregas] = await Promise.all([
             apiGet(`/colaboradores/${colabId}/epi-fichas`),
-            apiGet('/epi-templates')
+            apiGet('/epi-templates'),
+            apiGet(`/colaboradores/${colabId}/epi-entregas`)
         ]);
     } catch (e) {
         container.innerHTML = '<div class="alert alert-danger">Erro ao carregar dados de EPI.</div>';
@@ -13247,6 +13248,63 @@ async function renderFichaEpiTab(container) {
         const d = new Date(iso);
         return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
     };
+
+    // Normaliza data de entrega (pode vir como dd/mm/yyyy ou yyyy-mm-dd)
+    const parseDateEntrega = str => {
+        if (!str) return null;
+        if (str.includes('/')) {
+            const [d, m, y] = str.split('/');
+            return new Date(y, m - 1, d);
+        }
+        return new Date(str + 'T12:00:00');
+    };
+
+    // Monta tabela de histórico de entregas
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    let tabelaHtml = '';
+    if (todasEntregas && todasEntregas.length > 0) {
+        const linhas = todasEntregas.map(e => {
+            const dataObj = parseDateEntrega(e.data_entrega);
+            const diasAtras = dataObj ? Math.floor((hoje - dataObj) / (1000 * 60 * 60 * 24)) : null;
+            const recente = diasAtras !== null && diasAtras <= 15;
+            return `
+                <tr style="border-bottom:1px solid #f1f5f9;${recente ? 'background:#fffbeb;' : ''}">
+                    <td style="padding:0.55rem 0.85rem;font-size:0.85rem;color:#334155;white-space:nowrap;">
+                        ${e.data_entrega || '—'}
+                        ${recente ? '<span style="margin-left:6px;background:#fef3c7;color:#92400e;font-size:0.7rem;font-weight:700;padding:1px 7px;border-radius:999px;border:1px solid #fcd34d;">recente</span>' : ''}
+                    </td>
+                    <td style="padding:0.55rem 0.85rem;font-size:0.85rem;color:#0f172a;font-weight:500;">${e.epi_nome || '—'}</td>
+                    <td style="padding:0.55rem 0.85rem;font-size:0.8rem;color:#64748b;">${e.grupo || '—'}</td>
+                </tr>`;
+        }).join('');
+
+        tabelaHtml = `
+        <div style="margin-top:2rem;">
+            <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.85rem;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;">
+                <i class="ph ph-list-bullets" style="color:#3b82f6;font-size:1.15rem;"></i>
+                <h4 style="margin:0;font-size:0.97rem;font-weight:700;color:#0f172a;">Histórico de EPIs Entregues</h4>
+                <span style="background:#3b82f6;color:#fff;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:999px;">${todasEntregas.length} registro${todasEntregas.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f8fafc;">
+                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;white-space:nowrap;">Data de Entrega</th>
+                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">EPI</th>
+                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">Grupo/Ficha</th>
+                        </tr>
+                    </thead>
+                    <tbody>${linhas}</tbody>
+                </table>
+            </div>
+        </div>`;
+    } else {
+        tabelaHtml = `
+        <div style="margin-top:2rem;padding:1.25rem;background:#f8fafc;border:1.5px dashed #e2e8f0;border-radius:10px;text-align:center;color:#94a3b8;font-size:0.88rem;">
+            <i class="ph ph-package" style="font-size:2rem;display:block;margin-bottom:0.4rem;"></i>
+            Nenhum EPI entregue registrado para este colaborador.
+        </div>`;
+    }
 
     container.innerHTML = `
         <div style="margin-bottom:1.25rem;">
@@ -13587,6 +13645,32 @@ window._assinNextStep = async function () {
             const warn = document.getElementById('epi-assin-warn');
             if (warn) warn.style.display = '';
             return;
+        }
+
+        // Verifica EPIs entregues há menos de 15 dias
+        const itensParaEntrega = window._buildItensFromQtds ? window._buildItensFromQtds() : (window._assinItens || []);
+        const todasEntregas = window._epiProntuarioData?.todasEntregas || [];
+        const hoje15 = new Date(); hoje15.setHours(0, 0, 0, 0);
+        const parseDt = str => {
+            if (!str) return null;
+            if (str.includes('/')) { const [d, m, y] = str.split('/'); return new Date(y, m - 1, d); }
+            return new Date(str + 'T12:00:00');
+        };
+        const avisosEpi = [];
+        const nomesUnicos = [...new Set(itensParaEntrega)];
+        nomesUnicos.forEach(nomeEpi => {
+            const entregaAnterior = todasEntregas.find(e => e.epi_nome === nomeEpi);
+            if (entregaAnterior) {
+                const dataAnterior = parseDt(entregaAnterior.data_entrega);
+                if (dataAnterior) {
+                    const dias = Math.floor((hoje15 - dataAnterior) / (1000 * 60 * 60 * 24));
+                    if (dias <= 15) avisosEpi.push({ nome: nomeEpi, dias, data: entregaAnterior.data_entrega });
+                }
+            }
+        });
+        if (avisosEpi.length > 0) {
+            const linhasAviso = avisosEpi.map(a => `• ${a.nome} — entregue em ${a.data} (há ${a.dias} dia${a.dias !== 1 ? 's' : ''})`).join('\n');
+            alert(`⚠️ Atenção!\n\nO(s) EPI(s) abaixo foram entregues há menos de 15 dias para este colaborador:\n\n${linhasAviso}\n\nO registro será feito normalmente.`);
         }
 
         // Captura assinatura
