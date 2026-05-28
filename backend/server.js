@@ -8179,6 +8179,36 @@ app.post('/api/colaboradores/:id/epi-fichas', authenticateToken, (req, res) => {
     );
 });
 
+// POST: fechar todas as fichas abertas no sistema
+app.post('/api/epi-fichas/fechar-todas', authenticateToken, (req, res) => {
+    db.run(
+        `UPDATE colaborador_epi_fichas SET status='fechada', fechada_em=CURRENT_TIMESTAMP, motivo_fechamento='Fechamento em massa via suporte' WHERE status='ativa'`,
+        [],
+        function (err) {
+            if (err) return res.status(500).json({ error: 'Erro ao fechar fichas de EPI.' });
+            res.json({ message: 'Todas as fichas foram fechadas com sucesso', affectedRows: this.changes });
+        }
+    );
+});
+
+// DELETE: excluir todas as fichas fechadas no sistema (requer senha)
+app.delete('/api/epi-fichas/excluir-fechadas', authenticateToken, (req, res) => {
+    const { senha } = req.body;
+    if (senha !== 'EXEPI2499!') {
+        return res.status(403).json({ error: 'Senha incorreta.' });
+    }
+    
+    // Deleta as fichas fechadas
+    db.run(
+        `DELETE FROM colaborador_epi_fichas WHERE status='fechada'`,
+        [],
+        function (err) {
+            if (err) return res.status(500).json({ error: 'Erro ao excluir fichas fechadas.' });
+            res.json({ message: 'Fichas fechadas excluídas com sucesso.', affectedRows: this.changes });
+        }
+    );
+});
+
 // PATCH: atualizar linhas_usadas de uma ficha (quando gera novo PDF / entrega mais EPIs)
 app.patch('/api/epi-fichas/:id/linhas', authenticateToken, (req, res) => {
     const { linhas_usadas } = req.body;
