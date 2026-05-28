@@ -1996,3 +1996,388 @@ window._mnMontarDrawerHistoricoManut = function() {
 };
 
 })();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AÇÕES DA TABELA DE MANUTENÇÕES PREVENTIVAS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Utilitário: pega token */
+function _mnGetTok() {
+    return window._manutTok || window.currentToken || localStorage.getItem('token');
+}
+
+/** Utilitário: recarrega o plano do veículo atual */
+function _mnRecarregarPlano() {
+    if (typeof window.mnCarregarPreventivoVeiculo === 'function') {
+        window.mnCarregarPreventivoVeiculo();
+    }
+}
+
+/** Utilitário: mostra toast rápido */
+function _mnToast(msg, tipo) {
+    if (typeof window.showToast === 'function') { window.showToast(msg, tipo || 'success'); return; }
+    // fallback simples
+    const t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:99999;
+        background:${tipo==='error'?'#dc2626':'#16a34a'};color:#fff;
+        padding:10px 18px;border-radius:8px;font-size:0.88rem;font-weight:600;
+        box-shadow:0 4px 16px rgba(0,0,0,.2);transition:opacity .4s;`;
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.remove(),400); }, 2800);
+}
+
+// ── INICIAR MANUTENÇÃO (individual) ──────────────────────────────────────────
+window.mnIniciarManutencao = async function(id, nome) {
+    if (!confirm(`Deseja iniciar a manutenção:\n"${nome}"?\n\nO veículo será marcado como Em Manutenção.`)) return;
+
+    // popup para selecionar data de início
+    const dataHoje = new Date().toISOString().slice(0, 10);
+    const modal = document.createElement('div');
+    modal.id = 'mn-modal-iniciar';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:14px;padding:1.5rem 1.75rem;min-width:320px;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+            <h3 style="margin:0 0 1rem;color:#1e293b;font-size:1.05rem;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-play-circle" style="color:#d97706;font-size:1.3rem;"></i>
+                Iniciar Manutenção
+            </h3>
+            <p style="margin:0 0 1rem;font-size:0.88rem;color:#475569;">
+                <strong>${nome}</strong>
+            </p>
+            <label style="font-size:0.82rem;font-weight:600;color:#64748b;">Data de Início</label>
+            <input id="mn-ini-data" type="date" value="${dataHoje}"
+                style="width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;">
+            <div style="display:flex;gap:8px;margin-top:1.2rem;justify-content:flex-end;">
+                <button onclick="document.getElementById('mn-modal-iniciar').remove()"
+                    style="padding:7px 18px;border:1.5px solid #e2e8f0;background:#fff;border-radius:8px;font-size:0.85rem;cursor:pointer;color:#64748b;">
+                    Cancelar
+                </button>
+                <button id="mn-ini-confirmar"
+                    style="padding:7px 18px;background:#d97706;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-play"></i> Iniciar
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+
+    document.getElementById('mn-ini-confirmar').onclick = async function() {
+        const dataInicio = document.getElementById('mn-ini-data')?.value || dataHoje;
+        this.disabled = true;
+        this.innerHTML = '<i class="ph ph-spinner"></i> Salvando...';
+        try {
+            const tok = _mnGetTok();
+            const res = await fetch(`/api/frota/manutencoes/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                body: JSON.stringify({ status: 'em_andamento', data_inicio: dataInicio })
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json.error || 'Erro ao iniciar manutenção');
+            modal.remove();
+            _mnToast('✅ Manutenção iniciada! Veículo marcado como Em Manutenção.', 'success');
+            _mnRecarregarPlano();
+        } catch (e) {
+            _mnToast(e.message, 'error');
+            this.disabled = false;
+            this.innerHTML = '<i class="ph ph-play"></i> Iniciar';
+        }
+    };
+};
+
+// ── INICIAR SELECIONADOS (em massa) ──────────────────────────────────────────
+window.mnIniciarSelecionados = async function() {
+    const cbs = Array.from(document.querySelectorAll('.mn-prev-cb:checked'));
+    if (!cbs.length) { _mnToast('Selecione ao menos um item.', 'error'); return; }
+
+    const nomes = cbs.map(cb => cb.dataset.nome).join('\n• ');
+    if (!confirm(`Deseja iniciar ${cbs.length} manutenção(ões)?\n\n• ${nomes}\n\nOs veículos serão marcados como Em Manutenção.`)) return;
+
+    const dataHoje = new Date().toISOString().slice(0, 10);
+    const tok = _mnGetTok();
+    let erros = 0;
+
+    await Promise.all(cbs.map(async cb => {
+        try {
+            const res = await fetch(`/api/frota/manutencoes/${cb.dataset.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                body: JSON.stringify({ status: 'em_andamento', data_inicio: dataHoje })
+            });
+            if (!res.ok) erros++;
+        } catch { erros++; }
+    }));
+
+    if (erros > 0) _mnToast(`${cbs.length - erros} iniciada(s), ${erros} com erro.`, erros === cbs.length ? 'error' : 'success');
+    else _mnToast(`✅ ${cbs.length} manutenção(ões) iniciada(s)!`, 'success');
+    _mnRecarregarPlano();
+};
+
+// ── CONCLUIR INDIVIDUAL ───────────────────────────────────────────────────────
+window.mnConcluirIndividual = function(id, nome) {
+    const vid = document.getElementById('mn-prev-veiculo')?.value || '';
+    const veiculo = (window._manutFrota || []).find(v => v.id == vid);
+    const kmAtual = veiculo?.km_atual || '';
+    const dataHoje = new Date().toISOString().slice(0, 10);
+
+    const modal = document.createElement('div');
+    modal.id = 'mn-modal-concluir';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:14px;padding:1.5rem 1.75rem;min-width:340px;max-width:460px;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+            <h3 style="margin:0 0 1rem;color:#1e293b;font-size:1.05rem;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-check-circle" style="color:#16a34a;font-size:1.3rem;"></i>
+                Registrar Manutenção Realizada
+            </h3>
+            <p style="margin:0 0 1rem;font-size:0.88rem;color:#475569;"><strong>${nome}</strong></p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div>
+                    <label style="font-size:0.8rem;font-weight:600;color:#64748b;">Data Realizada</label>
+                    <input id="mn-conc-data" type="date" value="${dataHoje}"
+                        style="width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.88rem;outline:none;">
+                </div>
+                <div>
+                    <label style="font-size:0.8rem;font-weight:600;color:#64748b;">KM na Manutenção</label>
+                    <input id="mn-conc-km" type="number" value="${kmAtual}" placeholder="Ex: 45000"
+                        style="width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.88rem;outline:none;">
+                </div>
+                <div>
+                    <label style="font-size:0.8rem;font-weight:600;color:#64748b;">Custo (R$)</label>
+                    <input id="mn-conc-custo" type="number" step="0.01" placeholder="Ex: 350.00"
+                        style="width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.88rem;outline:none;">
+                </div>
+                <div>
+                    <label style="font-size:0.8rem;font-weight:600;color:#64748b;">Fornecedor</label>
+                    <input id="mn-conc-forn" type="text" placeholder="Ex: Auto Peças Silva"
+                        style="width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.88rem;outline:none;">
+                </div>
+            </div>
+            <div style="margin-top:10px;">
+                <label style="font-size:0.8rem;font-weight:600;color:#64748b;">Observações</label>
+                <textarea id="mn-conc-obs" rows="2" placeholder="Observações opcionais..."
+                    style="width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.88rem;outline:none;resize:vertical;"></textarea>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:1.2rem;justify-content:flex-end;">
+                <button onclick="document.getElementById('mn-modal-concluir').remove()"
+                    style="padding:7px 18px;border:1.5px solid #e2e8f0;background:#fff;border-radius:8px;font-size:0.85rem;cursor:pointer;color:#64748b;">
+                    Cancelar
+                </button>
+                <button id="mn-conc-confirmar"
+                    style="padding:7px 18px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-check-circle"></i> Concluir
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+
+    document.getElementById('mn-conc-confirmar').onclick = async function() {
+        const data_conclusao = document.getElementById('mn-conc-data')?.value;
+        const km = document.getElementById('mn-conc-km')?.value;
+        const custo = document.getElementById('mn-conc-custo')?.value;
+        const fornecedor = document.getElementById('mn-conc-forn')?.value;
+        const observacoes = document.getElementById('mn-conc-obs')?.value;
+
+        this.disabled = true;
+        this.innerHTML = '<i class="ph ph-spinner"></i> Salvando...';
+        try {
+            const tok = _mnGetTok();
+            const res = await fetch(`/api/frota/manutencoes/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                body: JSON.stringify({
+                    status: 'concluida',
+                    data_conclusao: data_conclusao || null,
+                    km_na_manutencao: km ? parseInt(km) : null,
+                    custo: custo ? parseFloat(custo) : null,
+                    fornecedor: fornecedor || null,
+                    observacoes: observacoes || null
+                })
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json.error || 'Erro ao concluir manutenção');
+            modal.remove();
+            _mnToast('✅ Manutenção registrada como concluída!', 'success');
+            _mnRecarregarPlano();
+        } catch (e) {
+            _mnToast(e.message, 'error');
+            this.disabled = false;
+            this.innerHTML = '<i class="ph ph-check-circle"></i> Concluir';
+        }
+    };
+};
+
+// ── AGENDAR INDIVIDUAL ────────────────────────────────────────────────────────
+window.mnAgendarIndividual = function(id, nome) {
+    const dataHoje = new Date().toISOString().slice(0, 10);
+
+    const modal = document.createElement('div');
+    modal.id = 'mn-modal-agendar';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:14px;padding:1.5rem 1.75rem;min-width:320px;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+            <h3 style="margin:0 0 1rem;color:#1e293b;font-size:1.05rem;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-calendar-plus" style="color:#7c3aed;font-size:1.3rem;"></i>
+                Agendar Manutenção
+            </h3>
+            <p style="margin:0 0 1rem;font-size:0.88rem;color:#475569;"><strong>${nome}</strong></p>
+            <label style="font-size:0.82rem;font-weight:600;color:#64748b;">Data Agendada</label>
+            <input id="mn-age-data" type="date" value="${dataHoje}"
+                style="width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;">
+            <label style="font-size:0.82rem;font-weight:600;color:#64748b;display:block;margin-top:10px;">Observações</label>
+            <textarea id="mn-age-obs" rows="2" placeholder="Observações opcionais..."
+                style="width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.88rem;outline:none;resize:vertical;"></textarea>
+            <div style="display:flex;gap:8px;margin-top:1.2rem;justify-content:flex-end;">
+                <button onclick="document.getElementById('mn-modal-agendar').remove()"
+                    style="padding:7px 18px;border:1.5px solid #e2e8f0;background:#fff;border-radius:8px;font-size:0.85rem;cursor:pointer;color:#64748b;">
+                    Cancelar
+                </button>
+                <button id="mn-age-confirmar"
+                    style="padding:7px 18px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-calendar-plus"></i> Agendar
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+
+    document.getElementById('mn-age-confirmar').onclick = async function() {
+        const data_agendamento = document.getElementById('mn-age-data')?.value;
+        const observacoes = document.getElementById('mn-age-obs')?.value;
+        if (!data_agendamento) { _mnToast('Informe a data.', 'error'); return; }
+
+        this.disabled = true;
+        this.innerHTML = '<i class="ph ph-spinner"></i> Salvando...';
+        try {
+            const tok = _mnGetTok();
+            const res = await fetch(`/api/frota/manutencoes/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                body: JSON.stringify({ status: 'agendada', data_agendamento, observacoes: observacoes || null })
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json.error || 'Erro ao agendar');
+            modal.remove();
+            _mnToast('✅ Manutenção agendada!', 'success');
+            _mnRecarregarPlano();
+        } catch (e) {
+            _mnToast(e.message, 'error');
+            this.disabled = false;
+            this.innerHTML = '<i class="ph ph-calendar-plus"></i> Agendar';
+        }
+    };
+};
+
+// ── AGENDAR SELECIONADOS ──────────────────────────────────────────────────────
+window.mnAgendarSelecionados = function() {
+    const cbs = Array.from(document.querySelectorAll('.mn-prev-cb:checked'));
+    if (!cbs.length) { _mnToast('Selecione ao menos um item.', 'error'); return; }
+
+    const dataHoje = new Date().toISOString().slice(0, 10);
+    const modal = document.createElement('div');
+    modal.id = 'mn-modal-agendar-sel';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:14px;padding:1.5rem 1.75rem;min-width:320px;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+            <h3 style="margin:0 0 0.75rem;color:#1e293b;font-size:1.05rem;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-calendar-plus" style="color:#7c3aed;font-size:1.3rem;"></i>
+                Agendar ${cbs.length} Manutenção(ões)
+            </h3>
+            <label style="font-size:0.82rem;font-weight:600;color:#64748b;">Data de Agendamento</label>
+            <input id="mn-agsel-data" type="date" value="${dataHoje}"
+                style="width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;">
+            <div style="display:flex;gap:8px;margin-top:1.2rem;justify-content:flex-end;">
+                <button onclick="document.getElementById('mn-modal-agendar-sel').remove()"
+                    style="padding:7px 18px;border:1.5px solid #e2e8f0;background:#fff;border-radius:8px;font-size:0.85rem;cursor:pointer;color:#64748b;">
+                    Cancelar
+                </button>
+                <button id="mn-agsel-confirmar"
+                    style="padding:7px 18px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;">
+                    Confirmar
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+
+    document.getElementById('mn-agsel-confirmar').onclick = async function() {
+        const data_agendamento = document.getElementById('mn-agsel-data')?.value;
+        if (!data_agendamento) { _mnToast('Informe a data.', 'error'); return; }
+        this.disabled = true;
+        this.textContent = 'Salvando...';
+        const tok = _mnGetTok();
+        let erros = 0;
+        await Promise.all(cbs.map(async cb => {
+            try {
+                const r = await fetch(`/api/frota/manutencoes/${cb.dataset.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                    body: JSON.stringify({ status: 'agendada', data_agendamento })
+                });
+                if (!r.ok) erros++;
+            } catch { erros++; }
+        }));
+        modal.remove();
+        _mnToast(erros ? `${cbs.length - erros} agendada(s), ${erros} com erro.` : `✅ ${cbs.length} agendada(s)!`, erros ? 'error' : 'success');
+        _mnRecarregarPlano();
+    };
+};
+
+// ── FINALIZAR AGENDADO (selecionados) ─────────────────────────────────────────
+window.mnFinalizarAgendado = async function() {
+    const cbs = Array.from(document.querySelectorAll('.mn-prev-cb:checked'));
+    if (!cbs.length) { _mnToast('Selecione ao menos um item.', 'error'); return; }
+
+    const nomes = cbs.map(cb => cb.dataset.nome).join('\n• ');
+    if (!confirm(`Deseja marcar como CONCLUÍDA(s) ${cbs.length} manutenção(ões)?\n\n• ${nomes}`)) return;
+
+    const dataHoje = new Date().toISOString().slice(0, 10);
+    const tok = _mnGetTok();
+    let erros = 0;
+    await Promise.all(cbs.map(async cb => {
+        try {
+            const r = await fetch(`/api/frota/manutencoes/${cb.dataset.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                body: JSON.stringify({ status: 'concluida', data_conclusao: dataHoje })
+            });
+            if (!r.ok) erros++;
+        } catch { erros++; }
+    }));
+    _mnToast(erros ? `${cbs.length - erros} concluída(s), ${erros} com erro.` : `✅ ${cbs.length} marcada(s) como concluída!`, erros ? 'error' : 'success');
+    _mnRecarregarPlano();
+};
+
+// ── EXCLUIR SELECIONADOS ──────────────────────────────────────────────────────
+window.mnExcluirSelecionados = async function() {
+    const cbs = Array.from(document.querySelectorAll('.mn-prev-cb:checked'));
+    if (!cbs.length) { _mnToast('Selecione ao menos um item.', 'error'); return; }
+
+    const nomes = cbs.map(cb => cb.dataset.nome).join('\n• ');
+    if (!confirm(`Deseja EXCLUIR ${cbs.length} manutenção(ões)?\n\n• ${nomes}\n\nEsta ação não pode ser desfeita.`)) return;
+
+    const tok = _mnGetTok();
+    let erros = 0;
+    await Promise.all(cbs.map(async cb => {
+        try {
+            const r = await fetch(`/api/frota/manutencoes/${cb.dataset.id}`, {
+                method: 'DELETE',
+                headers: { Authorization: 'Bearer ' + tok }
+            });
+            if (!r.ok) erros++;
+        } catch { erros++; }
+    }));
+    _mnToast(erros ? `${cbs.length - erros} excluída(s), ${erros} com erro.` : `✅ ${cbs.length} excluída(s)!`, erros ? 'error' : 'success');
+    _mnRecarregarPlano();
+};
+
+// ── CONTROLE DE CHECKBOXES ────────────────────────────────────────────────────
+window.mnPrevCbChanged = function() {
+    const total = document.querySelectorAll('.mn-prev-cb:checked').length;
+    const bar = document.getElementById('mn-prev-mass-actions');
+    const cnt = document.getElementById('mn-prev-sel-count');
+    if (bar) bar.style.display = total > 0 ? 'flex' : 'none';
+    if (cnt) cnt.textContent = total;
+};
+
+window.mnPrevToggleCat = function(masterCb, catKey) {
+    document.querySelectorAll(`.mn-prev-cb-cat-${catKey}`).forEach(cb => { cb.checked = masterCb.checked; });
+    window.mnPrevCbChanged();
+};
