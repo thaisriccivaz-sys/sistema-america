@@ -8369,6 +8369,9 @@ app.post('/api/epi-templates', authenticateToken, (req, res) => {
 app.delete('/api/epi-templates/:id', authenticateToken, (req, res) => {
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     db.get('SELECT grupo FROM epi_templates WHERE id=?', [req.params.id], (err, row) => {
+        if (row && row.grupo) {
+            db.run('INSERT OR IGNORE INTO epi_templates_excluidos (grupo) VALUES (?)', [row.grupo]);
+        }
         db.run('DELETE FROM epi_templates WHERE id=?', [req.params.id], function (err2) {
             if (err2) return res.status(500).json({ error: err2.message });
             if (row) {
@@ -8378,6 +8381,7 @@ app.delete('/api/epi-templates/:id', authenticateToken, (req, res) => {
             res.json({ success: true });
         });
     });
+
 });
 
 

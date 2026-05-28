@@ -648,11 +648,18 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     { grupo: 'Manutenção', categoria: 'Operacional', departamentos_json: JSON.stringify(['Manutenção']), epis_json: EPI_A3, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
                     { grupo: 'Limpeza', categoria: 'Operacional', departamentos_json: JSON.stringify(['Limpeza']), epis_json: EPI_A4, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO }
                 ];
-                // INSERT OR IGNORE: só insere templates que não existem ainda (nunca destrói existentes)
-                newSeeds.forEach(s => {
-                    db.run('INSERT OR IGNORE INTO epi_templates (grupo, categoria, departamentos_json, epis_json, termo_texto, rodape_texto) VALUES (?,?,?,?,?,?)',
-                        [s.grupo, s.categoria, s.departamentos_json, s.epis_json, s.termo_texto, s.rodape_texto],
-                        (e) => { if (e) console.error('[EPI seed] Erro:', s.grupo, e.message); });
+                // Cria tabela de templates excluídos para não recriar templates que foram apagados
+                db.run('CREATE TABLE IF NOT EXISTS epi_templates_excluidos (grupo TEXT PRIMARY KEY)', () => {
+                    // INSERT OR IGNORE: só insere templates que não existem ainda (nunca destrói existentes e ignora excluídos)
+                    newSeeds.forEach(s => {
+                        db.get('SELECT 1 FROM epi_templates_excluidos WHERE grupo = ?', [s.grupo], (errExc, rowExc) => {
+                            if (!rowExc) {
+                                db.run('INSERT OR IGNORE INTO epi_templates (grupo, categoria, departamentos_json, epis_json, termo_texto, rodape_texto) VALUES (?,?,?,?,?,?)',
+                                    [s.grupo, s.categoria, s.departamentos_json, s.epis_json, s.termo_texto, s.rodape_texto],
+                                    (e) => { if (e) console.error('[EPI seed] Erro:', s.grupo, e.message); });
+                            }
+                        });
+                    });
                 });
 
                 // Após o seed, garantir que Manutenção tem o 14º item e tem a categoria correta
