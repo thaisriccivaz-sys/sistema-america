@@ -838,3 +838,29 @@ window.gerarDocEpi = function gerarDocEpi(template, colab, jsPDF, linhasFilled) 
 
     return doc;
 }
+
+// ============================================================
+// AÇÕES EM MASSA
+// ============================================================
+window.fecharTodasFichasEpi = async function() {
+    if (!confirm('Tem certeza que deseja fechar TODAS as fichas de EPI ativas no sistema?')) return;
+    try {
+        const res = await fetch(`${API_URL}/epi-fichas/fechar-todas`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}` } });
+        if (!res.ok) throw new Error('Erro ao fechar fichas');
+        alert('Todas as fichas foram fechadas com sucesso!');
+        await loadEpiTemplates();
+    } catch(e) { alert(e.message); }
+};
+
+window.excluirFichasEpiFechadas = async function() {
+    const senha = prompt('Digite a senha para autorizar a exclusão de TODAS as fichas fechadas:');
+    if (!senha) return;
+    if (senha !== 'EXEPI2499!') return alert('Senha incorreta.');
+    if (!confirm('ATENÇÃO: Esta ação é irreversível e excluirá todas as fichas fechadas do sistema. Deseja continuar?')) return;
+    try {
+        const res = await fetch(`${API_URL}/epi-fichas/excluir-fechadas`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ senha }) });
+        if (!res.ok) throw new Error('Erro ao excluir fichas fechadas');
+        alert('Fichas fechadas excluídas com sucesso!');
+        await loadEpiTemplates();
+    } catch(e) { alert(e.message); }
+};
