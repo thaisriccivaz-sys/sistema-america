@@ -13353,9 +13353,11 @@ async function renderFichaEpiTab(container) {
             </div>
             `).join('')}
         </div>
+
+        ${tabelaHtml}
     `;
 
-    window._epiProntuarioData = { fichas, templates, fichaAtiva, colabId, templateDoColab };
+    window._epiProntuarioData = { fichas, templates, fichaAtiva, colabId, templateDoColab, todasEntregas };
 }
 
 // ============================================================
