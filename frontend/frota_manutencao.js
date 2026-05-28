@@ -464,7 +464,7 @@ function mnRenderPlanoAgrupado(data) {
                     <div style="display:flex;align-items:center;gap:6px;">
                         <i class="ph ph-${icone}" style="color:${cor};font-size:1rem;"></i>
                         <span style="font-weight:600;color:#1e293b;font-size:0.85rem;">${nome}</span>
-                        ${item.observacoes ? `<i class="ph ph-note" style="color:#d97706;cursor:pointer;font-size:1rem;flex-shrink:0;" title="${item.observacoes.replace(/"/g,'&quot;')}" onclick="alert('Anotação:\\n\\n${item.observacoes.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')"></i>` : ''}
+                        ${item.observacoes_concluida ? `<i class="ph ph-note" style="color:#0284c7;cursor:pointer;font-size:1rem;flex-shrink:0;" title="${item.observacoes_concluida.replace(/"/g,'&quot;')}" onclick="alert('Anotação da última manutenção:\\n\\n${item.observacoes_concluida.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')"></i>` : ''}
                     </div>
                 </td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${criticBadge}</td>
