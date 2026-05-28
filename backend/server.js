@@ -11997,7 +11997,7 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
             const porDescricao = {};
             (rows || []).forEach(r => {
                 const key = r.servico_catalogo_id ? `cat_${r.servico_catalogo_id}` : `desc_${r.descricao || r.id}`;
-                if (!porDescricao[key]) porDescricao[key] = { concluida: null, agendada: null, base: null };
+                if (!porDescricao[key]) porDescricao[key] = { concluida: null, agendada: null, em_andamento: null, base: null };
 
                 // O registro com maior KM = última manutenção concluída
                 if (r.status === 'concluida') {
@@ -12009,12 +12009,16 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                 if (r.status === 'agendada') {
                     if (!porDescricao[key].agendada) porDescricao[key].agendada = r;
                 }
+                // Em andamento
+                if (r.status === 'em_andamento') {
+                    if (!porDescricao[key].em_andamento) porDescricao[key].em_andamento = r;
+                }
                 // Fallback: qualquer registro como base
                 if (!porDescricao[key].base) porDescricao[key].base = r;
             });
 
-            const plano = Object.values(porDescricao).map(({ concluida, agendada, base }) => {
-                const item = agendada || base || concluida;
+            const plano = Object.values(porDescricao).map(({ concluida, agendada, em_andamento, base }) => {
+                const item = em_andamento || agendada || base || concluida;
                 const kmUlt = concluida ? (concluida.km_na_manutencao || 0) : 0;
                 const intervKm = item.periodicidade_padrao || 10000;
                 const alerta = Math.floor(intervKm * 0.1);
@@ -12032,10 +12036,7 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                 else if (kmRest <= intervKm * 0.1) { statusItem = 'proxima'; criticidade = 'Critica'; }
                 else if (kmRest <= intervKm * 0.2) { statusItem = 'ok'; criticidade = 'Media'; }
 
-                // em_andamento tem prioridade sobre agendada para exibição de status
-                const andamento = Object.values(porDescricao).length ? null : null; // placeholder
-                const emAndamentoItem = [concluida, agendada, base].find(r => r && r.status === 'em_andamento');
-                const statusFinal = emAndamentoItem ? 'em_andamento' : (agendada ? 'agendada' : 'programada');
+                const statusFinal = em_andamento ? 'em_andamento' : (agendada ? 'agendada' : 'programada');
                 return {
                     ...item,
                     status: statusFinal,
@@ -12046,10 +12047,11 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                     status_item: statusItem,
                     criticidade,
                     data_ultima_manutencao: concluida?.data_conclusao || null,
-                    data_agendamento: agendada?.data_agendamento || null,
-                    data_inicio: emAndamentoItem?.data_inicio || agendada?.data_inicio || null,
+                    data_agendamento: agendada?.data_agendamento || em_andamento?.data_agendamento || null,
+                    data_inicio: em_andamento?.data_inicio || agendada?.data_inicio || null,
                     observacoes_concluida: concluida?.observacoes || null,
-                    observacoes_agendada: agendada?.observacoes || null
+                    observacoes_agendada: agendada?.observacoes || em_andamento?.observacoes || null,
+                    observacoes: item.observacoes || null
                 };
             });
 

@@ -378,9 +378,6 @@ function mnRenderPreventivaTela(sub) {
             <span style="font-size:0.85rem;color:#64748b;font-weight:600;">KM atual:</span>
             <span id="mn-prev-km-label" style="font-size:0.82rem;color:#64748b;font-weight:700;"></span>
         </div>
-        <button onclick="window.abrirModalManutencaoPreventiva()" style="background:#d97706;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:600;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:6px;margin-left:auto;">
-            <i class="ph ph-plus"></i> Registrar Revisão
-        </button>
     </div>
     <div id="mn-prev-plano"><div style="padding:3rem;text-align:center;color:#94a3b8;">Selecione um ve\u00edculo para ver o plano preventivo.</div></div>`;
 }
@@ -467,6 +464,7 @@ function mnRenderPlanoAgrupado(data) {
                     <div style="display:flex;align-items:center;gap:6px;">
                         <i class="ph ph-${icone}" style="color:${cor};font-size:1rem;"></i>
                         <span style="font-weight:600;color:#1e293b;font-size:0.85rem;">${nome}</span>
+                        ${item.observacoes ? `<i class="ph ph-note" style="color:#d97706;cursor:pointer;font-size:1rem;flex-shrink:0;" title="${item.observacoes.replace(/"/g,'&quot;')}" onclick="alert('Anotação:\\n\\n${item.observacoes.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')"></i>` : ''}
                     </div>
                 </td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${criticBadge}</td>
@@ -476,20 +474,14 @@ function mnRenderPlanoAgrupado(data) {
                 <td style="padding:0.6rem 0.9rem;text-align:center;font-size:0.82rem;">${kmProxTxt}</td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${kmRestTxt}</td>
                 <td style="padding:0.6rem 0.5rem;text-align:center;">
-                    <div style="display:flex;gap:4px;justify-content:center;">
+                    <div style="display:flex;gap:4px;justify-content:center;align-items:center;">
                         ${item.status === 'em_andamento'
-                            ? `<button title="Em Andamento — clique para concluir" onclick="window.mnConcluirIndividual(${item.id}, '${nomeSafe}')" style="background:#16a34a;color:#fff;border:none;border-radius:6px;padding:0 8px;height:28px;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:0.7rem;font-weight:700;"><i class="ph ph-check-circle"></i> Em Andamento</button>`
-                            : `<button onclick="window.mnIniciarManutencao(${item.id}, '${nomeSafe}')" style="background:#d97706;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Iniciar Manutenção"><i class="ph ph-play"></i></button>`
+                            ? `<button title="Finalizar manutenção" onclick="window.mnConcluirIndividual(${item.id}, '${nomeSafe}')" style="background:#16a34a;color:#fff;border:none;border-radius:6px;padding:0 10px;height:28px;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle"></i> Finalizar</button>`
+                            : item.status === 'agendada'
+                                ? `<button onclick="window.mnIniciarManutencao(${item.id}, '${nomeSafe}')" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:0 10px;height:28px;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;white-space:nowrap;" title="Iniciar Manutenção"><i class="ph ph-play"></i> Iniciar</button>`
+                                : `<button onclick="window.mnAgendarIndividual(${item.id}, '${nomeSafe}')" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:0 10px;height:28px;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;white-space:nowrap;" title="Agendar"><i class="ph ph-calendar-plus"></i> Agendar</button>`
                         }
-                        <button onclick="window.mnConcluirIndividual(${item.id}, '${nomeSafe}')"
-                            style="background:#16a34a;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Registrar manutenção realizada">
-                            <i class="ph ph-check-circle"></i>
-                        </button>
-                        <button onclick="window.mnAgendarIndividual(${item.id}, '${nomeSafe}')"
-                            style="background:#7c3aed;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Agendar próxima">
-                            <i class="ph ph-calendar-plus"></i>
-                        </button>
-                        <button onclick="window.mnEditarRapido(${item.id}, '${nomeSafe}', ${item.intervalo_configurado || item.periodicidade_padrao || 0}, '${(item.observacoes||'').replace(/'/g,"\\'")}', ${item.km_ultima || 0})" 
+                        <button onclick="window.mnEditarRapido(${item.id}, '${nomeSafe}', ${item.intervalo_configurado || item.periodicidade_padrao || 0}, '${(item.observacoes||'').replace(/'/g,"\\'")}', ${item.km_ultima || 0})"
                             style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Editar intervalo e observação">
                             <i class="ph ph-pencil"></i>
                         </button>
@@ -2029,8 +2021,6 @@ function _mnToast(msg, tipo) {
 
 // ── INICIAR MANUTENÇÃO (individual) ──────────────────────────────────────────
 window.mnIniciarManutencao = async function(id, nome) {
-    if (!confirm(`Deseja iniciar a manutenção:\n"${nome}"?\n\nO veículo será marcado como Em Manutenção.`)) return;
-
     // popup para selecionar data de início
     const dataHoje = new Date().toISOString().slice(0, 10);
     const modal = document.createElement('div');
