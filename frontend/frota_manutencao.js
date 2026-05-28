@@ -103,18 +103,11 @@ window.mnRenderHistoricoTela = function(sub) {
             <option value="carretinha">Carretinha</option>
             <option value="caminhão tanque">Caminhão Tanque</option>
         </select>
-        <select id="mn-tab-hist-f-crit" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;outline:none;" onchange="window.mnFiltrarTabHistorico()">
-            <option value="">Criticidade</option>
-            <option value="Critica">Crítica</option>
-            <option value="Alta">Alta</option>
-            <option value="Media">Média</option>
-            <option value="Baixa">Baixa</option>
-        </select>
         <span style="font-size:0.8rem;color:#94a3b8;">Realizada de</span>
         <input id="mn-tab-hist-f-real-de" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;outline:none;" onchange="window.mnFiltrarTabHistorico()">
         <span style="font-size:0.8rem;color:#94a3b8;">até</span>
         <input id="mn-tab-hist-f-real-ate" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.8rem;outline:none;" onchange="window.mnFiltrarTabHistorico()">
-        <button style="padding:4px 12px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-size:0.8rem;cursor:pointer;" onclick="['mn-tab-hist-f-placa','mn-tab-hist-f-tm','mn-tab-hist-f-tipo','mn-tab-hist-f-crit','mn-tab-hist-f-real-de','mn-tab-hist-f-real-ate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});window.mnFiltrarTabHistorico();">Limpar</button>
+        <button style="padding:4px 12px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-size:0.8rem;cursor:pointer;" onclick="['mn-tab-hist-f-placa','mn-tab-hist-f-tm','mn-tab-hist-f-tipo','mn-tab-hist-f-real-de','mn-tab-hist-f-real-ate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});window.mnFiltrarTabHistorico();">Limpar</button>
         <span id="mn-tab-hist-count" style="margin-left:auto;background:#dcfce7;color:#166534;border-radius:99px;padding:2px 10px;font-size:0.8rem;font-weight:700;"></span>
     </div>
     <!-- Área de conteúdo: lista ou calendário -->
@@ -155,9 +148,8 @@ window.mnFiltrarTabHistorico = function() {
 
     const lista = window._mnTabHistDados.filter(m => {
         if (fPlaca   && !(m.placa||'').toLowerCase().includes(fPlaca)) return false;
-        if (fTm      && (m.tipo_manutencao||'').toLowerCase() !== fTm) return false;
+        if (fTm      && (m.tipo||'').toLowerCase() !== fTm) return false;
         if (fTipo    && !(m.tipo_veiculo||'').toLowerCase().includes(fTipo)) return false;
-        if (fCrit    && (m.criticidade||'').toLowerCase() !== fCrit) return false;
         if (fRealDe  && (m.data_conclusao||'')   < fRealDe)  return false;
         if (fRealAte && (m.data_conclusao||'')   > fRealAte) return false;
         return true;
@@ -175,10 +167,8 @@ window.mnFiltrarTabHistorico = function() {
 
 // ─── RENDER LISTA ──────────────────────────────────────────────────────────────
 window._mnRenderHistLista = function(lista) {
-    // Garante que o container tenha a tabela
     const container = document.getElementById('mn-hist-view-container');
     if (!container) return;
-    const _critCor = { Critica:'#dc2626', Alta:'#d97706', Media:'#0284c7', Baixa:'#2d9e5f' };
     const _fmtD = d => { if(!d) return '—'; const [y,mo,di]=d.split('-'); return di+'/'+mo+'/'+y.slice(2); };
 
     if (!lista.length) {
@@ -186,41 +176,60 @@ window._mnRenderHistLista = function(lista) {
         return;
     }
 
-    // Build or reuse table
     let html = `<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
         <div style="overflow-x:auto;">
         <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
             <thead><tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">
+                <th style="padding:10px;width:36px;"></th>
                 <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Placa</th>
                 <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Tipo Veículo</th>
-                <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Tipo Manut.</th>
+                <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Categoria</th>
                 <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Serviço</th>
-                <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Criticidade</th>
                 <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Data Realizada / KM</th>
                 <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Data Agendada</th>
                 <th style="padding:10px;text-align:right;color:#475569;font-weight:700;">Próximo KM</th>
                 <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Fornecedor</th>
             </tr></thead>
             <tbody>`;
-    html += lista.map((m, i) => {
+
+    lista.forEach((m, i) => {
         const bgRow = i % 2 === 0 ? '#fff' : '#fafafa';
-        const cor = _critCor[m.criticidade] || '#94a3b8';
-        const critBadge = m.criticidade
-            ? '<span style="background:' + cor + '22;color:' + cor + ';padding:2px 8px;border-radius:20px;font-size:0.75rem;font-weight:700;">' + m.criticidade + '</span>'
-            : '—';
         const desc = (m.descricao || '—').replace(/"/g, '&quot;');
-        return '<tr style="background:' + bgRow + ';border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#f0fdf4\'" onmouseout="this.style.background=\'' + bgRow + '\'">' +
-            '<td style="padding:10px;font-weight:700;color:#1e293b;white-space:nowrap;">' + (m.placa||'—') + '</td>' +
-            '<td style="padding:10px;color:#64748b;white-space:nowrap;">' + (m.tipo_veiculo||'—') + '</td>' +
-            '<td style="padding:10px;text-align:center;color:#64748b;font-weight:600;white-space:nowrap;text-transform:capitalize;">' + (m.tipo_manutencao||'—') + '</td>' +
-            '<td style="padding:10px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + desc + '">' + (m.descricao||'—') + '</td>' +
-            '<td style="padding:10px;text-align:center;">' + critBadge + '</td>' +
-            '<td style="padding:10px;text-align:center;color:#2d9e5f;font-weight:600;white-space:nowrap;">' + _fmtD(m.data_conclusao) + '<br><span style="font-size:0.75rem;font-weight:400;color:#64748b;">' + (m.km_na_manutencao ? Number(m.km_na_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</span></td>' +
-            '<td style="padding:10px;text-align:center;color:#2563eb;white-space:nowrap;">' + _fmtD(m.data_agendamento) + '</td>' +
-            '<td style="padding:10px;text-align:right;color:#0284c7;font-weight:600;white-space:nowrap;">' + (m.km_proxima_manutencao ? Number(m.km_proxima_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</td>' +
-            '<td style="padding:10px;color:#64748b;">' + (m.fornecedor||'—') + '</td>' +
-            '</tr>';
-    }).join('');
+        const obsId = 'mn-hist-obs-' + (m.id || i);
+        const hasObs = !!(m.observacoes && m.observacoes.trim());
+        // Categoria: preferir categoria_nome, fallback ao tipo (preventiva/corretiva)
+        const catLabel = m.categoria_nome || (m.tipo ? (m.tipo.charAt(0).toUpperCase() + m.tipo.slice(1)) : '—');
+        const catColor = m.tipo === 'preventiva' ? '#0284c7' : '#d97706';
+
+        html += `<tr style="background:${bgRow};border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='${bgRow}'">`;
+        html += `<td style="padding:6px 8px;text-align:center;">`;
+        if (hasObs) {
+            html += `<button onclick="const el=document.getElementById('${obsId}');el.style.display=el.style.display==='none'?'table-row':'none';this.style.transform=el.style.display!=='none'?'rotate(90deg)':'rotate(0)'"
+                style="background:none;border:none;cursor:pointer;color:#64748b;font-size:1rem;transition:transform .2s;padding:0;"
+                title="Ver observações"><i class="ph ph-caret-right"></i></button>`;
+        }
+        html += `</td>`;
+        html += `<td style="padding:10px;font-weight:700;color:#1e293b;white-space:nowrap;">${m.placa||'—'}</td>`;
+        html += `<td style="padding:10px;color:#64748b;white-space:nowrap;">${m.tipo_veiculo||'—'}</td>`;
+        html += `<td style="padding:10px;text-align:center;"><span style="background:${catColor}18;color:${catColor};padding:2px 8px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">${catLabel}</span></td>`;
+        html += `<td style="padding:10px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${desc}">${m.descricao||'—'}</td>`;
+        html += `<td style="padding:10px;text-align:center;color:#2d9e5f;font-weight:600;white-space:nowrap;">${_fmtD(m.data_conclusao)}<br><span style="font-size:0.75rem;font-weight:400;color:#64748b;">${m.km_na_manutencao ? Number(m.km_na_manutencao).toLocaleString('pt-BR')+' km' : '—'}</span></td>`;
+        html += `<td style="padding:10px;text-align:center;color:#2563eb;white-space:nowrap;">${_fmtD(m.data_agendamento)}</td>`;
+        html += `<td style="padding:10px;text-align:right;color:#0284c7;font-weight:600;white-space:nowrap;">${m.km_proxima_manutencao ? Number(m.km_proxima_manutencao).toLocaleString('pt-BR')+' km' : '—'}</td>`;
+        html += `<td style="padding:10px;color:#64748b;">${m.fornecedor||'—'}</td>`;
+        html += `</tr>`;
+
+        // Linha expansível de observações
+        if (hasObs) {
+            html += `<tr id="${obsId}" style="display:none;background:#fffbeb;border-bottom:1px solid #fef3c7;">`;
+            html += `<td colspan="9" style="padding:8px 24px 10px;">`;
+            html += `<div style="display:flex;align-items:flex-start;gap:8px;">`;
+            html += `<i class="ph ph-note-pencil" style="color:#d97706;font-size:1.1rem;flex-shrink:0;margin-top:2px;"></i>`;
+            html += `<div style="font-size:0.83rem;color:#78350f;white-space:pre-wrap;line-height:1.5;">${(m.observacoes||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`;
+            html += `</div></td></tr>`;
+        }
+    });
+
     html += '</tbody></table></div></div>';
     container.innerHTML = html;
 };
@@ -791,12 +800,11 @@ window.abrirModalManutencao = async function(id, opts = {}) {
         };
     }
 
-    let ov = document.getElementById('modal-manut-ov'); if (ov) ov.remove();
-    ov = document.createElement('div'); ov.id = 'modal-manut-ov';
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
-    
     const frota = window._manutFrota || [];
-    const veicOpts = frota.map(v => `<option value="${v.id}" ${m.veiculo_id==v.id?'selected':''}>${v.placa} \u2014 ${(v.marca_modelo_versao||'').substring(0,30)}</option>`).join('');
+    const TIPOS_VEICULO = ['Caminhão','Caminhonete','Caminhão Tanque','Utilitário','Carretinha'];
+
+    // Build vehicle opts for edit mode (single select)
+    const veicOpts = frota.map(v => `<option value="${v.id}" ${m.veiculo_id==v.id?'selected':''}>${v.placa} — ${(v.marca_modelo_versao||'').substring(0,30)}</option>`).join('');
     
     const fornecedores = [...new Set((window._manutDados||[]).map(x => x.fornecedor).filter(Boolean))];
     const fornListOpts = fornecedores.map(f => `<option value="${f.replace(/"/g,'&quot;')}">`).join('');
@@ -806,6 +814,55 @@ window.abrirModalManutencao = async function(id, opts = {}) {
     const sel = (fid, optsArr, selected, disabled, onchg) => `<select id="${fid}" ${disabled?'disabled':''} ${onchg?`onchange="${onchg}"`:''} style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:${disabled?'#f8fafc':'#fff'};box-sizing:border-box;font-size:0.9rem;outline:none;${disabled?'cursor:not-allowed;color:#64748b;':''}">${optsArr.map(o=>`<option value="${o.v}" ${selected===o.v?'selected':''}>${o.l}</option>`).join('')}</select>`;
 
     const catOpts = [{v:'', l:'Selecione...'}].concat((window._manutCategorias||[]).map(c => ({v:c.id, l:c.nome})));
+
+    // Multi-vehicle panel HTML (only for new maintenance)
+    const tipoChips = TIPOS_VEICULO.map(t =>
+        `<button type="button" data-tipo="${t.toLowerCase()}" onclick="window.mnModalFiltrarTipo(this)"
+            style="padding:4px 12px;border:1.5px solid #cbd5e1;border-radius:999px;background:#fff;color:#475569;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all .15s;"
+            onmouseover="this.style.borderColor='#d97706'" onmouseout="if(!this.classList.contains('ativo')) this.style.borderColor='#cbd5e1'">${t}</button>`
+    ).join('');
+
+    const veicCheckboxes = frota.map(v => {
+        const tipoVeic = (v.tipo_veiculo || '').toLowerCase();
+        return `<label class="mn-vei-row" data-tipo="${tipoVeic}" style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;border:1px solid transparent;transition:background .1s;"
+                    onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                <input type="checkbox" class="mn-vei-cb" value="${v.id}" data-placa="${v.placa}" data-km="${v.km_atual||0}"
+                    style="width:14px;height:14px;cursor:pointer;accent-color:#d97706;">
+                <span style="font-weight:700;color:#1e293b;font-size:0.83rem;min-width:70px;">${v.placa}</span>
+                <span style="color:#64748b;font-size:0.78rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(v.marca_modelo_versao||'').substring(0,28)}</span>
+                ${tipoVeic ? `<span style="background:#f1f5f9;color:#475569;font-size:0.7rem;padding:1px 7px;border-radius:999px;">${v.tipo_veiculo}</span>` : ''}
+            </label>`;
+    }).join('');
+
+    const veiculoSection = id ? `
+    <div>${lbl('Veículo *')}<select id="mn-m-veiculo" onchange="window.mnModalVeiculoChanged()" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;"><option value="">Selecione...</option>${veicOpts}</select></div>` : `
+    <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            ${lbl('Veículos *')}
+            <span id="mn-vei-count" style="font-size:0.78rem;color:#d97706;font-weight:700;">0 selecionado(s)</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center;">
+            <span style="font-size:0.75rem;color:#94a3b8;font-weight:600;">Filtrar:</span>
+            ${tipoChips}
+            <button type="button" onclick="window.mnModalFiltrarTipo(null)" style="padding:4px 12px;border:1.5px solid #e2e8f0;border-radius:999px;background:#f8fafc;color:#64748b;font-size:0.78rem;cursor:pointer;">Todos</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:6px;">
+            <input id="mn-vei-busca" type="text" placeholder="Buscar placa..." oninput="window.mnModalFiltrarVeicBusca(this.value)"
+                style="flex:1;padding:5px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.83rem;outline:none;">
+            <button type="button" onclick="window.mnModalVeiSelecionarTodos(true)"
+                style="padding:5px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:0.78rem;cursor:pointer;color:#475569;">Todos</button>
+            <button type="button" onclick="window.mnModalVeiSelecionarTodos(false)"
+                style="padding:5px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:0.78rem;cursor:pointer;color:#475569;">Nenhum</button>
+        </div>
+        <div id="mn-vei-lista" style="max-height:200px;overflow-y:auto;border:1.5px solid #e2e8f0;border-radius:8px;padding:4px;background:#fff;display:flex;flex-direction:column;gap:1px;">
+            ${veicCheckboxes || '<div style="padding:12px;text-align:center;color:#94a3b8;font-size:0.82rem;">Nenhum veículo cadastrado.</div>'}
+        </div>
+        <input type="hidden" id="mn-m-veiculo" value="">
+    </div>`;
+
+    let ov = document.getElementById('modal-manut-ov'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'modal-manut-ov';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
 
     ov.innerHTML = `<div style="background:#fff;border-radius:16px;width:100%;max-width:1100px;height:88vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);overflow:hidden;">
 <div style="padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#fffbeb;flex-shrink:0;">
@@ -818,7 +875,7 @@ window.abrirModalManutencao = async function(id, opts = {}) {
 <div style="display:grid;grid-template-columns:1fr 1fr;flex:1;overflow:hidden;">
   <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;border-right:1px solid #e2e8f0;">
     <datalist id="lista-fornecedores">${fornListOpts}</datalist>
-    <div>${lbl('Veículo *')}<select id="mn-m-veiculo" onchange="window.mnModalVeiculoChanged()" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;"><option value="">Selecione...</option>${veicOpts}</select></div>
+    ${veiculoSection}
     ${id ? `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
         <div>${lbl('Tipo *')}${sel('mn-m-tipo', [{v:'preventiva',l:'Preventiva'},{v:'corretiva',l:'Corretiva'}], m.tipo, opts.tipo!==undefined, 'const box=document.getElementById("mn-forn-data-box"); if(box) box.style.display=this.value==="preventiva"?"none":"grid";')}</div>
@@ -852,13 +909,19 @@ window.abrirModalManutencao = async function(id, opts = {}) {
         </div>
     </div>
     <div id="mn-m-servicos-lista" style="display:flex;flex-direction:column;gap:6px;"></div>
-    <input type="hidden" id="mn-m-km" value="${m.km_na_manutencao||''}">\r
+    <input type="hidden" id="mn-m-km" value="${m.km_na_manutencao||''}">
   </div>
 </div></div>`;
     document.body.appendChild(ov);
     ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+    
+    // Add event listeners for new modal logic
+    const veiCbs = document.querySelectorAll('.mn-vei-cb');
+    veiCbs.forEach(cb => cb.onchange = () => {
+        document.getElementById('mn-vei-count').textContent = document.querySelectorAll('.mn-vei-cb:checked').length + ' selecionado(s)';
+    });
 
-    // Auto-fill KM if vehicle is already selected
+    // Auto-fill KM if vehicle is already selected (edit mode)
     if (m.veiculo_id) setTimeout(() => { if (window.mnModalVeiculoChanged) window.mnModalVeiculoChanged(); }, 50);
 
     window._mnModalServicos = [];
@@ -882,17 +945,14 @@ window.abrirModalManutencao = async function(id, opts = {}) {
         window.mnModalRenderServicos();
     } else if (m.descricao) {
         let interv = m.intervalo_configurado || '';
-        // 1) busca pelo ID do serviço no catálogo
         if (!interv && m.servico_catalogo_id) {
             const catItem = (window._manutCatalogo||[]).find(c => c.id == m.servico_catalogo_id);
             if (catItem) interv = catItem.periodicidade_padrao;
         }
-        // 2) fallback: busca pelo nome no catálogo
         if (!interv && m.descricao) {
             const catItem = (window._manutCatalogo||[]).find(c => c.nome === m.descricao);
             if (catItem) interv = catItem.periodicidade_padrao;
         }
-        // 3) fallback: km_proxima - km_na_manutencao
         if (!interv && m.km_proxima_manutencao && m.km_na_manutencao) {
             interv = m.km_proxima_manutencao - m.km_na_manutencao;
         }
@@ -907,6 +967,34 @@ window.abrirModalManutencao = async function(id, opts = {}) {
         });
         window.mnModalRenderServicos();
     }
+};
+
+window.mnModalFiltrarTipo = function(btn) {
+    const tipo = btn ? btn.dataset.tipo : null;
+    const lista = document.querySelectorAll('.mn-vei-row');
+    document.querySelectorAll('[data-tipo]').forEach(b => b.classList.remove('ativo'));
+    if(btn) btn.classList.add('ativo');
+    lista.forEach(row => {
+        if(!tipo || row.dataset.tipo === tipo) row.style.display = 'flex';
+        else row.style.display = 'none';
+    });
+};
+
+window.mnModalFiltrarVeicBusca = function(val) {
+    const lista = document.querySelectorAll('.mn-vei-row');
+    const v = val.toLowerCase();
+    lista.forEach(row => {
+        const placa = row.querySelector('span').textContent.toLowerCase();
+        if(placa.includes(v)) row.style.display = 'flex';
+        else row.style.display = 'none';
+    });
+};
+
+window.mnModalVeiSelecionarTodos = function(sel) {
+    document.querySelectorAll('.mn-vei-cb').forEach(cb => {
+        if(cb.closest('.mn-vei-row').style.display !== 'none') cb.checked = sel;
+    });
+    document.getElementById('mn-vei-count').textContent = document.querySelectorAll('.mn-vei-cb:checked').length + ' selecionado(s)';
 };
 
 window.mnModalVeiculoChanged = function() {
@@ -1077,24 +1165,26 @@ window.mnModalRenderServicos = function() {
 window.salvarManutencao = async function(idEdit) {
     const tok = window._manutTok;
     const g = sel => { const el = document.getElementById(sel); return el ? el.value.trim() : ''; };
-    const vid = g('mn-m-veiculo');
-    if (!vid) return alert('Selecione o veículo');
-    
-    if (window._mnModalServicos.length === 0) {
-        const sSel = document.getElementById('mn-m-serv');
-        if (sSel && sSel.value) window.mnModalAddServico();
-        if (window._mnModalServicos.length === 0) return alert('Adicione pelo menos um serviço à lista');
+
+    // Collect selected vehicles: multi (new) or single (edit)
+    let vids = [];
+    if (!idEdit) {
+        // Multi-vehicle checkboxes
+        document.querySelectorAll('.mn-vei-cb:checked').forEach(cb => vids.push(cb.value));
+        if (!vids.length) return alert('Selecione ao menos um veículo');
+    } else {
+        const vid = g('mn-m-veiculo');
+        if (!vid) return alert('Selecione o veículo');
+        vids = [vid];
     }
+
+    if (window._mnModalServicos.length === 0) return alert('Adicione pelo menos um serviço à lista');
 
     const dataAg = g('mn-m-data-ag') || null;
     let statusFinal = g('mn-m-status') || 'programada';
-    // Se tem data de agendamento, força status agendada (exceto se já está concluída/em_andamento/cancelada)
-    if (dataAg && (statusFinal === 'programada' || statusFinal === 'concluida')) {
-        statusFinal = 'agendada';
-    }
+    if (dataAg && (statusFinal === 'programada' || statusFinal === 'concluida')) statusFinal = 'agendada';
 
     const basePayload = {
-        veiculo_id: vid,
         tipo: g('mn-m-tipo'),
         status: statusFinal,
         data_agendamento: dataAg,
@@ -1106,32 +1196,46 @@ window.salvarManutencao = async function(idEdit) {
         document.getElementById('modal-manut-ov').style.opacity = '0.5';
         document.getElementById('modal-manut-ov').style.pointerEvents = 'none';
 
-        for (let s of window._mnModalServicos) {
-            let sId = s.servico_id;
-            if (!sId && s.cat_id) {
-                const resCat = await fetch('/api/frota/catalogo', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
-                    body: JSON.stringify({ categoria_id: s.cat_id, nome: s.nome, periodicidade_padrao: s.intervalo||null })
-                });
-                if (resCat.ok) {
-                    const dataCat = await resCat.json();
-                    sId = dataCat.id;
-                    window._manutCatalogo = null;
+        // For each selected vehicle × each service
+        for (let vId of vids) {
+            // Get KM for this vehicle
+            const veicData = (window._manutFrota||[]).find(v => v.id == vId);
+            const kmVeic = veicData?.km_atual || 0;
+
+            for (let s of window._mnModalServicos) {
+                let sId = s.servico_id;
+                if (!sId && s.cat_id) {
+                    const resCat = await fetch('/api/frota/catalogo', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                        body: JSON.stringify({ categoria_id: s.cat_id, nome: s.nome, periodicidade_padrao: s.intervalo||null })
+                    });
+                    if (resCat.ok) {
+                        const dataCat = await resCat.json();
+                        sId = dataCat.id;
+                        window._manutCatalogo = null;
+                    }
                 }
-            }
 
-            // Pega KM atual do campo (preenchido ao selecionar veículo)
-            const kmAtualCampo = document.getElementById('mn-m-km')?.value;
-            const kmManut = (s.km || kmAtualCampo) ? parseInt(s.km || kmAtualCampo) : null;
-            const interv = s.intervalo ? parseInt(s.intervalo) : null;
-            const kmProx = (kmManut && interv) ? (kmManut + interv) : null;
+                const kmManut = (s.km || kmVeic) ? parseInt(s.km || kmVeic) : null;
+                const interv = s.intervalo ? parseInt(s.intervalo) : null;
+                const kmProx = (kmManut && interv) ? (kmManut + interv) : null;
 
-            const payload = {
-                ...basePayload,
-                descricao: s.nome,
-                servico_catalogo_id: sId || null,
-                km_na_manutencao: kmManut,
-                km_proxima_manutencao: kmProx
+                const payload = {
+                    ...basePayload,
+                    veiculo_id: vId,
+                    descricao: s.nome,
+                    servico_catalogo_id: sId || null,
+                    km_na_manutencao: kmManut,
+                    km_proxima_manutencao: kmProx
+                };
+
+                const url = idEdit ? '/api/frota/manutencoes/' + idEdit : '/api/frota/manutencoes';
+                const method = idEdit ? 'PUT' : 'POST';
+                
+                const res = await fetch(url, {
+                    method, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                    body: JSON.stringify(payload)
+                });
             };
 
             const url = idEdit ? '/api/frota/manutencoes/' + idEdit : '/api/frota/manutencoes';
@@ -2180,7 +2284,8 @@ window.mnConcluirIndividual = function(id, nome) {
                     km_na_manutencao: km ? parseInt(km) : null,
                     custo: custo ? parseFloat(custo) : null,
                     fornecedor: fornecedor || null,
-                    observacoes: observacoes || null
+                    observacoes: observacoes || null,
+                    data_agendamento: ''
                 })
             });
             const json = await res.json().catch(() => ({}));

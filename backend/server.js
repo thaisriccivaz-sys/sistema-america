@@ -12250,18 +12250,25 @@ app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
         }
 
         // Modo edição completa: preserva campos existentes com COALESCE
+        // data_agendamento: string vazia = limpar (NULL), undefined = manter, valor = atualizar
+        const dataAgValue = data_agendamento === '' ? null
+            : data_agendamento !== undefined ? data_agendamento
+            : undefined;
+        const dataAgSql = dataAgValue === undefined ? 'data_agendamento' : '?';
+        const dataAgParam = dataAgValue === undefined ? [] : [dataAgValue];
+
         db.run(
             `UPDATE frota_manutencoes SET
              tipo=COALESCE(?,tipo), descricao=COALESCE(?,descricao), status=COALESCE(?,status),
              km_na_manutencao=COALESCE(?,km_na_manutencao), km_proxima_manutencao=COALESCE(?,km_proxima_manutencao),
-             data_agendamento=COALESCE(?,data_agendamento), data_conclusao=COALESCE(?,data_conclusao),
+             data_agendamento=${dataAgSql}, data_conclusao=COALESCE(?,data_conclusao),
              custo=COALESCE(?,custo), fornecedor=COALESCE(?,fornecedor), observacoes=COALESCE(?,observacoes),
              data_inicio=COALESCE(?,data_inicio),
              updated_at=CURRENT_TIMESTAMP WHERE id=?`,
             [tipo||null, descricao||null, status||null,
              km_na_manutencao !== undefined ? km_na_manutencao : null,
              km_proxima_manutencao !== undefined ? km_proxima_manutencao : null,
-             data_agendamento !== undefined ? data_agendamento : null,
+             ...dataAgParam,
              data_conclusao !== undefined ? data_conclusao : null,
              custo !== undefined ? custo : null,
              fornecedor||null, observacoes||null,
@@ -12559,9 +12566,12 @@ app.get('/api/frota/veiculos/:id/km-em-data', authenticateToken, (req, res) => {
 // GET - histórico de manutenções realizadas (Drawer)
 app.get('/api/frota/manutencoes/historico', authenticateToken, (req, res) => {
     db.all(`
-        SELECT m.*, v.placa, v.marca_modelo_versao, v.tipo_veiculo
+        SELECT m.*, v.placa, v.marca_modelo_versao, v.tipo_veiculo,
+               COALESCE(cat.nome, '') as categoria_nome
         FROM frota_manutencoes m
         JOIN frota_veiculos v ON v.id = m.veiculo_id
+        LEFT JOIN frota_servicos_catalogo s ON s.id = m.servico_catalogo_id
+        LEFT JOIN frota_categorias_manutencao cat ON cat.id = s.categoria_id
         WHERE m.status = 'concluida'
         ORDER BY m.data_conclusao DESC, m.id DESC
         LIMIT 1000
