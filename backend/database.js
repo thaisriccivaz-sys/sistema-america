@@ -642,12 +642,17 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 const EPI_A3 = JSON.stringify(['AVENTAL DE RASPA','BOTA BICO DE AÇO CA 43.339','BONÉ','LUVA DE RASPA CA 34.106','PROTETOR AUDITIVO CA 36.817','CALÇA','CAMISETA MANGA CURTA','CAMISETA MANGA LONGA','PROTETOR SOLAR FPS30','RESPIRADOR PURIFICADOR DE AR AZUL CA 39.238','ÓCULOS CA 19.176','MÁSCARA DE SOLDA CA 45.596','LUVA NITRILICA CA 38.975','MASCARA RESPIRADOR FACIAL COM FILTRO CA 14.781']);
                 const EPI_A4 = JSON.stringify(['AVENTAL DE PLÁSTICO','LUVA DE NEOLATEX M','CALÇA','AVENTAL','SAPATO ANTIDERRAPANTE']);
                 const newSeeds = [
-                    { grupo: 'Escritório', categoria: 'Administrativo', departamentos_json: JSON.stringify(['Recursos Humanos','Financeiro','Logística','Administrativo','Comercial']), epis_json: JSON.stringify(['BONÉ','CAMISETA POLO PRETA','CAMISETA POLO PRETA MANGA LONGA','CAMISETA POLO ROXA','PORTA CANETAS','PORTA ARQUIVOS DE MESA','MOUSE PAD ERGONÔMICO','APOIO ERGONÔMICO DE TECLADO','SUPORTE ERGONÔMICO DE PÉS','APOIO NOTEBOOK']), termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
-                    { grupo: 'Ajudante Pátio e Liderança', categoria: 'Operacional', departamentos_json: JSON.stringify(['Ajudante Pátio','Liderança']), epis_json: EPI_A1, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
-                    { grupo: 'Motorista', categoria: 'Operacional', departamentos_json: JSON.stringify(['Motorista','Ajudante Geral']), epis_json: EPI_A2, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
+                    { grupo: 'Escritório', categoria: 'Administrativo', departamentos_json: JSON.stringify(['Administrativo','Comercial','Financeiro','Logística','RH','Supervisão']), epis_json: JSON.stringify(['BONÉ','CAMISETA POLO PRETA','CAMISETA POLO PRETA MANGA LONGA','CAMISETA POLO ROXA','PORTA CANETAS','PORTA ARQUIVOS DE MESA','MOUSE PAD ERGONÔMICO','APOIO ERGONÔMICO DE TECLADO','SUPORTE ERGONÔMICO DE PÉS','APOIO NOTEBOOK']), termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
+                    { grupo: 'Ajudante, Liderança e Motorista', categoria: 'Operacional', departamentos_json: JSON.stringify(['Ajudante Geral','Ajudante Pátio','Motorista','Liderança']), epis_json: EPI_A1, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
                     { grupo: 'Manutenção', categoria: 'Operacional', departamentos_json: JSON.stringify(['Manutenção']), epis_json: EPI_A3, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
                     { grupo: 'Limpeza', categoria: 'Operacional', departamentos_json: JSON.stringify(['Limpeza']), epis_json: EPI_A4, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO }
                 ];
+                
+                // Migration para aplicar os departamentos corretos aos grupos existentes
+                db.run(`UPDATE epi_templates SET departamentos_json = '["Administrativo","Comercial","Financeiro","Logística","RH","Supervisão"]' WHERE grupo = 'Escritório'`);
+                db.run(`UPDATE epi_templates SET departamentos_json = '["Manutenção"]' WHERE grupo = 'Manutenção'`);
+                db.run(`UPDATE epi_templates SET departamentos_json = '["Limpeza"]' WHERE grupo = 'Limpeza'`);
+                db.run(`UPDATE epi_templates SET departamentos_json = '["Ajudante Geral","Ajudante Pátio","Motorista","Liderança"]' WHERE grupo IN ('Ajudante, Liderança e Motorista', 'Ajudante Geral e Liderança', 'Ajudante Pátio e Liderança')`);
                 // Cria tabela de templates excluídos para não recriar templates que foram apagados
                 db.run('CREATE TABLE IF NOT EXISTS epi_templates_excluidos (grupo TEXT PRIMARY KEY)', () => {
                     // INSERT OR IGNORE: só insere templates que não existem ainda (nunca destrói existentes e ignora excluídos)
