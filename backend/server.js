@@ -8290,7 +8290,7 @@ app.post('/api/epi-fichas/:id/save-onedrive', authenticateToken, async (req, res
 // GET: todas as entregas de EPI de um colaborador (todas as fichas)
 app.get('/api/colaboradores/:id/epi-entregas', authenticateToken, (req, res) => {
     db.all(
-        `SELECT ee.id, ee.data_entrega, ee.epis_entregues, ee.registrado_por, ef.grupo
+        `SELECT ee.id, ee.ficha_id, ee.data_entrega, ee.epis_entregues, ee.registrado_por, ef.grupo
          FROM epi_entregas ee
          JOIN colaborador_epi_fichas ef ON ef.id = ee.ficha_id
          WHERE ee.colaborador_id = ?
@@ -8302,13 +8302,13 @@ app.get('/api/colaboradores/:id/epi-entregas', authenticateToken, (req, res) => 
             (rows || []).forEach(r => {
                 const epis = JSON.parse(r.epis_entregues || '[]');
                 if (epis.length === 0) {
-                    result.push({ id: r.id, data_entrega: r.data_entrega, epi_nome: '\u2014', qty: 1, grupo: r.grupo, registrado_por: r.registrado_por || '' });
+                    result.push({ id: r.id, ficha_id: r.ficha_id, data_entrega: r.data_entrega, epi_nome: '\u2014', qty: 1, grupo: r.grupo, registrado_por: r.registrado_por || '' });
                 } else {
                     // Agrupa nomes repetidos e conta a quantidade
                     const contagem = {};
                     epis.forEach(nome => { contagem[nome] = (contagem[nome] || 0) + 1; });
                     Object.entries(contagem).forEach(([nome, qty]) => {
-                        result.push({ id: r.id, data_entrega: r.data_entrega, epi_nome: nome, qty, grupo: r.grupo, registrado_por: r.registrado_por || '' });
+                        result.push({ id: r.id, ficha_id: r.ficha_id, data_entrega: r.data_entrega, epi_nome: nome, qty, grupo: r.grupo, registrado_por: r.registrado_por || '' });
                     });
                 }
             });

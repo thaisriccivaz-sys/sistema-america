@@ -13198,7 +13198,7 @@ window.salvarAssinaturaColaborador = async function () {
     }
 };
 
-window._excluirEpiEntrega = async function(id, nome, btnEl) {
+window._excluirEpiEntrega = async function(id, nome, btnEl, ficha_id) {
     if (!confirm(`Deseja realmente excluir o EPI "${nome}" da ficha?`)) return;
     const senha = prompt('Digite a senha para autorizar a exclusão:');
     if (!senha && senha !== '') return;
@@ -13212,6 +13212,7 @@ window._excluirEpiEntrega = async function(id, nome, btnEl) {
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json.error || 'Erro ao excluir.');
+        
         // Remove a linha da tabela sem recarregar tudo
         const tr = btnEl.closest('tr');
         if (tr) {
@@ -13227,6 +13228,50 @@ window._excluirEpiEntrega = async function(id, nome, btnEl) {
                 }
             }, 300);
         }
+        
+        // Regenerar PDF e salvar na pasta (OneDrive)
+        (async () => {
+            try {
+                if (ficha_id && window._epiProntuarioData && window._epiProntuarioData.colabId) {
+                    const cid = window._epiProntuarioData.colabId;
+                    const fich = (window._epiProntuarioData.fichas || []).find(f => f.id === ficha_id);
+                    if (fich) {
+                        if (typeof ensureHeaderLogo === 'function') await ensureHeaderLogo().catch(() => { });
+                        const tpl = (window._epiProntuarioData.templates || []).find(t => t.grupo === fich.grupo) || fich;
+                        const { jsPDF } = window.jspdf;
+
+                        const todasEntregas = await fetch(`${API_URL}/epi-fichas/${ficha_id}/entregas`, {
+                            headers: { 'Authorization': 'Bearer ' + currentToken }
+                        }).then(r => r.json()).catch(() => []);
+
+                        const linhasFull = [];
+                        (todasEntregas || []).forEach(ent => {
+                            const epis = ent.epis_entregues || [];
+                            if (epis.length === 0) {
+                                linhasFull.push({ data: ent.data_entrega || '', descricao: '', assinatura_base64: ent.assinatura_base64 });
+                            } else {
+                                epis.forEach(n => linhasFull.push({ data: ent.data_entrega || '', descricao: n, assinatura_base64: ent.assinatura_base64 }));
+                            }
+                        });
+
+                        const doc = window.gerarDocEpi(tpl, viewedColaborador || {}, jsPDF, linhasFull);
+                        const pdfB64 = doc.output('datauristring');
+                        await fetch(API_URL + '/epi-fichas/' + ficha_id + '/save-onedrive', {
+                            method: 'POST',
+                            headers: { 'Authorization': 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ pdf_base64: pdfB64, colaborador_id: cid })
+                        }).catch(e2 => console.warn('[save-onedrive]', e2));
+                        
+                        // Atualiza preview se estiver aberto (opcional)
+                        const activeTab = document.querySelector('#tabs-list li.active');
+                        if (activeTab && activeTab.dataset.tab === 'Ficha de EPI') {
+                            // setTimeout(() => renderTabContent('Ficha de EPI', 'Ficha de EPI', true), 1000);
+                        }
+                    }
+                }
+            } catch (errPdf) { console.warn('Erro ao atualizar PDF do EPI no OneDrive:', errPdf); }
+        })();
+        
     } catch(e) {
         alert(e.message);
         btnEl.disabled = false;
@@ -13317,7 +13362,7 @@ async function renderFichaEpiTab(container) {
                     <td style="padding:0.55rem 0.85rem;font-size:0.8rem;color:#64748b;">${e.registrado_por || '—'}</td>
                     <td style="padding:0.35rem 0.6rem;text-align:center;">
                         <button
-                            onclick="window._excluirEpiEntrega(${e.id}, '${(e.epi_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', this)"
+                            onclick="window._excluirEpiEntrega(${e.id}, '${(e.epi_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', this, ${e.ficha_id})"
                             title="Excluir este EPI da ficha"
                             style="background:none;border:1.5px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.78rem;display:inline-flex;align-items:center;gap:3px;transition:all .15s;"
                             onmouseover="this.style.background='#fef2f2'"
