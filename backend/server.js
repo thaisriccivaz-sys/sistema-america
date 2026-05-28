@@ -14939,12 +14939,12 @@ async function dispararAcoesAgenda(card) {
                         </div>
                         <p style="margin-top:24px;color:#94a3b8;font-size:0.85em;">Atenciosamente,<br>Sistema América Rental</p>
                     </div>
-                </div>\`;
+                </div>`;
                 try {
                     await sendMailHelper({
-                        from: \`"Agenda América Rental" <\${SMTP_CONFIG.auth.user}>\`,
+                        from: `"Agenda América Rental" <${SMTP_CONFIG.auth.user}>`,
                         to: c.email_corporativo,
-                        subject: \`[Agenda \${dataFmt}] \${card.titulo || tipo_label}\`,
+                        subject: `[Agenda ${dataFmt}] ${card.titulo || tipo_label}`,
                         html,
                         attachments: [{ filename: 'logo.png', path: logoPath, cid: 'logo-agenda' }]
                     });
