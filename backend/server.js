@@ -8259,8 +8259,9 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
             if (Array.isArray(epis_entregues) && epis_entregues.length > 0) {
                 epis_entregues.forEach(nomeEpi => {
                     if (!nomeEpi) return;
-                    // Procura o EPI no estoque pelo nome exato (ignorando maiúsculas e espaços)
-                    db.get("SELECT * FROM estoque WHERE UPPER(TRIM(nome)) = UPPER(TRIM(?)) LIMIT 1", [nomeEpi], (errE, item) => {
+                    // Procura o EPI no estoque verificando se o nomeEpi (com CA) começa com o nome do estoque
+                    // ORDER BY LENGTH(nome) DESC garante que 'Luva de raspa' seja priorizado em vez de apenas 'Luva'
+                    db.get("SELECT * FROM estoque WHERE UPPER(TRIM(?)) LIKE UPPER(TRIM(nome)) || '%' ORDER BY LENGTH(nome) DESC LIMIT 1", [nomeEpi], (errE, item) => {
                         if (!errE && item && item.quantidade_atual > 0) {
                             const newQtd = item.quantidade_atual - 1;
                             db.run("UPDATE estoque SET quantidade_atual = ? WHERE id = ?", [newQtd, item.id], (errUpd) => {
