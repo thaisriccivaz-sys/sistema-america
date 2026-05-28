@@ -1255,8 +1255,8 @@ window.salvarManutencao = async function(idEdit) {
                 mnRenderPreventivaTela(sub);
                 // Seleciona automaticamente o veículo recém-salvo
                 const sel = document.getElementById('mn-prev-veiculo');
-                if (sel && vid) {
-                    sel.value = vid;
+                if (sel && vids.length > 0) {
+                    sel.value = vids[0];
                     window.mnCarregarPreventivoVeiculo();
                 }
             }
