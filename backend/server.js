@@ -8254,6 +8254,65 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
         [fichaId, colaborador_id, JSON.stringify(epis_entregues), assinatura_base64, data_entrega || new Date().toLocaleDateString('pt-BR'), registrado_por],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
+            
+            // Início do bloco de dedução de estoque
+            if (Array.isArray(epis_entregues) && epis_entregues.length > 0) {
+                epis_entregues.forEach(nomeEpi => {
+                    if (!nomeEpi) return;
+                    // Procura o EPI no estoque pelo nome exato (ignorando maiúsculas e espaços)
+                    db.get("SELECT * FROM estoque WHERE UPPER(TRIM(nome)) = UPPER(TRIM(?)) LIMIT 1", [nomeEpi], (errE, item) => {
+                        if (!errE && item && item.quantidade_atual > 0) {
+                            const newQtd = item.quantidade_atual - 1;
+                            db.run("UPDATE estoque SET quantidade_atual = ? WHERE id = ?", [newQtd, item.id], (errUpd) => {
+                                // Se a quantidade bateu no limite mínimo (e antes não estava)
+                                if (!errUpd && newQtd <= item.quantidade_minima && item.quantidade_atual > item.quantidade_minima) {
+                                    const msg = `ESTOQUE BAIXO: O item "${item.nome}" (${item.departamento}) atingiu o estoque mínimo. Quantidade Atual: ${newQtd}.`;
+                                    const dadosStr = JSON.stringify({ item_id: item.id, nome: item.nome, quantidade_atual: newQtd, quantidade_minima: item.quantidade_minima });
+                                    
+                                    db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'estoque_minimo'", [], (errC, rowsC) => {
+                                        if (!errC && rowsC && rowsC.length > 0) {
+                                            rowsC.forEach(c => {
+                                                db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'estoque_minimo', msg, dadosStr]);
+                                            });
+                                            db.all("SELECT email FROM usuarios WHERE id IN (" + rowsC.map(r => r.usuario_id).join(',') + ") AND email IS NOT NULL AND email != ''", [], (errU, users) => {
+                                                if (!errU && users && users.length > 0) {
+                                                    const emails = users.map(u => u.email).join(',');
+                                                    const nodemailer = require('nodemailer');
+                                                    const transporter = nodemailer.createTransport(SMTP_CONFIG);
+                                                    const mailOptions = {
+                                                        from: SMTP_CONFIG.auth.user,
+                                                        to: emails,
+                                                        subject: 'ALERTA DE ESTOQUE MÍNIMO - America Rental',
+                                                        html: `
+                                                            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                                                                <div style="text-align: center; margin-bottom: 20px;">
+                                                                    <img src="https://america-rental-server.onrender.com/logo.png" alt="America Rental" style="max-height: 80px;" />
+                                                                </div>
+                                                                <h2 style="color: #dc2626; text-align: center;">Aviso de Estoque Mínimo</h2>
+                                                                <p>O seguinte item atingiu ou está abaixo da quantidade mínima em estoque:</p>
+                                                                <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 20px;">
+                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Item</th><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">${item.nome}</td></tr>
+                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Departamento</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.departamento}</td></tr>
+                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Atual</th><td style="padding: 8px; border: 1px solid #e2e8f0; color: #dc2626; font-weight: bold;">${newQtd}</td></tr>
+                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Mínima</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.quantidade_minima}</td></tr>
+                                                                </table>
+                                                                <p>Por favor, providencie a reposição o mais breve possível.</p>
+                                                            </div>
+                                                        `
+                                                    };
+                                                    transporter.sendMail(mailOptions).catch(e => console.error('[ESTOQUE] Erro ao enviar e-mail:', e));
+                                                }
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    });
+                });
+            }
+            // Fim do bloco de dedução de estoque
+
             res.json({ id: this.lastID });
         }
     );
