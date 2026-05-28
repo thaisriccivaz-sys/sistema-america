@@ -13198,6 +13198,42 @@ window.salvarAssinaturaColaborador = async function () {
     }
 };
 
+window._excluirEpiEntrega = async function(id, nome, btnEl) {
+    if (!confirm(`Deseja realmente excluir o EPI "${nome}" da ficha?`)) return;
+    const senha = prompt('Digite a senha para autorizar a exclusão:');
+    if (!senha && senha !== '') return;
+    try {
+        btnEl.disabled = true;
+        btnEl.innerHTML = '<i class="ph ph-spinner" style="font-size:0.85rem;"></i>';
+        const res = await fetch(`${API_URL}/epi-entregas/${id}/epi`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ senha, epi_nome: nome })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || 'Erro ao excluir.');
+        // Remove a linha da tabela sem recarregar tudo
+        const tr = btnEl.closest('tr');
+        if (tr) {
+            tr.style.transition = 'opacity .3s';
+            tr.style.opacity = '0';
+            setTimeout(() => {
+                tr.remove();
+                // Atualiza contador
+                const badge = document.querySelector('[data-epi-count-badge]');
+                if (badge) {
+                    const n = parseInt(badge.textContent) - 1;
+                    badge.textContent = n + ' registro' + (n !== 1 ? 's' : '');
+                }
+            }, 300);
+        }
+    } catch(e) {
+        alert(e.message);
+        btnEl.disabled = false;
+        btnEl.innerHTML = '<i class="ph ph-trash" style="font-size:0.85rem;"></i>';
+    }
+};
+
 // ============================================================
 // ABA FICHA DE EPI NO PRONTUÁRIO
 // ============================================================
@@ -13276,6 +13312,16 @@ async function renderFichaEpiTab(container) {
                     <td style="padding:0.55rem 0.85rem;font-size:0.85rem;color:#0f172a;font-weight:500;">${e.epi_nome || '—'}</td>
                     <td style="padding:0.55rem 0.85rem;font-size:0.8rem;color:#64748b;">${e.grupo || '—'}</td>
                     <td style="padding:0.55rem 0.85rem;font-size:0.8rem;color:#64748b;">${e.registrado_por || '—'}</td>
+                    <td style="padding:0.35rem 0.6rem;text-align:center;">
+                        <button
+                            onclick="window._excluirEpiEntrega(${e.id}, '${(e.epi_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', this)"
+                            title="Excluir este EPI da ficha"
+                            style="background:none;border:1.5px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.78rem;display:inline-flex;align-items:center;gap:3px;transition:all .15s;"
+                            onmouseover="this.style.background='#fef2f2'"
+                            onmouseout="this.style.background='none'">
+                            <i class="ph ph-trash" style="font-size:0.85rem;"></i>
+                        </button>
+                    </td>
                 </tr>`;
         }).join('');
 
@@ -13284,7 +13330,7 @@ async function renderFichaEpiTab(container) {
             <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.85rem;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;">
                 <i class="ph ph-list-bullets" style="color:#3b82f6;font-size:1.15rem;"></i>
                 <h4 style="margin:0;font-size:0.97rem;font-weight:700;color:#0f172a;">Histórico de EPIs Entregues</h4>
-                <span style="background:#3b82f6;color:#fff;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:999px;">${todasEntregas.length} registro${todasEntregas.length !== 1 ? 's' : ''}</span>
+                <span data-epi-count-badge style="background:#3b82f6;color:#fff;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:999px;">${todasEntregas.length} registro${todasEntregas.length !== 1 ? 's' : ''}</span>
             </div>
             <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;">
                 <table style="width:100%;border-collapse:collapse;">
@@ -13294,6 +13340,7 @@ async function renderFichaEpiTab(container) {
                             <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">EPI</th>
                             <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">Grupo/Ficha</th>
                             <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">Registrado por</th>
+                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:center;"></th>
                         </tr>
                     </thead>
                     <tbody>${linhas}</tbody>

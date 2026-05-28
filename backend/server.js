@@ -8282,6 +8282,38 @@ app.get('/api/colaboradores/:id/epi-entregas', authenticateToken, (req, res) => 
     );
 });
 
+// DELETE: remover um EPI específico de uma entrega (ou toda a entrega se for o único)
+app.delete('/api/epi-entregas/:id/epi', authenticateToken, (req, res) => {
+    const { epi_nome, senha } = req.body;
+    if (senha !== 'EXEPI2499!') return res.status(403).json({ error: 'Senha incorreta.' });
+    if (!epi_nome) return res.status(400).json({ error: 'Nome do EPI não informado.' });
+
+    db.get('SELECT * FROM epi_entregas WHERE id = ?', [req.params.id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Entrega não encontrada.' });
+
+        const epis = JSON.parse(row.epis_entregues || '[]');
+        const novoArray = epis.filter(e => e !== epi_nome);
+
+        if (novoArray.length === 0) {
+            // Último EPI da entrega — exclui o registro inteiro
+            db.run('DELETE FROM epi_entregas WHERE id = ?', [req.params.id], function (err2) {
+                if (err2) return res.status(500).json({ error: err2.message });
+                res.json({ success: true, entrega_excluida: true });
+            });
+        } else {
+            // Ainda restam EPIs — apenas atualiza o array
+            db.run('UPDATE epi_entregas SET epis_entregues = ? WHERE id = ?',
+                [JSON.stringify(novoArray), req.params.id],
+                function (err2) {
+                    if (err2) return res.status(500).json({ error: err2.message });
+                    res.json({ success: true, entrega_excluida: false });
+                }
+            );
+        }
+    });
+});
+
 app.post('/api/epi-templates', authenticateToken, (req, res) => {
     const { grupo, departamentos, epis, termo_texto, rodape_texto, categoria } = req.body;
     const cat = categoria || 'Outros';
