@@ -14920,6 +14920,124 @@ app.get('/api/frota/force-seed', (req, res) => {
     setTimeout(() => res.json({ success: true, dedup: true, serialized: true }), 1000);
 });
 
+// ============================================================================
+// CONTROLE DE ESTOQUE
+// ============================================================================
+
+// Listar Estoque
+app.get('/api/estoque', authenticateToken, (req, res) => {
+    let sql = 'SELECT * FROM estoque WHERE 1=1';
+    let params = [];
+    if (req.query.departamento) {
+        sql += ' AND departamento = ?';
+        params.push(req.query.departamento);
+    }
+    if (req.query.categoria) {
+        sql += ' AND categoria = ?';
+        params.push(req.query.categoria);
+    }
+    sql += ' ORDER BY nome ASC';
+    db.all(sql, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// Adicionar Item
+app.post('/api/estoque', authenticateToken, (req, res) => {
+    const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima } = req.body;
+    db.run(
+        'INSERT INTO estoque (nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima) VALUES (?, ?, ?, ?, ?, ?)',
+        [nome, departamento, categoria, quantidade_atual || 0, quantidade_minima || 0, quantidade_maxima || 0],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, success: true });
+        }
+    );
+});
+
+// Editar Item e Atualizar Quantidades
+app.put('/api/estoque/:id', authenticateToken, (req, res) => {
+    const id = req.params.id;
+    const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima } = req.body;
+    
+    // Obter dados antigos para verificar se atingiu estoque minimo agora
+    db.get('SELECT * FROM estoque WHERE id = ?', [id], (errFetch, oldRow) => {
+        if (errFetch || !oldRow) return res.status(500).json({ error: 'Item não encontrado' });
+        
+        db.run(
+            'UPDATE estoque SET nome = ?, departamento = ?, categoria = ?, quantidade_atual = ?, quantidade_minima = ?, quantidade_maxima = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
+            [nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, id],
+            function(errUpdate) {
+                if (errUpdate) return res.status(500).json({ error: errUpdate.message });
+                res.json({ success: true });
+                
+                // Lógica de Notificação de Estoque Mínimo
+                // Se a quantidade atual caiu para a minima ou abaixo (e antes estava acima)
+                if (quantidade_atual <= quantidade_minima && oldRow.quantidade_atual > oldRow.quantidade_minima) {
+                    
+                    const msg = `ESTOQUE BAIXO: O item "${nome}" (${departamento}) atingiu o estoque mínimo. Quantidade Atual: ${quantidade_atual}.`;
+                    const dadosStr = JSON.stringify({ item_id: id, nome, quantidade_atual, quantidade_minima });
+
+                    // Busca quem quer receber notificação
+                    db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'estoque_minimo'", [], (errC, rowsC) => {
+                        if (!errC && rowsC && rowsC.length > 0) {
+                            // Envia alerta no sistema
+                            rowsC.forEach(c => {
+                                db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'estoque_minimo', msg, dadosStr]);
+                            });
+                            
+                            // Envia Email usando Nodemailer (para os e-mails corporativos da notificação, ou do usuario)
+                            db.all("SELECT email FROM usuarios WHERE id IN (" + rowsC.map(r => r.usuario_id).join(',') + ") AND email IS NOT NULL AND email != ''", [], (errU, users) => {
+                                if (!errU && users && users.length > 0) {
+                                    const emails = users.map(u => u.email).join(',');
+                                    const nodemailer = require('nodemailer');
+                                    const transporter = nodemailer.createTransport(SMTP_CONFIG);
+                                    
+                                    const mailOptions = {
+                                        from: SMTP_CONFIG.auth.user,
+                                        to: emails,
+                                        subject: 'ALERTA DE ESTOQUE MÍNIMO - America Rental',
+                                        html: `
+                                            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                                                <div style="text-align: center; margin-bottom: 20px;">
+                                                    <img src="https://america-rental-server.onrender.com/logo.png" alt="America Rental" style="max-height: 80px;" />
+                                                </div>
+                                                <h2 style="color: #dc2626; text-align: center;">Aviso de Estoque Mínimo</h2>
+                                                <p>Olá,</p>
+                                                <p>O seguinte item atingiu ou está abaixo da quantidade mínima em estoque:</p>
+                                                <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 20px;">
+                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Item</th><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">${nome}</td></tr>
+                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Departamento</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${departamento}</td></tr>
+                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Atual</th><td style="padding: 8px; border: 1px solid #e2e8f0; color: #dc2626; font-weight: bold;">${quantidade_atual}</td></tr>
+                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Mínima</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${quantidade_minima}</td></tr>
+                                                </table>
+                                                <p>Por favor, providencie a reposição o mais breve possível.</p>
+                                                <p style="font-size: 0.8em; color: #666; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px;">Mensagem gerada automaticamente pelo sistema.</p>
+                                            </div>
+                                        `
+                                    };
+                                    
+                                    transporter.sendMail(mailOptions).catch(e => console.error('[ESTOQUE] Erro ao enviar e-mail:', e));
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+        );
+    });
+});
+
+// Excluir Item
+app.delete('/api/estoque/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM estoque WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+
 app.listen(PORT, () => {
 
     console.log(`Servidor rodando na porta ${PORT}`);

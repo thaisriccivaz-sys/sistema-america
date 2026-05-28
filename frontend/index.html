@@ -25,6 +25,7 @@
     <script src="mtr.js" defer></script>
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js" defer></script>
+    <script src="estoque.js" defer></script>
 </head>
 
 <body>
@@ -208,6 +209,9 @@
                     <a href="#" class="nav-item" data-target="licencas"
                         onclick="navigateTo('licencas'); return false;"><i class="ph ph-certificate"></i>
                         Licen&ccedil;as</a>
+                    <a href="#" class="nav-item" data-target="estoque"
+                        onclick="navigateTo('estoque'); return false;"><i class="ph ph-package"></i>
+                        Estoque</a>
                 </div>
             </div>
 
@@ -2895,7 +2899,131 @@
                 </div>
 
 
-                <!-- VIEW: LICEN�!AS -->
+                <!-- VIEW: ESTOQUE -->
+                <section id="view-estoque" class="content-view">
+                    <div class="page-header flex-between"
+                        style="position:sticky; top:60px; z-index:20; background:var(--bg-main); padding:1.25rem 0; margin-top:-1.5rem; margin-bottom:2rem; border-bottom:1px solid var(--border-color);">
+                        <div style="display:flex; align-items:center; gap:1.5rem;">
+                            <div
+                                style="width:60px; height:60px; border-radius:50%; border:2px dashed #e67700; display:flex; align-items:center; justify-content:center; background:#fff5e6; color:#e67700; font-size:1.8rem;">
+                                <i class="ph ph-package"></i>
+                            </div>
+                            <div>
+                                <h1 style="margin:0; font-size:1.85rem; font-weight:700; color:#334155;">Controle de Estoque</h1>
+                                <p style="margin:4px 0 0; color:#64748b; font-size:0.9rem;">Gerencie os itens de estoque, como EPIs e uniformes.</p>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="window.abrirModalEstoque()" style="background:#e67700; border-color:#e67700;">
+                            <i class="ph ph-plus-circle"></i> Adicionar Item
+                        </button>
+                    </div>
+
+                    <div class="card p-4">
+                        <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 200px;">
+                                <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Buscar por nome</label>
+                                <input type="search" id="filtro-estoque-nome" class="form-control" placeholder="Buscar..." oninput="window.renderEstoqueTable()" autocomplete="new-password" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')">
+                            </div>
+                            <div style="flex: 1; min-width: 200px;">
+                                <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Departamento</label>
+                                <select id="filtro-estoque-dept" class="form-control" onchange="window.renderEstoqueTable()">
+                                    <option value="">Todos</option>
+                                    <option value="RH">RH</option>
+                                    <option value="Administrativo">Administrativo</option>
+                                    <option value="Logística">Logística</option>
+                                    <option value="Financeiro">Financeiro</option>
+                                    <option value="Comercial">Comercial</option>
+                                </select>
+                            </div>
+                            <div style="flex: 1; min-width: 200px;">
+                                <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Categoria</label>
+                                <select id="filtro-estoque-cat" class="form-control" onchange="window.renderEstoqueTable()">
+                                    <option value="">Todas</option>
+                                    <option value="EPI">EPI</option>
+                                    <option value="Uniforme">Uniforme</option>
+                                    <option value="Itens de Escritório">Itens de Escritório</option>
+                                    <option value="Outros">Outros</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Departamento</th>
+                                        <th>Categoria</th>
+                                        <th>Qtd. Atual</th>
+                                        <th>Min/Máx</th>
+                                        <th style="text-align: right;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-estoque">
+                                    <tr><td colspan="6" style="text-align:center;color:#64748b;">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- MODAL ESTOQUE -->
+                <div id="modal-estoque" class="modal-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+                    <div style="background:#fff;border-radius:12px;width:500px;max-width:95%;padding:2rem;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+                            <h3 id="modal-estoque-title" style="margin:0;color:#1e293b;"><i class="ph ph-package"></i> Adicionar Item de Estoque</h3>
+                            <button onclick="window.fecharModalEstoque()" style="background:none;border:none;font-size:1.5rem;color:#64748b;cursor:pointer;">&times;</button>
+                        </div>
+                        <form id="form-estoque" onsubmit="window.salvarEstoque(event)">
+                            <input type="hidden" id="estoque-id">
+                            <div style="margin-bottom:1rem;">
+                                <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Nome do Item *</label>
+                                <input type="text" id="estoque-nome" required class="form-control" placeholder="Ex: Capacete">
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+                                <div>
+                                    <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Departamento *</label>
+                                    <select id="estoque-dept" required class="form-control">
+                                        <option value="RH">RH</option>
+                                        <option value="Administrativo">Administrativo</option>
+                                        <option value="Logística">Logística</option>
+                                        <option value="Financeiro">Financeiro</option>
+                                        <option value="Comercial">Comercial</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Categoria *</label>
+                                    <select id="estoque-cat" required class="form-control">
+                                        <option value="EPI">EPI</option>
+                                        <option value="Uniforme">Uniforme</option>
+                                        <option value="Itens de Escritório">Itens de Escritório</option>
+                                        <option value="Outros">Outros</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                                <div>
+                                    <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Qtd. Atual</label>
+                                    <input type="number" id="estoque-qtd" class="form-control" min="0" value="0">
+                                </div>
+                                <div>
+                                    <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Mínima</label>
+                                    <input type="number" id="estoque-min" class="form-control" min="0" value="0">
+                                </div>
+                                <div>
+                                    <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Máxima</label>
+                                    <input type="number" id="estoque-max" class="form-control" min="0" value="0">
+                                </div>
+                            </div>
+                            <div style="display:flex;justify-content:flex-end;gap:1rem;">
+                                <button type="button" class="btn btn-secondary" onclick="window.fecharModalEstoque()">Cancelar</button>
+                                <button type="submit" id="btn-salvar-estoque" class="btn btn-primary" style="background:#e67700; border-color:#e67700;">Salvar Item</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- VIEW: LICENÇAS -->
                 <section id="view-licencas" class="content-view">
                     <div class="page-header flex-between"
                         style="position:sticky; top:60px; z-index:20; background:var(--bg-main); padding:1.25rem 0; margin-top:-1.5rem; margin-bottom:2rem; border-bottom:1px solid var(--border-color);">

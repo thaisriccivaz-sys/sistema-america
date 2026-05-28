@@ -158,7 +158,71 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `);
             
-            // Auto-Migration Silenciosa para Bancos Existentes
+            // Tabela de Estoque
+            db.run(`
+                CREATE TABLE IF NOT EXISTS estoque (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL,
+                    departamento TEXT NOT NULL,
+                    categoria TEXT NOT NULL,
+                    quantidade_atual INTEGER DEFAULT 0,
+                    quantidade_minima INTEGER DEFAULT 0,
+                    quantidade_maxima INTEGER DEFAULT 0,
+                    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `, () => {
+                // Seed de Estoque
+                db.get('SELECT count(*) as count FROM estoque', [], (err, row) => {
+                    if (!err && row.count === 0) {
+                        const itensIniciais = [
+                            { n: 'Capacete', c: 'EPI' },
+                            { n: 'Protetor auditivo', c: 'EPI' },
+                            { n: 'Óculos de proteção', c: 'EPI' },
+                            { n: 'Máscara PFF2', c: 'EPI' },
+                            { n: 'Respirador purificador de ar', c: 'EPI' },
+                            { n: 'Refil do respirador purificador', c: 'EPI' },
+                            { n: 'Capa de chuva', c: 'EPI' },
+                            { n: 'Luva de neolatex EXG', c: 'EPI' },
+                            { n: 'Luva nitrílica', c: 'EPI' },
+                            { n: 'Luva de helanca', c: 'EPI' },
+                            { n: 'Bota de PVC', c: 'EPI' },
+                            { n: 'Bota bico de aço', c: 'EPI' },
+                            { n: 'Protetor solar FPS30', c: 'EPI' },
+                            { n: 'Colete refletivo', c: 'EPI' },
+                            { n: 'Boné', c: 'Uniforme' },
+                            { n: 'Camiseta manga curta', c: 'Uniforme' },
+                            { n: 'Camiseta manga longa', c: 'Uniforme' },
+                            { n: 'Calça', c: 'Uniforme' },
+                            { n: 'Luva de neolatex', c: 'EPI' },
+                            { n: 'Avental impermeável', c: 'EPI' },
+                            { n: 'Sapato antiderrapante', c: 'EPI' },
+                            { n: 'Máscara de solda', c: 'EPI' },
+                            { n: 'Avental de raspa', c: 'EPI' },
+                            { n: 'Luva de raspa', c: 'EPI' },
+                            { n: 'Máscara respirador facial com filtro', c: 'EPI' },
+                            { n: 'Camiseta branca', c: 'Uniforme' },
+                            { n: 'Camiseta polo preta', c: 'Uniforme' },
+                            { n: 'Camiseta polo preta manga longa', c: 'Uniforme' },
+                            { n: 'Camiseta polo roxa', c: 'Uniforme' },
+                            { n: 'Porta canetas', c: 'Itens de Escritório' },
+                            { n: 'Porta arquivos de mesa', c: 'Itens de Escritório' },
+                            { n: 'Mouse pad ergonômico', c: 'Itens de Escritório' },
+                            { n: 'Apoio ergonômico de teclado', c: 'Itens de Escritório' },
+                            { n: 'Suporte ergonômico de pés', c: 'Itens de Escritório' },
+                            { n: 'Apoio notebook', c: 'Itens de Escritório' },
+                            { n: 'Fone de ouvido', c: 'Itens de Escritório' }
+                        ];
+
+                        const stmt = db.prepare('INSERT INTO estoque (nome, departamento, categoria) VALUES (?, ?, ?)');
+                        itensIniciais.forEach(item => {
+                            stmt.run([item.n, 'RH', item.c]);
+                        });
+                        stmt.finalize();
+                        console.log('Seed de estoque concluído com sucesso!');
+                    }
+                });
+            });            // Auto-Migration Silenciosa para Bancos Existentes
             db.run("ALTER TABLE colaboradores ADD COLUMN contato_emergencia_nome TEXT", (err) => { /* Ignora se já existir */ });
             db.run("ALTER TABLE colaboradores ADD COLUMN contato_emergencia_telefone TEXT", (err) => { /* Ignora se já existir */ });
             db.run("ALTER TABLE colaboradores ADD COLUMN contato_emergencia2_nome TEXT", (err) => { /* Ignora se já existir */ });

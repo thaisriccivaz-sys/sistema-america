@@ -10,7 +10,8 @@ const TIPOS_NOTIFICACAO = [
     { id: 'licenca_vencida', nome: 'Aviso de Licença Vencida', icone: 'ph-warning-circle' },
     { id: 'novo_sinistro', nome: 'Novo Sinistro Registrado', icone: 'ph-warning' },
     { id: 'nova_multa_prontuario', nome: 'Nova Multa no Prontuário', icone: 'ph-traffic-cone' },
-    { id: 'nova_multa_monaco', nome: 'Nova Multa Integrada Mônaco', icone: 'ph-police-car' }
+    { id: 'nova_multa_monaco', nome: 'Nova Multa Integrada Mônaco', icone: 'ph-police-car' },
+    { id: 'estoque_minimo', nome: 'Notificação Estoque Mínimo', icone: 'ph-package' }
 ];
 
 let globalUsuariosConfig = [];
