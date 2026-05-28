@@ -816,11 +816,10 @@ window.abrirModalManutencao = async function(id, opts = {}) {
     const catOpts = [{v:'', l:'Selecione...'}].concat((window._manutCategorias||[]).map(c => ({v:c.id, l:c.nome})));
 
     // Multi-vehicle panel HTML (only for new maintenance)
-    const tipoChips = TIPOS_VEICULO.map(t =>
-        `<button type="button" data-tipo="${t.toLowerCase()}" onclick="window.mnModalFiltrarTipo(this)"
-            style="padding:4px 12px;border:1.5px solid #cbd5e1;border-radius:999px;background:#fff;color:#475569;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all .15s;"
-            onmouseover="this.style.borderColor='#d97706'" onmouseout="if(!this.classList.contains('ativo')) this.style.borderColor='#cbd5e1'">${t}</button>`
-    ).join('');
+    const tipoSelect = `<select onchange="window.mnModalFiltrarTipo(this.value)" style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.83rem;outline:none;background:#fff;color:#475569;">
+        <option value="">Todos os tipos</option>
+        ${TIPOS_VEICULO.map(t => `<option value="${t.toLowerCase()}">${t}</option>`).join('')}
+    </select>`;
 
     const veicCheckboxes = frota.map(v => {
         const tipoVeic = (v.tipo_veiculo || '').toLowerCase();
@@ -843,8 +842,7 @@ window.abrirModalManutencao = async function(id, opts = {}) {
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center;">
             <span style="font-size:0.75rem;color:#94a3b8;font-weight:600;">Filtrar:</span>
-            ${tipoChips}
-            <button type="button" onclick="window.mnModalFiltrarTipo(null)" style="padding:4px 12px;border:1.5px solid #e2e8f0;border-radius:999px;background:#f8fafc;color:#64748b;font-size:0.78rem;cursor:pointer;">Todos</button>
+            ${tipoSelect}
         </div>
         <div style="display:flex;gap:6px;margin-bottom:6px;">
             <input id="mn-vei-busca" type="text" placeholder="Buscar placa..." oninput="window.mnModalFiltrarVeicBusca(this.value)"
@@ -969,11 +967,8 @@ window.abrirModalManutencao = async function(id, opts = {}) {
     }
 };
 
-window.mnModalFiltrarTipo = function(btn) {
-    const tipo = btn ? btn.dataset.tipo : null;
+window.mnModalFiltrarTipo = function(tipo) {
     const lista = document.querySelectorAll('.mn-vei-row');
-    document.querySelectorAll('[data-tipo]').forEach(b => b.classList.remove('ativo'));
-    if(btn) btn.classList.add('ativo');
     lista.forEach(row => {
         if(!tipo || row.dataset.tipo === tipo) row.style.display = 'flex';
         else row.style.display = 'none';
@@ -1236,16 +1231,8 @@ window.salvarManutencao = async function(idEdit) {
                     method, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
                     body: JSON.stringify(payload)
                 });
-            };
-
-            const url = idEdit ? '/api/frota/manutencoes/' + idEdit : '/api/frota/manutencoes';
-            const method = idEdit ? 'PUT' : 'POST';
-            
-            const res = await fetch(url, {
-                method, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
-                body: JSON.stringify(payload)
-            });
-            if (!res.ok) throw new Error('Erro ao salvar ' + s.nome);
+                if (!res.ok) throw new Error('Erro ao salvar ' + s.nome);
+            }
         }
 
         document.getElementById('modal-manut-ov')?.remove();
