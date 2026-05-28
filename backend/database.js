@@ -615,6 +615,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 if (!err) console.log('[EPI migration] Removida ficha duplicada Ajudante Pátio, Liderança (se existia).');
             });
             // Migration: adicionar item faltante à ficha de Manutenção (será aplicado dentro do callback do seed)
+            // Migration: adicionar coluna registrado_por à tabela epi_entregas
+            db.run(`ALTER TABLE epi_entregas ADD COLUMN registrado_por TEXT`, (err) => {});
 
             // Tabela de Templates de EPI por departamento
             db.run(`

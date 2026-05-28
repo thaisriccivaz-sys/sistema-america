@@ -8217,10 +8217,11 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
     const fichaId = req.params.id;
     const { colaborador_id, epis_entregues, assinatura_base64, data_entrega } = req.body;
     if (!epis_entregues || !assinatura_base64) return res.status(400).json({ error: 'Dados incompletos.' });
+    const registrado_por = req.user ? (req.user.nome || req.user.username || '') : '';
 
     db.run(
-        `INSERT INTO epi_entregas (ficha_id, colaborador_id, epis_entregues, assinatura_base64, data_entrega) VALUES (?,?,?,?,?)`,
-        [fichaId, colaborador_id, JSON.stringify(epis_entregues), assinatura_base64, data_entrega || new Date().toLocaleDateString('pt-BR')],
+        `INSERT INTO epi_entregas (ficha_id, colaborador_id, epis_entregues, assinatura_base64, data_entrega, registrado_por) VALUES (?,?,?,?,?,?)`,
+        [fichaId, colaborador_id, JSON.stringify(epis_entregues), assinatura_base64, data_entrega || new Date().toLocaleDateString('pt-BR'), registrado_por],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID });
@@ -8259,7 +8260,7 @@ app.post('/api/epi-fichas/:id/save-onedrive', authenticateToken, async (req, res
 // GET: todas as entregas de EPI de um colaborador (todas as fichas)
 app.get('/api/colaboradores/:id/epi-entregas', authenticateToken, (req, res) => {
     db.all(
-        `SELECT ee.id, ee.data_entrega, ee.epis_entregues, ef.grupo
+        `SELECT ee.id, ee.data_entrega, ee.epis_entregues, ee.registrado_por, ef.grupo
          FROM epi_entregas ee
          JOIN colaborador_epi_fichas ef ON ef.id = ee.ficha_id
          WHERE ee.colaborador_id = ?
@@ -8267,14 +8268,13 @@ app.get('/api/colaboradores/:id/epi-entregas', authenticateToken, (req, res) => 
         [req.params.id],
         (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
-            // Expande cada entrega em linhas individuais por EPI
             const result = [];
             (rows || []).forEach(r => {
                 const epis = JSON.parse(r.epis_entregues || '[]');
                 if (epis.length === 0) {
-                    result.push({ id: r.id, data_entrega: r.data_entrega, epi_nome: '—', grupo: r.grupo });
+                    result.push({ id: r.id, data_entrega: r.data_entrega, epi_nome: '—', grupo: r.grupo, registrado_por: r.registrado_por || '' });
                 } else {
-                    epis.forEach(nome => result.push({ id: r.id, data_entrega: r.data_entrega, epi_nome: nome, grupo: r.grupo }));
+                    epis.forEach(nome => result.push({ id: r.id, data_entrega: r.data_entrega, epi_nome: nome, grupo: r.grupo, registrado_por: r.registrado_por || '' }));
                 }
             });
             res.json(result);

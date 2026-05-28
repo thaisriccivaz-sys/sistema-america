@@ -13275,6 +13275,7 @@ async function renderFichaEpiTab(container) {
                     </td>
                     <td style="padding:0.55rem 0.85rem;font-size:0.85rem;color:#0f172a;font-weight:500;">${e.epi_nome || '—'}</td>
                     <td style="padding:0.55rem 0.85rem;font-size:0.8rem;color:#64748b;">${e.grupo || '—'}</td>
+                    <td style="padding:0.55rem 0.85rem;font-size:0.8rem;color:#64748b;">${e.registrado_por || '—'}</td>
                 </tr>`;
         }).join('');
 
@@ -13292,6 +13293,7 @@ async function renderFichaEpiTab(container) {
                             <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;white-space:nowrap;">Data de Entrega</th>
                             <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">EPI</th>
                             <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">Grupo/Ficha</th>
+                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">Registrado por</th>
                         </tr>
                     </thead>
                     <tbody>${linhas}</tbody>
@@ -13561,6 +13563,7 @@ window._renderEpiGrid = function (filtro) {
 };
 
 window._setEpiQty = function (epi, qty) {
+    const prevQty = (window._assinQtds || {})[epi] || 0;
     window._assinQtds = window._assinQtds || {}; window._assinQtds[epi] = qty;
     const card = document.querySelector('[data-epi-card="' + CSS.escape(epi) + '"]');
     if (card) {
@@ -13569,6 +13572,27 @@ window._setEpiQty = function (epi, qty) {
         const btns = card.querySelectorAll('button'); if (btns[0]) btns[0].style.background = qty > 0 ? '#1e3a5f' : '#e2e8f0';
     }
     if (qty > 0) { const w = document.getElementById('epi-select-warn'); if (w) w.style.display = 'none'; }
+
+    // Aviso 15 dias: dispara apenas quando o usuário adiciona pela primeira vez (qty passa de 0 para 1)
+    if (prevQty === 0 && qty === 1) {
+        const todasEntregas = window._epiProntuarioData?.todasEntregas || [];
+        const hoje15 = new Date(); hoje15.setHours(0, 0, 0, 0);
+        const parseDt15 = str => {
+            if (!str) return null;
+            if (str.includes('/')) { const [d, m, y] = str.split('/'); return new Date(y, m - 1, d); }
+            return new Date(str + 'T12:00:00');
+        };
+        const entregaAnterior = todasEntregas.find(e => e.epi_nome === epi);
+        if (entregaAnterior) {
+            const dataAnterior = parseDt15(entregaAnterior.data_entrega);
+            if (dataAnterior) {
+                const dias = Math.floor((hoje15 - dataAnterior) / (1000 * 60 * 60 * 24));
+                if (dias <= 15) {
+                    alert(`⚠️ Atenção!\n\n"${epi}" foi entregue há ${dias} dia${dias !== 1 ? 's' : ''} para este colaborador (em ${entregaAnterior.data_entrega}).\n\nO registro será feito normalmente.`);
+                }
+            }
+        }
+    }
 };
 
 window._filtrarEpis = function (f) { window._renderEpiGrid(f); };
@@ -13649,32 +13673,7 @@ window._assinNextStep = async function () {
             return;
         }
 
-        // Verifica EPIs entregues há menos de 15 dias
-        const itensParaEntrega = window._buildItensFromQtds ? window._buildItensFromQtds() : (window._assinItens || []);
-        const todasEntregas = window._epiProntuarioData?.todasEntregas || [];
-        const hoje15 = new Date(); hoje15.setHours(0, 0, 0, 0);
-        const parseDt = str => {
-            if (!str) return null;
-            if (str.includes('/')) { const [d, m, y] = str.split('/'); return new Date(y, m - 1, d); }
-            return new Date(str + 'T12:00:00');
-        };
-        const avisosEpi = [];
-        const nomesUnicos = [...new Set(itensParaEntrega)];
-        nomesUnicos.forEach(nomeEpi => {
-            const entregaAnterior = todasEntregas.find(e => e.epi_nome === nomeEpi);
-            if (entregaAnterior) {
-                const dataAnterior = parseDt(entregaAnterior.data_entrega);
-                if (dataAnterior) {
-                    const dias = Math.floor((hoje15 - dataAnterior) / (1000 * 60 * 60 * 24));
-                    if (dias <= 15) avisosEpi.push({ nome: nomeEpi, dias, data: entregaAnterior.data_entrega });
-                }
-            }
-        });
-        if (avisosEpi.length > 0) {
-            const linhasAviso = avisosEpi.map(a => `• ${a.nome} — entregue em ${a.data} (há ${a.dias} dia${a.dias !== 1 ? 's' : ''})`).join('\n');
-            alert(`⚠️ Atenção!\n\nO(s) EPI(s) abaixo foram entregues há menos de 15 dias para este colaborador:\n\n${linhasAviso}\n\nO registro será feito normalmente.`);
-        }
-
+        // Verifica EPIs entregues há menos de 15 dias (aviso já exibido no step 1 ao clicar +)
         // Captura assinatura
         const canvas = document.getElementById('epi-signature-canvas');
         const assinaturaBase64 = canvas.toDataURL('image/png');
