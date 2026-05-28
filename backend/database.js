@@ -168,10 +168,28 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     quantidade_atual INTEGER DEFAULT 0,
                     quantidade_minima INTEGER DEFAULT 0,
                     quantidade_maxima INTEGER DEFAULT 0,
+                    foto_base64 TEXT,
                     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
                     atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             `, () => {
+                // Tabela de Histórico de Movimentações
+                db.run(`
+                    CREATE TABLE IF NOT EXISTS estoque_historico (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        estoque_id INTEGER NOT NULL,
+                        quantidade INTEGER NOT NULL,
+                        tipo TEXT NOT NULL, 
+                        usuario TEXT NOT NULL,
+                        motivo TEXT NOT NULL,
+                        data_hora DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY(estoque_id) REFERENCES estoque(id)
+                    )
+                `);
+
+                // Migration: add foto_base64 if it doesn't exist
+                db.run('ALTER TABLE estoque ADD COLUMN foto_base64 TEXT', (err) => { /* ignore if already exists */ });
+                
                 // Seed de Estoque
                 db.get('SELECT count(*) as count FROM estoque', [], (err, row) => {
                     if (!err && row.count === 0) {

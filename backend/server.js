@@ -8265,6 +8265,15 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                         if (!errE && item && item.quantidade_atual > 0) {
                             const newQtd = item.quantidade_atual - 1;
                             db.run("UPDATE estoque SET quantidade_atual = ? WHERE id = ?", [newQtd, item.id], (errUpd) => {
+                                // Grava Histórico de Saída
+                                if (!errUpd) {
+                                    db.run(
+                                        'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo) VALUES (?, ?, ?, ?, ?)',
+                                        [item.id, 1, 'Saída', registrado_por || 'Sistema', 'Baixa Prontuário Colaborador: ' + (colaborador_id || '')],
+                                        () => {}
+                                    );
+                                }
+                                
                                 // Se a quantidade bateu no limite mínimo (e antes não estava)
                                 if (!errUpd && newQtd <= item.quantidade_minima && item.quantidade_atual > item.quantidade_minima) {
                                     const msg = `ESTOQUE BAIXO: O item "${item.nome}" (${item.departamento}) atingiu o estoque mínimo. Quantidade Atual: ${newQtd}.`;
@@ -14928,15 +14937,14 @@ async function dispararAcoesAgenda(card) {
                             ${card.titulo ? `<p style="margin:4px 0;"><strong>Título:</strong> ${card.titulo}</p>` : ''}
                             ${card.descricao ? `<p style="margin:4px 0;"><strong>Descrição:</strong> ${card.descricao}</p>` : ''}
                         </div>
-                        <p style="color:#64748b;font-size:0.9em;">Acesse o sistema para mais detalhes.</p>
                         <p style="margin-top:24px;color:#94a3b8;font-size:0.85em;">Atenciosamente,<br>Sistema América Rental</p>
                     </div>
-                </div>`;
+                </div>\`;
                 try {
                     await sendMailHelper({
-                        from: `"Agenda América Rental" <${SMTP_CONFIG.auth.user}>`,
+                        from: \`"Agenda América Rental" <\${SMTP_CONFIG.auth.user}>\`,
                         to: c.email_corporativo,
-                        subject: `[Agenda ${dataFmt}] ${card.titulo || tipo_label}`,
+                        subject: \`[Agenda \${dataFmt}] \${card.titulo || tipo_label}\`,
                         html,
                         attachments: [{ filename: 'logo.png', path: logoPath, cid: 'logo-agenda' }]
                     });
@@ -15003,15 +15011,46 @@ app.get('/api/estoque', authenticateToken, (req, res) => {
     });
 });
 
+// Obter histórico de estoque (geral ou por item)
+app.get('/api/estoque/historico', authenticateToken, (req, res) => {
+    let query = `
+        SELECT h.*, e.nome as estoque_nome, e.departamento as estoque_departamento 
+        FROM estoque_historico h
+        JOIN estoque e ON h.estoque_id = e.id
+        WHERE 1=1
+    `;
+    let params = [];
+    if (req.query.estoque_id) {
+        query += ' AND h.estoque_id = ?';
+        params.push(req.query.estoque_id);
+    }
+    query += ' ORDER BY h.data_hora DESC LIMIT 200';
+    
+    db.all(query, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
 // Adicionar Item
 app.post('/api/estoque', authenticateToken, (req, res) => {
-    const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima } = req.body;
+    const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64 } = req.body;
+    const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
     db.run(
-        'INSERT INTO estoque (nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima) VALUES (?, ?, ?, ?, ?, ?)',
-        [nome, departamento, categoria, quantidade_atual || 0, quantidade_minima || 0, quantidade_maxima || 0],
+        'INSERT INTO estoque (nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [nome, departamento, categoria, quantidade_atual || 0, quantidade_minima || 0, quantidade_maxima || 0, foto_base64 || null],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ id: this.lastID, success: true });
+            const newItemId = this.lastID;
+            
+            // Grava histórico
+            db.run(
+                'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo) VALUES (?, ?, ?, ?, ?)',
+                [newItemId, quantidade_atual || 0, 'Entrada', usuario, 'Novo Item Cadastrado'],
+                () => {
+                    res.json({ id: newItemId, success: true });
+                }
+            );
         }
     );
 });
@@ -15019,17 +15058,30 @@ app.post('/api/estoque', authenticateToken, (req, res) => {
 // Editar Item e Atualizar Quantidades
 app.put('/api/estoque/:id', authenticateToken, (req, res) => {
     const id = req.params.id;
-    const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima } = req.body;
+    const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64 } = req.body;
+    const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
     
     // Obter dados antigos para verificar se atingiu estoque minimo agora
     db.get('SELECT * FROM estoque WHERE id = ?', [id], (errFetch, oldRow) => {
         if (errFetch || !oldRow) return res.status(500).json({ error: 'Item não encontrado' });
         
         db.run(
-            'UPDATE estoque SET nome = ?, departamento = ?, categoria = ?, quantidade_atual = ?, quantidade_minima = ?, quantidade_maxima = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
-            [nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, id],
+            'UPDATE estoque SET nome = ?, departamento = ?, categoria = ?, quantidade_atual = ?, quantidade_minima = ?, quantidade_maxima = ?, foto_base64 = COALESCE(?, foto_base64), atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
+            [nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, id],
             function(errUpdate) {
                 if (errUpdate) return res.status(500).json({ error: errUpdate.message });
+                
+                // Grava histórico se houver diferença de quantidade
+                const diferenca = quantidade_atual - oldRow.quantidade_atual;
+                if (diferenca !== 0) {
+                    const tipo = diferenca > 0 ? 'Entrada' : 'Saída';
+                    db.run(
+                        'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo) VALUES (?, ?, ?, ?, ?)',
+                        [id, Math.abs(diferenca), tipo, usuario, 'Ajuste Manual'],
+                        () => {}
+                    );
+                }
+
                 res.json({ success: true });
                 
                 // Lógica de Notificação de Estoque Mínimo

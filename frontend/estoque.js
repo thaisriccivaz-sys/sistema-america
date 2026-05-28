@@ -9,6 +9,7 @@ window.renderEstoqueTable = async function() {
         
         const dept = document.getElementById('filtro-estoque-dept').value;
         const cat = document.getElementById('filtro-estoque-cat').value;
+        const status = document.getElementById('filtro-estoque-status')?.value || '';
         const nomeFilter = document.getElementById('filtro-estoque-nome').value.toLowerCase();
         
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
@@ -25,6 +26,10 @@ window.renderEstoqueTable = async function() {
             data = data.filter(item => item.nome.toLowerCase().includes(nomeFilter));
         }
         
+        if (status === 'minimo') {
+            data = data.filter(item => item.quantidade_atual <= item.quantidade_minima);
+        }
+        
         if (data.length === 0) {
             table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Nenhum item encontrado.</td></tr>';
             return;
@@ -34,9 +39,15 @@ window.renderEstoqueTable = async function() {
             const isLow = item.quantidade_atual <= item.quantidade_minima;
             return `
                 <tr style="${isLow ? 'background:#fff5f5;' : ''}">
-                    <td style="font-weight:500;">
-                        ${isLow ? '<i class="ph ph-warning-circle" style="color:#ef4444; margin-right:4px;" title="Estoque Mínimo Atingido"></i>' : ''}
-                        ${item.nome}
+                    <td style="font-weight:500; display: flex; align-items: center; gap: 12px;">
+                        ${item.foto_base64 
+                            ? `<img src="${item.foto_base64}" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0; flex-shrink: 0;">` 
+                            : `<div style="width: 40px; height: 40px; border-radius: 8px; background: #f1f5f9; border: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><i class="ph ph-image" style="color: #94a3b8; font-size: 1.2rem;"></i></div>`
+                        }
+                        <div>
+                            ${isLow ? '<i class="ph ph-warning-circle" style="color:#ef4444; margin-right:4px;" title="Estoque Mínimo Atingido"></i>' : ''}
+                            ${item.nome}
+                        </div>
                     </td>
                     <td><span class="badge" style="background:#f1f5f9; color:#475569;">${item.departamento}</span></td>
                     <td>${item.categoria}</td>
@@ -65,6 +76,13 @@ window.renderEstoqueTable = async function() {
 window.abrirModalEstoque = function() {
     document.getElementById('form-estoque').reset();
     document.getElementById('estoque-id').value = '';
+    
+    // Limpar foto
+    document.getElementById('estoque-foto-base64').value = '';
+    document.getElementById('estoque-foto-preview').src = '';
+    document.getElementById('estoque-foto-preview').style.display = 'none';
+    document.getElementById('estoque-foto-icon').style.display = 'block';
+
     document.getElementById('modal-estoque-title').innerHTML = '<i class="ph ph-package"></i> Adicionar Item de Estoque';
     document.getElementById('modal-estoque').style.display = 'flex';
 }
@@ -82,6 +100,18 @@ window.editarEstoque = function(item) {
     document.getElementById('estoque-min').value = item.quantidade_minima;
     document.getElementById('estoque-max').value = item.quantidade_maxima;
     
+    // Mostrar foto
+    document.getElementById('estoque-foto-base64').value = item.foto_base64 || '';
+    if (item.foto_base64) {
+        document.getElementById('estoque-foto-preview').src = item.foto_base64;
+        document.getElementById('estoque-foto-preview').style.display = 'block';
+        document.getElementById('estoque-foto-icon').style.display = 'none';
+    } else {
+        document.getElementById('estoque-foto-preview').src = '';
+        document.getElementById('estoque-foto-preview').style.display = 'none';
+        document.getElementById('estoque-foto-icon').style.display = 'block';
+    }
+    
     document.getElementById('modal-estoque-title').innerHTML = '<i class="ph ph-pencil-simple"></i> Editar Item de Estoque';
     document.getElementById('modal-estoque').style.display = 'flex';
 }
@@ -95,7 +125,8 @@ window.salvarEstoque = async function(e) {
         categoria: document.getElementById('estoque-cat').value,
         quantidade_atual: parseInt(document.getElementById('estoque-qtd').value) || 0,
         quantidade_minima: parseInt(document.getElementById('estoque-min').value) || 0,
-        quantidade_maxima: parseInt(document.getElementById('estoque-max').value) || 0
+        quantidade_maxima: parseInt(document.getElementById('estoque-max').value) || 0,
+        foto_base64: document.getElementById('estoque-foto-base64').value
     };
 
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
@@ -199,5 +230,84 @@ window.navigateTo = function(targetId) {
     if (origNavForEstoque) origNavForEstoque.apply(this, arguments);
     if (targetId === 'estoque') {
         window.renderEstoqueTable();
+    }
+};
+
+window.previewEstoqueFoto = function(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('estoque-foto-base64').value = e.target.result;
+            document.getElementById('estoque-foto-preview').src = e.target.result;
+            document.getElementById('estoque-foto-preview').style.display = 'block';
+            document.getElementById('estoque-foto-icon').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+};
+
+// Funções de aba
+window.switchTabEstoque = function(tab) {
+    document.getElementById('content-estoque-itens').style.display = tab === 'itens' ? 'block' : 'none';
+    document.getElementById('content-estoque-historico').style.display = tab === 'historico' ? 'block' : 'none';
+    
+    document.getElementById('tab-estoque-itens').style.color = tab === 'itens' ? '#e67700' : '#64748b';
+    document.getElementById('tab-estoque-itens').style.borderColor = tab === 'itens' ? '#e67700' : 'transparent';
+    document.getElementById('tab-estoque-itens').style.fontWeight = tab === 'itens' ? '700' : '600';
+    
+    document.getElementById('tab-estoque-historico').style.color = tab === 'historico' ? '#e67700' : '#64748b';
+    document.getElementById('tab-estoque-historico').style.borderColor = tab === 'historico' ? '#e67700' : 'transparent';
+    document.getElementById('tab-estoque-historico').style.fontWeight = tab === 'historico' ? '700' : '600';
+
+    if (tab === 'historico') {
+        window.renderEstoqueHistorico();
+    }
+};
+
+window.renderEstoqueHistorico = async function() {
+    const table = document.getElementById('table-estoque-historico');
+    if (!table) return;
+
+    try {
+        table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Carregando histórico...</td></tr>';
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        
+        const response = await fetch(`${API_URL}/estoque/historico`, { headers: { 'Authorization': `Bearer ${token}` }});
+        if (!response.ok) throw new Error('Erro ao buscar histórico');
+        
+        const data = await response.json();
+        
+        if (data.length === 0) {
+            table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Nenhuma movimentação registrada.</td></tr>';
+            return;
+        }
+
+        table.innerHTML = '';
+        data.forEach(h => {
+            const tr = document.createElement('tr');
+            
+            // Format datetime
+            const dt = new Date(h.data_hora);
+            const dataStr = dt.toLocaleDateString('pt-BR');
+            const horaStr = dt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            
+            // Tipo styling
+            const tipoColor = h.tipo === 'Entrada' ? '#16a34a' : (h.tipo === 'Saída' ? '#ef4444' : '#eab308');
+            const tipoBg = h.tipo === 'Entrada' ? '#f0fdf4' : (h.tipo === 'Saída' ? '#fef2f2' : '#fefce8');
+
+            tr.innerHTML = `
+                <td><div style="font-weight:500;">${dataStr}</div><div style="font-size:0.8em;color:#64748b;">${horaStr}</div></td>
+                <td><div style="font-weight:600;color:#1e293b;">${h.estoque_nome}</div><div style="font-size:0.8em;color:#64748b;">${h.estoque_departamento}</div></td>
+                <td><span style="background:${tipoBg}; color:${tipoColor}; padding:2px 8px; border-radius:12px; font-size:0.8em; font-weight:600;">${h.tipo}</span></td>
+                <td style="font-weight:700; color:${tipoColor};">${h.tipo === 'Saída' ? '-' : '+'}${h.quantidade}</td>
+                <td>${h.usuario || '-'}</td>
+                <td style="color:#475569; font-size:0.9em; max-width:200px;">${h.motivo || '-'}</td>
+            `;
+            table.appendChild(tr);
+        });
+
+    } catch (err) {
+        table.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#ef4444;">Erro ao carregar histórico: ${err.message}</td></tr>`;
     }
 };
