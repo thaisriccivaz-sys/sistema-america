@@ -12017,6 +12017,13 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                 if (!porDescricao[key].base) porDescricao[key].base = r;
             });
 
+            // Cleanup obsolete ghost records
+            Object.keys(porDescricao).forEach(key => {
+                const p = porDescricao[key];
+                if (p.agendada && p.concluida && p.agendada.id < p.concluida.id) p.agendada = null;
+                if (p.em_andamento && p.concluida && p.em_andamento.id < p.concluida.id) p.em_andamento = null;
+            });
+
             const plano = Object.values(porDescricao).map(({ concluida, agendada, em_andamento, base }) => {
                 const item = em_andamento || agendada || base || concluida;
                 const kmUlt = concluida ? (concluida.km_na_manutencao || 0) : 0;
@@ -12051,7 +12058,8 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                     data_inicio: em_andamento?.data_inicio || agendada?.data_inicio || null,
                     observacoes_concluida: concluida?.observacoes || null,
                     observacoes_agendada: agendada?.observacoes || em_andamento?.observacoes || null,
-                    observacoes: item.observacoes || null
+                    observacoes: item.observacoes || null,
+                    apenas_vistoria: concluida?.apenas_vistoria || 0
                 };
             });
 
@@ -12087,14 +12095,14 @@ app.get('/api/frota/manutencoes', authenticateToken, (req, res) => {
 
 // POST - registrar manutenção
 app.post('/api/frota/manutencoes', authenticateToken, (req, res) => {
-    const { veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes } = req.body;
+    const { veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, apenas_vistoria } = req.body;
     if (!veiculo_id || !descricao) return res.status(400).json({ error: 'veiculo_id e descricao são obrigatórios' });
     const usuario_nome = req.user?.username || 'sistema';
 
     db.run(
-        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, usuario_nome)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [veiculo_id, tipo||'preventiva', descricao, status||'programada', km_na_manutencao||null, km_proxima_manutencao||null, data_agendamento||null, data_conclusao||null, custo||null, fornecedor||null, observacoes||null, usuario_nome],
+        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, usuario_nome, apenas_vistoria)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [veiculo_id, tipo||'preventiva', descricao, status||'programada', km_na_manutencao||null, km_proxima_manutencao||null, data_agendamento||null, data_conclusao||null, custo||null, fornecedor||null, observacoes||null, usuario_nome, apenas_vistoria ? 1 : 0],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             // Se status é 'em_andamento', marcar veículo como em manutenção
@@ -12150,7 +12158,6 @@ app.put('/api/frota/manutencoes/em-massa', authenticateToken, (req, res) => {
     });
 });
 
-// PUT - editar em massa intervalo e observacoes
 app.put('/api/frota/manutencoes/em-massa-intervalo-obs', authenticateToken, (req, res) => {
     const { veiculo_id, servicos_ids, intervalo, observacoes } = req.body;
     if (!veiculo_id || !Array.isArray(servicos_ids)) return res.status(400).json({ error: 'veiculo_id e servicos_ids são obrigatórios' });
@@ -12162,7 +12169,6 @@ app.put('/api/frota/manutencoes/em-massa-intervalo-obs', authenticateToken, (req
         servicos_ids.forEach(servico_id => {
             if (errorOccurred) return;
             
-            // 1. Atualizar intervalo no catálogo (afeta todos os veículos)
             if (intervalo) {
                 db.run(
                     `UPDATE frota_servicos_catalogo SET periodicidade_padrao=? WHERE id=?`,
@@ -14903,7 +14909,8 @@ app.listen(PORT, () => {
     const colsMigration = [
         { col: 'servico_catalogo_id', def: 'INTEGER' },
         { col: 'criticidade', def: 'TEXT' },
-        { col: 'data_inicio', def: 'TEXT' }
+        { col: 'data_inicio', def: 'TEXT' },
+        { col: 'apenas_vistoria', def: 'INTEGER DEFAULT 0' }
     ];
     colsMigration.forEach(({ col, def }) => {
         db.run(`ALTER TABLE frota_manutencoes ADD COLUMN ${col} ${def}`, (err) => {

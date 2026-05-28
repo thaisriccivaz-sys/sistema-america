@@ -460,7 +460,8 @@ function mnRenderPlanoAgrupado(data) {
                 return `<span style="font-weight:600;color:#475569;font-size:0.82rem;">${dia||d}/${m||''}/${(y||'').slice(2)}</span>`;
             };
             const kmUltStr = item.km_ultima ? `<span style="font-size:0.68rem;font-weight:400;color:#64748b;">${Number(item.km_ultima).toLocaleString('pt-BR')} km</span>` : '';
-            const ultimaManuTxt = `<div style="display:flex;flex-direction:column;align-items:center;"><div>${fmtDate(item.data_ultima_manutencao)}${obsIconConcluida}</div>${kmUltStr}</div>`;
+            const vistoriaIcon = item.apenas_vistoria ? ` <i class="ph ph-x-circle" style="color:#ef4444;font-size:1.1rem;margin-left:4px;vertical-align:middle;" title="Apenas Vistoria (Não Necessário)"></i>` : '';
+            const ultimaManuTxt = `<div style="display:flex;flex-direction:column;align-items:center;"><div style="display:flex;align-items:center;">${fmtDate(item.data_ultima_manutencao)}${vistoriaIcon}${obsIconConcluida}</div>${kmUltStr}</div>`;
             const dataAgendadaTxt = item.data_agendamento
                 ? `<span style="font-weight:700;color:#2563eb;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:4px;">${fmtDate(item.data_agendamento).replace(/<[^>]+>/g,'').trim()}${obsIconAgendada}</span>`
                 : '<span style="color:#94a3b8;">—</span>';
@@ -1957,7 +1958,7 @@ window._mnMontarDrawerHistoricoManut = function() {
                 <input id="mn-hist-f-ag-ate" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 5px;font-size:0.72rem;height:24px;outline:none;"
                     onchange="window._mnFiltrarHistoricoManut()">
                 <button style="padding:2px 10px;background:#ef4444;color:#fff;border:none;border-radius:4px;font-size:0.7rem;cursor:pointer;height:24px;"
-                    onclick="['mn-hist-f-placa','mn-hist-f-tm','mn-hist-f-tipo','mn-hist-f-crit','mn-hist-f-real-de','mn-hist-f-real-ate','mn-hist-f-ag-de','mn-hist-f-ag-ate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});window._mnFiltrarHistoricoManut();">
+                    onclick="['mn-hist-f-placa','mn-hist-f-tm','mn-hist-f-tipo','mn-hist-f-real-de','mn-hist-f-real-ate','mn-hist-f-ag-de','mn-hist-f-ag-ate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});window._mnFiltrarHistoricoManut();">
                     Limpar
                 </button>
             </div>
@@ -1965,19 +1966,19 @@ window._mnMontarDrawerHistoricoManut = function() {
                 <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
                     <thead>
                         <tr style="background:#f1f5f9;position:sticky;top:0;z-index:2;">
-                            <th style="padding:5px 10px;text-align:left;color:#475569;font-weight:700;white-space:nowrap;">Placa</th>
-                            <th style="padding:5px 10px;text-align:left;color:#475569;font-weight:700;white-space:nowrap;">Tipo Veículo</th>
-                            <th style="padding:5px 10px;text-align:center;color:#475569;font-weight:700;white-space:nowrap;">Tipo Manut.</th>
-                            <th style="padding:5px 10px;text-align:left;color:#475569;font-weight:700;">Serviço</th>
-                            <th style="padding:5px 10px;text-align:center;color:#475569;font-weight:700;">Criticidade</th>
-                            <th style="padding:5px 10px;text-align:center;color:#475569;font-weight:700;white-space:nowrap;">Data Realizada / KM</th>
-                            <th style="padding:5px 10px;text-align:center;color:#475569;font-weight:700;white-space:nowrap;">Data Agendada</th>
-                            <th style="padding:5px 10px;text-align:right;color:#475569;font-weight:700;white-space:nowrap;">Próximo KM</th>
-                            <th style="padding:5px 10px;text-align:left;color:#475569;font-weight:700;">Fornecedor</th>
+                            <th style="padding:10px;text-align:left;color:#64748b;">Veículo/Placa</th>
+                            <th style="padding:10px;text-align:left;color:#64748b;">Tipo Veículo</th>
+                            <th style="padding:10px;text-align:center;color:#64748b;">Categoria</th>
+                            <th style="padding:10px;text-align:left;color:#64748b;">Descrição Serviço</th>
+                            <th style="padding:10px;text-align:center;color:#64748b;">Data Conclusão</th>
+                            <th style="padding:10px;text-align:center;color:#64748b;">Data Agendada (Antiga)</th>
+                            <th style="padding:10px;text-align:right;color:#64748b;">Próxima Manutenção</th>
+                            <th style="padding:10px;text-align:left;color:#64748b;">Fornecedor</th>
+                            <th style="padding:10px;text-align:center;color:#64748b;width:40px;"></th>
                         </tr>
                     </thead>
                     <tbody id="mn-hist-tbody">
-                        <tr><td colspan="10" style="text-align:center;padding:16px;color:#94a3b8;">Carregando...</td></tr>
+                        <tr><td colspan="9" style="text-align:center;padding:16px;color:#94a3b8;">Carregando...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1987,7 +1988,6 @@ window._mnMontarDrawerHistoricoManut = function() {
 
     let _aberto = false;
     let _dados  = [];
-    const _critCor = { Critica:'#dc2626', Alta:'#d97706', Media:'#0284c7', Baixa:'#2d9e5f' };
     const _fmtData = ds => {
         if (!ds) return '—';
         const p = ds.split('-');
@@ -2000,7 +2000,6 @@ window._mnMontarDrawerHistoricoManut = function() {
         const fPlaca   = (document.getElementById('mn-hist-f-placa')?.value   || '').trim().toLowerCase();
         const fTm      = (document.getElementById('mn-hist-f-tm')?.value      || '').toLowerCase();
         const fTipo    = (document.getElementById('mn-hist-f-tipo')?.value    || '').toLowerCase();
-        const fCrit    = (document.getElementById('mn-hist-f-crit')?.value    || '').toLowerCase();
         const fRealDe  = document.getElementById('mn-hist-f-real-de')?.value  || '';
         const fRealAte = document.getElementById('mn-hist-f-real-ate')?.value || '';
         const fAgDe    = document.getElementById('mn-hist-f-ag-de')?.value    || '';
@@ -2010,7 +2009,6 @@ window._mnMontarDrawerHistoricoManut = function() {
             if (fPlaca   && !(m.placa||'').toLowerCase().includes(fPlaca)) return false;
             if (fTm      && (m.tipo_manutencao||'').toLowerCase() !== fTm) return false;
             if (fTipo    && !(m.tipo_veiculo||'').toLowerCase().includes(fTipo)) return false;
-            if (fCrit    && (m.criticidade||'').toLowerCase() !== fCrit) return false;
             if (fRealDe  && (m.data_conclusao||'')   < fRealDe)  return false;
             if (fRealAte && (m.data_conclusao||'')   > fRealAte) return false;
             if (fAgDe    && (m.data_agendamento||'') < fAgDe)    return false;
@@ -2019,28 +2017,40 @@ window._mnMontarDrawerHistoricoManut = function() {
         });
 
         if (!lista.length) {
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:14px;color:#94a3b8;">Nenhuma manutenção encontrada.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:14px;color:#94a3b8;">Nenhuma manutenção encontrada.</td></tr>';
             return;
         }
 
+        window.toggleMnHistObs = function(btn) {
+            const trObs = btn.closest('tr').nextElementSibling;
+            if (trObs.style.display === 'none') {
+                trObs.style.display = 'table-row';
+                btn.className = 'ph ph-caret-up';
+            } else {
+                trObs.style.display = 'none';
+                btn.className = 'ph ph-caret-down';
+            }
+        };
+
         tbody.innerHTML = lista.map((m, i) => {
             const bgRow = i % 2 === 0 ? '#fff' : '#fafafa';
-            const cor = _critCor[m.criticidade] || '#94a3b8';
-            const critBadge = m.criticidade
-                ? '<span style="background:' + cor + '22;color:' + cor + ';padding:1px 7px;border-radius:20px;font-size:0.7rem;font-weight:700;">' + m.criticidade + '</span>'
-                : '—';
             const desc = (m.descricao || '—').replace(/"/g, '&quot;');
+            const categoria = (m.categoria_nome || '—');
+            const vistoriaIcon = m.apenas_vistoria ? ' <i class="ph ph-x-circle" style="color:#ef4444;font-size:1.1rem;margin-left:4px;vertical-align:middle;" title="Apenas Vistoria (Não Necessário)"></i>' : '';
+            const obsText = m.observacoes ? m.observacoes.replace(/\n/g, '<br>') : 'Nenhuma observação.';
+            
             return '<tr style="background:' + bgRow + ';border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#f0fdf4\'" onmouseout="this.style.background=\'' + bgRow + '\'">' +
-                '<td style="padding:5px 10px;font-weight:700;color:#1e293b;white-space:nowrap;">' + (m.placa||'—') + '</td>' +
-                '<td style="padding:5px 10px;color:#64748b;white-space:nowrap;">' + (m.tipo_veiculo||'—') + '</td>' +
-                '<td style="padding:5px 10px;text-align:center;color:#64748b;font-weight:600;white-space:nowrap;text-transform:capitalize;">' + (m.tipo_manutencao||'—') + '</td>' +
-                '<td style="padding:5px 10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + desc + '">' + (m.descricao||'—') + '</td>' +
-                '<td style="padding:5px 10px;text-align:center;">' + critBadge + '</td>' +
-                '<td style="padding:5px 10px;text-align:center;color:#2d9e5f;font-weight:600;white-space:nowrap;">' + _fmtData(m.data_conclusao) + '<br><span style="font-size:0.68rem;font-weight:400;color:#64748b;">' + (m.km_na_manutencao ? Number(m.km_na_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</span></td>' +
-                '<td style="padding:5px 10px;text-align:center;color:#2563eb;white-space:nowrap;">' + _fmtData(m.data_agendamento) + '</td>' +
-                '<td style="padding:5px 10px;text-align:right;color:#0284c7;font-weight:600;white-space:nowrap;">' + (m.km_proxima_manutencao ? Number(m.km_proxima_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</td>' +
-                '<td style="padding:5px 10px;color:#64748b;">' + (m.fornecedor||'—') + '</td>' +
-                '</tr>';
+                '<td style="padding:10px;font-weight:700;color:#1e293b;">' + (m.placa||'—') + '</td>' +
+                '<td style="padding:10px;color:#64748b;">' + (m.tipo_veiculo||'—') + '</td>' +
+                '<td style="padding:10px;text-align:center;color:#64748b;">' + categoria + '</td>' +
+                '<td style="padding:10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + desc + '">' + (m.descricao||'—') + '</td>' +
+                '<td style="padding:10px;text-align:center;color:#2d9e5f;font-weight:600;">' + _fmtData(m.data_conclusao) + vistoriaIcon + '<br><span style="font-size:0.68rem;font-weight:400;color:#64748b;">' + (m.km_na_manutencao ? Number(m.km_na_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</span></td>' +
+                '<td style="padding:10px;text-align:center;color:#64748b;">' + _fmtData(m.data_agendamento) + '</td>' +
+                '<td style="padding:10px;text-align:right;color:#0284c7;font-weight:600;">' + (m.km_proxima_manutencao ? Number(m.km_proxima_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</td>' +
+                '<td style="padding:10px;color:#64748b;">' + (m.fornecedor||'—') + '</td>' +
+                '<td style="padding:10px;text-align:center;cursor:pointer;"><i class="ph ph-caret-down" style="font-size:1.1rem;color:#64748b;" onclick="window.toggleMnHistObs(this)"></i></td>' +
+                '</tr>' + 
+                '<tr style="display:none;background:' + bgRow + ';border-bottom:1px solid #f1f5f9;"><td colspan="9" style="padding:10px;color:#475569;font-size:0.85rem;background:#f8fafc;"><strong style="color:#1e293b;">Observações:</strong><br>' + obsText + '</td></tr>';
         }).join('');
     }
 
@@ -2055,7 +2065,7 @@ window._mnMontarDrawerHistoricoManut = function() {
             _renderLinhas();
         } catch(e) {
             const tbody = document.getElementById('mn-hist-tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:14px;color:#ef4444;">Erro ao carregar histórico.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:14px;color:#ef4444;">Erro ao carregar histórico.</td></tr>';
         }
     }
 
@@ -2238,6 +2248,11 @@ window.mnConcluirIndividual = function(id, nome) {
                 <textarea id="mn-conc-obs" rows="2" placeholder="Observações opcionais..."
                     style="width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.88rem;outline:none;resize:vertical;"></textarea>
             </div>
+            <div style="margin-top:10px;">
+                <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:#475569;cursor:pointer;">
+                    <input type="checkbox" id="mn-conc-vistoria" style="width:16px;height:16px;accent-color:#16a34a;"> <span style="font-weight:500;">Apenas Vistoria (Não Necessário)</span>
+                </label>
+            </div>
             <div style="display:flex;gap:8px;margin-top:1.2rem;justify-content:flex-end;">
                 <button onclick="document.getElementById('mn-modal-concluir').remove()"
                     style="padding:7px 18px;border:1.5px solid #e2e8f0;background:#fff;border-radius:8px;font-size:0.85rem;cursor:pointer;color:#64748b;">
@@ -2348,107 +2363,6 @@ window.mnAgendarIndividual = function(id, nome) {
     };
 };
 
-// ── AGENDAR SELECIONADOS ──────────────────────────────────────────────────────
-window.mnAgendarSelecionados = function() {
-    const cbs = Array.from(document.querySelectorAll('.mn-prev-cb:checked'));
-    if (!cbs.length) { _mnToast('Selecione ao menos um item.', 'error'); return; }
-
-    const dataHoje = new Date().toISOString().slice(0, 10);
-    const modal = document.createElement('div');
-    modal.id = 'mn-modal-agendar-sel';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;';
-    modal.innerHTML = `
-        <div style="background:#fff;border-radius:14px;padding:1.5rem 1.75rem;min-width:320px;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.18);">
-            <h3 style="margin:0 0 0.75rem;color:#1e293b;font-size:1.05rem;display:flex;align-items:center;gap:8px;">
-                <i class="ph ph-calendar-plus" style="color:#7c3aed;font-size:1.3rem;"></i>
-                Agendar ${cbs.length} Manutenção(ões)
-            </h3>
-            <label style="font-size:0.82rem;font-weight:600;color:#64748b;">Data de Agendamento</label>
-            <input id="mn-agsel-data" type="date" value="${dataHoje}"
-                style="width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;">
-            <div style="display:flex;gap:8px;margin-top:1.2rem;justify-content:flex-end;">
-                <button onclick="document.getElementById('mn-modal-agendar-sel').remove()"
-                    style="padding:7px 18px;border:1.5px solid #e2e8f0;background:#fff;border-radius:8px;font-size:0.85rem;cursor:pointer;color:#64748b;">
-                    Cancelar
-                </button>
-                <button id="mn-agsel-confirmar"
-                    style="padding:7px 18px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;">
-                    Confirmar
-                </button>
-            </div>
-        </div>`;
-    document.body.appendChild(modal);
-
-    document.getElementById('mn-agsel-confirmar').onclick = async function() {
-        const data_agendamento = document.getElementById('mn-agsel-data')?.value;
-        if (!data_agendamento) { _mnToast('Informe a data.', 'error'); return; }
-        this.disabled = true;
-        this.textContent = 'Salvando...';
-        const tok = _mnGetTok();
-        let erros = 0;
-        await Promise.all(cbs.map(async cb => {
-            try {
-                const r = await fetch(`/api/frota/manutencoes/${cb.dataset.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
-                    body: JSON.stringify({ status: 'agendada', data_agendamento })
-                });
-                if (!r.ok) erros++;
-            } catch { erros++; }
-        }));
-        modal.remove();
-        _mnToast(erros ? `${cbs.length - erros} agendada(s), ${erros} com erro.` : `✅ ${cbs.length} agendada(s)!`, erros ? 'error' : 'success');
-        _mnRecarregarPlano();
-    };
-};
-
-// ── FINALIZAR AGENDADO (selecionados) ─────────────────────────────────────────
-window.mnFinalizarAgendado = async function() {
-    const cbs = Array.from(document.querySelectorAll('.mn-prev-cb:checked'));
-    if (!cbs.length) { _mnToast('Selecione ao menos um item.', 'error'); return; }
-
-    const nomes = cbs.map(cb => cb.dataset.nome).join('\n• ');
-    if (!confirm(`Deseja marcar como CONCLUÍDA(s) ${cbs.length} manutenção(ões)?\n\n• ${nomes}`)) return;
-
-    const dataHoje = new Date().toISOString().slice(0, 10);
-    const tok = _mnGetTok();
-    let erros = 0;
-    await Promise.all(cbs.map(async cb => {
-        try {
-            const r = await fetch(`/api/frota/manutencoes/${cb.dataset.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
-                body: JSON.stringify({ status: 'concluida', data_conclusao: dataHoje })
-            });
-            if (!r.ok) erros++;
-        } catch { erros++; }
-    }));
-    _mnToast(erros ? `${cbs.length - erros} concluída(s), ${erros} com erro.` : `✅ ${cbs.length} marcada(s) como concluída!`, erros ? 'error' : 'success');
-    _mnRecarregarPlano();
-};
-
-// ── EXCLUIR SELECIONADOS ──────────────────────────────────────────────────────
-window.mnExcluirSelecionados = async function() {
-    const cbs = Array.from(document.querySelectorAll('.mn-prev-cb:checked'));
-    if (!cbs.length) { _mnToast('Selecione ao menos um item.', 'error'); return; }
-
-    const nomes = cbs.map(cb => cb.dataset.nome).join('\n• ');
-    if (!confirm(`Deseja EXCLUIR ${cbs.length} manutenção(ões)?\n\n• ${nomes}\n\nEsta ação não pode ser desfeita.`)) return;
-
-    const tok = _mnGetTok();
-    let erros = 0;
-    await Promise.all(cbs.map(async cb => {
-        try {
-            const r = await fetch(`/api/frota/manutencoes/${cb.dataset.id}`, {
-                method: 'DELETE',
-                headers: { Authorization: 'Bearer ' + tok }
-            });
-            if (!r.ok) erros++;
-        } catch { erros++; }
-    }));
-    _mnToast(erros ? `${cbs.length - erros} excluída(s), ${erros} com erro.` : `✅ ${cbs.length} excluída(s)!`, erros ? 'error' : 'success');
-    _mnRecarregarPlano();
-};
 
 // ── CONTROLE DE CHECKBOXES ────────────────────────────────────────────────────
 window.mnPrevCbChanged = function() {
