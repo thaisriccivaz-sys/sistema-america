@@ -8272,9 +8272,14 @@ app.get('/api/colaboradores/:id/epi-entregas', authenticateToken, (req, res) => 
             (rows || []).forEach(r => {
                 const epis = JSON.parse(r.epis_entregues || '[]');
                 if (epis.length === 0) {
-                    result.push({ id: r.id, data_entrega: r.data_entrega, epi_nome: '—', grupo: r.grupo, registrado_por: r.registrado_por || '' });
+                    result.push({ id: r.id, data_entrega: r.data_entrega, epi_nome: '\u2014', qty: 1, grupo: r.grupo, registrado_por: r.registrado_por || '' });
                 } else {
-                    epis.forEach(nome => result.push({ id: r.id, data_entrega: r.data_entrega, epi_nome: nome, grupo: r.grupo, registrado_por: r.registrado_por || '' }));
+                    // Agrupa nomes repetidos e conta a quantidade
+                    const contagem = {};
+                    epis.forEach(nome => { contagem[nome] = (contagem[nome] || 0) + 1; });
+                    Object.entries(contagem).forEach(([nome, qty]) => {
+                        result.push({ id: r.id, data_entrega: r.data_entrega, epi_nome: nome, qty, grupo: r.grupo, registrado_por: r.registrado_por || '' });
+                    });
                 }
             });
             res.json(result);

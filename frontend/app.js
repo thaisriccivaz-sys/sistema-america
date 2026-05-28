@@ -13310,6 +13310,9 @@ async function renderFichaEpiTab(container) {
                         ${recente ? '<span style="margin-left:6px;background:#fef3c7;color:#92400e;font-size:0.7rem;font-weight:700;padding:1px 7px;border-radius:999px;border:1px solid #fcd34d;">recente</span>' : ''}
                     </td>
                     <td style="padding:0.55rem 0.85rem;font-size:0.85rem;color:#0f172a;font-weight:500;">${e.epi_nome || '—'}</td>
+                    <td style="padding:0.55rem 0.85rem;font-size:0.85rem;text-align:center;">
+                        <span style="display:inline-block;background:#e0f2fe;color:#0369a1;font-weight:700;font-size:0.82rem;min-width:28px;padding:2px 8px;border-radius:999px;text-align:center;">${e.qty || 1}</span>
+                    </td>
                     <td style="padding:0.55rem 0.85rem;font-size:0.8rem;color:#64748b;">${e.grupo || '—'}</td>
                     <td style="padding:0.55rem 0.85rem;font-size:0.8rem;color:#64748b;">${e.registrado_por || '—'}</td>
                     <td style="padding:0.35rem 0.6rem;text-align:center;">
@@ -13338,6 +13341,7 @@ async function renderFichaEpiTab(container) {
                         <tr style="background:#f8fafc;">
                             <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;white-space:nowrap;">Data de Entrega</th>
                             <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">EPI</th>
+                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:center;">Qtd</th>
                             <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">Grupo/Ficha</th>
                             <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">Registrado por</th>
                             <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:center;"></th>
