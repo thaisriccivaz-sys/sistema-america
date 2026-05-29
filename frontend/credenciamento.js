@@ -156,7 +156,28 @@ async function loadColaboradoresCred() {
         const data = await res.json();
         credenciamentoState.colaboradores = (data || []).filter(c => {
             const s = (c.status || '').toLowerCase();
-            return s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
+            const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
+
+            // Departamento do colaborador (nome)
+            const dept = (c.departamento || '').toLowerCase().trim();
+            // Tipo do departamento (campo retornado pela API via JOIN: 'Operacional' | 'Administrativo' | null)
+            const deptTipo = (c.departamento_tipo || '').toLowerCase().trim();
+
+            // Sempre incluir colaboradores da Logística (independente do tipo)
+            const isLogistica = dept.includes('logística') || dept.includes('logistica');
+            if (isActive && isLogistica) return true;
+
+            // Excluir tipo Administrativo (inclui RH, Comercial, Financeiro, Diretoria, etc.)
+            if (deptTipo === 'administrativo') return false;
+
+            // Se o tipo não veio do banco mas o departamento é claramente admin, excluir
+            if (!deptTipo) {
+                const isAdminByName = ['administrativo', 'comercial', 'financeiro', 'rh', 'recursos humanos', 'diretoria'].includes(dept);
+                return isActive && !isAdminByName;
+            }
+
+            // Incluir somente tipo Operacional
+            return isActive && deptTipo === 'operacional';
         });
         renderListaColabsCred();
     } catch (e) {

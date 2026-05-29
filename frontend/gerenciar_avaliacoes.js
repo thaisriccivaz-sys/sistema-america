@@ -19,7 +19,7 @@ let gaTemplates = [];   // lista de templates carregados da API
 let gaEditingId = null; // id do template em edição (null = novo)
 
 function fetchGaTemplates() {
-    const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     return fetch('/api/avaliacao-templates', {
         headers: { 'Authorization': 'Bearer ' + token }
     }).then(r => r.json());
@@ -27,7 +27,7 @@ function fetchGaTemplates() {
 
 function gaApiCall(method, id, body) {
     const url = id ? `/api/avaliacao-templates/${id}` : '/api/avaliacao-templates';
-    const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     return fetch(url, {
         method,
         headers: {
@@ -337,35 +337,67 @@ async function renderGaForm(template) {
     window._gaCatIdx = catKeys.length;
 
     // Buscar departamentos para preencher o multi-select
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     try {
-        const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const deptsRes = await fetch('/api/departamentos', {
-            headers: { 'Authorization': 'Bearer ' + token }
-        });
-        const depts = await deptsRes.json();
+        let depts = [];
+
+        // 1. Tentar buscar da tabela de departamentos
+        try {
+            const deptsRes = await fetch('/api/departamentos', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (deptsRes.ok) {
+                const data = await deptsRes.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    depts = data.map(d => ({ nome: d.nome }));
+                }
+            }
+        } catch(e) { console.warn('Falha ao buscar /api/departamentos', e); }
+
+        // 2. Se tabela departamentos vazia, buscar departamentos únicos dos colaboradores
+        if (depts.length === 0) {
+            try {
+                const colabRes = await fetch('/api/colaboradores', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (colabRes.ok) {
+                    const colabs = await colabRes.json();
+                    const deptsSet = new Set(
+                        (colabs || [])
+                            .map(c => (c.departamento || '').trim())
+                            .filter(d => d && d !== 'Desligado')
+                    );
+                    depts = Array.from(deptsSet).sort().map(nome => ({ nome }));
+                }
+            } catch(e) { console.warn('Falha ao buscar departamentos dos colaboradores', e); }
+        }
 
         const containerDept = document.getElementById('ga-dept-container');
-        if (containerDept && Array.isArray(depts)) {
+        if (containerDept && depts.length > 0) {
             const keysChecked = (template.grupo_key || '').split(',').map(k => k.trim().toLowerCase());
             
-            // Caso seja edição de padrão, forçar marcação baseado na chave existente
-            const chavesPadroesMulti = keysChecked.filter(k => k && !depts.find(d => d.nome.toLowerCase().includes(k)));
+            // Chaves manuais que não mapeiam para departamento real
+            const chavesPadroesMulti = keysChecked.filter(k => k && !depts.find(d => d.nome.toLowerCase().replace(/\s+/g, '_').includes(k)));
             
             containerDept.innerHTML = depts.map(d => {
                 const norm = d.nome.toLowerCase().replace(/\s+/g, '_');
-                const isSelected = keysChecked.includes(norm) || (keysChecked.includes('motorista') && norm.includes('motorista')) || (keysChecked.includes('ajudante') && norm.includes('ajudante'));
+                const isSelected = keysChecked.includes(norm) || 
+                    (keysChecked.includes('motorista') && norm.includes('motorista')) || 
+                    (keysChecked.includes('ajudante') && norm.includes('ajudante'));
                 return `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="${norm}" class="ga-dept-check" ${isSelected ? 'checked' : ''}> ${d.nome}</label>`;
             }).join('');
             
-            // Se tiver chaves manuais (ex: motorista, pátio) que não estão na BD, adicionar fake checkboxes ocultos pra não perdê-las se não recadastrar
+            // Adicionar checkboxes ocultos para chaves manuais não mapeáveis
             chavesPadroesMulti.forEach(cp => {
                 if (cp) containerDept.innerHTML += `<input type="checkbox" style="display:none;" value="${cp}" class="ga-dept-check" checked>`;
             });
+        } else if (containerDept) {
+            containerDept.innerHTML = '<span style="color:#ef4444;font-size:0.8rem;">Nenhum departamento encontrado. Cadastre departamentos no menu Diretoria.</span>';
         }
     } catch(e) { 
         console.warn('Erro ao carregar depts form', e);
         const containerDept = document.getElementById('ga-dept-container');
-        if(containerDept) containerDept.innerHTML = '<span style="color:#ef4444;font-size:0.8rem;">Erro ao carregar departamentos. Atualize a página.</span>';
+        if(containerDept) containerDept.innerHTML = '<span style="color:#ef4444;font-size:0.8rem;">Erro ao carregar departamentos. Tente novamente.</span>';
     }
 }
 
@@ -544,7 +576,7 @@ window._gaToast = function(msg, type = 'success') {
 // ============================================================
 (async function gaBootstrap() {
     try {
-        const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         if (!token) return;
         const templates = await fetch('/api/avaliacao-templates', {
             headers: { 'Authorization': 'Bearer ' + token }
