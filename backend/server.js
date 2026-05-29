@@ -15137,9 +15137,13 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque (
     quantidade_minima INTEGER DEFAULT 0,
     quantidade_maxima INTEGER DEFAULT 0,
     foto_base64     TEXT,
+    foto_url        TEXT,
     criado_em       DATETIME DEFAULT CURRENT_TIMESTAMP,
     atualizado_em   DATETIME DEFAULT CURRENT_TIMESTAMP
 )`, (err) => { if (err && !err.message.includes('already exists')) console.error('[ESTOQUE] Erro ao criar tabela:', err.message); });
+
+// Migration: adicionar coluna foto_url se nao existir (upgrade de banco antigo)
+db.run("ALTER TABLE estoque ADD COLUMN foto_url TEXT", (err) => { /* ignorar se ja existe */ });
 
 db.run(`CREATE TABLE IF NOT EXISTS estoque_historico (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -15192,128 +15196,141 @@ app.get('/api/estoque/historico', authenticateToken, (req, res) => {
 });
 
 // Adicionar Item
-app.post('/api/estoque', authenticateToken, (req, res) => {
-    const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64 } = req.body;
-    const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
-    db.run(
-        'INSERT INTO estoque (nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [nome, departamento, categoria, quantidade_atual || 0, quantidade_minima || 0, quantidade_maxima || 0, foto_base64 || null],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            const newItemId = this.lastID;
-            
-            // Grava histórico
-            db.run(
-                'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo) VALUES (?, ?, ?, ?, ?)',
-                [newItemId, quantidade_atual || 0, 'Entrada', usuario, 'Novo Item Cadastrado'],
-                () => {
-                    res.json({ id: newItemId, success: true });
+app.post('/api/estoque', authenticateToken, async (req, res) => {
+    try {
+        const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64 } = req.body;
+        const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
+
+        // Upload da foto para R2 se disponível
+        let foto_url = null;
+        let foto_b64_salvar = null;
+        if (foto_base64 && foto_base64.startsWith('data:')) {
+            if (r2 && r2.isReady()) {
+                try {
+                    const mimeMatch = foto_base64.match(/^data:([^;]+);base64,/);
+                    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                    const extMap = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+                    const ext = extMap[mime] || 'jpg';
+                    const buffer = Buffer.from(foto_base64.split(',')[1], 'base64');
+                    const r2Key = `estoque/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+                    foto_url = await r2.uploadToR2(r2Key, buffer, mime);
+                    console.log('[ESTOQUE] Foto enviada ao R2:', foto_url);
+                } catch (e) {
+                    console.error('[ESTOQUE] Erro ao enviar foto ao R2, salvando base64 como fallback:', e.message);
+                    foto_b64_salvar = foto_base64;
                 }
-            );
+            } else {
+                // R2 não configurado — fallback para base64
+                foto_b64_salvar = foto_base64;
+            }
         }
-    );
+
+        db.run(
+            'INSERT INTO estoque (nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, foto_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [nome, departamento, categoria, quantidade_atual || 0, quantidade_minima || 0, quantidade_maxima || 0, foto_b64_salvar || null, foto_url || null],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                const newItemId = this.lastID;
+
+                // Grava histórico
+                db.run(
+                    'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo) VALUES (?, ?, ?, ?, ?)',
+                    [newItemId, quantidade_atual || 0, 'Entrada', usuario, 'Novo Item Cadastrado'],
+                    () => {
+                        res.json({ id: newItemId, success: true });
+                    }
+                );
+            }
+        );
+    } catch (e) {
+        console.error('[ESTOQUE POST] Erro:', e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // Editar Item e Atualizar Quantidades
-app.put('/api/estoque/:id', authenticateToken, (req, res) => {
-    const id = req.params.id;
-    const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64 } = req.body;
-    const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
-    
-    // Obter dados antigos para verificar se atingiu estoque minimo agora
-    db.get('SELECT * FROM estoque WHERE id = ?', [id], (errFetch, oldRow) => {
-        if (errFetch || !oldRow) return res.status(500).json({ error: 'Item não encontrado' });
-        
-        db.run(
-            'UPDATE estoque SET nome = ?, departamento = ?, categoria = ?, quantidade_atual = ?, quantidade_minima = ?, quantidade_maxima = ?, foto_base64 = COALESCE(?, foto_base64), atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
-            [nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, id],
-            function(errUpdate) {
-                if (errUpdate) return res.status(500).json({ error: errUpdate.message });
-                
-                // Grava histórico se houver diferença de quantidade
-                const diferenca = quantidade_atual - oldRow.quantidade_atual;
-                if (diferenca !== 0) {
-                    const tipo = diferenca > 0 ? 'Entrada' : 'Saída';
-                    db.run(
-                        'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo) VALUES (?, ?, ?, ?, ?)',
-                        [id, Math.abs(diferenca), tipo, usuario, 'Ajuste Manual'],
-                        () => {}
-                    );
+app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
+    try {
+        const id = req.params.id;
+        const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64 } = req.body;
+        const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
+
+        // Obter dados antigos
+        const oldRow = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM estoque WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row));
+        });
+        if (!oldRow) return res.status(404).json({ error: 'Item não encontrado' });
+
+        // Upload da foto para R2 se chegou foto nova
+        let foto_url = oldRow.foto_url || null;
+        let foto_b64_salvar = oldRow.foto_base64 || null;
+        if (foto_base64 && foto_base64.startsWith('data:')) {
+            if (r2 && r2.isReady()) {
+                try {
+                    const mimeMatch = foto_base64.match(/^data:([^;]+);base64,/);
+                    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                    const extMap = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+                    const ext = extMap[mime] || 'jpg';
+                    const buffer = Buffer.from(foto_base64.split(',')[1], 'base64');
+                    const r2Key = `estoque/${id}_${Date.now()}.${ext}`;
+                    foto_url = await r2.uploadToR2(r2Key, buffer, mime);
+                    foto_b64_salvar = null; // limpar base64 antigo, agora usa R2
+                    console.log('[ESTOQUE] Foto atualizada no R2:', foto_url);
+                } catch (e) {
+                    console.error('[ESTOQUE] Erro ao enviar foto ao R2, mantendo base64 como fallback:', e.message);
+                    foto_b64_salvar = foto_base64;
                 }
+            } else {
+                // R2 não configurado — fallback para base64
+                foto_b64_salvar = foto_base64;
+                foto_url = null;
+            }
+        }
 
-                res.json({ success: true });
-                
-                // Lógica de Notificação de Estoque Mínimo
-                // Se a quantidade atual caiu para a minima ou abaixo (e antes estava acima)
-                if (quantidade_atual <= quantidade_minima && oldRow.quantidade_atual > oldRow.quantidade_minima) {
-                    
-                    const msg = `ESTOQUE BAIXO: O item "${nome}" (${departamento}) atingiu o estoque mínimo. Quantidade Atual: ${quantidade_atual}.`;
-                    const dadosStr = JSON.stringify({ item_id: id, nome, quantidade_atual, quantidade_minima });
+        await new Promise((resolve, reject) => {
+            db.run(
+                'UPDATE estoque SET nome = ?, departamento = ?, categoria = ?, quantidade_atual = ?, quantidade_minima = ?, quantidade_maxima = ?, foto_base64 = ?, foto_url = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
+                [nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_b64_salvar, foto_url, id],
+                function(err) { if (err) reject(err); else resolve(this); }
+            );
+        });
 
-                    // Busca quem quer receber notificação
-                    db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'estoque_minimo'", [], (errC, rowsC) => {
-                        if (!errC && rowsC && rowsC.length > 0) {
-                            // Envia alerta no sistema
-                            rowsC.forEach(c => {
-                                db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'estoque_minimo', msg, dadosStr]);
-                            });
-                            
-                            // Envia Email usando sendMailHelper (buscando de usuarios.email ou colaboradores.email_corporativo)
-                            const queryEmails = `
-                                SELECT u.email, c.email_corporativo 
-                                FROM usuarios u
-                                LEFT JOIN colaboradores c ON c.cpf = u.username OR c.nome_completo = u.nome
-                                WHERE u.id IN (${rowsC.map(r => r.usuario_id).join(',')})
-                            `;
-                            db.all(queryEmails, [], async (errU, users) => {
-                                if (!errU && users && users.length > 0) {
-                                    const emailsRaw = users.map(u => u.email || u.email_corporativo).filter(e => e && e.trim() !== '');
-                                    const emails = [...new Set(emailsRaw)].join(',');
-                                    
-                                    if (emails) {
-                                        const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-                                        const html = `
-                                            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-                                                <div style="text-align: center; margin-bottom: 20px;">
-                                                    <img src="cid:empresa-logo" alt="America Rental" style="max-height: 80px;" />
-                                                </div>
-                                                <h2 style="color: #dc2626; text-align: center;">Aviso de Estoque Mínimo</h2>
-                                                <p>Olá,</p>
-                                                <p>O seguinte item atingiu ou está abaixo da quantidade mínima em estoque:</p>
-                                                <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 20px;">
-                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Item</th><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">${nome}</td></tr>
-                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Departamento</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${departamento}</td></tr>
-                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Atual</th><td style="padding: 8px; border: 1px solid #e2e8f0; color: #dc2626; font-weight: bold;">${quantidade_atual}</td></tr>
-                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Mínima</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${quantidade_minima}</td></tr>
-                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Máxima</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${quantidade_maxima || '-'}</td></tr>
-                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">A Adquirir</th><td style="padding: 8px; border: 1px solid #e2e8f0; color: #16a34a; font-weight: bold;">${quantidade_maxima ? Math.max(0, quantidade_maxima - quantidade_atual) : '-'}</td></tr>
-                                                </table>
-                                                <p>Por favor, providencie a reposição o mais breve possível.</p>
-                                                <p style="font-size: 0.8em; color: #666; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px;">Mensagem gerada automaticamente pelo sistema.</p>
-                                            </div>
-                                        `;
-                                        
-                                        try {
-                                            await sendMailHelper({
-                                                from: `"Estoque América Rental" <${SMTP_CONFIG.auth.user}>`,
-                                                to: emails,
-                                                subject: 'ALERTA DE ESTOQUE MÍNIMO - America Rental',
-                                                html: html,
-                                                attachments: [{ filename: 'logo.png', path: logoPath, cid: 'empresa-logo' }]
-                                            });
-                                        } catch (e) {
-                                            console.error('[ESTOQUE] Erro ao enviar e-mail:', e.message);
-                                        }
-                                    }
-                                }
-                            });
+        // Grava histórico se houver diferença de quantidade
+        const diferenca = quantidade_atual - oldRow.quantidade_atual;
+        if (diferenca !== 0) {
+            const tipo = diferenca > 0 ? 'Entrada' : 'Saída';
+            db.run(
+                'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo) VALUES (?, ?, ?, ?, ?)',
+                [id, Math.abs(diferenca), tipo, usuario, 'Ajuste Manual'],
+                () => {}
+            );
+        }
+
                         }
                     });
                 }
-            }
-        );
-    });
+        } catch (e) {
+            console.error('[ESTOQUE PUT] Erro:', e.message);
+            // Notificação de estoque mínimo (versão async)
+            const nMin = quantidade_atual <= quantidade_minima && oldRow.quantidade_atual > oldRow.quantidade_minima;
+            if (!res.headersSent && !nMin) res.status(500).json({ error: e.message });
+        }
+
+        // Lógica de Notificação de Estoque Mínimo (fora do try/catch para não bloquear resposta)
+        if (quantidade_atual <= quantidade_minima && oldRow.quantidade_atual > oldRow.quantidade_minima) {
+            const msg = `ESTOQUE BAIXO: O item "${nome}" (${departamento}) atingiu o estoque mínimo. Quantidade Atual: ${quantidade_atual}.`;
+            const dadosStr = JSON.stringify({ item_id: id, nome, quantidade_atual, quantidade_minima });
+            db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'estoque_minimo'", [], (errC, rowsC) => {
+                if (!errC && rowsC && rowsC.length > 0) {
+                    rowsC.forEach(c => {
+                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'estoque_minimo', msg, dadosStr]);
+                    });
+                }
+            });
+        }
+    }
 });
+
 
 // Excluir Item
 app.delete('/api/estoque/:id', authenticateToken, (req, res) => {

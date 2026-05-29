@@ -40,8 +40,8 @@ window.renderEstoqueTable = async function() {
             return `
                 <tr style="${isLow ? 'background:#fff5f5;' : ''}">
                     <td style="font-weight:500; display: flex; align-items: center; gap: 12px;">
-                        ${item.foto_base64 
-                            ? `<img src="${item.foto_base64}" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0; flex-shrink: 0;">` 
+                        ${(item.foto_url || item.foto_base64)
+                            ? `<img src="${item.foto_url || item.foto_base64}" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0; flex-shrink: 0;">` 
                             : `<div style="width: 40px; height: 40px; border-radius: 8px; background: #f1f5f9; border: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><i class="ph ph-image" style="color: #94a3b8; font-size: 1.2rem;"></i></div>`
                         }
                         <div>
@@ -102,12 +102,13 @@ window.editarEstoque = function(item) {
     document.getElementById('estoque-min').value = item.quantidade_minima;
     document.getElementById('estoque-max').value = item.quantidade_maxima;
     
-    // Mostrar foto
+    // Mostrar foto — prioridade: foto_url (R2) > foto_base64 (legado)
     const fileInput = document.getElementById('estoque-foto');
     if (fileInput) fileInput.value = '';
-    document.getElementById('estoque-foto-base64').value = item.foto_base64 || '';
-    if (item.foto_base64) {
-        document.getElementById('estoque-foto-preview').src = item.foto_base64;
+    document.getElementById('estoque-foto-base64').value = '';
+    const fotoSrc = item.foto_url || item.foto_base64 || '';
+    if (fotoSrc) {
+        document.getElementById('estoque-foto-preview').src = fotoSrc;
         document.getElementById('estoque-foto-preview').style.display = 'block';
         document.getElementById('estoque-foto-icon').style.display = 'none';
     } else {
@@ -183,15 +184,23 @@ window.ajustarEstoqueRápido = async function(id, qtdAtual, variacao) {
         const item = itens.find(i => i.id === id);
         if (!item) throw new Error('Item não encontrado');
         
-        item.quantidade_atual = novaQtd;
-        
+        // Enviar apenas campos de dados — NÃO enviar foto_base64 (pode ser gigante)
+        // foto_url será preservada pelo backend pois não chegará nova foto_base64
         const updateRes = await fetch(`${API_URL}/estoque/${id}`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(item)
+            body: JSON.stringify({
+                nome: item.nome,
+                departamento: item.departamento,
+                categoria: item.categoria,
+                quantidade_atual: novaQtd,
+                quantidade_minima: item.quantidade_minima,
+                quantidade_maxima: item.quantidade_maxima
+                // sem foto_base64: o backend preserva foto_url e foto_base64 existentes
+            })
         });
         
         if (!updateRes.ok) throw new Error('Erro ao atualizar');
