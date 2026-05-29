@@ -154,14 +154,18 @@ async function loadColaboradoresCred() {
         const res = await fetch('/api/colaboradores', { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error(`Erro ${res.status}`);
         const data = await res.json();
-        // Departamentos administrativos (e limpeza) que NÃO devem aparecer no credenciamento
-        const DEPTS_ADMIN = ['administrativo', 'comercial', 'financeiro', 'rh', 'recursos humanos', 'diretoria', 'limpeza'];
+        // Departamentos/Cargos administrativos e de suporte que NÃO devem aparecer no credenciamento
+        const excludedRegex = /\b(administrativ[oa]|admin|comercial|financeir[oa]|rh|recursos humanos|dp|diretoria|limpeza|serviços gerais|servicos gerais|manutenç[ãa]o|manutencao)\b/i;
         credenciamentoState.colaboradores = (data || []).filter(c => {
             const s = (c.status || '').toLowerCase();
             const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
-            const dept = (c.departamento || '').toLowerCase().trim();
-            const isAdmin = DEPTS_ADMIN.includes(dept);
-            return isActive && !isAdmin; // Operacionais e Logística passam
+            
+            // Remove acentos para facilitar o match (ex: manutenção -> manutencao)
+            let str = ((c.cargo || '') + ' ' + (c.departamento || '')).toLowerCase();
+            str = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            
+            const isExcluded = excludedRegex.test(str);
+            return isActive && !isExcluded; // Operacionais e Logística passam
         });
         renderListaColabsCred();
     } catch (e) {
