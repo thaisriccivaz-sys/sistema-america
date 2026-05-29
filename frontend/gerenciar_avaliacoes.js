@@ -337,67 +337,38 @@ async function renderGaForm(template) {
     window._gaCatIdx = catKeys.length;
 
     // Buscar departamentos para preencher o multi-select
-    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     try {
-        let depts = [];
-
-        // 1. Tentar buscar da tabela de departamentos
-        try {
-            const deptsRes = await fetch('/api/departamentos', {
-                headers: { 'Authorization': 'Bearer ' + token }
-            });
-            if (deptsRes.ok) {
-                const data = await deptsRes.json();
-                if (Array.isArray(data) && data.length > 0) {
-                    depts = data.map(d => ({ nome: d.nome }));
-                }
-            }
-        } catch(e) { console.warn('Falha ao buscar /api/departamentos', e); }
-
-        // 2. Se tabela departamentos vazia, buscar departamentos únicos dos colaboradores
-        if (depts.length === 0) {
-            try {
-                const colabRes = await fetch('/api/colaboradores', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                if (colabRes.ok) {
-                    const colabs = await colabRes.json();
-                    const deptsSet = new Set(
-                        (colabs || [])
-                            .map(c => (c.departamento || '').trim())
-                            .filter(d => d && d !== 'Desligado')
-                    );
-                    depts = Array.from(deptsSet).sort().map(nome => ({ nome }));
-                }
-            } catch(e) { console.warn('Falha ao buscar departamentos dos colaboradores', e); }
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const deptsRes = await fetch('/api/departamentos', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!deptsRes.ok) {
+            throw new Error('Falha ao buscar departamentos (Status ' + deptsRes.status + ')');
         }
+        const depts = await deptsRes.json();
 
         const containerDept = document.getElementById('ga-dept-container');
-        if (containerDept && depts.length > 0) {
+        if (containerDept && Array.isArray(depts)) {
             const keysChecked = (template.grupo_key || '').split(',').map(k => k.trim().toLowerCase());
             
-            // Chaves manuais que não mapeiam para departamento real
-            const chavesPadroesMulti = keysChecked.filter(k => k && !depts.find(d => d.nome.toLowerCase().replace(/\s+/g, '_').includes(k)));
+            // Caso seja edição de padrão, forçar marcação baseado na chave existente
+            const chavesPadroesMulti = keysChecked.filter(k => k && !depts.find(d => (d.nome || '').toLowerCase().includes(k)));
             
             containerDept.innerHTML = depts.map(d => {
-                const norm = d.nome.toLowerCase().replace(/\s+/g, '_');
-                const isSelected = keysChecked.includes(norm) || 
-                    (keysChecked.includes('motorista') && norm.includes('motorista')) || 
-                    (keysChecked.includes('ajudante') && norm.includes('ajudante'));
-                return `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="${norm}" class="ga-dept-check" ${isSelected ? 'checked' : ''}> ${d.nome}</label>`;
+                const norm = (d.nome || '').toLowerCase().replace(/\s+/g, '_');
+                const isSelected = keysChecked.includes(norm) || (keysChecked.includes('motorista') && norm.includes('motorista')) || (keysChecked.includes('ajudante') && norm.includes('ajudante'));
+                return `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="${norm}" class="ga-dept-check" ${isSelected ? 'checked' : ''}> ${d.nome || 'Sem nome'}</label>`;
             }).join('');
             
-            // Adicionar checkboxes ocultos para chaves manuais não mapeáveis
+            // Se tiver chaves manuais (ex: motorista, pátio) que não estão na BD, adicionar fake checkboxes ocultos pra não perdê-las se não recadastrar
             chavesPadroesMulti.forEach(cp => {
                 if (cp) containerDept.innerHTML += `<input type="checkbox" style="display:none;" value="${cp}" class="ga-dept-check" checked>`;
             });
-        } else if (containerDept) {
-            containerDept.innerHTML = '<span style="color:#ef4444;font-size:0.8rem;">Nenhum departamento encontrado. Cadastre departamentos no menu Diretoria.</span>';
         }
     } catch(e) { 
         console.warn('Erro ao carregar depts form', e);
         const containerDept = document.getElementById('ga-dept-container');
-        if(containerDept) containerDept.innerHTML = '<span style="color:#ef4444;font-size:0.8rem;">Erro ao carregar departamentos. Tente novamente.</span>';
+        if(containerDept) containerDept.innerHTML = '<span style="color:#ef4444;font-size:0.8rem;">Erro ao carregar departamentos. Atualize a página.</span>';
     }
 }
 
