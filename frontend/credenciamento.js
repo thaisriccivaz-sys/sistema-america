@@ -154,30 +154,14 @@ async function loadColaboradoresCred() {
         const res = await fetch('/api/colaboradores', { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error(`Erro ${res.status}`);
         const data = await res.json();
+        // Departamentos administrativos que NÃO devem aparecer no credenciamento
+        const DEPTS_ADMIN = ['administrativo', 'comercial', 'financeiro', 'rh', 'recursos humanos', 'diretoria'];
         credenciamentoState.colaboradores = (data || []).filter(c => {
             const s = (c.status || '').toLowerCase();
             const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
-
-            // Departamento do colaborador (nome)
             const dept = (c.departamento || '').toLowerCase().trim();
-            // Tipo do departamento (campo retornado pela API via JOIN: 'Operacional' | 'Administrativo' | null)
-            const deptTipo = (c.departamento_tipo || '').toLowerCase().trim();
-
-            // Sempre incluir colaboradores da Logística (independente do tipo)
-            const isLogistica = dept.includes('logística') || dept.includes('logistica');
-            if (isActive && isLogistica) return true;
-
-            // Excluir tipo Administrativo (inclui RH, Comercial, Financeiro, Diretoria, etc.)
-            if (deptTipo === 'administrativo') return false;
-
-            // Se o tipo não veio do banco mas o departamento é claramente admin, excluir
-            if (!deptTipo) {
-                const isAdminByName = ['administrativo', 'comercial', 'financeiro', 'rh', 'recursos humanos', 'diretoria'].includes(dept);
-                return isActive && !isAdminByName;
-            }
-
-            // Incluir somente tipo Operacional
-            return isActive && deptTipo === 'operacional';
+            const isAdmin = DEPTS_ADMIN.includes(dept);
+            return isActive && !isAdmin; // Operacionais e Logística passam
         });
         renderListaColabsCred();
     } catch (e) {
@@ -1293,9 +1277,13 @@ window.solDocsProximo = async function() {
             fetch('/api/colaboradores', { headers: { 'Authorization': `Bearer ${token}` } }),
             fetch('/api/frota/veiculos', { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
+        // Mesma regra do credenciamento: exclui departamentos administrativos
+        const DEPTS_ADMIN_SOL = ['administrativo', 'comercial', 'financeiro', 'rh', 'recursos humanos', 'diretoria'];
         _solDocState.colaboradores = ((await rC.json()) || []).filter(c => {
             const s = (c.status || '').toLowerCase();
-            return s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
+            const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
+            const dept = (c.departamento || '').toLowerCase().trim();
+            return isActive && !DEPTS_ADMIN_SOL.includes(dept); // Operacionais e Logística passam
         });
         _solDocState.veiculos = (await rV.json()) || [];
     } catch(e) {
