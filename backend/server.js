@@ -15816,7 +15816,10 @@ app.get('/api/fix-thais', (req, res) => {
             if (err) console.error("Error deleting hyphens:", err);
             db.run("DELETE FROM experiencia_formularios WHERE colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Thais Ricci%')", function(err2) {
                 if (err2) console.error("Error deleting Thais:", err2);
-                res.send(`Limpeza concluida! Pode fechar esta aba e atualizar a pagina principal.`);
+                db.run("DELETE FROM departamentos WHERE id NOT IN (SELECT MAX(id) FROM departamentos GROUP BY LOWER(TRIM(nome)))", function(err3) {
+                    if (err3) console.error("Error cleaning depts:", err3);
+                    res.send(`Limpeza concluida! Formulários com hífen removidos. Formulários da Thais apagados. ${this.changes || 0} departamentos duplicados apagados. Pode fechar esta aba e atualizar o sistema.`);
+                });
             });
         });
     });
