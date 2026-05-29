@@ -12401,7 +12401,7 @@ app.put('/api/frota/manutencoes/em-massa-intervalo-obs', authenticateToken, (req
 // PUT - atualizar manutenção
 app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
     const { status, descricao, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao,
-            custo, fornecedor, observacoes, tipo, _apenas_intervalo_obs, intervalo_km, data_inicio } = req.body;
+            custo, fornecedor, observacoes, tipo, _apenas_intervalo_obs, intervalo_km, data_inicio, tipo_conclusao } = req.body;
     const mId = req.params.id;
 
     db.get('SELECT * FROM frota_manutencoes WHERE id=?', [mId], (err, row) => {
