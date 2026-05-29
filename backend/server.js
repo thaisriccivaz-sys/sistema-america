@@ -8269,12 +8269,11 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
 
                 // AGRUPAR itens iguais para evitar condição de corrida:
                 // Ex: ["CAMISETA - G", "CAMISETA - G"] → { "CAMISETA - G": 2 }
-                // Assim fazemos UMA operação atômica por item único
                 const epiContagem = {};
                 epis_entregues.forEach(nome => {
                     if (!nome) return;
                     const key = nome.trim().toUpperCase();
-                    epiContagem[key] = (epiContagem[key] || { count: 0, original: nome });
+                    epiContagem[key] = epiContagem[key] || { count: 0, original: nome };
                     epiContagem[key].count++;
                 });
 
@@ -8289,12 +8288,15 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                     // UPDATE atômico: só reduz se ainda tiver quantidade suficiente
                     db.run("UPDATE estoque SET quantidade_atual = quantidade_atual - ? WHERE id = ? AND quantidade_atual >= ?", [count, item.id, count], (errUpd) => {
                         if (!errUpd) {
+                            console.log(`[ESTOQUE] Baixa de ${count}x "${item.nome}" efetuada. Novo saldo: ${newQtd}.`);
                             // Grava Histórico de Saída (um registro com a quantidade total)
                             db.run(
                                 'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo) VALUES (?, ?, ?, ?, ?)',
                                 [item.id, count, 'Saída', registrado_por || 'Sistema', 'Baixa Prontuário Colaborador'],
                                 () => {}
                             );
+                        } else {
+                            console.error(`[ESTOQUE] Erro ao baixar item ${item.id}:`, errUpd.message);
                         }
 
                         // Alerta de estoque mínimo
@@ -8343,24 +8345,52 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                 }
 
                 // Processar cada nome único com sua contagem total
+                // Estratégia de matching em múltiplos passos para suportar diferentes formas
+                // de cadastro no estoque: com tamanho, sem tamanho, com ou sem traço.
+                // Ex de nomes que o frontend gera: "CAMISETA MANGA CURTA - G"
+                // Estoque pode ter: "CAMISETA MANGA CURTA - G", "CAMISETA MANGA CURTA G", ou "CAMISETA MANGA CURTA"
                 Object.values(epiContagem).forEach(({ count, original }) => {
                     const nomeUpper = original.trim().toUpperCase();
 
-                    // PASSO 1: Match exato (ex: "CAMISETA MANGA CURTA - G" cadastrado no estoque com tamanho)
-                    db.get("SELECT * FROM estoque WHERE UPPER(TRIM(nome)) = ? LIMIT 1", [nomeUpper], (errExact, itemExact) => {
-                        if (!errExact && itemExact) {
-                            processarBaixaEstoque(itemExact, count);
-                        } else {
-                            // PASSO 2: Prefixo — o nome do EPI começa com o nome do estoque
-                            // Ex: "CAMISETA MANGA CURTA - G" começa com "CAMISETA MANGA CURTA"
-                            db.get("SELECT * FROM estoque WHERE ? LIKE UPPER(TRIM(nome)) || '%' ORDER BY LENGTH(nome) DESC LIMIT 1", [nomeUpper], (errPrefix, itemPrefix) => {
-                                if (!errPrefix && itemPrefix) {
-                                    processarBaixaEstoque(itemPrefix, count);
-                                }
-                                // Item não encontrado no estoque — não faz nada
-                            });
+                    // Gera variantes para busca:
+                    // Variante sem tamanho: remove " - X" ou " X" do final (onde X é tamanho/numero)
+                    // Ex: "CAMISETA MANGA CURTA - G" → "CAMISETA MANGA CURTA"
+                    // Ex: "BOTA DE PVC - 42"       → "BOTA DE PVC"
+                    const nomeSemdash = nomeUpper.replace(/\s*-\s*[A-Z0-9]{1,4}$/, '').trim();     // remove "- G"
+                    const nomeSemTamanho = nomeUpper.replace(/\s+[A-Z0-9]{1,4}$/, '').trim();       // remove " G" (sem traço)
+
+                    console.log(`[ESTOQUE] Tentando baixar: "${nomeUpper}" (sem tamanho: "${nomeSemdash}")`);
+
+                    // Tentativas em sequência: exato → variante sem traço → prefixo pelo nome base
+                    function tryMatch(tentativas, idx) {
+                        if (idx >= tentativas.length) {
+                            console.warn(`[ESTOQUE] Item "${nomeUpper}" nao encontrado no estoque apos ${tentativas.length} tentativas.`);
+                            return;
                         }
-                    });
+                        const sql = tentativas[idx].sql;
+                        const params = tentativas[idx].params;
+                        db.get(sql, params, (err, item) => {
+                            if (!err && item) {
+                                console.log(`[ESTOQUE] Match encontrado (tentativa ${idx + 1}): "${item.nome}"`);
+                                processarBaixaEstoque(item, count);
+                            } else {
+                                tryMatch(tentativas, idx + 1);
+                            }
+                        });
+                    }
+
+                    tryMatch([
+                        // 1. Exato: "CAMISETA MANGA CURTA - G"
+                        { sql: "SELECT * FROM estoque WHERE UPPER(TRIM(nome)) = ? LIMIT 1", params: [nomeUpper] },
+                        // 2. Sem traço: "CAMISETA MANGA CURTA G" (se o estoque omitiu o traço)
+                        { sql: "SELECT * FROM estoque WHERE UPPER(TRIM(nome)) = ? LIMIT 1", params: [nomeSemdash + ' ' + (nomeUpper.split(/\s*-\s*/).pop() || '')] },
+                        // 3. Nome base sem tamanho: "CAMISETA MANGA CURTA" exato
+                        { sql: "SELECT * FROM estoque WHERE UPPER(TRIM(nome)) = ? LIMIT 1", params: [nomeSemdash] },
+                        // 4. Prefixo: o nome do EPI começa com o nome do estoque (pega o mais longo)
+                        { sql: "SELECT * FROM estoque WHERE ? LIKE UPPER(TRIM(nome)) || '%' ORDER BY LENGTH(nome) DESC LIMIT 1", params: [nomeUpper] },
+                        // 5. Prefixo pelo nome sem tamanho
+                        { sql: "SELECT * FROM estoque WHERE ? LIKE UPPER(TRIM(nome)) || '%' ORDER BY LENGTH(nome) DESC LIMIT 1", params: [nomeSemdash] }
+                    ], 0);
                 });
             }
             // Fim do bloco de dedução de estoque
@@ -15035,6 +15065,30 @@ app.get('/api/frota/force-seed', (req, res) => {
 // ============================================================================
 // CONTROLE DE ESTOQUE
 // ============================================================================
+
+// Auto-criacao das tabelas de estoque (caso nao existam no banco)
+db.run(`CREATE TABLE IF NOT EXISTS estoque (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome            TEXT NOT NULL,
+    departamento    TEXT,
+    categoria       TEXT,
+    quantidade_atual INTEGER DEFAULT 0,
+    quantidade_minima INTEGER DEFAULT 0,
+    quantidade_maxima INTEGER DEFAULT 0,
+    foto_base64     TEXT,
+    criado_em       DATETIME DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em   DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => { if (err && !err.message.includes('already exists')) console.error('[ESTOQUE] Erro ao criar tabela:', err.message); });
+
+db.run(`CREATE TABLE IF NOT EXISTS estoque_historico (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    estoque_id  INTEGER NOT NULL,
+    quantidade  INTEGER NOT NULL,
+    tipo        TEXT NOT NULL,
+    usuario     TEXT,
+    motivo      TEXT,
+    data_hora   DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => { if (err && !err.message.includes('already exists')) console.error('[ESTOQUE] Erro ao criar tabela historico:', err.message); });
 
 // Listar Estoque
 app.get('/api/estoque', authenticateToken, (req, res) => {
