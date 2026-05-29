@@ -8254,7 +8254,7 @@ app.get('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
 // POST: registrar entrega assinada de EPIs
 app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
     const fichaId = req.params.id;
-    const { colaborador_id, epis_entregues, assinatura_base64, data_entrega } = req.body;
+    const { colaborador_id, epis_entregues, assinatura_base64, data_entrega, epis_para_devolver } = req.body;
     if (!epis_entregues || !assinatura_base64) return res.status(400).json({ error: 'Dados incompletos.' });
     const registrado_por = req.user ? (req.user.nome || req.user.username || '') : '';
 
@@ -8263,6 +8263,21 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
         [fichaId, colaborador_id, JSON.stringify(epis_entregues), assinatura_base64, data_entrega || new Date().toLocaleDateString('pt-BR'), registrado_por],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
+            const entregaId = this.lastID;
+
+            // Criar registros de empréstimo se houver equipamentos para devolver
+            if (Array.isArray(epis_para_devolver) && epis_para_devolver.length > 0) {
+                const dataEntregaFmt = data_entrega || new Date().toLocaleDateString('pt-BR');
+                epis_para_devolver.forEach(item => {
+                    if (!item.nome || !item.data_devolucao_prevista) return;
+                    db.run(
+                        `INSERT INTO epi_emprestimos (colaborador_id, entrega_id, epi_nome, data_entrega, data_devolucao_prevista) VALUES (?,?,?,?,?)`,
+                        [colaborador_id, entregaId, item.nome, dataEntregaFmt, item.data_devolucao_prevista],
+                        (errEmp) => { if (errEmp) console.error('[EPI_EMPRESTIMOS] Erro ao registrar empréstimo:', errEmp.message); }
+                    );
+                });
+            }
+
             
             // Início do bloco de dedução de estoque
             if (Array.isArray(epis_entregues) && epis_entregues.length > 0) {
@@ -8562,6 +8577,87 @@ app.delete('/api/epi-entregas/:id/epi', authenticateToken, (req, res) => {
                 }
             );
         }
+    });
+});
+
+// ============================================================
+// EPI EMPRÉSTIMOS — Equipamentos com Devolução Obrigatória
+// ============================================================
+
+// GET: lista todos os empréstimos pendentes de devolução
+app.get('/api/epi-emprestimos', authenticateToken, (req, res) => {
+    db.all(
+        `SELECT ee.*, c.nome_completo AS colaborador_nome
+         FROM epi_emprestimos ee
+         LEFT JOIN colaboradores c ON c.id = ee.colaborador_id
+         WHERE ee.data_devolvido IS NULL
+         ORDER BY ee.data_devolucao_prevista ASC`,
+        [],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows || []);
+        }
+    );
+});
+
+// POST: registrar devolução de equipamento + repor estoque
+app.post('/api/epi-emprestimos/:id/devolver', authenticateToken, (req, res) => {
+    const empId = req.params.id;
+    const devolvido_por = req.user ? (req.user.nome || req.user.username || '') : '';
+    const dataHoje = new Date().toLocaleDateString('pt-BR');
+
+    db.get('SELECT * FROM epi_emprestimos WHERE id = ?', [empId], (err, emprestimo) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!emprestimo) return res.status(404).json({ error: 'Empréstimo não encontrado.' });
+        if (emprestimo.data_devolvido) return res.status(400).json({ error: 'Equipamento já foi devolvido.' });
+
+        db.run(
+            `UPDATE epi_emprestimos SET data_devolvido = ?, devolvido_por = ? WHERE id = ?`,
+            [dataHoje, devolvido_por, empId],
+            function(errUpd) {
+                if (errUpd) return res.status(500).json({ error: errUpd.message });
+
+                // Repor no estoque: match por nome normalizado com score de tokens
+                const nomeNorm = (emprestimo.epi_nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                const STOP = new Set(['DE','DO','DA','DOS','DAS','E','A','O','OS','AS','EM','NO','NA']);
+                const tokens = nomeNorm.split(/[\s\-\.\/,;]+/).filter(t => t.length > 1 && !STOP.has(t) && !['FEMININA','FEMININO','MASCULINA','MASCULINO'].includes(t));
+
+                db.all('SELECT * FROM estoque', [], (errEst, itens) => {
+                    if (errEst || !itens) {
+                        return res.json({ success: true, estoque_reposto: false });
+                    }
+
+                    let bestScore = 0;
+                    let bestItem = null;
+                    itens.forEach(item => {
+                        const itemNorm = (item.nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                        let score = 0;
+                        tokens.forEach(t => { if (itemNorm.includes(t)) score++; });
+                        if (score > bestScore) { bestScore = score; bestItem = item; }
+                    });
+
+                    if (bestItem && bestScore >= Math.ceil(tokens.length * 0.6)) {
+                        db.run(
+                            'UPDATE estoque SET quantidade_atual = quantidade_atual + 1, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
+                            [bestItem.id],
+                            (errR) => {
+                                if (!errR) {
+                                    db.run(
+                                        'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo) VALUES (?,1,"entrada",?,"Devolução de EPI emprestado")',
+                                        [bestItem.id, devolvido_por]
+                                    );
+                                }
+                                console.log(`[EPI_EMPRESTIMOS] Devolvido: "${emprestimo.epi_nome}" → estoque "${bestItem.nome}" +1`);
+                                res.json({ success: true, estoque_reposto: true, item_estoque: bestItem.nome });
+                            }
+                        );
+                    } else {
+                        console.warn(`[EPI_EMPRESTIMOS] Devolução sem match no estoque para: "${emprestimo.epi_nome}"`);
+                        res.json({ success: true, estoque_reposto: false });
+                    }
+                });
+            }
+        );
     });
 });
 
@@ -15178,6 +15274,19 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque_historico (
     motivo      TEXT,
     data_hora   DATETIME DEFAULT CURRENT_TIMESTAMP
 )`, (err) => { if (err && !err.message.includes('already exists')) console.error('[ESTOQUE] Erro ao criar tabela historico:', err.message); });
+
+// Tabela de empréstimos de EPI (equipamentos que devem ser devolvidos)
+db.run(`CREATE TABLE IF NOT EXISTS epi_emprestimos (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    colaborador_id          INTEGER NOT NULL,
+    entrega_id              INTEGER,
+    epi_nome                TEXT NOT NULL,
+    data_entrega            TEXT NOT NULL,
+    data_devolucao_prevista TEXT NOT NULL,
+    data_devolvido          TEXT,
+    devolvido_por           TEXT,
+    created_at              DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => { if (err && !err.message.includes('already exists')) console.error('[EPI_EMPRESTIMOS] Erro ao criar tabela:', err.message); });
 
 // Listar Estoque
 app.get('/api/estoque', authenticateToken, (req, res) => {

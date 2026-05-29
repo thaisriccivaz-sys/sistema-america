@@ -2424,12 +2424,101 @@ async function loadDashboard() {
         if (tbFerias2) tbFerias2.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;font-style:italic;">Sem dados disponíveis.</td></tr>';
         const tbAso2 = document.getElementById('dash-table-aso');
         if (tbAso2) tbAso2.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;font-style:italic;">Sem dados disponíveis.</td></tr>';
+        const tbDevol2 = document.getElementById('dash-table-devolucoes');
+        if (tbDevol2) tbDevol2.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;font-style:italic;">Sem dados disponíveis.</td></tr>';
+    }
+
+    // --- Quadro de Devolução de Equipamentos ---
+    const tbDevol = document.getElementById('dash-table-devolucoes');
+    if (tbDevol) {
+        try {
+            const emprestimos = await apiGet('/epi-emprestimos');
+            tbDevol.innerHTML = '';
+            if (!emprestimos || emprestimos.length === 0) {
+                tbDevol.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;font-style:italic;">Nenhuma devolução pendente.</td></tr>';
+            } else {
+                const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+                emprestimos.forEach(emp => {
+                    const parseData = s => { if (!s) return null; if (s.includes('/')) { const [d,m,y] = s.split('/'); return new Date(y, m-1, d); } return new Date(s + 'T12:00:00'); };
+                    const dtDevol = parseData(emp.data_devolucao_prevista);
+                    const vencida = dtDevol && dtDevol < hoje;
+                    const rowStyle = vencida ? 'background:#fff5f5;' : '';
+                    const dataColor = vencida ? '#ef4444' : '#334155';
+                    const dtEntregaFmt = emp.data_entrega || '—';
+                    const dtDevolFmt = emp.data_devolucao_prevista || '—';
+                    const nomeStr = emp.colaborador_nome || '?';
+                    const iniciais = nomeStr.trim().split(/\s+/).filter(Boolean).slice(0,2).map(w => w[0]).join('').toUpperCase();
+                    const fotoApiUrl = `/api/colaboradores/foto/${emp.colaborador_id}`;
+                    const alertIcon = vencida ? '<span title="Prazo vencido" style="color:#ef4444;font-size:1rem;">⚠️ </span>' : '';
+                    tbDevol.innerHTML += `
+                        <tr style="border-bottom:1px solid #f1f5f9;${rowStyle}">
+                            <td style="padding:0.6rem 0.65rem;">
+                                <div style="display:flex;align-items:center;gap:0.55rem;">
+                                    <img src="${fotoApiUrl}" alt="" style="width:31px;height:31px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid #2563eb40;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                                    <div style="display:none;width:31px;height:31px;border-radius:50%;background:#2563eb;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;">${iniciais}</div>
+                                    <a href="#" style="color:#1c7ed6;text-decoration:none;font-weight:600;font-size:0.85rem;" onclick="event.preventDefault();editColaborador(${emp.colaborador_id})">${nomeStr}</a>
+                                </div>
+                            </td>
+                            <td style="padding:0.6rem 0.65rem;font-size:0.85rem;color:#475569;">${emp.epi_nome}</td>
+                            <td style="padding:0.6rem 0.65rem;font-size:0.82rem;color:#64748b;">${dtEntregaFmt}</td>
+                            <td style="padding:0.6rem 0.65rem;font-size:0.85rem;font-weight:600;color:${dataColor};">${alertIcon}${dtDevolFmt}</td>
+                            <td style="padding:0.6rem 0.65rem;text-align:center;">
+                                <button onclick="window.devolverEquipamento(${emp.id})" title="Registrar Devolução ao Estoque"
+                                    style="background:#2563eb;border:none;border-radius:8px;color:#fff;padding:6px 12px;cursor:pointer;font-size:0.85rem;display:inline-flex;align-items:center;gap:5px;transition:background 0.15s;"
+                                    onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
+                                    <i class="ph ph-arrow-u-up-left"></i> Devolver
+                                </button>
+                            </td>
+                        </tr>`;
+                });
+            }
+        } catch(e) {
+            if (tbDevol) tbDevol.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;font-style:italic;">Erro ao carregar devoluções.</td></tr>';
+        }
     }
 }
+
 
 // --- COLABORADORES ---
 // Armazena a lista completa para filtragem local
 let _todosColaboradores = [];
+
+// --- Devolu\u00e7\u00e3o de EPI ---
+window.devolverEquipamento = async function(id) {
+    const conf = await Swal.fire({
+        title: 'Confirmar Devolu\u00e7\u00e3o',
+        text: 'Registrar a devolu\u00e7\u00e3o deste equipamento ao estoque?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: '<i class="ph ph-arrow-u-up-left"></i> Sim, Devolver',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#2563eb',
+        cancelButtonColor: '#64748b'
+    });
+    if (!conf.isConfirmed) return;
+
+    try {
+        const resp = await fetch(`${API_URL}/epi-emprestimos/${id}/devolver`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' }
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || 'Erro ao registrar devolu\u00e7\u00e3o');
+        await Swal.fire({
+            icon: 'success',
+            title: 'Devolu\u00e7\u00e3o Registrada!',
+            html: data.estoque_reposto
+                ? `Equipamento devolvido ao estoque: <strong>${data.item_estoque || ''}</strong>`
+                : 'Devolu\u00e7\u00e3o registrada. Item n\u00e3o encontrado no estoque autom\u00e1tico.',
+            timer: 3000,
+            showConfirmButton: false
+        });
+        loadDashboard();
+    } catch(err) {
+        Swal.fire({ icon: 'error', title: 'Erro', text: err.message });
+    }
+};
+
 
 async function loadColaboradores() {
     try {
@@ -13702,6 +13791,8 @@ window._renderEpiGrid = function (filtro) {
 
 window._requiresSize = function(epi) {
     const e = epi.toUpperCase();
+    // Camiseta Branca tem tamanho único no estoque — não pede tamanho
+    if (e.includes('CAMISETA') && e.includes('BRANCA')) return false;
     // Uniformes e roupas
     if (['CAMISETA', 'POLO', 'CALÇA', 'BLUSA', 'JAQUETA', 'COLETE', 'BLUSAO', 'BLUSÃO', 'UNIFORME'].some(k => e.includes(k))) return 'roupa';
     // Botas
@@ -13798,7 +13889,53 @@ window._setEpiQty = async function (epi, qty) {
             return;
         }
     }
-    
+
+    // Pergunta de devolução para EPIs emprestáveis (Bota de PVC e Avental Longo)
+    const EPI_EMPRESTAVEIS = ['BOTA DE PVC', 'AVENTAL LONGO'];
+    const epiUpperTrim = epi.toUpperCase().trim();
+    const isEmprestavelEpi = EPI_EMPRESTAVEIS.some(nome => epiUpperTrim.includes(nome));
+    if (isEmprestavelEpi && qty > (window._assinQtds?.[epi] || 0) && (window._assinQtds?.[epi] || 0) === 0) {
+        window._assinEmprestimos = window._assinEmprestimos || {};
+        const resDevol = await Swal.fire({
+            title: 'Este equipamento deve ser devolvido após o uso?',
+            html: `<p style="color:#64748b;font-size:0.88rem;margin-bottom:16px;"><strong>${epi}</strong> — informe se precisa retornar ao estoque.</p>`,
+            showDenyButton: true,
+            confirmButtonText: '<i class="ph ph-check"></i> Sim',
+            denyButtonText: '<i class="ph ph-x"></i> Não',
+            confirmButtonColor: '#2563eb',
+            denyButtonColor: '#64748b',
+            allowOutsideClick: false,
+            didOpen: () => { const c = document.querySelector('.swal2-container'); if (c) { c.style.zIndex='999999'; c.style.position='fixed'; } }
+        });
+        if (resDevol.isConfirmed) {
+            const resData = await Swal.fire({
+                title: 'Data prevista de devolução',
+                html: `<p style="color:#64748b;font-size:0.87rem;margin-bottom:12px;">Quando o(a) colaborador(a) deve devolver <strong>${epi}</strong>?</p>
+                       <input type="date" id="swal-data-devol" style="width:100%;padding:0.6rem;border:1.5px solid #cbd5e1;border-radius:8px;font-size:1rem;" min="${new Date().toISOString().slice(0,10)}">`,
+                confirmButtonText: 'Confirmar',
+                confirmButtonColor: '#2563eb',
+                showCancelButton: true,
+                cancelButtonText: 'Cancelar',
+                allowOutsideClick: false,
+                didOpen: () => { const c = document.querySelector('.swal2-container'); if (c) { c.style.zIndex='999999'; c.style.position='fixed'; } document.getElementById('swal-data-devol')?.focus(); },
+                preConfirm: () => {
+                    const val = document.getElementById('swal-data-devol')?.value;
+                    if (!val) { Swal.showValidationMessage('Informe a data de devolução!'); return false; }
+                    return val;
+                }
+            });
+            if (resData.isConfirmed && resData.value) {
+                // Converter yyyy-mm-dd para dd/mm/yyyy
+                const [yy, mm, dd] = resData.value.split('-');
+                window._assinEmprestimos[epi] = `${dd}/${mm}/${yy}`;
+            } else {
+                window._assinEmprestimos[epi] = null;
+            }
+        } else {
+            window._assinEmprestimos[epi] = null;
+        }
+    }
+
     if (qty === 0 && window._assinSizes && window._assinSizes[epi]) {
         delete window._assinSizes[epi];
     }
@@ -13975,7 +14112,8 @@ window._assinNextStep = async function () {
                     colaborador_id: window._assinColabId,
                     epis_entregues: window._buildItensFromQtds ? window._buildItensFromQtds() : (window._assinItens || []),
                     assinatura_base64: assinaturaBase64,
-                    data_entrega: (() => { const i = document.getElementById('epi-data-entrega'); if (!i || !i.value) return ''; const p = i.value.split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : i.value; })()
+                    data_entrega: (() => { const i = document.getElementById('epi-data-entrega'); if (!i || !i.value) return ''; const p = i.value.split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : i.value; })(),
+                    epis_para_devolver: Object.entries(window._assinEmprestimos || {}).filter(([,v]) => v).map(([nome, data_devolucao_prevista]) => ({ nome, data_devolucao_prevista }))
                 })
             });
             clearTimeout(saveTimeout);
