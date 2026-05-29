@@ -12485,7 +12485,7 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                     data_agendamento: agendada?.data_agendamento || em_andamento?.data_agendamento || null,
                     data_inicio: em_andamento?.data_inicio || agendada?.data_inicio || null,
                     observacoes_concluida: concluida?.observacoes || null,
-                    observacoes_agendada: agendada?.observacoes || em_andamento?.observacoes || null,
+                    observacoes_agendada: agendada?.observacoes_agendamento || em_andamento?.observacoes_agendamento || null,
                     observacoes: item.observacoes || null,
                     apenas_vistoria: concluida?.apenas_vistoria || 0
                 };
@@ -12943,20 +12943,39 @@ app.post('/api/frota/manutencoes/agendar-selecionados', authenticateToken, async
                     if (row.status === 'concluida') {
                         db.run(
                             `INSERT INTO frota_manutencoes (
-                                veiculo_id, tipo, descricao, status, data_agendamento, fornecedor, observacoes, 
+                                veiculo_id, tipo, descricao, status, data_agendamento, fornecedor, observacoes_agendamento, observacoes, 
                                 servico_catalogo_id, usuario_nome, created_at, updated_at
-                            ) VALUES (?, 'preventiva', ?, 'agendada', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                            ) VALUES (?, 'preventiva', ?, 'agendada', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
                             [
-                                row.veiculo_id, row.descricao, data_agendamento, fornecedor || '', observacoes || '',
+                                row.veiculo_id, row.descricao, data_agendamento, fornecedor || '', observacoes || '', row.observacoes || '',
                                 row.servico_catalogo_id, usuario_nome
                             ],
                             (err2) => { if (err2) return reject(err2); resolve(); }
+                        );
+                    } else if (row.status === 'agendada') {
+                        db.run(
+                            `UPDATE frota_manutencoes SET status='reagendada', updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+                            [row.id],
+                            (errU) => {
+                                if (errU) return reject(errU);
+                                db.run(
+                                    `INSERT INTO frota_manutencoes (
+                                        veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, fornecedor, observacoes_agendamento, observacoes, 
+                                        servico_catalogo_id, usuario_nome, created_at, updated_at
+                                    ) VALUES (?, 'preventiva', ?, 'agendada', ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                                    [
+                                        row.veiculo_id, row.descricao, row.km_na_manutencao, row.km_proxima_manutencao, data_agendamento, fornecedor || '', observacoes || '', row.observacoes || '',
+                                        row.servico_catalogo_id, usuario_nome
+                                    ],
+                                    (err2) => { if (err2) return reject(err2); resolve(); }
+                                );
+                            }
                         );
                     } else {
                         db.run(
                             `UPDATE frota_manutencoes
                              SET status='agendada', data_agendamento=?, fornecedor=COALESCE(NULLIF(?,''), fornecedor),
-                                 observacoes=COALESCE(NULLIF(?,''), observacoes), usuario_nome=?, updated_at=CURRENT_TIMESTAMP
+                                 observacoes_agendamento=COALESCE(NULLIF(?,''), observacoes_agendamento), usuario_nome=?, updated_at=CURRENT_TIMESTAMP
                              WHERE id=?`,
                             [data_agendamento, fornecedor || '', observacoes || '', usuario_nome, manutencao_id],
                             (err2) => { if (err2) return reject(err2); resolve(); }
@@ -13012,7 +13031,7 @@ app.get('/api/frota/manutencoes/historico', authenticateToken, (req, res) => {
         JOIN frota_veiculos v ON v.id = m.veiculo_id
         LEFT JOIN frota_servicos_catalogo s ON s.id = m.servico_catalogo_id
         LEFT JOIN frota_categorias_manutencao cat ON cat.id = s.categoria_id
-        WHERE m.status IN ('concluida', 'agendada', 'em_andamento', 'cancelada')
+        WHERE m.status IN ('concluida', 'agendada', 'em_andamento', 'cancelada', 'reagendada')
         ORDER BY COALESCE(m.data_conclusao, m.data_agendamento) DESC, m.id DESC
         LIMIT 1000
     `, [], (err, rows) => {
@@ -15594,7 +15613,8 @@ app.listen(PORT, () => {
         { col: 'servico_catalogo_id', def: 'INTEGER' },
         { col: 'criticidade', def: 'TEXT' },
         { col: 'data_inicio', def: 'TEXT' },
-        { col: 'apenas_vistoria', def: 'INTEGER DEFAULT 0' }
+        { col: 'apenas_vistoria', def: 'INTEGER DEFAULT 0' },
+        { col: 'observacoes_agendamento', def: 'TEXT' }
     ];
     colsMigration.forEach(({ col, def }) => {
         db.run(`ALTER TABLE frota_manutencoes ADD COLUMN ${col} ${def}`, (err) => {

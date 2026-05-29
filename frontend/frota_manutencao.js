@@ -198,18 +198,20 @@ window._mnRenderHistLista = function(lista) {
         const desc = (m.descricao || '—').replace(/"/g, '&quot;');
         const obsId = 'mn-hist-obs-' + (m.id || i);
         const hasObs = !!(m.observacoes && m.observacoes.trim());
+        const hasObsAg = !!(m.observacoes_agendamento && m.observacoes_agendamento.trim());
+        const showExpander = hasObs || hasObsAg;
         // Categoria: preferir categoria_nome, fallback ao tipo (preventiva/corretiva)
         const catLabel = m.categoria_nome || (m.tipo ? (m.tipo.charAt(0).toUpperCase() + m.tipo.slice(1)) : '—');
         const catColor = m.tipo === 'preventiva' ? '#0284c7' : '#d97706';
 
-        const statusCorHist = {concluida:'#2d9e5f',agendada:'#2563eb',programada:'#7c3aed',em_andamento:'#d97706',cancelada:'#94a3b8'};
-        const statusLblHist = {concluida:'Concluída',agendada:'Agendada',programada:'Programada',em_andamento:'Em Andamento',cancelada:'Cancelada'};
+        const statusCorHist = {concluida:'#2d9e5f',agendada:'#2563eb',programada:'#7c3aed',em_andamento:'#d97706',cancelada:'#94a3b8',reagendada:'#f97316'};
+        const statusLblHist = {concluida:'Concluída',agendada:'Agendada',programada:'Programada',em_andamento:'Em Andamento',cancelada:'Cancelada',reagendada:'Reagendada'};
         const sHistKey = m.status||'concluida';
         const histStatusBadge = `<span style="background:${statusCorHist[sHistKey]||'#94a3b8'}22;color:${statusCorHist[sHistKey]||'#94a3b8'};padding:2px 8px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">${statusLblHist[sHistKey]||sHistKey}</span>`;
 
         html += `<tr style="background:${bgRow};border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='${bgRow}'">`;
         html += `<td style="padding:6px 8px;text-align:center;">`;
-        if (hasObs) {
+        if (showExpander) {
             html += `<button onclick="const el=document.getElementById('${obsId}');el.style.display=el.style.display==='none'?'table-row':'none';this.style.transform=el.style.display!=='none'?'rotate(90deg)':'rotate(0)'"
                 style="background:none;border:none;cursor:pointer;color:#64748b;font-size:1rem;transition:transform .2s;padding:0;"
                 title="Ver observações"><i class="ph ph-caret-right"></i></button>`;
@@ -227,12 +229,22 @@ window._mnRenderHistLista = function(lista) {
         html += `</tr>`;
 
         // Linha expansível de observações
-        if (hasObs) {
+        if (showExpander) {
             html += `<tr id="${obsId}" style="display:none;background:#fffbeb;border-bottom:1px solid #fef3c7;">`;
             html += `<td colspan="9" style="padding:8px 24px 10px;">`;
-            html += `<div style="display:flex;align-items:flex-start;gap:8px;">`;
-            html += `<i class="ph ph-note-pencil" style="color:#d97706;font-size:1.1rem;flex-shrink:0;margin-top:2px;"></i>`;
-            html += `<div style="font-size:0.83rem;color:#78350f;white-space:pre-wrap;line-height:1.5;">${(m.observacoes||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`;
+            html += `<div style="display:flex;flex-direction:column;gap:6px;">`;
+            if (hasObs) {
+                html += `<div style="display:flex;align-items:flex-start;gap:8px;">`;
+                html += `<i class="ph ph-note-pencil" style="color:#d97706;font-size:1.1rem;flex-shrink:0;margin-top:2px;"></i>`;
+                html += `<div style="font-size:0.83rem;color:#78350f;white-space:pre-wrap;line-height:1.5;"><strong>Obs (Cadastro):</strong> ${(m.observacoes||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`;
+                html += `</div>`;
+            }
+            if (hasObsAg) {
+                html += `<div style="display:flex;align-items:flex-start;gap:8px;">`;
+                html += `<i class="ph ph-calendar-plus" style="color:#2563eb;font-size:1.1rem;flex-shrink:0;margin-top:2px;"></i>`;
+                html += `<div style="font-size:0.83rem;color:#1e40af;white-space:pre-wrap;line-height:1.5;"><strong>Obs (Agendamento):</strong> ${(m.observacoes_agendamento||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`;
+                html += `</div>`;
+            }
             html += `</div></td></tr>`;
         }
     });
@@ -476,10 +488,8 @@ function mnRenderPlanoAgrupado(data) {
                 : '<span style="color:#94a3b8;">—</span>';
 
             let obsNovaIcon = '';
-            if (item.status === 'programada' && item.observacoes) {
-                obsNovaIcon = ` <i class="ph ph-chat-text" style="color:#d97706;cursor:pointer;font-size:1.1rem;margin-left:4px;vertical-align:middle;" title="${item.observacoes.replace(/"/g,'&quot;')}" onclick="alert('Observações:\\n\\n${item.observacoes.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')"></i>`;
-            } else if ((item.status === 'agendada' || item.status === 'em_andamento') && item.observacoes_agendada) {
-                obsNovaIcon = ` <i class="ph ph-chat-text" style="color:#2563eb;cursor:pointer;font-size:1.1rem;margin-left:4px;vertical-align:middle;" title="${item.observacoes_agendada.replace(/"/g,'&quot;')}" onclick="alert('Observações Agendamento:\\n\\n${item.observacoes_agendada.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')"></i>`;
+            if (item.observacoes) {
+                obsNovaIcon = ` <i class="ph ph-chat-text" style="color:#d97706;cursor:pointer;font-size:1.1rem;margin-left:4px;vertical-align:middle;" title="${item.observacoes.replace(/"/g,'&quot;')}" onclick="alert('Observação (Cadastro):\\n\\n${item.observacoes.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')"></i>`;
             }
 
             return `<tr style="background:${bg};border-bottom:1px solid #e2e8f0;">
