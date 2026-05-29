@@ -8341,6 +8341,20 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                                             if (emailsArray.length > 0) {
                                                 const emails = [...new Set(emailsArray)].join(',');
                                                 const _logoPath8 = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+
+                                                // --- Foto do produto ---
+                                                let fotoHtml = '';
+                                                let fotoAttachment = null;
+                                                if (item.foto_url && item.foto_url.startsWith('http')) {
+                                                    fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="' + item.foto_url + '" alt="' + item.nome + '" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
+                                                } else if (item.foto_base64 && item.foto_base64.startsWith('data:image')) {
+                                                    const _fm = item.foto_base64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                                                    if (_fm) {
+                                                        const _fext = (_fm[1].split('/')[1] || 'jpg').replace('jpeg','jpg');
+                                                        fotoAttachment = { filename: 'produto.' + _fext, content: Buffer.from(_fm[2], 'base64'), cid: 'produto-foto' };
+                                                        fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="cid:produto-foto" alt="' + item.nome + '" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
+                                                    }
+                                                }
                                                 const mailOptions = {
                                                     from: `"Estoque América Rental" <${SMTP_CONFIG.auth.user}>`,
                                                     to: emails,
@@ -8352,6 +8366,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                                                             </div>
                                                             <h2 style="color: #dc2626; text-align: center;">Aviso de Estoque Mínimo</h2>
                                                             <p>O seguinte item atingiu ou está abaixo da quantidade mínima em estoque:</p>
+                                                                                         ${fotoHtml}
                                                             <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 20px;">
                                                                 <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Item</th><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">${item.nome}</td></tr>
                                                                 <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Departamento</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.departamento}</td></tr>
@@ -8363,7 +8378,10 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                                                             <p>Por favor, providencie a reposição o mais breve possível.</p>
                                                         </div>
                                                     `,
-                                                    attachments: [{ filename: 'logo.png', path: _logoPath8, cid: 'empresa-logo' }]
+                                                    attachments: [
+                                                        { filename: 'logo.png', path: _logoPath8, cid: 'empresa-logo' },
+                                                        ...(fotoAttachment ? [fotoAttachment] : [])
+                                                    ]
                                                 };
                                                 sendMailHelper(mailOptions).catch(e => console.error('[ESTOQUE] Erro ao enviar e-mail:', e));
                                             }
