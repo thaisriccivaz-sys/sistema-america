@@ -13426,12 +13426,12 @@ async function renderFichaEpiTab(container) {
                 <table style="width:100%;border-collapse:collapse;">
                     <thead>
                         <tr style="background:#f8fafc;">
-                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;white-space:nowrap;">Data de Entrega</th>
-                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">EPI</th>
-                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:center;">Qtd</th>
-                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">Grupo/Ficha</th>
-                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">Registrado por</th>
-                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:center;"></th>
+                            <th onclick="window.sortTable(this)" style="cursor:pointer;padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;white-space:nowrap;">Data de Entrega</th>
+                            <th onclick="window.sortTable(this)" style="cursor:pointer;padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">EPI</th>
+                            <th onclick="window.sortTable(this)" style="cursor:pointer;padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:center;">Qtd</th>
+                            <th onclick="window.sortTable(this)" style="cursor:pointer;padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">Grupo/Ficha</th>
+                            <th onclick="window.sortTable(this)" style="cursor:pointer;padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">Registrado por</th>
+                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:center;">Ações</th>
                         </tr>
                     </thead>
                     <tbody>${linhas}</tbody>

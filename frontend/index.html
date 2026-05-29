@@ -2965,11 +2965,11 @@
                             <table class="table">
                                 <thead>
                                     <tr>
-                                        <th>Nome</th>
-                                        <th>Departamento</th>
-                                        <th>Categoria</th>
-                                        <th>Qtd. Atual</th>
-                                        <th>Min/Máx</th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Nome</th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Departamento</th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Categoria</th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Qtd. Atual</th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Min/Máx</th>
                                         <th style="text-align: right;">Ações</th>
                                     </tr>
                                 </thead>
@@ -2986,12 +2986,12 @@
                             <table class="table">
                                 <thead>
                                     <tr>
-                                        <th>Data / Hora</th>
-                                        <th>Produto</th>
-                                        <th>Tipo</th>
-                                        <th>Qtd.</th>
-                                        <th>Usuário</th>
-                                        <th>Motivo</th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Data / Hora</th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Produto</th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Tipo</th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Qtd.</th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Usuário</th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Motivo</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-estoque-historico">
@@ -5039,7 +5039,8 @@
     </style>
     <script src="logistica_agenda.js?v=1778869020176"></script>
     <script src="config-sigor.js"></script>
-<script src="/frota_manutencao.js?v=1778890494626"></script>
+    <script src="/frota_manutencao.js?v=1778890494626"></script>
+    <script src="/sort_table.js?v=1"></script>
 </body>
 
 </html>
