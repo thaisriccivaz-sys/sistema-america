@@ -1127,6 +1127,11 @@ async function loadCargos() {
             <tr>
                 <td>${c.id}</td>
                 <td style="font-weight: 600;">${c.nome}</td>
+                <td>
+                    ${c.departamento 
+                        ? `<span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:10px;font-size:0.8rem;font-weight:600;">${c.departamento}</span>` 
+                        : '-'}
+                </td>
                 <td style="text-align: right; gap:0.4rem; justify-content:flex-end; align-items:center; display: ${window.isTopAdmin ? "flex" : "none"};">
                     <button type="button" class="btn btn-primary btn-sm" onclick="window.toggleCargoView('edit', ${c.id})">
                         <i class="ph ph-note-pencil"></i> Editar
@@ -1176,7 +1181,8 @@ window.filtrarListaCargos = function (query) {
     const q = (query || '').toLowerCase().trim();
     document.querySelectorAll('#table-cargos-body tr').forEach(row => {
         const nome = (row.cells[1]?.textContent || '').toLowerCase();
-        row.style.display = (!q || nome.includes(q)) ? '' : 'none';
+        const depto = (row.cells[2]?.textContent || '').toLowerCase();
+        row.style.display = (!q || nome.includes(q) || depto.includes(q)) ? '' : 'none';
     });
 };
 
