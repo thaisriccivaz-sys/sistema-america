@@ -2490,6 +2490,74 @@ async function loadDashboard() {
             if (tbDevol) tbDevol.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;font-style:italic;">Erro ao carregar devoluções.</td></tr>';
         }
     }
+
+    // --- Quadro de Aniversariantes do Mês ---
+    const tbAniver = document.getElementById('dash-table-aniversariantes');
+    if (tbAniver) {
+        try {
+            const cols = await apiGet('/colaboradores');
+            tbAniver.innerHTML = '';
+            if (!cols || cols.length === 0) {
+                tbAniver.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;font-style:italic;">Nenhum aniversariante.</td></tr>';
+            } else {
+                const mesAtual = new Date().getMonth() + 1;
+                const aniversariantes = cols.filter(c => {
+                    if (!c.data_nascimento) return false;
+                    let dt = null;
+                    if (c.data_nascimento.includes('-')) {
+                        const p = c.data_nascimento.split('-');
+                        dt = new Date(p[0], p[1]-1, p[2]);
+                    } else if (c.data_nascimento.includes('/')) {
+                        const p = c.data_nascimento.split('/');
+                        dt = new Date(p[2], p[1]-1, p[0]);
+                    } else {
+                        dt = new Date(c.data_nascimento);
+                    }
+                    if (isNaN(dt.getTime())) return false;
+                    return dt.getMonth() + 1 === mesAtual;
+                });
+                
+                aniversariantes.sort((a,b) => {
+                    const getDay = dtStr => {
+                        if (dtStr.includes('-')) return parseInt(dtStr.split('-')[2], 10);
+                        if (dtStr.includes('/')) return parseInt(dtStr.split('/')[0], 10);
+                        return new Date(dtStr).getDate();
+                    };
+                    return getDay(a.data_nascimento) - getDay(b.data_nascimento);
+                });
+
+                if (aniversariantes.length === 0) {
+                    tbAniver.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;font-style:italic;">Nenhum aniversariante neste mês.</td></tr>';
+                } else {
+                    aniversariantes.forEach(c => {
+                        const getFormatData = dtStr => {
+                            if (dtStr.includes('-')) { const p = dtStr.split('-'); return `${p[2]}/${p[1]}`; }
+                            if (dtStr.includes('/')) { const p = dtStr.split('/'); return `${p[0]}/${p[1]}`; }
+                            const dt = new Date(dtStr); return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
+                        };
+                        const dataFmt = getFormatData(c.data_nascimento);
+                        const fotoApiUrl = `/api/colaboradores/foto/${c.id}`;
+                        const iniciais = (c.nome||'').trim().split(/\\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+                        
+                        tbAniver.innerHTML += `
+                            <tr style="border-bottom:1px solid #f1f5f9;">
+                                <td style="padding:0.6rem 0.65rem;">
+                                    <div style="display:flex;align-items:center;gap:0.55rem;">
+                                        <img src="${fotoApiUrl}" alt="" style="width:31px;height:31px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid #10b98140;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                                        <div style="display:none;width:31px;height:31px;border-radius:50%;background:#10b981;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;">${iniciais}</div>
+                                        <a href="#" style="color:#10b981;text-decoration:none;font-weight:600;font-size:0.85rem;" onclick="event.preventDefault();editColaborador(${c.id})">${c.nome}</a>
+                                    </div>
+                                </td>
+                                <td style="padding:0.6rem 0.65rem;font-size:0.85rem;font-weight:600;color:#475569;"><i class="ph ph-calendar"></i> ${dataFmt}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            }
+        } catch(e) {
+            if (tbAniver) tbAniver.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;font-style:italic;">Erro ao carregar aniversariantes.</td></tr>';
+        }
+    }
 }
 
 
@@ -2609,8 +2677,35 @@ function aplicarFiltrosColaboradores() {
         if (f.nome && !(c.nome_completo || '').toLowerCase().includes(f.nome)) return false;
         if (f.email && !((c.email || '') + '|' + (c.email_corporativo || '')).toLowerCase().includes(f.email)) return false;
         if (f.cpf && !(c.cpf || '').replace(/\D/g, '').includes(f.cpf)) return false;
-        if (f.nascIni && c.data_nascimento && c.data_nascimento < f.nascIni) return false;
-        if (f.nascFim && c.data_nascimento && c.data_nascimento > f.nascFim) return false;
+        if (f.nascIni || f.nascFim) {
+            if (!c.data_nascimento) return false;
+            let dt = null;
+            if (c.data_nascimento.includes('-')) {
+                const p = c.data_nascimento.split('-');
+                dt = new Date(p[0], p[1]-1, p[2]);
+            } else if (c.data_nascimento.includes('/')) {
+                const p = c.data_nascimento.split('/');
+                dt = new Date(p[2], p[1]-1, p[0]);
+            } else {
+                dt = new Date(c.data_nascimento);
+            }
+            if (isNaN(dt.getTime())) return false;
+            
+            const m = dt.getMonth() + 1;
+            const d = dt.getDate();
+            const colabMMDD = m * 100 + d;
+
+            if (f.nascIni && f.nascIni.length === 5) {
+                const parts = f.nascIni.split('/');
+                const iniMMDD = parseInt(parts[1], 10) * 100 + parseInt(parts[0], 10);
+                if (colabMMDD < iniMMDD) return false;
+            }
+            if (f.nascFim && f.nascFim.length === 5) {
+                const parts = f.nascFim.split('/');
+                const fimMMDD = parseInt(parts[1], 10) * 100 + parseInt(parts[0], 10);
+                if (colabMMDD > fimMMDD) return false;
+            }
+        }
 
         if (f.estadoCivil && (!c.estado_civil || c.estado_civil.toLowerCase().trim() !== f.estadoCivil)) return false;
         if (f.sexo && (!c.sexo || c.sexo.toLowerCase().trim() !== f.sexo)) return false;
@@ -3003,11 +3098,11 @@ function renderColaboradores(lista) {
                 <div style="display:flex; gap:1rem;">
                     <div style="flex:1;">
                         <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Nascimento De</label>
-                        <input id="f-nasc-ini" type="date" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <input id="f-nasc-ini" type="text" placeholder="DD/MM" maxlength="5" oninput="this.value=this.value.replace(/\\D/g,'').replace(/^(\\d{2})(\\d)/,'$1/$2'); aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                     </div>
                     <div style="flex:1;">
                         <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Até</label>
-                        <input id="f-nasc-fim" type="date" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <input id="f-nasc-fim" type="text" placeholder="DD/MM" maxlength="5" oninput="this.value=this.value.replace(/\\D/g,'').replace(/^(\\d{2})(\\d)/,'$1/$2'); aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                     </div>
                 </div>
                 <div>
