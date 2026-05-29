@@ -5801,7 +5801,18 @@ app.put('/api/cargos/:id', authenticateToken, (req, res) => {
                     [loggedUser, 'Cargos', c.campo, c.old, c.new, req.params.id]);
             });
 
-            res.json({ message: 'Cargo atualizado com sucesso' });
+            // Propagar a alteração de departamento (e nome, se mudou) para todos os colaboradores que possuem este cargo
+            const oldNome = row ? row.nome.trim() : nome.trim();
+            const newNome = (!nomeMotorista && nome) ? nome.trim() : oldNome;
+            const newDepto = departamento || '';
+
+            db.run(`UPDATE colaboradores SET departamento = ?, cargo = ? WHERE LOWER(TRIM(cargo)) = LOWER(TRIM(?))`, 
+                [newDepto, newNome, oldNome], function(errPropagate) {
+                if (errPropagate) console.error("Erro ao propagar alteração de cargo para colaboradores:", errPropagate);
+                else console.log(`Propagado para ${this.changes} colaborador(es).`);
+                
+                res.json({ message: 'Cargo atualizado com sucesso' });
+            });
         });
     });
 });
