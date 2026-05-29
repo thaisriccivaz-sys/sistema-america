@@ -13253,9 +13253,13 @@ window._excluirEpiEntrega = async function(id, nome, btnEl, ficha_id) {
                         (todasEntregas || []).forEach(ent => {
                             const epis = ent.epis_entregues || [];
                             if (epis.length === 0) {
-                                linhasFull.push({ data: ent.data_entrega || '', descricao: '', assinatura_base64: ent.assinatura_base64 });
+                                linhasFull.push({ data: ent.data_entrega || '', descricao: '', qtd: 1, assinatura_base64: ent.assinatura_base64 });
                             } else {
-                                epis.forEach(n => linhasFull.push({ data: ent.data_entrega || '', descricao: n, assinatura_base64: ent.assinatura_base64 }));
+                                const grp = {};
+                                epis.forEach(n => { grp[n] = (grp[n] || 0) + 1; });
+                                Object.entries(grp).forEach(([n, qty]) => {
+                                    linhasFull.push({ data: ent.data_entrega || '', descricao: n, qtd: qty, assinatura_base64: ent.assinatura_base64 });
+                                });
                             }
                         });
 
@@ -13849,7 +13853,15 @@ window._assinStep = function (n) {
     // Atualiza lista selecionada no step 2
     if (n === 2) {
         const ul = document.getElementById('epi-lista-selecionada');
-        if (ul) { window._assinItens = window._buildItensFromQtds ? window._buildItensFromQtds() : []; ul.innerHTML = window._assinItens.map(e => '<li>' + e + '</li>').join(''); }
+        if (ul) {
+            window._assinItens = window._buildItensFromQtds ? window._buildItensFromQtds() : [];
+            // Agrupar itens iguais: ["CAMISETA - G", "CAMISETA - G"] → "2x CAMISETA - G"
+            const grouped = {};
+            window._assinItens.forEach(item => { grouped[item] = (grouped[item] || 0) + 1; });
+            ul.innerHTML = Object.entries(grouped).map(([nome, qty]) =>
+                `<li>${qty > 1 ? '<strong>' + qty + 'x</strong> ' : ''}${nome}</li>`
+            ).join('');
+        }
         const dd = document.getElementById('epi-data-display');
         if (dd) { const inp = document.getElementById('epi-data-entrega'); if (inp && inp.value) { const p = inp.value.split('-'); dd.textContent = p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : inp.value; } }
         window._initSignatureCanvas();
@@ -13887,10 +13899,15 @@ window._assinNextStep = async function () {
         // Salva no backend
         try {
             const btnNext = document.getElementById('btn-assin-next');
-            if (btnNext) { btnNext.disabled = true; btnNext.innerHTML = 'Salvando...'; }
+            if (btnNext) { btnNext.disabled = true; btnNext.innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;"></i> Salvando...'; }
+
+            // Timeout de 30s para evitar que o botão fique preso em "Salvando..."
+            const saveController = new AbortController();
+            const saveTimeout = setTimeout(() => saveController.abort(), 30000);
 
             const resp = await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`, {
                 method: 'POST',
+                signal: saveController.signal,
                 headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     colaborador_id: window._assinColabId,
@@ -13899,7 +13916,11 @@ window._assinNextStep = async function () {
                     data_entrega: (() => { const i = document.getElementById('epi-data-entrega'); if (!i || !i.value) return ''; const p = i.value.split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : i.value; })()
                 })
             });
-            const result = await resp.json();
+            clearTimeout(saveTimeout);
+
+            let result;
+            try { result = await resp.json(); } catch(_) { result = {}; }
+            if (!resp.ok && !result.id) throw new Error(result.error || `Erro ${resp.status} ao salvar`);
             if (result.error) throw new Error(result.error);
 
             window._assinStep(3);
@@ -13922,9 +13943,14 @@ window._assinNextStep = async function () {
                         (todasEntregas || []).forEach(e => {
                             const epis = e.epis_entregues || [];
                             if (epis.length === 0) {
-                                linhasFull.push({ data: e.data_entrega || '', descricao: '', assinatura_base64: e.assinatura_base64 });
+                                linhasFull.push({ data: e.data_entrega || '', descricao: '', qtd: 1, assinatura_base64: e.assinatura_base64 });
                             } else {
-                                epis.forEach(nome => linhasFull.push({ data: e.data_entrega || '', descricao: nome, assinatura_base64: e.assinatura_base64 }));
+                                // Agrupar itens iguais na mesma entrega e exibir com quantidade
+                                const grp = {};
+                                epis.forEach(nome => { grp[nome] = (grp[nome] || 0) + 1; });
+                                Object.entries(grp).forEach(([nome, qty]) => {
+                                    linhasFull.push({ data: e.data_entrega || '', descricao: nome, qtd: qty, assinatura_base64: e.assinatura_base64 });
+                                });
                             }
                         });
 
@@ -13951,9 +13977,13 @@ window._assinNextStep = async function () {
             }, 2000);
 
         } catch (err) {
-            alert('Erro ao salvar entrega: ' + err.message);
             const btnNext = document.getElementById('btn-assin-next');
             if (btnNext) { btnNext.disabled = false; btnNext.innerHTML = '<i class="ph ph-check"></i> Confirmar Entrega'; }
+            const msg = err.name === 'AbortError'
+                ? 'O servidor demorou muito para responder (30s). Verifique se o servidor está online e tente novamente.'
+                : 'Erro ao salvar entrega: ' + err.message;
+            Swal.fire({ icon: 'error', title: 'Falha ao salvar', text: msg, confirmButtonColor: '#e67700',
+                didOpen: () => { const c = document.querySelector('.swal2-container'); if (c) c.style.zIndex = '999999'; } });
         }
         return;
     }
@@ -14069,10 +14099,18 @@ window.previewFichaEpi = async function (fichaId) {
     let linhasFilled = [];
     try {
         const entregas = await apiGet('/epi-fichas/' + fichaId + '/entregas');
-        entregas.forEach(e => {
+        (entregas || []).forEach(e => {
             const epis = e.epis_entregues || [];
-            if (epis.length === 0) linhasFilled.push({ data: e.data_entrega || '', descricao: '', assinatura_base64: e.assinatura_base64 });
-            else epis.forEach(nome => linhasFilled.push({ data: e.data_entrega || '', descricao: nome, assinatura_base64: e.assinatura_base64 }));
+            if (epis.length === 0) {
+                linhasFilled.push({ data: e.data_entrega || '', descricao: '', qtd: 1, assinatura_base64: e.assinatura_base64 });
+            } else {
+                // Agrupar itens iguais na mesma entrega
+                const grp = {};
+                epis.forEach(nome => { grp[nome] = (grp[nome] || 0) + 1; });
+                Object.entries(grp).forEach(([nome, qty]) => {
+                    linhasFilled.push({ data: e.data_entrega || '', descricao: nome, qtd: qty, assinatura_base64: e.assinatura_base64 });
+                });
+            }
         });
     } catch (err) { console.warn('Erro entregas:', err); }
 

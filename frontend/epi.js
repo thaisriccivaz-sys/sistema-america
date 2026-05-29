@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // MÓDULO DE FICHA DE EPI - v3
 // ============================================================
 
@@ -673,8 +673,8 @@ function pdfColabBox(doc, W, margin, y, colab) {
 
 function pdfEntregaTable(doc, W, margin, y, linhas) {
     // linhas: array of {data, descricao, assinatura_base64} or null for blank rows
-    const colW = [28, 110, W - margin * 2 - 138];
-    const heads = ['DATA', 'DESCRIÇÃO DE E.P.I', 'Ass. do Colaborador'];
+    const colW = [24, 12, 100, W - margin * 2 - 136];
+    const heads = ['DATA', 'QTD', 'DESCRICAO DE E.P.I', 'Ass. do Colaborador'];
     const hH = 8, rH = 10;
     let cx = margin;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(0, 0, 0);
@@ -690,18 +690,24 @@ function pdfEntregaTable(doc, W, margin, y, linhas) {
         colW.forEach(w => { doc.setLineWidth(0.2); doc.rect(cx, y, w, rH); cx += w; });
         if (ln && typeof ln === 'object') {
             if (ln.data) doc.text(ln.data, margin + 2, y + 6.5);
+            if (ln.qtd !== undefined && ln.qtd !== null && ln.descricao) {
+                doc.setFont('helvetica', 'bold');
+                doc.text(String(ln.qtd), margin + colW[0] + colW[1] / 2, y + 6.5, { align: 'center' });
+                doc.setFont('helvetica', 'normal');
+            }
             if (ln.descricao) {
-                const wrapped = doc.splitTextToSize(ln.descricao, colW[1] - 4);
-                doc.text(wrapped[0] + (wrapped.length > 1 ? '...' : ''), margin + colW[0] + 2, y + 6.5);
+                const descX = margin + colW[0] + colW[1] + 2;
+                const wrapped = doc.splitTextToSize(ln.descricao, colW[2] - 4);
+                doc.text(wrapped[0] + (wrapped.length > 1 ? '...' : ''), descX, y + 6.5);
             }
             if (ln.assinatura_base64) {
                 try {
-                    const sigX = margin + colW[0] + colW[1] + 2;
+                    const sigX = margin + colW[0] + colW[1] + colW[2] + 2;
                     const maxH = rH - 1;
-                    const maxW = colW[2] - 4;
+                    const maxW = colW[3] - 4;
                     const imgW = maxH * 3 > maxW ? maxW : maxH * 3;
                     const imgH = maxH * 3 > maxW ? maxW / 3 : maxH;
-                    const offsetX = sigX + (colW[2] - imgW) / 2 - 1;
+                    const offsetX = sigX + (colW[3] - imgW) / 2 - 1;
                     const offsetY = y + (rH - imgH) / 2;
                     doc.addImage(ln.assinatura_base64, 'PNG', offsetX, offsetY, imgW, imgH);
                 } catch(e) {}
