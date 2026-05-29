@@ -8266,18 +8266,23 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
             
             // Início do bloco de dedução de estoque
             if (Array.isArray(epis_entregues) && epis_entregues.length > 0) {
+                
+                // Busca o sexo do colaborador
+                db.get("SELECT sexo FROM colaboradores WHERE id = ?", [colaborador_id], (errC, rowC) => {
+                    const colabSexo = (rowC && rowC.sexo) ? rowC.sexo.trim().toLowerCase() : '';
+                    const isFeminino = colabSexo === 'feminino';
+                    const isMasculino = colabSexo === 'masculino';
 
-                // AGRUPAR itens iguais para evitar condição de corrida:
-                // Ex: ["CAMISETA - G", "CAMISETA - G"] → { "CAMISETA - G": 2 }
-                const epiContagem = {};
-                epis_entregues.forEach(nome => {
-                    if (!nome) return;
-                    const key = nome.trim().toUpperCase();
-                    epiContagem[key] = epiContagem[key] || { count: 0, original: nome };
-                    epiContagem[key].count++;
-                });
+                    // AGRUPAR itens iguais para evitar condição de corrida:
+                    const epiContagem = {};
+                    epis_entregues.forEach(nome => {
+                        if (!nome) return;
+                        const key = nome.trim().toUpperCase();
+                        epiContagem[key] = epiContagem[key] || { count: 0, original: nome };
+                        epiContagem[key].count++;
+                    });
 
-                // Função central para processar a baixa de um item com quantidade total
+                    // Função central para processar a baixa de um item com quantidade total
                 function processarBaixaEstoque(item, count) {
                     if (!item || item.quantidade_atual < count) {
                         console.warn(`[ESTOQUE] Item "${item ? item.nome : '?'}" com estoque insuficiente para baixa de ${count}.`);
@@ -8355,82 +8360,86 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                     });
                 }
 
-                // Carregar todo o estoque para a memória e comparar ignorando acentos
+                // Carregar todo o estoque para a memória
                 db.all("SELECT * FROM estoque", [], (errEstoque, todosItens) => {
                     if (errEstoque || !todosItens) return;
 
                     Object.values(epiContagem).forEach(({ count, original }) => {
                         const originalNome = original.trim();
                         const nomeNormalizado = originalNome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
-
-                        // Remove tamanho/variantes finais
-                        const nomeSemdash = nomeNormalizado.replace(/\s*-\s*[A-Z0-9]{1,4}$/, '').trim();
-                        const nomeSemTamanho = nomeNormalizado.replace(/\s+[A-Z0-9]{1,4}$/, '').trim();
-
-                        console.log(`[ESTOQUE] Tentando baixar: "${nomeNormalizado}" (sem tamanho: "${nomeSemdash}")`);
-
-                        let match = null;
-
-                        // 1. Match Exato
-                        match = todosItens.find(i => (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() === nomeNormalizado);
                         
-                        // 2. Sem traço
-                        if (!match) {
-                            const fallbackName = nomeSemdash + ' ' + (nomeNormalizado.split(/\s*-\s*/).pop() || '');
-                            match = todosItens.find(i => (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() === fallbackName);
-                        }
+                        console.log(`[ESTOQUE] Tentando baixar EPI entregue: "${nomeNormalizado}" (Sexo Colab: ${isFeminino?'F':(isMasculino?'M':'-')})`);
 
-                        // 3. Nome base exato sem o tamanho
-                        if (!match) {
-                            match = todosItens.find(i => (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() === nomeSemdash);
-                        }
-
-                        // 4. Prefixo mais longo (startsWith) — o nome do estoque é prefixo do EPI entregue
-                        if (!match) {
-                            const candidatos = todosItens.filter(i => {
-                                const n = (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
-                                return n.length > 0 && (nomeNormalizado.startsWith(n) || nomeSemdash.startsWith(n));
-                            }).sort((a, b) => b.nome.length - a.nome.length);
-                            if (candidatos.length > 0) match = candidatos[0];
-                        }
-
-                        // 5. Conteúdo: o nome do EPI entregue contém o nome do estoque (sufixo de tamanho ex: " - 39")
-                        if (!match) {
-                            const candidatos = todosItens.filter(i => {
-                                const n = (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
-                                return n.length >= 6 && nomeNormalizado.includes(n);
-                            }).sort((a, b) => b.nome.length - a.nome.length);
-                            if (candidatos.length > 0) match = candidatos[0];
-                        }
-
-                        // 6. Inverso: o nome do estoque contém o nome base do EPI (sem traço/tamanho)
-                        if (!match && nomeSemdash.length >= 6) {
-                            const candidatos = todosItens.filter(i => {
-                                const n = (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
-                                return n.includes(nomeSemdash) || nomeSemdash.includes(n);
-                            }).sort((a, b) => b.nome.length - a.nome.length);
-                            if (candidatos.length > 0) match = candidatos[0];
-                        }
-
-                        // 7. Palavras-chave (token match): todas as palavras significativas do estoque
-                        //    aparecem como palavras inteiras no EPI entregue.
-                        //    Ex: "Bota bico de aço 39" → tokens ["BOTA","BICO","ACO","39"]
-                        //        "BOTA BICO DE ACO CA 43.339 - 39" contém todas ✓
+                        // --- 1. Match Exato Direto ---
+                        let match = todosItens.find(i => (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() === nomeNormalizado);
+                        
+                        // --- 2. Busca por Score (Pontuação) ---
                         if (!match) {
                             const STOP_WORDS = new Set(['DE','DO','DA','DOS','DAS','E','A','O','OS','AS','EM','NO','NA','NOS','NAS','UM','UMA','POR']);
-                            // palavras inteiras do EPI entregue (para match seguro — "39" não bate em "43.339")
-                            const palavrasEPI = new Set(nomeNormalizado.split(/[\s\-\.\/,;]+/).filter(t => t.length >= 1));
-                            const candidatos = todosItens.filter(i => {
-                                const n = (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
-                                // tokens significativos do item do estoque (sem stop words, sem nrs com ponto como "43.339")
-                                const tokens = n.split(/[\s\-\.\/,;]+/).filter(t =>
-                                    t.length >= 2 && !STOP_WORDS.has(t) && !/^\d+\.\d+$/.test(t)
-                                );
-                                if (tokens.length === 0) return false;
-                                // todos os tokens do estoque devem aparecer no EPI entregue
-                                return tokens.every(t => palavrasEPI.has(t));
-                            }).sort((a, b) => b.nome.length - a.nome.length);
-                            if (candidatos.length > 0) match = candidatos[0];
+                            const tokensEpi = nomeNormalizado.split(/[\s\-\.\/,;]+/).filter(t => t.length > 0);
+                            const lastToken = tokensEpi.length > 0 ? tokensEpi[tokensEpi.length - 1] : '';
+                            const isSize = /^(P|M|G|GG|XG|EG|EXG|XGG|\d{2})$/.test(lastToken);
+                            
+                            let bestScore = -9999;
+                            let bestItem = null;
+
+                            todosItens.forEach(item => {
+                                const itemNomeNorm = (item.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                                const tokensItem = itemNomeNorm.split(/[\s\-\.\/,;]+/).filter(t => t.length > 0);
+                                
+                                let score = 0;
+                                
+                                // Pontos por conter as palavras base do EPI (todas menos o tamanho)
+                                const baseTokensEpi = isSize ? tokensEpi.slice(0, -1) : tokensEpi;
+                                let validBaseTokens = baseTokensEpi.filter(t => t.length >= 2 && !STOP_WORDS.has(t) && !/^\d+\.\d+$/.test(t));
+                                if (validBaseTokens.length === 0) validBaseTokens = baseTokensEpi;
+                                
+                                let matchedBaseCount = 0;
+                                validBaseTokens.forEach(t => {
+                                    if (tokensItem.includes(t)) matchedBaseCount++;
+                                });
+                                // Se bateu todas as palavras base, ganha muito ponto
+                                if (matchedBaseCount > 0 && matchedBaseCount === validBaseTokens.length) score += 200;
+                                else score += matchedBaseCount * 10;
+                                
+                                // Se for um item completamente diferente, o score de base vai ser baixo e não queremos
+                                if (matchedBaseCount < validBaseTokens.length - 1) return; // ignora se faltar muita palavra
+
+                                // Inclusão total da string
+                                if (itemNomeNorm.includes(nomeNormalizado)) score += 50;
+
+                                // Match de Gênero
+                                const hasFeminina = itemNomeNorm.includes('FEMININ');
+                                const hasMasculina = itemNomeNorm.includes('MASCULIN');
+                                if (isFeminino) {
+                                    if (hasFeminina) score += 150;
+                                    else if (hasMasculina) score -= 150;
+                                } else if (isMasculino) {
+                                    if (hasMasculina) score += 150;
+                                    else if (hasFeminina) score -= 150;
+                                }
+
+                                // Match de Tamanho
+                                if (isSize) {
+                                    const sizeInItem = tokensItem.includes(lastToken);
+                                    if (sizeInItem) {
+                                        score += 100; // Tamanho bateu!
+                                    } else {
+                                        // Tem algum outro tamanho no item?
+                                        const otherSizes = tokensItem.filter(t => /^(P|M|G|GG|XG|EG|EXG|XGG|\d{2})$/.test(t) && t !== lastToken);
+                                        if (otherSizes.length > 0) score -= 100; // Penaliza se for de outro tamanho
+                                    }
+                                }
+
+                                if (score > bestScore) {
+                                    bestScore = score;
+                                    bestItem = item;
+                                }
+                            });
+
+                            if (bestItem && bestScore >= 50) { // Limiar mínimo de segurança
+                                match = bestItem;
+                            }
                         }
 
                         if (match) {
@@ -8441,6 +8450,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                         }
                     });
                 });
+                }); // fim db.get sexo
             }
             // Fim do bloco de dedução de estoque
 
