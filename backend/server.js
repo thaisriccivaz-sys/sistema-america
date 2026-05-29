@@ -10764,7 +10764,7 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
                     diasRestantes,
                     formLink,
                     tipo: 'manual',
-                                        temRascunho: r.situacao === 'iniciado'
+                    temRascunho: r.situacao === 'iniciado'
                 })
             });
 
@@ -10819,12 +10819,9 @@ function verificarExperienciasVencendo() {
                 continue;
             }
 
-            // ── REGRA: só envia UMA vez aos 15 dias e UMA vez aos 7 dias ──────
-            // Envio diário: envia para todos dentro da janela, independente de envios anteriores
+            // ── Envio diário: envia todos os dias dentro da janela até finalizar ──────
             const deveEnviar15d = diasRestantes <= 15 && diasRestantes > 7 && !r.notificacao_15d_enviada; // mantido p/ auditoria
             const deveEnviar7d  = diasRestantes <= 7  && diasRestantes > 0  && !r.notificacao_7d_enviada;  // mantido p/ auditoria
-            // Envia todos os dias — não para mais após primeira notificação
-            }
 
             try {
                 let expiresInSeconds = 15 * 86400;
@@ -10856,7 +10853,7 @@ function verificarExperienciasVencendo() {
                         diasRestantes,
                         formLink,
                         tipo: 'automatico',
-                                                temRascunho: r.situacao === 'iniciado'
+                        temRascunho: r.situacao === 'iniciado'
                     })
                 });
 
