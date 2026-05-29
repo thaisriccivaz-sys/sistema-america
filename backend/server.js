@@ -12454,8 +12454,13 @@ app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
              tipo=COALESCE(?,tipo), descricao=COALESCE(?,descricao), status=COALESCE(?,status),
              km_na_manutencao=COALESCE(?,km_na_manutencao), km_proxima_manutencao=COALESCE(?,km_proxima_manutencao),
              data_agendamento=${dataAgSql}, data_conclusao=COALESCE(?,data_conclusao),
-             custo=COALESCE(?,custo), fornecedor=COALESCE(?,fornecedor), observacoes=COALESCE(?,observacoes),
-             data_inicio=COALESCE(?,data_inicio),
+             custo=COALESCE(?,custo), fornecedor=COALESCE(?,fornecedor),
+             observacoes = CASE 
+                 WHEN ? IS NULL OR ? = '' THEN observacoes
+                 WHEN observacoes IS NULL OR observacoes = '' THEN ?
+                 ELSE observacoes || char(10) || char(10) || '--- Atualização ---' || char(10) || ? 
+             END,
+             data_inicio=COALESCE(?,data_inicio), tipo_conclusao=COALESCE(?,tipo_conclusao),
              updated_at=CURRENT_TIMESTAMP WHERE id=?`,
             [tipo||null, descricao||null, status||null,
              km_na_manutencao !== undefined ? km_na_manutencao : null,
@@ -12463,8 +12468,9 @@ app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
              ...dataAgParam,
              data_conclusao !== undefined ? data_conclusao : null,
              custo !== undefined ? custo : null,
-             fornecedor||null, observacoes||null,
-             data_inicio !== undefined ? data_inicio : null, mId],
+             fornecedor||null, 
+             observacoes||null, observacoes||null, observacoes||null, observacoes||null,
+             data_inicio !== undefined ? data_inicio : null, tipo_conclusao !== undefined ? tipo_conclusao : null, mId],
             (err2) => {
                 if (err2) return res.status(500).json({ error: err2.message });
 
@@ -12824,8 +12830,14 @@ app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, r
                                 if (existing) {
                                     // Atualizar registro agendado existente
                                     db.run(
-                                        `UPDATE frota_manutencoes SET status='concluida', km_na_manutencao=?, km_proxima_manutencao=?, data_conclusao=?, observacoes=COALESCE(NULLIF(?,''), observacoes), updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-                                        [km, kmProxima, data_conclusao, observacoes || '', existing.id],
+                                        `UPDATE frota_manutencoes SET status='concluida', km_na_manutencao=?, km_proxima_manutencao=?, data_conclusao=?, 
+                                         observacoes = CASE 
+                                             WHEN ? IS NULL OR ? = '' THEN observacoes
+                                             WHEN observacoes IS NULL OR observacoes = '' THEN ?
+                                             ELSE observacoes || char(10) || char(10) || '--- Finalização ---' || char(10) || ? 
+                                         END, 
+                                         tipo_conclusao=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+                                        [km, kmProxima, data_conclusao, observacoes, observacoes, observacoes, observacoes, req.body.tipo_conclusao || 'realizada', existing.id],
                                         (errUpd) => {
                                             if (errUpd) errorMsg = errUpd.message;
                                             count++;
@@ -12839,9 +12851,9 @@ app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, r
                                     // Criar novo registro concluído
                                     const usuario_nome = req.user?.username || 'sistema';
                                     db.run(
-                                        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_conclusao, observacoes, usuario_nome)
-                                         VALUES (?,?,?,?,?,?,?,?,?)`,
-                                        [veiculo_id, 'preventiva', nomeServico, 'concluida', km, kmProxima, data_conclusao, observacoes || null, usuario_nome],
+                                        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_conclusao, observacoes, usuario_nome, tipo_conclusao)
+                                         VALUES (?,?,?,?,?,?,?,?,?,?)`,
+                                        [veiculo_id, 'preventiva', nomeServico, 'concluida', km, kmProxima, data_conclusao, observacoes || null, usuario_nome, req.body.tipo_conclusao || 'realizada'],
                                         (errIns) => {
                                             if (errIns) errorMsg = errIns.message;
                                             count++;

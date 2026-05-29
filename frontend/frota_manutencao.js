@@ -460,8 +460,10 @@ function mnRenderPlanoAgrupado(data) {
                 return `<span style="font-weight:600;color:#475569;font-size:0.82rem;">${dia||d}/${m||''}/${(y||'').slice(2)}</span>`;
             };
             const kmUltStr = item.km_ultima ? `<span style="font-size:0.68rem;font-weight:400;color:#64748b;">${Number(item.km_ultima).toLocaleString('pt-BR')} km</span>` : '';
-            const vistoriaIcon = item.apenas_vistoria ? ` <i class="ph ph-x-circle" style="color:#ef4444;font-size:1.1rem;margin-left:4px;vertical-align:middle;" title="Apenas Vistoria (Não Necessário)"></i>` : '';
-            const ultimaManuTxt = `<div style="display:flex;flex-direction:column;align-items:center;"><div style="display:flex;align-items:center;">${fmtDate(item.data_ultima_manutencao)}${vistoriaIcon}${obsIconConcluida}</div>${kmUltStr}</div>`;
+            const tipoIcon = item.tipo_conclusao === 'revisao' 
+                ? ` <span title="Sem necessidade de manutenção (apenas revisão)" style="cursor:help;">❌</span>` 
+                : (item.data_ultima_manutencao ? ` <span title="Manutenção realizada completa" style="cursor:help;">✔️</span>` : '');
+            const ultimaManuTxt = `<div style="display:flex;flex-direction:column;align-items:center;"><div style="display:flex;align-items:center;">${fmtDate(item.data_ultima_manutencao)}${tipoIcon}${obsIconConcluida}</div>${kmUltStr}</div>`;
             const dataAgendadaTxt = item.data_agendamento
                 ? `<span style="font-weight:700;color:#2563eb;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:4px;">${fmtDate(item.data_agendamento).replace(/<[^>]+>/g,'').trim()}${obsIconAgendada}</span>`
                 : '<span style="color:#94a3b8;">—</span>';
@@ -1665,6 +1667,16 @@ window.mnFinalizarAgendado = function() {
                 <span style="font-size:0.72rem;color:#94a3b8;margin-top:3px;display:block;">Preenchido automaticamente — edite se necessário</span>
             </div>
             <div>
+                <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Tipo de Manutenção</label>
+                <select id="ci-tipo-conclusao" onchange="document.getElementById('ci-aviso-revisao').style.display = this.value === 'revisao' ? 'block' : 'none'" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;margin-bottom:6px;">
+                    <option value="realizada">✔️ Manutenção realizada completa</option>
+                    <option value="revisao">❌ Sem necessidade de manutenção (apenas revisão)</option>
+                </select>
+                <div id="ci-aviso-revisao" style="display:none;font-size:0.75rem;color:#b45309;background:#fef3c7;padding:6px 8px;border-radius:6px;border:1px solid #fde68a;margin-bottom:8px;">
+                    <i class="ph ph-warning-circle"></i> Caso selecione essa opção o sistema apenas vai avisar sobre a próxima revisão no próximo intervalo programado.
+                </div>
+            </div>
+            <div>
                 <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Observações</label>
                 <textarea id="ci-obs" placeholder="Observações sobre a manutenção realizada..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:70px;resize:vertical;"></textarea>
             </div>
@@ -1682,6 +1694,7 @@ window.mnFinalizarAgendado = function() {
         const dataConc = document.getElementById('ci-data').value;
         const kmVal    = parseInt(document.getElementById('ci-km').value) || null;
         const obs      = document.getElementById('ci-obs').value.trim();
+        const tipoConc = document.getElementById('ci-tipo-conclusao').value;
         if (!dataConc) return alert('Informe a data de finalização');
         const btn = document.getElementById('btn-fin-ag-salvar');
         btn.disabled = true;
@@ -1690,7 +1703,7 @@ window.mnFinalizarAgendado = function() {
             const res = await fetch('/api/frota/manutencoes/finalizar-agendado', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._manutTok },
-                body: JSON.stringify({ veiculo_id: vid, servicos_ids: servsIds, data_conclusao: dataConc, observacoes: obs, km_realizado: kmVal })
+                body: JSON.stringify({ veiculo_id: vid, servicos_ids: servsIds, data_conclusao: dataConc, observacoes: obs, km_realizado: kmVal, tipo_conclusao: tipoConc })
             });
             const errData = !res.ok ? await res.text() : null;
             if (res.ok) {
@@ -1770,6 +1783,16 @@ window.mnConcluirIndividual = async function(itemId, nome) {
                         <span style="font-size:0.72rem;color:#94a3b8;margin-top:3px;display:block;">Preenchido automaticamente — edite se necessário</span>
                     </div>
                     <div>
+                        <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Tipo de Manutenção</label>
+                        <select id="ci-tipo-conclusao" onchange="document.getElementById('ci-aviso-revisao').style.display = this.value === 'revisao' ? 'block' : 'none'" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;margin-bottom:6px;">
+                            <option value="realizada">✔️ Manutenção realizada completa</option>
+                            <option value="revisao">❌ Sem necessidade de manutenção (apenas revisão)</option>
+                        </select>
+                        <div id="ci-aviso-revisao" style="display:none;font-size:0.75rem;color:#b45309;background:#fef3c7;padding:6px 8px;border-radius:6px;border:1px solid #fde68a;margin-bottom:8px;">
+                            <i class="ph ph-warning-circle"></i> Caso selecione essa opção o sistema apenas vai avisar sobre a próxima revisão no próximo intervalo programado.
+                        </div>
+                    </div>
+                    <div>
                         <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Observações</label>
                         <textarea id="ci-obs" placeholder="Observações sobre a manutenção realizada..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;min-height:60px;resize:vertical;"></textarea>
                     </div>
@@ -1822,6 +1845,7 @@ window.mnConcluirIndividual = async function(itemId, nome) {
                 const dataConc = document.getElementById('ci-data').value;
                 const kmVal    = parseInt(document.getElementById('ci-km').value) || null;
                 const obs      = document.getElementById('ci-obs').value.trim();
+                const tipoConc = document.getElementById('ci-tipo-conclusao').value;
                 if (!dataConc) { btn.disabled=false; btn.innerHTML='<i class="ph ph-check-circle"></i> Confirmar Realizada'; return alert('Informe a data da manutenção'); }
                 res = await fetch('/api/frota/manutencoes/finalizar-agendado', {
                     method: 'POST',
@@ -1831,7 +1855,8 @@ window.mnConcluirIndividual = async function(itemId, nome) {
                         servicos_ids: [String(window._mnConcluirItemId)],
                         data_conclusao: dataConc,
                         observacoes: obs,
-                        km_realizado: kmVal
+                        km_realizado: kmVal,
+                        tipo_conclusao: tipoConc
                     })
                 });
             } else {
@@ -1879,7 +1904,7 @@ window.mnConcluirBuscarKmData = async function(data) {
             const json = await res.json();
             const km = json.km;
             const hint = document.getElementById('ci-km-hint');
-            const inp  = document.getElementById('ci-km');
+            const inp  = document.getElementById('ci-km') || document.getElementById('mn-conc-km');
             if (km != null) {
                 if (inp)  inp.value = km;
                 const d = data.split('-').reverse().join('/');
@@ -2036,7 +2061,9 @@ window._mnMontarDrawerHistoricoManut = function() {
             const bgRow = i % 2 === 0 ? '#fff' : '#fafafa';
             const desc = (m.descricao || '—').replace(/"/g, '&quot;');
             const categoria = (m.categoria_nome || '—');
-            const vistoriaIcon = m.apenas_vistoria ? ' <i class="ph ph-x-circle" style="color:#ef4444;font-size:1.1rem;margin-left:4px;vertical-align:middle;" title="Apenas Vistoria (Não Necessário)"></i>' : '';
+            const tipoIcon = m.tipo_conclusao === 'revisao' 
+                ? ' <span title="Sem necessidade de manutenção (apenas revisão)" style="cursor:help;">❌</span>' 
+                : ' <span title="Manutenção realizada completa" style="cursor:help;">✔️</span>';
             const obsText = m.observacoes ? m.observacoes.replace(/\n/g, '<br>') : 'Nenhuma observação.';
             
             return '<tr style="background:' + bgRow + ';border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#f0fdf4\'" onmouseout="this.style.background=\'' + bgRow + '\'">' +
@@ -2044,7 +2071,7 @@ window._mnMontarDrawerHistoricoManut = function() {
                 '<td style="padding:10px;color:#64748b;">' + (m.tipo_veiculo||'—') + '</td>' +
                 '<td style="padding:10px;text-align:center;color:#64748b;">' + categoria + '</td>' +
                 '<td style="padding:10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + desc + '">' + (m.descricao||'—') + '</td>' +
-                '<td style="padding:10px;text-align:center;color:#2d9e5f;font-weight:600;">' + _fmtData(m.data_conclusao) + vistoriaIcon + '<br><span style="font-size:0.68rem;font-weight:400;color:#64748b;">' + (m.km_na_manutencao ? Number(m.km_na_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</span></td>' +
+                '<td style="padding:10px;text-align:center;color:#2d9e5f;font-weight:600;">' + _fmtData(m.data_conclusao) + tipoIcon + '<br><span style="font-size:0.68rem;font-weight:400;color:#64748b;">' + (m.km_na_manutencao ? Number(m.km_na_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</span></td>' +
                 '<td style="padding:10px;text-align:center;color:#64748b;">' + _fmtData(m.data_agendamento) + '</td>' +
                 '<td style="padding:10px;text-align:right;color:#0284c7;font-weight:600;">' + (m.km_proxima_manutencao ? Number(m.km_proxima_manutencao).toLocaleString('pt-BR')+' km' : '—') + '</td>' +
                 '<td style="padding:10px;color:#64748b;">' + (m.fornecedor||'—') + '</td>' +
@@ -2224,7 +2251,7 @@ window.mnConcluirIndividual = function(id, nome) {
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                 <div>
                     <label style="font-size:0.8rem;font-weight:600;color:#64748b;">Data Realizada</label>
-                    <input id="mn-conc-data" type="date" value="${dataHoje}"
+                    <input id="mn-conc-data" type="date" value="${dataHoje}" oninput="window.mnConcluirBuscarKmData(this.value)"
                         style="width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.88rem;outline:none;">
                 </div>
                 <div>
@@ -2249,9 +2276,14 @@ window.mnConcluirIndividual = function(id, nome) {
                     style="width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.88rem;outline:none;resize:vertical;"></textarea>
             </div>
             <div style="margin-top:10px;">
-                <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:#475569;cursor:pointer;">
-                    <input type="checkbox" id="mn-conc-vistoria" style="width:16px;height:16px;accent-color:#16a34a;"> <span style="font-weight:500;">Apenas Vistoria (Não Necessário)</span>
-                </label>
+                <label style="font-size:0.8rem;font-weight:600;color:#64748b;">Tipo de Manutenção</label>
+                <select id="mn-conc-tipo" onchange="document.getElementById('mn-aviso-revisao').style.display = this.value === 'revisao' ? 'block' : 'none'" style="width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.88rem;outline:none;">
+                    <option value="realizada">✔️ Manutenção realizada completa</option>
+                    <option value="revisao">❌ Sem necessidade de manutenção (apenas revisão)</option>
+                </select>
+                <div id="mn-aviso-revisao" style="display:none;font-size:0.75rem;color:#b45309;background:#fef3c7;padding:6px 8px;border-radius:6px;border:1px solid #fde68a;margin-top:6px;">
+                    <i class="ph ph-warning-circle"></i> Caso selecione essa opção o sistema apenas vai avisar sobre a próxima revisão no próximo intervalo programado.
+                </div>
             </div>
             <div style="display:flex;gap:8px;margin-top:1.2rem;justify-content:flex-end;">
                 <button onclick="document.getElementById('mn-modal-concluir').remove()"
@@ -2266,12 +2298,15 @@ window.mnConcluirIndividual = function(id, nome) {
         </div>`;
     document.body.appendChild(modal);
 
+    window._mnConcluirVid = vid;
+
     document.getElementById('mn-conc-confirmar').onclick = async function() {
         const data_conclusao = document.getElementById('mn-conc-data')?.value;
         const km = document.getElementById('mn-conc-km')?.value;
         const custo = document.getElementById('mn-conc-custo')?.value;
         const fornecedor = document.getElementById('mn-conc-forn')?.value;
         const observacoes = document.getElementById('mn-conc-obs')?.value;
+        const tipoConc = document.getElementById('mn-conc-tipo')?.value;
 
         this.disabled = true;
         this.innerHTML = '<i class="ph ph-spinner"></i> Salvando...';
@@ -2287,7 +2322,8 @@ window.mnConcluirIndividual = function(id, nome) {
                     custo: custo ? parseFloat(custo) : null,
                     fornecedor: fornecedor || null,
                     observacoes: observacoes || null,
-                    data_agendamento: ''
+                    data_agendamento: '',
+                    tipo_conclusao: tipoConc || 'realizada'
                 })
             });
             const json = await res.json().catch(() => ({}));

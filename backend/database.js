@@ -644,6 +644,13 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('is_sinistro_only')) db.run("ALTER TABLE geradores ADD COLUMN is_sinistro_only INTEGER DEFAULT 0");
                     if (!cols.includes('visibilidade_regra')) db.run("ALTER TABLE geradores ADD COLUMN visibilidade_regra TEXT");
                 });
+                
+                // Frota Manutencoes
+                db.all("PRAGMA table_info(frota_manutencoes)", (err, rows) => {
+                    if (err || !rows) return;
+                    const cols = rows.map(r => r.name);
+                    if (!cols.includes('tipo_conclusao')) db.run("ALTER TABLE frota_manutencoes ADD COLUMN tipo_conclusao TEXT DEFAULT 'realizada'");
+                });
             });
 
             // Migration: Remover nome do cliente (tudo antes de ':') das observações de logística
