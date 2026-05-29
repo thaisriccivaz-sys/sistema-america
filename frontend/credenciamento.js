@@ -154,8 +154,8 @@ async function loadColaboradoresCred() {
         const res = await fetch('/api/colaboradores', { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error(`Erro ${res.status}`);
         const data = await res.json();
-        // Departamentos administrativos que NÃO devem aparecer no credenciamento
-        const DEPTS_ADMIN = ['administrativo', 'comercial', 'financeiro', 'rh', 'recursos humanos', 'diretoria'];
+        // Departamentos administrativos (e limpeza) que NÃO devem aparecer no credenciamento
+        const DEPTS_ADMIN = ['administrativo', 'comercial', 'financeiro', 'rh', 'recursos humanos', 'diretoria', 'limpeza'];
         credenciamentoState.colaboradores = (data || []).filter(c => {
             const s = (c.status || '').toLowerCase();
             const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
@@ -1277,8 +1277,8 @@ window.solDocsProximo = async function() {
             fetch('/api/colaboradores', { headers: { 'Authorization': `Bearer ${token}` } }),
             fetch('/api/frota/veiculos', { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
-        // Mesma regra do credenciamento: exclui departamentos administrativos
-        const DEPTS_ADMIN_SOL = ['administrativo', 'comercial', 'financeiro', 'rh', 'recursos humanos', 'diretoria'];
+        // Mesma regra do credenciamento: exclui departamentos administrativos e limpeza
+        const DEPTS_ADMIN_SOL = ['administrativo', 'comercial', 'financeiro', 'rh', 'recursos humanos', 'diretoria', 'limpeza'];
         _solDocState.colaboradores = ((await rC.json()) || []).filter(c => {
             const s = (c.status || '').toLowerCase();
             const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
