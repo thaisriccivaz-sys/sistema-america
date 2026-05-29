@@ -650,6 +650,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (err || !rows) return;
                     const cols = rows.map(r => r.name);
                     if (!cols.includes('tipo_conclusao')) db.run("ALTER TABLE frota_manutencoes ADD COLUMN tipo_conclusao TEXT DEFAULT 'realizada'");
+                    if (!cols.includes('data_inicio')) db.run("ALTER TABLE frota_manutencoes ADD COLUMN data_inicio TEXT");
                 });
             });
 
