@@ -8412,6 +8412,27 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                             if (candidatos.length > 0) match = candidatos[0];
                         }
 
+                        // 7. Palavras-chave (token match): todas as palavras significativas do estoque
+                        //    aparecem como palavras inteiras no EPI entregue.
+                        //    Ex: "Bota bico de aço 39" → tokens ["BOTA","BICO","ACO","39"]
+                        //        "BOTA BICO DE ACO CA 43.339 - 39" contém todas ✓
+                        if (!match) {
+                            const STOP_WORDS = new Set(['DE','DO','DA','DOS','DAS','E','A','O','OS','AS','EM','NO','NA','NOS','NAS','UM','UMA','POR']);
+                            // palavras inteiras do EPI entregue (para match seguro — "39" não bate em "43.339")
+                            const palavrasEPI = new Set(nomeNormalizado.split(/[\s\-\.\/,;]+/).filter(t => t.length >= 1));
+                            const candidatos = todosItens.filter(i => {
+                                const n = (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                                // tokens significativos do item do estoque (sem stop words, sem nrs com ponto como "43.339")
+                                const tokens = n.split(/[\s\-\.\/,;]+/).filter(t =>
+                                    t.length >= 2 && !STOP_WORDS.has(t) && !/^\d+\.\d+$/.test(t)
+                                );
+                                if (tokens.length === 0) return false;
+                                // todos os tokens do estoque devem aparecer no EPI entregue
+                                return tokens.every(t => palavrasEPI.has(t));
+                            }).sort((a, b) => b.nome.length - a.nome.length);
+                            if (candidatos.length > 0) match = candidatos[0];
+                        }
+
                         if (match) {
                             console.log(`[ESTOQUE] Match encontrado: "${match.nome}"`);
                             processarBaixaEstoque(match, count);
