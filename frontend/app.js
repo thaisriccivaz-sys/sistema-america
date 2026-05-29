@@ -13708,6 +13708,13 @@ window._setEpiQty = async function (epi, qty) {
             confirmButtonText: 'Confirmar',
             cancelButtonText: 'Cancelar',
             confirmButtonColor: '#e67700',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                // Garante que o Swal aparece acima de qualquer modal do prontuário
+                const cont = document.querySelector('.swal2-container');
+                if (cont) { cont.style.zIndex = '999999'; cont.style.position = 'fixed'; }
+            },
             preConfirm: () => {
                 if (!window._swalSelectedSize) {
                     Swal.showValidationMessage('Selecione um tamanho!');
