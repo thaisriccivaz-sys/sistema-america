@@ -8626,7 +8626,16 @@ app.post('/api/epi-emprestimos/:id/devolver', authenticateToken, (req, res) => {
                 // Repor no estoque: match por nome normalizado com score de tokens
                 const nomeNorm = (emprestimo.epi_nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
                 const STOP = new Set(['DE','DO','DA','DOS','DAS','E','A','O','OS','AS','EM','NO','NA']);
-                const tokens = nomeNorm.split(/[\s\-\.\/,;]+/).filter(t => t.length > 1 && !STOP.has(t) && !['FEMININA','FEMININO','MASCULINA','MASCULINO'].includes(t));
+                const tokens = nomeNorm.split(/[\s\-\.\/,;]+/).filter(t =>
+                    t.length >= 3 &&
+                    !STOP.has(t) &&
+                    !/^\d+$/.test(t) &&
+                    !/^\d+\.\d+$/.test(t) &&
+                    t !== 'CA' &&
+                    !['FEMININA','FEMININO','MASCULINA','MASCULINO'].includes(t)
+                );
+                const tokensFallback = tokens.length > 0 ? tokens :
+                    nomeNorm.split(/[\s\-\.\/,;]+/).filter(t => t.length > 1 && !STOP.has(t));
 
                 db.all('SELECT * FROM estoque', [], (errEst, itens) => {
                     if (errEst || !itens) {
@@ -8638,18 +8647,19 @@ app.post('/api/epi-emprestimos/:id/devolver', authenticateToken, (req, res) => {
                     itens.forEach(item => {
                         const itemNorm = (item.nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
                         let score = 0;
-                        tokens.forEach(t => { if (itemNorm.includes(t)) score++; });
+                        tokensFallback.forEach(t => { if (itemNorm.includes(t)) score++; });
                         if (score > bestScore) { bestScore = score; bestItem = item; }
                     });
 
-                    if (bestItem && bestScore >= Math.ceil(tokens.length * 0.6)) {
+                    const requiredScore = Math.ceil(tokensFallback.length * 0.6);
+                    if (bestItem && bestScore >= requiredScore) {
                         db.run(
                             'UPDATE estoque SET quantidade_atual = quantidade_atual + 1, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
                             [bestItem.id],
                             (errR) => {
                                 if (!errR) {
                                     db.run(
-                                        'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo) VALUES (?,1,"entrada",?,"Devolução de EPI emprestado")',
+                                        'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo) VALUES (?,1,"Entrada",?,"Devolução de EPI emprestado")',
                                         [bestItem.id, devolvido_por]
                                     );
                                 }
