@@ -15305,18 +15305,15 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
                 () => {}
             );
         }
+        res.json({ success: true });
+        
+    } catch (e) {
+        console.error('[ESTOQUE PUT] Erro:', e.message);
+        if (!res.headersSent) res.status(500).json({ error: e.message });
+    }
 
-                        }
-                    });
-                }
-        } catch (e) {
-            console.error('[ESTOQUE PUT] Erro:', e.message);
-            // Notificação de estoque mínimo (versão async)
-            const nMin = quantidade_atual <= quantidade_minima && oldRow.quantidade_atual > oldRow.quantidade_minima;
-            if (!res.headersSent && !nMin) res.status(500).json({ error: e.message });
-        }
-
-        // Lógica de Notificação de Estoque Mínimo (fora do try/catch para não bloquear resposta)
+    // Lógica de Notificação de Estoque Mínimo (fora do try/catch para não bloquear resposta, precisa usar try/catch isolado para variaveis)
+    try {
         if (quantidade_atual <= quantidade_minima && oldRow.quantidade_atual > oldRow.quantidade_minima) {
             const msg = `ESTOQUE BAIXO: O item "${nome}" (${departamento}) atingiu o estoque mínimo. Quantidade Atual: ${quantidade_atual}.`;
             const dadosStr = JSON.stringify({ item_id: id, nome, quantidade_atual, quantidade_minima });
@@ -15328,6 +15325,8 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
                 }
             });
         }
+    } catch(eNotif) {
+        console.error('[ESTOQUE PUT] Erro na notificacao:', eNotif.message);
     }
 });
 
