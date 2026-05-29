@@ -104,6 +104,49 @@ async function sendMailHelper(opts) {
     });
 }
 
+/**
+ * Utilitário: envia e-mail para todos os usuários configurados para receber um tipo de notificação.
+ * Busca o email_corporativo do colaborador associado ao usuário (por nome) ou o email do usuário.
+ * @param {string} tipo - tipo da notificação (config_notificacoes.tipo)
+ * @param {object} mailOpts - { subject, html, attachments? }
+ */
+async function sendEmailParaNotificados(tipo, mailOpts) {
+    try {
+        const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+        const attachments = mailOpts.attachments || [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }];
+
+        db.all(`
+            SELECT u.id as uid, u.nome as unome, u.username, u.email as uemail,
+                   c.email_corporativo, c.email as cemail
+            FROM config_notificacoes cn
+            JOIN usuarios u ON u.id = cn.usuario_id
+            LEFT JOIN colaboradores c ON LOWER(TRIM(c.nome_completo)) = LOWER(TRIM(u.nome))
+            WHERE cn.tipo = ? AND u.ativo = 1
+        `, [tipo], async (err, rows) => {
+            if (err || !rows || rows.length === 0) return;
+            const emails = new Set();
+            rows.forEach(r => {
+                const addr = r.email_corporativo || r.cemail || r.uemail;
+                if (addr && addr.includes('@')) emails.add(addr.trim());
+            });
+            if (emails.size === 0) return;
+            try {
+                await sendMailHelper({
+                    to: [...emails].join(', '),
+                    subject: mailOpts.subject,
+                    html: mailOpts.html,
+                    attachments
+                });
+                console.log(`[Notif Email] Tipo="${tipo}" enviado para: ${[...emails].join(', ')}`);
+            } catch (mailErr) {
+                console.error(`[Notif Email] Erro ao enviar email tipo="${tipo}":`, mailErr.message);
+            }
+        });
+    } catch(e) {
+        console.error('[sendEmailParaNotificados] Erro:', e.message);
+    }
+}
+
 const db = require('./database');
 
 // AUTO-PATCH: Corrige OSs importadas sem data_os (ex: Entrega/Retirada da primeira importação noturna)
@@ -6963,19 +7006,43 @@ app.post('/api/faltas', authenticateToken, (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
             const insertedId = this.lastID;
 
-            // Logica de disparo de popup
+            // Logica de disparo de popup + e-mail
             db.get("SELECT nome_completo FROM colaboradores WHERE id = ?", [colaborador_id], (errC, rowC) => {
                 const nomeColab = rowC && rowC.nome_completo ? rowC.nome_completo : 'Colaborador não identificado';
+                const msg = `O colaborador ${nomeColab} teve uma falta adicionada no dia ${data_falta.split('-').reverse().join('/')}.`;
+                const dados = JSON.stringify({ colaborador_id, data_falta, id: insertedId, nome_colab: nomeColab });
+
                 db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'aviso_faltas'", [], (errConfig, rowsConfig) => {
                     if (!errConfig && rowsConfig && rowsConfig.length > 0) {
-                        const msg = `O colaborador ${nomeColab} teve uma falta adicionada no dia ${data_falta.split('-').reverse().join('/')}.`;
-                        const dados = JSON.stringify({ colaborador_id, data_falta, id: insertedId, nome_colab: nomeColab });
-
                         rowsConfig.forEach(cfg => {
                             db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
                                 [cfg.usuario_id, 'aviso_faltas', msg, dados]);
                         });
                     }
+                });
+
+                // Envio de e-mail para quem recebe aviso_faltas
+                const _logoPathFaltas = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                sendEmailParaNotificados('aviso_faltas', {
+                    subject: `⚠️ Aviso de Falta – ${nomeColab}`,
+                    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                        <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                            <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                        </div>
+                        <div style="padding:24px;">
+                            <h2 style="color:#e67700;text-align:center;margin-top:0;">⚠️ Aviso de Falta Registrada</h2>
+                            <p>Uma falta foi registrada no sistema:</p>
+                            <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
+                                <p style="margin:4px 0;"><strong>Colaborador:</strong> ${nomeColab}</p>
+                                <p style="margin:4px 0;"><strong>Data da Falta:</strong> ${data_falta.split('-').reverse().join('/')}</p>
+                                <p style="margin:4px 0;"><strong>Turno:</strong> ${turno || 'Dia todo'}</p>
+                                ${observacao ? `<p style="margin:4px 0;"><strong>Observação:</strong> ${observacao}</p>` : ''}
+                                <p style="margin:4px 0;"><strong>Avisou previamente:</strong> ${avisado_previamente || 'Não'}</p>
+                            </div>
+                            <p style="font-size:12px;color:#999;text-align:center;"><i>Esta notificação foi gerada automaticamente pelo Sistema América Rental.</i></p>
+                        </div>
+                    </div>`,
+                    attachments: [{ filename: 'logo-header.png', path: _logoPathFaltas, cid: 'empresa-logo' }]
                 });
             });
 
@@ -10459,6 +10526,27 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                                     });
                                 }
                             });
+                            // E-mail para quem recebe formulario_experiencia
+                            const _resSit = situacao_avaliacao === 'Aprovado' ? '✅ Aprovado' : situacao_avaliacao === 'Reprovado' ? '❌ Reprovado' : situacao_avaliacao || 'Aguardando';
+                            sendEmailParaNotificados('formulario_experiencia', {
+                                subject: `📋 Formulário de Experiência Finalizado – ${colab.nome_completo}`,
+                                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                    <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                        <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                    </div>
+                                    <div style="padding:24px;">
+                                        <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📋 Formulário de Experiência Finalizado</h2>
+                                        <p>O formulário de período de experiência foi preenchido e finalizado.</p>
+                                        <div style="background:#eff6ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #1d4ed8;">
+                                            <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
+                                            <p style="margin:4px 0;"><strong>Departamento:</strong> ${colab.departamento || '—'}</p>
+                                            <p style="margin:4px 0;"><strong>Resultado:</strong> ${_resSit}</p>
+                                            <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '—'}</p>
+                                        </div>
+                                        <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para revisar o formulário completo.</i></p>
+                                    </div>
+                                </div>`
+                            });
                             gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios);
                             res.json({ ok: true, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
                         });
@@ -10474,6 +10562,27 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                                         db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'formulario_experiencia', msg, dados]);
                                     });
                                 }
+                            });
+                            // E-mail para quem recebe formulario_experiencia
+                            const _resSit2 = situacao_avaliacao === 'Aprovado' ? '✅ Aprovado' : situacao_avaliacao === 'Reprovado' ? '❌ Reprovado' : situacao_avaliacao || 'Aguardando';
+                            sendEmailParaNotificados('formulario_experiencia', {
+                                subject: `📋 Formulário de Experiência Finalizado – ${colab.nome_completo}`,
+                                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                    <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                        <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                    </div>
+                                    <div style="padding:24px;">
+                                        <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📋 Formulário de Experiência Finalizado</h2>
+                                        <p>O formulário de período de experiência foi preenchido e finalizado.</p>
+                                        <div style="background:#eff6ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #1d4ed8;">
+                                            <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
+                                            <p style="margin:4px 0;"><strong>Departamento:</strong> ${colab.departamento || '—'}</p>
+                                            <p style="margin:4px 0;"><strong>Resultado:</strong> ${_resSit2}</p>
+                                            <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '—'}</p>
+                                        </div>
+                                        <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para revisar o formulário completo.</i></p>
+                                    </div>
+                                </div>`
                             });
                             gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios);
                             res.json({ ok: true, form_id: this.lastID, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
@@ -13189,7 +13298,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
 
             const novoId = this.lastID;
 
-            // Inserir notificação para a Logística
+            // Inserir notificação para a Logística (popup)
             db.run(`INSERT INTO logistica_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`,
                 ['nova_solicitacao', JSON.stringify({
                     cliente_nome,
@@ -13198,7 +13307,45 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                 })]
             );
 
+            // Inserir popup para todos que recebem 'nova_solicitacao_credenciamento'
+            const msgCred = `Nova solicitação de credenciamento de ${req.user ? req.user.username : 'Comercial'} para o cliente "${cliente_nome}"${os ? ` (OS: ${os})` : ''}.`;
+            const dadosCred = JSON.stringify({ id: novoId, cliente_nome, os, solicitante: req.user ? req.user.username : 'Comercial' });
+            db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'nova_solicitacao_credenciamento'", [], (errCN, rowsCN) => {
+                if (!errCN && rowsCN && rowsCN.length > 0) {
+                    rowsCN.forEach(c => {
+                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                            [c.usuario_id, 'nova_solicitacao_credenciamento', msgCred, dadosCred]);
+                    });
+                }
+            });
+
+            // Enviar e-mail para quem recebe 'nova_solicitacao_credenciamento'
+            const _logoPathCred = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+            const dtLimiteCred = data_limite_envio ? new Date(data_limite_envio).toLocaleDateString('pt-BR') : 'Não informada';
+            sendEmailParaNotificados('nova_solicitacao_credenciamento', {
+                subject: `📋 Nova Solicitação de Credenciamento - ${cliente_nome}`,
+                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                    <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                        <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                    </div>
+                    <div style="padding:24px;">
+                        <h2 style="color:#7048e8;text-align:center;margin-top:0;">📋 Nova Solicitação de Credenciamento</h2>
+                        <p>Uma nova solicitação foi registrada por <strong>${req.user ? req.user.username : 'Comercial'}</strong> e aguarda ação da Logística.</p>
+                        <div style="background:#f8fafc;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #7048e8;">
+                            <p style="margin:4px 0;"><strong>Cliente / Obra:</strong> ${cliente_nome}</p>
+                            ${os ? `<p style="margin:4px 0;"><strong>OS:</strong> ${os}</p>` : ''}
+                            ${endereco_instalacao ? `<p style="margin:4px 0;"><strong>Endereço:</strong> ${endereco_instalacao}</p>` : ''}
+                            <p style="margin:4px 0;"><strong>Data Limite:</strong> ${dtLimiteCred}</p>
+                            <p style="margin:4px 0;"><strong>Máx. Colaboradores:</strong> ${qtd_max_colaboradores || 0} | <strong>Máx. Veículos:</strong> ${qtd_max_veiculos || 0}</p>
+                        </div>
+                        <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para processar o credenciamento.</i></p>
+                    </div>
+                </div>`,
+                attachments: [{ filename: 'logo-header.png', path: _logoPathCred, cid: 'empresa-logo' }]
+            });
+
             res.json({ message: 'Solicitação criada com sucesso.', id: novoId });
+
 
             // --- Enviar e-mail de notificação para equipe de Logística ---
             // Busca tanto em colaboradores quanto em usuários que tenham a tag logistica
@@ -15262,6 +15409,26 @@ async function dispararAcoesAgenda(card) {
                             db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
                                 [cfg.usuario_id, 'aviso_faltas', msg, dados]);
                         });
+                        // E-mail para aviso_faltas da agenda
+                        sendEmailParaNotificados('aviso_faltas', {
+                            subject: `⚠️ Aviso de Falta (Agenda) – ${nomes}`,
+                            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                </div>
+                                <div style="padding:24px;">
+                                    <h2 style="color:#e67700;text-align:center;margin-top:0;">⚠️ Aviso de Falta (Agenda Logística)</h2>
+                                    <p>Uma falta foi registrada via Agenda da Logística:</p>
+                                    <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
+                                        <p style="margin:4px 0;"><strong>Colaborador(es):</strong> ${nomes}</p>
+                                        <p style="margin:4px 0;"><strong>Data:</strong> ${card.data ? card.data.split('-').reverse().join('/') : '—'}</p>
+                                        ${card.descricao ? `<p style="margin:4px 0;"><strong>Descrição:</strong> ${card.descricao}</p>` : ''}
+                                        ${card.criado_por ? `<p style="margin:4px 0;"><strong>Registrado por:</strong> ${card.criado_por}</p>` : ''}
+                                    </div>
+                                    <p style="font-size:12px;color:#999;text-align:center;"><i>Esta notificação foi gerada automaticamente pelo Sistema América Rental.</i></p>
+                                </div>
+                            </div>`
+                        });
                     }
                 });
             }
@@ -15560,6 +15727,26 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
                 if (!errC && rowsC && rowsC.length > 0) {
                     rowsC.forEach(c => {
                         db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'estoque_minimo', msg, dadosStr]);
+                    });
+                    // E-mail de estoque mínimo (ajuste manual)
+                    sendEmailParaNotificados('estoque_minimo', {
+                        subject: `📦 Estoque Mínimo Atingido – ${nome}`,
+                        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                            <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                            </div>
+                            <div style="padding:24px;">
+                                <h2 style="color:#e67700;text-align:center;margin-top:0;">📦 Estoque Mínimo Atingido</h2>
+                                <p>Um item do estoque atingiu a quantidade mínima após ajuste manual:</p>
+                                <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
+                                    <p style="margin:4px 0;"><strong>Item:</strong> ${nome}</p>
+                                    <p style="margin:4px 0;"><strong>Departamento:</strong> ${departamento}</p>
+                                    <p style="margin:4px 0;"><strong>Quantidade Atual:</strong> ${quantidade_atual}</p>
+                                    <p style="margin:4px 0;"><strong>Quantidade Mínima:</strong> ${quantidade_minima}</p>
+                                </div>
+                                <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para reabastecer o estoque.</i></p>
+                            </div>
+                        </div>`
                     });
                 }
             });
@@ -16324,45 +16511,31 @@ function enviarNotificacaoNovaMultaMonaco(payload, logisticaId) {
                     [c.usuario_id, 'nova_multa_monaco', msg, dados]);
             });
 
-            // Enviar e-mail para e-mails corporativos
-            const uids = rowsC.map(c => c.usuario_id);
-            if (uids.length > 0) {
-                const placeholders = uids.map(() => '?').join(',');
-                db.all(`SELECT c.email_corporativo FROM usuarios u
-                        JOIN colaboradores c ON LOWER(TRIM(c.nome_completo)) = LOWER(TRIM(u.nome))
-                        WHERE u.id IN (${placeholders}) 
-                          AND c.email_corporativo IS NOT NULL 
-                          AND c.email_corporativo != ''`, uids, async (errE, rowsE) => {
-                    if (!errE && rowsE && rowsE.length > 0) {
-                        const emails = [...new Set(rowsE.map(r => r.email_corporativo))];
-                        if (emails.length > 0) {
-                            try {
-                                await sendMailHelper({
-                                    to: emails.join(','),
-                                    subject: 'América Rental - Nova Multa Mônaco',
-                                    html: `
-                                        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                                            <h2>Nova Multa Recebida via Integração Mônaco</h2>
-                                            <p>Uma nova multa foi importada automaticamente e está na fila de "Conferência".</p>
-                                            <ul>
-                                                <li><b>AIT:</b> ${payload.numero_ait || 'N/A'}</li>
-                                                <li><b>Placa:</b> ${payload.placa || 'N/A'}</li>
-                                                <li><b>Data da Infração:</b> ${payload.data_da_infracao || 'N/A'}</li>
-                                                <li><b>Descrição:</b> ${payload.descricao || 'N/A'}</li>
-                                                <li><b>Valor:</b> R$ ${payload.valor_da_infracao || 'N/A'}</li>
-                                            </ul>
-                                            <p><a href="${process.env.PUBLIC_URL || 'https://sistema.america.onrender.com'}/?app=logistica" style="display:inline-block; padding: 10px 15px; background: #2d9e5f; color: #fff; text-decoration: none; border-radius: 5px;">Acessar Controle de Multas</a></p>
-                                        </div>
-                                    `
-                                });
-                                console.log('[MONACO EMAIL] Notificações enviadas para:', emails.join(', '));
-                            } catch (error) {
-                                console.error('[MONACO EMAIL] Erro ao enviar:', error.message);
-                            }
-                        }
-                    }
-                });
-            }
+            // Enviar e-mail com logo corporativo padrão
+            sendEmailParaNotificados('nova_multa_monaco', {
+                subject: `🚨 Nova Multa Mônaco – AIT ${payload.numero_ait || 'N/A'} – Placa ${payload.placa || 'N/A'}`,
+                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                    <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                        <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                    </div>
+                    <div style="padding:24px;">
+                        <h2 style="color:#c0392b;text-align:center;margin-top:0;">🚨 Nova Multa Recebida (Integração Mônaco)</h2>
+                        <p>Uma nova multa foi importada automaticamente e está na fila de <strong>Conferência</strong>.</p>
+                        <div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #c0392b;">
+                            <p style="margin:4px 0;"><strong>AIT:</strong> ${payload.numero_ait || 'N/A'}</p>
+                            <p style="margin:4px 0;"><strong>Placa:</strong> ${payload.placa || 'N/A'}</p>
+                            <p style="margin:4px 0;"><strong>Data da Infração:</strong> ${payload.data_da_infracao || 'N/A'}</p>
+                            <p style="margin:4px 0;"><strong>Descrição:</strong> ${payload.descricao || 'N/A'}</p>
+                            <p style="margin:4px 0;"><strong>Valor:</strong> R$ ${payload.valor_da_infracao || 'N/A'}</p>
+                            ${payload.local ? `<p style="margin:4px 0;"><strong>Local:</strong> ${payload.local}</p>` : ''}
+                        </div>
+                        <div style="text-align:center;margin-top:20px;">
+                            <a href="${process.env.PUBLIC_URL || 'https://sistema.america.onrender.com'}/?app=logistica" style="display:inline-block;padding:12px 24px;background:#2d9e5f;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Acessar Controle de Multas</a>
+                        </div>
+                        <p style="font-size:12px;color:#999;text-align:center;margin-top:16px;"><i>Esta notificação foi gerada automaticamente pelo Sistema América Rental.</i></p>
+                    </div>
+                </div>`
+            });
         }
     });
 }
