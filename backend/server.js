@@ -8309,10 +8309,18 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                                     rowsC.forEach(c => {
                                         db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'estoque_minimo', msg, dadosStr]);
                                     });
-                                    db.all("SELECT email FROM usuarios WHERE id IN (" + rowsC.map(r => r.usuario_id).join(',') + ") AND email IS NOT NULL AND email != ''", [], (errU, users) => {
+                                    const qIds = rowsC.map(r => r.usuario_id).join(',');
+                                    db.all(`
+                                        SELECT u.email as user_email, c.email_corporativo as colab_email
+                                        FROM usuarios u
+                                        LEFT JOIN colaboradores c ON u.nome = c.nome_completo
+                                        WHERE u.id IN (${qIds})
+                                    `, [], (errU, users) => {
                                         if (!errU && users && users.length > 0) {
-                                            const emails = users.map(u => u.email).join(',');
-                                            const nodemailer = require('nodemailer');
+                                            const emailsArray = users.map(u => u.colab_email || u.user_email).filter(e => e && e.trim() !== '');
+                                            if (emailsArray.length > 0) {
+                                                const emails = [...new Set(emailsArray)].join(',');
+                                                const nodemailer = require('nodemailer');
                                             const transporter = nodemailer.createTransport(SMTP_CONFIG);
                                             const mailOptions = {
                                                 from: SMTP_CONFIG.auth.user,
@@ -8336,6 +8344,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                                                 `
                                             };
                                             transporter.sendMail(mailOptions).catch(e => console.error('[ESTOQUE] Erro ao enviar e-mail:', e));
+                                            }
                                         }
                                     });
                                 }
