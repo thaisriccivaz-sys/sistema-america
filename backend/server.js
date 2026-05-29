@@ -106,7 +106,13 @@ async function sendMailHelper(opts) {
 
 /**
  * Utilitário: envia e-mail para todos os usuários configurados para receber um tipo de notificação.
- * Busca o email_corporativo do colaborador associado ao usuário (por nome) ou o email do usuário.
+ * Usa múltiplas estratégias de busca de e-mail para garantir entrega:
+ *   1. email_corporativo do colaborador (JOIN por nome)
+ *   2. email do colaborador (JOIN por nome)
+ *   3. email_corporativo do colaborador (JOIN por username)
+ *   4. email do colaborador (JOIN por username)
+ *   5. email direto na tabela usuarios
+ *   6. username (se parecer um e-mail)
  * @param {string} tipo - tipo da notificação (config_notificacoes.tipo)
  * @param {object} mailOpts - { subject, html, attachments? }
  */
@@ -117,19 +123,42 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
 
         db.all(`
             SELECT u.id as uid, u.nome as unome, u.username, u.email as uemail,
-                   c.email_corporativo, c.email as cemail
+                   cn1.email_corporativo as ec_by_nome, cn1.email as ce_by_nome,
+                   cn2.email_corporativo as ec_by_username, cn2.email as ce_by_username
             FROM config_notificacoes cn
             JOIN usuarios u ON u.id = cn.usuario_id
-            LEFT JOIN colaboradores c ON LOWER(TRIM(c.nome_completo)) = LOWER(TRIM(u.nome))
+            LEFT JOIN colaboradores cn1 ON LOWER(TRIM(cn1.nome_completo)) = LOWER(TRIM(u.nome))
+            LEFT JOIN colaboradores cn2 ON LOWER(TRIM(cn2.nome_completo)) = LOWER(TRIM(u.username))
             WHERE cn.tipo = ? AND u.ativo = 1
         `, [tipo], async (err, rows) => {
-            if (err || !rows || rows.length === 0) return;
+            if (err) {
+                console.error(`[Notif Email] Erro na query tipo="${tipo}":`, err.message);
+                return;
+            }
+            if (!rows || rows.length === 0) {
+                console.log(`[Notif Email] Nenhum usuario configurado para tipo="${tipo}"`);
+                return;
+            }
             const emails = new Set();
             rows.forEach(r => {
-                const addr = r.email_corporativo || r.cemail || r.uemail;
-                if (addr && addr.includes('@')) emails.add(addr.trim());
+                // Estratégia 1: email_corporativo via JOIN por nome
+                if (r.ec_by_nome && r.ec_by_nome.includes('@')) { emails.add(r.ec_by_nome.trim()); return; }
+                // Estratégia 2: email do colaborador via JOIN por nome
+                if (r.ce_by_nome && r.ce_by_nome.includes('@')) { emails.add(r.ce_by_nome.trim()); return; }
+                // Estratégia 3: email_corporativo via JOIN por username
+                if (r.ec_by_username && r.ec_by_username.includes('@')) { emails.add(r.ec_by_username.trim()); return; }
+                // Estratégia 4: email do colaborador via JOIN por username
+                if (r.ce_by_username && r.ce_by_username.includes('@')) { emails.add(r.ce_by_username.trim()); return; }
+                // Estratégia 5: email direto na tabela usuarios
+                if (r.uemail && r.uemail.includes('@')) { emails.add(r.uemail.trim()); return; }
+                // Estratégia 6: username parece um e-mail
+                if (r.username && r.username.includes('@')) { emails.add(r.username.trim()); return; }
+                console.warn(`[Notif Email] Nenhum e-mail encontrado para usuario_id=${r.uid} (username="${r.username}", nome="${r.unome}")`);
             });
-            if (emails.size === 0) return;
+            if (emails.size === 0) {
+                console.warn(`[Notif Email] Nenhum e-mail resolvido para tipo="${tipo}". Verifique se os colaboradores têm email_corporativo cadastrado.`);
+                return;
+            }
             try {
                 await sendMailHelper({
                     to: [...emails].join(', '),
