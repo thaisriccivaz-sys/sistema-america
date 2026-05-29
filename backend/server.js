@@ -2551,6 +2551,15 @@ app.get('/api/colaboradores', authenticateToken, (req, res) => {
     `;
     db.all(query, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
+        
+        // Remover campos pesados para não travar a listagem (payload < 200KB vs 21MB)
+        if (rows) {
+            rows.forEach(r => {
+                delete r.foto_base64;
+                delete r.admissao_contabil_anexos;
+            });
+        }
+        
         res.json(rows);
     });
 });
