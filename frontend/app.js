@@ -2499,6 +2499,8 @@ async function loadDashboard() {
             tbAniver.innerHTML = '';
             if (!cols || cols.length === 0) {
                 tbAniver.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;font-style:italic;">Nenhum aniversariante.</td></tr>';
+                const titAniv = document.getElementById('titulo-aniversariantes');
+                if (titAniv) titAniv.innerHTML = '<i class="ph ph-cake"></i> 0 Aniversariantes do Mês';
             } else {
                 const mesAtual = new Date().getMonth() + 1;
                 const aniversariantes = cols.filter(c => {
@@ -2528,7 +2530,11 @@ async function loadDashboard() {
 
                 if (aniversariantes.length === 0) {
                     tbAniver.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;font-style:italic;">Nenhum aniversariante neste mês.</td></tr>';
+                    const titAniv = document.getElementById('titulo-aniversariantes');
+                    if (titAniv) titAniv.innerHTML = '<i class="ph ph-cake"></i> 0 Aniversariantes do Mês';
                 } else {
+                    const titAniv = document.getElementById('titulo-aniversariantes');
+                    if (titAniv) titAniv.innerHTML = `<i class="ph ph-cake"></i> ${aniversariantes.length} Aniversariantes do Mês`;
                     aniversariantes.forEach(c => {
                         const getFormatData = dtStr => {
                             if (dtStr.includes('-')) { const p = dtStr.split('-'); return `${p[2]}/${p[1]}`; }
