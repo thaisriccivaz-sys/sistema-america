@@ -78,6 +78,8 @@ window.abrirModalEstoque = function() {
     document.getElementById('estoque-id').value = '';
     
     // Limpar foto
+    const fileInput = document.getElementById('estoque-foto');
+    if (fileInput) fileInput.value = '';
     document.getElementById('estoque-foto-base64').value = '';
     document.getElementById('estoque-foto-preview').src = '';
     document.getElementById('estoque-foto-preview').style.display = 'none';
@@ -101,6 +103,8 @@ window.editarEstoque = function(item) {
     document.getElementById('estoque-max').value = item.quantidade_maxima;
     
     // Mostrar foto
+    const fileInput = document.getElementById('estoque-foto');
+    if (fileInput) fileInput.value = '';
     document.getElementById('estoque-foto-base64').value = item.foto_base64 || '';
     if (item.foto_base64) {
         document.getElementById('estoque-foto-preview').src = item.foto_base64;
