@@ -2537,7 +2537,7 @@ async function loadDashboard() {
                         };
                         const dataFmt = getFormatData(c.data_nascimento);
                         const fotoApiUrl = `/api/colaboradores/foto/${c.id}`;
-                        const iniciais = (c.nome||'').trim().split(/\\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+                        const iniciais = (c.nome_completo||'').trim().split(/\\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
                         
                         tbAniver.innerHTML += `
                             <tr style="border-bottom:1px solid #f1f5f9;">
@@ -2545,7 +2545,7 @@ async function loadDashboard() {
                                     <div style="display:flex;align-items:center;gap:0.55rem;">
                                         <img src="${fotoApiUrl}" alt="" style="width:31px;height:31px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid #10b98140;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
                                         <div style="display:none;width:31px;height:31px;border-radius:50%;background:#10b981;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;">${iniciais}</div>
-                                        <a href="#" style="color:#10b981;text-decoration:none;font-weight:600;font-size:0.85rem;" onclick="event.preventDefault();editColaborador(${c.id})">${c.nome}</a>
+                                        <a href="#" style="color:#10b981;text-decoration:none;font-weight:600;font-size:0.85rem;" onclick="event.preventDefault();editColaborador(${c.id})">${c.nome_completo}</a>
                                     </div>
                                 </td>
                                 <td style="padding:0.6rem 0.65rem;font-size:0.85rem;font-weight:600;color:#475569;"><i class="ph ph-calendar"></i> ${dataFmt}</td>
