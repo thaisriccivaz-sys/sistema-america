@@ -8420,8 +8420,14 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                                 
                                 // Pontos por conter as palavras base do EPI (todas menos o tamanho)
                                 const baseTokensEpi = isSize ? tokensEpi.slice(0, -1) : tokensEpi;
-                                let validBaseTokens = baseTokensEpi.filter(t => t.length >= 2 && !STOP_WORDS.has(t) && !/^\d+\.\d+$/.test(t));
-                                if (validBaseTokens.length === 0) validBaseTokens = baseTokensEpi;
+                                let validBaseTokens = baseTokensEpi.filter(t =>
+                                    t.length >= 3 &&
+                                    !STOP_WORDS.has(t) &&
+                                    !/^\d+$/.test(t) &&
+                                    !/^\d+\.\d+$/.test(t) &&
+                                    t !== 'CA'
+                                );
+                                if (validBaseTokens.length === 0) validBaseTokens = baseTokensEpi.filter(t => t.length >= 2 && !STOP_WORDS.has(t));
                                 
                                 let matchedBaseCount = 0;
                                 validBaseTokens.forEach(t => {
