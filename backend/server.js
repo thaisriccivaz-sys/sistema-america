@@ -8376,7 +8376,21 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                         // --- 2. Busca por Score (Pontuação) ---
                         if (!match) {
                             const STOP_WORDS = new Set(['DE','DO','DA','DOS','DAS','E','A','O','OS','AS','EM','NO','NA','NOS','NAS','UM','UMA','POR']);
-                            const tokensEpi = nomeNormalizado.split(/[\s\-\.\/,;]+/).filter(t => t.length > 0);
+                            
+                            // Verifica se o modelo foi selecionado explicitamente no frontend (ex: "POLO - G - FEMININA")
+                            let colabFeminino = isFeminino;
+                            let colabMasculino = isMasculino;
+                            
+                            let isFemininoExplicit = nomeNormalizado.includes('FEMININA') || nomeNormalizado.includes('FEMININO');
+                            let isMasculinoExplicit = nomeNormalizado.includes('MASCULINA') || nomeNormalizado.includes('MASCULINO');
+                            
+                            if (isFemininoExplicit || isMasculinoExplicit) {
+                                colabFeminino = isFemininoExplicit;
+                                colabMasculino = isMasculinoExplicit;
+                            }
+                            
+                            // Remove as tags de modelo para não interferir na extração de tokens base e do tamanho final
+                            const tokensEpi = nomeNormalizado.split(/[\s\-\.\/,;]+/).filter(t => t.length > 0 && !['FEMININA','FEMININO','MASCULINA','MASCULINO'].includes(t));
                             const lastToken = tokensEpi.length > 0 ? tokensEpi[tokensEpi.length - 1] : '';
                             const isSize = /^(P|M|G|GG|XG|EG|EXG|XGG|\d{2})$/.test(lastToken);
                             
@@ -8411,10 +8425,10 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                                 // Match de Gênero
                                 const hasFeminina = itemNomeNorm.includes('FEMININ');
                                 const hasMasculina = itemNomeNorm.includes('MASCULIN');
-                                if (isFeminino) {
+                                if (colabFeminino) {
                                     if (hasFeminina) score += 150;
                                     else if (hasMasculina) score -= 150;
-                                } else if (isMasculino) {
+                                } else if (colabMasculino) {
                                     if (hasMasculina) score += 150;
                                     else if (hasFeminina) score -= 150;
                                 }

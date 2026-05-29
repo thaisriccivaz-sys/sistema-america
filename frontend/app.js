@@ -13724,7 +13724,9 @@ window._setEpiQty = async function (epi, qty) {
             opcoes = ['P', 'M', 'G', 'GG', 'XGG'];
             placeholder = 'Selecione o tamanho';
         }
-        const selectHtml = `
+        const isPolo = epi.toUpperCase().includes('POLO');
+
+        let selectHtml = `
             <div style="margin-top: 12px;">
                 <p style="font-size:0.85rem; color:#64748b; margin-bottom:8px;">Tamanho para: <strong>${epi}</strong></p>
                 <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
@@ -13736,10 +13738,31 @@ window._setEpiQty = async function (epi, qty) {
                         </button>`).join('')}
                 </div>
             </div>`;
+
+        if (isPolo) {
+            selectHtml += `
+            <div style="margin-top: 20px;">
+                <p style="font-size:0.85rem; color:#64748b; margin-bottom:8px;">Selecione o Modelo:</p>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+                    <button type="button" data-model="Feminina"
+                        onclick="document.querySelectorAll('[data-model]').forEach(b => { b.style.background='#f1f5f9'; b.style.color='#475569'; b.style.borderColor='#e2e8f0'; }); this.style.background='#e67700'; this.style.color='#fff'; this.style.borderColor='#e67700'; window._swalSelectedModel = 'Feminina';"
+                        style="padding:10px 20px; border-radius:8px; border:2px solid #e2e8f0; background:#f1f5f9; color:#475569; font-size:1rem; font-weight:700; cursor:pointer; transition: all 0.15s;">
+                        Feminina
+                    </button>
+                    <button type="button" data-model="Masculina"
+                        onclick="document.querySelectorAll('[data-model]').forEach(b => { b.style.background='#f1f5f9'; b.style.color='#475569'; b.style.borderColor='#e2e8f0'; }); this.style.background='#e67700'; this.style.color='#fff'; this.style.borderColor='#e67700'; window._swalSelectedModel = 'Masculina';"
+                        style="padding:10px 20px; border-radius:8px; border:2px solid #e2e8f0; background:#f1f5f9; color:#475569; font-size:1rem; font-weight:700; cursor:pointer; transition: all 0.15s;">
+                        Masculina
+                    </button>
+                </div>
+            </div>`;
+        }
         
         window._swalSelectedSize = null;
+        window._swalSelectedModel = null;
+        
         const result = await Swal.fire({
-            title: 'Qual o tamanho?',
+            title: isPolo ? 'Tamanho e Modelo' : 'Qual o tamanho?',
             html: selectHtml,
             showCancelButton: true,
             confirmButtonText: 'Confirmar',
@@ -13757,7 +13780,11 @@ window._setEpiQty = async function (epi, qty) {
                     Swal.showValidationMessage('Selecione um tamanho!');
                     return false;
                 }
-                return window._swalSelectedSize;
+                if (isPolo && !window._swalSelectedModel) {
+                    Swal.showValidationMessage('Selecione o modelo (Feminina ou Masculina)!');
+                    return false;
+                }
+                return isPolo ? `${window._swalSelectedSize} - ${window._swalSelectedModel}` : window._swalSelectedSize;
             }
         });
         
