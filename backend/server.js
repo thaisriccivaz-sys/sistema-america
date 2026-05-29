@@ -10519,6 +10519,7 @@ app.post('/api/experiencia/publico/rascunho', (req, res) => {
 app.get('/api/experiencia', authenticateToken, (req, res) => {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     // Show all active collaborators with up to 90 days + those who already have a form
+    // Uses subquery to guarantee only 1 (most recent) form per collaborator, avoiding duplicate rows
     db.all(`
         SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao,
                c.foto_base64,
@@ -10526,7 +10527,11 @@ app.get('/api/experiencia', authenticateToken, (req, res) => {
                ef.pontuacao, ef.notificacao_15d_enviada, ef.data_envio_email, ef.atualizado_em,
                (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome
         FROM colaboradores c
-        LEFT JOIN experiencia_formularios ef ON ef.colaborador_id = c.id
+        LEFT JOIN experiencia_formularios ef ON ef.id = (
+            SELECT id FROM experiencia_formularios
+            WHERE colaborador_id = c.id
+            ORDER BY id DESC LIMIT 1
+        )
         LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
         WHERE c.status != 'Desligado'
           AND c.data_admissao IS NOT NULL

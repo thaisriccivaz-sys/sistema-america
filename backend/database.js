@@ -704,9 +704,21 @@ const db = new sqlite3.Database(dbPath, (err) => {
             db.run(`DELETE FROM epi_templates WHERE grupo = 'Ajudante Pátio, Liderança'`, (err) => {
                 if (!err) console.log('[EPI migration] Removida ficha duplicada Ajudante Pátio, Liderança (se existia).');
             });
+            // Migration: remover formulários de experiência duplicados por colaborador (manter apenas o mais recente)
+            db.run(`
+                DELETE FROM experiencia_formularios
+                WHERE id NOT IN (
+                    SELECT MAX(id) FROM experiencia_formularios GROUP BY colaborador_id
+                )
+            `, function(err) {
+                if (!err && this.changes > 0) {
+                    console.log(`[MIGRAÇÃO] Removidos ${this.changes} formulários de experiência duplicados.`);
+                }
+            });
             // Migration: adicionar item faltante à ficha de Manutenção (será aplicado dentro do callback do seed)
             // Migration: adicionar coluna registrado_por à tabela epi_entregas
             db.run(`ALTER TABLE epi_entregas ADD COLUMN registrado_por TEXT`, (err) => {});
+
 
             // Tabela de Templates de EPI por departamento
             db.run(`

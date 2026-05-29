@@ -12,9 +12,6 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'admissao',               pagina_nome: 'Admissão', icone: 'ph-list-checks' },
     { modulo: 'RH', pagina_id: 'integracao',             pagina_nome: 'Integração', icone: 'ph-users-three' },
     { modulo: 'RH', pagina_id: 'faculdade',              pagina_nome: 'Faculdade', icone: 'ph-graduation-cap' },
-    { modulo: 'RH', pagina_id: 'geradores',              pagina_nome: 'Geradores de Documentos', icone: 'ph-file-text' },
-    { modulo: 'RH', pagina_id: 'ficha-epi',              pagina_nome: 'Ficha EPI', icone: 'ph-shield-check' },
-    { modulo: 'RH', pagina_id: 'gerenciar-avaliacoes',   pagina_nome: 'Avaliações', icone: 'ph-clipboard-text' },
     { modulo: 'RH', pagina_id: 'dissidio',               pagina_nome: 'Dissídio', icone: 'ph-trend-up' },
     { modulo: 'RH', pagina_id: 'rh-agenda',              pagina_nome: 'Agenda RH', icone: 'ph-calendar-check' },
     // Módulo Logística
@@ -39,12 +36,15 @@ const TELAS_SISTEMA = [
     { modulo: 'Administrativo', pagina_id: 'estoque', pagina_nome: 'Estoque', icone: 'ph-package' },
     { modulo: 'Administrativo', pagina_id: 'admin-em-breve', pagina_nome: 'Administrativo (Em breve)', icone: 'ph-gear' },
     // Módulo Diretoria / Sistema
-    { modulo: 'Diretoria', pagina_id: 'usuarios-permissoes', pagina_nome: 'Usuários e Permissões', icone: 'ph-users-three' },
-    { modulo: 'Diretoria', pagina_id: 'cargos',                 pagina_nome: 'Cargos', icone: 'ph-briefcase' },
-    { modulo: 'Diretoria', pagina_id: 'chaves',              pagina_nome: 'Chaves', icone: 'ph-key' },
-    { modulo: 'Diretoria', pagina_id: 'certificado-digital', pagina_nome: 'Certificado Digital', icone: 'ph-certificate' },
-    { modulo: 'Diretoria', pagina_id: 'homologacao',         pagina_nome: 'Homologação', icone: 'ph-database' },
-    { modulo: 'Diretoria', pagina_id: 'departamentos',       pagina_nome: 'Departamentos', icone: 'ph-buildings' },
+    { modulo: 'Diretoria', pagina_id: 'usuarios-permissoes',   pagina_nome: 'Usuários e Permissões', icone: 'ph-users-three' },
+    { modulo: 'Diretoria', pagina_id: 'cargos',                pagina_nome: 'Cargos', icone: 'ph-briefcase' },
+    { modulo: 'Diretoria', pagina_id: 'chaves',                pagina_nome: 'Chaves', icone: 'ph-key' },
+    { modulo: 'Diretoria', pagina_id: 'certificado-digital',   pagina_nome: 'Certificado Digital', icone: 'ph-certificate' },
+    { modulo: 'Diretoria', pagina_id: 'homologacao',           pagina_nome: 'Homologação', icone: 'ph-database' },
+    { modulo: 'Diretoria', pagina_id: 'departamentos',         pagina_nome: 'Departamentos', icone: 'ph-buildings' },
+    { modulo: 'Diretoria', pagina_id: 'geradores',             pagina_nome: 'Geradores de Documentos', icone: 'ph-file-text' },
+    { modulo: 'Diretoria', pagina_id: 'ficha-epi',             pagina_nome: 'Ficha EPI', icone: 'ph-shield-check' },
+    { modulo: 'Diretoria', pagina_id: 'gerenciar-avaliacoes',  pagina_nome: 'Avaliações', icone: 'ph-clipboard-text' },
 ];
 
 const DEPARTAMENTOS = ['RH', 'Financeiro', 'Comercial', 'Logística', 'Administrativo', 'Diretoria', 'Todas'];
@@ -510,8 +510,7 @@ const MENU_HIERARQUIA = [
                 titulo: 'Telas',
                 telas: [
                     'dashboard', 'colaboradores', 'assinaturas-digitais', 'ferias', 'experiencia',
-                    'admissao', 'integracao', 'faculdade', 'geradores',
-                    'ficha-epi', 'gerenciar-avaliacoes', 'dissidio', 'rh-agenda'
+                    'admissao', 'integracao', 'faculdade', 'dissidio', 'rh-agenda'
                 ]
             }
         ]
@@ -537,7 +536,10 @@ const MENU_HIERARQUIA = [
         grupos: [
             {
                 titulo: 'Telas',
-                telas: ['usuarios-permissoes', 'cargos', 'chaves', 'certificado-digital', 'homologacao', 'departamentos']
+                telas: [
+                    'usuarios-permissoes', 'cargos', 'chaves', 'certificado-digital',
+                    'homologacao', 'departamentos', 'geradores', 'ficha-epi', 'gerenciar-avaliacoes'
+                ]
             }
         ]
     }

@@ -19,17 +19,19 @@ let gaTemplates = [];   // lista de templates carregados da API
 let gaEditingId = null; // id do template em edição (null = novo)
 
 function fetchGaTemplates() {
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
     return fetch('/api/avaliacao-templates', {
-        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        headers: { 'Authorization': 'Bearer ' + token }
     }).then(r => r.json());
 }
 
 function gaApiCall(method, id, body) {
     const url = id ? `/api/avaliacao-templates/${id}` : '/api/avaliacao-templates';
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
     return fetch(url, {
         method,
         headers: {
-            'Authorization': 'Bearer ' + localStorage.getItem('token'),
+            'Authorization': 'Bearer ' + token,
             'Content-Type': 'application/json'
         },
         body: body ? JSON.stringify(body) : undefined
@@ -336,9 +338,9 @@ async function renderGaForm(template) {
 
     // Buscar departamentos para preencher o multi-select
     try {
-        const fetchDeptsUrl = typeof window.apiGet === 'function' ? '/departamentos' : '/api/departamentos'; // Padrão app.js
-        const deptsRes = await fetch(fetchDeptsUrl.startsWith('/api') ? fetchDeptsUrl : '/api' + fetchDeptsUrl, {
-            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const deptsRes = await fetch('/api/departamentos', {
+            headers: { 'Authorization': 'Bearer ' + token }
         });
         const depts = await deptsRes.json();
 
@@ -542,7 +544,7 @@ window._gaToast = function(msg, type = 'success') {
 // ============================================================
 (async function gaBootstrap() {
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
         if (!token) return;
         const templates = await fetch('/api/avaliacao-templates', {
             headers: { 'Authorization': 'Bearer ' + token }
