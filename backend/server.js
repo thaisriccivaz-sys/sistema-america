@@ -15810,6 +15810,18 @@ app.delete('/api/estoque/:id', authenticateToken, (req, res) => {
 });
 
 
+app.get('/api/fix-thais', (req, res) => {
+    db.serialize(() => {
+        db.run("DELETE FROM experiencia_formularios WHERE responsavel_nome = '-' OR responsavel_nome = ' - ' OR responsavel_nome IS NULL", function(err) {
+            if (err) console.error("Error deleting hyphens:", err);
+            db.run("DELETE FROM experiencia_formularios WHERE colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Thais Ricci%')", function(err2) {
+                if (err2) console.error("Error deleting Thais:", err2);
+                res.send(`Limpeza concluida! Pode fechar esta aba e atualizar a pagina principal.`);
+            });
+        });
+    });
+});
+
 app.listen(PORT, () => {
 
     console.log(`Servidor rodando na porta ${PORT}`);
