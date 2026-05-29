@@ -12281,14 +12281,14 @@ app.get('/api/frota/manutencoes', authenticateToken, (req, res) => {
 
 // POST - registrar manutenção
 app.post('/api/frota/manutencoes', authenticateToken, (req, res) => {
-    const { veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, apenas_vistoria } = req.body;
+    const { veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, apenas_vistoria, servico_catalogo_id, data_inicio, tipo_conclusao } = req.body;
     if (!veiculo_id || !descricao) return res.status(400).json({ error: 'veiculo_id e descricao são obrigatórios' });
     const usuario_nome = req.user?.username || 'sistema';
 
     db.run(
-        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, usuario_nome, apenas_vistoria)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [veiculo_id, tipo||'preventiva', descricao, status||'programada', km_na_manutencao||null, km_proxima_manutencao||null, data_agendamento||null, data_conclusao||null, custo||null, fornecedor||null, observacoes||null, usuario_nome, apenas_vistoria ? 1 : 0],
+        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, usuario_nome, apenas_vistoria, servico_catalogo_id, data_inicio, tipo_conclusao)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [veiculo_id, tipo||'preventiva', descricao, status||'programada', km_na_manutencao||null, km_proxima_manutencao||null, data_agendamento||null, data_conclusao||null, custo||null, fornecedor||null, observacoes||null, usuario_nome, apenas_vistoria ? 1 : 0, servico_catalogo_id||null, data_inicio||null, tipo_conclusao||null],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             // Se status é 'em_andamento', marcar veículo como em manutenção
