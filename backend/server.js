@@ -741,7 +741,7 @@ cargosDeptosSync.forEach(([cNome, cDepto]) => {
         });
         // Apenas insere o cargo se não existir. Não atualiza cargos existentes para não sobrescrever alterações do usuário.
         db.get("SELECT id FROM cargos WHERE nome = ?", [cNome], (err2, row) => {
-            } else {
+            if (!row) {
                 db.run("INSERT INTO cargos (nome, departamento, documentos_obrigatorios) VALUES (?, ?, '')", [cNome, cDepto]);
             }
         });
