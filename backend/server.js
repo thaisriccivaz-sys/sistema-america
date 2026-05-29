@@ -15273,9 +15273,24 @@ app.put('/api/estoque/:id', authenticateToken, (req, res) => {
 
 // Excluir Item
 app.delete('/api/estoque/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM estoque WHERE id = ?', [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true });
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        db.run('DELETE FROM estoque_historico WHERE estoque_id = ?', [req.params.id], function(err) {
+            if (err) {
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: err.message });
+            }
+            db.run('DELETE FROM estoque WHERE id = ?', [req.params.id], function(err) {
+                if (err) {
+                    db.run('ROLLBACK');
+                    return res.status(500).json({ error: err.message });
+                }
+                db.run('COMMIT', (err) => {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.json({ success: true });
+                });
+            });
+        });
     });
 });
 
