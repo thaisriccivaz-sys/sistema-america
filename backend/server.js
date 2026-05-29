@@ -8353,53 +8353,52 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                     });
                 }
 
-                // Processar cada nome único com sua contagem total
-                // Estratégia de matching em múltiplos passos para suportar diferentes formas
-                // de cadastro no estoque: com tamanho, sem tamanho, com ou sem traço.
-                // Ex de nomes que o frontend gera: "CAMISETA MANGA CURTA - G"
-                // Estoque pode ter: "CAMISETA MANGA CURTA - G", "CAMISETA MANGA CURTA G", ou "CAMISETA MANGA CURTA"
-                Object.values(epiContagem).forEach(({ count, original }) => {
-                    const nomeUpper = original.trim().toUpperCase();
+                // Carregar todo o estoque para a memória e comparar ignorando acentos
+                db.all("SELECT * FROM estoque", [], (errEstoque, todosItens) => {
+                    if (errEstoque || !todosItens) return;
 
-                    // Gera variantes para busca:
-                    // Variante sem tamanho: remove " - X" ou " X" do final (onde X é tamanho/numero)
-                    // Ex: "CAMISETA MANGA CURTA - G" → "CAMISETA MANGA CURTA"
-                    // Ex: "BOTA DE PVC - 42"       → "BOTA DE PVC"
-                    const nomeSemdash = nomeUpper.replace(/\s*-\s*[A-Z0-9]{1,4}$/, '').trim();     // remove "- G"
-                    const nomeSemTamanho = nomeUpper.replace(/\s+[A-Z0-9]{1,4}$/, '').trim();       // remove " G" (sem traço)
+                    Object.values(epiContagem).forEach(({ count, original }) => {
+                        const originalNome = original.trim();
+                        const nomeNormalizado = originalNome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
 
-                    console.log(`[ESTOQUE] Tentando baixar: "${nomeUpper}" (sem tamanho: "${nomeSemdash}")`);
+                        // Remove tamanho/variantes finais
+                        const nomeSemdash = nomeNormalizado.replace(/\s*-\s*[A-Z0-9]{1,4}$/, '').trim();
+                        const nomeSemTamanho = nomeNormalizado.replace(/\s+[A-Z0-9]{1,4}$/, '').trim();
 
-                    // Tentativas em sequência: exato → variante sem traço → prefixo pelo nome base
-                    function tryMatch(tentativas, idx) {
-                        if (idx >= tentativas.length) {
-                            console.warn(`[ESTOQUE] Item "${nomeUpper}" nao encontrado no estoque apos ${tentativas.length} tentativas.`);
-                            return;
+                        console.log(`[ESTOQUE] Tentando baixar: "${nomeNormalizado}" (sem tamanho: "${nomeSemdash}")`);
+
+                        let match = null;
+
+                        // 1. Match Exato
+                        match = todosItens.find(i => (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() === nomeNormalizado);
+                        
+                        // 2. Sem traço
+                        if (!match) {
+                            const fallbackName = nomeSemdash + ' ' + (nomeNormalizado.split(/\s*-\s*/).pop() || '');
+                            match = todosItens.find(i => (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() === fallbackName);
                         }
-                        const sql = tentativas[idx].sql;
-                        const params = tentativas[idx].params;
-                        db.get(sql, params, (err, item) => {
-                            if (!err && item) {
-                                console.log(`[ESTOQUE] Match encontrado (tentativa ${idx + 1}): "${item.nome}"`);
-                                processarBaixaEstoque(item, count);
-                            } else {
-                                tryMatch(tentativas, idx + 1);
-                            }
-                        });
-                    }
 
-                    tryMatch([
-                        // 1. Exato: "CAMISETA MANGA CURTA - G"
-                        { sql: "SELECT * FROM estoque WHERE UPPER(TRIM(nome)) = ? LIMIT 1", params: [nomeUpper] },
-                        // 2. Sem traço: "CAMISETA MANGA CURTA G" (se o estoque omitiu o traço)
-                        { sql: "SELECT * FROM estoque WHERE UPPER(TRIM(nome)) = ? LIMIT 1", params: [nomeSemdash + ' ' + (nomeUpper.split(/\s*-\s*/).pop() || '')] },
-                        // 3. Nome base sem tamanho: "CAMISETA MANGA CURTA" exato
-                        { sql: "SELECT * FROM estoque WHERE UPPER(TRIM(nome)) = ? LIMIT 1", params: [nomeSemdash] },
-                        // 4. Prefixo: o nome do EPI começa com o nome do estoque (pega o mais longo)
-                        { sql: "SELECT * FROM estoque WHERE ? LIKE UPPER(TRIM(nome)) || '%' ORDER BY LENGTH(nome) DESC LIMIT 1", params: [nomeUpper] },
-                        // 5. Prefixo pelo nome sem tamanho
-                        { sql: "SELECT * FROM estoque WHERE ? LIKE UPPER(TRIM(nome)) || '%' ORDER BY LENGTH(nome) DESC LIMIT 1", params: [nomeSemdash] }
-                    ], 0);
+                        // 3. Nome base exato sem o tamanho
+                        if (!match) {
+                            match = todosItens.find(i => (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() === nomeSemdash);
+                        }
+
+                        // 4. Prefixo mais longo (startsWith)
+                        if (!match) {
+                            const candidatos = todosItens.filter(i => {
+                                const n = (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                                return n.length > 0 && (nomeNormalizado.startsWith(n) || nomeSemdash.startsWith(n));
+                            }).sort((a, b) => b.nome.length - a.nome.length);
+                            if (candidatos.length > 0) match = candidatos[0];
+                        }
+
+                        if (match) {
+                            console.log(`[ESTOQUE] Match encontrado: "${match.nome}"`);
+                            processarBaixaEstoque(match, count);
+                        } else {
+                            console.warn(`[ESTOQUE] Item "${originalNome}" não encontrado no estoque após tentativas.`);
+                        }
+                    });
                 });
             }
             // Fim do bloco de dedução de estoque
