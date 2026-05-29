@@ -288,7 +288,9 @@ window.renderEstoqueHistorico = async function() {
             const tr = document.createElement('tr');
             
             // Format datetime
-            const dt = new Date(h.data_hora);
+            let rawDate = h.data_hora || '';
+            if (rawDate && !rawDate.includes('T')) rawDate = rawDate.replace(' ', 'T') + 'Z';
+            const dt = new Date(rawDate);
             const dataStr = dt.toLocaleDateString('pt-BR');
             const horaStr = dt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             
