@@ -13304,12 +13304,29 @@ async function renderFichaEpiTab(container) {
         return;
     }
 
-    const fichaAtiva = fichas.find(f => f.status === 'ativa');
+    // apiGet retorna null em caso de falha (servidor reiniciando, timeout, etc.)
+    if (!fichas || !templates) {
+        container.innerHTML = `
+            <div style="text-align:center; padding: 40px 20px; color: #64748b;">
+                <i class="ph-fill ph-warning-circle" style="font-size:2.5rem; color:#e67700; margin-bottom:12px; display:block;"></i>
+                <p style="font-size:1rem; font-weight:600; color:#1e3a5f; margin-bottom:8px;">Não foi possível carregar os dados de EPI</p>
+                <p style="font-size:0.85rem; margin-bottom:20px;">O servidor pode estar reiniciando. Aguarde alguns segundos e tente novamente.</p>
+                <button onclick="renderFichaEpiTab(this.closest('[data-prontuario-container]') || document.querySelector('.epi-tab-container') || document.getElementById('prontuario-content'))" 
+                    style="background:#e67700; color:#fff; border:none; border-radius:8px; padding:10px 24px; font-size:0.9rem; font-weight:600; cursor:pointer;">
+                    🔄 Tentar novamente
+                </button>
+            </div>`;
+        return;
+    }
 
+    fichas = fichas || [];
+    templates = templates || [];
+    todasEntregas = todasEntregas || [];
+
+    const fichaAtiva = fichas.find(f => f.status === 'ativa');
     const dept = viewedColaborador?.departamento || '';
     const cargo = viewedColaborador?.cargo || '';
 
-    // Setores que devem usar o template Administrativo (Escritório)
     const SETORES_ADMIN = ['Comercial', 'Financeiro', 'Logística', 'Logistica', 'Administrativo', 'RH'];
     const isSetorAdmin = SETORES_ADMIN.includes(dept) || SETORES_ADMIN.includes(cargo);
 
