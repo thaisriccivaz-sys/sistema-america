@@ -13718,7 +13718,7 @@ window._setEpiQty = async function (epi, qty) {
         let opcoes;
         let placeholder;
         if (tipoSize === 'bota') {
-            opcoes = ['38', '40', '42', '44', '46'];
+            opcoes = ['38', '39', '40', '41', '42', '43', '44', '45', '46'];
             placeholder = 'Selecione o número da bota';
         } else {
             opcoes = ['P', 'M', 'G', 'GG', 'XGG'];
