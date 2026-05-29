@@ -185,6 +185,7 @@ window._mnRenderHistLista = function(lista) {
                 <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Tipo Veículo</th>
                 <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Categoria</th>
                 <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Serviço</th>
+                <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Status</th>
                 <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Data Realizada / KM</th>
                 <th style="padding:10px;text-align:center;color:#475569;font-weight:700;">Data Agendada</th>
                 <th style="padding:10px;text-align:right;color:#475569;font-weight:700;">Próximo KM</th>
@@ -201,6 +202,11 @@ window._mnRenderHistLista = function(lista) {
         const catLabel = m.categoria_nome || (m.tipo ? (m.tipo.charAt(0).toUpperCase() + m.tipo.slice(1)) : '—');
         const catColor = m.tipo === 'preventiva' ? '#0284c7' : '#d97706';
 
+        const statusCorHist = {concluida:'#2d9e5f',agendada:'#2563eb',programada:'#7c3aed',em_andamento:'#d97706',cancelada:'#94a3b8'};
+        const statusLblHist = {concluida:'Concluída',agendada:'Agendada',programada:'Programada',em_andamento:'Em Andamento',cancelada:'Cancelada'};
+        const sHistKey = m.status||'concluida';
+        const histStatusBadge = `<span style="background:${statusCorHist[sHistKey]||'#94a3b8'}22;color:${statusCorHist[sHistKey]||'#94a3b8'};padding:2px 8px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">${statusLblHist[sHistKey]||sHistKey}</span>`;
+
         html += `<tr style="background:${bgRow};border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='${bgRow}'">`;
         html += `<td style="padding:6px 8px;text-align:center;">`;
         if (hasObs) {
@@ -213,6 +219,7 @@ window._mnRenderHistLista = function(lista) {
         html += `<td style="padding:10px;color:#64748b;white-space:nowrap;">${m.tipo_veiculo||'—'}</td>`;
         html += `<td style="padding:10px;text-align:center;"><span style="background:${catColor}18;color:${catColor};padding:2px 8px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">${catLabel}</span></td>`;
         html += `<td style="padding:10px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${desc}">${m.descricao||'—'}</td>`;
+        html += `<td style="padding:10px;text-align:center;">${histStatusBadge}</td>`;
         html += `<td style="padding:10px;text-align:center;color:#2d9e5f;font-weight:600;white-space:nowrap;">${_fmtD(m.data_conclusao)}<br><span style="font-size:0.75rem;font-weight:400;color:#64748b;">${m.km_na_manutencao ? Number(m.km_na_manutencao).toLocaleString('pt-BR')+' km' : '—'}</span></td>`;
         html += `<td style="padding:10px;text-align:center;color:#2563eb;white-space:nowrap;">${_fmtD(m.data_agendamento)}</td>`;
         html += `<td style="padding:10px;text-align:right;color:#0284c7;font-weight:600;white-space:nowrap;">${m.km_proxima_manutencao ? Number(m.km_proxima_manutencao).toLocaleString('pt-BR')+' km' : '—'}</td>`;
@@ -468,6 +475,13 @@ function mnRenderPlanoAgrupado(data) {
                 ? `<span style="font-weight:700;color:#2563eb;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:4px;">${fmtDate(item.data_agendamento).replace(/<[^>]+>/g,'').trim()}${obsIconAgendada}</span>`
                 : '<span style="color:#94a3b8;">—</span>';
 
+            let obsNovaIcon = '';
+            if (item.status === 'programada' && item.observacoes) {
+                obsNovaIcon = ` <i class="ph ph-chat-text" style="color:#d97706;cursor:pointer;font-size:1.1rem;margin-left:4px;vertical-align:middle;" title="${item.observacoes.replace(/"/g,'&quot;')}" onclick="alert('Observações:\\n\\n${item.observacoes.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')"></i>`;
+            } else if ((item.status === 'agendada' || item.status === 'em_andamento') && item.observacoes_agendada) {
+                obsNovaIcon = ` <i class="ph ph-chat-text" style="color:#2563eb;cursor:pointer;font-size:1.1rem;margin-left:4px;vertical-align:middle;" title="${item.observacoes_agendada.replace(/"/g,'&quot;')}" onclick="alert('Observações Agendamento:\\n\\n${item.observacoes_agendada.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')"></i>`;
+            }
+
             return `<tr style="background:${bg};border-bottom:1px solid #e2e8f0;">
                 <td style="padding:0.6rem 0.5rem;text-align:center;">
                     <input type="checkbox" class="mn-prev-cb mn-prev-cb-cat-${catKey}" data-id="${item.id}" data-cat-id="${item.servico_catalogo_id}" data-nome="${nomeSafe}" onchange="window.mnPrevCbChanged()" style="width:15px;height:15px;cursor:pointer;">
@@ -475,8 +489,7 @@ function mnRenderPlanoAgrupado(data) {
                 <td style="padding:0.6rem 0.9rem;">
                     <div style="display:flex;align-items:center;gap:6px;">
                         <i class="ph ph-${icone}" style="color:${cor};font-size:1rem;"></i>
-                        <span style="font-weight:600;color:#1e293b;font-size:0.85rem;">${nome}</span>
-                        ${item.observacoes_concluida ? `<i class="ph ph-note" style="color:#0284c7;cursor:pointer;font-size:1rem;flex-shrink:0;" title="${item.observacoes_concluida.replace(/"/g,'&quot;')}" onclick="alert('Anotação da última manutenção:\\n\\n${item.observacoes_concluida.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')"></i>` : ''}
+                        <span style="font-weight:600;color:#1e293b;font-size:0.85rem;">${nome}</span>${obsNovaIcon}
                     </div>
                 </td>
                 <td style="padding:0.6rem 0.9rem;text-align:center;">${criticBadge}</td>

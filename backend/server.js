@@ -13012,8 +13012,8 @@ app.get('/api/frota/manutencoes/historico', authenticateToken, (req, res) => {
         JOIN frota_veiculos v ON v.id = m.veiculo_id
         LEFT JOIN frota_servicos_catalogo s ON s.id = m.servico_catalogo_id
         LEFT JOIN frota_categorias_manutencao cat ON cat.id = s.categoria_id
-        WHERE m.status = 'concluida'
-        ORDER BY m.data_conclusao DESC, m.id DESC
+        WHERE m.status IN ('concluida', 'agendada', 'em_andamento', 'cancelada')
+        ORDER BY COALESCE(m.data_conclusao, m.data_agendamento) DESC, m.id DESC
         LIMIT 1000
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
