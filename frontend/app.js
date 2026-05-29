@@ -12694,6 +12694,22 @@ async function checkUserNotificacoes() {
                         <div style="color:#0f172a;font-weight:800;font-size:1.15rem;margin-bottom:4px;">${nomeStr}</div>
                         <div style="color:#64748b;font-size:0.85rem;">Um novo boletim de ocorrência foi anexado.</div>
                     `;
+                } else if (notif.tipo === 'estoque_minimo') {
+                    const nomeProduto = dados.nome || (notif.mensagem || '').replace(/^ESTOQUE BAIXO:\s*/i, '').split('(')[0].trim();
+                    const qtdAtual = dados.quantidade_atual !== undefined ? dados.quantidade_atual : '—';
+                    const qtdMin   = dados.quantidade_minima !== undefined ? dados.quantidade_minima : '—';
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#475569;font-weight:700;font-size:0.97rem;margin-bottom:6px;letter-spacing:0.2px;">
+                            ${nomeProduto}
+                        </div>
+                        <div style="display:flex;gap:12px;font-size:0.82rem;">
+                            <span style="color:#ef4444;font-weight:700;"><i class="ph ph-arrow-down"></i> Atual: ${qtdAtual}</span>
+                            <span style="color:#64748b;">Mínimo: ${qtdMin}</span>
+                        </div>
+                    `;
                 } else {
                     contentHTML = `
                         <div style="font-weight:700;font-size:0.9rem;color:#0f172a;margin-bottom:4px;">
