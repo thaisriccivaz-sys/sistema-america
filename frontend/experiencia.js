@@ -1267,12 +1267,14 @@ window.renderPublicExpForm = function(colab, form, token) {
 
     if (!disableEdit) {
         html += `
-            <div style="padding-top:1rem; border-top:1px solid #e2e8f0; text-align:right;">
-                <button type="submit" class="btn btn-primary" style="padding:12px 24px; font-size:1.1rem; font-weight:600;">
-                    <i class="ph ph-paper-plane-tilt"></i> Enviar Avaliação Final
+            <div style="padding-top:1rem; border-top:1px solid #e2e8f0; display:flex; gap:1rem; justify-content:flex-end; flex-wrap:wrap;">
+                <button type="button" id="btn-salvar-progresso" onclick="window.salvarPublicRascunho(_publicExpToken)" style="padding:10px 20px; font-size:0.95rem; font-weight:600; background:#f8fafc; color:#475569; border:1px solid #cbd5e1; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                    💾 Salvar Progresso
+                </button>
+                <button type="submit" id="btn-finalizar-avaliacao" class="btn btn-primary" disabled style="padding:12px 24px; font-size:1.05rem; font-weight:600; background:#94a3b8; color:#fff; border:none; border-radius:8px; cursor:not-allowed; display:inline-flex; align-items:center; gap:6px;" title="Preencha todas as notas e selecione Aprovado/Reprovado para finalizar">
+                    ✅ Finalizar Avaliação
                 </button>
             </div>
-        `;
     }
 
     html += `</form>`;
@@ -1280,7 +1282,13 @@ window.renderPublicExpForm = function(colab, form, token) {
     document.getElementById('public-exp-content').innerHTML = html;
     
     if(!disableEdit) {
+        // Guardar token para uso no botão Salvar Progresso
+        window._publicExpToken = token;
+        window._publicExpTotalItens = totalItens;
+        // Calcular pontuação inicial
         setTimeout(window.calcPublicExpScore, 100);
+        // Ativar verificação dinâmica do botão Finalizar
+        setTimeout(window.verificarBotaoFinalizar, 200);
     }
 };
 
@@ -1302,6 +1310,7 @@ window.selecionarPublicNotaExp = function(idx, nota, secaoIdx) {
         }
     }
     window.calcPublicExpScore();
+    window.verificarBotaoFinalizar();
 };
 
 window.calcPublicExpScore = function() {
@@ -1347,6 +1356,14 @@ window.submitPublicExpForm = async function(e, token) {
             Swal.fire('Atenção', 'Por favor, avalie (de 1 a 5) todos os pontos listados antes de enviar.', 'warning');
             return; 
         }
+
+            // Verificar se Aprovado/Reprovado foi selecionado
+            const situacaoSelectEl = frm.querySelector('[name="situacao_avaliacao"]');
+            if (!situacaoSelectEl || !situacaoSelectEl.value) {
+                Swal.fire('Atenção', 'Selecione se o colaborador foi Aprovado ou Reprovado antes de finalizar a avaliação.', 'warning');
+                return;
+            }
+
     }
     
     window.calcPublicExpScore();
@@ -1406,5 +1423,78 @@ window.submitPublicExpForm = async function(e, token) {
         Swal.fire('Erro', 'Erro de conexão com o servidor.', 'error');
         const btn = frm.querySelector('button[type="submit"]');
         if(btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> Enviar Avaliação Final'; }
+    }
+};
+
+
+// ---- SALVAR RASCUNHO PÚBLICO ----
+window.salvarPublicRascunho = async function(token) {
+    if (!token) { Swal.fire("Erro", "Token inválido.", "error"); return; }
+    const frm = document.getElementById("public-exp-form-element");
+    if (!frm) return;
+
+    // Coletar respostas atuais
+    const respostas = {};
+    const inputs = frm.querySelectorAll("input[name^=\"nota_\"], input[name^=\"obs_\"]");
+    inputs.forEach(inp => { respostas[inp.name] = inp.value; });
+    const pontuacao = parseFloat(document.getElementById("public-exp-pontuacao-val")?.value || 0);
+    const situacaoEl = frm.querySelector("[name=\"situacao_avaliacao\"]");
+    const comentariosEl = frm.querySelector("[name=\"comentarios\"]");
+
+    const payload = {
+        respostas,
+        pontuacao,
+        situacao_avaliacao: situacaoEl ? situacaoEl.value : "",
+        comentarios: comentariosEl ? comentariosEl.value : ""
+    };
+
+    const btn = document.getElementById("btn-salvar-progresso");
+    const originalText = btn ? btn.innerHTML : "";
+    if (btn) { btn.innerHTML = "⏳ Salvando..."; btn.disabled = true; }
+
+    try {
+        const resp = await fetch(`/api/experiencia/publico/rascunho?token=${token}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || "Erro ao salvar");
+        Swal.fire({
+            icon: "success",
+            title: "Progresso Salvo!",
+            text: "Suas respostas foram salvas. Você pode continuar preenchendo depois pelo mesmo link recebido por e-mail.",
+            confirmButtonText: "OK"
+        });
+    } catch(e) {
+        Swal.fire("Erro", e.message, "error");
+    } finally {
+        if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
+    }
+};
+
+// ---- VERIFICAÇÃO DINÂMICA DO BOTÃO FINALIZAR ----
+window.verificarBotaoFinalizar = function() {
+    const frm = document.getElementById("public-exp-form-element");
+    const btn = document.getElementById("btn-finalizar-avaliacao");
+    if (!frm || !btn) return;
+
+    const inputs = frm.querySelectorAll("input[name^=\"nota_\"]");
+    const todasNotasPreenchidas = Array.from(inputs).every(inp => inp.value && inp.value !== "0");
+
+    const situacaoEl = frm.querySelector("[name=\"situacao_avaliacao\"]");
+    const resultadoSelecionado = situacaoEl && situacaoEl.value !== "";
+
+    const podeSubmit = todasNotasPreenchidas && resultadoSelecionado;
+
+    btn.disabled = !podeSubmit;
+    btn.style.background = podeSubmit ? "#16a34a" : "#94a3b8";
+    btn.style.cursor = podeSubmit ? "pointer" : "not-allowed";
+    btn.title = podeSubmit ? "" : "Preencha todas as notas e selecione Aprovado/Reprovado para finalizar";
+
+    // Adicionar listener no select de resultado (só uma vez)
+    if (situacaoEl && !situacaoEl._listenerAdicionado) {
+        situacaoEl.addEventListener("change", window.verificarBotaoFinalizar);
+        situacaoEl._listenerAdicionado = true;
     }
 };

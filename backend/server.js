@@ -9397,7 +9397,7 @@ setTimeout(() => {
 const { getFichaAdmissaoHtml } = require('./fichaAdmissao');
 
 // Helper para Layout de e-mail padronizado
-function gerarEmailExperienciaHTML({ respNome, nomeCompleto, cargo, prazos, diasRestantes, formLink, tipo }) {
+function gerarEmailExperienciaHTML({ respNome, nomeCompleto, cargo, prazos, diasRestantes, formLink, tipo, temRascunho = false }) {
     const apiBase = (process.env.BASE_URL || 'https://sistema-america.onrender.com');
     const logoUrl = `${apiBase}/assets/logo-header.png`;
     const prazoFimFormatado = prazos ? prazos.prazo2_fim.split('-').reverse().join('/') : '';
@@ -9472,6 +9472,17 @@ function gerarEmailExperienciaHTML({ respNome, nomeCompleto, cargo, prazos, dias
               ${prazos ? `<p style="margin:0;color:#334155;font-size:0.9rem;"><strong>Término do período:</strong> ${prazoFimFormatado}</p>` : ''}
             </td></tr>
           </table>
+
+
+          <!-- BANNER RASCUNHO (só aparece se já foi iniciado) -->
+          ${temRascunho ? `
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef3c7;border:2px solid #f59e0b;border-radius:10px;margin-bottom:16px;">
+            <tr><td style="padding:16px 20px;text-align:center;">
+              <p style="margin:0 0 4px;color:#78350f;font-weight:800;font-size:1rem;">⏳ Formulário Iniciado e Pendente de Finalização</p>
+              <p style="margin:0;color:#92400e;font-size:0.88rem;">Este formulário foi parcialmente preenchido. Clique no botão abaixo para continuar de onde parou e finalizá-lo.</p>
+            </td></tr>
+          </table>
+          ` : ''}
 
           <!-- AVISO AMARELO -->
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;margin-bottom:20px;">
@@ -10466,6 +10477,35 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
     }
 });
 
+// POST /api/experiencia/publico/rascunho — Salva respostas parciais (sem finalizar)
+app.post('/api/experiencia/publico/rascunho', (req, res) => {
+    try {
+        const payload = jwt.verify(req.query.token, SECRET_KEY);
+        const { respostas, pontuacao, situacao_avaliacao, comentarios } = req.body;
+        db.get(`SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?`, [payload.colab_id], (err, colab) => {
+            if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
+            db.get(`SELECT id, situacao FROM experiencia_formularios WHERE colaborador_id = ? ORDER BY criado_em DESC LIMIT 1`, [colab.id], (err2, exist) => {
+                if (exist) {
+                    if (exist.situacao === 'finalizado') return res.status(400).json({ error: 'O formulário já foi finalizado.' });
+                    db.run(`UPDATE experiencia_formularios SET respostas = ?, pontuacao = ?, situacao_avaliacao = ?, comentarios = ?, responsavel_nome = ?, situacao = 'iniciado', atualizado_em = datetime('now') WHERE id = ?`,
+                        [JSON.stringify(respostas), pontuacao || 0, situacao_avaliacao || '', comentarios || '', colab.responsavel_nome, exist.id], (err3) => {
+                            if (err3) return res.status(500).json({ error: err3.message });
+                            res.json({ ok: true, message: 'Progresso salvo com sucesso.' });
+                        });
+                } else {
+                    db.run(`INSERT INTO experiencia_formularios (colaborador_id, responsavel_nome, respostas, pontuacao, situacao_avaliacao, comentarios, situacao) VALUES (?, ?, ?, ?, ?, ?, 'iniciado')`,
+                        [colab.id, colab.responsavel_nome, JSON.stringify(respostas), pontuacao || 0, situacao_avaliacao || '', comentarios || ''], function(err3) {
+                            if (err3) return res.status(500).json({ error: err3.message });
+                            res.json({ ok: true, form_id: this.lastID, message: 'Progresso salvo com sucesso.' });
+                        });
+                }
+            });
+        });
+    } catch (e) {
+        res.status(400).json({ error: 'Token inválido ou expirado.' });
+    }
+});
+
 // GET /api/experiencia — Lista colaboradores em ou que passaram pelo período de experiência
 app.get('/api/experiencia', authenticateToken, (req, res) => {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
@@ -10723,7 +10763,8 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
                     prazos,
                     diasRestantes,
                     formLink,
-                    tipo: 'manual'
+                    tipo: 'manual',
+                                        temRascunho: r.situacao === 'iniciado'
                 })
             });
 
@@ -10779,11 +10820,10 @@ function verificarExperienciasVencendo() {
             }
 
             // ── REGRA: só envia UMA vez aos 15 dias e UMA vez aos 7 dias ──────
-            const deveEnviar15d = diasRestantes <= 15 && diasRestantes > 7 && !r.notificacao_15d_enviada;
-            const deveEnviar7d  = diasRestantes <= 7  && diasRestantes > 0  && !r.notificacao_7d_enviada;
-            if (!deveEnviar15d && !deveEnviar7d) {
-                console.log(`[Experiência CRON] ${r.nome_completo}: notificações já enviadas (15d=${r.notificacao_15d_enviada}, 7d=${r.notificacao_7d_enviada}). Pulando.`);
-                continue;
+            // Envio diário: envia para todos dentro da janela, independente de envios anteriores
+            const deveEnviar15d = diasRestantes <= 15 && diasRestantes > 7 && !r.notificacao_15d_enviada; // mantido p/ auditoria
+            const deveEnviar7d  = diasRestantes <= 7  && diasRestantes > 0  && !r.notificacao_7d_enviada;  // mantido p/ auditoria
+            // Envia todos os dias — não para mais após primeira notificação
             }
 
             try {
@@ -10815,7 +10855,8 @@ function verificarExperienciasVencendo() {
                         prazos,
                         diasRestantes,
                         formLink,
-                        tipo: 'automatico'
+                        tipo: 'automatico',
+                                                temRascunho: r.situacao === 'iniciado'
                     })
                 });
 
@@ -11106,7 +11147,8 @@ app.post('/api/experiencia/cron/forcar', authenticateToken, async (req, res) => 
                         prazos,
                         diasRestantes,
                         formLink,
-                        tipo: 'automatico'
+                        tipo: 'automatico',
+                                                temRascunho: r.situacao === 'iniciado'
                     })
                 });
 
