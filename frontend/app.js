@@ -418,7 +418,6 @@ const BREADCRUMB_MAP = {
     'dashboard': { path: 'Dashboard', code: 'RH001' },
     'colaboradores': { path: 'Colaboradores', code: 'RHCL00' },
     'form-colaborador': { path: 'Colaboradores → Cadastro / Edição' },
-    'cargos': { path: 'Cargos', code: 'RHAD01' },
     'departamentos': { path: 'Departamentos', code: 'RHAD02' },
     'faculdade': { path: 'Faculdade', code: 'RHAD03' },
     'chaves': { path: 'Chaves', code: 'RHAD04' },
@@ -428,6 +427,7 @@ const BREADCRUMB_MAP = {
     'avaliacoes': { path: 'Avaliações', code: 'RHAV01' },
     'gerenciar-avaliacoes': { path: 'Gerenciar Avaliações', code: 'RHAV02' },
     'usuarios-permissoes': { path: 'Diretoria → Usuários e Permissões', code: 'DIR001' },
+    'cargos': { path: 'Diretoria → Cargos', code: 'DIR004' },
     'form-usuario': { path: 'Diretoria → Usuários e Permissões → Cadastro', code: 'DIR002' },
     'certificado-digital': { path: 'Diretoria → Certificado Digital', code: 'DIR003' },
     // Sub-telas (Prontuário Digital - abas)
@@ -648,7 +648,6 @@ const TAB_META = {
     'prontuario': { color: '#f503c5', icon: 'ph-folder-open', title: 'Prontuário Digital' },
     'admissao': { color: '#f503c5', icon: 'ph-list-checks', title: 'Admissão' },
     'integracao': { color: '#f503c5', icon: 'ph-users-three', title: 'Integração' },
-    'cargos': { color: '#f503c5', icon: 'ph-briefcase', title: 'Cargos' },
     'departamentos': { color: '#f503c5', icon: 'ph-buildings', title: 'Departamentos' },
     'faculdade': { color: '#f503c5', icon: 'ph-graduation-cap', title: 'Faculdade' },
     'geradores': { color: '#f503c5', icon: 'ph-file-text', title: 'Geradores' },
@@ -661,6 +660,7 @@ const TAB_META = {
     'experiencia': { color: '#f503c5', icon: 'ph-user-check', title: 'Experiência' },
     // Diretoria - Laranja
     'usuarios-permissoes': { color: '#d9480f', icon: 'ph-users-three', title: 'Usuários e Permissões' },
+    'cargos': { color: '#d9480f', icon: 'ph-briefcase', title: 'Cargos' },
     'certificado-digital': { color: '#d9480f', icon: 'ph-certificate', title: 'Certificado Digital' },
     'chaves': { color: '#d9480f', icon: 'ph-key', title: 'Chaves' },
     'form-usuario': { color: '#d9480f', icon: 'ph-user-gear', title: 'Cadastro de Usuário' },

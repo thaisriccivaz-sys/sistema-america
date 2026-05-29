@@ -11,7 +11,6 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'experiencia',            pagina_nome: 'Experiência do Colaborador', icone: 'ph-user-check' },
     { modulo: 'RH', pagina_id: 'admissao',               pagina_nome: 'Admissão', icone: 'ph-list-checks' },
     { modulo: 'RH', pagina_id: 'integracao',             pagina_nome: 'Integração', icone: 'ph-users-three' },
-    { modulo: 'RH', pagina_id: 'cargos',                 pagina_nome: 'Cargos', icone: 'ph-briefcase' },
     { modulo: 'RH', pagina_id: 'faculdade',              pagina_nome: 'Faculdade', icone: 'ph-graduation-cap' },
     { modulo: 'RH', pagina_id: 'geradores',              pagina_nome: 'Geradores de Documentos', icone: 'ph-file-text' },
     { modulo: 'RH', pagina_id: 'ficha-epi',              pagina_nome: 'Ficha EPI', icone: 'ph-shield-check' },
@@ -41,6 +40,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Administrativo', pagina_id: 'admin-em-breve', pagina_nome: 'Administrativo (Em breve)', icone: 'ph-gear' },
     // Módulo Diretoria / Sistema
     { modulo: 'Diretoria', pagina_id: 'usuarios-permissoes', pagina_nome: 'Usuários e Permissões', icone: 'ph-users-three' },
+    { modulo: 'Diretoria', pagina_id: 'cargos',                 pagina_nome: 'Cargos', icone: 'ph-briefcase' },
     { modulo: 'Diretoria', pagina_id: 'chaves',              pagina_nome: 'Chaves', icone: 'ph-key' },
     { modulo: 'Diretoria', pagina_id: 'certificado-digital', pagina_nome: 'Certificado Digital', icone: 'ph-certificate' },
     { modulo: 'Diretoria', pagina_id: 'homologacao',         pagina_nome: 'Homologação', icone: 'ph-database' },
@@ -510,7 +510,7 @@ const MENU_HIERARQUIA = [
                 titulo: 'Telas',
                 telas: [
                     'dashboard', 'colaboradores', 'assinaturas-digitais', 'ferias', 'experiencia',
-                    'admissao', 'integracao', 'cargos', 'faculdade', 'geradores',
+                    'admissao', 'integracao', 'faculdade', 'geradores',
                     'ficha-epi', 'gerenciar-avaliacoes', 'dissidio', 'rh-agenda'
                 ]
             }
@@ -537,7 +537,7 @@ const MENU_HIERARQUIA = [
         grupos: [
             {
                 titulo: 'Telas',
-                telas: ['usuarios-permissoes', 'chaves', 'certificado-digital', 'homologacao', 'departamentos']
+                telas: ['usuarios-permissoes', 'cargos', 'chaves', 'certificado-digital', 'homologacao', 'departamentos']
             }
         ]
     }
