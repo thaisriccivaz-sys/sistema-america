@@ -15230,10 +15230,11 @@ app.put('/api/estoque/:id', authenticateToken, (req, res) => {
                                     const emails = [...new Set(emailsRaw)].join(',');
                                     
                                     if (emails) {
+                                        const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
                                         const html = `
                                             <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
                                                 <div style="text-align: center; margin-bottom: 20px;">
-                                                    <img src="https://america-rental-server.onrender.com/logo.png" alt="America Rental" style="max-height: 80px;" />
+                                                    <img src="cid:empresa-logo" alt="America Rental" style="max-height: 80px;" />
                                                 </div>
                                                 <h2 style="color: #dc2626; text-align: center;">Aviso de Estoque Mínimo</h2>
                                                 <p>Olá,</p>
@@ -15251,10 +15252,11 @@ app.put('/api/estoque/:id', authenticateToken, (req, res) => {
                                         
                                         try {
                                             await sendMailHelper({
-                                                from: `"America Rental" <${SMTP_CONFIG.auth.user}>`,
+                                                from: `"Estoque América Rental" <${SMTP_CONFIG.auth.user}>`,
                                                 to: emails,
                                                 subject: 'ALERTA DE ESTOQUE MÍNIMO - America Rental',
-                                                html: html
+                                                html: html,
+                                                attachments: [{ filename: 'logo.png', path: logoPath, cid: 'empresa-logo' }]
                                             });
                                         } catch (e) {
                                             console.error('[ESTOQUE] Erro ao enviar e-mail:', e.message);
