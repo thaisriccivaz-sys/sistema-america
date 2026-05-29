@@ -12822,9 +12822,9 @@ app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, r
                         const kmProxima = km && srv.periodicidade_padrao ? (parseInt(km) + parseInt(srv.periodicidade_padrao)) : null;
                         const nomeServico = srv.nome;
 
-                        // Buscar manutenção agendada existente para este veículo/serviço
+                        // Buscar manutenção agendada ou em andamento existente para este veículo/serviço
                         db.get(
-                            `SELECT id FROM frota_manutencoes WHERE veiculo_id=? AND descricao=? AND status='agendada' ORDER BY id DESC LIMIT 1`,
+                            `SELECT id FROM frota_manutencoes WHERE veiculo_id=? AND descricao=? AND status IN ('agendada', 'em_andamento') ORDER BY id DESC LIMIT 1`,
                             [veiculo_id, nomeServico],
                             (errFind, existing) => {
                                 if (existing) {
@@ -12851,9 +12851,9 @@ app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, r
                                     // Criar novo registro concluído
                                     const usuario_nome = req.user?.username || 'sistema';
                                     db.run(
-                                        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_conclusao, observacoes, usuario_nome, tipo_conclusao)
-                                         VALUES (?,?,?,?,?,?,?,?,?,?)`,
-                                        [veiculo_id, 'preventiva', nomeServico, 'concluida', km, kmProxima, data_conclusao, observacoes || null, usuario_nome, req.body.tipo_conclusao || 'realizada'],
+                                        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_conclusao, observacoes, usuario_nome, tipo_conclusao, servico_catalogo_id)
+                                         VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+                                        [veiculo_id, 'preventiva', nomeServico, 'concluida', km, kmProxima, data_conclusao, observacoes || null, usuario_nome, req.body.tipo_conclusao || 'realizada', servico_id],
                                         (errIns) => {
                                             if (errIns) errorMsg = errIns.message;
                                             count++;
