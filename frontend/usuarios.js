@@ -36,6 +36,8 @@ const TELAS_SISTEMA = [
     // Módulo Comercial
     { modulo: 'Comercial', pagina_id: 'comercial-credenciamento', pagina_nome: 'Solicitar Credencial', icone: 'ph-identification-card' },
     // Módulo Administrativo
+    { modulo: 'Administrativo', pagina_id: 'licencas', pagina_nome: 'Licenças', icone: 'ph-certificate' },
+    { modulo: 'Administrativo', pagina_id: 'estoque', pagina_nome: 'Estoque', icone: 'ph-package' },
     { modulo: 'Administrativo', pagina_id: 'admin-em-breve', pagina_nome: 'Administrativo (Em breve)', icone: 'ph-gear' },
     // Módulo Diretoria / Sistema
     { modulo: 'Diretoria', pagina_id: 'usuarios-permissoes', pagina_nome: 'Usuários e Permissões', icone: 'ph-users-three' },
@@ -528,7 +530,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',
-        grupos: [{ titulo: 'Telas', telas: ['admin-em-breve'] }]
+        grupos: [{ titulo: 'Telas', telas: ['licencas', 'estoque', 'admin-em-breve'] }]
     },
     {
         modulo: 'Diretoria', icone: 'ph-crown', cor: '#c92a2a',

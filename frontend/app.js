@@ -430,7 +430,6 @@ const BREADCRUMB_MAP = {
     'usuarios-permissoes': { path: 'Diretoria → Usuários e Permissões', code: 'DIR001' },
     'form-usuario': { path: 'Diretoria → Usuários e Permissões → Cadastro', code: 'DIR002' },
     'certificado-digital': { path: 'Diretoria → Certificado Digital', code: 'DIR003' },
-    'licencas': { path: 'Licenças', code: 'ADM001' },
     // Sub-telas (Prontuário Digital - abas)
     'tab:00. CheckList': { path: 'Colaboradores → Prontuário Digital → 00. CheckList', },
     'tab:01_FICHA_CADASTRAL': { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral', },
@@ -479,6 +478,9 @@ const BREADCRUMB_MAP = {
     'logistica-agenda': { path: 'Agenda Logística', code: 'LOG011' },
     // Comercial
     'comercial-credenciamento': { path: 'Solicitar Credencial', code: 'COM001' },
+    // Administrativo
+    'licencas': { path: 'Licenças', code: 'ADM001' },
+    'estoque': { path: 'Estoque', code: 'ADM002' },
 };
 
 window.carregarPermissoesOnline = async function () {
@@ -613,7 +615,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'departamentos' || key === 'logistica-agenda' || key === 'rh-agenda';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'departamentos' || key === 'logistica-agenda' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -689,6 +691,7 @@ const TAB_META = {
     // Administrativo - Amarelo
     'admin-em-breve': { color: '#e67700', icon: 'ph-gear', title: 'Administrativo' },
     'licencas': { color: '#e67700', icon: 'ph-certificate', title: 'Licenças' },
+    'estoque': { color: '#e67700', icon: 'ph-package', title: 'Estoque' },
 };
 
 function getTabMeta(target) {
@@ -12636,6 +12639,8 @@ async function checkUserNotificacoes() {
                     bg = '#dbeafe'; color = '#1d4ed8'; icon = 'ph-clipboard-text'; titulo = 'Experiência'; navTarget = 'experiencia';
                 } else if (notif.tipo === 'novo_sinistro') {
                     bg = '#dcfce7'; color = '#059669'; icon = 'ph-warning'; titulo = 'Novo Sinistro (Logística)'; navTarget = 'colaboradores';
+                } else if (notif.tipo === 'estoque_minimo') {
+                    bg = '#fff5e6'; color = '#e67700'; icon = 'ph-package'; titulo = 'Estoque Mínimo'; navTarget = 'estoque';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -13658,14 +13663,87 @@ window._renderEpiGrid = function (filtro) {
     });
 };
 
-window._setEpiQty = function (epi, qty) {
+window._requiresSize = function(epi) {
+    const e = epi.toUpperCase();
+    // Uniformes e roupas
+    if (['CAMISETA', 'POLO', 'CALÇA', 'BLUSA', 'JAQUETA', 'COLETE', 'BLUSAO', 'BLUSÃO', 'UNIFORME'].some(k => e.includes(k))) return 'roupa';
+    // Botas
+    if (e.includes('BOTA')) return 'bota';
+    return false;
+};
+
+window._setEpiQty = async function (epi, qty) {
     const prevQty = (window._assinQtds || {})[epi] || 0;
+    
+    // Pergunta o tamanho se está adicionando o item pela primeira vez
+    if (qty > prevQty && prevQty === 0 && window._requiresSize(epi)) {
+        const tipoSize = window._requiresSize(epi);
+        let opcoes;
+        let placeholder;
+        if (tipoSize === 'bota') {
+            opcoes = ['38', '40', '42', '44', '46'];
+            placeholder = 'Selecione o número da bota';
+        } else {
+            opcoes = ['P', 'M', 'G', 'GG', 'XGG'];
+            placeholder = 'Selecione o tamanho';
+        }
+        const selectHtml = `
+            <div style="margin-top: 12px;">
+                <p style="font-size:0.85rem; color:#64748b; margin-bottom:8px;">Tamanho para: <strong>${epi}</strong></p>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+                    ${opcoes.map(op => `
+                        <button type="button" data-size="${op}"
+                            onclick="document.querySelectorAll('[data-size]').forEach(b => { b.style.background='#f1f5f9'; b.style.color='#475569'; b.style.borderColor='#e2e8f0'; }); this.style.background='#e67700'; this.style.color='#fff'; this.style.borderColor='#e67700'; window._swalSelectedSize = '${op}';"
+                            style="padding:10px 20px; border-radius:8px; border:2px solid #e2e8f0; background:#f1f5f9; color:#475569; font-size:1rem; font-weight:700; cursor:pointer; min-width:52px; transition: all 0.15s;">
+                            ${op}
+                        </button>`).join('')}
+                </div>
+            </div>`;
+        
+        window._swalSelectedSize = null;
+        const result = await Swal.fire({
+            title: 'Qual o tamanho?',
+            html: selectHtml,
+            showCancelButton: true,
+            confirmButtonText: 'Confirmar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#e67700',
+            preConfirm: () => {
+                if (!window._swalSelectedSize) {
+                    Swal.showValidationMessage('Selecione um tamanho!');
+                    return false;
+                }
+                return window._swalSelectedSize;
+            }
+        });
+        
+        if (result.isConfirmed && result.value) {
+            window._assinSizes = window._assinSizes || {};
+            window._assinSizes[epi] = result.value;
+        } else {
+            // Cancelou, não incrementa
+            const cardInp = document.querySelector('[data-epi-card="' + CSS.escape(epi) + '"] input[type=number]');
+            if (cardInp) cardInp.value = prevQty;
+            return;
+        }
+    }
+    
+    if (qty === 0 && window._assinSizes && window._assinSizes[epi]) {
+        delete window._assinSizes[epi];
+    }
+    
     window._assinQtds = window._assinQtds || {}; window._assinQtds[epi] = qty;
     const card = document.querySelector('[data-epi-card="' + CSS.escape(epi) + '"]');
     if (card) {
         card.style.borderColor = qty > 0 ? '#16a34a' : '#e2e8f0'; card.style.background = qty > 0 ? '#f0fdf4' : '#fff';
         const inp = card.querySelector('input[type=number]'); if (inp) inp.value = qty;
         const btns = card.querySelectorAll('button'); if (btns[0]) btns[0].style.background = qty > 0 ? '#1e3a5f' : '#e2e8f0';
+        
+        // Update label to show size if exists
+        const lbl = card.querySelector('span');
+        if (lbl) {
+            lbl.innerHTML = epi + (window._assinSizes && window._assinSizes[epi] ? ` <small style="color:#16a34a;font-weight:bold;">(${window._assinSizes[epi]})</small>` : '');
+        }
     }
     if (qty > 0) { const w = document.getElementById('epi-select-warn'); if (w) w.style.display = 'none'; }
 
@@ -13695,7 +13773,15 @@ window._filtrarEpis = function (f) { window._renderEpiGrid(f); };
 
 window._buildItensFromQtds = function () {
     const r = [];
-    Object.entries(window._assinQtds || {}).forEach(([e, q]) => { for (let i = 0; i < q; i++) r.push(e); });
+    Object.entries(window._assinQtds || {}).forEach(([e, q]) => { 
+        for (let i = 0; i < q; i++) {
+            if (window._assinSizes && window._assinSizes[e]) {
+                r.push(e + ' - ' + window._assinSizes[e]);
+            } else {
+                r.push(e);
+            }
+        }
+    });
     return r;
 };
 
