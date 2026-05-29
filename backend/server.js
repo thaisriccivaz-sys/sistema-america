@@ -8320,30 +8320,30 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                                             const emailsArray = users.map(u => u.colab_email || u.user_email).filter(e => e && e.trim() !== '');
                                             if (emailsArray.length > 0) {
                                                 const emails = [...new Set(emailsArray)].join(',');
-                                                const nodemailer = require('nodemailer');
-                                            const transporter = nodemailer.createTransport(SMTP_CONFIG);
-                                            const mailOptions = {
-                                                from: SMTP_CONFIG.auth.user,
-                                                to: emails,
-                                                subject: 'ALERTA DE ESTOQUE MÍNIMO - America Rental',
-                                                html: `
-                                                    <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-                                                        <div style="text-align: center; margin-bottom: 20px;">
-                                                            <img src="https://america-rental-server.onrender.com/logo.png" alt="America Rental" style="max-height: 80px;" />
+                                                const _logoPath8 = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                                                const mailOptions = {
+                                                    from: `"Estoque América Rental" <${SMTP_CONFIG.auth.user}>`,
+                                                    to: emails,
+                                                    subject: 'ALERTA DE ESTOQUE MÍNIMO - America Rental',
+                                                    html: `
+                                                        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                                                            <div style="text-align: center; margin-bottom: 20px;">
+                                                                <img src="cid:empresa-logo" alt="America Rental" style="max-height: 80px;" />
+                                                            </div>
+                                                            <h2 style="color: #dc2626; text-align: center;">Aviso de Estoque Mínimo</h2>
+                                                            <p>O seguinte item atingiu ou está abaixo da quantidade mínima em estoque:</p>
+                                                            <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 20px;">
+                                                                <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Item</th><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">${item.nome}</td></tr>
+                                                                <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Departamento</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.departamento}</td></tr>
+                                                                <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Atual</th><td style="padding: 8px; border: 1px solid #e2e8f0; color: #dc2626; font-weight: bold;">${newQtd}</td></tr>
+                                                                <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Mínima</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.quantidade_minima}</td></tr>
+                                                            </table>
+                                                            <p>Por favor, providencie a reposição o mais breve possível.</p>
                                                         </div>
-                                                        <h2 style="color: #dc2626; text-align: center;">Aviso de Estoque Mínimo</h2>
-                                                        <p>O seguinte item atingiu ou está abaixo da quantidade mínima em estoque:</p>
-                                                        <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 20px;">
-                                                            <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Item</th><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">${item.nome}</td></tr>
-                                                            <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Departamento</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.departamento}</td></tr>
-                                                            <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Atual</th><td style="padding: 8px; border: 1px solid #e2e8f0; color: #dc2626; font-weight: bold;">${newQtd}</td></tr>
-                                                            <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Mínima</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.quantidade_minima}</td></tr>
-                                                        </table>
-                                                        <p>Por favor, providencie a reposição o mais breve possível.</p>
-                                                    </div>
-                                                `
-                                            };
-                                            transporter.sendMail(mailOptions).catch(e => console.error('[ESTOQUE] Erro ao enviar e-mail:', e));
+                                                    `,
+                                                    attachments: [{ filename: 'logo.png', path: _logoPath8, cid: 'empresa-logo' }]
+                                                };
+                                                sendMailHelper(mailOptions).catch(e => console.error('[ESTOQUE] Erro ao enviar e-mail:', e));
                                             }
                                         }
                                     });
@@ -8383,11 +8383,29 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                             match = todosItens.find(i => (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() === nomeSemdash);
                         }
 
-                        // 4. Prefixo mais longo (startsWith)
+                        // 4. Prefixo mais longo (startsWith) — o nome do estoque é prefixo do EPI entregue
                         if (!match) {
                             const candidatos = todosItens.filter(i => {
                                 const n = (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
                                 return n.length > 0 && (nomeNormalizado.startsWith(n) || nomeSemdash.startsWith(n));
+                            }).sort((a, b) => b.nome.length - a.nome.length);
+                            if (candidatos.length > 0) match = candidatos[0];
+                        }
+
+                        // 5. Conteúdo: o nome do EPI entregue contém o nome do estoque (sufixo de tamanho ex: " - 39")
+                        if (!match) {
+                            const candidatos = todosItens.filter(i => {
+                                const n = (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                                return n.length >= 6 && nomeNormalizado.includes(n);
+                            }).sort((a, b) => b.nome.length - a.nome.length);
+                            if (candidatos.length > 0) match = candidatos[0];
+                        }
+
+                        // 6. Inverso: o nome do estoque contém o nome base do EPI (sem traço/tamanho)
+                        if (!match && nomeSemdash.length >= 6) {
+                            const candidatos = todosItens.filter(i => {
+                                const n = (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                                return n.includes(nomeSemdash) || nomeSemdash.includes(n);
                             }).sort((a, b) => b.nome.length - a.nome.length);
                             if (candidatos.length > 0) match = candidatos[0];
                         }
