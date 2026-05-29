@@ -8257,88 +8257,105 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
             
             // Início do bloco de dedução de estoque
             if (Array.isArray(epis_entregues) && epis_entregues.length > 0) {
-                epis_entregues.forEach(nomeEpi => {
-                    if (!nomeEpi) return;
 
-                    // Função central para processar a baixa de um item do estoque
-                    function processarBaixaEstoque(item) {
-                        if (!item || item.quantidade_atual <= 0) return;
-                        const newQtd = item.quantidade_atual - 1;
-                        db.run("UPDATE estoque SET quantidade_atual = ? WHERE id = ?", [newQtd, item.id], (errUpd) => {
-                            // Grava Histórico de Saída
-                            if (!errUpd) {
-                                db.run(
-                                    'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo) VALUES (?, ?, ?, ?, ?)',
-                                    [item.id, 1, 'Saída', registrado_por || 'Sistema', 'Baixa Prontuário Colaborador'],
-                                    () => {}
-                                );
-                            }
+                // AGRUPAR itens iguais para evitar condição de corrida:
+                // Ex: ["CAMISETA - G", "CAMISETA - G"] → { "CAMISETA - G": 2 }
+                // Assim fazemos UMA operação atômica por item único
+                const epiContagem = {};
+                epis_entregues.forEach(nome => {
+                    if (!nome) return;
+                    const key = nome.trim().toUpperCase();
+                    epiContagem[key] = (epiContagem[key] || { count: 0, original: nome });
+                    epiContagem[key].count++;
+                });
 
-                            // Alerta de estoque mínimo
-                            if (!errUpd && newQtd <= item.quantidade_minima && item.quantidade_atual > item.quantidade_minima) {
-                                const msg = `ESTOQUE BAIXO: O item "${item.nome}" (${item.departamento}) atingiu o estoque mínimo. Quantidade Atual: ${newQtd}.`;
-                                const dadosStr = JSON.stringify({ item_id: item.id, nome: item.nome, quantidade_atual: newQtd, quantidade_minima: item.quantidade_minima });
-
-                                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'estoque_minimo'", [], (errC, rowsC) => {
-                                    if (!errC && rowsC && rowsC.length > 0) {
-                                        rowsC.forEach(c => {
-                                            db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'estoque_minimo', msg, dadosStr]);
-                                        });
-                                        db.all("SELECT email FROM usuarios WHERE id IN (" + rowsC.map(r => r.usuario_id).join(',') + ") AND email IS NOT NULL AND email != ''", [], (errU, users) => {
-                                            if (!errU && users && users.length > 0) {
-                                                const emails = users.map(u => u.email).join(',');
-                                                const nodemailer = require('nodemailer');
-                                                const transporter = nodemailer.createTransport(SMTP_CONFIG);
-                                                const mailOptions = {
-                                                    from: SMTP_CONFIG.auth.user,
-                                                    to: emails,
-                                                    subject: 'ALERTA DE ESTOQUE MÍNIMO - America Rental',
-                                                    html: `
-                                                        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-                                                            <div style="text-align: center; margin-bottom: 20px;">
-                                                                <img src="https://america-rental-server.onrender.com/logo.png" alt="America Rental" style="max-height: 80px;" />
-                                                            </div>
-                                                            <h2 style="color: #dc2626; text-align: center;">Aviso de Estoque Mínimo</h2>
-                                                            <p>O seguinte item atingiu ou está abaixo da quantidade mínima em estoque:</p>
-                                                            <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 20px;">
-                                                                <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Item</th><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">${item.nome}</td></tr>
-                                                                <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Departamento</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.departamento}</td></tr>
-                                                                <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Atual</th><td style="padding: 8px; border: 1px solid #e2e8f0; color: #dc2626; font-weight: bold;">${newQtd}</td></tr>
-                                                                <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Mínima</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.quantidade_minima}</td></tr>
-                                                            </table>
-                                                            <p>Por favor, providencie a reposição o mais breve possível.</p>
-                                                        </div>
-                                                    `
-                                                };
-                                                transporter.sendMail(mailOptions).catch(e => console.error('[ESTOQUE] Erro ao enviar e-mail:', e));
-                                            }
-                                        });
-                                    }
-                                });
-                            }
-                        });
+                // Função central para processar a baixa de um item com quantidade total
+                function processarBaixaEstoque(item, count) {
+                    if (!item || item.quantidade_atual < count) {
+                        console.warn(`[ESTOQUE] Item "${item ? item.nome : '?'}" com estoque insuficiente para baixa de ${count}.`);
+                        count = item ? Math.max(0, item.quantidade_atual) : 0;
+                        if (count === 0) return;
                     }
+                    const newQtd = item.quantidade_atual - count;
+                    // UPDATE atômico: só reduz se ainda tiver quantidade suficiente
+                    db.run("UPDATE estoque SET quantidade_atual = quantidade_atual - ? WHERE id = ? AND quantidade_atual >= ?", [count, item.id, count], (errUpd) => {
+                        if (!errUpd) {
+                            // Grava Histórico de Saída (um registro com a quantidade total)
+                            db.run(
+                                'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo) VALUES (?, ?, ?, ?, ?)',
+                                [item.id, count, 'Saída', registrado_por || 'Sistema', 'Baixa Prontuário Colaborador'],
+                                () => {}
+                            );
+                        }
 
-                    // PASSO 1: Tenta match exato pelo nome completo (ex: "CAMISETA MANGA CURTA - G")
-                    // Isso garante que itens com tamanho registrado no nome sejam debitados corretamente
-                    db.get("SELECT * FROM estoque WHERE UPPER(TRIM(nome)) = UPPER(TRIM(?)) LIMIT 1", [nomeEpi], (errExact, itemExact) => {
-                        if (!errExact && itemExact) {
-                            // Encontrou match exato — usa esse item
-                            processarBaixaEstoque(itemExact);
-                        } else {
-                            // PASSO 2: Fallback — busca por prefixo (nomeEpi começa com o nome do estoque)
-                            // ORDER BY LENGTH(nome) DESC prioriza "Luva de raspa" em vez de "Luva"
-                            db.get("SELECT * FROM estoque WHERE UPPER(TRIM(?)) LIKE UPPER(TRIM(nome)) || '%' ORDER BY LENGTH(nome) DESC LIMIT 1", [nomeEpi], (errPrefix, itemPrefix) => {
-                                if (!errPrefix && itemPrefix) {
-                                    processarBaixaEstoque(itemPrefix);
+                        // Alerta de estoque mínimo
+                        if (!errUpd && newQtd <= item.quantidade_minima && item.quantidade_atual > item.quantidade_minima) {
+                            const msg = `ESTOQUE BAIXO: O item "${item.nome}" (${item.departamento}) atingiu o estoque mínimo. Quantidade Atual: ${newQtd}.`;
+                            const dadosStr = JSON.stringify({ item_id: item.id, nome: item.nome, quantidade_atual: newQtd, quantidade_minima: item.quantidade_minima });
+
+                            db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'estoque_minimo'", [], (errC, rowsC) => {
+                                if (!errC && rowsC && rowsC.length > 0) {
+                                    rowsC.forEach(c => {
+                                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'estoque_minimo', msg, dadosStr]);
+                                    });
+                                    db.all("SELECT email FROM usuarios WHERE id IN (" + rowsC.map(r => r.usuario_id).join(',') + ") AND email IS NOT NULL AND email != ''", [], (errU, users) => {
+                                        if (!errU && users && users.length > 0) {
+                                            const emails = users.map(u => u.email).join(',');
+                                            const nodemailer = require('nodemailer');
+                                            const transporter = nodemailer.createTransport(SMTP_CONFIG);
+                                            const mailOptions = {
+                                                from: SMTP_CONFIG.auth.user,
+                                                to: emails,
+                                                subject: 'ALERTA DE ESTOQUE MÍNIMO - America Rental',
+                                                html: `
+                                                    <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                                                        <div style="text-align: center; margin-bottom: 20px;">
+                                                            <img src="https://america-rental-server.onrender.com/logo.png" alt="America Rental" style="max-height: 80px;" />
+                                                        </div>
+                                                        <h2 style="color: #dc2626; text-align: center;">Aviso de Estoque Mínimo</h2>
+                                                        <p>O seguinte item atingiu ou está abaixo da quantidade mínima em estoque:</p>
+                                                        <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 20px;">
+                                                            <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Item</th><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">${item.nome}</td></tr>
+                                                            <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Departamento</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.departamento}</td></tr>
+                                                            <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Atual</th><td style="padding: 8px; border: 1px solid #e2e8f0; color: #dc2626; font-weight: bold;">${newQtd}</td></tr>
+                                                            <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Mínima</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.quantidade_minima}</td></tr>
+                                                        </table>
+                                                        <p>Por favor, providencie a reposição o mais breve possível.</p>
+                                                    </div>
+                                                `
+                                            };
+                                            transporter.sendMail(mailOptions).catch(e => console.error('[ESTOQUE] Erro ao enviar e-mail:', e));
+                                        }
+                                    });
                                 }
-                                // Se não encontrou nenhum match, não faz nada (item pode não estar no estoque)
+                            });
+                        }
+                    });
+                }
+
+                // Processar cada nome único com sua contagem total
+                Object.values(epiContagem).forEach(({ count, original }) => {
+                    const nomeUpper = original.trim().toUpperCase();
+
+                    // PASSO 1: Match exato (ex: "CAMISETA MANGA CURTA - G" cadastrado no estoque com tamanho)
+                    db.get("SELECT * FROM estoque WHERE UPPER(TRIM(nome)) = ? LIMIT 1", [nomeUpper], (errExact, itemExact) => {
+                        if (!errExact && itemExact) {
+                            processarBaixaEstoque(itemExact, count);
+                        } else {
+                            // PASSO 2: Prefixo — o nome do EPI começa com o nome do estoque
+                            // Ex: "CAMISETA MANGA CURTA - G" começa com "CAMISETA MANGA CURTA"
+                            db.get("SELECT * FROM estoque WHERE ? LIKE UPPER(TRIM(nome)) || '%' ORDER BY LENGTH(nome) DESC LIMIT 1", [nomeUpper], (errPrefix, itemPrefix) => {
+                                if (!errPrefix && itemPrefix) {
+                                    processarBaixaEstoque(itemPrefix, count);
+                                }
+                                // Item não encontrado no estoque — não faz nada
                             });
                         }
                     });
                 });
             }
             // Fim do bloco de dedução de estoque
+
 
 
             res.json({ id: this.lastID });
