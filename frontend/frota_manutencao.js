@@ -470,7 +470,7 @@ function mnRenderPlanoAgrupado(data) {
 
             return `<tr style="background:${bg};border-bottom:1px solid #e2e8f0;">
                 <td style="padding:0.6rem 0.5rem;text-align:center;">
-                    <input type="checkbox" class="mn-prev-cb mn-prev-cb-cat-${catKey}" data-id="${item.id}" data-nome="${nomeSafe}" onchange="window.mnPrevCbChanged()" style="width:15px;height:15px;cursor:pointer;">
+                    <input type="checkbox" class="mn-prev-cb mn-prev-cb-cat-${catKey}" data-id="${item.id}" data-cat-id="${item.servico_catalogo_id}" data-nome="${nomeSafe}" onchange="window.mnPrevCbChanged()" style="width:15px;height:15px;cursor:pointer;">
                 </td>
                 <td style="padding:0.6rem 0.9rem;">
                     <div style="display:flex;align-items:center;gap:6px;">
@@ -488,7 +488,7 @@ function mnRenderPlanoAgrupado(data) {
                 <td style="padding:0.6rem 0.5rem;text-align:center;">
                     <div style="display:flex;gap:4px;justify-content:center;align-items:center;">
                         ${item.status === 'em_andamento'
-                            ? `<button title="Finalizar manutenção" onclick="window.mnConcluirIndividual(${item.id}, '${nomeSafe}')" style="background:#16a34a;color:#fff;border:none;border-radius:6px;padding:0 10px;height:28px;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle"></i> Finalizar</button>`
+                            ? `<button title="Finalizar manutenção" onclick="window.mnConcluirIndividual(${item.id}, ${item.servico_catalogo_id}, '${nomeSafe}')" style="background:#16a34a;color:#fff;border:none;border-radius:6px;padding:0 10px;height:28px;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle"></i> Finalizar</button>`
                             : item.status === 'agendada'
                                 ? `<button onclick="window.mnIniciarManutencao(${item.id}, '${nomeSafe}')" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:0 10px;height:28px;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;white-space:nowrap;" title="Iniciar Manutenção"><i class="ph ph-play"></i> Iniciar</button>`
                                 : `<button onclick="window.mnAgendarIndividual(${item.id}, '${nomeSafe}')" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:0 10px;height:28px;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;white-space:nowrap;" title="Agendar"><i class="ph ph-calendar-plus"></i> Agendar</button>`
@@ -1623,7 +1623,7 @@ window.mnFinalizarAgendado = function() {
     if (!cbs.length) return;
     const vid = document.getElementById('mn-prev-veiculo')?.value;
     if (!vid) return alert('Selecione o veículo');
-    const servsIds = Array.from(cbs).map(cb => cb.dataset.id);
+    const servsIds = Array.from(cbs).map(cb => cb.dataset.catId);
     const nomes = Array.from(cbs).map(cb => cb.dataset.nome).join(', ');
     const veiculo = (window._manutFrota || []).find(x => x.id == vid);
 
@@ -1734,7 +1734,7 @@ window.mnFinalizarAgendado = function() {
 // ──────────────────────────────────────────────────────────────
 //  BOTÃO VERDE: REGISTRAR MANUTENÇÃO REALIZADA (individual)
 // ──────────────────────────────────────────────────────────────
-window.mnConcluirIndividual = async function(itemId, nome) {
+window.mnConcluirIndividual = async function(manutId, catalogoId, nome) {
     const vid = document.getElementById('mn-prev-veiculo')?.value;
     if (!vid) return alert('Selecione um veículo primeiro');
     const veiculo = (window._manutFrota || []).find(x => x.id == vid);
@@ -1811,9 +1811,10 @@ window.mnConcluirIndividual = async function(itemId, nome) {
     document.body.appendChild(ov);
     ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
 
-    window._mnConcluirVid    = vid;
-    window._mnConcluirItemId = itemId;
-    window._mnConcluirModo   = 'realizada';
+    window._mnConcluirVid        = vid;
+    window._mnConcluirManutId    = manutId;
+    window._mnConcluirCatalogoId = catalogoId;
+    window._mnConcluirModo       = 'realizada';
 
     window._mnToggleConcluir = function(modo) {
         window._mnConcluirModo = modo;
@@ -1852,7 +1853,7 @@ window.mnConcluirIndividual = async function(itemId, nome) {
                     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
                     body: JSON.stringify({
                         veiculo_id: window._mnConcluirVid,
-                        servicos_ids: [String(window._mnConcluirItemId)],
+                        servicos_ids: [String(window._mnConcluirCatalogoId)],
                         data_conclusao: dataConc,
                         observacoes: obs,
                         km_realizado: kmVal,
@@ -1860,7 +1861,7 @@ window.mnConcluirIndividual = async function(itemId, nome) {
                     })
                 });
             } else {
-                res = await fetch('/api/frota/manutencoes/' + window._mnConcluirItemId, {
+                res = await fetch('/api/frota/manutencoes/' + window._mnConcluirManutId, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
                     body: JSON.stringify({ status: 'cancelada' })
