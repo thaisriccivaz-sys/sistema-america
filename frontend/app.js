@@ -13800,13 +13800,32 @@ window._setEpiQty = async function (epi, qty) {
             if (str.includes('/')) { const [d, m, y] = str.split('/'); return new Date(y, m - 1, d); }
             return new Date(str + 'T12:00:00');
         };
-        const entregaAnterior = todasEntregas.find(e => e.epi_nome === epi);
+        // Normaliza um nome para comparação: remove acentos, maiúscula, sem espaços extras
+        const norm15 = s => (s || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+        const epiNorm = norm15(epi);
+        // Busca entrega anterior onde o nome do histórico contém o nome base do EPI
+        // (cobre casos como "BOTA BICO DE AÇO CA 43.339 - 39" vs template "BOTA BICO DE AÇO CA 43.339")
+        const entregaAnterior = todasEntregas.find(e => {
+            const histNorm = norm15(e.epi_nome);
+            return histNorm === epiNorm || histNorm.startsWith(epiNorm) || epiNorm.startsWith(histNorm);
+        });
         if (entregaAnterior) {
             const dataAnterior = parseDt15(entregaAnterior.data_entrega);
             if (dataAnterior) {
                 const dias = Math.floor((hoje15 - dataAnterior) / (1000 * 60 * 60 * 24));
                 if (dias <= 15) {
-                    alert(`⚠️ Atenção!\n\n"${epi}" foi entregue há ${dias} dia${dias !== 1 ? 's' : ''} para este colaborador (em ${entregaAnterior.data_entrega}).\n\nO registro será feito normalmente.`);
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'EPI Entregue Recentemente',
+                        html: `<b>"${epi}"</b> foi entregue há <b>${dias} dia${dias !== 1 ? 's' : ''}</b> para este colaborador<br><small style="color:#64748b;">(em ${entregaAnterior.data_entrega})</small><br><br>O registro será feito normalmente.`,
+                        confirmButtonColor: '#e67700',
+                        confirmButtonText: 'Entendido',
+                        customClass: { popup: '' },
+                        didOpen: () => {
+                            const cont = document.querySelector('.swal2-container');
+                            if (cont) { cont.style.zIndex = '9999999'; cont.style.position = 'fixed'; }
+                        }
+                    });
                 }
             }
         }
