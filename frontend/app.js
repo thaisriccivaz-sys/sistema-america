@@ -13891,7 +13891,7 @@ window._setEpiQty = async function (epi, qty) {
     }
 
     // Pergunta de devolução para EPIs emprestáveis (Bota de PVC e Avental Longo)
-    const EPI_EMPRESTAVEIS = ['BOTA DE PVC', 'AVENTAL LONGO'];
+    const EPI_EMPRESTAVEIS = ['BOTA DE PVC', 'AVENTAL LONGO', 'MASCARA RESPIRADOR', 'MÁSCARA RESPIRADOR'];
     const epiUpperTrim = epi.toUpperCase().trim();
     const isEmprestavelEpi = EPI_EMPRESTAVEIS.some(nome => epiUpperTrim.includes(nome));
     if (isEmprestavelEpi && qty > (window._assinQtds?.[epi] || 0) && (window._assinQtds?.[epi] || 0) === 0) {
