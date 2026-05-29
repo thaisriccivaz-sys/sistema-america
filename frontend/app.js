@@ -1117,6 +1117,7 @@ async function loadCargos() {
     colsAcao.forEach(c => c.style.display = isDir ? '' : 'none');
 
     const cargos = await apiGet('/cargos');
+    const deptos = await apiGet('/departamentos') || [];
     window.allCargosCache = cargos;
     const tbody = document.getElementById('table-cargos-body');
     if (!tbody || !cargos) return;
@@ -1131,6 +1132,13 @@ async function loadCargos() {
                     ${c.departamento 
                         ? `<span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:10px;font-size:0.8rem;font-weight:600;">${c.departamento}</span>` 
                         : '-'}
+                </td>
+                <td>
+                    ${(() => {
+                        const deptoObj = deptos.find(d => d.nome === c.departamento);
+                        const resp = deptoObj ? deptoObj.responsavel_nome : '';
+                        return resp ? `<span style="font-size:0.85rem; color:#64748b;"><i class="ph ph-user"></i> ${resp}</span>` : '-';
+                    })()}
                 </td>
                 <td style="text-align: right; gap:0.4rem; justify-content:flex-end; align-items:center; display: ${window.isTopAdmin ? "flex" : "none"};">
                     <button type="button" class="btn btn-primary btn-sm" onclick="window.toggleCargoView('edit', ${c.id})">

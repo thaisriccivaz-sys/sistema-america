@@ -739,10 +739,8 @@ cargosDeptosSync.forEach(([cNome, cDepto]) => {
         db.get("SELECT nome FROM departamentos_excluidos WHERE nome = ?", [cDepto], (e2, dexcluido) => {
             if (!dexcluido) db.run("INSERT OR IGNORE INTO departamentos (nome) VALUES (?)", [cDepto]);
         });
-        // Atualiza ou insere o cargo
+        // Apenas insere o cargo se não existir. Não atualiza cargos existentes para não sobrescrever alterações do usuário.
         db.get("SELECT id FROM cargos WHERE nome = ?", [cNome], (err2, row) => {
-            if (row) {
-                db.run("UPDATE cargos SET departamento = ? WHERE id = ?", [cDepto, row.id]);
             } else {
                 db.run("INSERT INTO cargos (nome, departamento, documentos_obrigatorios) VALUES (?, ?, '')", [cNome, cDepto]);
             }
