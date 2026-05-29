@@ -639,7 +639,13 @@ function renderExperienciaList(lista) {
                 statusBadge = `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check"></i> Finalizado</span>`;
             }
         } else {
-            statusBadge = `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:10px;font-size:0.75rem;"><i class="ph ph-clock"></i> Andamento</span>`;
+            const hoje_sb = new Date(); hoje_sb.setHours(0,0,0,0);
+            const fim2_sb = c.prazo2_fim ? new Date(c.prazo2_fim) : null;
+            if (fim2_sb && fim2_sb < hoje_sb) {
+                statusBadge = `<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;"><i class="ph ph-warning-circle"></i> Vencido</span>`;
+            } else {
+                statusBadge = `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:10px;font-size:0.75rem;"><i class="ph ph-clock"></i> Andamento</span>`;
+            }
         }
 
         // Situação formulário badge
