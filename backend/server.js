@@ -13555,7 +13555,7 @@ app.put('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
 });
 
 app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, res) => {
-    const { colaboradores, veiculos } = req.body;
+    const { colaboradores, veiculos, tipo_envio, cliente_whatsapp } = req.body;
     const colabIds = (colaboradores || []).map(c => c.id).filter(id => !isNaN(id) && id > 0);
     const veicIds = (veiculos || []).map(v => v.id).filter(id => !isNaN(id) && id > 0);
 
@@ -13568,8 +13568,11 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
     db.get('SELECT * FROM credenciamentos WHERE id = ?', [req.params.id], (err, cred) => {
         if (err || !cred) return res.status(500).json({ error: 'Credenciamento não encontrado' });
 
-        db.run(`UPDATE credenciamentos SET colaboradores_ids = ?, veiculos_ids = ?, token = ?, valid_until = ?, status = 'enviado', enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ? WHERE id = ?`,
-            [JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), token, validUntil.toISOString(), req.user.id, req.params.id],
+        const finalTipoEnvio = tipo_envio || cred.tipo_envio || 'email';
+        const finalWhatsapp = cliente_whatsapp || cred.cliente_whatsapp || '';
+
+        db.run(`UPDATE credenciamentos SET colaboradores_ids = ?, veiculos_ids = ?, token = ?, valid_until = ?, status = 'enviado', enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ?, tipo_envio = ?, cliente_whatsapp = ? WHERE id = ?`,
+            [JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), token, validUntil.toISOString(), req.user.id, finalTipoEnvio, finalWhatsapp, req.params.id],
             async function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
 
@@ -13593,7 +13596,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                 if (veiculos && veiculos.length > 0) {
                     textoCopia += `\n*Veículos:*\n`;
                     veiculos.forEach(v => {
-                        textoCopia += `- ${v.placa} - ${v.marca_modelo_versao}\n`;
+                        textoCopia += `- ${v.placa} - ${v.modelo || v.marca_modelo_versao}\n`;
                     });
                 }
 
@@ -13601,9 +13604,9 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                     textoCopia += `\n*Acesse os prontuários e documentos da equipe em:*\n${link}\n`;
                 }
 
-                if (cred.apenas_dados || cred.tipo_envio === 'whatsapp') {
-                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística processou o credenciamento da OS ${cred.os} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
-                    res.json({ message: 'Credenciamento processado.', link: cred.apenas_dados ? null : link, texto_copia, apenas_dados: !!cred.apenas_dados, whatsapp: cred.cliente_whatsapp, tipo_envio: cred.tipo_envio });
+                if (cred.apenas_dados || finalTipoEnvio === 'whatsapp') {
+                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística processou o credenciamento da OS ${cred.os || '-'} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
+                    res.json({ message: 'Credenciamento processado.', link: cred.apenas_dados ? null : link, texto_copia: textoCopia, apenas_dados: !!cred.apenas_dados, whatsapp: finalWhatsapp, tipo_envio: finalTipoEnvio });
                 } else {
                     if (cred.cliente_email && cred.cliente_email.includes('@')) {
                         // Build HTML...

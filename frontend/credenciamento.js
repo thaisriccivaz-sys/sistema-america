@@ -675,7 +675,7 @@ window.gerarEnviarCredenciamento = async function() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao enviar credenciamento.');
 
-        if (data.apenas_dados || data.whatsapp) {
+        if (data.apenas_dados || data.tipo_envio === 'whatsapp') {
             window.abrirPopupCopiaTextoCred(data.texto_copia, data.whatsapp, data.apenas_dados, data.message);
         } else {
             alert('✅ Credenciamento gerado e e-mail enviado com sucesso!');
