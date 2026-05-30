@@ -13279,7 +13279,7 @@ app.get('/api/frota/status-manutencao', authenticateToken, (req, res) => {
 // =====================================================================
 
 app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
-    const { cliente_nome, os, cliente_email, cliente_whatsapp, apenas_dados, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
+    const { cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
     if (!cliente_nome || (!cliente_email && !cliente_whatsapp)) return res.status(400).json({ error: 'Nome e E-mail ou WhatsApp são obrigatórios.' });
 
     // Token placeholder único para satisfazer a constraint NOT NULL + UNIQUE
@@ -13287,12 +13287,13 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
     const crypto = require('crypto');
     const tokenPlaceholder = 'SOLIC-' + crypto.randomBytes(12).toString('hex');
 
-    db.run(`INSERT INTO credenciamentos (cliente_nome, os, cliente_email, cliente_whatsapp, apenas_dados, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, observacoes, status, token, solicitado_por_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', ?, ?)`,
+    db.run(`INSERT INTO credenciamentos (cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, observacoes, status, token, solicitado_por_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', ?, ?)`,
         [
             cliente_nome,
             os || '',
             cliente_email || '',
             cliente_whatsapp || '',
+            tipo_envio || 'email',
             apenas_dados ? 1 : 0,
             endereco_instalacao || '',
             qtd_max_colaboradores || 0,
@@ -13527,14 +13528,15 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
 
 
 app.put('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
-    const { cliente_nome, os, cliente_email, cliente_whatsapp, apenas_dados, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
+    const { cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
 
-    db.run(`UPDATE credenciamentos SET cliente_nome = ?, os = ?, cliente_email = ?, cliente_whatsapp = ?, apenas_dados = ?, endereco_instalacao = ?, qtd_max_colaboradores = ?, qtd_max_veiculos = ?, data_limite_envio = ?, docs_exigidos = ?, licencas_ids = ?, observacoes = ? WHERE id = ? AND status = 'solicitado'`,
+    db.run(`UPDATE credenciamentos SET cliente_nome = ?, os = ?, cliente_email = ?, cliente_whatsapp = ?, tipo_envio = ?, apenas_dados = ?, endereco_instalacao = ?, qtd_max_colaboradores = ?, qtd_max_veiculos = ?, data_limite_envio = ?, docs_exigidos = ?, licencas_ids = ?, observacoes = ? WHERE id = ? AND status = 'solicitado'`,
         [
             cliente_nome,
             os || '',
             cliente_email || '',
             cliente_whatsapp || '',
+            tipo_envio || 'email',
             apenas_dados ? 1 : 0,
             endereco_instalacao || '',
             qtd_max_colaboradores || 0,
@@ -13599,9 +13601,9 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                     textoCopia += `\n*Acesse os prontuários e documentos da equipe em:*\n${link}\n`;
                 }
 
-                if (cred.apenas_dados) {
-                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística enviou os dados do credenciamento da OS ${cred.os} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
-                    res.json({ message: 'Credenciamento processado (Apenas Dados).', link: null, texto_copia, apenas_dados: true, whatsapp: cred.cliente_whatsapp });
+                if (cred.apenas_dados || cred.tipo_envio === 'whatsapp') {
+                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística processou o credenciamento da OS ${cred.os} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
+                    res.json({ message: 'Credenciamento processado.', link: cred.apenas_dados ? null : link, texto_copia, apenas_dados: !!cred.apenas_dados, whatsapp: cred.cliente_whatsapp, tipo_envio: cred.tipo_envio });
                 } else {
                     if (cred.cliente_email && cred.cliente_email.includes('@')) {
                         // Build HTML...
@@ -13660,8 +13662,10 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
 });
 
 app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
-    const { cliente_nome, cliente_email, endereco_instalacao, os, colaboradores, veiculos, docs_exigidos, licencas } = req.body;
-    if (!cliente_nome || !cliente_email) return res.status(400).json({ error: 'Nome e email são obrigatórios.' });
+    const { cliente_nome, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, os, colaboradores, veiculos, docs_exigidos, licencas } = req.body;
+    if (!cliente_nome) return res.status(400).json({ error: 'Nome é obrigatório.' });
+    if ((tipo_envio === 'email' || !tipo_envio) && !cliente_email) return res.status(400).json({ error: 'E-mail é obrigatório para envio por e-mail.' });
+    if (tipo_envio === 'whatsapp' && !cliente_whatsapp) return res.status(400).json({ error: 'WhatsApp é obrigatório para envio via WhatsApp.' });
 
     const colabIds = (colaboradores || []).map(c => c.id).filter(id => !isNaN(id) && id > 0);
 
@@ -13733,8 +13737,8 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         const validUntil = new Date();
         validUntil.setDate(validUntil.getDate() + 7);
 
-        db.run(`INSERT INTO credenciamentos (cliente_nome, cliente_email, endereco_instalacao, os, token, colaboradores_ids, veiculos_ids, docs_exigidos, licencas_ids, valid_until, enviado_em, enviado_por_id, status, solicitado_por_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 'enviado', ?)`,
-            [cliente_nome, cliente_email, endereco_instalacao || '', os || null, token, JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), JSON.stringify(docs_exigidos || []), JSON.stringify(licencas || []), validUntil.toISOString(), req.user.id, req.user.id],
+        db.run(`INSERT INTO credenciamentos (cliente_nome, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, os, token, colaboradores_ids, veiculos_ids, docs_exigidos, licencas_ids, valid_until, enviado_em, enviado_por_id, status, solicitado_por_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 'enviado', ?)`,
+            [cliente_nome, cliente_email || '', cliente_whatsapp || '', tipo_envio || 'email', apenas_dados ? 1 : 0, endereco_instalacao || '', os || null, token, JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), JSON.stringify(docs_exigidos || []), JSON.stringify(licencas || []), validUntil.toISOString(), req.user.id, req.user.id],
             async function (err) {
                 if (err) return res.status(500).json({ error: err.message });
 
@@ -13812,9 +13816,34 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                     { filename: 'logo.png', path: logoPath, cid: 'cred-logo' }
                 ];
 
+                const envTipo = tipo_envio || 'email';
+                let texto_copia = '';
+                if (envTipo === 'whatsapp' || apenas_dados) {
+                    let txtCols = (colaboradores || []).map(c => `• ${c.nome || c.nome_completo}${c.cpf ? ` (CPF: ${c.cpf})` : ''}`).join('\n');
+                    let txtVeic = (veiculos || []).map(v => `• Placa: ${v.placa} - ${v.modelo}`).join('\n');
+                    let txtLics = (licencas || []).map(l => `• ${l.nome} (${l.empresa || 'América Rental'})`).join('\n');
+                    
+                    texto_copia = `*Credenciamento de Equipe e Veículos - América Rental*\n`;
+                    texto_copia += `Olá *${cliente_nome}*,\n\nAbaixo os dados credenciados da OS *${os || '-'}*:\n\n`;
+                    if (txtCols) texto_copia += `*Colaboradores:*\n${txtCols}\n\n`;
+                    if (txtVeic) texto_copia += `*Veículos:*\n${txtVeic}\n\n`;
+                    if (txtLics) texto_copia += `*Licenças:*\n${txtLics}\n\n`;
+                    
+                    if (!apenas_dados) {
+                        texto_copia += `Você pode baixar e acessar os documentos oficiais no link seguro (válido por 7 dias):\n${link}\n\n`;
+                    } else {
+                        texto_copia += `Este envio contém apenas os dados solicitados, sem anexos adicionais.\n\n`;
+                    }
+                    texto_copia += `Atenciosamente,\nEquipe América Rental`;
+                    
+                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [req.user.id, `A Logística enviou os dados/link da OS ${os || '-'} para o cliente ${cliente_nome} (Gerado via ${envTipo}).`, JSON.stringify({ cliente_nome: cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
+                    return res.json({ ok: true, message: 'Dados gerados com sucesso.', link, texto_copia, apenas_dados, whatsapp: cliente_whatsapp });
+                }
+
                 try {
                     const transporter = require('nodemailer').createTransport(SMTP_CONFIG);
                     await sendMailHelper(mailOptions);
+                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [req.user.id, `A Logística enviou o credenciamento da OS ${os || '-'} para o cliente ${cliente_nome}.`, JSON.stringify({ cliente_nome: cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
                     res.json({ ok: true, message: 'E-mail de credenciamento enviado com sucesso!' });
                 } catch (mailErr) {
                     res.status(500).json({ error: 'Erro ao enviar e-mail: ' + mailErr.message });
@@ -13848,11 +13877,11 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
 
 // GET Autenticado: Listar todos os credenciamentos
 app.get('/api/logistica/credenciamentos', authenticateToken, (req, res) => {
-    db.all(`SELECT c.id, c.cliente_nome, c.os, c.cliente_email, c.endereco_instalacao, c.token, c.colaboradores_ids, c.veiculos_ids, c.licencas_ids, c.docs_exigidos, c.valid_until, c.acessado_em, c.status, c.data_limite_envio, c.qtd_max_colaboradores, c.qtd_max_veiculos, c.created_at, c.enviado_em, c.observacoes, u1.nome as sol_nome_usuario, u1.username as sol_username, col1.foto_path as sol_foto, col1.foto_base64 as sol_foto_b64, u2.nome as env_nome_usuario, u2.username as env_username, col2.foto_path as env_foto, col2.foto_base64 as env_foto_b64
+    db.all(`SELECT c.id, c.cliente_nome, c.os, c.cliente_email, c.cliente_whatsapp, c.tipo_envio, c.apenas_dados, c.endereco_instalacao, c.token, c.colaboradores_ids, c.veiculos_ids, c.licencas_ids, c.docs_exigidos, c.valid_until, c.acessado_em, c.status, c.data_limite_envio, c.qtd_max_colaboradores, c.qtd_max_veiculos, c.created_at, c.enviado_em, c.observacoes, u1.nome as sol_nome_usuario, u1.username as sol_username, col1.foto_path as sol_foto, col1.foto_base64 as sol_foto_b64, u2.nome as env_nome_usuario, u2.username as env_username, col2.foto_path as env_foto, col2.foto_base64 as env_foto_b64
             FROM credenciamentos c LEFT JOIN usuarios u1 ON c.solicitado_por_id = u1.id LEFT JOIN colaboradores col1 ON col1.nome_completo = u1.nome LEFT JOIN usuarios u2 ON c.enviado_por_id = u2.id LEFT JOIN colaboradores col2 ON col2.nome_completo = u2.nome ORDER BY c.created_at DESC`, [], (err, rows) => {
         if (err) {
             // Fallback: try without 'os' and optional new columns in case migration hasn't run
-            db.all(`SELECT id, cliente_nome, os, cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, status
+            db.all(`SELECT id, cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, status
                     FROM credenciamentos ORDER BY created_at DESC`, [], (err2, rows2) => {
                 if (err2) return res.status(500).json({ error: err2.message });
                 const mapped = (rows2 || []).map(r => ({ ...r, status: r.status || 'enviado' }));

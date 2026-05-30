@@ -637,6 +637,8 @@ window.gerarEnviarCredenciamento = async function() {
     const payload = {
         cliente_nome: clienteNome,
         cliente_email: clienteEmail,
+        tipo_envio: (document.getElementById('cred-tipo-envio') || {}).value || 'email',
+        cliente_whatsapp: (document.getElementById('cred-cliente-whatsapp') || {}).value || '',
         endereco_instalacao: enderecoInstalacao,
         os: osValue,
         colaboradores: credenciamentoState.selecionadosColabs.map(idStr => {
@@ -717,6 +719,9 @@ window.abrirModalNovoCredenciamento = function() {
     // Limpar campos e seleções
     const nome = document.getElementById('cred-cliente-nome'); if (nome) nome.value = '';
     const email = document.getElementById('cred-cliente-email'); if (email) email.value = '';
+    const wpp = document.getElementById('cred-cliente-whatsapp'); if (wpp) wpp.value = '';
+    const tipoEnvio = document.getElementById('cred-tipo-envio'); if (tipoEnvio) tipoEnvio.value = 'email';
+    window.mudarTipoEnvioLogistica();
     const end = document.getElementById('cred-endereco-instalacao'); if (end) end.value = '';
     document.querySelectorAll('#cred-docs-exigidos input').forEach(cb => cb.checked = false);
     credenciamentoState.selecionadosColabs = [];
@@ -776,6 +781,9 @@ window.abrirModalCumprirSolicitacao = function(id) {
     if (dados) {
         const nome = document.getElementById('cred-cliente-nome'); if (nome) nome.value = dados.cliente_nome || '';
         const email = document.getElementById('cred-cliente-email'); if (email) email.value = dados.cliente_email || '';
+        const wpp = document.getElementById('cred-cliente-whatsapp'); if (wpp) wpp.value = dados.cliente_whatsapp || '';
+        const tipoEnvio = document.getElementById('cred-tipo-envio'); if (tipoEnvio) tipoEnvio.value = dados.tipo_envio || 'email';
+        window.mudarTipoEnvioLogistica();
         const end = document.getElementById('cred-endereco-instalacao'); if (end) end.value = dados.endereco_instalacao || '';
         const osInput = document.getElementById('cred-os'); if (osInput) osInput.value = dados.os || '';
 
@@ -806,6 +814,38 @@ window.fecharModalNovoCredenciamento = function() {
     const modal = document.getElementById('modal-novo-credenciamento');
     if (modal) modal.style.display = 'none';
 };
+
+window.mudarTipoEnvioLogistica = function() {
+    const tipo = document.getElementById('cred-tipo-envio').value;
+    const gEmail = document.getElementById('grupo-cred-email');
+    const gWhats = document.getElementById('grupo-cred-whatsapp');
+    
+    const iconeDesc = document.getElementById('icone-envio-desc');
+    const tituloDesc = document.getElementById('titulo-envio-desc');
+    const txtDesc = document.getElementById('txt-envio-desc');
+    const iconeBtn = document.getElementById('icone-btn-enviar');
+    const txtBtn = document.getElementById('txt-btn-enviar');
+
+    if (tipo === 'email') {
+        if(gEmail) gEmail.style.display = 'block';
+        if(gWhats) gWhats.style.display = 'none';
+        
+        if(iconeDesc) iconeDesc.className = 'ph ph-envelope-simple';
+        if(tituloDesc) tituloDesc.textContent = 'Enviar Credenciamento';
+        if(txtDesc) txtDesc.textContent = 'Um e-mail será enviado com um link seguro válido por 7 dias, contendo todos os documentos e certificados da equipe selecionada.';
+        if(iconeBtn) iconeBtn.className = 'ph ph-paper-plane-right';
+        if(txtBtn) txtBtn.textContent = 'Gerar e Enviar E-mail';
+    } else {
+        if(gEmail) gEmail.style.display = 'none';
+        if(gWhats) gWhats.style.display = 'block';
+        
+        if(iconeDesc) iconeDesc.className = 'ph ph-whatsapp-logo';
+        if(tituloDesc) tituloDesc.textContent = 'Gerar para WhatsApp';
+        if(txtDesc) txtDesc.textContent = 'Um link de credenciamento será gerado. Você poderá enviá-lo diretamente pelo WhatsApp do cliente selecionado.';
+        if(iconeBtn) iconeBtn.className = 'ph ph-whatsapp-logo';
+        if(txtBtn) txtBtn.textContent = 'Gerar para WhatsApp';
+    }
+}
 
 window.abrirPopupCopiaTextoCred = function(texto, whatsapp, apenasDados, message) {
     let msg = message || 'Ação realizada com sucesso.';
