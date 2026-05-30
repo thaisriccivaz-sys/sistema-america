@@ -13772,20 +13772,22 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                 const link = `${baseUrl}/credenciamento-publico.html?token=${token}`;
                 const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
 
-                let htmlCols = (colaboradores || []).map(c => {
+                // Monta linhas HTML para colaboradores no novo formato
+                const buildHtmlColabs = (colabs) => colabs.map(c => {
                     const cData = colabData.find(col => col.id === c.id);
                     const nome = c.nome || c.nome_completo || '';
                     const cargo = c.cargo || (cData && cData.cargo) || '';
                     const cpf = c.cpf || (cData && cData.cpf) || '';
                     const cnh = c.cnh || (cData && cData.cnh) || '';
                     const isMotorista = cargo.toUpperCase().includes('MOTORISTA');
-                    let linha = nome;
-                    if (cargo) linha += ` - ${cargo}`;
-                    if (cpf) linha += ` - CPF: ${cpf}`;
-                    if (isMotorista && cnh) linha += ` - CNH: ${cnh}`;
-                    return `<li>${linha}</li>`;
+                    let detalhe = '';
+                    if (cargo) detalhe += `<br><span style="color:#64748b;">Cargo: ${cargo}</span>`;
+                    if (cpf) detalhe += `<br><span style="color:#64748b;">CPF: ${cpf}</span>`;
+                    if (isMotorista && cnh) detalhe += `<br><span style="color:#64748b;">CNH: ${cnh}</span>`;
+                    return `<li style="margin-bottom:8px;"><b>${nome}</b>${detalhe}</li>`;
                 }).join('');
-                let htmlVeic = (veiculos || []).map(v => `<li>Placa: ${v.placa} - ${v.modelo || ''}</li>`).join('');
+                let htmlCols = buildHtmlColabs(colaboradores || []);
+                let htmlVeic = (veiculos || []).map(v => `<li>${v.placa} - ${v.modelo || ''}</li>`).join('');
 
                 // Montar bloco de licenças para o e-mail
                 let htmlLicencas = '';
@@ -13814,29 +13816,31 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                 }
 
 
+                const emailBodyDados = `
+                    ${htmlCols ? `<p style="margin:0 0 6px 0;">👷 <b>Equipe:</b></p><ul style="margin:0 0 16px 0; padding-left:20px;">${htmlCols}</ul>` : ''}
+                    ${htmlVeic ? `<p style="margin:0 0 6px 0;">🛻 <b>Veículos:</b></p><ul style="margin:0 0 16px 0; padding-left:20px;">${htmlVeic}</ul>` : ''}
+                    ${htmlLicencas}
+                `;
+
                 const mailOptions = {
                     from: process.env.EMAIL_USER,
                     to: cliente_email,
-                    subject: 'Credenciamento de Equipe e Veículos - América Rental',
+                    subject: `Credenciamento - ${cliente_nome}`,
                     html: `
                         <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
                             <div style="background-color: #fff; padding: 0;">
                                 <img src="cid:cred-logo" alt="América Rental" style="width: 100%; display: block; max-height: 120px; object-fit: cover;">
                             </div>
                             <div style="background-color: #16a34a; padding: 15px; text-align: center; color: white;">
-                                <h2 style="margin: 0; font-size: 20px;">Credenciamento de Equipe e Veículos</h2>
+                                <h2 style="margin: 0; font-size: 20px;">Credenciamento - ${cliente_nome}</h2>
                             </div>
                             <div style="padding: 20px;">
-                                <p>Olá <b>${cliente_nome}</b>,</p>
-                                <p>Abaixo estão os dados dos colaboradores e veículos credenciados para a sua obra/evento:</p>
-                                
-                                ${htmlCols ? `<h3>Colaboradores</h3><ul>${htmlCols}</ul>` : ''}
-                                ${htmlVeic ? `<h3>Veículos</h3><ul>${htmlVeic}</ul>` : ''}
-                                ${htmlLicencas}
-                                
-                                <p>Para baixar os documentos correspondentes, acesse o link seguro abaixo. <b>O link é válido por 7 dias.</b></p>
+                                <p style="margin:0 0 4px 0;">OS: <b>${os || '-'}</b></p>
+                                <hr style="border:none; border-top:1px solid #e2e8f0; margin:12px 0;">
+                                ${emailBodyDados}
+                                <p>Os documentos em PDF estão em anexo neste e-mail. <b>O link para acessar o portal de documentos é válido por 7 dias.</b></p>
                                 <div style="text-align: center; margin: 30px 0;">
-                                    <a href="${link}" style="background:#16a34a;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">Acessar e Baixar Documentos</a>
+                                    <a href="${link}" style="background:#16a34a;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">Acessar Portal de Documentos</a>
                                 </div>
                                 <p style="color: #666; font-size: 12px; text-align: center;">Ou acesse diretamente: <br><a href="${link}" style="color:#16a34a">${link}</a></p>
                                 <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
@@ -13850,57 +13854,59 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                 ];
 
                 const envTipo = tipo_envio || 'email';
-                let texto_copia = '';
-                let txtCols = (colaboradores || []).map(c => {
-                    const cData = colabData.find(col => col.id === c.id);
-                    const nome = c.nome || c.nome_completo || '';
-                    const cargo = c.cargo || (cData && cData.cargo) || '';
-                    const cpf = c.cpf || (cData && cData.cpf) || '';
-                    const cnh = c.cnh || (cData && cData.cnh) || '';
-                    const isMotorista = cargo.toUpperCase().includes('MOTORISTA');
-                    let linha = nome;
-                    if (cargo) linha += ` - ${cargo}`;
-                    if (cpf) linha += ` - CPF: ${cpf}`;
-                    if (isMotorista && cnh) linha += ` - CNH: ${cnh}`;
-                    return `• ${linha}`;
-                }).join('\n');
-                let txtVeic = (veiculos || []).map(v => `• Placa: ${v.placa} - ${v.modelo || ''}`).join('\n');
-                let txtLics = (licencas || []).map(l => `• ${l.nome} (${l.empresa || 'América Rental'})`).join('\n');
-                
-                texto_copia = `*Credenciamento de Equipe e Veículos - América Rental*\n`;
-                texto_copia += `Olá *${cliente_nome}*,\n\nAbaixo os dados credenciados da OS *${os || '-'}*:\n\n`;
-                if (txtCols) texto_copia += `*Colaboradores:*\n${txtCols}\n\n`;
-                if (txtVeic) texto_copia += `*Veículos:*\n${txtVeic}\n\n`;
-                if (txtLics) texto_copia += `*Licenças:*\n${txtLics}\n\n`;
-                
-                if (!apenas_dados) {
-                    texto_copia += `Você pode baixar e acessar os documentos oficiais no link seguro (válido por 7 dias):\n${link}\n\n`;
-                } else {
-                    texto_copia += `Este envio contém apenas os dados solicitados, sem anexos adicionais.\n\n`;
-                }
-                texto_copia += `Atenciosamente,\nEquipe América Rental`;
+
+                // ── Monta texto para cópia WhatsApp (sem link) ─────────────────
+                const buildTextoCopia = (colabs, veics, lics) => {
+                    const linhasCol = (colabs || []).map(c => {
+                        const cData = colabData.find(col => col.id === c.id);
+                        const nome = c.nome || c.nome_completo || '';
+                        const cargo = c.cargo || (cData && cData.cargo) || '';
+                        const cpf = c.cpf || (cData && cData.cpf) || '';
+                        const cnh = c.cnh || (cData && cData.cnh) || '';
+                        const isMotorista = cargo.toUpperCase().includes('MOTORISTA');
+                        let linhaCol = `- ${nome}`;
+                        if (cargo) linhaCol += `\n  Cargo: ${cargo}`;
+                        if (cpf) linhaCol += `\n  CPF: ${cpf}`;
+                        if (isMotorista && cnh) linhaCol += `\n  CNH: ${cnh}`;
+                        return linhaCol;
+                    });
+                    const linhasVeic = (veics || []).map(v => `- ${v.placa} - ${v.modelo || ''}`);
+                    const linhasLic = (lics || []).map(l => `- ${l.nome} (${l.empresa || 'América Rental'})`);
+
+                    let txt = `*Credenciamento - ${cliente_nome}*\nOS: ${os || '-'}\n`;
+                    if (linhasCol.length) txt += `\n👷*Equipe:*\n${linhasCol.join('\n')}\n`;
+                    if (linhasVeic.length) txt += `\n🛻*Veículos:*\n${linhasVeic.join('\n')}\n`;
+                    if (linhasLic.length) txt += `\n📋*Licenças:*\n${linhasLic.join('\n')}\n`;
+                    return txt.trim();
+                };
+
+                const texto_copia = buildTextoCopia(colaboradores, veiculos, licencas);
 
                 if (envTipo === 'whatsapp') {
-                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [req.user.id, `A Logística enviou os dados/link da OS ${os || '-'} para o cliente ${cliente_nome} via WhatsApp.`, JSON.stringify({ cliente_nome: cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
-                    return res.json({ ok: true, message: 'Dados gerados com sucesso.', link: apenas_dados ? null : link, texto_copia, apenas_dados, whatsapp: cliente_whatsapp });
+                    // WhatsApp: só envia dados copiados, sem link (documentos PDF apenas por e-mail)
+                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [req.user.id, `A Logística gerou os dados de credenciamento da OS ${os || '-'} para o cliente ${cliente_nome} via WhatsApp.`, JSON.stringify({ cliente_nome: cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
+                    return res.json({ ok: true, message: 'Dados gerados com sucesso.', texto_copia, apenas_dados, whatsapp: cliente_whatsapp });
                 } else {
                     // Se for e-mail, pode ter sido escolhido apenas_dados ou não. Em ambos os casos, envia o e-mail.
                     // Ajustar mailOptions se for apenas_dados
                     if (apenas_dados) {
+                        // E-mail apenas dados: sem link, sem PDF em anexo
+                        mailOptions.subject = `Credenciamento - ${cliente_nome}`;
                         mailOptions.html = `
                         <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
                             <div style="background-color: #fff; padding: 0;">
                                 <img src="cid:cred-logo" alt="América Rental" style="width: 100%; display: block; max-height: 120px; object-fit: cover;">
                             </div>
                             <div style="background-color: #16a34a; padding: 15px; text-align: center; color: white;">
-                                <h2 style="margin: 0; font-size: 20px;">Dados do Credenciamento</h2>
+                                <h2 style="margin: 0; font-size: 20px;">Credenciamento - ${cliente_nome}</h2>
                             </div>
                             <div style="padding: 20px;">
-                                <p>Olá <b>${cliente_nome}</b>,</p>
-                                <p>Abaixo estão os dados dos colaboradores e veículos credenciados para a sua obra/evento:</p>
-                                ${htmlCols ? `<h3>Colaboradores</h3><ul>${htmlCols}</ul>` : ''}
-                                ${htmlVeic ? `<h3>Veículos</h3><ul>${htmlVeic}</ul>` : ''}
+                                <p style="margin:0 0 4px 0;">OS: <b>${os || '-'}</b></p>
+                                <hr style="border:none; border-top:1px solid #e2e8f0; margin:12px 0;">
+                                ${emailBodyDados}
                                 <p style="text-align: center; font-size: 12px; color: #999;"><i>Este envio contém apenas os dados solicitados, sem anexos adicionais.</i></p>
+                                <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+                                <p style="color: #999; font-size: 11px; text-align: center;">Este é um e-mail automático do Sistema América Rental, por favor não responda.</p>
                             </div>
                         </div>`;
                     }

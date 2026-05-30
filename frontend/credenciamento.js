@@ -1251,30 +1251,21 @@ window.copiarDadosCredenciamento = function(id) {
         const cpf = c.cpf || '';
         const cnh = c.cnh || '';
         const isMotorista = cargo.toUpperCase().includes('MOTORISTA');
-        let linha = nome;
-        if (cargo) linha += ` - ${cargo}`;
-        if (cpf) linha += ` - CPF: ${cpf}`;
-        if (isMotorista && cnh) linha += ` - CNH: ${cnh}`;
-        return `• ${linha}`;
+        let linha = `- ${nome}`;
+        if (cargo) linha += `\n  Cargo: ${cargo}`;
+        if (cpf) linha += `\n  CPF: ${cpf}`;
+        if (isMotorista && cnh) linha += `\n  CNH: ${cnh}`;
+        return linha;
     }).join('\n');
-    const txtVeic = veics.map(v => `• Placa: ${v.placa} - ${v.modelo || v.marca_modelo_versao || ''}`).join('\n');
-    const txtLics = licencas.map(l => `• ${l.nome} (${l.empresa || 'América Rental'})`).join('\n');
+    const txtVeic = veics.map(v => `- ${v.placa} - ${v.modelo || v.marca_modelo_versao || ''}`).join('\n');
+    const txtLics = licencas.map(l => `- ${l.nome} (${l.empresa || 'América Rental'})`).join('\n');
 
-    let texto_copia = `*Credenciamento de Equipe e Veículos - América Rental*\n`;
-    texto_copia += `Olá *${cred.cliente_nome}*,\n\nAbaixo os dados credenciados da OS *${cred.os || '-'}*:\n\n`;
-    if (txtCols) texto_copia += `*Colaboradores:*\n${txtCols}\n\n`;
-    if (txtVeic) texto_copia += `*Veículos:*\n${txtVeic}\n\n`;
-    if (txtLics) texto_copia += `*Licenças:*\n${txtLics}\n\n`;
-
-    const baseUrl = window.location.origin;
-    const link = `${baseUrl}/credenciamento-publico.html?token=${cred.token}`;
-
-    if (!cred.apenas_dados) {
-        texto_copia += `Você pode baixar e acessar os documentos oficiais no link seguro (válido por 7 dias):\n${link}\n\n`;
-    } else {
-        texto_copia += `Este envio contém apenas os dados solicitados, sem anexos adicionais.\n\n`;
-    }
-    texto_copia += `Atenciosamente,\nEquipe América Rental`;
+    // WhatsApp: apenas dados copiados, sem link (documentos PDF só por e-mail)
+    let texto_copia = `*Credenciamento - ${cred.cliente_nome}*\nOS: ${cred.os || '-'}\n`;
+    if (txtCols) texto_copia += `\n👷*Equipe:*\n${txtCols}\n`;
+    if (txtVeic) texto_copia += `\n🛻*Veículos:*\n${txtVeic}\n`;
+    if (txtLics) texto_copia += `\n📋*Licenças:*\n${txtLics}\n`;
+    texto_copia = texto_copia.trim();
 
     window.abrirPopupCopiaTextoCred(texto_copia, cred.cliente_whatsapp, cred.apenas_dados, 'Dados do credenciamento prontos para cópia.');
 };
