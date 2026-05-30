@@ -410,10 +410,15 @@ window.ordenarHistoricoComCred = function(coluna, forceDir = null) {
             statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado</span>`;
         } else if (new Date() > new Date(cred.valid_until)) {
             statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
+        } else if (cred.tipo_envio === 'whatsapp') {
+            // WhatsApp: sempre verde (sem link para rastrear acesso)
+            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-whatsapp-logo"></i> Enviado</span>`;
         } else if (cred.acessado_em) {
+            // E-mail: verde quando o link foi acessado
             statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Acessado</span>`;
         } else {
-            statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>`;
+            // E-mail: azul quando enviado mas ainda não acessado
+            statusBadge = `<span style="color:#2563eb; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>`;
         }
         
         const docs = cred.docs_exigidos ? JSON.parse(cred.docs_exigidos) : [];
