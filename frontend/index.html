@@ -2819,7 +2819,7 @@
                             <div class="card" style="margin-bottom: 1.5rem;">
                                 <h3><i class="ph ph-user"></i> Dados do Cliente</h3>
                                 <div class="form-grid"
-                                    style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                                    style="grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-top: 1rem;">
                                     <div class="form-group">
                                         <label style="display:block; margin-bottom:4px; font-weight:600;">Nome do
                                             Cliente / Obra <span class="required">*</span></label>
@@ -2828,9 +2828,16 @@
                                     </div>
                                     <div class="form-group">
                                         <label style="display:block; margin-bottom:4px; font-weight:600;">E-mail do
-                                            Cliente <span class="required">*</span></label>
+                                            Cliente</label>
                                         <input type="email" id="solic-cliente-email"
                                             placeholder="Ex: contato@xpto.com.br"
+                                            style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label style="display:block; margin-bottom:4px; font-weight:600;">WhatsApp do
+                                            Cliente</label>
+                                        <input type="text" id="solic-cliente-whatsapp"
+                                            placeholder="Ex: (11) 99999-9999" oninput="maskPhone(this)"
                                             style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
                                     </div>
                                     <div class="form-group"

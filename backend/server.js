@@ -13279,19 +13279,21 @@ app.get('/api/frota/status-manutencao', authenticateToken, (req, res) => {
 // =====================================================================
 
 app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
-    const { cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
-    if (!cliente_nome || !cliente_email) return res.status(400).json({ error: 'Nome e email são obrigatórios.' });
+    const { cliente_nome, os, cliente_email, cliente_whatsapp, apenas_dados, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
+    if (!cliente_nome || (!cliente_email && !cliente_whatsapp)) return res.status(400).json({ error: 'Nome e E-mail ou WhatsApp são obrigatórios.' });
 
     // Token placeholder único para satisfazer a constraint NOT NULL + UNIQUE
     // O token real só é gerado quando a Logística processar via /enviar
     const crypto = require('crypto');
     const tokenPlaceholder = 'SOLIC-' + crypto.randomBytes(12).toString('hex');
 
-    db.run(`INSERT INTO credenciamentos (cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, observacoes, status, token, solicitado_por_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', ?, ?)`,
+    db.run(`INSERT INTO credenciamentos (cliente_nome, os, cliente_email, cliente_whatsapp, apenas_dados, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, observacoes, status, token, solicitado_por_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', ?, ?)`,
         [
             cliente_nome,
             os || '',
-            cliente_email,
+            cliente_email || '',
+            cliente_whatsapp || '',
+            apenas_dados ? 1 : 0,
             endereco_instalacao || '',
             qtd_max_colaboradores || 0,
             qtd_max_veiculos || 0,
@@ -13525,13 +13527,15 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
 
 
 app.put('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
-    const { cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
+    const { cliente_nome, os, cliente_email, cliente_whatsapp, apenas_dados, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
 
-    db.run(`UPDATE credenciamentos SET cliente_nome = ?, os = ?, cliente_email = ?, endereco_instalacao = ?, qtd_max_colaboradores = ?, qtd_max_veiculos = ?, data_limite_envio = ?, docs_exigidos = ?, licencas_ids = ?, observacoes = ? WHERE id = ? AND status = 'solicitado'`,
+    db.run(`UPDATE credenciamentos SET cliente_nome = ?, os = ?, cliente_email = ?, cliente_whatsapp = ?, apenas_dados = ?, endereco_instalacao = ?, qtd_max_colaboradores = ?, qtd_max_veiculos = ?, data_limite_envio = ?, docs_exigidos = ?, licencas_ids = ?, observacoes = ? WHERE id = ? AND status = 'solicitado'`,
         [
             cliente_nome,
             os || '',
-            cliente_email,
+            cliente_email || '',
+            cliente_whatsapp || '',
+            apenas_dados ? 1 : 0,
             endereco_instalacao || '',
             qtd_max_colaboradores || 0,
             qtd_max_veiculos || 0,
@@ -13571,56 +13575,85 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                 const link = `${baseUrl}/credenciamento-publico.html?token=${token}`;
                 const logoUrl = `${baseUrl}/assets/logo-header.png`;
 
-                // Build HTML...
-                let htmlCols = (colaboradores || []).map(c => {
-                    const cpfInfo = c.cpf ? ` - CPF: ${c.cpf}` : '';
-                    const cnhInfo = (c.isMotorista && c.cnh) ? ` - CNH: ${c.cnh}` : '';
-                    return `<li><b>${c.nome || c.nome_completo}</b>${cpfInfo}${cnhInfo}</li>`;
-                }).join('');
-                let htmlVeics = (veiculos || []).map(v => {
-                    return `<li><b>${v.placa}</b> - ${v.marca_modelo_versao}</li>`;
-                }).join('');
+                // Construir texto_copia para o WhatsApp
+                let textoCopia = `*Credenciamento - ${cred.cliente_nome}*\n`;
+                if (cred.os) textoCopia += `OS: ${cred.os}\n`;
+                if (colaboradores && colaboradores.length > 0) {
+                    textoCopia += `\n*Equipe:*\n`;
+                    colaboradores.forEach(c => {
+                        textoCopia += `- ${c.nome || c.nome_completo}\n`;
+                        if (c.cargo) textoCopia += `  Cargo: ${c.cargo}\n`;
+                        if (c.cpf) textoCopia += `  CPF: ${c.cpf}\n`;
+                        if (c.rg) textoCopia += `  RG: ${c.rg}\n`;
+                        if (c.isMotorista && c.cnh) textoCopia += `  CNH: ${c.cnh}\n`;
+                    });
+                }
+                if (veiculos && veiculos.length > 0) {
+                    textoCopia += `\n*Veículos:*\n`;
+                    veiculos.forEach(v => {
+                        textoCopia += `- ${v.placa} - ${v.marca_modelo_versao}\n`;
+                    });
+                }
 
-                const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                if (!cred.apenas_dados) {
+                    textoCopia += `\n*Acesse os prontuários e documentos da equipe em:*\n${link}\n`;
+                }
 
-                const mailOptions = {
-                    from: `"América Rental (Logística)" <${process.env.EMAIL_USER}>`,
-                    to: cred.cliente_email,
-                    subject: `Credenciamento de Equipe - América Rental`,
-                    html: `
-                    <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow:hidden;">
-                        <div style="text-align: center; margin-bottom: 0;">
-                            <img src="cid:cred-logo" alt="América Rental" style="width:100%; max-height:120px; display:block; object-fit:cover;">
-                        </div>
-                        <h2 style="color: #2d9e5f; text-align: center;">Credenciamento de Equipe Liberado</h2>
-                        <p>Olá <b>${cred.cliente_nome}</b>,</p>
-                        <p>Os documentos e certificados da equipe alocada para sua obra/evento foram liberados e estão disponíveis para download.</p>
-                        
-                        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                            <h4 style="margin-top: 0; color: #0f172a;">Equipe:</h4>
-                            <ul style="margin: 0; padding-left: 20px;">${htmlCols}</ul>
-                            ${htmlVeics ? `<h4 style="margin-top: 15px; color: #0f172a;">Veículos:</h4><ul style="margin: 0; padding-left: 20px;">${htmlVeics}</ul>` : ''}
-                        </div>
+                if (cred.apenas_dados) {
+                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística enviou os dados do credenciamento da OS ${cred.os} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
+                    res.json({ message: 'Credenciamento processado (Apenas Dados).', link: null, texto_copia, apenas_dados: true, whatsapp: cred.cliente_whatsapp });
+                } else {
+                    if (cred.cliente_email && cred.cliente_email.includes('@')) {
+                        // Build HTML...
+                        let htmlCols = (colaboradores || []).map(c => {
+                            const cpfInfo = c.cpf ? ` - CPF: ${c.cpf}` : '';
+                            const cnhInfo = (c.isMotorista && c.cnh) ? ` - CNH: ${c.cnh}` : '';
+                            return `<li><b>${c.nome || c.nome_completo}</b>${cpfInfo}${cnhInfo}</li>`;
+                        }).join('');
+                        let htmlVeics = (veiculos || []).map(v => {
+                            return `<li><b>${v.placa}</b> - ${v.marca_modelo_versao}</li>`;
+                        }).join('');
 
-                        <div style="text-align: center; margin: 30px 0;">
-                            <a href="${link}" style="background: #2d9e5f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-                                Acessar Prontuários e Documentos
-                            </a>
-                        </div>
-                        <p style="text-align: center; font-size: 12px; color: #999;">
-                            <i>Este link expira automaticamente em 7 dias (até ${validUntil.toLocaleDateString('pt-BR')}).</i>
-                        </p>
-                    </div>`
-                };
+                        const mailOptions = {
+                            from: `"América Rental (Logística)" <${process.env.EMAIL_USER}>`,
+                            to: cred.cliente_email,
+                            subject: `Credenciamento de Equipe - América Rental`,
+                            html: `
+                            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow:hidden;">
+                                <div style="text-align: center; margin-bottom: 0;">
+                                    <img src="cid:cred-logo" alt="América Rental" style="width:100%; max-height:120px; display:block; object-fit:cover;">
+                                </div>
+                                <h2 style="color: #2d9e5f; text-align: center;">Credenciamento de Equipe Liberado</h2>
+                                <p>Olá <b>${cred.cliente_nome}</b>,</p>
+                                <p>Os documentos e certificados da equipe alocada para sua obra/evento foram liberados e estão disponíveis para download.</p>
+                                
+                                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                                    <h4 style="margin-top: 0; color: #0f172a;">Equipe:</h4>
+                                    <ul style="margin: 0; padding-left: 20px;">${htmlCols}</ul>
+                                    ${htmlVeics ? `<h4 style="margin-top: 15px; color: #0f172a;">Veículos:</h4><ul style="margin: 0; padding-left: 20px;">${htmlVeics}</ul>` : ''}
+                                </div>
 
-                sendMailHelper(mailOptions).then(() => {
-                    console.log('E-mail de credenciamento enviado com sucesso.');
-                }).catch(error => {
-                    console.error('Erro ao enviar e-mail de credenciamento:', error.message);
-                });
+                                <div style="text-align: center; margin: 30px 0;">
+                                    <a href="${link}" style="background: #2d9e5f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                                        Acessar Prontuários e Documentos
+                                    </a>
+                                </div>
+                                <p style="text-align: center; font-size: 12px; color: #999;">
+                                    <i>Este link expira automaticamente em 7 dias (até ${validUntil.toLocaleDateString('pt-BR')}).</i>
+                                </p>
+                            </div>`
+                        };
 
-                db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística enviou o credenciamento da OS ${cred.os} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
-                res.json({ message: 'E-mail de credenciamento enviado com sucesso.', link });
+                        sendMailHelper(mailOptions).then(() => {
+                            console.log('E-mail de credenciamento enviado com sucesso.');
+                        }).catch(error => {
+                            console.error('Erro ao enviar e-mail de credenciamento:', error.message);
+                        });
+                    }
+
+                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística enviou o credenciamento da OS ${cred.os} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
+                    res.json({ message: 'Credenciamento processado com sucesso.', link, texto_copia, apenas_dados: false, whatsapp: cred.cliente_whatsapp });
+                }
             }
         );
     });

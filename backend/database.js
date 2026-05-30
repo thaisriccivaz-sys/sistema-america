@@ -1082,6 +1082,10 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
             // Migration: adicionar coluna licencas_ids se nao existir
             db.run(`ALTER TABLE credenciamentos ADD COLUMN licencas_ids TEXT`, () => {});
+            
+            // Migrations para WhatsApp e Apenas Dados
+            db.run("ALTER TABLE credenciamentos ADD COLUMN cliente_whatsapp TEXT", () => {});
+            db.run("ALTER TABLE credenciamentos ADD COLUMN apenas_dados INTEGER DEFAULT 0", () => {});
 
     // Adicionar coluna acessado_em se nao existir
     db.run("ALTER TABLE credenciamentos ADD COLUMN acessado_em TEXT", (err) => {

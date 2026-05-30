@@ -134,6 +134,10 @@ window.abrirModalSolicitarCredenciamento = async function(id = null) {
         document.getElementById('solic-cliente-nome').value = '';
         document.getElementById('solic-os').value = '';
         document.getElementById('solic-cliente-email').value = '';
+        const inputWhats = document.getElementById('solic-cliente-whatsapp');
+        if (inputWhats) inputWhats.value = '';
+        const chkDados = document.getElementById('solic-apenas-dados');
+        if (chkDados) chkDados.checked = false;
         document.getElementById('solic-endereco-instalacao').value = '';
         document.getElementById('solic-qtd-colabs').value = 0;
         document.getElementById('solic-qtd-veiculos').value = 0;
@@ -148,6 +152,10 @@ window.abrirModalSolicitarCredenciamento = async function(id = null) {
             document.getElementById('solic-cliente-nome').value = item.cliente_nome || '';
             document.getElementById('solic-os').value = item.os || '';
             document.getElementById('solic-cliente-email').value = item.cliente_email || '';
+            const inputWhats = document.getElementById('solic-cliente-whatsapp');
+            if (inputWhats) inputWhats.value = item.cliente_whatsapp || '';
+            const chkDados = document.getElementById('solic-apenas-dados');
+            if (chkDados) chkDados.checked = item.apenas_dados == 1;
             document.getElementById('solic-endereco-instalacao').value = item.endereco_instalacao || '';
             document.getElementById('solic-qtd-colabs').value = item.qtd_max_colaboradores || 0;
             document.getElementById('solic-qtd-veiculos').value = item.qtd_max_veiculos || 0;
@@ -178,6 +186,8 @@ window.salvarSolicitacaoCredenciamento = async function() {
         cliente_nome: document.getElementById('solic-cliente-nome').value,
         os: document.getElementById('solic-os').value,
         cliente_email: document.getElementById('solic-cliente-email').value,
+        cliente_whatsapp: document.getElementById('solic-cliente-whatsapp') ? document.getElementById('solic-cliente-whatsapp').value : '',
+        apenas_dados: document.getElementById('solic-apenas-dados') && document.getElementById('solic-apenas-dados').checked ? 1 : 0,
         endereco_instalacao: document.getElementById('solic-endereco-instalacao').value,
         qtd_max_colaboradores: document.getElementById('solic-qtd-colabs').value || 0,
         qtd_max_veiculos: document.getElementById('solic-qtd-veiculos').value || 0,
@@ -187,8 +197,8 @@ window.salvarSolicitacaoCredenciamento = async function() {
         licencas: []
     };
     
-    if (!payload.cliente_nome || !payload.cliente_email) {
-        alert("Preencha Nome e E-mail do cliente.");
+    if (!payload.cliente_nome || (!payload.cliente_email && !payload.cliente_whatsapp)) {
+        alert("Preencha Nome e ao menos um contato (E-mail ou WhatsApp) do cliente.");
         return;
     }
     
@@ -449,7 +459,11 @@ window.ordenarHistoricoComCred = function(coluna, forceDir = null) {
             <td><b>${cred.os || '-'}</b></td>
             <td>
                 <b>${cred.cliente_nome}</b><br>
-                <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
+                <span style="font-size:0.8rem; color:#64748b;">
+                    ${cred.cliente_email ? `<i class="ph ph-envelope-simple"></i> ${cred.cliente_email}` : ''}
+                    ${cred.cliente_whatsapp ? ` <i class="ph ph-whatsapp-logo" style="color:#22c55e;"></i> ${cred.cliente_whatsapp}` : ''}
+                    ${cred.apenas_dados ? ` <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:0.7rem; border:1px solid #cbd5e1; margin-left: 4px;">Apenas Dados</span>` : ''}
+                </span>
                 ${cred.endereco_instalacao ? `<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> ${cred.endereco_instalacao}</span>` : ''}
             </td>
             <td>${cred.qtd_max_colaboradores || 0}</td>

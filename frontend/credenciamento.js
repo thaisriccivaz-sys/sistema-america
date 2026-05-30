@@ -673,7 +673,11 @@ window.gerarEnviarCredenciamento = async function() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao enviar credenciamento.');
 
-        alert('✅ Credenciamento gerado e e-mail enviado com sucesso!');
+        if (data.apenas_dados || data.whatsapp) {
+            window.abrirPopupCopiaTextoCred(data.texto_copia, data.whatsapp, data.apenas_dados, data.message);
+        } else {
+            alert('✅ Credenciamento gerado e e-mail enviado com sucesso!');
+        }
 
         if (document.getElementById('cred-cliente-nome')) document.getElementById('cred-cliente-nome').value = '';
         if (document.getElementById('cred-cliente-email')) document.getElementById('cred-cliente-email').value = '';
@@ -801,6 +805,46 @@ window.abrirModalCumprirSolicitacao = function(id) {
 window.fecharModalNovoCredenciamento = function() {
     const modal = document.getElementById('modal-novo-credenciamento');
     if (modal) modal.style.display = 'none';
+};
+
+window.abrirPopupCopiaTextoCred = function(texto, whatsapp, apenasDados, message) {
+    let msg = message || 'Ação realizada com sucesso.';
+    let extraHTML = '';
+    
+    if (whatsapp) {
+        const linkWhats = `https://wa.me/55${whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(texto)}`;
+        extraHTML += `
+            <div style="margin-top:15px; text-align:center;">
+                <a href="${linkWhats}" target="_blank" class="btn btn-primary" style="background:#25D366; border-color:#25D366; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
+                    <i class="ph ph-whatsapp-logo"></i> Abrir WhatsApp
+                </a>
+            </div>
+        `;
+    }
+    
+    const popupHtml = `
+        <div id="modal-popup-copia-cred" class="modal" style="display:flex; z-index:11000; align-items:center; justify-content:center;">
+            <div class="modal-content" style="max-width:500px; padding:20px; border-radius:10px;">
+                <h3 style="margin-top:0; color:#1e293b;"><i class="ph ph-check-circle" style="color:#16a34a;"></i> ${apenasDados ? 'Apenas Dados' : 'Aviso pelo WhatsApp'}</h3>
+                <p style="color:#475569; font-size:0.95rem; margin-bottom:15px;">${msg}</p>
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px;">
+                    <textarea id="texto-copia-cred" style="width:100%; height:150px; border:none; background:transparent; resize:none; font-family:monospace; font-size:0.85rem;" readonly>${texto}</textarea>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top:15px; align-items:center;">
+                    <button class="btn btn-outline" onclick="document.getElementById('modal-popup-copia-cred').remove()">Fechar</button>
+                    <button class="btn btn-primary" onclick="navigator.clipboard.writeText(document.getElementById('texto-copia-cred').value); alert('Copiado para a área de transferência!');">
+                        <i class="ph ph-copy"></i> Copiar Texto
+                    </button>
+                </div>
+                ${extraHTML}
+            </div>
+        </div>
+    `;
+    
+    const old = document.getElementById('modal-popup-copia-cred');
+    if (old) old.remove();
+    
+    document.body.insertAdjacentHTML('beforeend', popupHtml);
 };
 
 // ── Histórico de Credenciamentos ─────────────────────────────────────────────
