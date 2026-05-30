@@ -595,7 +595,7 @@ async function validarVencimentosCredenciamento() {
 
                     if (!docFound) {
                         erros.push(`O documento "${docName}" do colaborador(a) ${nomeColab} é INEXISTENTE. Contacte o setor de RH para atualização.`);
-                    } else if (docFound.vencimento && new Date(docFound.vencimento + 'T12:00:00') < hoje) {
+                    } else if (reqDoc !== 'cpf' && docFound.vencimento && new Date(docFound.vencimento + 'T12:00:00') < hoje) {
                         erros.push(`O documento "${docName}" do colaborador(a) ${nomeColab} está VENCIDO (${docFound.vencimento.split('-').reverse().join('/')}). Contacte o setor de RH.`);
                     }
                 }
