@@ -15812,15 +15812,13 @@ app.delete('/api/estoque/:id', authenticateToken, (req, res) => {
 
 app.get('/api/fix-thais', (req, res) => {
     db.serialize(() => {
-        db.run("DELETE FROM experiencia_formularios WHERE responsavel_nome = '-' OR responsavel_nome = ' - ' OR responsavel_nome IS NULL", function(err) {
-            if (err) console.error("Error deleting hyphens:", err);
-            db.run("DELETE FROM experiencia_formularios WHERE colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Thais Ricci%')", function(err2) {
-                if (err2) console.error("Error deleting Thais:", err2);
-                db.run("DELETE FROM departamentos WHERE id NOT IN (SELECT MAX(id) FROM departamentos GROUP BY LOWER(TRIM(nome)))", function(err3) {
-                    if (err3) console.error("Error cleaning depts:", err3);
-                    res.send(`Limpeza concluida! Formulários com hífen removidos. Formulários da Thais apagados. ${this.changes || 0} departamentos duplicados apagados. Pode fechar esta aba e atualizar o sistema.`);
-                });
-            });
+        // Apaga apenas os departamentos duplicados (mantendo o ID original / mais antigo, ex: ID 1)
+        db.run("DELETE FROM departamentos WHERE id NOT IN (SELECT MIN(id) FROM departamentos GROUP BY LOWER(TRIM(nome)))", function(err) {
+            if (err) {
+                console.error("Error cleaning depts:", err);
+                return res.status(500).send("Erro ao limpar departamentos: " + err.message);
+            }
+            res.send(`Limpeza concluida! ${this.changes || 0} departamentos duplicados apagados (mantivemos o original de menor ID). Os formulários NÃO foram apagados. Pode fechar esta aba e atualizar o sistema.`);
         });
     });
 });
