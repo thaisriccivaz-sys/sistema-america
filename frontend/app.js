@@ -12840,7 +12840,7 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'licenca_vencida') {
                     bg = '#fef2f2'; color = '#ef4444'; icon = 'ph-warning-circle'; titulo = 'Licença Vencida'; navTarget = 'admin'; // Navigates to admin panel or wherever licencas are managed
                 } else if (notif.tipo === 'formulario_experiencia') {
-                    bg = '#dbeafe'; color = '#1d4ed8'; icon = 'ph-clipboard-text'; titulo = 'Experiência'; navTarget = 'experiencia';
+                    bg = '#fdf2f8'; color = '#ec4899'; icon = 'ph-clipboard-text'; titulo = 'Experiência'; navTarget = 'experiencia';
                 } else if (notif.tipo === 'novo_sinistro') {
                     bg = '#dcfce7'; color = '#059669'; icon = 'ph-warning'; titulo = 'Novo Sinistro (Logística)'; navTarget = 'colaboradores';
                 } else if (notif.tipo === 'estoque_minimo') {
@@ -12912,6 +12912,23 @@ async function checkUserNotificacoes() {
                         <div style="display:flex;gap:12px;font-size:0.82rem;">
                             <span style="color:#ef4444;font-weight:700;"><i class="ph ph-arrow-down"></i> Atual: ${qtdAtual}</span>
                             <span style="color:#64748b;">Mínimo: ${qtdMin}</span>
+                        </div>
+                    `;
+                } else if (notif.tipo === 'formulario_experiencia') {
+                    const colabNome = dados.colaborador_nome || 'Colaborador';
+                    const respNome = dados.responsavel_nome || 'Gestor';
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#475569;background:#f1f5f9;padding:4px 8px;border-radius:4px;font-weight:700;font-size:1rem;margin-bottom:6px;display:inline-block;">
+                            ${colabNome}
+                        </div>
+                        <div style="color:#64748b;font-size:0.85rem;margin-bottom:4px;">
+                            ${notif.mensagem}
+                        </div>
+                        <div style="color:#94a3b8;font-size:0.75rem;">
+                            Preenchido por: ${respNome}
                         </div>
                     `;
                 } else {

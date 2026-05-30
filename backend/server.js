@@ -10549,7 +10549,7 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                             db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'formulario_experiencia'", [], (errC, rowsC) => {
                                 if (!errC && rowsC && rowsC.length > 0) {
                                     const msg = `O gestor enviou o formulário de experiência finalizado.`;
-                                    const dados = JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao });
+                                    const dados = JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao, responsavel_nome: colab.responsavel_nome });
                                     rowsC.forEach(c => {
                                         db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'formulario_experiencia', msg, dados]);
                                     });
@@ -10586,7 +10586,7 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                             db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'formulario_experiencia'", [], (errC, rowsC) => {
                                 if (!errC && rowsC && rowsC.length > 0) {
                                     const msg = `O gestor enviou o formulário de experiência finalizado.`;
-                                    const dados = JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao });
+                                    const dados = JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao, responsavel_nome: colab.responsavel_nome });
                                     rowsC.forEach(c => {
                                         db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'formulario_experiencia', msg, dados]);
                                     });
