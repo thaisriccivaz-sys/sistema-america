@@ -859,19 +859,6 @@ window.mudarTipoEnvioLogistica = function() {
 
 window.abrirPopupCopiaTextoCred = function(texto, whatsapp, apenasDados, message) {
     let msg = message || 'Ação realizada com sucesso.';
-    let extraHTML = '';
-    
-    if (whatsapp) {
-        const linkWhats = `https://wa.me/55${whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(texto)}`;
-        extraHTML += `
-            <div style="margin-top:15px; text-align:center;">
-                <a href="${linkWhats}" target="_blank" class="btn btn-primary" style="background:#25D366; border-color:#25D366; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
-                    <i class="ph ph-whatsapp-logo"></i> Abrir WhatsApp
-                </a>
-            </div>
-        `;
-    }
-    
     const popupHtml = `
         <div id="modal-popup-copia-cred" class="modal" style="display:flex; z-index:11000; align-items:center; justify-content:center;">
             <div class="modal-content" style="max-width:500px; padding:20px; border-radius:10px;">
@@ -886,7 +873,6 @@ window.abrirPopupCopiaTextoCred = function(texto, whatsapp, apenasDados, message
                         <i class="ph ph-copy"></i> Copiar Texto
                     </button>
                 </div>
-                ${extraHTML}
             </div>
         </div>
     `;
