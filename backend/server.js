@@ -13604,7 +13604,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                     textoCopia += `\n*Acesse os prontuários e documentos da equipe em:*\n${link}\n`;
                 }
 
-                if (cred.apenas_dados || finalTipoEnvio === 'whatsapp') {
+                if (finalTipoEnvio === 'whatsapp') {
                     db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística processou o credenciamento da OS ${cred.os || '-'} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
                     res.json({ message: 'Credenciamento processado.', link: cred.apenas_dados ? null : link, texto_copia: textoCopia, apenas_dados: !!cred.apenas_dados, whatsapp: finalWhatsapp, tipo_envio: finalTipoEnvio });
                 } else {
@@ -13613,17 +13613,33 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                         let htmlCols = (colaboradores || []).map(c => {
                             const cpfInfo = c.cpf ? ` - CPF: ${c.cpf}` : '';
                             const cnhInfo = (c.isMotorista && c.cnh) ? ` - CNH: ${c.cnh}` : '';
-                            return `<li><b>${c.nome || c.nome_completo}</b>${cpfInfo}${cnhInfo}</li>`;
+                            const cargoInfo = c.cargo ? ` - Cargo: ${c.cargo}` : '';
+                            return `<li><b>${c.nome || c.nome_completo}</b>${cargoInfo}${cpfInfo}${cnhInfo}</li>`;
                         }).join('');
                         let htmlVeics = (veiculos || []).map(v => {
-                            return `<li><b>${v.placa}</b> - ${v.marca_modelo_versao}</li>`;
+                            return `<li><b>${v.placa}</b> - ${v.modelo || v.marca_modelo_versao}</li>`;
                         }).join('');
 
-                        const mailOptions = {
-                            from: `"América Rental (Logística)" <${process.env.EMAIL_USER}>`,
-                            to: cred.cliente_email,
-                            subject: `Credenciamento de Equipe - América Rental`,
-                            html: `
+                        let emailHtml = '';
+                        if (cred.apenas_dados) {
+                            emailHtml = `
+                            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow:hidden;">
+                                <div style="text-align: center; margin-bottom: 0;">
+                                    <img src="cid:cred-logo" alt="América Rental" style="width:100%; max-height:120px; display:block; object-fit:cover;">
+                                </div>
+                                <h2 style="color: #2d9e5f; text-align: center;">Dados do Credenciamento</h2>
+                                <p>Olá <b>${cred.cliente_nome}</b>,</p>
+                                <p>Abaixo estão os dados dos colaboradores e veículos credenciados para a sua obra/evento:</p>
+                                
+                                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                                    <h4 style="margin-top: 0; color: #0f172a;">Equipe:</h4>
+                                    <ul style="margin: 0; padding-left: 20px;">${htmlCols}</ul>
+                                    ${htmlVeics ? `<h4 style="margin-top: 15px; color: #0f172a;">Veículos:</h4><ul style="margin: 0; padding-left: 20px;">${htmlVeics}</ul>` : ''}
+                                </div>
+                                <p style="text-align: center; font-size: 12px; color: #999;"><i>Este envio contém apenas os dados solicitados, sem anexos adicionais.</i></p>
+                            </div>`;
+                        } else {
+                            emailHtml = `
                             <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow:hidden;">
                                 <div style="text-align: center; margin-bottom: 0;">
                                     <img src="cid:cred-logo" alt="América Rental" style="width:100%; max-height:120px; display:block; object-fit:cover;">
@@ -13646,7 +13662,14 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                                 <p style="text-align: center; font-size: 12px; color: #999;">
                                     <i>Este link expira automaticamente em 7 dias (até ${validUntil.toLocaleDateString('pt-BR')}).</i>
                                 </p>
-                            </div>`
+                            </div>`;
+                        }
+
+                        const mailOptions = {
+                            from: `"América Rental (Logística)" <${process.env.EMAIL_USER}>`,
+                            to: cred.cliente_email,
+                            subject: `Credenciamento de Equipe - América Rental`,
+                            html: emailHtml
                         };
 
                         sendMailHelper(mailOptions).then(() => {
@@ -13656,8 +13679,8 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                         });
                     }
 
-                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística enviou o credenciamento da OS ${cred.os} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
-                    res.json({ message: 'Credenciamento processado com sucesso.', link, texto_copia, apenas_dados: false, whatsapp: cred.cliente_whatsapp });
+                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística enviou o credenciamento da OS ${cred.os || '-'} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
+                    res.json({ message: 'Credenciamento processado com sucesso.', link, texto_copia: textoCopia, apenas_dados: false, whatsapp: cred.cliente_whatsapp });
                 }
             }
         );
@@ -13751,11 +13774,18 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
 
                 let htmlCols = (colaboradores || []).map(c => {
                     const cData = colabData.find(col => col.id === c.id);
-                    const docCpf = c.cpf || (cData && cData.cpf) || '';
-                    const cpfInfo = docCpf ? ` - CPF: ${docCpf}` : '';
-                    return `<li><b>${c.nome || c.nome_completo}</b>${cpfInfo}</li>`;
+                    const nome = c.nome || c.nome_completo || '';
+                    const cargo = c.cargo || (cData && cData.cargo) || '';
+                    const cpf = c.cpf || (cData && cData.cpf) || '';
+                    const cnh = c.cnh || (cData && cData.cnh) || '';
+                    const isMotorista = cargo.toUpperCase().includes('MOTORISTA');
+                    let linha = nome;
+                    if (cargo) linha += ` - ${cargo}`;
+                    if (cpf) linha += ` - CPF: ${cpf}`;
+                    if (isMotorista && cnh) linha += ` - CNH: ${cnh}`;
+                    return `<li>${linha}</li>`;
                 }).join('');
-                let htmlVeic = (veiculos || []).map(v => `<li>Placa: ${v.placa} - ${v.modelo}</li>`).join('');
+                let htmlVeic = (veiculos || []).map(v => `<li>Placa: ${v.placa} - ${v.modelo || ''}</li>`).join('');
 
                 // Montar bloco de licenças para o e-mail
                 let htmlLicencas = '';
@@ -13821,42 +13851,74 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
 
                 const envTipo = tipo_envio || 'email';
                 let texto_copia = '';
-                if (envTipo === 'whatsapp' || apenas_dados) {
-                    let txtCols = (colaboradores || []).map(c => `• ${c.nome || c.nome_completo}${c.cpf ? ` (CPF: ${c.cpf})` : ''}`).join('\n');
-                    let txtVeic = (veiculos || []).map(v => `• Placa: ${v.placa} - ${v.modelo}`).join('\n');
-                    let txtLics = (licencas || []).map(l => `• ${l.nome} (${l.empresa || 'América Rental'})`).join('\n');
-                    
-                    texto_copia = `*Credenciamento de Equipe e Veículos - América Rental*\n`;
-                    texto_copia += `Olá *${cliente_nome}*,\n\nAbaixo os dados credenciados da OS *${os || '-'}*:\n\n`;
-                    if (txtCols) texto_copia += `*Colaboradores:*\n${txtCols}\n\n`;
-                    if (txtVeic) texto_copia += `*Veículos:*\n${txtVeic}\n\n`;
-                    if (txtLics) texto_copia += `*Licenças:*\n${txtLics}\n\n`;
-                    
-                    if (!apenas_dados) {
-                        texto_copia += `Você pode baixar e acessar os documentos oficiais no link seguro (válido por 7 dias):\n${link}\n\n`;
-                    } else {
-                        texto_copia += `Este envio contém apenas os dados solicitados, sem anexos adicionais.\n\n`;
-                    }
-                    texto_copia += `Atenciosamente,\nEquipe América Rental`;
-                    
-                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [req.user.id, `A Logística enviou os dados/link da OS ${os || '-'} para o cliente ${cliente_nome} (Gerado via ${envTipo}).`, JSON.stringify({ cliente_nome: cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
-                    return res.json({ ok: true, message: 'Dados gerados com sucesso.', link, texto_copia, apenas_dados, whatsapp: cliente_whatsapp });
+                let txtCols = (colaboradores || []).map(c => {
+                    const cData = colabData.find(col => col.id === c.id);
+                    const nome = c.nome || c.nome_completo || '';
+                    const cargo = c.cargo || (cData && cData.cargo) || '';
+                    const cpf = c.cpf || (cData && cData.cpf) || '';
+                    const cnh = c.cnh || (cData && cData.cnh) || '';
+                    const isMotorista = cargo.toUpperCase().includes('MOTORISTA');
+                    let linha = nome;
+                    if (cargo) linha += ` - ${cargo}`;
+                    if (cpf) linha += ` - CPF: ${cpf}`;
+                    if (isMotorista && cnh) linha += ` - CNH: ${cnh}`;
+                    return `• ${linha}`;
+                }).join('\n');
+                let txtVeic = (veiculos || []).map(v => `• Placa: ${v.placa} - ${v.modelo || ''}`).join('\n');
+                let txtLics = (licencas || []).map(l => `• ${l.nome} (${l.empresa || 'América Rental'})`).join('\n');
+                
+                texto_copia = `*Credenciamento de Equipe e Veículos - América Rental*\n`;
+                texto_copia += `Olá *${cliente_nome}*,\n\nAbaixo os dados credenciados da OS *${os || '-'}*:\n\n`;
+                if (txtCols) texto_copia += `*Colaboradores:*\n${txtCols}\n\n`;
+                if (txtVeic) texto_copia += `*Veículos:*\n${txtVeic}\n\n`;
+                if (txtLics) texto_copia += `*Licenças:*\n${txtLics}\n\n`;
+                
+                if (!apenas_dados) {
+                    texto_copia += `Você pode baixar e acessar os documentos oficiais no link seguro (válido por 7 dias):\n${link}\n\n`;
+                } else {
+                    texto_copia += `Este envio contém apenas os dados solicitados, sem anexos adicionais.\n\n`;
                 }
+                texto_copia += `Atenciosamente,\nEquipe América Rental`;
 
-                try {
-                    const transporter = require('nodemailer').createTransport(SMTP_CONFIG);
-                    await sendMailHelper(mailOptions);
-                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [req.user.id, `A Logística enviou o credenciamento da OS ${os || '-'} para o cliente ${cliente_nome}.`, JSON.stringify({ cliente_nome: cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
-                    res.json({ ok: true, message: 'E-mail de credenciamento enviado com sucesso!' });
-                } catch (mailErr) {
-                    res.status(500).json({ error: 'Erro ao enviar e-mail: ' + mailErr.message });
+                if (envTipo === 'whatsapp') {
+                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [req.user.id, `A Logística enviou os dados/link da OS ${os || '-'} para o cliente ${cliente_nome} via WhatsApp.`, JSON.stringify({ cliente_nome: cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
+                    return res.json({ ok: true, message: 'Dados gerados com sucesso.', link: apenas_dados ? null : link, texto_copia, apenas_dados, whatsapp: cliente_whatsapp });
+                } else {
+                    // Se for e-mail, pode ter sido escolhido apenas_dados ou não. Em ambos os casos, envia o e-mail.
+                    // Ajustar mailOptions se for apenas_dados
+                    if (apenas_dados) {
+                        mailOptions.html = `
+                        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+                            <div style="background-color: #fff; padding: 0;">
+                                <img src="cid:cred-logo" alt="América Rental" style="width: 100%; display: block; max-height: 120px; object-fit: cover;">
+                            </div>
+                            <div style="background-color: #16a34a; padding: 15px; text-align: center; color: white;">
+                                <h2 style="margin: 0; font-size: 20px;">Dados do Credenciamento</h2>
+                            </div>
+                            <div style="padding: 20px;">
+                                <p>Olá <b>${cliente_nome}</b>,</p>
+                                <p>Abaixo estão os dados dos colaboradores e veículos credenciados para a sua obra/evento:</p>
+                                ${htmlCols ? `<h3>Colaboradores</h3><ul>${htmlCols}</ul>` : ''}
+                                ${htmlVeic ? `<h3>Veículos</h3><ul>${htmlVeic}</ul>` : ''}
+                                <p style="text-align: center; font-size: 12px; color: #999;"><i>Este envio contém apenas os dados solicitados, sem anexos adicionais.</i></p>
+                            </div>
+                        </div>`;
+                    }
+                    
+                    try {
+                        await sendMailHelper(mailOptions);
+                        db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [req.user.id, `A Logística enviou o credenciamento da OS ${os || '-'} para o cliente ${cliente_nome}.`, JSON.stringify({ cliente_nome: cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
+                        res.json({ ok: true, message: 'E-mail de credenciamento enviado com sucesso!', link: apenas_dados ? null : link, texto_copia, apenas_dados, whatsapp: cliente_whatsapp });
+                    } catch (mailErr) {
+                        res.status(500).json({ error: 'Erro ao enviar e-mail: ' + mailErr.message });
+                    }
                 }
             }
         );
     };
 
     if (colabIds.length > 0) {
-        db.all(`SELECT id, nome_completo, cpf, cargo, foto_base64, foto_path FROM colaboradores WHERE id IN (${colabIds.join(',')})`, (err, colabRows) => {
+        db.all(`SELECT id, nome_completo, cpf, cnh, cargo, foto_base64, foto_path FROM colaboradores WHERE id IN (${colabIds.join(',')})`, (err, colabRows) => {
             if (err) return res.status(500).json({ error: err.message });
             db.all(`SELECT colaborador_id, document_type, tab_name FROM documentos WHERE colaborador_id IN (${colabIds.join(',')})`, (err2, docRows) => {
                 if (err2) return res.status(500).json({ error: err2.message });

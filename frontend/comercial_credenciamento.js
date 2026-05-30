@@ -444,6 +444,8 @@ window.ordenarHistoricoComCred = function(coluna, forceDir = null) {
         let acoes = '';
         if (cred.status === 'solicitado') {
             acoes = `<button class="btn btn-warning btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalSolicitarCredenciamento('${cred.id}')" title="Editar Solicitação"><i class="ph ph-pencil-simple"></i></button>`;
+        } else if (cred.tipo_envio === 'whatsapp') {
+            acoes = `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.copiarDadosComercial('${cred.id}')" title="Copiar Dados do WhatsApp"><i class="ph ph-copy"></i></button>`;
         } else if (cred.token) {
             acoes = `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.reenviarEmailCredenciamento('${cred.id}', '${cred.cliente_email}')" title="Reenviar E-mail"><i class="ph ph-envelope-simple"></i></button>`;
         }
@@ -594,5 +596,55 @@ window.toggleCredDetails = function(btn, id) {
         el.style.display = 'none';
         btn.innerHTML = '<i class="ph ph-caret-down"></i>';
         btn.classList.replace('btn-secondary', 'btn-outline');
+    }
+};
+
+window.copiarDadosComercial = function(id) {
+    const cred = (window._historicoComCredDados || []).find(c => String(c.id) === String(id));
+    if (!cred) {
+        alert('Credenciamento não encontrado.');
+        return;
+    }
+
+    const colabs = cred.colaboradores_ids ? JSON.parse(cred.colaboradores_ids) : [];
+    const veics = cred.veiculos_ids ? JSON.parse(cred.veiculos_ids) : [];
+    const licencas = cred.licencas_ids ? JSON.parse(cred.licencas_ids) : [];
+
+    const txtCols = colabs.map(c => {
+        const nome = c.nome || c.nome_completo || '';
+        const cargo = c.cargo || '';
+        const cpf = c.cpf || '';
+        const cnh = c.cnh || '';
+        const isMotorista = cargo.toUpperCase().includes('MOTORISTA');
+        let linha = nome;
+        if (cargo) linha += ` - ${cargo}`;
+        if (cpf) linha += ` - CPF: ${cpf}`;
+        if (isMotorista && cnh) linha += ` - CNH: ${cnh}`;
+        return `• ${linha}`;
+    }).join('\n');
+    const txtVeic = veics.map(v => `• Placa: ${v.placa} - ${v.modelo || v.marca_modelo_versao || ''}`).join('\n');
+    const txtLics = licencas.map(l => `• ${l.nome} (${l.empresa || 'América Rental'})`).join('\n');
+
+    let texto_copia = `*Credenciamento de Equipe e Veículos - América Rental*\n`;
+    texto_copia += `Olá *${cred.cliente_nome}*,\n\nAbaixo os dados credenciados da OS *${cred.os || '-'}*:\n\n`;
+    if (txtCols) texto_copia += `*Colaboradores:*\n${txtCols}\n\n`;
+    if (txtVeic) texto_copia += `*Veículos:*\n${txtVeic}\n\n`;
+    if (txtLics) texto_copia += `*Licenças:*\n${txtLics}\n\n`;
+
+    const baseUrl = window.location.origin;
+    const link = `${baseUrl}/credenciamento-publico.html?token=${cred.token}`;
+
+    if (!cred.apenas_dados) {
+        texto_copia += `Você pode baixar e acessar os documentos oficiais no link seguro (válido por 7 dias):\n${link}\n\n`;
+    } else {
+        texto_copia += `Este envio contém apenas os dados solicitados, sem anexos adicionais.\n\n`;
+    }
+    texto_copia += `Atenciosamente,\nEquipe América Rental`;
+
+    if (typeof window.abrirPopupCopiaTextoCred === 'function') {
+        window.abrirPopupCopiaTextoCred(texto_copia, cred.cliente_whatsapp, cred.apenas_dados, 'Dados do credenciamento prontos para cópia.');
+    } else {
+        navigator.clipboard.writeText(texto_copia);
+        alert('Dados do credenciamento copiados para a área de transferência!');
     }
 };

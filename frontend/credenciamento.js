@@ -610,10 +610,20 @@ async function validarVencimentosCredenciamento() {
 window.gerarEnviarCredenciamento = async function() {
     const clienteNome = (document.getElementById('cred-cliente-nome') || {}).value?.trim();
     const clienteEmail = (document.getElementById('cred-cliente-email') || {}).value?.trim();
+    const tipoEnvio = (document.getElementById('cred-tipo-envio') || {}).value || 'email';
+    const clienteWhatsapp = (document.getElementById('cred-cliente-whatsapp') || {}).value?.trim();
     const enderecoInstalacao = (document.getElementById('cred-endereco-instalacao') || {}).value?.trim() || '';
 
-    if (!clienteNome || !clienteEmail) {
-        alert('Por favor, preencha o nome e e-mail do cliente.');
+    if (!clienteNome) {
+        alert('Por favor, preencha o nome do cliente.');
+        return;
+    }
+    if (tipoEnvio === 'email' && !clienteEmail) {
+        alert('Por favor, preencha o e-mail do cliente para envio por e-mail.');
+        return;
+    }
+    if (tipoEnvio === 'whatsapp' && !clienteWhatsapp) {
+        alert('Por favor, preencha o WhatsApp do cliente para envio por WhatsApp.');
         return;
     }
 
@@ -637,13 +647,13 @@ window.gerarEnviarCredenciamento = async function() {
     const payload = {
         cliente_nome: clienteNome,
         cliente_email: clienteEmail,
-        tipo_envio: (document.getElementById('cred-tipo-envio') || {}).value || 'email',
-        cliente_whatsapp: (document.getElementById('cred-cliente-whatsapp') || {}).value || '',
+        tipo_envio: tipoEnvio,
+        cliente_whatsapp: clienteWhatsapp || '',
         endereco_instalacao: enderecoInstalacao,
         os: osValue,
         colaboradores: credenciamentoState.selecionadosColabs.map(idStr => {
             const c = credenciamentoState.colaboradores.find(col => String(col.id) === idStr);
-            return { id: parseInt(idStr), nome: c ? c.nome_completo : idStr, cpf: c ? c.cpf : '', cnh: c ? c.cnh : '', isMotorista: c && c.cargo && c.cargo.toUpperCase().includes('MOTORISTA') };
+            return { id: parseInt(idStr), nome: c ? c.nome_completo : idStr, cargo: c ? c.cargo : '', cpf: c ? c.cpf : '', cnh: c ? c.cnh : '', isMotorista: c && c.cargo && c.cargo.toUpperCase().includes('MOTORISTA') };
         }),
         veiculos: credenciamentoState.selecionadosVeic.map(idStr => {
             const v = credenciamentoState.veiculos.find(ve => String(ve.id) === idStr);
@@ -1108,7 +1118,7 @@ window._renderizarTabelaHistorico = function(dados) {
             <td style="font-size:0.85rem;">${statusBadge}</td>
             <td style="text-align:right; white-space:nowrap;">
                 <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="toggleCredDetails(this, 'log-cred-det-${cred.id}')" title="Ver Detalhes"><i class="ph ph-caret-down"></i></button>
-                ${cred.status === 'solicitado' ? `<button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-plus"></i> Atender</button>` : (cred.token ? `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.reenviarEmailCredenciamento('${cred.id}', '${cred.cliente_email}')"><i class="ph ph-envelope-simple"></i> Reenviar</button>` : '')}
+                ${cred.status === 'solicitado' ? `<button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-plus"></i> Atender</button>` : (cred.tipo_envio === 'whatsapp' ? `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.copiarDadosCredenciamento('${cred.id}')" title="Copiar Dados do WhatsApp"><i class="ph ph-copy"></i> Copiar Dados</button>` : (cred.token ? `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.reenviarEmailCredenciamento('${cred.id}', '${cred.cliente_email}')"><i class="ph ph-envelope-simple"></i> Reenviar</button>` : ''))}
             </td>
         </tr>
         <tr id="log-cred-det-${cred.id}" style="display:none; background:#f8fafc;">
@@ -1222,6 +1232,51 @@ window.reenviarEmailCredenciamento = async function(id, emailAtual) {
     } catch(err) {
         alert('Erro ao reenviar e-mail: ' + err.message);
     }
+};
+
+window.copiarDadosCredenciamento = function(id) {
+    const cred = (window._historicoCredDados || []).find(c => String(c.id) === String(id));
+    if (!cred) {
+        alert('Credenciamento não encontrado.');
+        return;
+    }
+
+    const colabs = cred.colaboradores_ids ? JSON.parse(cred.colaboradores_ids) : [];
+    const veics = cred.veiculos_ids ? JSON.parse(cred.veiculos_ids) : [];
+    const licencas = cred.licencas_ids ? JSON.parse(cred.licencas_ids) : [];
+
+    const txtCols = colabs.map(c => {
+        const nome = c.nome || c.nome_completo || '';
+        const cargo = c.cargo || '';
+        const cpf = c.cpf || '';
+        const cnh = c.cnh || '';
+        const isMotorista = cargo.toUpperCase().includes('MOTORISTA');
+        let linha = nome;
+        if (cargo) linha += ` - ${cargo}`;
+        if (cpf) linha += ` - CPF: ${cpf}`;
+        if (isMotorista && cnh) linha += ` - CNH: ${cnh}`;
+        return `• ${linha}`;
+    }).join('\n');
+    const txtVeic = veics.map(v => `• Placa: ${v.placa} - ${v.modelo || v.marca_modelo_versao || ''}`).join('\n');
+    const txtLics = licencas.map(l => `• ${l.nome} (${l.empresa || 'América Rental'})`).join('\n');
+
+    let texto_copia = `*Credenciamento de Equipe e Veículos - América Rental*\n`;
+    texto_copia += `Olá *${cred.cliente_nome}*,\n\nAbaixo os dados credenciados da OS *${cred.os || '-'}*:\n\n`;
+    if (txtCols) texto_copia += `*Colaboradores:*\n${txtCols}\n\n`;
+    if (txtVeic) texto_copia += `*Veículos:*\n${txtVeic}\n\n`;
+    if (txtLics) texto_copia += `*Licenças:*\n${txtLics}\n\n`;
+
+    const baseUrl = window.location.origin;
+    const link = `${baseUrl}/credenciamento-publico.html?token=${cred.token}`;
+
+    if (!cred.apenas_dados) {
+        texto_copia += `Você pode baixar e acessar os documentos oficiais no link seguro (válido por 7 dias):\n${link}\n\n`;
+    } else {
+        texto_copia += `Este envio contém apenas os dados solicitados, sem anexos adicionais.\n\n`;
+    }
+    texto_copia += `Atenciosamente,\nEquipe América Rental`;
+
+    window.abrirPopupCopiaTextoCred(texto_copia, cred.cliente_whatsapp, cred.apenas_dados, 'Dados do credenciamento prontos para cópia.');
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
