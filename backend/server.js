@@ -9520,30 +9520,10 @@ function gerarEmailExperienciaHTML({ respNome, nomeCompleto, cargo, prazos, dias
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
 
-      <!-- HEADER COLORIDO -->
+      <!-- HEADER IMAGEM -->
       <tr>
-        <td style="background:linear-gradient(135deg,#0f4c81 0%,#1d7bbf 40%,#2db0d8 70%,#5bc8de 100%);padding:0;height:90px;position:relative;">
-          <table width="100%" cellpadding="0" cellspacing="0">
-            <tr>
-              <td width="60%" style="padding:20px 28px;">
-                <img src="${logoUrl}" alt="América Rental" style="max-height:52px;max-width:200px;">
-              </td>
-              <td width="40%" align="right" style="padding:12px 24px 0 0;vertical-align:top;">
-                <table cellpadding="0" cellspacing="3" align="right">
-                  <tr>
-                    <td style="width:28px;height:28px;background:rgba(255,255,255,0.25);border-radius:6px;"></td>
-                    <td style="width:28px;height:28px;background:rgba(255,255,255,0.18);border-radius:6px;"></td>
-                    <td style="width:28px;height:28px;background:rgba(255,255,255,0.10);border-radius:6px;"></td>
-                  </tr>
-                  <tr>
-                    <td style="width:28px;height:28px;background:rgba(255,255,255,0.10);border-radius:6px;"></td>
-                    <td style="width:28px;height:28px;background:rgba(255,255,255,0.25);border-radius:6px;"></td>
-                    <td style="width:28px;height:28px;background:rgba(255,255,255,0.18);border-radius:6px;"></td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
+        <td style="padding:0;text-align:center;background:#fff;border-bottom:1px solid #eee;">
+          <img src="${logoUrl}" alt="América Rental" width="600" style="width:100%;max-width:600px;height:auto;display:block;margin:0 auto;">
         </td>
       </tr>
 
