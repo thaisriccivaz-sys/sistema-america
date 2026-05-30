@@ -2780,6 +2780,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!payload.numero_os) { mostrarToastAviso('Preencha o número da OS.'); return; }
             if (!payload.contrato) { mostrarToastAviso('Preencha o Contrato.'); return; }
             if (!payload.data_os) { mostrarToastAviso('Preencha a Data da OS.'); return; }
+            
+            if (payload.data_os) {
+                const dataSplit = payload.data_os.split('-');
+                if (dataSplit.length === 3) {
+                    const dOs = new Date(dataSplit[0], dataSplit[1] - 1, dataSplit[2]);
+                    dOs.setHours(0,0,0,0);
+                    const hoje = new Date();
+                    hoje.setHours(0,0,0,0);
+                    if (dOs < hoje) {
+                        mostrarToastAviso('A data da OS não pode ser menor que hoje.');
+                        return;
+                    }
+                }
+            }
             if (!payload.endereco) { mostrarToastAviso('Preencha o Endereço.'); return; }
             if (payload.lat === null || payload.lng === null) { mostrarToastAviso('Latitude e Longitude são obrigatórios. Use o botão G para verificar.'); return; }
             if (!payload.responsavel) { mostrarToastAviso('Preencha o Responsável.'); return; }
