@@ -13564,15 +13564,35 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
     const validUntil = new Date();
     validUntil.setDate(validUntil.getDate() + 7);
 
+    // Buscar cnh e dados do banco para enriquecer os colaboradores antes de salvar
+    const fetchAndEnrich = (callback) => {
+        if (colabIds.length === 0) return callback(colaboradores || []);
+        db.all(`SELECT id, nome_completo, cpf, cnh, cargo FROM colaboradores WHERE id IN (${colabIds.join(',')})`, (err, colabRows) => {
+            if (err) return callback(colaboradores || []);
+            const enriched = (colaboradores || []).map(c => {
+                const cData = (colabRows || []).find(r => r.id === c.id);
+                return {
+                    ...c,
+                    cpf: c.cpf || (cData && cData.cpf) || '',
+                    cnh: c.cnh || (cData && cData.cnh) || '',
+                    cargo: c.cargo || (cData && cData.cargo) || ''
+                };
+            });
+            callback(enriched);
+        });
+    };
+
     // Fetch original request to get email etc
     db.get('SELECT * FROM credenciamentos WHERE id = ?', [req.params.id], (err, cred) => {
         if (err || !cred) return res.status(500).json({ error: 'Credenciamento não encontrado' });
+
+        fetchAndEnrich(colabsEnriquecidos => {
 
         const finalTipoEnvio = tipo_envio || cred.tipo_envio || 'email';
         const finalWhatsapp = cliente_whatsapp || cred.cliente_whatsapp || '';
 
         db.run(`UPDATE credenciamentos SET colaboradores_ids = ?, veiculos_ids = ?, token = ?, valid_until = ?, status = 'enviado', enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ?, tipo_envio = ?, cliente_whatsapp = ? WHERE id = ?`,
-            [JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), token, validUntil.toISOString(), req.user.id, finalTipoEnvio, finalWhatsapp, req.params.id],
+            [JSON.stringify(colabsEnriquecidos), JSON.stringify(veiculos || []), token, validUntil.toISOString(), req.user.id, finalTipoEnvio, finalWhatsapp, req.params.id],
             async function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
 
@@ -13580,29 +13600,25 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                 const link = `${baseUrl}/credenciamento-publico.html?token=${token}`;
                 const logoUrl = `${baseUrl}/assets/logo-header.png`;
 
-                // Construir texto_copia para o WhatsApp
-                let textoCopia = `*Credenciamento - ${cred.cliente_nome}*\n`;
-                if (cred.os) textoCopia += `OS: ${cred.os}\n`;
-                if (colaboradores && colaboradores.length > 0) {
-                    textoCopia += `\n*Equipe:*\n`;
-                    colaboradores.forEach(c => {
+                // Construir texto_copia para o WhatsApp (sem link)
+                let textoCopia = `*Credenciamento - ${cred.cliente_nome}*\nOS: ${cred.os || '-'}\n`;
+                if (colabsEnriquecidos && colabsEnriquecidos.length > 0) {
+                    textoCopia += `\n👷*Equipe:*\n`;
+                    colabsEnriquecidos.forEach(c => {
+                        const isMotorista = (c.cargo || '').toUpperCase().includes('MOTORISTA');
                         textoCopia += `- ${c.nome || c.nome_completo}\n`;
                         if (c.cargo) textoCopia += `  Cargo: ${c.cargo}\n`;
                         if (c.cpf) textoCopia += `  CPF: ${c.cpf}\n`;
-                        if (c.rg) textoCopia += `  RG: ${c.rg}\n`;
-                        if (c.isMotorista && c.cnh) textoCopia += `  CNH: ${c.cnh}\n`;
+                        if (isMotorista && c.cnh) textoCopia += `  CNH: ${c.cnh}\n`;
                     });
                 }
                 if (veiculos && veiculos.length > 0) {
-                    textoCopia += `\n*Veículos:*\n`;
+                    textoCopia += `\n🛻*Veículos:*\n`;
                     veiculos.forEach(v => {
                         textoCopia += `- ${v.placa} - ${v.modelo || v.marca_modelo_versao}\n`;
                     });
                 }
-
-                if (!cred.apenas_dados) {
-                    textoCopia += `\n*Acesse os prontuários e documentos da equipe em:*\n${link}\n`;
-                }
+                textoCopia = textoCopia.trim();
 
                 if (finalTipoEnvio === 'whatsapp') {
                     db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística processou o credenciamento da OS ${cred.os || '-'} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
@@ -13684,6 +13700,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                 }
             }
         );
+        }); // fechamento fetchAndEnrich
     });
 });
 
@@ -13763,8 +13780,19 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         const validUntil = new Date();
         validUntil.setDate(validUntil.getDate() + 7);
 
+        // Enriquecer colaboradores com cnh, cpf e cargo do banco antes de salvar
+        const colaboradoresEnriquecidos = (colaboradores || []).map(c => {
+            const cData = colabData.find(col => col.id === c.id);
+            return {
+                ...c,
+                cpf: c.cpf || (cData && cData.cpf) || '',
+                cnh: c.cnh || (cData && cData.cnh) || '',
+                cargo: c.cargo || (cData && cData.cargo) || ''
+            };
+        });
+
         db.run(`INSERT INTO credenciamentos (cliente_nome, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, os, token, colaboradores_ids, veiculos_ids, docs_exigidos, licencas_ids, valid_until, enviado_em, enviado_por_id, status, solicitado_por_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 'enviado', ?)`,
-            [cliente_nome, cliente_email || '', cliente_whatsapp || '', tipo_envio || 'email', apenas_dados ? 1 : 0, endereco_instalacao || '', os || null, token, JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), JSON.stringify(docs_exigidos || []), JSON.stringify(licencas || []), validUntil.toISOString(), req.user.id, req.user.id],
+            [cliente_nome, cliente_email || '', cliente_whatsapp || '', tipo_envio || 'email', apenas_dados ? 1 : 0, endereco_instalacao || '', os || null, token, JSON.stringify(colaboradoresEnriquecidos), JSON.stringify(veiculos || []), JSON.stringify(docs_exigidos || []), JSON.stringify(licencas || []), validUntil.toISOString(), req.user.id, req.user.id],
             async function (err) {
                 if (err) return res.status(500).json({ error: err.message });
 
