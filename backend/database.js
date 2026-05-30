@@ -1080,27 +1080,19 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `);
 
-            // Migration: adicionar coluna licencas_ids se nao existir
-            db.run(`ALTER TABLE credenciamentos ADD COLUMN licencas_ids TEXT`, () => {});
-            
-            // Migrations para WhatsApp e Apenas Dados
-            db.run("ALTER TABLE credenciamentos ADD COLUMN cliente_whatsapp TEXT", () => {});
-            db.run("ALTER TABLE credenciamentos ADD COLUMN apenas_dados INTEGER DEFAULT 0", () => {});
-
-    // Adicionar coluna acessado_em se nao existir
-    db.run("ALTER TABLE credenciamentos ADD COLUMN acessado_em TEXT", (err) => {
-        if (err && !err.message.includes('duplicate')) { /* coluna ja existe */ }
-    });
-
-    // Adicionar coluna endereco_instalacao se nao existir
-    db.run("ALTER TABLE credenciamentos ADD COLUMN endereco_instalacao TEXT", (err) => {
-        if (err && !err.message.includes('duplicate')) { /* coluna ja existe */ }
-    });
-
-    // Adicionar colunas de autoria do credenciamento
-    db.run("ALTER TABLE credenciamentos ADD COLUMN solicitado_por_id INTEGER", () => {});
-    db.run("ALTER TABLE credenciamentos ADD COLUMN enviado_por_id INTEGER", () => {});
-    db.run("ALTER TABLE credenciamentos ADD COLUMN enviado_em DATETIME", () => {});
+            db.all("PRAGMA table_info(credenciamentos)", (err, rows) => {
+                if (err || !rows) return;
+                const cols = rows.map(r => r.name);
+                if (!cols.includes('licencas_ids')) db.run("ALTER TABLE credenciamentos ADD COLUMN licencas_ids TEXT");
+                if (!cols.includes('cliente_whatsapp')) db.run("ALTER TABLE credenciamentos ADD COLUMN cliente_whatsapp TEXT");
+                if (!cols.includes('apenas_dados')) db.run("ALTER TABLE credenciamentos ADD COLUMN apenas_dados INTEGER DEFAULT 0");
+                if (!cols.includes('tipo_envio')) db.run("ALTER TABLE credenciamentos ADD COLUMN tipo_envio TEXT DEFAULT 'email'");
+                if (!cols.includes('acessado_em')) db.run("ALTER TABLE credenciamentos ADD COLUMN acessado_em TEXT");
+                if (!cols.includes('endereco_instalacao')) db.run("ALTER TABLE credenciamentos ADD COLUMN endereco_instalacao TEXT");
+                if (!cols.includes('solicitado_por_id')) db.run("ALTER TABLE credenciamentos ADD COLUMN solicitado_por_id INTEGER");
+                if (!cols.includes('enviado_por_id')) db.run("ALTER TABLE credenciamentos ADD COLUMN enviado_por_id INTEGER");
+                if (!cols.includes('enviado_em')) db.run("ALTER TABLE credenciamentos ADD COLUMN enviado_em DATETIME");
+            });
 
 
             // Tabela de Auditoria do Resumo de Rota
