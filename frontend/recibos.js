@@ -470,10 +470,12 @@ window._getRowColors = function(c, s) {
     // AMARELO: Pesquisados (pontoStatus != null), 0 comparecimentos, NÃO são supervisão.
     const isAmarelo = !isFerias && !isSupervisao && (s.diasTrabalhados === 0) && (s.pontoStatus !== null);
     
-    // VERDE: pontoStatus 'ok', desde que não tenha caído na regra do Amarelo.
-    const isVerde = (s.pontoStatus === 'ok') && !isAmarelo;
+    // AZUL CLARO: Qualquer colaborador que seja da supervisão (a não ser que esteja de férias)
+    const isSupervisorAzul = !isFerias && isSupervisao;
+
+    // VERDE: pontoStatus 'ok', desde que não seja Amarelo, nem Férias, nem Supervisão
+    const isVerde = !isFerias && !isSupervisorAzul && !isAmarelo && (s.pontoStatus === 'ok');
     
-    const isSupervisorAzul = isSupervisao && !isVerde;
     const isCinza   = !isFerias && !isSupervisorAzul && !isVerde && !isAmarelo && (s.diasTrabalhados === 0) && (s.pontoStatus === null);
 
     let bg = '#fff';
