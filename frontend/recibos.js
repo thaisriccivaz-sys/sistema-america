@@ -12,7 +12,7 @@ let _recibosSelecoes    = {}; // { id: { selecionado, diasTrabalhados, faltas, d
 
 // ─── Calendário de Feriados ───────────────────────────────────────────────────
 let _feriadosBrasil = {};
-async function _getDiasUteis(ano, mes) {
+async function _getDiasUteis(ano, mes, segASex = false) {
     if (!_feriadosBrasil[ano]) {
         try {
             const res = await fetch(`https://brasilapi.com.br/api/feriados/v1/${ano}`);
@@ -31,7 +31,8 @@ async function _getDiasUteis(ano, mes) {
     const d = new Date(ano, mes - 1, 1);
     while (d.getMonth() === mes - 1) {
         const diaSemana = d.getDay();
-        if (diaSemana !== 0) { // Ignora apenas domingo (seg a sab)
+        const ignora = segASex ? (diaSemana === 0 || diaSemana === 6) : (diaSemana === 0);
+        if (!ignora) {
             const dataStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             if (!feriados.includes(dataStr)) {
                 diasUteis++;
@@ -656,10 +657,12 @@ window._recBuscarPontoSelecionados = async function () {
     // ── CONFRONTO DE DADOS (FERIADOS DO RHID) ────────────────────────────
     // Extrai o calendário real da apuração de algum colaborador para ajustar a Supervisão
     let diasUteisRHID = null;
+    let diasUteisRHID_SegSex = null;
     for (const id in _recibosSelecoes) {
         const sel = _recibosSelecoes[id];
         if (sel && sel.apuracaoDiaria && Array.isArray(sel.apuracaoDiaria) && sel.apuracaoDiaria.length > 0) {
-            let count = 0;
+            let countSegSab = 0;
+            let countSegSex = 0;
             sel.apuracaoDiaria.forEach(d => {
                 let dia = String(d.date || d.dateTimeStr || '').substring(0,10);
                 if (!dia) return;
@@ -671,12 +674,16 @@ window._recBuscarPontoSelecionados = async function () {
                 if (!isNaN(dataObj.getTime())) {
                     const diaSemana = dataObj.getDay();
                     if (diaSemana !== 0 && !d.isHoliday) {
-                        count++;
+                        countSegSab++;
+                        if (diaSemana !== 6) {
+                            countSegSex++;
+                        }
                     }
                 }
             });
-            if (count > 0) {
-                diasUteisRHID = count;
+            if (countSegSab > 0) {
+                diasUteisRHID = countSegSab;
+                diasUteisRHID_SegSex = countSegSex;
                 break;
             }
         }
@@ -684,7 +691,8 @@ window._recBuscarPontoSelecionados = async function () {
 
     // Se não encontrou o oficial do RHID nas apurações locais, faz o fallback para o gerador padrão de dias úteis
     if (diasUteisRHID === null) {
-        diasUteisRHID = await _getDiasUteis(ano, mes);
+        diasUteisRHID = await _getDiasUteis(ano, mes, false);
+        diasUteisRHID_SegSex = await _getDiasUteis(ano, mes, true);
     }
 
     if (diasUteisRHID !== null) {
@@ -692,8 +700,8 @@ window._recBuscarPontoSelecionados = async function () {
         _recibosAllColabs.forEach(c => {
             const s = _recibosSelecoes[c.id];
             if (s && s.isAutoSupervisao) {
-                s.diasTrabalhados = diasUteisRHID;
-                s.diasVR = diasUteisRHID;
+                s.diasTrabalhados = diasUteisRHID_SegSex;
+                s.diasVR = diasUteisRHID_SegSex;
                 s.faltas = 0; // Garante que zera as faltas que possam ter retornado
                 s.pontoStatus = 'ok'; // Fica verdinho
             }
@@ -874,13 +882,13 @@ window.carregarHistoricoRecibos = async function () {
     } catch(e) { console.warn('Erro ao carregar histórico:', e); }
     
     // Auto-fill para Supervisão (sempre que for 0 dias, preenche auto, ignorando histórico com 0 acidental)
-    const diasUteis = await _getDiasUteis(ano, mes);
+    const diasUteis_SegSex = await _getDiasUteis(ano, mes, true);
     _recibosAllColabs.forEach(c => {
         const s = _recibosSelecoes[c.id];
         const isSupervisao = window._isSupervisao(c);
         if (isSupervisao && s && s.diasTrabalhados === 0) {
-            s.diasTrabalhados = diasUteis;
-            s.diasVR = diasUteis;
+            s.diasTrabalhados = diasUteis_SegSex;
+            s.diasVR = diasUteis_SegSex;
             s.isAutoSupervisao = true;
         }
     });
