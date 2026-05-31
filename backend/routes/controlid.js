@@ -172,4 +172,201 @@ router.post('/sync-funcionarios', async (req, res) => {
     }
 });
 
+// ─── HELPER: remove pontuação do CPF ─────────────────────────────────────────
+function normalizarCPF(cpf) {
+    if (!cpf) return '';
+    return String(cpf).replace(/\D/g, '').replace(/^0+/, '');
+}
+
+// ─── ROTA: Buscar ponto de um colaborador pelo CPF e mês/ano ─────────────────
+// GET /diretoria/controlid/ponto-colaborador?cpf=12345678901&mes=6&ano=2025
+router.get('/ponto-colaborador', async (req, res) => {
+    const db = req.app.get('db');
+    const { cpf, mes, ano } = req.query;
+
+    if (!cpf || !mes || !ano) {
+        return res.status(400).json({ success: false, message: 'Parâmetros obrigatórios: cpf, mes, ano.' });
+    }
+
+    const cpfLimpo = normalizarCPF(cpf);
+    if (!cpfLimpo || cpfLimpo.length < 8) {
+        return res.status(400).json({ success: false, message: 'CPF inválido.' });
+    }
+
+    try {
+        const token = await getRHIDToken(db);
+        const authHeader = `Bearer ${token}`;
+
+        // ── PASSO 1: Encontrar o idPerson pelo CPF ───────────────────────────
+        let idPerson = null;
+        let nomeRHID = null;
+
+        // Busca paginada — tenta até 5000 registros em páginas de 1000
+        let start = 0;
+        const pageSize = 1000;
+        let encontrado = false;
+
+        while (!encontrado) {
+            const pessoasRes = await axios.get(`${RHID_BASE_URL}/person`, {
+                headers: { Authorization: authHeader },
+                params: { start, length: pageSize }
+            });
+
+            const registros = pessoasRes.data?.records || pessoasRes.data || [];
+            if (!Array.isArray(registros) || registros.length === 0) break;
+
+            const pessoa = registros.find(p => {
+                const cpfPessoa = normalizarCPF(p.cpf);
+                return cpfPessoa === cpfLimpo;
+            });
+
+            if (pessoa) {
+                idPerson = pessoa.id;
+                nomeRHID = pessoa.name;
+                encontrado = true;
+            } else if (registros.length < pageSize) {
+                // última página, não encontrou
+                break;
+            } else {
+                start += pageSize;
+            }
+        }
+
+        if (!idPerson) {
+            return res.json({
+                success: false,
+                encontrado: false,
+                message: `Colaborador com CPF ${cpf} não encontrado no RHID. Verifique se o CPF está cadastrado no sistema de ponto.`
+            });
+        }
+
+        // ── PASSO 2: Calcular o período do mês ───────────────────────────────
+        const mesNum = parseInt(mes, 10);
+        const anoNum = parseInt(ano, 10);
+        const dataIni = `${anoNum}-${String(mesNum).padStart(2, '0')}-01`;
+        const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
+        const dataFinal = `${anoNum}-${String(mesNum).padStart(2, '0')}-${ultimoDia}`;
+
+        // ── PASSO 3: Buscar apuração do ponto ────────────────────────────────
+        let apuracaoData = null;
+        try {
+            const apuracaoRes = await axios.get(`${RHID_BASE_URL}/apuracao_ponto`, {
+                headers: { Authorization: authHeader },
+                params: { dataIni, dataFinal, idPerson }
+            });
+            apuracaoData = apuracaoRes.data;
+        } catch (apErr) {
+            console.warn('[ControlID] Erro ao buscar apuracao_ponto:', apErr.response?.data || apErr.message);
+        }
+
+        // ── PASSO 4: Processar resposta ───────────────────────────────────────
+        // O schema de retorno não é documentado no swagger, então tentamos
+        // extrair os campos de forma flexível.
+        const resultado = processarApuracao(apuracaoData, mesNum, anoNum, idPerson, nomeRHID);
+
+        return res.json({
+            success: true,
+            encontrado: true,
+            idRHID: idPerson,
+            nomeRHID,
+            dataIni,
+            dataFinal,
+            apuracaoRaw: apuracaoData, // incluído para debug/exploração
+            ...resultado
+        });
+
+    } catch (error) {
+        console.error('[ControlID] Erro em /ponto-colaborador:', error.response?.data || error.message);
+        return res.status(500).json({
+            success: false,
+            message: 'Erro ao consultar o RHID: ' + (error.response?.data?.message || error.message)
+        });
+    }
+});
+
+// ─── Processador flexível da apuração ─────────────────────────────────────────
+function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
+    // Dias úteis do mês (seg-sáb)
+    const diasNoMes = new Date(ano, mes, 0).getDate();
+    let diasUteisTotal = 0;
+    for (let d = 1; d <= diasNoMes; d++) {
+        const ds = new Date(ano, mes - 1, d).getDay();
+        if (ds !== 0) diasUteisTotal++; // exclui domingo
+    }
+
+    if (!data) {
+        return {
+            diasUteis: diasUteisTotal,
+            diasTrabalhados: null,
+            faltas: null,
+            diasComHoraExtra: null,
+            aviso: 'Apuração não disponível no RHID para o período informado. Preencha manualmente.'
+        };
+    }
+
+    // Tenta extrair dos campos mais comuns que a API RHID pode retornar
+    // (o schema real será revelado na primeira chamada)
+    let diasTrabalhados = null;
+    let faltas = null;
+    let diasComHoraExtra = null;
+
+    // Caso seja um array de registros diários
+    if (Array.isArray(data)) {
+        diasTrabalhados = data.filter(d => {
+            const status = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
+            return status === 'normal' || status === 'trabalhado' || status === '1' ||
+                   (d.entrada && d.saida) || (d.marcacoes && d.marcacoes.length >= 2);
+        }).length;
+
+        faltas = data.filter(d => {
+            const status = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
+            return status === 'falta' || status === 'ausente' || status === '3' ||
+                   status.includes('falt');
+        }).length;
+
+        diasComHoraExtra = data.filter(d => {
+            const he = parseFloat(d.horasExtras || d.horas_extras || d.extra || d.overtime || 0);
+            const heMin = parseInt(d.minHE || d.minutos_extras || 0);
+            return he >= 3 || heMin >= 180;
+        }).length;
+    }
+
+    // Caso seja um objeto com totais
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+        const keys = Object.keys(data);
+        const find = (...names) => {
+            for (const n of names) {
+                const k = keys.find(k => k.toLowerCase().includes(n.toLowerCase()));
+                if (k !== undefined && data[k] !== null && data[k] !== undefined) return data[k];
+            }
+            return null;
+        };
+
+        diasTrabalhados = find('diasTrabalhados', 'dias_trabalhados', 'trabalhados', 'worked', 'daysWorked');
+        faltas = find('faltas', 'ausencias', 'absences', 'falt', 'absent');
+        diasComHoraExtra = find('diasHE', 'dias_he', 'horaExtra', 'overtime', 'extra');
+
+        // Se tiver array de dias dentro do objeto
+        const arrKey = keys.find(k => Array.isArray(data[k]) && data[k].length > 0);
+        if (arrKey && diasTrabalhados === null) {
+            const arr = data[arrKey];
+            diasTrabalhados = arr.filter(d => {
+                const s = (d.status || d.situacao || '').toString().toLowerCase();
+                return s === 'normal' || s === 'trabalhado' || (d.entrada && d.saida);
+            }).length;
+        }
+    }
+
+    return {
+        diasUteis: diasUteisTotal,
+        diasTrabalhados,
+        faltas,
+        diasComHoraExtra,
+        aviso: (diasTrabalhados === null)
+            ? 'Não foi possível interpretar automaticamente a resposta do RHID. Veja "apuracaoRaw" para os campos disponíveis.'
+            : null
+    };
+}
+
 module.exports = router;
+
