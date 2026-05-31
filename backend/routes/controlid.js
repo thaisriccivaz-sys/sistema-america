@@ -489,7 +489,8 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         diasComHoraExtra = data.filter(d => {
             const he    = parseFloat(d.horasExtras || d.horas_extras || d.extra || d.overtime || 0);
             const heMin = parseInt(d.minHE || d.minutos_extras || d.horasExtrasCalculadas || ((d.extraDiurna || 0) + (d.extraNoturna || 0)) || 0);
-            return he >= 3 || heMin >= 180;
+            const hTotais = parseInt(d.totalHorasTrabalhadas || 0);
+            return (he >= 3 || heMin >= 180) && hTotais >= 540;
         }).length;
     }
 
