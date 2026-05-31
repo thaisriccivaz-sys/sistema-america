@@ -481,7 +481,9 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
             const status = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
             return status === 'falta' || status === 'ausente' || status === '3' ||
                    status.includes('falt') || status.includes('atestado') || status.includes('afastamento') || 
-                   status.includes('licença') || status.includes('licenca') || (d.faltaDiaInteiro === true) || (d.faltasDiasInteiro > 0);
+                   status.includes('licença') || status.includes('licenca') || status.includes('justificad') || 
+                   (d.faltaDiaInteiro === true) || (d.faltasDiasInteiro > 0) || 
+                   (d.idJustification != null && (!d.diasTrabalhados || d.diasTrabalhados === 0));
         }).length;
 
         diasComHoraExtra = data.filter(d => {
