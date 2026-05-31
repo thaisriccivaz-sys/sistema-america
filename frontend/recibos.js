@@ -634,7 +634,14 @@ window.gerarRecibosEmMassa = async function () {
     sels.forEach((c, idx) => {
         if (idx > 0) corpo += '<div class="pb"></div>';
         const s = _recibosSelecoes[c.id] || { diasTrabalhados: 0, diasVR: 0, faltas: 0, diasExtra: 0 };
-        corpo += _buildReciboBlock(null, c, s, mes, mesNome, ano, valorVR, logo);
+        const m = (c.meio_transporte||'').toLowerCase();
+
+        // VR — sempre para todos
+        corpo += _buildReciboBlock('VR', c, s, mes, mesNome, ano, valorVR, logo);
+
+        // VT ou VC — conforme meio_transporte cadastrado
+        if (_isVT(m)) { corpo += _buildReciboBlock('VT', c, s, mes, mesNome, ano, valorVR, logo); }
+        if (_isVC(m)) { corpo += _buildReciboBlock('VC', c, s, mes, mesNome, ano, valorVR, logo); }
     });
 
     const fullHtml = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
@@ -781,7 +788,7 @@ async function _recGetLogo() {
 // ─── Formatar moeda ───────────────────────────────────────────────────────────
 function _recFmt(v) { return (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
-// ─── Bloco HTML de recibo (Unificado) ────────────────────────────────────────
+// ─── Bloco HTML de recibo (Separado) ──────────────────────────────────────────
 function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB64) {
     const nome    = _recNome(colab);
     const logoHtml = logoB64
@@ -793,57 +800,45 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
     const faltas    = dados.faltas   || 0;
     const dExtra    = dados.diasExtra || 0;
     const valTransp = parseFloat(colab.valor_transporte) || 0;
-    const m         = (colab.meio_transporte||'').toLowerCase();
 
-    let titulo = 'RECIBO DE BENEFÍCIOS';
-    let linhas = '';
-    let totalFinal = 0;
-    let obsArr = [];
+    let titulo = '', beneficio = '', linhas = '', totalFinal = 0, obs = '';
 
-    // --- BLOCO VR ---
-    if (dVR > 0 || dExtra > 0) {
-        linhas += `<tr style="background:#f8fafc;"><td colspan="3" style="padding:6px 12px;font-weight:700;color:#475569;border:1px solid #ddd;font-size:10.5px;">VALE REFEIÇÃO / JANTAR</td></tr>`;
-        const tVR = dVR * valorVR;
+    if (tipo === 'VR') {
+        titulo    = 'RECIBO DE VALE REFEIÇÃO';
+        beneficio = 'Vale Refeição';
+        const tVR     = dVR * valorVR;
         const tJantar = dExtra * valorVR;
-        totalFinal += tVR + tJantar;
-        linhas += `<tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados (Base VR)</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dVR}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dVR} dias</td></tr>`;
-        linhas += `<tr><td style="padding:7px 12px;border:1px solid #ddd;">Vale Refeição</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dVR}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tVR)}</td></tr>`;
-        if (dExtra > 0) {
-            linhas += `<tr><td style="padding:7px 12px;border:1px solid #ddd;">Jantar</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dExtra}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tJantar)}</td></tr>`;
-        }
-    }
+        totalFinal = tVR + tJantar;
+        linhas = `
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dVR}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dVR} dias</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Vale Refeição</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dVR}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tVR)}</td></tr>
+${dExtra>0?`<tr><td style="padding:7px 12px;border:1px solid #ddd;">Jantar</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dExtra}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tJantar)}</td></tr>`:''}
+<tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td colspan="2" style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
 
-    // --- BLOCO VT ---
-    if (_isVT(m) && dtrab > 0) {
-        linhas += `<tr style="background:#f8fafc;"><td colspan="3" style="padding:6px 12px;font-weight:700;color:#475569;border:1px solid #ddd;font-size:10.5px;">VALE TRANSPORTE</td></tr>`;
-        const tVT = dtrab * valTransp;
-        totalFinal += tVT;
-        linhas += `<tr><td style="padding:7px 12px;border:1px solid #ddd;">Meio de Transporte</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${colab.meio_transporte||'—'}</td></tr>`;
-        linhas += `<tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados (Base VT)</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dtrab}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dtrab} dias</td></tr>`;
-        linhas += `<tr><td style="padding:7px 12px;border:1px solid #ddd;">Valor por Dia</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(valTransp)}</td></tr>`;
-        linhas += `<tr><td style="padding:7px 12px;border:1px solid #ddd;">Subtotal Vale Transporte</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tVT)}</td></tr>`;
-        obsArr.push('Vale Transporte: Conforme Decreto nº 95.247/87. O desconto de até 6% do salário base pode ser aplicado conforme legislação vigente.');
-    }
+    } else if (tipo === 'VT') {
+        titulo    = 'RECIBO DE VALE TRANSPORTE';
+        beneficio = 'Vale Transporte';
+        totalFinal = dtrab * valTransp;
+        linhas = `
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Meio de Transporte</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${colab.meio_transporte||'—'}</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dtrab}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dtrab} dias</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Valor por Dia</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(valTransp)}</td></tr>
+<tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td colspan="2" style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
+        obs = 'Conforme Decreto nº 95.247/87. O desconto de até 6% do salário base pode ser aplicado conforme legislação vigente.';
 
-    // --- BLOCO VC ---
-    if (_isVC(m)) {
-        linhas += `<tr style="background:#f8fafc;"><td colspan="3" style="padding:6px 12px;font-weight:700;color:#475569;border:1px solid #ddd;font-size:10.5px;">VALE COMBUSTÍVEL</td></tr>`;
+    } else if (tipo === 'VC') {
+        titulo    = 'RECIBO DE VALE COMBUSTÍVEL';
+        beneficio = 'Vale Combustível';
         const totalDiasRef = dtrab + faltas;
         const desc = totalDiasRef > 0 ? (valTransp / totalDiasRef * faltas) : 0;
-        const tVC = Math.max(0, valTransp - desc);
-        totalFinal += tVC;
-        linhas += `<tr><td style="padding:7px 12px;border:1px solid #ddd;">Valor Integral Mensal</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(valTransp)}</td></tr>`;
-        linhas += `<tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados (Base VC)</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dtrab}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dtrab} dias</td></tr>`;
-        linhas += `<tr><td style="padding:7px 12px;border:1px solid #ddd;">Faltas com desconto</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${faltas}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${faltas} dia(s)</td></tr>`;
-        linhas += `<tr><td style="padding:7px 12px;border:1px solid #ddd;">Desconto por Faltas</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;color:#ef4444;">-R$&nbsp;${_recFmt(desc)}</td></tr>`;
-        linhas += `<tr><td style="padding:7px 12px;border:1px solid #ddd;">Subtotal Vale Combustível</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tVC)}</td></tr>`;
-    }
-
-    linhas += `<tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td colspan="2" style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL GERAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
-
-    let obsHtml = '';
-    if (obsArr.length > 0) {
-        obsHtml = `<div style="font-size:10px;color:#64748b;background:#f8fafc;border-left:3px solid #94a3b8;padding:5px 10px;margin-bottom:10px;">${obsArr.map(o => `⚠ ${o}`).join('<br>')}</div>`;
+        totalFinal = Math.max(0, valTransp - desc);
+        linhas = `
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Valor Integral Mensal</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(valTransp)}</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dtrab}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dtrab} dias</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Faltas com desconto</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${faltas}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${faltas} dia(s)</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Desconto por Faltas</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;color:#ef4444;">-R$&nbsp;${_recFmt(desc)}</td></tr>
+<tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td colspan="2" style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
+        obs = '';
     }
 
     const via = () => `
@@ -897,7 +892,7 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
       <tbody>${linhas}</tbody>
     </table>
 
-    ${obsHtml}
+    ${obs?`<div style="font-size:10px;color:#64748b;background:#f8fafc;border-left:3px solid #94a3b8;padding:5px 10px;margin-bottom:10px;">⚠ ${obs}</div>`:''}
   </div>
 </div>`;
 
@@ -919,7 +914,7 @@ window.gerarReciboIndividual = async function (tipo, colabId, mes, ano, valorVRP
     const logo    = await _recGetLogo();
     // Dados vazios — usuário verá 0 e poderá imprimir após conferir
     const dados   = { diasTrabalhados: 0, diasVR: 0, faltas: 0, diasExtra: 0 };
-    const benef   = 'Recibo de Benefícios';
+    const benef   = tipo==='VR'?'Vale Refeição':tipo==='VT'?'Vale Transporte':'Vale Combustível';
     const nome    = _recNome(colab);
 
     const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
