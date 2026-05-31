@@ -1820,17 +1820,15 @@ window.toggleTransporteValor = function (val) {
         if (val === 'Vale Transporte (VT)' || val === 'Vale Combustível (VC)') {
             group.style.display = 'block';
             // Se for VT, definir valor diário fixo
-            if (val === 'Vale Transporte (VT)' && input) {
-                input.value = 'R$ 6,20';
-                    }
-                    }
+            if (val === 'Vale Transporte (VT)') {
+                if (input) input.value = 'R$ 6,20';
                 // Atualiza o label com dica visual
                 const lbl = group.querySelector('label');
                 if (lbl && !lbl.querySelector('.vt-hint')) {
                     const hint = document.createElement('small');
                     hint.className = 'vt-hint';
                     hint.style.cssText = 'color:#16a34a;font-weight:600;margin-left:6px;font-size:0.78rem;';
-                    hint.textContent = '(6% do salário)';
+                    hint.textContent = '(Valor Diário Fixo)';
                     lbl.appendChild(hint);
                 }
             } else {
