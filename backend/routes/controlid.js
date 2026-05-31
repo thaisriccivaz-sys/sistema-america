@@ -447,6 +447,13 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
     let faltas          = null;
     let diasComHoraExtra = null; // Dias com ≥3h extra (janta)
 
+    // O RHID pode retornar a resposta como uma string JSON dupla (stringificada)
+    if (typeof data === 'string') {
+        try {
+            data = JSON.parse(data);
+        } catch(e) {}
+    }
+
     // ── Caso seja um array de registros diários ──────────────────────────────
     if (Array.isArray(data)) {
         const diasComPresenca = data.filter(d => {
@@ -476,6 +483,13 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
             const heMin = parseInt(d.minHE || d.minutos_extras || 0);
             return he >= 3 || heMin >= 180;
         }).length;
+
+        // Se encontramos registros, mas a lógica não identificou absolutamente nada (nem presença, nem falta)
+        // Isso significa que os nomes dos campos retornados pela API não são os que esperávamos.
+        // Força erro para o frontend exibir as chaves reais.
+        if (diasTrabalhados === 0 && faltas === 0 && data.length > 0) {
+            diasTrabalhados = null;
+        }
     }
 
     // ── Caso seja um objeto com totais ──────────────────────────────────────
@@ -515,6 +529,15 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         }
     }
 
+    let payloadDebug = '';
+    try {
+        if (Array.isArray(data) && data.length > 0) {
+            payloadDebug = 'Exemplo Dia 1: ' + JSON.stringify(data[0]).substring(0, 800);
+        } else {
+            payloadDebug = JSON.stringify(data).substring(0, 800);
+        }
+    } catch(e) { payloadDebug = String(data).substring(0, 800); }
+
     return {
         diasUteis: diasUteisTotal,
         diasTrabalhados,
@@ -522,7 +545,7 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         faltas,
         diasComHoraExtra,
         aviso: (diasTrabalhados === null)
-            ? 'Não foi possível interpretar a resposta do RHID. Payload: ' + JSON.stringify(data).substring(0, 800)
+            ? 'Não foi possível interpretar a resposta do RHID. ' + payloadDebug
             : null
     };
 }
