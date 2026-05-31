@@ -8,7 +8,39 @@
 let _recibosAllColabs   = [];
 let _recibosFiltrados   = [];
 let _recibosDeptTipoMap = {}; // { 'Logística': 'Operacional', 'RH': 'Administrativo' }
-let _recibosSelecoes    = {}; // { id: { selecionado, diasTrabalhados, faltas, diasExtra, pontoStatus } }
+let _recibosSelecoes    = {}; // { id: { selecionado, diasTrabalhados, faltas, diasExtra, pontoStatus, isAutoSupervisao, historicoEncontrado } }
+
+// ─── Calendário de Feriados ───────────────────────────────────────────────────
+let _feriadosBrasil = {};
+async function _getDiasUteis(ano, mes) {
+    if (!_feriadosBrasil[ano]) {
+        try {
+            const res = await fetch(`https://brasilapi.com.br/api/feriados/v1/${ano}`);
+            if (res.ok) {
+                const data = await res.json();
+                _feriadosBrasil[ano] = data.map(f => f.date); // 'YYYY-MM-DD'
+            } else {
+                _feriadosBrasil[ano] = [];
+            }
+        } catch(e) {
+            _feriadosBrasil[ano] = [];
+        }
+    }
+    const feriados = _feriadosBrasil[ano];
+    let diasUteis = 0;
+    const d = new Date(ano, mes - 1, 1);
+    while (d.getMonth() === mes - 1) {
+        const diaSemana = d.getDay();
+        if (diaSemana !== 0 && diaSemana !== 6) { // Ignora dom e sab
+            const dataStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            if (!feriados.includes(dataStr)) {
+                diasUteis++;
+            }
+        }
+        d.setDate(d.getDate() + 1);
+    }
+    return diasUteis;
+}
 
 // ─── Helper: nome seguro do colaborador ──────────────────────────────────────
 function _recNome(c) {
@@ -247,7 +279,7 @@ async function _loadColabs() {
         // Inicializar seleções com 0 — aguarda RHID ou preenchimento manual
         _recibosSelecoes = {};
         _recibosAllColabs.forEach(c => {
-            _recibosSelecoes[c.id] = { selecionado: false, diasTrabalhados: 0, diasVR: 0, faltas: 0, diasExtra: 0, pontoStatus: null };
+            _recibosSelecoes[c.id] = { selecionado: false, diasTrabalhados: 0, diasVR: 0, faltas: 0, diasExtra: 0, pontoStatus: null, isAutoSupervisao: false, historicoEncontrado: false };
         });
 
         _popularFiltros();
@@ -347,9 +379,9 @@ function _renderTabela() {
             ? `<i class="ph ph-warning" style="color:#f59e0b;font-size:1.1rem;" title="Não encontrado no RHID — preencha manualmente"></i>`
             : `<i class="ph ph-minus-circle" style="color:#cbd5e1;font-size:1.1rem;" title="Ponto não buscado"></i>`;
 
-        let bg = s.selecionado ? '#f0f9ff' : '#fff';
-        if (s.diasTrabalhados === 0 && s.pontoStatus !== null) {
-            bg = '#fef08a';
+        const { bg, hoverBg, isAmarelo } = window._getRowColors(c, s);
+
+        if (isAmarelo && s.pontoStatus !== null) {
             pontoIcon = `<i class="ph ph-warning" style="color:#d97706;font-size:1.1rem;" title="0 dias trabalhados identificados no RHID"></i>`;
         }
 
@@ -358,8 +390,8 @@ function _renderTabela() {
 
         return `<tr id="rec-row-${c.id}"
             style="border-bottom:1px solid #f1f5f9;background:${bg};transition:background .12s;"
-            onmouseover="if(!_recibosSelecoes[${c.id}]?.selecionado) this.style.background=(_recibosSelecoes[${c.id}].diasTrabalhados===0 && _recibosSelecoes[${c.id}].pontoStatus!==null)?'#fde047':'#f8fafc';"
-            onmouseout="this.style.background=_recibosSelecoes[${c.id}]?.selecionado?'#f0f9ff':((_recibosSelecoes[${c.id}].diasTrabalhados===0 && _recibosSelecoes[${c.id}].pontoStatus!==null)?'#fef08a':'#fff');">
+            onmouseover="this.style.background='${hoverBg}';"
+            onmouseout="this.style.background='${bg}';">
           <td style="padding:.55rem .5rem;text-align:center;">
             <input type="checkbox" id="rec-cb-${c.id}" data-id="${c.id}" ${s.selecionado?'checked':''}
               style="width:16px;height:16px;accent-color:#2563eb;cursor:pointer;"
@@ -408,12 +440,56 @@ function _renderTabela() {
     _atualizarContador();
 }
 
+window._getRowColors = function(c, s) {
+    const mesAt = parseInt(document.getElementById('rec-mes')?.value);
+    const anoAt = parseInt(document.getElementById('rec-ano')?.value);
+    
+    let isFerias = false;
+    if (c.status === 'Férias') {
+        isFerias = true;
+    } else if (c.ferias_programadas_inicio && c.ferias_programadas_fim) {
+        const ini = new Date(c.ferias_programadas_inicio + 'T00:00:00');
+        const fim = new Date(c.ferias_programadas_fim + 'T23:59:59');
+        const dIni = new Date(anoAt, mesAt - 1, 1);
+        const dFim = new Date(anoAt, mesAt, 0); 
+        if (ini <= dFim && fim >= dIni) isFerias = true;
+    }
+
+    const isSupervisao = (c.departamento || '').toLowerCase().includes('supervis');
+    const isSupervisorAzul = isSupervisao && (s.isAutoSupervisao || (!s.pontoStatus) || (s.pontoStatus === 'erro' && s.diasTrabalhados > 0));
+    const isAmarelo = !isFerias && !isSupervisorAzul && (s.diasTrabalhados === 0);
+
+    let bg = '#fff';
+    let hoverBg = '#f8fafc';
+
+    if (!s.selecionado) {
+        if (isFerias) { bg = '#f3e8ff'; hoverBg = '#e9d5ff'; }
+        else if (isSupervisorAzul) { bg = '#e0f2fe'; hoverBg = '#bae6fd'; }
+        else if (isAmarelo) { bg = '#fef08a'; hoverBg = '#fde047'; }
+    } else {
+        if (isFerias) { bg = '#e9d5ff'; hoverBg = '#d8b4fe'; }
+        else if (isSupervisorAzul) { bg = '#bae6fd'; hoverBg = '#7dd3fc'; }
+        else if (isAmarelo) { bg = '#fde047'; hoverBg = '#facc15'; }
+        else { bg = '#f0f9ff'; hoverBg = '#e0f2fe'; }
+    }
+    
+    return { bg, hoverBg, isAmarelo };
+};
+
 // ─── Toggle individual ────────────────────────────────────────────────────────
 window.toggleReciboColab = function (id, checked) {
     if (!_recibosSelecoes[id]) return;
     _recibosSelecoes[id].selecionado = checked;
     const row = document.getElementById(`rec-row-${id}`);
-    if (row) row.style.background = checked ? '#f0f9ff' : '#fff';
+    if (row) {
+        const c = _recibosAllColabs.find(x => x.id === id);
+        if (c) {
+            const { bg, hoverBg } = window._getRowColors(c, _recibosSelecoes[id]);
+            row.style.background = bg;
+            row.onmouseover = () => row.style.background = hoverBg;
+            row.onmouseout = () => row.style.background = bg;
+        }
+    }
     _atualizarContador();
     const sa = document.getElementById('rec-select-all');
     if (sa) sa.checked = _recibosFiltrados.length > 0 && _recibosFiltrados.every(c => _recibosSelecoes[c.id]?.selecionado);
@@ -425,7 +501,13 @@ window.toggleSelectAllRecibos = function (checked) {
         if (!_recibosSelecoes[c.id]) return;
         _recibosSelecoes[c.id].selecionado = checked;
         const cb  = document.getElementById(`rec-cb-${c.id}`);  if (cb)  cb.checked = checked;
-        const row = document.getElementById(`rec-row-${c.id}`); if (row) row.style.background = checked ? '#f0f9ff' : '#fff';
+        const row = document.getElementById(`rec-row-${c.id}`);
+        if (row) {
+            const { bg, hoverBg } = window._getRowColors(c, _recibosSelecoes[c.id]);
+            row.style.background = bg;
+            row.onmouseover = () => row.style.background = hoverBg;
+            row.onmouseout = () => row.style.background = bg;
+        }
     });
     _atualizarContador();
 };
@@ -516,6 +598,9 @@ window._recBuscarPontoSelecionados = async function () {
                         s.apuracaoDiaria = typeof data.apuracaoRaw === 'string' ? JSON.parse(data.apuracaoRaw) : data.apuracaoRaw;
                     } catch(e) { console.warn('Erro ao ler apuracaoRaw:', e); }
                 }
+
+                // Se RHID retornou dados válidos, remove a flag de supervisão auto (pois bate ponto!)
+                s.isAutoSupervisao = false;
 
                 // Se RHID retornou aviso (apuração não disponível)
                 s.pontoStatus = data.aviso ? 'erro' : 'ok';
@@ -692,6 +777,8 @@ window.carregarHistoricoRecibos = async function () {
                     _recibosSelecoes[c.id].diasVR = 0;
                     _recibosSelecoes[c.id].faltas = 0;
                     _recibosSelecoes[c.id].diasExtra = 0;
+                    _recibosSelecoes[c.id].historicoEncontrado = false;
+                    _recibosSelecoes[c.id].isAutoSupervisao = false;
                 }
             });
             // Aplica o histórico
@@ -701,10 +788,24 @@ window.carregarHistoricoRecibos = async function () {
                     _recibosSelecoes[h.colaborador_id].diasVR = h.dias_vr;
                     _recibosSelecoes[h.colaborador_id].faltas = h.faltas;
                     _recibosSelecoes[h.colaborador_id].diasExtra = h.dias_extra;
+                    _recibosSelecoes[h.colaborador_id].historicoEncontrado = true;
                 }
             });
         }
     } catch(e) { console.warn('Erro ao carregar histórico:', e); }
+    
+    // Auto-fill para Supervisão (se não tinha histórico e ainda está 0)
+    const diasUteis = await _getDiasUteis(ano, mes);
+    _recibosAllColabs.forEach(c => {
+        const s = _recibosSelecoes[c.id];
+        const isSupervisao = (c.departamento || '').toLowerCase().includes('supervis');
+        if (isSupervisao && s && !s.historicoEncontrado && s.diasTrabalhados === 0) {
+            s.diasTrabalhados = diasUteis;
+            s.diasVR = diasUteis;
+            s.isAutoSupervisao = true;
+        }
+    });
+
     _filtrarERendar();
 };
 
