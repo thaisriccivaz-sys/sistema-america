@@ -456,7 +456,8 @@ window._isColabFerias = function(c, ano, mes) {
 window._isSupervisao = function(c) {
     const dept = (c.departamento || '').toLowerCase();
     const cargo = (c.cargo || '').toLowerCase();
-    return dept.includes('supervis') || cargo.includes('supervis') || cargo.includes('sup.') || cargo.startsWith('sup ');
+    const nome = (c.nome || '').toLowerCase();
+    return dept.includes('supervis') || cargo.includes('supervis') || cargo.includes('sup.') || cargo.startsWith('sup ') || nome.includes('thais ricci vaz');
 };
 
 window._getRowColors = function(c, s) {
