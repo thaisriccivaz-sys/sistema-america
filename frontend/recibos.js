@@ -454,7 +454,9 @@ window._recBuscarPontoSelecionados = async function () {
 
             if (!res.ok) {
                 // Erro HTTP (ex: 500 da API RHID)
-                const msg = data.message || `Erro ${res.status}`;
+                const msgRaw = data.message || `Erro HTTP ${res.status}`;
+                // Remove HTML caso o RHID retorne página de erro
+                const msg = msgRaw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 200);
                 errosDetalhes.push(`${_recNome(c)}: ${msg}`);
                 _recibosSelecoes[c.id].pontoStatus = 'erro';
                 erroApi++;
@@ -503,14 +505,47 @@ window._recBuscarPontoSelecionados = async function () {
 
     // Mostrar detalhes dos erros se houver
     if (errosDetalhes.length > 0 && typeof Swal !== 'undefined') {
-        const listHtml = errosDetalhes.slice(0, 10).map(e => `• ${e}`).join('<br>');
-        const extra = errosDetalhes.length > 10 ? `<br><i>...e mais ${errosDetalhes.length - 10}</i>` : '';
-        Swal.fire({
-            title: 'Detalhes do Ponto',
-            html: `<div style="font-size:.88rem;text-align:left;max-height:300px;overflow-y:auto;">${listHtml}${extra}</div>`,
-            icon: erroApi > 0 ? 'error' : 'warning',
-            confirmButtonText: 'OK'
-        });
+        // Escapa texto para evitar renderização de HTML nos erros
+        const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+        // Se TODOS falharam com erro de API — provavelmente RHID fora do ar
+        const totalFalha = erroApi + semCadastro + semApuracao;
+        const todosFalharam = (totalFalha === sels.length && ok === 0);
+
+        if (todosFalharam) {
+            // Primeira mensagem de erro para diagnose
+            const primeiroErro = errosDetalhes[0] || '';
+            const erroLimpo = esc(primeiroErro).substring(0, 300);
+            Swal.fire({
+                title: '⚠️ RHID Indisponível',
+                html: `
+                  <div style="font-size:.9rem;text-align:left;line-height:1.7;">
+                    <p style="margin-bottom:.75rem;">Não foi possível consultar o ponto de <strong>${sels.length} colaborador${sels.length>1?'es':''}</strong>.<br>
+                    O sistema de ponto (RHID / Control ID) retornou erro.</p>
+                    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:.6rem .85rem;font-size:.8rem;color:#b91c1c;margin-bottom:.85rem;">
+                      <strong>Detalhe:</strong> ${erroLimpo}
+                    </div>
+                    <p style="font-size:.82rem;color:#64748b;">O que fazer:</p>
+                    <ul style="font-size:.82rem;color:#475569;padding-left:1.2rem;">
+                      <li>Verifique se as credenciais RHID estão corretas (menu Admin › Control ID)</li>
+                      <li>Confirme se o sistema de ponto está online</li>
+                      <li>Preencha os dias manualmente na tabela</li>
+                    </ul>
+                  </div>`,
+                icon: 'error',
+                confirmButtonText: 'Entendido'
+            });
+        } else {
+            // Falha parcial — mostra lista de erros individuais (sem HTML)
+            const listHtml = errosDetalhes.slice(0, 8).map(e => `• ${esc(e)}`).join('<br>');
+            const extra = errosDetalhes.length > 8 ? `<br><i style="color:#94a3b8;">...e mais ${errosDetalhes.length - 8}</i>` : '';
+            Swal.fire({
+                title: 'Resultado do Ponto',
+                html: `<div style="font-size:.85rem;text-align:left;max-height:280px;overflow-y:auto;line-height:1.6;">${listHtml}${extra}</div>`,
+                icon: erroApi > 0 ? 'warning' : 'info',
+                confirmButtonText: 'OK'
+            });
+        }
     }
 };
 

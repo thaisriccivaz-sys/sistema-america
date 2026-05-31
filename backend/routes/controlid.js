@@ -288,11 +288,22 @@ router.get('/ponto-colaborador', async (req, res) => {
 
     } catch (error) {
         // Erro na autenticação RHID ou na busca de pessoa — esse sim é 500
-        const detalhe = error.response?.data?.message || error.response?.data || error.message;
+        const _rhidErroParaTexto = (d) => {
+            if (!d) return null;
+            if (typeof d === 'string') {
+                // RHID às vezes retorna página HTML de erro — remove as tags
+                return d.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 300);
+            }
+            if (typeof d === 'object') {
+                return (d.message || d.detail || d.title || d.error || JSON.stringify(d)).toString().substring(0, 300);
+            }
+            return String(d).substring(0, 300);
+        };
+        const detalhe = _rhidErroParaTexto(error.response?.data) || error.message;
         console.error('[ControlID] Erro em /ponto-colaborador:', detalhe);
         return res.status(500).json({
             success: false,
-            message: 'Erro ao consultar o RHID: ' + detalhe
+            message: 'Erro RHID: ' + detalhe
         });
     }
 });
