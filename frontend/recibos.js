@@ -223,9 +223,9 @@ function _buildRecibosLayout(mesAt, anoAt) {
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;">Colaborador</th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;">Cargo / Departamento</th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;">Meio Transp.</th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;" title="Dias Trabalhados (Base VT/VC)">Transporte</th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;" title="Dias > 6h (Base VR)">VR</th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;" title="Dias > 3h extra">Jantar</th>
-            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;" title="Dias Trabalhados (Base VT/VC)">Transporte</th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;" title="Faltas com e sem atestado">Faltas</th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;">Ponto</th>
           </tr>
@@ -409,6 +409,14 @@ function _renderTabela() {
           </td>
           <td style="padding:.55rem .75rem;text-align:center;">${transpBadge}</td>
           <td style="padding:.45rem .4rem;text-align:center;">
+            ${_isVT(m) || _isVC(m) ? `
+            <input type="number" min="0" max="35" value="${s.diasTrabalhados}"
+              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${dtrabColor};"
+              placeholder="0"
+              onchange="window.atualizarDadosReciboColab(${c.id},'diasTrabalhados',this.value); if(_recibosSelecoes[${c.id}].diasVR == null) _recibosSelecoes[${c.id}].diasVR = this.value; window.aplicarFiltrosRecibos();">
+            ` : `<span style="color:#94a3b8;font-weight:600;">-</span>`}
+          </td>
+          <td style="padding:.45rem .4rem;text-align:center;">
             <input type="number" min="0" max="35" value="${s.diasVR !== null && s.diasVR !== undefined ? s.diasVR : s.diasTrabalhados}"
               style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${dtrabColor};"
               placeholder="0"
@@ -419,14 +427,6 @@ function _renderTabela() {
               style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${s.diasExtra>0?'#8b5cf6':'#94a3b8'};"
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'diasExtra',this.value)">
-          </td>
-          <td style="padding:.45rem .4rem;text-align:center;">
-            ${_isVT(m) || _isVC(m) ? `
-            <input type="number" min="0" max="35" value="${s.diasTrabalhados}"
-              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${dtrabColor};"
-              placeholder="0"
-              onchange="window.atualizarDadosReciboColab(${c.id},'diasTrabalhados',this.value); if(_recibosSelecoes[${c.id}].diasVR == null) _recibosSelecoes[${c.id}].diasVR = this.value; window.aplicarFiltrosRecibos();">
-            ` : `<span style="color:#94a3b8;font-weight:600;">-</span>`}
           </td>
           <td style="padding:.45rem .4rem;text-align:center;">
             <input type="number" min="0" max="35" value="${s.faltas||''}"
