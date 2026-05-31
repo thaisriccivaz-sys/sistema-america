@@ -488,13 +488,6 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
             const heMin = parseInt(d.minHE || d.minutos_extras || d.horasExtrasCalculadas || ((d.extraDiurna || 0) + (d.extraNoturna || 0)) || 0);
             return he >= 3 || heMin >= 180;
         }).length;
-
-        // Se encontramos registros, mas a lógica não identificou absolutamente nada (nem presença, nem falta)
-        // Isso significa que os nomes dos campos retornados pela API não são os que esperávamos.
-        // Força erro para o frontend exibir as chaves reais.
-        if (diasTrabalhados === 0 && faltas === 0 && data.length > 0) {
-            diasTrabalhados = null;
-        }
     }
 
     // ── Caso seja um objeto com totais ──────────────────────────────────────

@@ -183,14 +183,13 @@ function _buildRecibosLayout(mesAt, anoAt) {
             <th style="padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Tipo</th>
             <th style="padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Transporte</th>
             <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;" title="Dias Trabalhados (base VT/VC)">Dias&nbsp;Trab.</th>
-            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;" title="Dias com \> 6h trabalhadas (base VR)">Dias&nbsp;VR</th>
             <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Faltas</th>
             <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;" title="Dias com \> 3h extra">Jantar</th>
             <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Ponto</th>
           </tr>
         </thead>
         <tbody id="rec-tbody">
-          <tr><td colspan="10" style="text-align:center;padding:3rem;color:#94a3b8;">
+          <tr><td colspan="9" style="text-align:center;padding:3rem;color:#94a3b8;">
             <i class="ph ph-spinner" style="font-size:1.5rem;animation:rec-spin 1s linear infinite;display:block;margin-bottom:.6rem;"></i>
             Carregando colaboradores...
           </td></tr>
@@ -246,7 +245,7 @@ async function _loadColabs() {
     } catch (e) {
         console.error('[Recibos] Erro ao carregar:', e);
         const tbody = document.getElementById('rec-tbody');
-        if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:#ef4444;">
+        if (tbody) tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;color:#ef4444;">
             <i class="ph ph-warning-circle" style="font-size:1.5rem;display:block;margin-bottom:.5rem;"></i>
             Erro ao carregar colaboradores: ${e.message}</td></tr>`;
     }
@@ -307,7 +306,7 @@ function _renderTabela() {
     if (!tbody) return;
 
     if (!_recibosFiltrados.length) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2.5rem;color:#94a3b8;">
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2.5rem;color:#94a3b8;">
             <i class="ph ph-users" style="font-size:2rem;display:block;margin-bottom:.5rem;"></i>
             Nenhum colaborador encontrado.</td></tr>`;
         _atualizarContador(); return;
@@ -364,13 +363,7 @@ function _renderTabela() {
             <input type="number" min="0" max="35" value="${s.diasTrabalhados}"
               style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${dtrabColor};"
               placeholder="0"
-              onchange="window.atualizarDadosReciboColab(${c.id},'diasTrabalhados',this.value)">
-          </td>
-          <td style="padding:.45rem .4rem;text-align:center;">
-            <input type="number" min="0" max="35" value="${s.diasVR!=null ? s.diasVR : s.diasTrabalhados}"
-              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${s.diasVR>0?'#059669':'#94a3b8'};"
-              placeholder="0"
-              onchange="window.atualizarDadosReciboColab(${c.id},'diasVR',this.value)">
+              onchange="window.atualizarDadosReciboColab(${c.id},'diasTrabalhados',this.value); _recibosSelecoes[${c.id}].diasVR = null;">
           </td>
           <td style="padding:.45rem .4rem;text-align:center;">
             <input type="number" min="0" max="35" value="${s.faltas||''}"
