@@ -249,6 +249,7 @@ router.get('/ponto-colaborador', async (req, res) => {
 
         // ── PASSO 3: Buscar apuração do ponto ────────────────────────────────
         let apuracaoData = null;
+        let apuracaoErro = null;
         try {
             const apuracaoRes = await axios.get(`${RHID_BASE_URL}/apuracao_ponto`, {
                 headers: { Authorization: authHeader },
@@ -256,13 +257,22 @@ router.get('/ponto-colaborador', async (req, res) => {
             });
             apuracaoData = apuracaoRes.data;
         } catch (apErr) {
-            console.warn('[ControlID] Erro ao buscar apuracao_ponto:', apErr.response?.data || apErr.message);
+            // Captura o erro da apuração mas NÃO deixa derrubar toda a resposta.
+            // O colaborador foi encontrado no RHID; só a apuração falhou.
+            const rhidMsg = apErr.response?.data?.message || apErr.response?.data || apErr.message;
+            apuracaoErro = `Apuração indisponível no RHID para ${dataIni} a ${dataFinal}: ${rhidMsg}`;
+            console.warn('[ControlID] Erro ao buscar apuracao_ponto:', rhidMsg);
         }
 
         // ── PASSO 4: Processar resposta ───────────────────────────────────────
-        // O schema de retorno não é documentado no swagger, então tentamos
-        // extrair os campos de forma flexível.
         const resultado = processarApuracao(apuracaoData, mesNum, anoNum, idPerson, nomeRHID);
+
+        // Se houve erro na apuração, sobrescreve o aviso com o erro real do RHID
+        if (apuracaoErro && !resultado.aviso) {
+            resultado.aviso = apuracaoErro;
+        } else if (apuracaoErro) {
+            resultado.aviso = apuracaoErro + ' | ' + resultado.aviso;
+        }
 
         return res.json({
             success: true,
@@ -272,14 +282,17 @@ router.get('/ponto-colaborador', async (req, res) => {
             dataIni,
             dataFinal,
             apuracaoRaw: apuracaoData, // incluído para debug/exploração
+            apuracaoErro,              // detalhe do erro da apuração para o frontend
             ...resultado
         });
 
     } catch (error) {
-        console.error('[ControlID] Erro em /ponto-colaborador:', error.response?.data || error.message);
+        // Erro na autenticação RHID ou na busca de pessoa — esse sim é 500
+        const detalhe = error.response?.data?.message || error.response?.data || error.message;
+        console.error('[ControlID] Erro em /ponto-colaborador:', detalhe);
         return res.status(500).json({
             success: false,
-            message: 'Erro ao consultar o RHID: ' + (error.response?.data?.message || error.message)
+            message: 'Erro ao consultar o RHID: ' + detalhe
         });
     }
 });
