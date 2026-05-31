@@ -892,20 +892,23 @@ window.carregarHistoricoRecibos = async function () {
                     _recibosSelecoes[h.colaborador_id].faltas = h.faltas;
                     _recibosSelecoes[h.colaborador_id].diasExtra = h.dias_extra;
                     _recibosSelecoes[h.colaborador_id].historicoEncontrado = true;
+                    _recibosSelecoes[h.colaborador_id].pontoStatus = 'ok'; // Mantém a cor verde/azul após carregamento
                 }
             });
         }
     } catch(e) { console.warn('Erro ao carregar histórico:', e); }
     
-    // Auto-fill para Supervisão (sempre que for 0 dias, preenche auto, ignorando histórico com 0 acidental)
+    // Auto-fill para Supervisão
     const diasUteis_SegSex = await _getDiasUteis(ano, mes, true);
     _recibosAllColabs.forEach(c => {
         const s = _recibosSelecoes[c.id];
         const isSupervisao = window._isSupervisao(c);
-        if (isSupervisao && s && s.diasTrabalhados === 0) {
-            s.diasTrabalhados = diasUteis_SegSex;
-            s.diasVR = diasUteis_SegSex;
-            s.isAutoSupervisao = true;
+        if (isSupervisao && s) {
+            if (s.diasTrabalhados === 0) {
+                s.diasTrabalhados = diasUteis_SegSex;
+                s.diasVR = diasUteis_SegSex;
+            }
+            s.isAutoSupervisao = true; // Garante a cor azul para supervisores
         }
     });
 
