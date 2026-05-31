@@ -878,7 +878,7 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
         <td style="padding:6px 10px;font-weight:600;color:#475569;font-size:10.5px;">Referência:</td>
         <td style="padding:6px 10px;font-weight:700;font-size:11px;">${mesNome.toUpperCase()} / ${ano}</td>
         <td style="padding:6px 10px;font-weight:600;color:#475569;font-size:10.5px;">Matrícula:</td>
-        <td style="padding:6px 10px;font-size:11px;">${colab.numero_registro||colab.id||'—'}</td>
+        <td style="padding:6px 10px;font-size:11px;">${colab.matricula_esocial||colab.numero_registro||colab.id||'—'}</td>
       </tr>
     </table>
 
