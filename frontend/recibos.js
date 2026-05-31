@@ -570,12 +570,15 @@ window._recBuscarPontoSelecionados = async function () {
 
     let ok = 0, semCadastro = 0, semApuracao = 0, erroApi = 0;
     const errosDetalhes = [];
+    const nomesSemCadastro = [];
+    const nomesErroApi = [];
 
     for (const c of sels) {
         const cpf = (c.cpf || '').replace(/\D/g, '');
         if (!cpf || cpf.length < 8) {
             _recibosSelecoes[c.id].pontoStatus = 'erro';
             semCadastro++;
+            nomesSemCadastro.push(_recNome(c));
             continue;
         }
         try {
@@ -599,6 +602,7 @@ window._recBuscarPontoSelecionados = async function () {
                 errosDetalhes.push(`${_recNome(c)}: ${msg}`);
                 _recibosSelecoes[c.id].pontoStatus = 'erro';
                 erroApi++;
+                nomesErroApi.push(_recNome(c));
                 continue;
             }
 
@@ -642,14 +646,17 @@ window._recBuscarPontoSelecionados = async function () {
                 // Não encontrado no RHID
                 _recibosSelecoes[c.id].pontoStatus = 'erro';
                 semCadastro++;
+                nomesSemCadastro.push(_recNome(c));
             } else {
                 _recibosSelecoes[c.id].pontoStatus = 'erro';
                 erroApi++;
+                nomesErroApi.push(_recNome(c));
                 errosDetalhes.push(`${_recNome(c)}: ${data.message || 'Resposta inesperada do RHID'}`);
             }
         } catch (ex) {
             _recibosSelecoes[c.id].pontoStatus = 'erro';
             erroApi++;
+            nomesErroApi.push(_recNome(c));
             errosDetalhes.push(`${_recNome(c)}: ${ex.message}`);
         }
     }
@@ -718,8 +725,8 @@ window._recBuscarPontoSelecionados = async function () {
         const partes = [];
         if (ok         > 0) partes.push(`<span style="color:#059669;"><i class="ph ph-check-circle"></i> ${ok} importado${ok>1?'s':''}</span>`);
         if (semApuracao> 0) partes.push(`<span style="color:#f59e0b;"><i class="ph ph-warning"></i> ${semApuracao} sem apuração</span>`);
-        if (semCadastro> 0) partes.push(`<span style="color:#f59e0b;"><i class="ph ph-user-minus"></i> ${semCadastro} sem cadastro RHID</span>`);
-        if (erroApi    > 0) partes.push(`<span style="color:#ef4444;"><i class="ph ph-x-circle"></i> ${erroApi} erro API</span>`);
+        if (semCadastro> 0) partes.push(`<span style="color:#f59e0b;" title="${nomesSemCadastro.join('&#10;')}"><i class="ph ph-user-minus"></i> ${semCadastro} sem cadastro RHID</span>`);
+        if (erroApi    > 0) partes.push(`<span style="color:#ef4444;" title="${nomesErroApi.join('&#10;')}"><i class="ph ph-x-circle"></i> ${erroApi} erro API</span>`);
         badge.innerHTML = partes.join(' &nbsp; ');
     }
 
@@ -1093,7 +1100,7 @@ function _recFmt(v) { return (parseFloat(v)||0).toLocaleString('pt-BR',{minimumF
 function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB64) {
     const nome    = _recNome(colab);
     const logoHtml = logoB64
-        ? `<img src="${logoB64}" style="width:100%;max-width:794px;display:block;" alt="America Rental">`
+        ? `<div style="margin:0;padding:0;line-height:0;"><img src="${logoB64}" style="width:100%;display:block;margin:0;padding:0;" alt="America Rental"></div>`
         : `<div style="background:#1e3a5f;padding:16px 32px;"><span style="color:#fff;font-size:1.3rem;font-weight:900;letter-spacing:1px;">AMERICA RENTAL</span></div>`;
 
     const dtrab     = dados.diasTrabalhados || 0;
@@ -1126,7 +1133,8 @@ ${dExtra>0?`<tr><td style="padding:7px 12px;border:1px solid #ddd;">Jantar</td><
         beneficio = 'Vale Transporte';
         totalFinal = dtrab * valTransp;
         linhas = `
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Meio de Transporte</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dtrab}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${colab.meio_transporte||'—'}</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Meio de Transporte</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${colab.meio_transporte||'—'}</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dtrab}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dtrab} dias</td></tr>
 <tr><td style="padding:7px 12px;border:1px solid #ddd;">Valor por Dia</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(valTransp)}</td></tr>
 <tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td colspan="2" style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
         obs = 'Conforme Decreto nº 95.247/87. O desconto de até 6% do salário base pode ser aplicado conforme legislação vigente.';
@@ -1145,9 +1153,9 @@ ${dExtra>0?`<tr><td style="padding:7px 12px;border:1px solid #ddd;">Jantar</td><
     }
 
     const via = () => `
-<div class="via" style="padding:24px 32px;page-break-after:always;">
+<div class="via" style="page-break-after:always;">
   ${logoHtml}
-  <div style="padding-top:14px;">
+  <div style="padding:14px 32px 24px 32px;">
     <table style="width:100%;border-collapse:collapse;font-size:11px;border:1.5px solid #1e3a5f;margin-bottom:0;">
       <tr style="background:#1e3a5f;color:#fff;">
         <td colspan="4" style="padding:6px 12px;font-weight:700;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;">
