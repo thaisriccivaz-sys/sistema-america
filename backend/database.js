@@ -533,6 +533,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     faltas INTEGER,
                     dias_extra INTEGER,
                     valor_vr TEXT,
+                    apuracao_diaria TEXT,
                     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(colaborador_id, mes, ano),
                     FOREIGN KEY (colaborador_id) REFERENCES colaboradores (id) ON DELETE CASCADE
@@ -601,6 +602,13 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('status_monaco')) db.run("ALTER TABLE multas_logistica ADD COLUMN status_monaco TEXT");
                     if (!cols.includes('termo_desconto_base64')) db.run("ALTER TABLE multas_logistica ADD COLUMN termo_desconto_base64 TEXT");
                     if (!cols.includes('termo_desconto_nome')) db.run("ALTER TABLE multas_logistica ADD COLUMN termo_desconto_nome TEXT");
+                });
+
+                // Recibos Histórico
+                db.all("PRAGMA table_info(recibos_historico)", (err, rows) => {
+                    if (err || !rows) return;
+                    const cols = rows.map(r => r.name);
+                    if (!cols.includes('apuracao_diaria')) db.run("ALTER TABLE recibos_historico ADD COLUMN apuracao_diaria TEXT");
                 });
 
                 // Avaliacoes (Migracao estrutural para Drop and Recreate caso a tabela antiga nao tenha 'tipo')

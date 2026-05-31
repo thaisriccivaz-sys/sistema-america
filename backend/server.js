@@ -6127,24 +6127,31 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
 
     db.serialize(() => {
         db.run('BEGIN TRANSACTION');
-        // Primeiro removemos os existentes do mes/ano (caso seja update completo)
-        db.run('DELETE FROM recibos_historico WHERE mes = ? AND ano = ?', [mes, ano], (err) => {
-            if (err) {
+        
+        const stmt = db.prepare(`
+            INSERT INTO recibos_historico (mes, ano, colaborador_id, dias_trabalhados, dias_vr, faltas, dias_extra, valor_vr, apuracao_diaria) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(colaborador_id, mes, ano) 
+            DO UPDATE SET 
+                dias_trabalhados=excluded.dias_trabalhados,
+                dias_vr=excluded.dias_vr,
+                faltas=excluded.faltas,
+                dias_extra=excluded.dias_extra,
+                valor_vr=excluded.valor_vr,
+                apuracao_diaria=COALESCE(excluded.apuracao_diaria, recibos_historico.apuracao_diaria)
+        `);
+        
+        itens.forEach(i => {
+            stmt.run([mes, ano, i.colaborador_id, i.dias_trabalhados, i.dias_vr, i.faltas, i.dias_extra, i.valor_vr, i.apuracao_diaria]);
+        });
+        
+        stmt.finalize((err2) => {
+            if (err2) {
                 db.run('ROLLBACK');
-                return res.status(500).json({ error: err.message });
+                return res.status(500).json({ error: err2.message });
             }
-            const stmt = db.prepare(`INSERT INTO recibos_historico (mes, ano, colaborador_id, dias_trabalhados, dias_vr, faltas, dias_extra, valor_vr) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
-            itens.forEach(i => {
-                stmt.run([mes, ano, i.colaborador_id, i.dias_trabalhados, i.dias_vr, i.faltas, i.dias_extra, i.valor_vr]);
-            });
-            stmt.finalize((err2) => {
-                if (err2) {
-                    db.run('ROLLBACK');
-                    return res.status(500).json({ error: err2.message });
-                }
-                db.run('COMMIT', () => {
-                    res.json({ ok: true, message: 'Histórico de recibos salvo com sucesso' });
-                });
+            db.run('COMMIT', () => {
+                res.json({ ok: true, message: 'Histórico de recibos salvo com sucesso' });
             });
         });
     });

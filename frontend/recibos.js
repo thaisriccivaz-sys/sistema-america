@@ -8,7 +8,9 @@
 let _recibosAllColabs   = [];
 let _recibosFiltrados   = [];
 let _recibosDeptTipoMap = {}; // { 'Logística': 'Operacional', 'RH': 'Administrativo' }
-let _recibosSelecoes    = {}; // { id: { selecionado, diasTrabalhados, faltas, diasExtra, pontoStatus, isAutoSupervisao, historicoEncontrado } }
+let _recibosSelecoes    = {}; // { id: { selecionado, diasTrabalhados, faltas, diasExtra, pontoStatus, isAutoSupervisao, historicoEncontrado, apuracaoDiaria } }
+let _recibosSortCol     = 'nome';
+let _recibosSortAsc     = true;
 
 // ─── Calendário de Feriados ───────────────────────────────────────────────────
 let _feriadosBrasil = {};
@@ -218,16 +220,16 @@ function _buildRecibosLayout(mesAt, anoAt) {
     <div style="overflow-x:auto;overflow-y:auto;max-height:65vh;">
       <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
         <thead style="position:sticky;top:0;z-index:10;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-          <tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">
+          <tr id="rec-thead-tr" style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;width:36px;z-index:11;"></th>
-            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;">Colaborador</th>
-            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;">Cargo / Departamento</th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" onclick="window.ordenarRecibos('nome')">Colaborador <i class="ph ${_recibosSortCol==='nome'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='nome'?'1':'0.3'}"></i></th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" onclick="window.ordenarRecibos('cargo')">Cargo / Departamento <i class="ph ${_recibosSortCol==='cargo'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='cargo'?'1':'0.3'}"></i></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;">Meio Transp.</th>
-            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;" title="Dias Trabalhados (Base VT/VC)">Transporte</th>
-            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;" title="Dias > 6h (Base VR)">VR</th>
-            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;" title="Dias > 3h extra">Jantar</th>
-            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;" title="Faltas com e sem atestado">Faltas</th>
-            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;">Ponto</th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Dias Trabalhados (Base VT/VC)" onclick="window.ordenarRecibos('transporte')">Transporte <i class="ph ${_recibosSortCol==='transporte'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='transporte'?'1':'0.3'}"></i></th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Dias > 6h (Base VR)" onclick="window.ordenarRecibos('vr')">VR <i class="ph ${_recibosSortCol==='vr'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='vr'?'1':'0.3'}"></i></th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Dias > 3h extra" onclick="window.ordenarRecibos('jantar')">Jantar <i class="ph ${_recibosSortCol==='jantar'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='jantar'?'1':'0.3'}"></i></th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Faltas com e sem atestado" onclick="window.ordenarRecibos('faltas')">Faltas <i class="ph ${_recibosSortCol==='faltas'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltas'?'1':'0.3'}"></i></th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" onclick="window.ordenarRecibos('ponto')">Ponto <i class="ph ${_recibosSortCol==='ponto'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='ponto'?'1':'0.3'}"></i></th>
           </tr>
         </thead>
         <tbody id="rec-tbody">
@@ -311,6 +313,16 @@ function _popularFiltros() {
 // ─── Filtros ──────────────────────────────────────────────────────────────────
 window.aplicarFiltrosRecibos = function () { _filtrarERendar(); };
 
+window.ordenarRecibos = function(col) {
+    if (_recibosSortCol === col) {
+        _recibosSortAsc = !_recibosSortAsc;
+    } else {
+        _recibosSortCol = col;
+        _recibosSortAsc = true;
+    }
+    _filtrarERendar();
+};
+
 function _filtrarERendar() {
     const nome   = (document.getElementById('rec-f-nome')?.value || '').toLowerCase().trim();
     const dept   = document.getElementById('rec-f-dept')?.value  || '';
@@ -336,6 +348,50 @@ function _filtrarERendar() {
         return true;
     });
 
+    _recibosFiltrados.sort((a, b) => {
+        let valA, valB;
+        const selA = _recibosSelecoes[a.id] || {};
+        const selB = _recibosSelecoes[b.id] || {};
+
+        switch(_recibosSortCol) {
+            case 'nome':
+                valA = _recNome(a).toLowerCase();
+                valB = _recNome(b).toLowerCase();
+                break;
+            case 'cargo':
+                valA = (a.cargo || '').toLowerCase() + (a.departamento || '').toLowerCase();
+                valB = (b.cargo || '').toLowerCase() + (b.departamento || '').toLowerCase();
+                break;
+            case 'transporte':
+                valA = selA.diasTrabalhados || 0;
+                valB = selB.diasTrabalhados || 0;
+                break;
+            case 'vr':
+                valA = selA.diasVR != null ? selA.diasVR : (selA.diasTrabalhados || 0);
+                valB = selB.diasVR != null ? selB.diasVR : (selB.diasTrabalhados || 0);
+                break;
+            case 'jantar':
+                valA = selA.diasExtra || 0;
+                valB = selB.diasExtra || 0;
+                break;
+            case 'faltas':
+                valA = selA.faltas || 0;
+                valB = selB.faltas || 0;
+                break;
+            case 'ponto':
+                valA = selA.pontoStatus || '';
+                valB = selB.pontoStatus || '';
+                break;
+            default:
+                valA = _recNome(a).toLowerCase();
+                valB = _recNome(b).toLowerCase();
+        }
+
+        if (valA < valB) return _recibosSortAsc ? -1 : 1;
+        if (valA > valB) return _recibosSortAsc ? 1 : -1;
+        return 0;
+    });
+
     _renderTabela();
 }
 
@@ -347,6 +403,21 @@ function _isVC(m) { return m.includes('combustivel') || m.includes('combustível
 function _renderTabela() {
     const tbody = document.getElementById('rec-tbody');
     if (!tbody) return;
+
+    const trHead = document.getElementById('rec-thead-tr');
+    if (trHead) {
+        trHead.innerHTML = `
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;width:36px;z-index:11;"></th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" onclick="window.ordenarRecibos('nome')">Colaborador <i class="ph ${_recibosSortCol==='nome'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='nome'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" onclick="window.ordenarRecibos('cargo')">Cargo / Depto <i class="ph ${_recibosSortCol==='cargo'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='cargo'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;">Meio Transp.</th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Dias Trabalhados (Base VT/VC)" onclick="window.ordenarRecibos('transporte')">Transp. <i class="ph ${_recibosSortCol==='transporte'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='transporte'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Dias > 6h (Base VR)" onclick="window.ordenarRecibos('vr')">VR <i class="ph ${_recibosSortCol==='vr'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='vr'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Dias > 3h extra" onclick="window.ordenarRecibos('jantar')">Jantar <i class="ph ${_recibosSortCol==='jantar'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='jantar'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Faltas com e sem atestado" onclick="window.ordenarRecibos('faltas')">Faltas <i class="ph ${_recibosSortCol==='faltas'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltas'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" onclick="window.ordenarRecibos('ponto')">Ponto <i class="ph ${_recibosSortCol==='ponto'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='ponto'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+        `;
+    }
 
     if (!_recibosFiltrados.length) {
         tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2.5rem;color:#94a3b8;">
@@ -894,6 +965,12 @@ window.carregarHistoricoRecibos = async function () {
                     _recibosSelecoes[h.colaborador_id].faltas = h.faltas;
                     _recibosSelecoes[h.colaborador_id].diasExtra = h.dias_extra;
                     _recibosSelecoes[h.colaborador_id].historicoEncontrado = true;
+                    _recibosSelecoes[h.colaborador_id].selecionado = true; // Auto-seleciona os que já estavam salvos
+                    if (h.apuracao_diaria) {
+                        try {
+                            _recibosSelecoes[h.colaborador_id].apuracaoDiaria = JSON.parse(h.apuracao_diaria);
+                        } catch(e){}
+                    }
                     _recibosSelecoes[h.colaborador_id].pontoStatus = 'ok'; // Mantém a cor verde/azul após carregamento
                 }
             });
@@ -906,7 +983,7 @@ window.carregarHistoricoRecibos = async function () {
         const s = _recibosSelecoes[c.id];
         const isSupervisao = window._isSupervisao(c);
         if (isSupervisao && s) {
-            if (s.diasTrabalhados === 0) {
+            if (s.diasTrabalhados === 0 && !s.historicoEncontrado) {
                 s.diasTrabalhados = diasUteis_SegSex;
                 s.diasVR = diasUteis_SegSex;
             }
@@ -915,6 +992,10 @@ window.carregarHistoricoRecibos = async function () {
     });
 
     _filtrarERendar();
+    
+    // Atualiza checkbox 'Selecionar todos'
+    const sa = document.getElementById('rec-select-all');
+    if (sa) sa.checked = _recibosFiltrados.length > 0 && _recibosFiltrados.every(c => _recibosSelecoes[c.id]?.selecionado);
 };
 
 window.anexarRecibosDocsMassa = async function () {
@@ -942,7 +1023,8 @@ window.anexarRecibosDocsMassa = async function () {
             dias_vr: _recibosSelecoes[c.id].diasVR,
             faltas: _recibosSelecoes[c.id].faltas,
             dias_extra: _recibosSelecoes[c.id].diasExtra,
-            valor_vr: valorVR
+            valor_vr: valorVR,
+            apuracao_diaria: JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria || [])
         }));
         await fetch(`${API_URL}/recibos/salvar`, {
             method: 'POST',
@@ -953,8 +1035,13 @@ window.anexarRecibosDocsMassa = async function () {
         // 2. Enviar HTML de cada colaborador para virar PDF no servidor
         const logo = await _recGetLogo();
         let sucesso = 0, falha = 0;
+        let progresso = 0;
 
         for (const c of sels) {
+            progresso++;
+            if (btnAnexar) {
+                btnAnexar.innerHTML = `<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Anexando (${progresso}/${sels.length})...`;
+            }
             const s = _recibosSelecoes[c.id] || { diasTrabalhados: 0, diasVR: 0, faltas: 0, diasExtra: 0 };
             const m = (c.meio_transporte||'').toLowerCase();
             let corpo = '';
@@ -991,15 +1078,38 @@ window.anexarRecibosDocsMassa = async function () {
 };
 
 // ─── Relatório de Conferência ─────────────────────────────────────────────────
-window.baixarConferenciaPonto = function () {
+window.baixarConferenciaPonto = async function () {
     const sels = _recibosAllColabs.filter(c => _recibosSelecoes[c.id]?.selecionado);
     if (!sels.length) {
         if (typeof Swal !== 'undefined') Swal.fire('Atenção', 'Selecione ao menos um colaborador.', 'warning');
         return;
     }
 
-    const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(document.getElementById('rec-mes')?.value)-1];
+    const mes = document.getElementById('rec-mes')?.value;
     const ano = document.getElementById('rec-ano')?.value;
+    const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mes)-1];
+    const valorVR = parseFloat(document.getElementById('rec-valor-vr')?.value) || 35.00;
+
+    // Salvar apuração no backend para guardar o histórico da conferência
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const itensSalvar = sels.map(c => ({
+            colaborador_id: c.id,
+            dias_trabalhados: _recibosSelecoes[c.id].diasTrabalhados,
+            dias_vr: _recibosSelecoes[c.id].diasVR,
+            faltas: _recibosSelecoes[c.id].faltas,
+            dias_extra: _recibosSelecoes[c.id].diasExtra,
+            valor_vr: valorVR,
+            apuracao_diaria: JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria || [])
+        }));
+        await fetch(`${API_URL}/recibos/salvar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ mes, ano, itens: itensSalvar })
+        });
+    } catch (e) {
+        console.warn('Erro ao salvar histórico da conferência:', e);
+    }
 
     let corpo = '';
     sels.forEach(c => {
