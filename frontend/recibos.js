@@ -455,11 +455,15 @@ window._getRowColors = function(c, s) {
     }
 
     const isSupervisao = (c.departamento || '').toLowerCase().includes('supervis');
-    const isVerde = (s.pontoStatus === 'ok');
-    const isSupervisorAzul = isSupervisao && !isVerde;
     
-    const isAmarelo = !isFerias && !isSupervisorAzul && !isVerde && (s.diasTrabalhados === 0) && (s.pontoStatus !== null);
-    const isCinza   = !isFerias && !isSupervisorAzul && !isVerde && (s.diasTrabalhados === 0) && (s.pontoStatus === null);
+    // AMARELO: Pesquisados (pontoStatus != null), 0 comparecimentos, NÃO são supervisão.
+    const isAmarelo = !isFerias && !isSupervisao && (s.diasTrabalhados === 0) && (s.pontoStatus !== null);
+    
+    // VERDE: pontoStatus 'ok', desde que não tenha caído na regra do Amarelo.
+    const isVerde = (s.pontoStatus === 'ok') && !isAmarelo;
+    
+    const isSupervisorAzul = isSupervisao && !isVerde;
+    const isCinza   = !isFerias && !isSupervisorAzul && !isVerde && !isAmarelo && (s.diasTrabalhados === 0) && (s.pontoStatus === null);
 
     let bg = '#fff';
     let hoverBg = '#f8fafc';
@@ -605,8 +609,12 @@ window._recBuscarPontoSelecionados = async function () {
                     } catch(e) { console.warn('Erro ao ler apuracaoRaw:', e); }
                 }
 
-                // Se RHID retornou dados válidos, remove a flag de supervisão auto (pois bate ponto!)
-                s.isAutoSupervisao = false;
+                // Se RHID retornou dados válidos, remove a flag de supervisão auto, 
+                // A MENOS que seja supervisão com 0 dias trabalhados (onde assumimos que a falta de ponto é por ser supervisão)
+                const isSupervisao = (c.departamento || '').toLowerCase().includes('supervis');
+                if (!(isSupervisao && (data.dtrab || 0) === 0)) {
+                    s.isAutoSupervisao = false;
+                }
 
                 // Se RHID retornou aviso (apuração não disponível)
                 s.pontoStatus = data.aviso ? 'erro' : 'ok';
@@ -657,13 +665,20 @@ window._recBuscarPontoSelecionados = async function () {
         }
     }
 
+    // Se não encontrou o oficial do RHID nas apurações locais, faz o fallback para o gerador padrão de dias úteis
+    if (diasUteisRHID === null) {
+        diasUteisRHID = await _getDiasUteis(ano, mes);
+    }
+
     if (diasUteisRHID !== null) {
-        // Atualiza supervisores auto-preenchidos com a base oficial do RHID
+        // Atualiza supervisores auto-preenchidos com a base oficial do RHID (ou fallback)
         _recibosAllColabs.forEach(c => {
             const s = _recibosSelecoes[c.id];
             if (s && s.isAutoSupervisao) {
                 s.diasTrabalhados = diasUteisRHID;
                 s.diasVR = diasUteisRHID;
+                s.faltas = 0; // Garante que zera as faltas que possam ter retornado
+                s.pontoStatus = 'ok'; // Fica verdinho
             }
         });
     }
