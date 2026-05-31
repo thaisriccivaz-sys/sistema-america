@@ -6109,6 +6109,106 @@ db.run(`CREATE TABLE IF NOT EXISTS admissao_assinaturas (
 )`);
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// HISTÓRICO DE RECIBOS GERADOS E ANEXAÇÃO (DOCS EM MASSA)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// GET: Recupera histórico de recibos gerados no mês e ano
+app.get('/api/recibos/historico/:mes/:ano', authenticateToken, (req, res) => {
+    db.all(`SELECT * FROM recibos_historico WHERE mes = ? AND ano = ?`, [req.params.mes, req.params.ano], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// POST: Salva o estado atual da tabela de recibos (histórico editável)
+app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
+    const { mes, ano, itens } = req.body;
+    if (!mes || !ano || !itens || !Array.isArray(itens)) return res.status(400).json({ error: 'Parâmetros inválidos' });
+
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        // Primeiro removemos os existentes do mes/ano (caso seja update completo)
+        db.run('DELETE FROM recibos_historico WHERE mes = ? AND ano = ?', [mes, ano], (err) => {
+            if (err) {
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: err.message });
+            }
+            const stmt = db.prepare(`INSERT INTO recibos_historico (mes, ano, colaborador_id, dias_trabalhados, dias_vr, faltas, dias_extra, valor_vr) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+            itens.forEach(i => {
+                stmt.run([mes, ano, i.colaborador_id, i.dias_trabalhados, i.dias_vr, i.faltas, i.dias_extra, i.valor_vr]);
+            });
+            stmt.finalize((err2) => {
+                if (err2) {
+                    db.run('ROLLBACK');
+                    return res.status(500).json({ error: err2.message });
+                }
+                db.run('COMMIT', () => {
+                    res.json({ ok: true, message: 'Histórico de recibos salvo com sucesso' });
+                });
+            });
+        });
+    });
+});
+
+// POST: Anexar recibo gerado individualmente aos Docs. em Massa (prontuário digital + Assinafy)
+app.post('/api/recibos/anexar-massa', authenticateToken, async (req, res) => {
+    const { htmlContent, colaborador_id, mes, ano } = req.body;
+    if (!htmlContent || !colaborador_id || !mes || !ano) return res.status(400).json({ error: 'Parâmetros inválidos' });
+
+    try {
+        const htmlPdf = require('html-pdf-node');
+        const bufferPDF = await htmlPdf.generatePdf(
+            { content: htmlContent },
+            {
+                format: 'A4',
+                margin: { top: '0', bottom: '0', left: '0', right: '0' },
+                printBackground: true,
+                args: ['--no-sandbox', '--disable-setuid-sandbox']
+            }
+        );
+
+        const novoProcesso = require('./novo_processo_assinafy');
+        const tipoDocumento = 'Pagamentos';
+        
+        const colab = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (e, r) => e ? reject(e) : resolve(r))
+        );
+        if (!colab) throw new Error(`Colaborador ID ${colaborador_id} não encontrado`);
+
+        const safeNome = (colab.nome_completo || 'Colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
+        const nomeArquivo = `Pagamentos_${safeNome}_${mes}${ano}.pdf`;
+
+        const { docId, filePath } = await pagamentosMassa.salvarDocumentoNoBanco({
+            colaboradorId: colaborador_id,
+            nomeColab: colab.nome_completo,
+            bufferPDF: bufferPDF,
+            nomeArquivo,
+            tipoDocumento,
+            ano,
+            mes,
+            basePath: BASE_UPLOAD_PATH,
+        });
+
+        // Tentar enviar para o Assinafy se possível
+        let urlAssinatura = null;
+        if (colab.email) {
+            try {
+                const resultado = await novoProcesso.enviarDocumentoParaAssinafy(docId, colaborador_id);
+                urlAssinatura = resultado.urlAssinatura;
+            } catch(e3) { console.warn('Erro ao enviar recibo pro Assinafy:', e3.message); }
+        }
+
+        try { await uploadDocToOneDrive(docId); } catch(e2) { }
+
+        res.json({ ok: true, docId, urlAssinatura });
+    } catch (e) {
+        console.error('Erro ao anexar recibo (Pagamentos) em massa:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // ENVIO EM MASSA DE DOCUMENTOS
 // ═══════════════════════════════════════════════════════════════════════════════
 let pagamentosMassa = null;
@@ -10273,10 +10373,18 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
         return res.status(400).json({ error: 'Salário deve ser maior que zero.' });
     }
     try {
-        const colabs = await new Promise((resolve, reject) =>
-            db.all(`SELECT id, salario FROM colaboradores WHERE trim(cargo) = trim(?)`, [cargo], (err, rows) =>
-                err ? reject(err) : resolve(rows || []))
-        );
+        let colabs = [];
+        if (cargo === 'VALE_TRANSPORTE') {
+            colabs = await new Promise((resolve, reject) =>
+                db.all(`SELECT id, valor_transporte as salario FROM colaboradores WHERE LOWER(meio_transporte) LIKE '%vt%' OR LOWER(meio_transporte) LIKE '%vale transporte%'`, [], (err, rows) =>
+                    err ? reject(err) : resolve(rows || []))
+            );
+        } else {
+            colabs = await new Promise((resolve, reject) =>
+                db.all(`SELECT id, salario FROM colaboradores WHERE trim(cargo) = trim(?)`, [cargo], (err, rows) =>
+                    err ? reject(err) : resolve(rows || []))
+            );
+        }
         if (colabs.length === 0) {
             return res.status(404).json({ error: 'Nenhum colaborador encontrado para este cargo.' });
         }
@@ -10311,9 +10419,15 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
         for (const colab of colabs) {
             const salOld = parseSalary(colab.salario);
             totalAntes += salOld;
-            await new Promise((resolve, reject) =>
-                db.run(`UPDATE colaboradores SET salario = ? WHERE id = ?`, [salNewStr, colab.id], (err) => err ? reject(err) : resolve())
-            );
+            if (cargo === 'VALE_TRANSPORTE') {
+                await new Promise((resolve, reject) =>
+                    db.run(`UPDATE colaboradores SET valor_transporte = ? WHERE id = ?`, [salNewStr, colab.id], (err) => err ? reject(err) : resolve())
+                );
+            } else {
+                await new Promise((resolve, reject) =>
+                    db.run(`UPDATE colaboradores SET salario = ? WHERE id = ?`, [salNewStr, colab.id], (err) => err ? reject(err) : resolve())
+                );
+            }
             atualizados++;
         }
 

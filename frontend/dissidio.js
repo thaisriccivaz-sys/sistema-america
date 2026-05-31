@@ -32,7 +32,7 @@
                     </div>
 
                     <div style="flex:1;min-width:150px;">
-                        <label style="display:block;font-size:0.85rem;font-weight:600;color:#334155;margin-bottom:0.5rem;">Novo Salário Bruto Final (R$)</label>
+                        <label id="lbl-dissidio-valor" style="display:block;font-size:0.85rem;font-weight:600;color:#334155;margin-bottom:0.5rem;">Novo Salário Bruto Final (R$)</label>
                         <input type="text" id="dissidio-novo-salario" placeholder="R$ 0,00" inputmode="numeric"
                             style="width:100%;padding:0.65rem 0.85rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.95rem;color:#0f172a;background:#fff;box-sizing:border-box;outline:none;"
                             oninput="window.dissidioFormatSalario(this); window.dissidioPreview()">
@@ -128,6 +128,7 @@
             const sel = document.getElementById('dissidio-cargo-select');
             if (!sel) return;
             sel.innerHTML = `<option value="">Selecione um cargo...</option>` +
+                `<option value="VALE_TRANSPORTE" style="font-weight:bold;color:#0d9488;">-- Atualizar Vale Transporte (VT) --</option>` +
                 cargos.map(c => `<option value="${c}">${c}</option>`).join('');
 
             // Store colabs globally for preview
@@ -145,6 +146,11 @@
         const previewText = document.getElementById('dissidio-preview-text');
         const affectedBox = document.getElementById('dissidio-affected-Preview');
         const affectedList = document.getElementById('dissidio-affected-list');
+        const lblValor = document.getElementById('lbl-dissidio-valor');
+        
+        if (lblValor) {
+            lblValor.textContent = cargo === 'VALE_TRANSPORTE' ? 'Novo Valor do Vale Transporte (R$)' : 'Novo Salário Bruto Final (R$)';
+        }
 
         if (!cargo || !novoSalario || novoSalario <= 0) {
             if (previewText) previewText.textContent = 'Selecione um cargo e informe o novo salário para ver a prévia';
@@ -152,7 +158,12 @@
             return;
         }
 
-        const colabs = (window._dissidioColabs || []).filter(c => (c.cargo || '').trim() === cargo);
+        let colabs = [];
+        if (cargo === 'VALE_TRANSPORTE') {
+            colabs = (window._dissidioColabs || []).filter(c => (c.meio_transporte || '').toLowerCase().includes('vt') || (c.meio_transporte || '').toLowerCase().includes('vale transporte'));
+        } else {
+            colabs = (window._dissidioColabs || []).filter(c => (c.cargo || '').trim() === cargo);
+        }
         if (colabs.length === 0) {
             if (previewText) previewText.textContent = 'Nenhum colaborador encontrado para este cargo.';
             if (affectedBox) affectedBox.style.display = 'none';
@@ -170,7 +181,8 @@
         let totalAntigo = 0;
         colabs.forEach(c => {
             // parseSalary: handles both R$ 2.800,00 (PT-BR) and plain 2800
-            let s = String(c.salario || '0').replace(/R\$\s*/g, '').trim();
+            let rawVal = cargo === 'VALE_TRANSPORTE' ? c.valor_transporte : c.salario;
+            let s = String(rawVal || '0').replace(/R\$\s*/g, '').trim();
             let salNum = 0;
             if (s.includes(',') && s.includes('.')) {
                 const lastComma = s.lastIndexOf(','), lastDot = s.lastIndexOf('.');
@@ -195,7 +207,8 @@
 
         if (affectedBox && affectedList) {
             affectedList.innerHTML = colabs.map(c => {
-                const salOld = parseFloat(String(c.salario || '0').replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
+                let rawVal = cargo === 'VALE_TRANSPORTE' ? c.valor_transporte : c.salario;
+                const salOld = parseFloat(String(rawVal || '0').replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
                 let indPct = 0;
                 if(salOld > 0) indPct = ((novoSalario - salOld) / salOld) * 100;
                 let pctStr = indPct > 0 ? `+${indPct.toFixed(1).replace('.',',')}%` : `${indPct.toFixed(1).replace('.',',')}%`;
@@ -217,10 +230,15 @@
         const novoSalario = window.parseBRLInput(document.getElementById('dissidio-novo-salario')?.value || '');
 
         if (!cargo) { Swal.fire('Atenção', 'Selecione um cargo.', 'warning'); return; }
-        if (!novoSalario || novoSalario <= 0) { Swal.fire('Atenção', 'Informe um novo salário válido maior que zero.', 'warning'); return; }
+        if (!novoSalario || novoSalario <= 0) { Swal.fire('Atenção', 'Informe um novo valor válido maior que zero.', 'warning'); return; }
 
-        const colabs = (window._dissidioColabs || []).filter(c => (c.cargo || '').trim() === cargo);
-        if (colabs.length === 0) { Swal.fire('Atenção', 'Nenhum colaborador encontrado para este cargo.', 'warning'); return; }
+        let colabs = [];
+        if (cargo === 'VALE_TRANSPORTE') {
+            colabs = (window._dissidioColabs || []).filter(c => (c.meio_transporte || '').toLowerCase().includes('vt') || (c.meio_transporte || '').toLowerCase().includes('vale transporte'));
+        } else {
+            colabs = (window._dissidioColabs || []).filter(c => (c.cargo || '').trim() === cargo);
+        }
+        if (colabs.length === 0) { Swal.fire('Atenção', 'Nenhum colaborador encontrado.', 'warning'); return; }
 
         const formatBRL = v => {
             const num = Math.round(parseFloat(v || 0) * 100);
@@ -229,9 +247,10 @@
             return `R$ ${reais},${cents}`;
         };
 
+        const targetLabel = cargo === 'VALE_TRANSPORTE' ? 'usuários de Vale Transporte' : `do cargo <strong>${cargo}</strong>`;
         const confirm = await Swal.fire({
             title: 'Confirmar Reajuste',
-            html: `Alterar o salário de <strong>${colabs.length} colaborador(es)</strong> do cargo <strong>${cargo}</strong> para <strong>${formatBRL(novoSalario)}</strong>?<br><br><span style="font-size:0.85rem;color:#ef4444;">Esta ação não pode ser desfeita automaticamente.</span>`,
+            html: `Alterar o valor de <strong>${colabs.length} colaborador(es)</strong> ${targetLabel} para <strong>${formatBRL(novoSalario)}</strong>?<br><br><span style="font-size:0.85rem;color:#ef4444;">Esta ação não pode ser desfeita automaticamente.</span>`,
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Sim, aplicar',
@@ -255,8 +274,8 @@
             if (!res.ok) throw new Error(data.error || 'Erro desconhecido');
 
             Swal.fire({
-                title: 'Dissídio Aplicado!',
-                html: `<strong>${data.atualizados}</strong> colaboradores tiveram o salário reajustado com sucesso.`,
+                title: 'Atualização Aplicada!',
+                html: `<strong>${data.atualizados}</strong> colaboradores tiveram o valor reajustado com sucesso.`,
                 icon: 'success',
                 confirmButtonColor: '#0d9488'
             });

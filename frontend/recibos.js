@@ -65,6 +65,10 @@ function _buildRecibosLayout(mesAt, anoAt) {
         onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
         <i class="ph ph-list-numbers" style="font-size:1.1rem;"></i> Conferência do Ponto
       </button>
+      <button id="btn-anexar-massa" onclick="window.anexarRecibosDocsMassa()"
+        style="display:none;align-items:center;gap:8px;padding:.65rem 1.4rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(16,185,129,.35);">
+        <i class="ph ph-paperclip" style="font-size:1.1rem;"></i> Anexar aos Docs. em Massa
+      </button>
       <button id="btn-gerar-massa" onclick="window.gerarRecibosEmMassa()"
         style="display:flex;align-items:center;gap:8px;padding:.65rem 1.4rem;background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(37,99,235,.35);">
         <i class="ph ph-printer" style="font-size:1.1rem;"></i> Gerar Recibos Selecionados
@@ -77,14 +81,14 @@ function _buildRecibosLayout(mesAt, anoAt) {
     <div style="display:flex;gap:1.5rem;align-items:flex-end;flex-wrap:wrap;">
       <div>
         <label style="font-size:.79rem;font-weight:600;color:#475569;display:block;margin-bottom:.3rem;"><i class="ph ph-calendar-blank" style="color:#2563eb;"></i> Mês</label>
-        <select id="rec-mes"
+        <select id="rec-mes" onchange="window.carregarHistoricoRecibos()"
           style="padding:.54rem .85rem;border:1px solid #cbd5e1;border-radius:8px;font-size:.93rem;background:#fff;cursor:pointer;">
           ${MESES.map((m,i)=>`<option value="${i+1}" ${i+1===mesAt?'selected':''}>${m}</option>`).join('')}
         </select>
       </div>
       <div>
         <label style="font-size:.79rem;font-weight:600;color:#475569;display:block;margin-bottom:.3rem;">Ano</label>
-        <select id="rec-ano"
+        <select id="rec-ano" onchange="window.carregarHistoricoRecibos()"
           style="padding:.54rem .85rem;border:1px solid #cbd5e1;border-radius:8px;font-size:.93rem;background:#fff;cursor:pointer;">
           ${[anoAt-1,anoAt,anoAt+1].map(a=>`<option value="${a}" ${a===anoAt?'selected':''}>${a}</option>`).join('')}
         </select>
@@ -247,7 +251,7 @@ async function _loadColabs() {
         });
 
         _popularFiltros();
-        _filtrarERendar();
+        await window.carregarHistoricoRecibos(); // Carrega histórico e depois filtra/renderiza
 
     } catch (e) {
         console.error('[Recibos] Erro ao carregar:', e);
@@ -354,8 +358,8 @@ function _renderTabela() {
 
         return `<tr id="rec-row-${c.id}"
             style="border-bottom:1px solid #f1f5f9;background:${bg};transition:background .12s;"
-            onmouseover="if(!_recibosSelecoes[${c.id}]?.selecionado)this.style.background='${s.diasTrabalhados===0&&s.pontoStatus!==null?'#fde047':'#f8fafc'}'"
-            onmouseout="this.style.background=_recibosSelecoes[${c.id}]?.selecionado?'#f0f9ff':'${s.diasTrabalhados===0&&s.pontoStatus!==null?'#fef08a':'#fff'}'">
+            onmouseover="if(!_recibosSelecoes[${c.id}]?.selecionado) this.style.background=(_recibosSelecoes[${c.id}].diasTrabalhados===0 && _recibosSelecoes[${c.id}].pontoStatus!==null)?'#fde047':'#f8fafc';"
+            onmouseout="this.style.background=_recibosSelecoes[${c.id}]?.selecionado?'#f0f9ff':((_recibosSelecoes[${c.id}].diasTrabalhados===0 && _recibosSelecoes[${c.id}].pontoStatus!==null)?'#fef08a':'#fff');">
           <td style="padding:.55rem .5rem;text-align:center;">
             <input type="checkbox" id="rec-cb-${c.id}" data-id="${c.id}" ${s.selecionado?'checked':''}
               style="width:16px;height:16px;accent-color:#2563eb;cursor:pointer;"
@@ -630,6 +634,9 @@ window.gerarRecibosEmMassa = async function () {
 
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-printer"></i> Gerar Recibos Selecionados'; }
 
+    const btnAnexar = document.getElementById('btn-anexar-massa');
+    if (btnAnexar) btnAnexar.style.display = 'flex'; // Exibe o botão de anexar
+
     let corpo = '';
     sels.forEach((c, idx) => {
         if (idx > 0) corpo += '<div class="pb"></div>';
@@ -666,6 +673,112 @@ ${corpo}
     if (!win) { if (typeof Swal !== 'undefined') Swal.fire('Pop-up bloqueado', 'Habilite pop-ups no navegador para gerar os recibos.', 'warning'); return; }
     win.document.write(fullHtml);
     win.document.close();
+};
+
+window.carregarHistoricoRecibos = async function () {
+    const mes = document.getElementById('rec-mes')?.value;
+    const ano = document.getElementById('rec-ano')?.value;
+    if (!mes || !ano) return;
+    
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/recibos/historico/${mes}/${ano}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) {
+            const hist = await res.json();
+            // Reseta seleções para o padrão sem histórico
+            _recibosAllColabs.forEach(c => {
+                if (_recibosSelecoes[c.id]) {
+                    _recibosSelecoes[c.id].diasTrabalhados = 0;
+                    _recibosSelecoes[c.id].diasVR = 0;
+                    _recibosSelecoes[c.id].faltas = 0;
+                    _recibosSelecoes[c.id].diasExtra = 0;
+                }
+            });
+            // Aplica o histórico
+            hist.forEach(h => {
+                if (_recibosSelecoes[h.colaborador_id]) {
+                    _recibosSelecoes[h.colaborador_id].diasTrabalhados = h.dias_trabalhados;
+                    _recibosSelecoes[h.colaborador_id].diasVR = h.dias_vr;
+                    _recibosSelecoes[h.colaborador_id].faltas = h.faltas;
+                    _recibosSelecoes[h.colaborador_id].diasExtra = h.dias_extra;
+                }
+            });
+        }
+    } catch(e) { console.warn('Erro ao carregar histórico:', e); }
+    _filtrarERendar();
+};
+
+window.anexarRecibosDocsMassa = async function () {
+    const sels = _recibosAllColabs.filter(c => _recibosSelecoes[c.id]?.selecionado);
+    if (!sels.length) {
+        if (typeof Swal !== 'undefined') Swal.fire('Atenção', 'Selecione ao menos um colaborador para anexar os recibos.', 'warning');
+        return;
+    }
+
+    const mes = document.getElementById('rec-mes')?.value;
+    const ano = document.getElementById('rec-ano')?.value;
+    const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mes)-1];
+    const valorVR = parseFloat(document.getElementById('rec-valor-vr')?.value) || 35.00;
+
+    const btnAnexar = document.getElementById('btn-anexar-massa');
+    if (btnAnexar) { btnAnexar.disabled = true; btnAnexar.innerHTML = '<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Anexando e Salvando...'; }
+
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+
+        // 1. Salvar os dados (histórico)
+        const itensSalvar = sels.map(c => ({
+            colaborador_id: c.id,
+            dias_trabalhados: _recibosSelecoes[c.id].diasTrabalhados,
+            dias_vr: _recibosSelecoes[c.id].diasVR,
+            faltas: _recibosSelecoes[c.id].faltas,
+            dias_extra: _recibosSelecoes[c.id].diasExtra,
+            valor_vr: valorVR
+        }));
+        await fetch(`${API_URL}/recibos/salvar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ mes, ano, itens: itensSalvar })
+        });
+
+        // 2. Enviar HTML de cada colaborador para virar PDF no servidor
+        const logo = await _recGetLogo();
+        let sucesso = 0, falha = 0;
+
+        for (const c of sels) {
+            const s = _recibosSelecoes[c.id] || { diasTrabalhados: 0, diasVR: 0, faltas: 0, diasExtra: 0 };
+            const m = (c.meio_transporte||'').toLowerCase();
+            let corpo = '';
+            
+            corpo += _buildReciboBlock('VR', c, s, mes, mesNome, ano, valorVR, logo);
+            if (_isVT(m)) { corpo += '<div class="pb"></div>' + _buildReciboBlock('VT', c, s, mes, mesNome, ano, valorVR, logo); }
+            if (_isVC(m)) { corpo += '<div class="pb"></div>' + _buildReciboBlock('VC', c, s, mes, mesNome, ano, valorVR, logo); }
+
+            const htmlContent = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Recibos</title>
+            <style>
+              *{box-sizing:border-box;margin:0;padding:0;}
+              body{font-family:Arial,Helvetica,sans-serif;font-size:12px;background:#fff;color:#111;}
+              .pb{page-break-before:always;}
+              .via{page-break-inside:avoid;}
+            </style>
+            </head><body>${corpo}</body></html>`;
+
+            const resUpload = await fetch(`${API_URL}/recibos/anexar-massa`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ htmlContent, colaborador_id: c.id, mes, ano })
+            });
+            if (resUpload.ok) sucesso++; else falha++;
+        }
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire('Concluído', `Os recibos foram anexados ao Docs em Massa.<br>Sucesso: ${sucesso} | Falhas: ${falha}`, 'success');
+        }
+    } catch(e) {
+        if (typeof Swal !== 'undefined') Swal.fire('Erro', 'Ocorreu um erro ao anexar: ' + e.message, 'error');
+    }
+
+    if (btnAnexar) { btnAnexar.disabled = false; btnAnexar.innerHTML = '<i class="ph ph-paperclip"></i> Anexar aos Docs. em Massa'; }
 };
 
 // ─── Relatório de Conferência ─────────────────────────────────────────────────
@@ -799,7 +912,13 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
     const dVR       = dados.diasVR != null ? dados.diasVR : dtrab;
     const faltas    = dados.faltas   || 0;
     const dExtra    = dados.diasExtra || 0;
-    const valTransp = parseFloat(colab.valor_transporte) || 0;
+    
+    const mTransp = (colab.meio_transporte||'').toLowerCase();
+    let valTransp = parseFloat(colab.valor_transporte) || 0;
+    // Para VT, o valor cadastrado é de uma passagem, então dobra-se (ida e volta)
+    if (_isVT(mTransp)) {
+        valTransp = valTransp * 2;
+    }
 
     let titulo = '', beneficio = '', linhas = '', totalFinal = 0, obs = '';
 
@@ -810,7 +929,6 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
         const tJantar = dExtra * valorVR;
         totalFinal = tVR + tJantar;
         linhas = `
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dVR}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dVR} dias</td></tr>
 <tr><td style="padding:7px 12px;border:1px solid #ddd;">Vale Refeição</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dVR}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tVR)}</td></tr>
 ${dExtra>0?`<tr><td style="padding:7px 12px;border:1px solid #ddd;">Jantar</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dExtra}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tJantar)}</td></tr>`:''}
 <tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td colspan="2" style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
@@ -835,8 +953,7 @@ ${dExtra>0?`<tr><td style="padding:7px 12px;border:1px solid #ddd;">Jantar</td><
         linhas = `
 <tr><td style="padding:7px 12px;border:1px solid #ddd;">Valor Integral Mensal</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(valTransp)}</td></tr>
 <tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dtrab}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dtrab} dias</td></tr>
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Faltas com desconto</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${faltas}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${faltas} dia(s)</td></tr>
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Desconto por Faltas</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;color:#ef4444;">-R$&nbsp;${_recFmt(desc)}</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Desconto por Faltas</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${faltas}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;color:#ef4444;">-R$&nbsp;${_recFmt(desc)}</td></tr>
 <tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td colspan="2" style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
         obs = '';
     }
