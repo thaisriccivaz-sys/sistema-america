@@ -378,14 +378,16 @@ function _renderTabela() {
             ? `<i class="ph ph-warning" style="color:#f59e0b;font-size:1.1rem;" title="Não encontrado no RHID — preencha manualmente"></i>`
             : `<i class="ph ph-minus-circle" style="color:#cbd5e1;font-size:1.1rem;" title="Ponto não buscado"></i>`;
 
-        const { bg, hoverBg, isAmarelo } = window._getRowColors(c, s);
+        const { bg, hoverBg, isAmarelo, isFerias } = window._getRowColors(c, s);
 
         if (isAmarelo && s.pontoStatus !== null) {
             pontoIcon = `<i class="ph ph-warning" style="color:#d97706;font-size:1.1rem;" title="0 dias trabalhados identificados no RHID"></i>`;
+        } else if (isFerias && s.pontoStatus !== null) {
+            pontoIcon = `<i class="ph ph-check-circle" style="color:#a855f7;font-size:1.1rem;" title="Férias (Importado do RHID)"></i>`;
         }
 
-        const dtrabColor = s.diasTrabalhados > 0 ? '#1e293b' : '#94a3b8';
-        const faltaColor = s.faltas > 0 ? '#ef4444' : '#94a3b8';
+        const dtrabColor = isFerias ? '#a855f7' : (s.diasTrabalhados > 0 ? '#1e293b' : '#94a3b8');
+        const faltaColor = isFerias ? '#a855f7' : (s.faltas > 0 ? '#ef4444' : '#94a3b8');
 
         return `<tr id="rec-row-${c.id}"
             style="border-bottom:1px solid #f1f5f9;background:${bg};transition:background .12s;"
@@ -438,22 +440,30 @@ function _renderTabela() {
     _atualizarContador();
 }
 
+window._isColabFerias = function(c, ano, mes) {
+    if (c.status === 'Férias') return true;
+    if (c.ferias_programadas_inicio && c.ferias_programadas_fim) {
+        const ini = new Date(c.ferias_programadas_inicio + 'T00:00:00');
+        const fim = new Date(c.ferias_programadas_fim + 'T23:59:59');
+        const dIni = new Date(ano, mes - 1, 1);
+        const dFim = new Date(ano, mes, 0); 
+        if (ini <= dFim && fim >= dIni) return true;
+    }
+    return false;
+};
+
+window._isSupervisao = function(c) {
+    const dept = (c.departamento || '').toLowerCase();
+    const cargo = (c.cargo || '').toLowerCase();
+    return dept.includes('supervis') || cargo.includes('supervis') || cargo.includes('sup.') || cargo.startsWith('sup ');
+};
+
 window._getRowColors = function(c, s) {
     const mesAt = parseInt(document.getElementById('rec-mes')?.value);
     const anoAt = parseInt(document.getElementById('rec-ano')?.value);
     
-    let isFerias = false;
-    if (c.status === 'Férias') {
-        isFerias = true;
-    } else if (c.ferias_programadas_inicio && c.ferias_programadas_fim) {
-        const ini = new Date(c.ferias_programadas_inicio + 'T00:00:00');
-        const fim = new Date(c.ferias_programadas_fim + 'T23:59:59');
-        const dIni = new Date(anoAt, mesAt - 1, 1);
-        const dFim = new Date(anoAt, mesAt, 0); 
-        if (ini <= dFim && fim >= dIni) isFerias = true;
-    }
-
-    const isSupervisao = (c.departamento || '').toLowerCase().includes('supervis');
+    const isFerias = window._isColabFerias(c, anoAt, mesAt);
+    const isSupervisao = window._isSupervisao(c);
     
     // AMARELO: Pesquisados (pontoStatus != null), 0 comparecimentos, NÃO são supervisão.
     const isAmarelo = !isFerias && !isSupervisao && (s.diasTrabalhados === 0) && (s.pontoStatus !== null);
@@ -482,7 +492,7 @@ window._getRowColors = function(c, s) {
         else { bg = '#f0f9ff'; hoverBg = '#e0f2fe'; }
     }
     
-    return { bg, hoverBg, isAmarelo };
+    return { bg, hoverBg, isAmarelo, isFerias };
 };
 
 // ─── Toggle individual ────────────────────────────────────────────────────────
@@ -607,11 +617,19 @@ window._recBuscarPontoSelecionados = async function () {
                         s.apuracaoDiaria = typeof data.apuracaoRaw === 'string' ? JSON.parse(data.apuracaoRaw) : data.apuracaoRaw;
                     } catch(e) { console.warn('Erro ao ler apuracaoRaw:', e); }
                 }
+                
+                const isFerias = window._isColabFerias(c, ano, mes);
+                if (isFerias) {
+                    s.diasTrabalhados = 0;
+                    s.diasExtra = 0;
+                    s.faltas = 0;
+                    s.diasVR = 0;
+                }
 
                 // Se RHID retornou dados válidos, remove a flag de supervisão auto, 
                 // A MENOS que seja supervisão com 0 dias trabalhados (onde assumimos que a falta de ponto é por ser supervisão)
-                const isSupervisao = (c.departamento || '').toLowerCase().includes('supervis');
-                if (!(isSupervisao && (data.dtrab || 0) === 0)) {
+                const isSupervisao = window._isSupervisao(c);
+                if (!(isSupervisao && (data.dtrab || data.diasTrabalhados || 0) === 0)) {
                     s.isAutoSupervisao = false;
                 }
 
@@ -859,7 +877,7 @@ window.carregarHistoricoRecibos = async function () {
     const diasUteis = await _getDiasUteis(ano, mes);
     _recibosAllColabs.forEach(c => {
         const s = _recibosSelecoes[c.id];
-        const isSupervisao = (c.departamento || '').toLowerCase().includes('supervis');
+        const isSupervisao = window._isSupervisao(c);
         if (isSupervisao && s && s.diasTrabalhados === 0) {
             s.diasTrabalhados = diasUteis;
             s.diasVR = diasUteis;
