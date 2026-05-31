@@ -2487,6 +2487,7 @@ async function loadDashboard() {
             } else {
                 const mesAtual = new Date().getMonth() + 1;
                 const aniversariantes = cols.filter(c => {
+                    if (c.status === 'Desligado') return false;
                     if (!c.data_nascimento) return false;
                     let dt = null;
                     if (c.data_nascimento.includes('-')) {
