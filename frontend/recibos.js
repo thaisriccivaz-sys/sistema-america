@@ -622,6 +622,47 @@ window._recBuscarPontoSelecionados = async function () {
         }
     }
 
+    // ── CONFRONTO DE DADOS (FERIADOS DO RHID) ────────────────────────────
+    // Extrai o calendário real da apuração de algum colaborador para ajustar a Supervisão
+    let diasUteisRHID = null;
+    for (const id in _recibosSelecoes) {
+        const sel = _recibosSelecoes[id];
+        if (sel && sel.apuracaoDiaria && Array.isArray(sel.apuracaoDiaria) && sel.apuracaoDiaria.length > 0) {
+            let count = 0;
+            sel.apuracaoDiaria.forEach(d => {
+                let dia = String(d.date || d.dateTimeStr || '').substring(0,10);
+                if (!dia) return;
+                let dataObj = new Date(dia + 'T00:00:00'); 
+                if (isNaN(dataObj.getTime())) {
+                    const p = dia.split('/');
+                    if (p.length === 3) dataObj = new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
+                }
+                if (!isNaN(dataObj.getTime())) {
+                    const diaSemana = dataObj.getDay();
+                    if (diaSemana !== 0 && diaSemana !== 6 && !d.isHoliday) {
+                        count++;
+                    }
+                }
+            });
+            if (count > 0) {
+                diasUteisRHID = count;
+                break;
+            }
+        }
+    }
+
+    if (diasUteisRHID !== null) {
+        // Atualiza supervisores auto-preenchidos com a base oficial do RHID
+        _recibosAllColabs.forEach(c => {
+            const s = _recibosSelecoes[c.id];
+            if (s && s.isAutoSupervisao) {
+                s.diasTrabalhados = diasUteisRHID;
+                s.diasVR = diasUteisRHID;
+            }
+        });
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     _renderTabela();
 
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-fingerprint"></i> Buscar Ponto (RHID)'; }
