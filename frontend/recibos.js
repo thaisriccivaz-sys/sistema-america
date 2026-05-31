@@ -214,19 +214,19 @@ function _buildRecibosLayout(mesAt, anoAt) {
 
   <!-- TABELA -->
   <div class="card" style="border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);">
-    <div style="overflow-x:auto;">
+    <div style="overflow-x:auto;overflow-y:auto;max-height:65vh;">
       <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
-        <thead>
+        <thead style="position:sticky;top:0;z-index:10;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
           <tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">
-            <th style="padding:.7rem .5rem;width:36px;"></th>
-            <th style="padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Colaborador</th>
-            <th style="padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Cargo / Departamento</th>
-            <th style="padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Meio Transp.</th>
-            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;" title="Dias > 6h (Base VR)">VR</th>
-            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;" title="Dias > 3h extra">Jantar</th>
-            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;" title="Dias Trabalhados (Base VT/VC)">Transporte</th>
-            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;" title="Faltas com e sem atestado">Faltas</th>
-            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Ponto</th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;width:36px;z-index:11;"></th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;">Colaborador</th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;">Cargo / Departamento</th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;">Meio Transp.</th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;" title="Dias > 6h (Base VR)">VR</th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;" title="Dias > 3h extra">Jantar</th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;" title="Dias Trabalhados (Base VT/VC)">Transporte</th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;" title="Faltas com e sem atestado">Faltas</th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;">Ponto</th>
           </tr>
         </thead>
         <tbody id="rec-tbody">
