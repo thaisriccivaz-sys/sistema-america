@@ -521,6 +521,24 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `);
 
+            // Tabela de Histórico de Recibos Gerados
+            db.run(`
+                CREATE TABLE IF NOT EXISTS recibos_historico (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    mes TEXT NOT NULL,
+                    ano TEXT NOT NULL,
+                    colaborador_id INTEGER NOT NULL,
+                    dias_trabalhados INTEGER,
+                    dias_vr INTEGER,
+                    faltas INTEGER,
+                    dias_extra INTEGER,
+                    valor_vr TEXT,
+                    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(colaborador_id, mes, ano),
+                    FOREIGN KEY (colaborador_id) REFERENCES colaboradores (id) ON DELETE CASCADE
+                )
+            `);
+
             // Inserir Cargo "Motorista" fixo se não existir e não tiver sido excluído
             db.run("CREATE TABLE IF NOT EXISTS cargos_excluidos (nome TEXT PRIMARY KEY)", () => {
                 db.run("INSERT INTO cargos (nome) SELECT 'Motorista' WHERE NOT EXISTS (SELECT 1 FROM cargos WHERE nome='Motorista') AND NOT EXISTS (SELECT 1 FROM cargos_excluidos WHERE nome='Motorista')");

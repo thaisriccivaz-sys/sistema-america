@@ -1819,25 +1819,11 @@ window.toggleTransporteValor = function (val) {
         // Mostrar se for VT ou VC
         if (val === 'Vale Transporte (VT)' || val === 'Vale Combustível (VC)') {
             group.style.display = 'block';
-            // Se for VT, sempre calcular 6% do salário automaticamente
+            // Se for VT, definir valor diário fixo
             if (val === 'Vale Transporte (VT)' && input) {
-                const salarioEl = document.getElementById('colab-salario');
-                if (salarioEl && salarioEl.value) {
-                    const salarioRaw = salarioEl.value.replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.');
-                    const salario = parseFloat(salarioRaw);
-                    if (!isNaN(salario) && salario > 0) {
-                        const vt = salario * 0.06;
-                        input.value = vt.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                        // Indicador visual: destaca o campo brevemente
-                        input.style.transition = 'background 0.4s';
-                        input.style.background = '#f0fdf4';
-                        input.style.borderColor = '#16a34a';
-                        setTimeout(() => {
-                            input.style.background = '';
-                            input.style.borderColor = '';
-                        }, 2000);
+                input.value = 'R$ 6,20';
                     }
-                }
+                    }
                 // Atualiza o label com dica visual
                 const lbl = group.querySelector('label');
                 if (lbl && !lbl.querySelector('.vt-hint')) {
@@ -1868,16 +1854,11 @@ window.toggleTransporteValor = function (val) {
 window.atualizarVTSeSelecionado = function () {
     const meioEl = document.getElementById('colab-meio-transporte');
     if (!meioEl || meioEl.value !== 'Vale Transporte (VT)') return;
-    const salarioEl = document.getElementById('colab-salario');
     const inputT = document.getElementById('colab-valor-transporte');
-    if (!salarioEl || !inputT) return;
-    const salarioRaw = salarioEl.value.replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.');
-    const salario = parseFloat(salarioRaw);
-    if (!isNaN(salario) && salario > 0) {
-        inputT.value = (salario * 0.06).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    } else {
-        inputT.value = '';
-    }
+    if (!inputT) return;
+    
+    // Força 6,20 para VT em vez de calcular 6% do salário
+    inputT.value = 'R$ 6,20';
 };
 
 window.calcularHorarioSaida = function () {
@@ -15682,6 +15663,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
                     <option value="Rescisao">Rescisão / FGTS</option>
                     <option value="Vale Alimentacao">Vale Alimentação</option>
                     <option value="Vale Transporte">Vale Transporte</option>
+                    <option value="Pagamentos">Pagamentos</option>
                     <option value="Outro">Outro</option>
                   </select>
                 </div>
