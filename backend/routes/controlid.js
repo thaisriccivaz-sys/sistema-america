@@ -4,11 +4,9 @@ const axios = require('axios');
 
 const RHID_BASE_URL = 'https://www.rhid.com.br/v2/api.svc';
 
-// Headers padrão para todas as chamadas RHID (JSON explícito evita respostas HTML)
-const RHID_HEADERS_BASE = {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json'
-};
+// Headers padrão para chamadas RHID
+const RHID_GET_HEADERS  = { 'Accept': 'application/json' };                                    // GET não deve ter Content-Type
+const RHID_POST_HEADERS = { 'Accept': 'application/json', 'Content-Type': 'application/json' }; // POST/PUT precisam de Content-Type
 
 // Sanitiza erros do RHID (remove HTML/CSS de páginas de erro)
 function rhidSanitize(d) {
@@ -76,7 +74,7 @@ async function getRHIDToken(db) {
             email,
             password
         }, {
-            headers: { 'Content-Type': 'application/json' }
+            headers: RHID_POST_HEADERS
         });
 
         if (response.data && response.data.accessToken) {
@@ -221,44 +219,58 @@ router.get('/ponto-colaborador', async (req, res) => {
         const token = await getRHIDToken(db);
         const authHeader = `Bearer ${token}`;
 
-        // ── PASSO 1: Encontrar o idPerson pelo CPF ───────────────────────────
+        // ── PASSO 1: Encontrar o idPerson pelo CPF ─────────────────────────────────
         let idPerson = null;
         let nomeRHID = null;
 
-        // Busca paginada — tenta até 5000 registros em páginas de 1000
-        let start = 0;
-        const pageSize = 1000;
-        let encontrado = false;
+        const getHeaders = { ...RHID_GET_HEADERS, Authorization: authHeader };
 
-        while (!encontrado) {
-            let pessoasRes;
-            try {
-                pessoasRes = await axios.get(`${RHID_BASE_URL}/person`, {
-                    headers: { ...RHID_HEADERS_BASE, Authorization: authHeader, 'Accept': 'application/json' },
-                    params: { start, length: pageSize }
-                });
-            } catch (personErr) {
-                const msg = rhidSanitize(personErr.response?.data) || personErr.message;
-                throw new Error(`Falha ao buscar pessoas no RHID: ${msg}`);
-            }
-
-            const registros = pessoasRes.data?.records || pessoasRes.data || [];
-            if (!Array.isArray(registros) || registros.length === 0) break;
-
-            const pessoa = registros.find(p => {
-                const cpfPessoa = normalizarCPF(p.cpf);
-                return cpfPessoa === cpfLimpo;
+        // Tenta busca direta por CPF primeiro (mais rápido)
+        try {
+            const cpfBuscaRes = await axios.get(`${RHID_BASE_URL}/person`, {
+                headers: getHeaders,
+                params: { cpf: cpfLimpo }
             });
+            const registrosCPF = cpfBuscaRes.data?.records || (Array.isArray(cpfBuscaRes.data) ? cpfBuscaRes.data : []);
+            const pessoaCPF = registrosCPF.find(p => normalizarCPF(p.cpf) === cpfLimpo);
+            if (pessoaCPF) {
+                idPerson = pessoaCPF.id;
+                nomeRHID = pessoaCPF.name;
+            }
+        } catch (_) { /* busca direta não suportada, usa paginação */ }
 
-            if (pessoa) {
-                idPerson = pessoa.id;
-                nomeRHID = pessoa.name;
-                encontrado = true;
-            } else if (registros.length < pageSize) {
-                // última página, não encontrou
-                break;
-            } else {
-                start += pageSize;
+        // Se busca direta não encontrou — busca paginada
+        if (!idPerson) {
+            let start = 0;
+            const pageSize = 500; // reduzido para evitar timeout
+            let encontrado = false;
+
+            while (!encontrado) {
+                let pessoasRes;
+                try {
+                    pessoasRes = await axios.get(`${RHID_BASE_URL}/person`, {
+                        headers: getHeaders,
+                        params: { start, length: pageSize }
+                    });
+                } catch (personErr) {
+                    const msg = rhidSanitize(personErr.response?.data) || personErr.message;
+                    throw new Error(`Falha ao buscar pessoas no RHID: ${msg}`);
+                }
+
+                const registros = pessoasRes.data?.records || pessoasRes.data || [];
+                if (!Array.isArray(registros) || registros.length === 0) break;
+
+                const pessoa = registros.find(p => normalizarCPF(p.cpf) === cpfLimpo);
+
+                if (pessoa) {
+                    idPerson = pessoa.id;
+                    nomeRHID = pessoa.name;
+                    encontrado = true;
+                } else if (registros.length < pageSize) {
+                    break;
+                } else {
+                    start += pageSize;
+                }
             }
         }
 
@@ -282,7 +294,7 @@ router.get('/ponto-colaborador', async (req, res) => {
         let apuracaoErro = null;
         try {
             const apuracaoRes = await axios.get(`${RHID_BASE_URL}/apuracao_ponto`, {
-                headers: { ...RHID_HEADERS_BASE, Authorization: authHeader },
+                headers: { ...RHID_GET_HEADERS, Authorization: authHeader },
                 params: { dataIni, dataFinal, idPerson }
             });
             apuracaoData = apuracaoRes.data;
