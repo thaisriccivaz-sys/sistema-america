@@ -145,7 +145,7 @@ function _buildRecibosLayout(mesAt, anoAt) {
           <option value="">Todos</option>
           <option value="vt">VT</option>
           <option value="vc">VC</option>
-          <option value="proprio">Próprio/A pé</option>
+          <option value="proprio">Outros</option>
         </select>
       </div>
       <div>
@@ -327,7 +327,7 @@ function _renderTabela() {
             ? `<span style="background:#eff6ff;color:#1d4ed8;padding:3px 10px;border-radius:10px;font-size:.78rem;font-weight:600;">VT</span>`
             : _isVC(m)
             ? `<span style="background:#fffbeb;color:#d97706;padding:3px 10px;border-radius:10px;font-size:.78rem;font-weight:600;">VC</span>`
-            : `<span style="color:#94a3b8;font-size:.8rem;">Próprio/A pé</span>`;
+            : `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 10px;border-radius:10px;font-size:.78rem;font-weight:600;">Outros</span>`;
 
         const pontoIcon = s.pontoStatus === 'ok'
             ? `<i class="ph ph-check-circle" style="color:#10b981;font-size:1.1rem;" title="Importado do RHID"></i>`

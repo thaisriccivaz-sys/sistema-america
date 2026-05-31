@@ -297,6 +297,37 @@ router.get('/ponto-colaborador', async (req, res) => {
     }
 });
 
+// ─── Helper: extrai horas trabalhadas de um registro diário do RHID ─────────────
+function parsearHorasDia(d) {
+    // Tenta vários nomes de campo que a API RHID pode usar
+    const candidatos = [
+        d.horasTrabalhadas, d.horas_trabalhadas, d.totalHoras, d.total_horas,
+        d.hrsTrab, d.horasLiquidas, d.horas_liquidas, d.workedHours,
+        d.horasNormais, d.horas_normais, d.horasApuradas, d.horas_apuradas
+    ];
+    for (const v of candidatos) {
+        if (v == null || v === '') continue;
+        if (typeof v === 'number') return v > 60 ? v / 60 : v; // minutos ou horas
+        if (typeof v === 'string') {
+            const m = v.match(/^(\d+):(\d+)/);
+            if (m) return parseInt(m[1]) + parseInt(m[2]) / 60; // "08:30"
+            const n = parseFloat(v);
+            if (!isNaN(n)) return n > 60 ? n / 60 : n;
+        }
+    }
+    // Fallback: calcular por entrada/saída se disponíveis
+    if (d.entrada && d.saida) {
+        try {
+            const [hE, mE] = String(d.entrada).split(':').map(Number);
+            const [hS, mS] = String(d.saida).split(':').map(Number);
+            if (!isNaN(hE) && !isNaN(hS)) {
+                return Math.max(0, ((hS * 60 + mS) - (hE * 60 + mE)) / 60);
+            }
+        } catch (_) {}
+    }
+    return null; // não foi possível determinar
+}
+
 // ─── Processador flexível da apuração ─────────────────────────────────────────
 function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
     // Dias úteis do mês (seg-sáb)
@@ -318,17 +349,27 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
     }
 
     // Tenta extrair dos campos mais comuns que a API RHID pode retornar
-    // (o schema real será revelado na primeira chamada)
-    let diasTrabalhados = null;
-    let faltas = null;
-    let diasComHoraExtra = null;
+    let diasTrabalhados = null; // TODOS os dias com presença (base para VT)
+    let diasVR          = null; // Dias com >6h trabalhadas (base para VR)
+    let faltas          = null;
+    let diasComHoraExtra = null; // Dias com ≥3h extra (janta)
 
-    // Caso seja um array de registros diários
+    // ── Caso seja um array de registros diários ──────────────────────────────
     if (Array.isArray(data)) {
-        diasTrabalhados = data.filter(d => {
+        const diasComPresenca = data.filter(d => {
             const status = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
             return status === 'normal' || status === 'trabalhado' || status === '1' ||
                    (d.entrada && d.saida) || (d.marcacoes && d.marcacoes.length >= 2);
+        });
+
+        diasTrabalhados = diasComPresenca.length; // VT: todos os dias com presença
+
+        // VR: apenas dias com > 6h trabalhadas
+        diasVR = diasComPresenca.filter(d => {
+            const h = parsearHorasDia(d);
+            if (h !== null) return h > 6;
+            // Sem info de horas — fallback conservador: conta como VR
+            return true;
         }).length;
 
         faltas = data.filter(d => {
@@ -338,13 +379,13 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         }).length;
 
         diasComHoraExtra = data.filter(d => {
-            const he = parseFloat(d.horasExtras || d.horas_extras || d.extra || d.overtime || 0);
+            const he    = parseFloat(d.horasExtras || d.horas_extras || d.extra || d.overtime || 0);
             const heMin = parseInt(d.minHE || d.minutos_extras || 0);
             return he >= 3 || heMin >= 180;
         }).length;
     }
 
-    // Caso seja um objeto com totais
+    // ── Caso seja um objeto com totais ──────────────────────────────────────
     if (data && typeof data === 'object' && !Array.isArray(data)) {
         const keys = Object.keys(data);
         const find = (...names) => {
@@ -355,24 +396,36 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
             return null;
         };
 
-        diasTrabalhados = find('diasTrabalhados', 'dias_trabalhados', 'trabalhados', 'worked', 'daysWorked');
-        faltas = find('faltas', 'ausencias', 'absences', 'falt', 'absent');
-        diasComHoraExtra = find('diasHE', 'dias_he', 'horaExtra', 'overtime', 'extra');
+        diasTrabalhados  = find('diasTrabalhados', 'dias_trabalhados', 'trabalhados', 'worked', 'daysWorked');
+        diasVR           = find('diasVR', 'dias_vr', 'diasRefeicao', 'dias_refeicao', 'diasMaisSeis', 'dias6h', 'diasSeis');
+        faltas           = find('faltas', 'ausencias', 'absences', 'falt', 'absent');
+        diasComHoraExtra = find('diasHE', 'dias_he', 'horaExtra', 'overtime', 'extra', 'janta');
 
-        // Se tiver array de dias dentro do objeto
+        // Se tiver array de dias dentro do objeto — processa também
         const arrKey = keys.find(k => Array.isArray(data[k]) && data[k].length > 0);
         if (arrKey && diasTrabalhados === null) {
             const arr = data[arrKey];
-            diasTrabalhados = arr.filter(d => {
+            const diasComPresenca = arr.filter(d => {
                 const s = (d.status || d.situacao || '').toString().toLowerCase();
                 return s === 'normal' || s === 'trabalhado' || (d.entrada && d.saida);
+            });
+            diasTrabalhados = diasComPresenca.length;
+            diasVR = diasComPresenca.filter(d => {
+                const h = parsearHorasDia(d);
+                return h !== null ? h > 6 : true;
             }).length;
+        }
+
+        // Fallback: se não encontrou diasVR mas tem diasTrabalhados, usa como estimativa
+        if (diasVR === null && diasTrabalhados !== null) {
+            diasVR = diasTrabalhados;
         }
     }
 
     return {
         diasUteis: diasUteisTotal,
         diasTrabalhados,
+        diasVR,
         faltas,
         diasComHoraExtra,
         aviso: (diasTrabalhados === null)
