@@ -91,7 +91,60 @@ async function getRHIDToken(db) {
     }
 }
 
-// ROTA: Buscar credenciais salvas (retorna só o email, nunca a senha)
+// ─── ROTA: Diagnóstico da API RHID ────────────────────────────────────────────
+// GET /diretoria/controlid/diagnostico
+// Testa vários endpoints do RHID e retorna as respostas brutas para debug.
+// Acesse em: /api/diretoria/controlid/diagnostico
+router.get('/diagnostico', async (req, res) => {
+    const db = req.app.get('db');
+    const resultados = [];
+
+    let authHeader;
+    try {
+        const token = await getRHIDToken(db);
+        authHeader = `Bearer ${token}`;
+        resultados.push({ endpoint: 'LOGIN', status: 'OK', info: 'Token obtido com sucesso' });
+    } catch (e) {
+        return res.json({ erro: 'Falha no login: ' + e.message, resultados });
+    }
+
+    // Lista de tentativas a explorar
+    const tentativas = [
+        { label: 'GET /person (sem params)',     method: 'get', url: `${RHID_BASE_URL}/person`,          params: {} },
+        { label: 'GET /person?start=0&length=5', method: 'get', url: `${RHID_BASE_URL}/person`,          params: { start: 0, length: 5 } },
+        { label: 'GET /person?cpf=',             method: 'get', url: `${RHID_BASE_URL}/person`,          params: { cpf: '00000000000' } },
+        { label: 'GET /persons',                 method: 'get', url: `${RHID_BASE_URL}/persons`,         params: {} },
+        { label: 'GET /employee',                method: 'get', url: `${RHID_BASE_URL}/employee`,        params: {} },
+        { label: 'GET /employees',               method: 'get', url: `${RHID_BASE_URL}/employees`,       params: {} },
+        { label: 'GET /timecard',                method: 'get', url: `${RHID_BASE_URL}/timecard`,        params: {} },
+        { label: 'GET /apuracao_ponto (sem id)', method: 'get', url: `${RHID_BASE_URL}/apuracao_ponto`,  params: {} },
+    ];
+
+    for (const t of tentativas) {
+        try {
+            const r = await axios.get(t.url, {
+                headers: { ...RHID_GET_HEADERS, Authorization: authHeader },
+                params: t.params,
+                validateStatus: () => true // não lança erro em 4xx/5xx
+            });
+            const bodyPreview = typeof r.data === 'string'
+                ? rhidSanitize(r.data).substring(0, 200)
+                : JSON.stringify(r.data).substring(0, 300);
+            resultados.push({
+                endpoint: t.label,
+                status: r.status,
+                contentType: r.headers['content-type'] || '?',
+                body: bodyPreview
+            });
+        } catch (e) {
+            resultados.push({ endpoint: t.label, status: 'EXCEPTION', body: e.message });
+        }
+    }
+
+    return res.json({ resultados });
+});
+
+
 router.get('/credenciais', (req, res) => {
     const db = req.app.get('db');
     db.all(
