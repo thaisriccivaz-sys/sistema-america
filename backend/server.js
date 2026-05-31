@@ -15964,6 +15964,14 @@ app.get('/api/fix-thais', (req, res) => {
     });
 });
 
+// Integração Control iD (RHID)
+try {
+    const controlidRoutes = require('./routes/controlid');
+    app.use('/api/diretoria/controlid', controlidRoutes);
+} catch (e) {
+    console.error('Erro ao carregar rota Control iD:', e.message);
+}
+
 app.listen(PORT, () => {
 
     console.log(`Servidor rodando na porta ${PORT}`);
