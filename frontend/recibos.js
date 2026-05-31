@@ -690,7 +690,11 @@ window.baixarConferenciaPonto = function () {
             linhas = `<tr><td colspan="5" style="padding:15px;text-align:center;color:#ef4444;">Nenhuma apuração diária encontrada para este colaborador. Certifique-se de "Buscar Ponto (RHID)" antes.</td></tr>`;
         } else {
             linhas = s.apuracaoDiaria.map(d => {
-                const dia = String(d.date || d.dateTimeStr || '').substring(0,10);
+                let dia = String(d.date || d.dateTimeStr || '').substring(0,10);
+                if (dia.includes('-')) {
+                    const p = dia.split('-');
+                    if (p.length === 3) dia = `${p[2]}/${p[1]}/${p[0]}`;
+                }
                 
                 const fmtMin = (m) => {
                     if (!m) return '0h';
