@@ -379,9 +379,8 @@ function _renderTabela() {
           </td>
           <td style="padding:.45rem .4rem;text-align:center;">
             <input type="number" min="0" max="35" value="${s.diasExtra||''}"
-              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${s.diasExtra>0?'#8b5cf6':'#94a3b8'}; ${tipo==='Administrativo'?'background:#f1f5f9;cursor:not-allowed;':''}"
+              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${s.diasExtra>0?'#8b5cf6':'#94a3b8'};"
               placeholder="0"
-              ${tipo==='Administrativo'?'disabled title="Administrativos não possuem jantar"':''}
               onchange="window.atualizarDadosReciboColab(${c.id},'diasExtra',this.value)">
           </td>
           <td style="padding:.45rem .4rem;text-align:center;">
