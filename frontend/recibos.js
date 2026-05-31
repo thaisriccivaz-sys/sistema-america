@@ -503,7 +503,10 @@ window._recBuscarPontoSelecionados = async function () {
                 if (data.diasTrabalhados != null) s.diasTrabalhados = data.diasTrabalhados;
                 if (data.diasVR          != null) s.diasVR          = data.diasVR;
                 if (data.faltas          != null) s.faltas          = data.faltas;
-                if (data.diasComHoraExtra != null) s.diasExtra      = data.diasComHoraExtra;
+                if (data.diasComHoraExtra != null) {
+                    const tipo = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
+                    s.diasExtra = (tipo === 'Administrativo') ? 0 : data.diasComHoraExtra;
+                }
                 
                 if (data.apuracaoRaw) {
                     try {
@@ -688,18 +691,32 @@ window.baixarConferenciaPonto = function () {
         } else {
             linhas = s.apuracaoDiaria.map(d => {
                 const dia = String(d.date || d.dateTimeStr || '').substring(0,10);
-                const hrsTrab = d.totalHorasTrabalhadas || 0;
-                const hrsExt = d.horasExtrasCalculadas || 0;
-                const status = (d.status || d.situacao || d.tipo || '').toUpperCase();
-                const hrsFalta = d.horasFaltaAtraso || 0;
                 
+                const fmtMin = (m) => {
+                    if (!m) return '0h';
+                    return Math.floor(m/60) + 'h' + (m%60).toString().padStart(2,'0') + 'm';
+                };
+
+                const hrsTrab = fmtMin(d.totalHorasTrabalhadas);
+                const hrsExt = fmtMin(d.horasExtrasCalculadas);
+                const hrsFalta = fmtMin(d.horasFaltaAtraso);
+                
+                let status = '-';
+                if (d.faltaDiaInteiro) status = 'FALTA';
+                else if (d.isHoliday) status = 'FERIADO';
+                else if (d.dsrConsideradoMinutos > 0 || (d.diasTrabalhados === 0 && d.horasUteis === 0)) status = 'DSR / FOLGA';
+                else if (d.diasTrabalhados > 0) status = 'TRABALHADO';
+                else if (d.idJustification) status = 'JUSTIFICADO';
+
                 let marcacoesStr = '';
-                if (d.marcacoes && Array.isArray(d.marcacoes)) {
+                if (d.listAfdtManutencao && Array.isArray(d.listAfdtManutencao) && d.listAfdtManutencao.length > 0) {
+                    marcacoesStr = d.listAfdtManutencao.map(m => {
+                        const h = Math.floor(m.hora/100).toString().padStart(2,'0');
+                        const mn = (m.hora%100).toString().padStart(2,'0');
+                        return h + ':' + mn;
+                    }).join(' / ');
+                } else if (d.marcacoes && Array.isArray(d.marcacoes)) {
                     marcacoesStr = d.marcacoes.map(m => m.hora || m.time || m).join(' / ');
-                } else if (d.entrada && d.saida) {
-                    marcacoesStr = `${d.entrada} - ${d.saida}`;
-                } else if (d.entrada) {
-                    marcacoesStr = `${d.entrada}`;
                 }
 
                 return `
@@ -707,9 +724,9 @@ window.baixarConferenciaPonto = function () {
                   <td style="padding:6px;border:1px solid #ddd;text-align:center;">${dia}</td>
                   <td style="padding:6px;border:1px solid #ddd;">${status}</td>
                   <td style="padding:6px;border:1px solid #ddd;text-align:center;font-weight:600;color:#2563eb;">${marcacoesStr}</td>
-                  <td style="padding:6px;border:1px solid #ddd;text-align:center;">${hrsTrab}h</td>
-                  <td style="padding:6px;border:1px solid #ddd;text-align:center;">${hrsExt}h</td>
-                  <td style="padding:6px;border:1px solid #ddd;text-align:center;">${hrsFalta}h</td>
+                  <td style="padding:6px;border:1px solid #ddd;text-align:center;">${hrsTrab}</td>
+                  <td style="padding:6px;border:1px solid #ddd;text-align:center;">${hrsExt}</td>
+                  <td style="padding:6px;border:1px solid #ddd;text-align:center;">${hrsFalta}</td>
                 </tr>`;
             }).join('');
         }
