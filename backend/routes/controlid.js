@@ -4,9 +4,33 @@ const axios = require('axios');
 
 const RHID_BASE_URL = 'https://www.rhid.com.br/v2/api.svc';
 
+// Headers padrão para todas as chamadas RHID (JSON explícito evita respostas HTML)
+const RHID_HEADERS_BASE = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+};
+
+// Sanitiza erros do RHID (remove HTML/CSS de páginas de erro)
+function rhidSanitize(d) {
+    if (!d) return null;
+    if (typeof d === 'string') {
+        return d
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .substring(0, 300);
+    }
+    if (typeof d === 'object') {
+        return (d.message || d.detail || d.title || d.error || JSON.stringify(d)).toString().substring(0, 300);
+    }
+    return String(d).substring(0, 300);
+}
+
 // Credenciais padrão (fallback para variáveis de ambiente)
-const DEFAULT_EMAIL = process.env.RHID_EMAIL || 'thais.ricci@americarental.com.br';
-const DEFAULT_PASSWORD = process.env.RHID_PASSWORD || 'g@31DOMt';
+const DEFAULT_EMAIL    = process.env.RHID_EMAIL     || 'thais.ricci@americarental.com.br';
+const DEFAULT_PASSWORD = process.env.RHID_PASSWORD  || 'g@31DOMt';
 
 // Cache do token em memória
 let currentToken = null;
@@ -207,10 +231,16 @@ router.get('/ponto-colaborador', async (req, res) => {
         let encontrado = false;
 
         while (!encontrado) {
-            const pessoasRes = await axios.get(`${RHID_BASE_URL}/person`, {
-                headers: { Authorization: authHeader },
-                params: { start, length: pageSize }
-            });
+            let pessoasRes;
+            try {
+                pessoasRes = await axios.get(`${RHID_BASE_URL}/person`, {
+                    headers: { ...RHID_HEADERS_BASE, Authorization: authHeader, 'Accept': 'application/json' },
+                    params: { start, length: pageSize }
+                });
+            } catch (personErr) {
+                const msg = rhidSanitize(personErr.response?.data) || personErr.message;
+                throw new Error(`Falha ao buscar pessoas no RHID: ${msg}`);
+            }
 
             const registros = pessoasRes.data?.records || pessoasRes.data || [];
             if (!Array.isArray(registros) || registros.length === 0) break;
@@ -252,7 +282,7 @@ router.get('/ponto-colaborador', async (req, res) => {
         let apuracaoErro = null;
         try {
             const apuracaoRes = await axios.get(`${RHID_BASE_URL}/apuracao_ponto`, {
-                headers: { Authorization: authHeader },
+                headers: { ...RHID_HEADERS_BASE, Authorization: authHeader },
                 params: { dataIni, dataFinal, idPerson }
             });
             apuracaoData = apuracaoRes.data;
@@ -288,18 +318,7 @@ router.get('/ponto-colaborador', async (req, res) => {
 
     } catch (error) {
         // Erro na autenticação RHID ou na busca de pessoa — esse sim é 500
-        const _rhidErroParaTexto = (d) => {
-            if (!d) return null;
-            if (typeof d === 'string') {
-                // RHID às vezes retorna página HTML de erro — remove as tags
-                return d.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 300);
-            }
-            if (typeof d === 'object') {
-                return (d.message || d.detail || d.title || d.error || JSON.stringify(d)).toString().substring(0, 300);
-            }
-            return String(d).substring(0, 300);
-        };
-        const detalhe = _rhidErroParaTexto(error.response?.data) || error.message;
+        const detalhe = rhidSanitize(error.response?.data) || error.message;
         console.error('[ControlID] Erro em /ponto-colaborador:', detalhe);
         return res.status(500).json({
             success: false,

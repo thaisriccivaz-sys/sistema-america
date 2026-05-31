@@ -455,8 +455,14 @@ window._recBuscarPontoSelecionados = async function () {
             if (!res.ok) {
                 // Erro HTTP (ex: 500 da API RHID)
                 const msgRaw = data.message || `Erro HTTP ${res.status}`;
-                // Remove HTML caso o RHID retorne página de erro
-                const msg = msgRaw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 200);
+                // Remove blocos <style>/<script> e tags HTML caso o RHID retorne página de erro
+                const msg = msgRaw
+                    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+                    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+                    .replace(/<[^>]+>/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                    .substring(0, 200);
                 errosDetalhes.push(`${_recNome(c)}: ${msg}`);
                 _recibosSelecoes[c.id].pontoStatus = 'erro';
                 erroApi++;
