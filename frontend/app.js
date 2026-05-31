@@ -7868,7 +7868,212 @@ window.loadGeradores = async function () {
         window.allGeradores = geradores;
         window._templateMap = templateMap;
         window.renderGeradoresList(geradores);
+        window.renderRecibosGeradoresSection();
     } catch (e) { console.error(e); }
+};
+
+// ─── Seção de Recibos de Benefícios nos Geradores ─────────────────────────────
+window.renderRecibosGeradoresSection = function () {
+    const sec = document.getElementById('recibos-geradores-section');
+    if (!sec) return;
+
+    const hoje = new Date();
+    const mesAt = hoje.getMonth() + 1;
+    const anoAt = hoje.getFullYear();
+    const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+    sec.innerHTML = `
+    <div style="margin-bottom:1.5rem;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:.85rem;">
+        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#1e3a5f,#2563eb);display:flex;align-items:center;justify-content:center;">
+          <i class="ph ph-receipt" style="color:#fff;font-size:1.1rem;"></i>
+        </div>
+        <div>
+          <div style="font-size:.95rem;font-weight:700;color:#1e293b;">Recibos de Benefícios</div>
+          <div style="font-size:.78rem;color:#64748b;">Geração individual de recibo por colaborador</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.85rem;">
+
+        <!-- VR -->
+        <div style="border:1.5px solid #bbf7d0;border-radius:12px;padding:1rem 1.1rem;background:#f0fdf4;display:flex;flex-direction:column;gap:.6rem;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:34px;height:34px;border-radius:8px;background:#059669;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="ph ph-fork-knife" style="color:#fff;font-size:1rem;"></i>
+            </div>
+            <div>
+              <div style="font-weight:700;color:#065f46;font-size:.92rem;">Vale Refeição</div>
+              <div style="font-size:.74rem;color:#059669;">Para todos os colaboradores</div>
+            </div>
+          </div>
+          <button onclick="window.abrirModalReciboIndividual('VR')"
+            style="width:100%;padding:.45rem;background:#059669;color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+            <i class="ph ph-file-arrow-down"></i> Gerar Recibo VR
+          </button>
+        </div>
+
+        <!-- VT -->
+        <div style="border:1.5px solid #bfdbfe;border-radius:12px;padding:1rem 1.1rem;background:#eff6ff;display:flex;flex-direction:column;gap:.6rem;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:34px;height:34px;border-radius:8px;background:#2563eb;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="ph ph-bus" style="color:#fff;font-size:1rem;"></i>
+            </div>
+            <div>
+              <div style="font-weight:700;color:#1e40af;font-size:.92rem;">Vale Transporte</div>
+              <div style="font-size:.74rem;color:#2563eb;">Meio: VT (bilhete único)</div>
+            </div>
+          </div>
+          <button onclick="window.abrirModalReciboIndividual('VT')"
+            style="width:100%;padding:.45rem;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+            <i class="ph ph-file-arrow-down"></i> Gerar Recibo VT
+          </button>
+        </div>
+
+        <!-- VC -->
+        <div style="border:1.5px solid #fed7aa;border-radius:12px;padding:1rem 1.1rem;background:#fff7ed;display:flex;flex-direction:column;gap:.6rem;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:34px;height:34px;border-radius:8px;background:#d97706;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="ph ph-gas-pump" style="color:#fff;font-size:1rem;"></i>
+            </div>
+            <div>
+              <div style="font-weight:700;color:#92400e;font-size:.92rem;">Vale Combustível</div>
+              <div style="font-size:.74rem;color:#d97706;">Meio: VC (combustível)</div>
+            </div>
+          </div>
+          <button onclick="window.abrirModalReciboIndividual('VC')"
+            style="width:100%;padding:.45rem;background:#d97706;color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+            <i class="ph ph-file-arrow-down"></i> Gerar Recibo VC
+          </button>
+        </div>
+
+      </div>
+    </div>
+    <hr style="border:none;border-top:1.5px solid #e2e8f0;margin-bottom:1.25rem;">`;
+
+    // Modal de geração individual (cria uma vez)
+    if (!document.getElementById('modal-recibo-individual')) {
+        const modal = document.createElement('div');
+        modal.id = 'modal-recibo-individual';
+        modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;';
+        modal.innerHTML = `
+        <div style="background:#fff;border-radius:16px;padding:1.75rem 2rem;width:420px;max-width:96vw;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+            <div>
+              <div id="mri-titulo" style="font-size:1.05rem;font-weight:700;color:#1e293b;">Gerar Recibo</div>
+              <div id="mri-subtitulo" style="font-size:.8rem;color:#64748b;"></div>
+            </div>
+            <button onclick="document.getElementById('modal-recibo-individual').style.display='none'"
+              style="background:none;border:none;font-size:1.4rem;color:#94a3b8;cursor:pointer;line-height:1;">×</button>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:1rem;">
+            <div>
+              <label style="font-size:.8rem;font-weight:600;color:#475569;display:block;margin-bottom:.3rem;">Colaborador</label>
+              <input type="text" id="mri-colab-busca" placeholder="Digite o nome do colaborador..."
+                style="width:100%;padding:.55rem .75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.92rem;box-sizing:border-box;"
+                oninput="window._mriSearch(this.value)">
+              <div id="mri-lista" style="border:1.5px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;max-height:160px;overflow-y:auto;display:none;"></div>
+              <input type="hidden" id="mri-colab-id">
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+              <div>
+                <label style="font-size:.8rem;font-weight:600;color:#475569;display:block;margin-bottom:.3rem;">Mês</label>
+                <select id="mri-mes" style="width:100%;padding:.52rem .65rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.9rem;background:#fff;">
+                  ${MESES.map((m,i)=>`<option value="${i+1}" ${i+1===mesAt?'selected':''}>${m}</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label style="font-size:.8rem;font-weight:600;color:#475569;display:block;margin-bottom:.3rem;">Ano</label>
+                <select id="mri-ano" style="width:100%;padding:.52rem .65rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.9rem;background:#fff;">
+                  ${[anoAt-1,anoAt,anoAt+1].map(a=>`<option value="${a}" ${a===anoAt?'selected':''}>${a}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label style="font-size:.8rem;font-weight:600;color:#475569;display:block;margin-bottom:.3rem;">
+                Valor VR por dia (R$) <span style="font-weight:400;color:#94a3b8;">— apenas para VR</span>
+              </label>
+              <input type="number" id="mri-valor-vr" value="35.00" min="0" step="0.01"
+                style="width:130px;padding:.52rem .65rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.95rem;font-weight:700;color:#059669;">
+            </div>
+
+            <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:.25rem;">
+              <button onclick="document.getElementById('modal-recibo-individual').style.display='none'"
+                style="padding:.55rem 1.2rem;border:1.5px solid #e2e8f0;background:#fff;border-radius:8px;font-size:.9rem;cursor:pointer;color:#475569;font-weight:600;">
+                Cancelar
+              </button>
+              <button onclick="window._mriGerar()"
+                style="padding:.55rem 1.4rem;background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <i class="ph ph-printer"></i> Gerar PDF
+              </button>
+            </div>
+          </div>
+        </div>`;
+        document.body.appendChild(modal);
+    }
+};
+
+// ─── Abrir modal de recibo individual ─────────────────────────────────────────
+window.abrirModalReciboIndividual = function (tipo) {
+    const modal = document.getElementById('modal-recibo-individual');
+    if (!modal) return;
+    const nomes = { VR: 'Vale Refeição', VT: 'Vale Transporte', VC: 'Vale Combustível' };
+    const cores = { VR: '#059669', VT: '#2563eb', VC: '#d97706' };
+    document.getElementById('mri-titulo').textContent = `Gerar Recibo de ${nomes[tipo]}`;
+    document.getElementById('mri-subtitulo').textContent = `Selecione o colaborador e o período de referência.`;
+    document.getElementById('mri-titulo').style.color = cores[tipo];
+    document.getElementById('mri-colab-busca').value = '';
+    document.getElementById('mri-colab-id').value = '';
+    document.getElementById('mri-lista').style.display = 'none';
+    modal.dataset.tipo = tipo;
+    modal.style.display = 'flex';
+};
+
+// ─── Busca inline de colaborador no modal ─────────────────────────────────────
+window._mriSearch = function (q) {
+    const lista = document.getElementById('mri-lista');
+    if (!lista) return;
+    const colabs = window._recibosAllColabs || window.allColaboradores || [];
+    const res = colabs.filter(c => (c.nome || '').toLowerCase().includes((q || '').toLowerCase())).slice(0, 8);
+    if (!res.length || !q) { lista.style.display = 'none'; return; }
+    lista.style.display = 'block';
+    lista.innerHTML = res.map(c => `
+        <div onclick="window._mriSelectColab(${c.id},'${(c.nome||'').replace(/'/g,'\\\'')}')"
+            style="padding:.5rem .75rem;cursor:pointer;font-size:.88rem;color:#1e293b;border-bottom:1px solid #f1f5f9;"
+            onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+          <strong>${c.nome}</strong>
+          <span style="font-size:.75rem;color:#94a3b8;margin-left:8px;">${c.cargo || ''} · ${c.departamento || ''}</span>
+        </div>`).join('');
+};
+
+window._mriSelectColab = function (id, nome) {
+    document.getElementById('mri-colab-id').value = id;
+    document.getElementById('mri-colab-busca').value = nome;
+    document.getElementById('mri-lista').style.display = 'none';
+};
+
+// ─── Gerar recibo individual pelo modal ───────────────────────────────────────
+window._mriGerar = function () {
+    const modal    = document.getElementById('modal-recibo-individual');
+    const tipo     = modal?.dataset.tipo || 'VR';
+    const colabId  = document.getElementById('mri-colab-id')?.value;
+    const mes      = parseInt(document.getElementById('mri-mes')?.value);
+    const ano      = parseInt(document.getElementById('mri-ano')?.value);
+    const valorVR  = parseFloat(document.getElementById('mri-valor-vr')?.value) || 35.00;
+
+    if (!colabId) {
+        if (typeof Swal !== 'undefined') Swal.fire('Atenção', 'Selecione um colaborador.', 'warning');
+        else alert('Selecione um colaborador.'); return;
+    }
+    modal.style.display = 'none';
+    if (typeof window.gerarReciboIndividual === 'function') {
+        window.gerarReciboIndividual(tipo, colabId, mes, ano, valorVR);
+    } else {
+        // fallback: navegar para a tela de recibos
+        if (typeof window.navigateTo === 'function') window.navigateTo('recibos');
+    }
 };
 
 window.renderGeradoresList = function (items) {
