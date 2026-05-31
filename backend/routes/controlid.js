@@ -522,7 +522,7 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         faltas,
         diasComHoraExtra,
         aviso: (diasTrabalhados === null)
-            ? 'Não foi possível interpretar automaticamente a resposta do RHID. Veja "apuracaoRaw" para os campos disponíveis.'
+            ? 'Não foi possível interpretar a resposta do RHID. Payload: ' + JSON.stringify(data).substring(0, 800)
             : null
     };
 }
