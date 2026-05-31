@@ -482,14 +482,14 @@ window._getRowColors = function(c, s) {
     let hoverBg = '#f8fafc';
 
     if (!s.selecionado) {
-        if (isFerias) { bg = '#f3e8ff'; hoverBg = '#e9d5ff'; }
-        else if (isSupervisorAzul) { bg = '#e0f2fe'; hoverBg = '#bae6fd'; }
+        if (isFerias) { bg = '#e9d5ff'; hoverBg = '#d8b4fe'; }
+        else if (isSupervisorAzul) { bg = '#bae6fd'; hoverBg = '#7dd3fc'; }
         else if (isVerde) { bg = '#dcfce7'; hoverBg = '#bbf7d0'; }
         else if (isAmarelo) { bg = '#fef08a'; hoverBg = '#fde047'; }
         else if (isCinza) { bg = '#f1f5f9'; hoverBg = '#e2e8f0'; }
     } else {
-        if (isFerias) { bg = '#e9d5ff'; hoverBg = '#d8b4fe'; }
-        else if (isSupervisorAzul) { bg = '#bae6fd'; hoverBg = '#7dd3fc'; }
+        if (isFerias) { bg = '#d8b4fe'; hoverBg = '#c084fc'; }
+        else if (isSupervisorAzul) { bg = '#7dd3fc'; hoverBg = '#38bdf8'; }
         else if (isVerde) { bg = '#bbf7d0'; hoverBg = '#86efac'; }
         else if (isAmarelo) { bg = '#fde047'; hoverBg = '#facc15'; }
         else if (isCinza) { bg = '#e2e8f0'; hoverBg = '#cbd5e1'; }
