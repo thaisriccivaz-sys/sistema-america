@@ -182,13 +182,15 @@ function _buildRecibosLayout(mesAt, anoAt) {
             <th style="padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Cargo / Departamento</th>
             <th style="padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Tipo</th>
             <th style="padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Transporte</th>
-            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Dias&nbsp;Trab.</th>
+            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;" title="Dias Trabalhados (base VT/VC)">Dias&nbsp;Trab.</th>
+            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;" title="Dias com \> 6h trabalhadas (base VR)">Dias&nbsp;VR</th>
             <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Faltas</th>
+            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;" title="Dias com \> 3h extra">Jantar</th>
             <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Ponto</th>
           </tr>
         </thead>
         <tbody id="rec-tbody">
-          <tr><td colspan="8" style="text-align:center;padding:3rem;color:#94a3b8;">
+          <tr><td colspan="10" style="text-align:center;padding:3rem;color:#94a3b8;">
             <i class="ph ph-spinner" style="font-size:1.5rem;animation:rec-spin 1s linear infinite;display:block;margin-bottom:.6rem;"></i>
             Carregando colaboradores...
           </td></tr>
@@ -235,7 +237,7 @@ async function _loadColabs() {
         // Inicializar seleções com 0 — aguarda RHID ou preenchimento manual
         _recibosSelecoes = {};
         _recibosAllColabs.forEach(c => {
-            _recibosSelecoes[c.id] = { selecionado: false, diasTrabalhados: 0, faltas: 0, diasExtra: 0, pontoStatus: null };
+            _recibosSelecoes[c.id] = { selecionado: false, diasTrabalhados: 0, diasVR: 0, faltas: 0, diasExtra: 0, pontoStatus: null };
         });
 
         _popularFiltros();
@@ -244,7 +246,7 @@ async function _loadColabs() {
     } catch (e) {
         console.error('[Recibos] Erro ao carregar:', e);
         const tbody = document.getElementById('rec-tbody');
-        if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:#ef4444;">
+        if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:#ef4444;">
             <i class="ph ph-warning-circle" style="font-size:1.5rem;display:block;margin-bottom:.5rem;"></i>
             Erro ao carregar colaboradores: ${e.message}</td></tr>`;
     }
@@ -305,14 +307,14 @@ function _renderTabela() {
     if (!tbody) return;
 
     if (!_recibosFiltrados.length) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2.5rem;color:#94a3b8;">
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2.5rem;color:#94a3b8;">
             <i class="ph ph-users" style="font-size:2rem;display:block;margin-bottom:.5rem;"></i>
             Nenhum colaborador encontrado.</td></tr>`;
         _atualizarContador(); return;
     }
 
     tbody.innerHTML = _recibosFiltrados.map(c => {
-        const s    = _recibosSelecoes[c.id] || { selecionado:false, diasTrabalhados:0, faltas:0, pontoStatus:null };
+        const s    = _recibosSelecoes[c.id] || { selecionado:false, diasTrabalhados:0, diasVR:0, faltas:0, diasExtra:0, pontoStatus:null };
         const nome = _recNome(c);
         const tipo = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
 
@@ -360,15 +362,27 @@ function _renderTabela() {
           <td style="padding:.55rem .75rem;text-align:center;">${transpBadge}</td>
           <td style="padding:.45rem .4rem;text-align:center;">
             <input type="number" min="0" max="35" value="${s.diasTrabalhados}"
-              style="width:58px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${dtrabColor};"
+              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${dtrabColor};"
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'diasTrabalhados',this.value)">
+          </td>
+          <td style="padding:.45rem .4rem;text-align:center;">
+            <input type="number" min="0" max="35" value="${s.diasVR!=null ? s.diasVR : s.diasTrabalhados}"
+              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${s.diasVR>0?'#059669':'#94a3b8'};"
+              placeholder="0"
+              onchange="window.atualizarDadosReciboColab(${c.id},'diasVR',this.value)">
           </td>
           <td style="padding:.45rem .4rem;text-align:center;">
             <input type="number" min="0" max="35" value="${s.faltas||''}"
               style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${faltaColor};"
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'faltas',this.value)">
+          </td>
+          <td style="padding:.45rem .4rem;text-align:center;">
+            <input type="number" min="0" max="35" value="${s.diasExtra||''}"
+              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${s.diasExtra>0?'#8b5cf6':'#94a3b8'};"
+              placeholder="0"
+              onchange="window.atualizarDadosReciboColab(${c.id},'diasExtra',this.value)">
           </td>
           <td style="padding:.55rem .4rem;text-align:center;">${pontoIcon}</td>
         </tr>`;
@@ -473,6 +487,7 @@ window._recBuscarPontoSelecionados = async function () {
                 const s = _recibosSelecoes[c.id];
                 // Preenchimento: RHID retorna diasTrabalhados e faltas
                 if (data.diasTrabalhados != null) s.diasTrabalhados = data.diasTrabalhados;
+                if (data.diasVR          != null) s.diasVR          = data.diasVR;
                 if (data.faltas          != null) s.faltas          = data.faltas;
                 if (data.diasComHoraExtra != null) s.diasExtra      = data.diasComHoraExtra;
                 // Se RHID retornou aviso (apuração não disponível)
@@ -595,7 +610,7 @@ window.gerarRecibosEmMassa = async function () {
     let corpo = '';
     sels.forEach((c, idx) => {
         if (idx > 0) corpo += '<div class="pb"></div>';
-        const s = _recibosSelecoes[c.id] || { diasTrabalhados: 0, faltas: 0, diasExtra: 0 };
+        const s = _recibosSelecoes[c.id] || { diasTrabalhados: 0, diasVR: 0, faltas: 0, diasExtra: 0 };
         const m = (c.meio_transporte||'').toLowerCase();
 
         // VR — sempre para todos
@@ -662,6 +677,7 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
         : `<div style="background:#1e3a5f;padding:16px 32px;"><span style="color:#fff;font-size:1.3rem;font-weight:900;letter-spacing:1px;">AMERICA RENTAL</span></div>`;
 
     const dtrab     = dados.diasTrabalhados || 0;
+    const dVR       = dados.diasVR != null ? dados.diasVR : dtrab;
     const faltas    = dados.faltas   || 0;
     const dExtra    = dados.diasExtra || 0;
     const valTransp = parseFloat(colab.valor_transporte) || 0;
@@ -671,12 +687,12 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
     if (tipo === 'VR') {
         titulo    = 'RECIBO DE VALE REFEIÇÃO';
         beneficio = 'Vale Refeição';
-        const tVR     = dtrab * valorVR;
+        const tVR     = dVR * valorVR;
         const tJantar = dExtra * valorVR;
         totalFinal = tVR + tJantar;
         linhas = `
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados (do ponto)</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dtrab} dias</td></tr>
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Vale Refeição (${dtrab} × R$&nbsp;${_recFmt(valorVR)})</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tVR)}</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados (≥ 6h)</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dVR} dias</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Vale Refeição (${dVR} × R$&nbsp;${_recFmt(valorVR)})</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tVR)}</td></tr>
 ${dExtra>0?`<tr><td style="padding:7px 12px;border:1px solid #ddd;">Jantar — dias c/ ≥3h extra (${dExtra} × R$&nbsp;${_recFmt(valorVR)})</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tJantar)}</td></tr>`:''}
 <tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
 
@@ -808,7 +824,7 @@ window.gerarReciboIndividual = async function (tipo, colabId, mes, ano, valorVRP
     const valorVR = valorVRParam || 35.00;
     const logo    = await _recGetLogo();
     // Dados vazios — usuário verá 0 e poderá imprimir após conferir
-    const dados   = { diasTrabalhados: 0, faltas: 0, diasExtra: 0 };
+    const dados   = { diasTrabalhados: 0, diasVR: 0, faltas: 0, diasExtra: 0 };
     const benef   = tipo==='VR'?'Vale Refeição':tipo==='VT'?'Vale Transporte':'Vale Combustível';
     const nome    = _recNome(colab);
 
