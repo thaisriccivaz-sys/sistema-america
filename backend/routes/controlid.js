@@ -396,7 +396,8 @@ function parsearHorasDia(d) {
     const candidatos = [
         d.horasTrabalhadas, d.horas_trabalhadas, d.totalHoras, d.total_horas,
         d.hrsTrab, d.horasLiquidas, d.horas_liquidas, d.workedHours,
-        d.horasNormais, d.horas_normais, d.horasApuradas, d.horas_apuradas
+        d.horasNormais, d.horas_normais, d.horasApuradas, d.horas_apuradas,
+        d.totalHorasTrabalhadas, d.horasTotalNaoExtra
     ];
     for (const v of candidatos) {
         if (v == null || v === '') continue;
@@ -462,7 +463,8 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         const diasComPresenca = data.filter(d => {
             const status = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
             return status === 'normal' || status === 'trabalhado' || status === '1' ||
-                   (d.entrada && d.saida) || (d.marcacoes && d.marcacoes.length >= 2);
+                   (d.entrada && d.saida) || (d.marcacoes && d.marcacoes.length >= 2) ||
+                   (d.totalHorasTrabalhadas > 0) || (d.horasTotalNaoExtra > 0) || (d.diasTrabalhados > 0);
         });
 
         diasTrabalhados = diasComPresenca.length; // VT: todos os dias com presença
@@ -478,12 +480,12 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         faltas = data.filter(d => {
             const status = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
             return status === 'falta' || status === 'ausente' || status === '3' ||
-                   status.includes('falt');
+                   status.includes('falt') || (d.faltaDiaInteiro === true) || (d.faltasDiasInteiro > 0);
         }).length;
 
         diasComHoraExtra = data.filter(d => {
             const he    = parseFloat(d.horasExtras || d.horas_extras || d.extra || d.overtime || 0);
-            const heMin = parseInt(d.minHE || d.minutos_extras || 0);
+            const heMin = parseInt(d.minHE || d.minutos_extras || d.horasExtrasCalculadas || ((d.extraDiurna || 0) + (d.extraNoturna || 0)) || 0);
             return he >= 3 || heMin >= 180;
         }).length;
 
