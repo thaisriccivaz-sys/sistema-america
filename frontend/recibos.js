@@ -186,10 +186,11 @@ function _buildRecibosLayout(mesAt, anoAt) {
             <th style="padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Colaborador</th>
             <th style="padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Cargo / Departamento</th>
             <th style="padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Tipo</th>
-            <th style="padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Transporte</th>
-            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;" title="Dias Trabalhados (base VT/VC)">Dias&nbsp;Trab.</th>
-            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Faltas</th>
-            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;" title="Dias com \> 3h extra">Jantar</th>
+            <th style="padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Meio Transp.</th>
+            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;" title="Dias > 6h (Base VR)">VR</th>
+            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;" title="Dias > 3h extra">Jantar</th>
+            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;" title="Dias Trabalhados (Base VT/VC)">Transporte</th>
+            <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;" title="Faltas com e sem atestado">Faltas</th>
             <th style="padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;">Ponto</th>
           </tr>
         </thead>
@@ -371,16 +372,10 @@ function _renderTabela() {
           <td style="padding:.55rem .75rem;text-align:center;">${tipoBadge}</td>
           <td style="padding:.55rem .75rem;text-align:center;">${transpBadge}</td>
           <td style="padding:.45rem .4rem;text-align:center;">
-            <input type="number" min="0" max="35" value="${s.diasTrabalhados}"
+            <input type="number" min="0" max="35" value="${s.diasVR !== null && s.diasVR !== undefined ? s.diasVR : s.diasTrabalhados}"
               style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${dtrabColor};"
               placeholder="0"
-              onchange="window.atualizarDadosReciboColab(${c.id},'diasTrabalhados',this.value); _recibosSelecoes[${c.id}].diasVR = null;">
-          </td>
-          <td style="padding:.45rem .4rem;text-align:center;">
-            <input type="number" min="0" max="35" value="${s.faltas||''}"
-              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${faltaColor};"
-              placeholder="0"
-              onchange="window.atualizarDadosReciboColab(${c.id},'faltas',this.value)">
+              onchange="window.atualizarDadosReciboColab(${c.id},'diasVR',this.value)">
           </td>
           <td style="padding:.45rem .4rem;text-align:center;">
             <input type="number" min="0" max="35" value="${s.diasExtra||''}"
@@ -388,6 +383,20 @@ function _renderTabela() {
               placeholder="0"
               ${tipo==='Administrativo'?'disabled title="Administrativos não possuem jantar"':''}
               onchange="window.atualizarDadosReciboColab(${c.id},'diasExtra',this.value)">
+          </td>
+          <td style="padding:.45rem .4rem;text-align:center;">
+            ${_isVT(m) || _isVC(m) ? `
+            <input type="number" min="0" max="35" value="${s.diasTrabalhados}"
+              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${dtrabColor};"
+              placeholder="0"
+              onchange="window.atualizarDadosReciboColab(${c.id},'diasTrabalhados',this.value); if(_recibosSelecoes[${c.id}].diasVR == null) _recibosSelecoes[${c.id}].diasVR = this.value; window.aplicarFiltrosRecibos();">
+            ` : `<span style="color:#94a3b8;font-weight:600;">-</span>`}
+          </td>
+          <td style="padding:.45rem .4rem;text-align:center;">
+            <input type="number" min="0" max="35" value="${s.faltas||''}"
+              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${faltaColor};"
+              placeholder="0"
+              onchange="window.atualizarDadosReciboColab(${c.id},'faltas',this.value)">
           </td>
           <td style="padding:.55rem .4rem;text-align:center;">${pontoIcon}</td>
         </tr>`;

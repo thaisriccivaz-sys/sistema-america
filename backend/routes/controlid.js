@@ -480,7 +480,8 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         faltas = data.filter(d => {
             const status = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
             return status === 'falta' || status === 'ausente' || status === '3' ||
-                   status.includes('falt') || (d.faltaDiaInteiro === true) || (d.faltasDiasInteiro > 0);
+                   status.includes('falt') || status.includes('atestado') || status.includes('afastamento') || 
+                   status.includes('licença') || status.includes('licenca') || (d.faltaDiaInteiro === true) || (d.faltasDiasInteiro > 0);
         }).length;
 
         diasComHoraExtra = data.filter(d => {
