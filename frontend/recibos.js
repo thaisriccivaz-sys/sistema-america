@@ -457,7 +457,9 @@ window._getRowColors = function(c, s) {
 
     const isSupervisao = (c.departamento || '').toLowerCase().includes('supervis');
     const isSupervisorAzul = isSupervisao && (s.isAutoSupervisao || (!s.pontoStatus) || (s.pontoStatus === 'erro' && s.diasTrabalhados > 0));
-    const isAmarelo = !isFerias && !isSupervisorAzul && (s.diasTrabalhados === 0);
+    
+    const isAmarelo = !isFerias && !isSupervisorAzul && (s.diasTrabalhados === 0) && (s.pontoStatus !== null);
+    const isCinza   = !isFerias && !isSupervisorAzul && (s.diasTrabalhados === 0) && (s.pontoStatus === null);
 
     let bg = '#fff';
     let hoverBg = '#f8fafc';
@@ -466,10 +468,12 @@ window._getRowColors = function(c, s) {
         if (isFerias) { bg = '#f3e8ff'; hoverBg = '#e9d5ff'; }
         else if (isSupervisorAzul) { bg = '#e0f2fe'; hoverBg = '#bae6fd'; }
         else if (isAmarelo) { bg = '#fef08a'; hoverBg = '#fde047'; }
+        else if (isCinza) { bg = '#f1f5f9'; hoverBg = '#e2e8f0'; }
     } else {
         if (isFerias) { bg = '#e9d5ff'; hoverBg = '#d8b4fe'; }
         else if (isSupervisorAzul) { bg = '#bae6fd'; hoverBg = '#7dd3fc'; }
         else if (isAmarelo) { bg = '#fde047'; hoverBg = '#facc15'; }
+        else if (isCinza) { bg = '#e2e8f0'; hoverBg = '#cbd5e1'; }
         else { bg = '#f0f9ff'; hoverBg = '#e0f2fe'; }
     }
     
