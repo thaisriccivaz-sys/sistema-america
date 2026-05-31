@@ -459,6 +459,7 @@ const BREADCRUMB_MAP = {
     'tab:Prontuário Digital': { path: 'Colaboradores → Prontuário Digital', },
     // Módulos adicionais
     'dissidio': { path: 'Dissídio', code: 'RHDIS01' },
+    'recibos': { path: 'Recibos de Benefícios', code: 'RHREC01' },
     'ferias': { path: 'Controle de Férias', code: 'RHFER01' },
     // Logística
     'logistica-dashboard': { path: 'Dashboard Logística', code: 'LOG000' },
@@ -654,8 +655,9 @@ const TAB_META = {
     'ficha-epi': { color: '#f503c5', icon: 'ph-shield-check', title: 'Ficha EPI' },
     'gerenciar-avaliacoes': { color: '#d9480f', icon: 'ph-clipboard-text', title: 'Avaliações' },
     'assinaturas-digitais': { color: '#f503c5', icon: 'ph-signature', title: 'Assinaturas' },
-    'pagamentos-massa': { color: '#f503c5', icon: 'ph-currency-dollar', title: 'Envio de Documentos em Massa' },
+    'pagamentos-massa': { color: '#f503c5', icon: 'ph-currency-dollar', title: 'Docs. em Massa' },
     'dissidio': { color: '#f503c5', icon: 'ph-trend-up', title: 'Dissídio' },
+    'recibos': { color: '#f503c5', icon: 'ph-receipt', title: 'Recibos' },
     'ferias': { color: '#f503c5', icon: 'ph-airplane-tilt', title: 'Férias' },
     'experiencia': { color: '#f503c5', icon: 'ph-user-check', title: 'Experiência' },
     // Diretoria - Laranja
@@ -897,6 +899,8 @@ function navigateTo(target) {
         if (typeof window.renderFerias === 'function') window.renderFerias();
     } else if (target === 'dissidio') {
         if (typeof window.renderDissidio === 'function') window.renderDissidio();
+    } else if (target === 'recibos') {
+        if (typeof window.initRecibosView === 'function') setTimeout(() => window.initRecibosView(), 80);
     } else if (target === 'logistica-dashboard') {
         if (typeof window.renderLogisticaDashboard === 'function') setTimeout(() => window.renderLogisticaDashboard(), 80);
     } else if (target === 'logistica-sinistros') {
