@@ -278,27 +278,19 @@ router.get('/ponto-colaborador', async (req, res) => {
 
         const getHeaders = { ...RHID_GET_HEADERS, Authorization: authHeader };
 
-        // Tenta busca direta por CPF primeiro (mais rápido)
-        try {
-            const cpfBuscaRes = await axios.get(`${RHID_BASE_URL}/person`, {
-                headers: getHeaders,
-                params: { cpf: cpfLimpo }
-            });
-            const registrosCPF = cpfBuscaRes.data?.records || (Array.isArray(cpfBuscaRes.data) ? cpfBuscaRes.data : []);
-            const pessoaCPF = registrosCPF.find(p => normalizarCPF(p.cpf) === cpfLimpo);
-            if (pessoaCPF) {
-                idPerson = pessoaCPF.id;
-                nomeRHID = pessoaCPF.name;
-            }
-        } catch (_) { /* busca direta não suportada, usa paginação */ }
-
-        // Se busca direta não encontrou — busca paginada
-        if (!idPerson) {
+        // Busca paginada pelo CPF
+        // NOTA: /person sem parâmetros retorna 500; /person?cpf=x também retorna 500.
+        // Só funciona com start + length (máx ~50 por página).
+        // O CPF no RHID é armazenado como NÚMERO, então pode perder zeros à esquerda.
+        {
             let start = 0;
-            const pageSize = 500; // reduzido para evitar timeout
+            const pageSize = 50; // valor seguro conforme testado no /diagnostico
             let encontrado = false;
+            const maxPaginas = 100; // limite de segurança (5000 pessoas)
+            let pagina = 0;
 
-            while (!encontrado) {
+            while (!encontrado && pagina < maxPaginas) {
+                pagina++;
                 let pessoasRes;
                 try {
                     pessoasRes = await axios.get(`${RHID_BASE_URL}/person`, {
@@ -307,20 +299,26 @@ router.get('/ponto-colaborador', async (req, res) => {
                     });
                 } catch (personErr) {
                     const msg = rhidSanitize(personErr.response?.data) || personErr.message;
-                    throw new Error(`Falha ao buscar pessoas no RHID: ${msg}`);
+                    throw new Error(`Falha ao buscar pessoas no RHID (pág ${pagina}): ${msg}`);
                 }
 
-                const registros = pessoasRes.data?.records || pessoasRes.data || [];
+                const registros = pessoasRes.data?.records || (Array.isArray(pessoasRes.data) ? pessoasRes.data : []);
                 if (!Array.isArray(registros) || registros.length === 0) break;
 
-                const pessoa = registros.find(p => normalizarCPF(p.cpf) === cpfLimpo);
+                const pessoa = registros.find(p => {
+                    // RHID armazena CPF como número — pode perder zero à esquerda.
+                    // Normalizamos ambos: string só com dígitos, sem padding.
+                    const cpfRHID = String(p.cpf || '').replace(/\D/g, '').replace(/^0+/, '') || '0';
+                    const cpfBusca = cpfLimpo.replace(/^0+/, '') || '0';
+                    return cpfRHID === cpfBusca;
+                });
 
                 if (pessoa) {
                     idPerson = pessoa.id;
                     nomeRHID = pessoa.name;
                     encontrado = true;
                 } else if (registros.length < pageSize) {
-                    break;
+                    break; // última página
                 } else {
                     start += pageSize;
                 }
