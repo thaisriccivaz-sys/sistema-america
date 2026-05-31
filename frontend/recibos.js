@@ -630,10 +630,9 @@ window._recBuscarPontoSelecionados = async function () {
                     
                     const isFerias = window._isColabFerias(c, ano, mes);
                     if (isFerias) {
-                        s.diasTrabalhados = 0;
-                        s.diasExtra = 0;
+                        // Zera apenas as faltas, pois o RHID pode não saber das férias e ter gerado faltas indevidas para os dias de descanso.
+                        // MAS NÃO zera os dias trabalhados, porque se ela trabalhou alguns dias do mês, esses dias devem ser pagos!
                         s.faltas = 0;
-                        s.diasVR = 0;
                     }
 
                     // Se RHID retornou dados válidos, remove a flag de supervisão auto, 
