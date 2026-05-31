@@ -15966,8 +15966,10 @@ app.get('/api/fix-thais', (req, res) => {
 
 // Integração Control iD (RHID)
 try {
+    app.set('db', db); // disponibiliza o db para os routers via req.app.get('db')
     const controlidRoutes = require('./routes/controlid');
     app.use('/api/diretoria/controlid', controlidRoutes);
+    console.log('[ControlID] Rotas registradas com sucesso.');
 } catch (e) {
     console.error('Erro ao carregar rota Control iD:', e.message);
 }
