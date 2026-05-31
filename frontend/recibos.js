@@ -274,7 +274,7 @@ async function _loadColabs() {
         const res   = await fetch(`${API_URL}/colaboradores?status=Ativo&limit=2000`, { headers: { 'Authorization': `Bearer ${token}` } });
         const data  = await res.json();
         let list    = Array.isArray(data) ? data : (data.colaboradores || []);
-        _recibosAllColabs = list.filter(c => c.status !== 'Desligado');
+        _recibosAllColabs = list.filter(c => c.status !== 'Desligado').sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
 
         // Inicializar seleções com 0 — aguarda RHID ou preenchimento manual
         _recibosSelecoes = {};
