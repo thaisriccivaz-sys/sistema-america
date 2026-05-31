@@ -3649,14 +3649,7 @@ window.editColaborador = async function (id) {
             inputT.value = valT;
             // Se for VT e não tiver valor salvo, calcular 6% do salário
             if (!valT && c.meio_transporte === 'Vale Transporte (VT)') {
-                const salarioEl = document.getElementById('colab-salario');
-                if (salarioEl && salarioEl.value) {
-                    const salarioRaw = salarioEl.value.replace(/[R$\s.]/g, '').replace(',', '.');
-                    const salario = parseFloat(salarioRaw);
-                    if (!isNaN(salario) && salario > 0) {
-                        inputT.value = (salario * 0.06).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    }
-                }
+                inputT.value = 'R$ 6,20';
             }
         }
 

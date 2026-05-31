@@ -57,13 +57,19 @@ function _buildRecibosLayout(mesAt, anoAt) {
       </div>
       <div>
         <h2 style="margin:0;font-size:1.4rem;color:#1e293b;font-weight:700;">Recibos de Benefícios</h2>
-        <p style="margin:4px 0 0;color:#64748b;font-size:.88rem;">VR para todos · VT ou VC automático pelo cadastro do colaborador · dias reais do ponto.</p>
       </div>
     </div>
-    <button id="btn-gerar-massa" onclick="window.gerarRecibosEmMassa()"
-      style="display:flex;align-items:center;gap:8px;padding:.65rem 1.4rem;background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(37,99,235,.35);">
-      <i class="ph ph-printer" style="font-size:1.1rem;"></i> Gerar Recibos Selecionados
-    </button>
+    <div style="display:flex;gap:.5rem;">
+      <button id="btn-conferencia-ponto" onclick="window.baixarConferenciaPonto()"
+        style="display:flex;align-items:center;gap:8px;padding:.65rem 1.4rem;background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .2s;"
+        onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
+        <i class="ph ph-list-numbers" style="font-size:1.1rem;"></i> Conferência do Ponto
+      </button>
+      <button id="btn-gerar-massa" onclick="window.gerarRecibosEmMassa()"
+        style="display:flex;align-items:center;gap:8px;padding:.65rem 1.4rem;background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(37,99,235,.35);">
+        <i class="ph ph-printer" style="font-size:1.1rem;"></i> Gerar Recibos Selecionados
+      </button>
+    </div>
   </div>
 
   <!-- PERÍODO + VR -->
@@ -91,7 +97,6 @@ function _buildRecibosLayout(mesAt, anoAt) {
         <div style="display:flex;align-items:center;gap:8px;">
           <input type="number" id="rec-valor-vr" value="35.00" min="0" step="0.01"
             style="width:110px;padding:.54rem .75rem;border:1px solid #cbd5e1;border-radius:8px;font-size:.95rem;font-weight:700;color:#059669;">
-          <span style="font-size:.75rem;color:#94a3b8;">padrão R$&nbsp;35,00</span>
         </div>
       </div>
       <div style="width:1px;height:42px;background:#e2e8f0;align-self:flex-end;"></div>
@@ -231,7 +236,8 @@ async function _loadColabs() {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const res   = await fetch(`${API_URL}/colaboradores?status=Ativo&limit=2000`, { headers: { 'Authorization': `Bearer ${token}` } });
         const data  = await res.json();
-        _recibosAllColabs = Array.isArray(data) ? data : (data.colaboradores || []);
+        let list    = Array.isArray(data) ? data : (data.colaboradores || []);
+        _recibosAllColabs = list.filter(c => c.status !== 'Desligado');
 
         // Inicializar seleções com 0 — aguarda RHID ou preenchimento manual
         _recibosSelecoes = {};
@@ -330,20 +336,25 @@ function _renderTabela() {
             ? `<span style="background:#fffbeb;color:#d97706;padding:3px 10px;border-radius:10px;font-size:.78rem;font-weight:600;">VC</span>`
             : `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 10px;border-radius:10px;font-size:.78rem;font-weight:600;">Outros</span>`;
 
-        const pontoIcon = s.pontoStatus === 'ok'
+        let pontoIcon = s.pontoStatus === 'ok'
             ? `<i class="ph ph-check-circle" style="color:#10b981;font-size:1.1rem;" title="Importado do RHID"></i>`
             : s.pontoStatus === 'erro'
             ? `<i class="ph ph-warning" style="color:#f59e0b;font-size:1.1rem;" title="Não encontrado no RHID — preencha manualmente"></i>`
             : `<i class="ph ph-minus-circle" style="color:#cbd5e1;font-size:1.1rem;" title="Ponto não buscado"></i>`;
 
+        let bg = s.selecionado ? '#f0f9ff' : '#fff';
+        if (s.diasTrabalhados === 0 && s.pontoStatus !== null) {
+            bg = '#fef08a';
+            pontoIcon = `<i class="ph ph-warning" style="color:#d97706;font-size:1.1rem;" title="0 dias trabalhados identificados no RHID"></i>`;
+        }
+
         const dtrabColor = s.diasTrabalhados > 0 ? '#1e293b' : '#94a3b8';
         const faltaColor = s.faltas > 0 ? '#ef4444' : '#94a3b8';
-        const bg = s.selecionado ? '#f0f9ff' : '#fff';
 
         return `<tr id="rec-row-${c.id}"
             style="border-bottom:1px solid #f1f5f9;background:${bg};transition:background .12s;"
-            onmouseover="if(!_recibosSelecoes[${c.id}]?.selecionado)this.style.background='#f8fafc'"
-            onmouseout="this.style.background=_recibosSelecoes[${c.id}]?.selecionado?'#f0f9ff':'#fff'">
+            onmouseover="if(!_recibosSelecoes[${c.id}]?.selecionado)this.style.background='${s.diasTrabalhados===0&&s.pontoStatus!==null?'#fde047':'#f8fafc'}'"
+            onmouseout="this.style.background=_recibosSelecoes[${c.id}]?.selecionado?'#f0f9ff':'${s.diasTrabalhados===0&&s.pontoStatus!==null?'#fef08a':'#fff'}'">
           <td style="padding:.55rem .5rem;text-align:center;">
             <input type="checkbox" id="rec-cb-${c.id}" data-id="${c.id}" ${s.selecionado?'checked':''}
               style="width:16px;height:16px;accent-color:#2563eb;cursor:pointer;"
@@ -373,8 +384,9 @@ function _renderTabela() {
           </td>
           <td style="padding:.45rem .4rem;text-align:center;">
             <input type="number" min="0" max="35" value="${s.diasExtra||''}"
-              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${s.diasExtra>0?'#8b5cf6':'#94a3b8'};"
+              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${s.diasExtra>0?'#8b5cf6':'#94a3b8'}; ${tipo==='Administrativo'?'background:#f1f5f9;cursor:not-allowed;':''}"
               placeholder="0"
+              ${tipo==='Administrativo'?'disabled title="Administrativos não possuem jantar"':''}
               onchange="window.atualizarDadosReciboColab(${c.id},'diasExtra',this.value)">
           </td>
           <td style="padding:.55rem .4rem;text-align:center;">${pontoIcon}</td>
@@ -483,6 +495,13 @@ window._recBuscarPontoSelecionados = async function () {
                 if (data.diasVR          != null) s.diasVR          = data.diasVR;
                 if (data.faltas          != null) s.faltas          = data.faltas;
                 if (data.diasComHoraExtra != null) s.diasExtra      = data.diasComHoraExtra;
+                
+                if (data.apuracaoRaw) {
+                    try {
+                        s.apuracaoDiaria = typeof data.apuracaoRaw === 'string' ? JSON.parse(data.apuracaoRaw) : data.apuracaoRaw;
+                    } catch(e) { console.warn('Erro ao ler apuracaoRaw:', e); }
+                }
+
                 // Se RHID retornou aviso (apuração não disponível)
                 s.pontoStatus = data.aviso ? 'erro' : 'ok';
                 if (data.aviso) { semApuracao++; errosDetalhes.push(`${_recNome(c)}: ${data.aviso}`); }
@@ -638,6 +657,92 @@ ${corpo}
     win.document.close();
 };
 
+// ─── Relatório de Conferência ─────────────────────────────────────────────────
+window.baixarConferenciaPonto = function () {
+    const sels = _recibosAllColabs.filter(c => _recibosSelecoes[c.id]?.selecionado);
+    if (!sels.length) {
+        if (typeof Swal !== 'undefined') Swal.fire('Atenção', 'Selecione ao menos um colaborador.', 'warning');
+        return;
+    }
+
+    const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(document.getElementById('rec-mes')?.value)-1];
+    const ano = document.getElementById('rec-ano')?.value;
+
+    let corpo = '';
+    sels.forEach(c => {
+        const s = _recibosSelecoes[c.id];
+        const nome = _recNome(c);
+        let linhas = '';
+
+        if (!s.apuracaoDiaria || !Array.isArray(s.apuracaoDiaria) || s.apuracaoDiaria.length === 0) {
+            linhas = `<tr><td colspan="5" style="padding:15px;text-align:center;color:#ef4444;">Nenhuma apuração diária encontrada para este colaborador. Certifique-se de "Buscar Ponto (RHID)" antes.</td></tr>`;
+        } else {
+            linhas = s.apuracaoDiaria.map(d => {
+                const dia = String(d.date || d.dateTimeStr || '').substring(0,10);
+                const hrsTrab = d.totalHorasTrabalhadas || 0;
+                const hrsExt = d.horasExtrasCalculadas || 0;
+                const status = (d.status || d.situacao || d.tipo || '').toUpperCase();
+                const hrsFalta = d.horasFaltaAtraso || 0;
+                
+                let marcacoesStr = '';
+                if (d.marcacoes && Array.isArray(d.marcacoes)) {
+                    marcacoesStr = d.marcacoes.map(m => m.hora || m.time || m).join(' / ');
+                } else if (d.entrada && d.saida) {
+                    marcacoesStr = `${d.entrada} - ${d.saida}`;
+                } else if (d.entrada) {
+                    marcacoesStr = `${d.entrada}`;
+                }
+
+                return `
+                <tr>
+                  <td style="padding:6px;border:1px solid #ddd;text-align:center;">${dia}</td>
+                  <td style="padding:6px;border:1px solid #ddd;">${status}</td>
+                  <td style="padding:6px;border:1px solid #ddd;text-align:center;font-weight:600;color:#2563eb;">${marcacoesStr}</td>
+                  <td style="padding:6px;border:1px solid #ddd;text-align:center;">${hrsTrab}h</td>
+                  <td style="padding:6px;border:1px solid #ddd;text-align:center;">${hrsExt}h</td>
+                  <td style="padding:6px;border:1px solid #ddd;text-align:center;">${hrsFalta}h</td>
+                </tr>`;
+            }).join('');
+        }
+
+        corpo += `
+        <div style="page-break-after:always;padding:20px;">
+          <h2 style="margin:0 0 15px;color:#1e3a5f;">Conferência de Ponto - ${nome}</h2>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="background:#e8edf5;">
+                <th style="padding:8px;border:1px solid #ddd;">Data</th>
+                <th style="padding:8px;border:1px solid #ddd;text-align:left;">Status / Situação</th>
+                <th style="padding:8px;border:1px solid #ddd;">Apontamentos</th>
+                <th style="padding:8px;border:1px solid #ddd;">Total Trabalhado</th>
+                <th style="padding:8px;border:1px solid #ddd;">Horas Extras</th>
+                <th style="padding:8px;border:1px solid #ddd;">Atraso/Falta</th>
+              </tr>
+            </thead>
+            <tbody>${linhas}</tbody>
+          </table>
+          <div style="margin-top:15px;font-size:11px;color:#64748b;">Totais Resumidos: Trabalhados = ${s.diasTrabalhados}, Faltas = ${s.faltas}, Jantar = ${s.diasExtra}</div>
+        </div>`;
+    });
+
+    const html = `<!DOCTYPE html><html><head><title>Conferência de Ponto</title>
+      <style>
+        body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:0;}
+        @media print{.bar{display:none!important;}}
+      </style>
+      </head><body>
+      <div class="bar" style="background:#1e3a5f;color:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:bold;">Conferência de Apuração - ${mesNome}/${ano}</span>
+        <button onclick="window.print()" style="background:#fff;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;font-weight:bold;">🖨 Imprimir / Salvar PDF</button>
+      </div>
+      ${corpo}
+      </body></html>`;
+
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (win) { win.document.write(html); win.document.close(); }
+    else if (typeof Swal !== 'undefined') Swal.fire('Erro', 'Pop-up bloqueado.', 'warning');
+};
+
 // ─── Separador de corte ───────────────────────────────────────────────────────
 function _corteLine() {
     return `<div style="border-top:2px dashed #94a3b8;margin:0 32px;position:relative;padding:6px 0;">
@@ -684,49 +789,47 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
         const tJantar = dExtra * valorVR;
         totalFinal = tVR + tJantar;
         linhas = `
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados (≥ 6h)</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dVR} dias</td></tr>
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Vale Refeição (${dVR} × R$&nbsp;${_recFmt(valorVR)})</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tVR)}</td></tr>
-${dExtra>0?`<tr><td style="padding:7px 12px;border:1px solid #ddd;">Jantar — dias c/ ≥3h extra (${dExtra} × R$&nbsp;${_recFmt(valorVR)})</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tJantar)}</td></tr>`:''}
-<tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dVR}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dVR} dias</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Vale Refeição</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dVR}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tVR)}</td></tr>
+${dExtra>0?`<tr><td style="padding:7px 12px;border:1px solid #ddd;">Jantar</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dExtra}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tJantar)}</td></tr>`:''}
+<tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td colspan="2" style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
 
     } else if (tipo === 'VT') {
         titulo    = 'RECIBO DE VALE TRANSPORTE';
         beneficio = 'Vale Transporte';
         totalFinal = dtrab * valTransp;
         linhas = `
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Meio de Transporte</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${colab.meio_transporte||'—'}</td></tr>
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados (do ponto)</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dtrab} dias</td></tr>
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Valor por Dia</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(valTransp)}</td></tr>
-<tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Meio de Transporte</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${colab.meio_transporte||'—'}</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dtrab}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dtrab} dias</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Valor por Dia</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(valTransp)}</td></tr>
+<tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td colspan="2" style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
         obs = 'Conforme Decreto nº 95.247/87. O desconto de até 6% do salário base pode ser aplicado conforme legislação vigente.';
 
     } else if (tipo === 'VC') {
         titulo    = 'RECIBO DE VALE COMBUSTÍVEL';
         beneficio = 'Vale Combustível';
-        // VC: desconto proporcional pelas faltas. Divisor = dias trabalhados + faltas
-        // (folgas não entram — o RHID já exclui folgas do count de faltas)
         const totalDiasRef = dtrab + faltas;
         const desc = totalDiasRef > 0 ? (valTransp / totalDiasRef * faltas) : 0;
         totalFinal = Math.max(0, valTransp - desc);
         linhas = `
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Valor Integral do Benefício</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(valTransp)}</td></tr>
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados (do ponto)</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dtrab} dias</td></tr>
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Faltas com desconto</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${faltas} dia(s)</td></tr>
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Desconto por Faltas (${faltas}/${totalDiasRef} × R$&nbsp;${_recFmt(valTransp)})</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;color:#ef4444;">-R$&nbsp;${_recFmt(desc)}</td></tr>
-<tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
-        obs = 'Folgas programadas não geram desconto. Apenas faltas (com ou sem atestado) incidem proporcionalmente.';
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Valor Integral do Benefício</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(valTransp)}</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dtrab}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${dtrab} dias</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Faltas com desconto</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${faltas}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${faltas} dia(s)</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Desconto por Faltas</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;color:#ef4444;">-R$&nbsp;${_recFmt(desc)}</td></tr>
+<tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td colspan="2" style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
+        obs = '';
     }
 
     const ultimoDia = new Date(ano, mes, 0).getDate();
 
-    const via = (n) => `
-<div class="via" style="padding:24px 32px;">
+    const via = () => `
+<div class="via" style="padding:24px 32px;page-break-after:always;">
   ${logoHtml}
   <div style="padding-top:14px;">
     <table style="width:100%;border-collapse:collapse;font-size:11px;border:1.5px solid #1e3a5f;margin-bottom:0;">
       <tr style="background:#1e3a5f;color:#fff;">
         <td colspan="4" style="padding:6px 12px;font-weight:700;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;">
-          Dados do Colaborador &nbsp;·&nbsp; ${n===1?'1ª Via — Colaborador':'2ª Via — Empresa'}
+          Dados do Colaborador
         </td>
       </tr>
       <tr style="background:#f8fafc;">
@@ -763,6 +866,7 @@ ${dExtra>0?`<tr><td style="padding:7px 12px;border:1px solid #ddd;">Jantar — d
       <thead>
         <tr style="background:#e8edf5;">
           <th style="padding:7px 12px;border:1px solid #ddd;text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#374151;">Descrição</th>
+          <th style="padding:7px 12px;border:1px solid #ddd;text-align:center;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#374151;width:80px;">Quant.</th>
           <th style="padding:7px 12px;border:1px solid #ddd;text-align:right;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#374151;width:195px;">Valor</th>
         </tr>
       </thead>
@@ -771,35 +875,11 @@ ${dExtra>0?`<tr><td style="padding:7px 12px;border:1px solid #ddd;">Jantar — d
 
     ${obs?`<div style="font-size:10px;color:#64748b;background:#f8fafc;border-left:3px solid #94a3b8;padding:5px 10px;margin-bottom:10px;">⚠ ${obs}</div>`:''}
 
-    <p style="font-size:11.5px;color:#374151;line-height:1.7;margin-bottom:18px;text-align:justify;">
-      Declaro que recebi da empresa <strong>AMERICA RENTAL EQUIPAMENTOS LTDA</strong> o benefício de
-      <strong>${beneficio}</strong> referente ao período de
-      <strong>01 a ${ultimoDia} de ${mesNome} de ${ano}</strong>,
-      no valor de <strong>R$&nbsp;${_recFmt(totalFinal)}</strong>.
-    </p>
-
-    <table style="width:100%;border-collapse:collapse;">
-      <tr>
-        <td style="width:55%;text-align:center;padding-top:36px;vertical-align:bottom;">
-          <div style="border-top:1px solid #333;padding-top:5px;font-size:11px;">Assinatura do Colaborador</div>
-          <div style="font-size:10px;color:#64748b;">${nome}</div>
-        </td>
-        <td style="width:10%;"></td>
-        <td style="width:35%;text-align:center;padding-top:36px;vertical-align:bottom;">
-          <div style="border-top:1px solid #333;padding-top:5px;font-size:11px;">Data</div>
-          <div style="font-size:10px;color:#64748b;">${dataHj}</div>
-        </td>
-      </tr>
-    </table>
   </div>
 </div>`;
 
     return `<div style="max-width:794px;margin:0 auto;">
-  ${via(1)}
-  <div style="border-top:2px dashed #94a3b8;margin:0 32px;position:relative;padding:6px 0;">
-    <span style="position:absolute;left:50%;transform:translateX(-50%);background:#fff;padding:0 14px;font-size:.68rem;color:#94a3b8;top:-7px;">✂ Cortar aqui</span>
-  </div>
-  ${via(2)}
+  ${via()}
 </div>`;
 }
 
