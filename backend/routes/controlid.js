@@ -422,6 +422,9 @@ function parsearHorasDia(d) {
 }
 
 // ─── Processador flexível da apuração ─────────────────────────────────────────
+const fs = require('fs');
+const path = require('path');
+
 function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
     // Dias úteis do mês (seg-sáb)
     const diasNoMes = new Date(ano, mes, 0).getDate();
@@ -533,8 +536,10 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
     try {
         if (Array.isArray(data) && data.length > 0) {
             payloadDebug = 'Exemplo Dia 1: ' + JSON.stringify(data[0]).substring(0, 800);
+            try { fs.writeFileSync(path.join(__dirname, '../../frontend/apuracao.txt'), JSON.stringify(data[0])); } catch(e){}
         } else {
             payloadDebug = JSON.stringify(data).substring(0, 800);
+            try { fs.writeFileSync(path.join(__dirname, '../../frontend/apuracao.txt'), JSON.stringify(data)); } catch(e){}
         }
     } catch(e) { payloadDebug = String(data).substring(0, 800); }
 
