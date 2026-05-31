@@ -326,7 +326,7 @@
             }
 
             const formatBRL = v => {
-                const n = parseFloat(String(v || '0').replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
+                const n = parseFloat(v) || 0;
                 return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             };
             const formatDate = s => s ? new Date(s).toLocaleString('pt-BR') : '-';

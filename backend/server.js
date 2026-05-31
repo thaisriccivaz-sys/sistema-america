@@ -10421,11 +10421,11 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
             totalAntes += salOld;
             if (cargo === 'VALE_TRANSPORTE') {
                 await new Promise((resolve, reject) =>
-                    db.run(`UPDATE colaboradores SET valor_transporte = ? WHERE id = ?`, [salNewStr, colab.id], (err) => err ? reject(err) : resolve())
+                    db.run(`UPDATE colaboradores SET valor_transporte = ? WHERE id = ?`, [targetSalary, colab.id], (err) => err ? reject(err) : resolve())
                 );
             } else {
                 await new Promise((resolve, reject) =>
-                    db.run(`UPDATE colaboradores SET salario = ? WHERE id = ?`, [salNewStr, colab.id], (err) => err ? reject(err) : resolve())
+                    db.run(`UPDATE colaboradores SET salario = ? WHERE id = ?`, [targetSalary, colab.id], (err) => err ? reject(err) : resolve())
                 );
             }
             atualizados++;
