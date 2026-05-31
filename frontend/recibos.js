@@ -573,93 +573,102 @@ window._recBuscarPontoSelecionados = async function () {
     const nomesSemCadastro = [];
     const nomesErroApi = [];
 
-    for (const c of sels) {
-        const cpf = (c.cpf || '').replace(/\D/g, '');
-        if (!cpf || cpf.length < 8) {
-            _recibosSelecoes[c.id].pontoStatus = 'erro';
-            semCadastro++;
-            nomesSemCadastro.push(_recNome(c));
-            continue;
-        }
-        try {
-            const res  = await fetch(
-                `${API_URL}/diretoria/controlid/ponto-colaborador?cpf=${encodeURIComponent(cpf)}&mes=${mes}&ano=${ano}`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
-            );
-            const data = await res.json();
+    const maxConcurrency = 8;
+    let i = 0;
 
-            if (!res.ok) {
-                // Erro HTTP (ex: 500 da API RHID)
-                const msgRaw = data.message || `Erro HTTP ${res.status}`;
-                // Remove blocos <style>/<script> e tags HTML caso o RHID retorne página de erro
-                const msg = msgRaw
-                    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
-                    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
-                    .replace(/<[^>]+>/g, ' ')
-                    .replace(/\s+/g, ' ')
-                    .trim()
-                    .substring(0, 200);
-                errosDetalhes.push(`${_recNome(c)}: ${msg}`);
-                _recibosSelecoes[c.id].pontoStatus = 'erro';
-                erroApi++;
-                nomesErroApi.push(_recNome(c));
-                continue;
-            }
-
-            if (data.success && data.encontrado) {
-                const s = _recibosSelecoes[c.id];
-                // Preenchimento: RHID retorna diasTrabalhados e faltas
-                if (data.diasTrabalhados != null) s.diasTrabalhados = data.diasTrabalhados;
-                if (data.diasVR          != null) s.diasVR          = data.diasVR;
-                if (data.faltas          != null) s.faltas          = data.faltas;
-                if (data.diasComHoraExtra != null) {
-                    const tipo = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
-                    s.diasExtra = (tipo === 'Administrativo') ? 0 : data.diasComHoraExtra;
-                }
-                
-                if (data.apuracaoRaw) {
-                    try {
-                        s.apuracaoDiaria = typeof data.apuracaoRaw === 'string' ? JSON.parse(data.apuracaoRaw) : data.apuracaoRaw;
-                    } catch(e) { console.warn('Erro ao ler apuracaoRaw:', e); }
-                }
-                
-                const isFerias = window._isColabFerias(c, ano, mes);
-                if (isFerias) {
-                    s.diasTrabalhados = 0;
-                    s.diasExtra = 0;
-                    s.faltas = 0;
-                    s.diasVR = 0;
-                }
-
-                // Se RHID retornou dados válidos, remove a flag de supervisão auto, 
-                // A MENOS que seja supervisão com 0 dias trabalhados (onde assumimos que a falta de ponto é por ser supervisão)
-                const isSupervisao = window._isSupervisao(c);
-                if (!(isSupervisao && (data.dtrab || data.diasTrabalhados || 0) === 0)) {
-                    s.isAutoSupervisao = false;
-                }
-
-                // Se RHID retornou aviso (apuração não disponível)
-                s.pontoStatus = data.aviso ? 'erro' : 'ok';
-                if (data.aviso) { semApuracao++; errosDetalhes.push(`${_recNome(c)}: ${data.aviso}`); }
-                else ok++;
-            } else if (data.success === false && data.encontrado === false) {
-                // Não encontrado no RHID
+    const worker = async () => {
+        while (i < sels.length) {
+            const c = sels[i++];
+            const cpf = (c.cpf || '').replace(/\D/g, '');
+            if (!cpf || cpf.length < 8) {
                 _recibosSelecoes[c.id].pontoStatus = 'erro';
                 semCadastro++;
                 nomesSemCadastro.push(_recNome(c));
-            } else {
+                continue;
+            }
+            try {
+                const res  = await fetch(
+                    `${API_URL}/diretoria/controlid/ponto-colaborador?cpf=${encodeURIComponent(cpf)}&mes=${mes}&ano=${ano}`,
+                    { headers: { 'Authorization': `Bearer ${token}` } }
+                );
+                const data = await res.json();
+
+                if (!res.ok) {
+                    // Erro HTTP (ex: 500 da API RHID)
+                    const msgRaw = data.message || `Erro HTTP ${res.status}`;
+                    // Remove blocos <style>/<script> e tags HTML caso o RHID retorne página de erro
+                    const msg = msgRaw
+                        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+                        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+                        .replace(/<[^>]+>/g, ' ')
+                        .replace(/\s+/g, ' ')
+                        .trim()
+                        .substring(0, 200);
+                    errosDetalhes.push(`${_recNome(c)}: ${msg}`);
+                    _recibosSelecoes[c.id].pontoStatus = 'erro';
+                    erroApi++;
+                    nomesErroApi.push(_recNome(c));
+                    continue;
+                }
+
+                if (data.success && data.encontrado) {
+                    const s = _recibosSelecoes[c.id];
+                    // Preenchimento: RHID retorna diasTrabalhados e faltas
+                    if (data.diasTrabalhados != null) s.diasTrabalhados = data.diasTrabalhados;
+                    if (data.diasVR          != null) s.diasVR          = data.diasVR;
+                    if (data.faltas          != null) s.faltas          = data.faltas;
+                    if (data.diasComHoraExtra != null) {
+                        const tipo = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
+                        s.diasExtra = (tipo === 'Administrativo') ? 0 : data.diasComHoraExtra;
+                    }
+                    
+                    if (data.apuracaoRaw) {
+                        try {
+                            s.apuracaoDiaria = typeof data.apuracaoRaw === 'string' ? JSON.parse(data.apuracaoRaw) : data.apuracaoRaw;
+                        } catch(e) { console.warn('Erro ao ler apuracaoRaw:', e); }
+                    }
+                    
+                    const isFerias = window._isColabFerias(c, ano, mes);
+                    if (isFerias) {
+                        s.diasTrabalhados = 0;
+                        s.diasExtra = 0;
+                        s.faltas = 0;
+                        s.diasVR = 0;
+                    }
+
+                    // Se RHID retornou dados válidos, remove a flag de supervisão auto, 
+                    // A MENOS que seja supervisão com 0 dias trabalhados (onde assumimos que a falta de ponto é por ser supervisão)
+                    const isSupervisao = window._isSupervisao(c);
+                    if (!(isSupervisao && (data.dtrab || data.diasTrabalhados || 0) === 0)) {
+                        s.isAutoSupervisao = false;
+                    }
+
+                    // Se RHID retornou aviso (apuração não disponível)
+                    s.pontoStatus = data.aviso ? 'erro' : 'ok';
+                    if (data.aviso) { semApuracao++; errosDetalhes.push(`${_recNome(c)}: ${data.aviso}`); }
+                    else ok++;
+                } else if (data.success === false && data.encontrado === false) {
+                    // Não encontrado no RHID
+                    _recibosSelecoes[c.id].pontoStatus = 'erro';
+                    semCadastro++;
+                    nomesSemCadastro.push(_recNome(c));
+                } else {
+                    _recibosSelecoes[c.id].pontoStatus = 'erro';
+                    erroApi++;
+                    nomesErroApi.push(_recNome(c));
+                    errosDetalhes.push(`${_recNome(c)}: ${data.message || 'Resposta inesperada do RHID'}`);
+                }
+            } catch (ex) {
                 _recibosSelecoes[c.id].pontoStatus = 'erro';
                 erroApi++;
                 nomesErroApi.push(_recNome(c));
-                errosDetalhes.push(`${_recNome(c)}: ${data.message || 'Resposta inesperada do RHID'}`);
+                errosDetalhes.push(`${_recNome(c)}: ${ex.message}`);
             }
-        } catch (ex) {
-            _recibosSelecoes[c.id].pontoStatus = 'erro';
-            erroApi++;
-            nomesErroApi.push(_recNome(c));
-            errosDetalhes.push(`${_recNome(c)}: ${ex.message}`);
         }
-    }
+    };
+
+    const workers = Array.from({ length: maxConcurrency }).map(() => worker());
+    await Promise.all(workers);
 
     // ── CONFRONTO DE DADOS (FERIADOS DO RHID) ────────────────────────────
     // Extrai o calendário real da apuração de algum colaborador para ajustar a Supervisão
