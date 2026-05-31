@@ -31,7 +31,7 @@ async function _getDiasUteis(ano, mes) {
     const d = new Date(ano, mes - 1, 1);
     while (d.getMonth() === mes - 1) {
         const diaSemana = d.getDay();
-        if (diaSemana !== 0 && diaSemana !== 6) { // Ignora dom e sab
+        if (diaSemana !== 0) { // Ignora apenas domingo (seg a sab)
             const dataStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             if (!feriados.includes(dataStr)) {
                 diasUteis++;
@@ -349,7 +349,7 @@ function _renderTabela() {
     if (!tbody) return;
 
     if (!_recibosFiltrados.length) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2.5rem;color:#94a3b8;">
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2.5rem;color:#94a3b8;">
             <i class="ph ph-users" style="font-size:2rem;display:block;margin-bottom:.5rem;"></i>
             Nenhum colaborador encontrado.</td></tr>`;
         _atualizarContador(); return;
@@ -405,7 +405,6 @@ function _renderTabela() {
             <div style="color:#475569;font-size:.85rem;">${c.cargo||'—'}</div>
             <div style="font-size:.74rem;color:#94a3b8;">${c.departamento||'—'}</div>
           </td>
-          <td style="padding:.55rem .75rem;text-align:center;">${tipoBadge}</td>
           <td style="padding:.55rem .75rem;text-align:center;">${transpBadge}</td>
           <td style="padding:.45rem .4rem;text-align:center;">
             <input type="number" min="0" max="35" value="${s.diasVR !== null && s.diasVR !== undefined ? s.diasVR : s.diasTrabalhados}"
@@ -456,10 +455,11 @@ window._getRowColors = function(c, s) {
     }
 
     const isSupervisao = (c.departamento || '').toLowerCase().includes('supervis');
-    const isSupervisorAzul = isSupervisao && (s.isAutoSupervisao || (!s.pontoStatus) || (s.pontoStatus === 'erro' && s.diasTrabalhados > 0));
+    const isVerde = (s.pontoStatus === 'ok');
+    const isSupervisorAzul = isSupervisao && !isVerde;
     
-    const isAmarelo = !isFerias && !isSupervisorAzul && (s.diasTrabalhados === 0) && (s.pontoStatus !== null);
-    const isCinza   = !isFerias && !isSupervisorAzul && (s.diasTrabalhados === 0) && (s.pontoStatus === null);
+    const isAmarelo = !isFerias && !isSupervisorAzul && !isVerde && (s.diasTrabalhados === 0) && (s.pontoStatus !== null);
+    const isCinza   = !isFerias && !isSupervisorAzul && !isVerde && (s.diasTrabalhados === 0) && (s.pontoStatus === null);
 
     let bg = '#fff';
     let hoverBg = '#f8fafc';
@@ -467,11 +467,13 @@ window._getRowColors = function(c, s) {
     if (!s.selecionado) {
         if (isFerias) { bg = '#f3e8ff'; hoverBg = '#e9d5ff'; }
         else if (isSupervisorAzul) { bg = '#e0f2fe'; hoverBg = '#bae6fd'; }
+        else if (isVerde) { bg = '#dcfce7'; hoverBg = '#bbf7d0'; }
         else if (isAmarelo) { bg = '#fef08a'; hoverBg = '#fde047'; }
         else if (isCinza) { bg = '#f1f5f9'; hoverBg = '#e2e8f0'; }
     } else {
         if (isFerias) { bg = '#e9d5ff'; hoverBg = '#d8b4fe'; }
         else if (isSupervisorAzul) { bg = '#bae6fd'; hoverBg = '#7dd3fc'; }
+        else if (isVerde) { bg = '#bbf7d0'; hoverBg = '#86efac'; }
         else if (isAmarelo) { bg = '#fde047'; hoverBg = '#facc15'; }
         else if (isCinza) { bg = '#e2e8f0'; hoverBg = '#cbd5e1'; }
         else { bg = '#f0f9ff'; hoverBg = '#e0f2fe'; }
@@ -643,7 +645,7 @@ window._recBuscarPontoSelecionados = async function () {
                 }
                 if (!isNaN(dataObj.getTime())) {
                     const diaSemana = dataObj.getDay();
-                    if (diaSemana !== 0 && diaSemana !== 6 && !d.isHoliday) {
+                    if (diaSemana !== 0 && !d.isHoliday) {
                         count++;
                     }
                 }
@@ -839,12 +841,12 @@ window.carregarHistoricoRecibos = async function () {
         }
     } catch(e) { console.warn('Erro ao carregar histórico:', e); }
     
-    // Auto-fill para Supervisão (se não tinha histórico e ainda está 0)
+    // Auto-fill para Supervisão (sempre que for 0 dias, preenche auto, ignorando histórico com 0 acidental)
     const diasUteis = await _getDiasUteis(ano, mes);
     _recibosAllColabs.forEach(c => {
         const s = _recibosSelecoes[c.id];
         const isSupervisao = (c.departamento || '').toLowerCase().includes('supervis');
-        if (isSupervisao && s && !s.historicoEncontrado && s.diasTrabalhados === 0) {
+        if (isSupervisao && s && s.diasTrabalhados === 0) {
             s.diasTrabalhados = diasUteis;
             s.diasVR = diasUteis;
             s.isAutoSupervisao = true;
