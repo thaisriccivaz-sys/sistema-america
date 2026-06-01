@@ -800,6 +800,27 @@ window._recBuscarPontoSelecionados = async function () {
 
     _renderTabela();
 
+    // Salvar apuração automaticamente no backend após a busca
+    try {
+        const valorVR = parseFloat(document.getElementById('rec-valor-vr')?.value) || 35.00;
+        const itensSalvar = sels.map(c => ({
+            colaborador_id: c.id,
+            dias_trabalhados: _recibosSelecoes[c.id].diasTrabalhados,
+            dias_vr: _recibosSelecoes[c.id].diasVR,
+            faltas: _recibosSelecoes[c.id].faltas,
+            dias_extra: _recibosSelecoes[c.id].diasExtra,
+            valor_vr: valorVR,
+            apuracao_diaria: JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria || [])
+        }));
+        fetch(`${API_URL}/recibos/salvar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ mes, ano, itens: itensSalvar })
+        }).catch(e => console.warn('Erro ao auto-salvar histórico após busca do ponto:', e));
+    } catch (e) {
+        console.warn('Erro preparatorio ao auto-salvar:', e);
+    }
+
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-fingerprint"></i> Buscar Ponto (RHID)'; }
 
     // Badge de resultado
