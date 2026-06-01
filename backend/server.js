@@ -16924,9 +16924,13 @@ function syncToLogistica(uuid, tipoEvento, payload) {
         const dataLimite = payload.prazo_identificacao_condutor || payload.vencimento_multa || null;
         const localInfracao = payload.local || payload.local_infracao || payload.cidade || null;
         const statusMonaco = payload.status_notificacao || tipoEvento;
-        // Monaco pode enviar o link de indicação em vários campos
-        const linkFormulario = payload.link_indicacao || payload.link_formulario || payload.url_formulario ||
-                               payload.Link || payload.LinkIndicacao || payload.link || null;
+        // Monaco pode enviar o link de indicação em vários campos, se não enviar, construímos pelo UUID padrão deles
+        let linkFormulario = payload.link_indicacao || payload.link_formulario || payload.url_formulario ||
+                             payload.Link || payload.LinkIndicacao || payload.link || null;
+
+        if (!linkFormulario && uuid) {
+            linkFormulario = `https://indica.lummon.com.br/${uuid}`;
+        }
 
         if (row) {
             // Atualizar multa existente
