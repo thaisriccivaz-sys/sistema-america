@@ -6248,21 +6248,11 @@ app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) =
     const { lote, mes, ano } = req.body;
     if (!lote || !Array.isArray(lote) || !mes || !ano) return res.status(400).json({ error: 'Parâmetros inválidos' });
 
-    let browser = null;
     try {
-        const puppeteer = require('puppeteer');
-        
-        // Inicia o browser uma única vez por lote
-        browser = await puppeteer.launch({
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
-        });
-
+        const htmlPdf = require('html-pdf-node');
         const novoProcesso = require('./novo_processo_assinafy');
         let sucesso = 0;
         let falha = 0;
-
-        // Reutiliza a mesma página para economizar memória
-        const page = await browser.newPage();
 
         for (const i of lote) {
             try {
@@ -6271,15 +6261,16 @@ app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) =
                 );
                 if (!colab) throw new Error(`Colaborador ID ${i.colaborador_id} não encontrado`);
 
-                // Define o HTML da página e aguarda o carregamento
-                await page.setContent(i.htmlContent, { waitUntil: 'load' });
-                
-                // Gera o PDF a partir da página renderizada
-                const bufferPDF = await page.pdf({
-                    format: 'A4',
-                    margin: { top: '0', bottom: '0', left: '0', right: '0' },
-                    printBackground: true
-                });
+                // Usa generatePdf individualmente para economizar memória
+                const bufferPDF = await htmlPdf.generatePdf(
+                    { content: i.htmlContent },
+                    {
+                        format: 'A4',
+                        margin: { top: '0', bottom: '0', left: '0', right: '0' },
+                        printBackground: true,
+                        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+                    }
+                );
 
                 const safeNome = (colab.nome_completo || 'Colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
                 const nomeArquivo = `Pagamentos_${safeNome}_${mes}${ano}.pdf`;
@@ -6305,10 +6296,8 @@ app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) =
             }
         }
 
-        if (browser) await browser.close();
         res.json({ ok: true, sucesso, falha });
     } catch (e) {
-        if (browser) await browser.close().catch(()=>{});
         console.error('Erro geral ao anexar recibos em lote:', e.message);
         res.status(500).json({ error: e.message });
     }
