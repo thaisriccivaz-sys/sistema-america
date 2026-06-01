@@ -504,6 +504,14 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
                 return false;
             }
 
+            // NOVA LÓGICA: Se não há previsão de horas úteis e não houve trabalho, é folga/dsr!
+            // O RHID pode colocar status de "falta" ou "faltasDiasInteiro" indevidamente para folgas de escalas flexíveis.
+            const horasUteis = d.horasUteis || d.horas_uteis || 0;
+            const minutosUteis = parseInt(horasUteis) || 0;
+            if (minutosUteis === 0 && (!d.diasTrabalhados || d.diasTrabalhados === 0)) {
+                return false; // Não é falta, era folga!
+            }
+
             // Falta explícita, atestado ou licença
             if (status === 'falta' || status === 'ausente' || status === '3' ||
                 status.includes('falt') || status.includes('atestado') || status.includes('afastamento') || 
@@ -514,11 +522,6 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
 
             // Tratamento para justificativas genéricas (d.idJustification != null)
             if (d.idJustification != null && (!d.diasTrabalhados || d.diasTrabalhados === 0)) {
-                // Verifica se a escala previa trabalho neste dia
-                const horasUteis = d.horasUteis || d.horas_uteis || 0;
-                const minutosUteis = parseInt(horasUteis) || 0;
-                // Se a escala previa trabalho (minutosUteis > 0), conta como falta/justificada
-                // Se a escala era de folga (0 horas úteis), a justificativa foi para "Folga", não é falta.
                 if (minutosUteis > 0) {
                     return true;
                 }
