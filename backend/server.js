@@ -181,6 +181,10 @@ const db = require('./database');
 // AUTO-PATCH: Corrige OSs importadas sem data_os (ex: Entrega/Retirada da primeira importação noturna)
 db.run("UPDATE os_logistica SET data_os = date('now') WHERE data_os IS NULL", err => { });
 
+// AUTO-PATCH: Corrigir OS 2 de Rota Redonda (BRK -> ATTEND)
+db.run("UPDATE os_logistica SET cliente = '💦🚨 ATTEND AMBIENTAL' WHERE numero_os IN ('2','02') AND cliente LIKE '%BRK AMBIENTAL%'", err => { if(err) console.error(err); });
+db.run("UPDATE logistica_resumo_rota SET dados = REPLACE(dados, 'BRK AMBIENTAL', '💦🚨 ATTEND AMBIENTAL') WHERE dados LIKE '%BRK AMBIENTAL%'", err => { if(err) console.error(err); });
+
 // Excluir Contrato Academia de teste do Abner Abrahão
 db.run("DELETE FROM documentos WHERE document_type = 'Contrato Academia' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Abner Abrahão%')", err => { });
 // Excluir Contrato Faculdade de teste da Debora
