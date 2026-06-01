@@ -15668,14 +15668,14 @@ window.reenviarAssinatura = async function (id, source, btn) {
                 </div>
                 <div style="flex:1;min-width:120px;">
                   <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Mês</label>
-                  <select id="pm-mes" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
+                  <select id="pm-mes" onchange="if(document.getElementById('pm-tipo-doc').value==='Pagamentos') window._pmCarregarDocumentos()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
                     ${['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
                       .map((m,i) => `<option value="${String(i+1).padStart(2,'0')}" ${i+1===new Date().getMonth()+1?'selected':''}>${m}</option>`).join('')}
                   </select>
                 </div>
                 <div style="flex:1;min-width:100px;">
                   <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Ano</label>
-                  <input id="pm-ano" type="number" value="${new Date().getFullYear()}" min="2020" max="2099"
+                  <input id="pm-ano" type="number" value="${new Date().getFullYear()}" min="2020" max="2099" onchange="if(document.getElementById('pm-tipo-doc').value==='Pagamentos') window._pmCarregarDocumentos()"
                     style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
                 </div>
               </div>
@@ -15692,6 +15692,12 @@ window.reenviarAssinatura = async function (id, source, btn) {
                 <p style="margin:0.25rem 0 0;font-size:0.8rem;color:#94a3b8;">Apenas arquivos PDF • Máx. 50 MB</p>
               </div>
               <input id="pm-file-input" type="file" accept=".pdf" style="display:none" onchange="window._pmHandleFile(this.files[0])">
+
+              <div style="margin-top:1rem;text-align:center;">
+                  <button id="pm-btn-load-db" onclick="window._pmCarregarDocumentos()" style="padding:0.6rem 1.2rem;background:#fff;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-weight:600;color:#475569;cursor:pointer;display:inline-flex;align-items:center;gap:0.5rem;transition:all 0.2s;">
+                      <i class="ph ph-database" style="color:#f503c5;font-size:1.1rem;"></i> Usar documentos pendentes
+                  </button>
+              </div>
 
               <div id="pm-processing" style="display:none;margin-top:1rem;padding:1rem;background:#f0fdf4;border-radius:8px;color:#166534;font-size:0.85rem;">
                 <i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i>
@@ -15813,8 +15819,21 @@ window.reenviarAssinatura = async function (id, source, btn) {
     };
 
     window._pmOnTipoChange = function() {
+        const t = document.getElementById('pm-tipo-doc');
         const dz = document.getElementById('pm-dropzone');
+        const btnDb = document.getElementById('pm-btn-load-db');
         if (!dz) return;
+        
+        if (t && t.value === 'Pagamentos') {
+            dz.style.display = 'none';
+            if (btnDb) btnDb.parentElement.style.display = 'none';
+            window._pmCarregarDocumentos();
+            return;
+        } else {
+            dz.style.display = 'block';
+            if (btnDb) btnDb.parentElement.style.display = 'block';
+        }
+
         if (window._pmTipoOk()) {
             dz.style.cursor    = 'pointer';
             dz.style.opacity   = '1';
@@ -15904,6 +15923,45 @@ window.reenviarAssinatura = async function (id, source, btn) {
         } catch (e) {
             document.getElementById('pm-processing').style.display = 'none';
             Swal.fire({ icon:'error', title:'Erro ao processar PDF', text: e.message });
+        }
+    };
+
+    window._pmCarregarDocumentos = async function() {
+        if (!window._pmTipoOk()) {
+            Swal.fire({ icon:'warning', title:'Selecione o tipo', text:'Escolha o Tipo de Documento antes de carregar do banco.', timer:2500, showConfirmButton:false });
+            return;
+        }
+
+        const tipo = document.getElementById('pm-tipo-doc').value;
+        const mes = document.getElementById('pm-mes').value;
+        const ano = document.getElementById('pm-ano').value;
+        
+        document.getElementById('pm-processing').style.display = 'block';
+        document.getElementById('pm-processing').innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i> Buscando documentos não assinados...';
+        
+        try {
+            const url = `/api/pagamentos-massa/pendentes?tipoDocumento=${encodeURIComponent(tipo)}&mes=${encodeURIComponent(mes)}&ano=${encodeURIComponent(ano)}`;
+            const r = await fetch(url, {
+                headers: { Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) }
+            });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error || 'Erro ao buscar documentos');
+            
+            _pdfBase64 = null; // No PDF file
+
+            document.getElementById('pm-processing').style.display = 'none';
+            if (data.resultado && data.resultado.length > 0) {
+                _pmCarregarResultado(data.resultado);
+                const dz = document.getElementById('pm-dropzone');
+                dz.innerHTML = `<i class="ph ph-check-circle" style="font-size:2.5rem;color:#10b981;display:block;margin-bottom:0.5rem;"></i>
+                    <p style="margin:0;font-weight:700;color:#374151;">${data.resultado.length} Documento(s) Carregado(s)</p>
+                    <p style="margin:0.25rem 0 0;font-size:0.8rem;color:#6b7280;">Do banco de dados</p>`;
+            } else {
+                Swal.fire({ icon: 'info', title: 'Nenhum documento', text: 'Não foram encontrados recibos em lote pendentes para os filtros.' });
+            }
+        } catch (e) {
+            document.getElementById('pm-processing').style.display = 'none';
+            Swal.fire({ icon: 'error', title: 'Erro', text: e.message });
         }
     };
 
@@ -16026,7 +16084,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
     window._pmEnviar = async function () {
         const itensSelecionados = _itensProcessados.filter(i => i.selecionado && i.colaborador_id);
         if (!itensSelecionados.length) { alert('Selecione pelo menos um colaborador para enviar.'); return; }
-        if (!_pdfBase64) { alert('PDF não carregado.'); return; }
+        // if (!_pdfBase64) { alert('PDF não carregado.'); return; } // Allow null if using DB documents
         if (!confirm(`Enviar documentos para ${itensSelecionados.length} colaborador(es)?`)) return;
 
         const btn = document.getElementById('pm-btn-enviar');
@@ -16046,6 +16104,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
                     itens: itensSelecionados.map(i => ({
                         pagina: i.pagina,
                         colaborador_id: i.colaborador_id,
+                        docId: i.docId,
                         enviarEmail: true, // sempre envia - selecionado = deve enviar
                     })),
                 }),
