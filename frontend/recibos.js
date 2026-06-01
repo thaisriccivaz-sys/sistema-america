@@ -1087,7 +1087,7 @@ window.anexarRecibosDocsMassa = async function () {
         let sucesso = 0, falha = 0;
         let progresso = 0;
 
-        const LOTE_SIZE = 5;
+        const LOTE_SIZE = 20;
         let lotes = [];
         for (let i = 0; i < sels.length; i += LOTE_SIZE) {
             lotes.push(sels.slice(i, i + LOTE_SIZE));

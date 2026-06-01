@@ -6248,29 +6248,43 @@ app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) =
         let sucesso = 0;
         let falha = 0;
 
-        for (const i of lote) {
+        // 1. Buscar dados dos colaboradores
+        const loteProcessar = [];
+        for (let i = 0; i < lote.length; i++) {
             try {
                 const colab = await new Promise((resolve, reject) =>
-                    db.get('SELECT * FROM colaboradores WHERE id = ?', [i.colaborador_id], (e, r) => e ? reject(e) : resolve(r))
+                    db.get('SELECT * FROM colaboradores WHERE id = ?', [lote[i].colaborador_id], (e, r) => e ? reject(e) : resolve(r))
                 );
-                if (!colab) throw new Error(`Colaborador ID ${i.colaborador_id} não encontrado`);
+                if (!colab) throw new Error(`Colaborador ID ${lote[i].colaborador_id} não encontrado`);
+                loteProcessar.push({ item: lote[i], colab });
+            } catch (err) {
+                console.error(`Erro colaborador:`, err.message);
+                falha++;
+            }
+        }
 
-                // Usa generatePdf individualmente para economizar memória
-                const bufferPDF = await htmlPdf.generatePdf(
-                    { content: i.htmlContent },
-                    {
-                        format: 'A4',
-                        margin: { top: '0', bottom: '0', left: '0', right: '0' },
-                        printBackground: true,
-                        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
-                    }
-                );
+        // 2. Gerar PDFs de uma única vez (Reaproveita o Chromium)
+        const filesToGenerate = loteProcessar.map(lp => ({ content: lp.item.htmlContent }));
+        const options = {
+            format: 'A4',
+            margin: { top: '0', bottom: '0', left: '0', right: '0' },
+            printBackground: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+        };
+
+        const generatedPdfs = filesToGenerate.length > 0 ? await htmlPdf.generatePdfs(filesToGenerate, options) : [];
+
+        // 3. Salvar no banco de dados e OneDrive
+        for (let idx = 0; idx < loteProcessar.length; idx++) {
+            try {
+                const { item, colab } = loteProcessar[idx];
+                const bufferPDF = generatedPdfs[idx].buffer;
 
                 const safeNome = (colab.nome_completo || 'Colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
                 const nomeArquivo = `Pagamentos_${safeNome}_${mes}${ano}.pdf`;
 
                 const { docId } = await pagamentosMassa.salvarDocumentoNoBanco({
-                    colaboradorId: i.colaborador_id,
+                    colaboradorId: item.colaborador_id,
                     nomeColab: colab.nome_completo,
                     bufferPDF: bufferPDF,
                     nomeArquivo,
@@ -6280,12 +6294,10 @@ app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) =
                     basePath: BASE_UPLOAD_PATH,
                 });
                 
-                // Envia para o OneDrive em background para não travar a tela do usuário
                 uploadDocToOneDrive(docId).catch(e2 => console.warn('Erro bg OneDrive:', e2.message));
-                
                 sucesso++;
-            } catch (errLote) {
-                console.error(`Erro ao processar PDF do colaborador ${i.colaborador_id}:`, errLote.message);
+            } catch (errSalvar) {
+                console.error(`Erro ao salvar PDF:`, errSalvar.message);
                 falha++;
             }
         }
