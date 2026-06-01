@@ -229,11 +229,11 @@ async function mergePdfPonto(originalPdfBuffer, colab, apuracaoDiaria, mes, ano,
     
     try {
         const html = buildCartaoPontoHtml(colab, apuracaoDiaria, mes, ano, mesNome);
-        const [pontoPdfBuffer] = await htmlPdf.generatePdfs([{ content: html }], { format: 'A4', margin: { top: '0', bottom: '0', left: '0', right: '0' }, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+        const generatedPdfs = await htmlPdf.generatePdfs([{ content: html }], { format: 'A4', margin: { top: '0', bottom: '0', left: '0', right: '0' }, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
         
         const mergedPdf = await PDFDocument.create();
         
-        const pontoDoc = await PDFDocument.load(pontoPdfBuffer);
+        const pontoDoc = await PDFDocument.load(generatedPdfs[0].buffer);
         const originalDoc = await PDFDocument.load(originalPdfBuffer);
         
         const copiedPontoPages = await mergedPdf.copyPages(pontoDoc, pontoDoc.getPageIndices());

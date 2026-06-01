@@ -1100,11 +1100,8 @@ window.anexarRecibosDocsMassa = async function () {
                 const m = (c.meio_transporte||'').toLowerCase();
                 let corpo = '';
                 
-                // Anexar Cartão de Ponto como primeira página
-                if (s.apuracaoDiaria && s.apuracaoDiaria.length > 0) {
-                    corpo += _buildCartaoPontoBlock(c, s.apuracaoDiaria, mes, ano, mesNome, logo);
-                    corpo += '<div class="pb"></div>';
-                }
+                // Cartão de Ponto é anexado via PDF-Lib no backend para garantir a formatação
+
 
                 corpo += _buildReciboBlock('VR', c, s, mes, mesNome, ano, valorVR, logo);
                 if (_isVT(m)) { corpo += '<div class="pb"></div>' + _buildReciboBlock('VT', c, s, mes, mesNome, ano, valorVR, logo); }
