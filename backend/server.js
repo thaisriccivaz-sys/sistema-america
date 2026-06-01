@@ -8728,13 +8728,13 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                                                 let fotoHtml = '';
                                                 let fotoAttachment = null;
                                                 if (item.foto_url && item.foto_url.startsWith('http')) {
-                                                    fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="' + item.foto_url + '" alt="' + item.nome + '" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
+                                                    fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="' + item.foto_url + '" alt="' + item.nome + '" width="200" height="200" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
                                                 } else if (item.foto_base64 && item.foto_base64.startsWith('data:image')) {
                                                     const _fm = item.foto_base64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
                                                     if (_fm) {
                                                         const _fext = (_fm[1].split('/')[1] || 'jpg').replace('jpeg','jpg');
                                                         fotoAttachment = { filename: 'produto.' + _fext, content: Buffer.from(_fm[2], 'base64'), cid: 'produto-foto' };
-                                                        fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="cid:produto-foto" alt="' + item.nome + '" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
+                                                        fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="cid:produto-foto" alt="' + item.nome + '" width="200" height="200" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
                                                     }
                                                 }
                                                 const mailOptions = {

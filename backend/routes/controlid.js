@@ -469,10 +469,28 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
 
         diasTrabalhados = diasComPresenca.length; // VT: todos os dias com presença
 
-        // VR: apenas dias com > 6h trabalhadas
+        // VR: dias com > 6h trabalhadas (ou >= 2h se for sábado da escala)
         diasVR = diasComPresenca.filter(d => {
             const h = parsearHorasDia(d);
-            if (h !== null) return h > 6;
+            if (h !== null) {
+                let isSabado = false;
+                if (d.date || d.dateTimeStr) {
+                    const diaStr = String(d.date || d.dateTimeStr || '').substring(0,10);
+                    if (diaStr.includes('-')) {
+                        const p = diaStr.split('-');
+                        if (p.length === 3) {
+                            const dt = new Date(`${p[2]}-${p[1]}-${p[0]}T12:00:00`);
+                            if (dt.getDay() === 6) isSabado = true;
+                        }
+                    }
+                }
+                const isFolga = (d.dsrConsideradoMinutos > 0 || (d.diasTrabalhados === 0 && (d.horasUteis || 0) === 0));
+                
+                if (isSabado && !isFolga) {
+                    return h >= 2;
+                }
+                return h > 6;
+            }
             // Sem info de horas — fallback conservador: conta como VR
             return true;
         }).length;
@@ -490,7 +508,25 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
             const he    = parseFloat(d.horasExtras || d.horas_extras || d.extra || d.overtime || 0);
             const heMin = parseInt(d.minHE || d.minutos_extras || d.horasExtrasCalculadas || ((d.extraDiurna || 0) + (d.extraNoturna || 0)) || 0);
             const hTotais = parseInt(d.totalHorasTrabalhadas || 0);
-            return (he >= 3 || heMin >= 180) && hTotais >= 540;
+            
+            let isSabado = false;
+            if (d.date || d.dateTimeStr) {
+                const diaStr = String(d.date || d.dateTimeStr || '').substring(0,10);
+                if (diaStr.includes('-')) {
+                    const p = diaStr.split('-');
+                    if (p.length === 3) {
+                        const dt = new Date(`${p[2]}-${p[1]}-${p[0]}T12:00:00`);
+                        if (dt.getDay() === 6) isSabado = true;
+                    }
+                }
+            }
+            const isFolga = (d.dsrConsideradoMinutos > 0 || (d.diasTrabalhados === 0 && (d.horasUteis || 0) === 0));
+
+            if (isFolga || isSabado) {
+                return hTotais > 720; // Mais de 12 horas (em minutos)
+            } else {
+                return (he >= 3 || heMin >= 180) && hTotais >= 540;
+            }
         }).length;
     }
 
