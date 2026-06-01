@@ -6284,9 +6284,10 @@ app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) =
                     basePath: BASE_UPLOAD_PATH,
                 });
 
-                if (colab.email) {
-                    try { await novoProcesso.enviarDocumentoParaAssinafy(docId, pdfData.colaborador_id); } catch(e3) { }
-                }
+                // Envio para Assinafy suspenso no momento de anexar (usuário vai juntar com outros documentos na tela de Docs em Massa depois)
+                // if (colab.email) {
+                //     try { await novoProcesso.enviarDocumentoParaAssinafy(docId, pdfData.colaborador_id); } catch(e3) { }
+                // }
                 try { await uploadDocToOneDrive(docId); } catch(e2) { }
                 sucesso++;
             } catch (errLote) {
