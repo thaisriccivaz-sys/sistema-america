@@ -15773,6 +15773,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">COLABORADOR</th>
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">DEPARTAMENTO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">MATCH</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">AÇÕES</th>
                      </tr>
                   </thead>
                   <tbody id="pm-tbody"></tbody>
@@ -16040,13 +16041,32 @@ window.reenviarAssinatura = async function (id, source, btn) {
                 <td style="padding:0.5rem 0.75rem;">
                   <span style="background:${bg};padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:600;">${matchLabels[item.confianca]||matchLabels[null]}</span>
                 </td>
+                <td style="padding:0.5rem 0.75rem;text-align:center;">
+                  <button onclick="window._pmPreview(${realIdx})" style="background:transparent;border:none;color:#3b82f6;cursor:pointer;padding:4px;border-radius:4px;" title="Visualizar Documento">
+                     <i class="ph ph-eye" style="font-size:1.1rem;"></i>
+                  </button>
+                </td>
             </tr>`;
-        }).join('') || '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#9ca3af;">Nenhum item encontrado com os filtros.</td></tr>';
+        }).join('') || '<tr><td colspan="7" style="text-align:center;padding:2rem;color:#9ca3af;">Nenhum item encontrado com os filtros.</td></tr>';
     }
 
     // ── Helpers de estado ──────────────────────────────────────────────────────
     window._pmToggle = function (idx, val) {
         if (_itensProcessados[idx]) { _itensProcessados[idx].selecionado = val; _pmAtualizarInfo(); }
+    };
+    window._pmPreview = function (idx) {
+        const item = _itensProcessados[idx];
+        if (!item) return;
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        if (item.docId) {
+            window.open(`/api/documentos/view/${item.docId}?token=${token}`, '_blank');
+        } else if (_pdfBase64) {
+            let url = `data:application/pdf;base64,${_pdfBase64}`;
+            if (item.pagina && item.pagina !== '-') { url += `#page=${item.pagina}`; }
+            window.open(url, '_blank');
+        } else {
+            if (typeof Swal !== 'undefined') Swal.fire('Aviso', 'Não há documento disponível para pré-visualização.', 'warning');
+        }
     };
     window._pmToggleEmail = function (idx, val) {
         if (_itensProcessados[idx]) _itensProcessados[idx].enviarEmail = val;
