@@ -6128,6 +6128,7 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
     db.serialize(() => {
         db.run('BEGIN TRANSACTION');
         
+        let hasError = false;
         const stmt = db.prepare(`
             INSERT INTO recibos_historico (mes, ano, colaborador_id, dias_trabalhados, dias_vr, faltas, dias_extra, valor_vr, apuracao_diaria) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -6139,21 +6140,45 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
                 dias_extra=excluded.dias_extra,
                 valor_vr=excluded.valor_vr,
                 apuracao_diaria=COALESCE(excluded.apuracao_diaria, recibos_historico.apuracao_diaria)
-        `);
-        
-        itens.forEach(i => {
-            stmt.run([mes, ano, i.colaborador_id, i.dias_trabalhados, i.dias_vr, i.faltas, i.dias_extra, i.valor_vr, i.apuracao_diaria]);
-        });
-        
-        stmt.finalize((err2) => {
-            if (err2) {
+        `, function(errPrep) {
+            if (errPrep) {
+                console.error('[SALVAR RECIBOS] Erro no prepare:', errPrep.message);
+                hasError = true;
                 db.run('ROLLBACK');
-                return res.status(500).json({ error: err2.message });
+                return res.status(500).json({ error: errPrep.message });
             }
-            db.run('COMMIT', () => {
-                res.json({ ok: true, message: 'Histórico de recibos salvo com sucesso' });
-            });
         });
+        
+        if (!hasError) {
+            let pending = itens.length;
+            if (pending === 0) {
+                stmt.finalize();
+                db.run('COMMIT');
+                return res.json({ ok: true, message: 'Nenhum item para salvar' });
+            }
+
+            let runError = null;
+            itens.forEach(i => {
+                stmt.run([mes, ano, i.colaborador_id, i.dias_trabalhados, i.dias_vr, i.faltas, i.dias_extra, i.valor_vr, i.apuracao_diaria], function(errRun) {
+                    if (errRun && !runError) {
+                        runError = errRun;
+                        console.error('[SALVAR RECIBOS] Erro no stmt.run:', errRun.message);
+                    }
+                    pending--;
+                    if (pending === 0) {
+                        stmt.finalize();
+                        if (runError) {
+                            db.run('ROLLBACK');
+                            if (!res.headersSent) res.status(500).json({ error: runError.message });
+                        } else {
+                            db.run('COMMIT', () => {
+                                if (!res.headersSent) res.json({ ok: true, message: 'Histórico de recibos salvo com sucesso' });
+                            });
+                        }
+                    }
+                });
+            });
+        }
     });
 });
 

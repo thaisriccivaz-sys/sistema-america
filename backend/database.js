@@ -604,12 +604,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('termo_desconto_nome')) db.run("ALTER TABLE multas_logistica ADD COLUMN termo_desconto_nome TEXT");
                 });
 
-                // Recibos Histórico
-                db.all("PRAGMA table_info(recibos_historico)", (err, rows) => {
-                    if (err || !rows) return;
-                    const cols = rows.map(r => r.name);
-                    if (!cols.includes('apuracao_diaria')) db.run("ALTER TABLE recibos_historico ADD COLUMN apuracao_diaria TEXT");
-                });
+                // Recibos Histórico (Garante a criação da coluna de forma síncrona na fila do serialize)
+                db.run("ALTER TABLE recibos_historico ADD COLUMN apuracao_diaria TEXT", (err) => { /* Ignora se já existir */ });
 
                 // Avaliacoes (Migracao estrutural para Drop and Recreate caso a tabela antiga nao tenha 'tipo')
                 db.all("PRAGMA table_info(avaliacoes)", (err, rows) => {
