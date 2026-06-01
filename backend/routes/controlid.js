@@ -498,11 +498,33 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
 
         faltas = data.filter(d => {
             const status = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
-            return status === 'falta' || status === 'ausente' || status === '3' ||
-                   status.includes('falt') || status.includes('atestado') || status.includes('afastamento') || 
-                   status.includes('licença') || status.includes('licenca') || status.includes('justificad') || 
-                   (d.faltaDiaInteiro === true) || (d.faltasDiasInteiro > 0) || 
-                   (d.idJustification != null && (!d.diasTrabalhados || d.diasTrabalhados === 0));
+            
+            // Se for explicitamente folga, dsr, feriado ou compensado, não é falta!
+            if (status.includes('folga') || status.includes('dsr') || status.includes('feriado') || status.includes('compensad')) {
+                return false;
+            }
+
+            // Falta explícita, atestado ou licença
+            if (status === 'falta' || status === 'ausente' || status === '3' ||
+                status.includes('falt') || status.includes('atestado') || status.includes('afastamento') || 
+                status.includes('licença') || status.includes('licenca') || status.includes('justificad') || 
+                (d.faltaDiaInteiro === true) || (d.faltasDiasInteiro > 0)) {
+                return true;
+            }
+
+            // Tratamento para justificativas genéricas (d.idJustification != null)
+            if (d.idJustification != null && (!d.diasTrabalhados || d.diasTrabalhados === 0)) {
+                // Verifica se a escala previa trabalho neste dia
+                const horasUteis = d.horasUteis || d.horas_uteis || 0;
+                const minutosUteis = parseInt(horasUteis) || 0;
+                // Se a escala previa trabalho (minutosUteis > 0), conta como falta/justificada
+                // Se a escala era de folga (0 horas úteis), a justificativa foi para "Folga", não é falta.
+                if (minutosUteis > 0) {
+                    return true;
+                }
+            }
+
+            return false;
         }).length;
 
         diasComHoraExtra = data.filter(d => {
