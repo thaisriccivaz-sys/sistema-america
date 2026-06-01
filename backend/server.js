@@ -6128,10 +6128,14 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
     db.serialize(() => {
         db.run('BEGIN TRANSACTION');
         
-        let hasError = false;
-        
         // Failsafe migration just in case it failed on startup
-        db.run("ALTER TABLE recibos_historico ADD COLUMN apuracao_diaria TEXT", () => {
+        db.run("ALTER TABLE recibos_historico ADD COLUMN apuracao_diaria TEXT", function(errAlter) {
+            let pending = itens.length;
+            if (pending === 0) {
+                db.run('COMMIT');
+                return res.json({ ok: true, message: 'Nenhum item para salvar' });
+            }
+
             const stmt = db.prepare(`
             INSERT INTO recibos_historico (mes, ano, colaborador_id, dias_trabalhados, dias_vr, faltas, dias_extra, valor_vr, apuracao_diaria) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -6143,23 +6147,14 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
                 dias_extra=excluded.dias_extra,
                 valor_vr=excluded.valor_vr,
                 apuracao_diaria=COALESCE(excluded.apuracao_diaria, recibos_historico.apuracao_diaria)
-        `, function(errPrep) {
-            if (errPrep) {
-                console.error('[SALVAR RECIBOS] Erro no prepare:', errPrep.message);
-                hasError = true;
-                db.run('ROLLBACK');
-                return res.status(500).json({ error: errPrep.message });
-            }
-        });
-        
-        if (!hasError) {
-            let pending = itens.length;
-            if (pending === 0) {
-                stmt.finalize();
-                db.run('COMMIT');
-                return res.json({ ok: true, message: 'Nenhum item para salvar' });
-            }
-
+            `, function(errPrep) {
+                if (errPrep) {
+                    console.error('[SALVAR RECIBOS] Erro no prepare:', errPrep.message);
+                    db.run('ROLLBACK');
+                    if (!res.headersSent) return res.status(500).json({ error: errPrep.message });
+                }
+            });
+            
             let runError = null;
             itens.forEach(i => {
                 stmt.run([mes, ano, i.colaborador_id, i.dias_trabalhados, i.dias_vr, i.faltas, i.dias_extra, i.valor_vr, i.apuracao_diaria], function(errRun) {
@@ -6181,9 +6176,8 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
                     }
                 });
             });
-        }
+        });
     });
-});
 });
 
 // POST: Anexar recibo gerado individualmente aos Docs. em Massa (prontuário digital + Assinafy)
