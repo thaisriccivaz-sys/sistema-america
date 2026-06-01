@@ -1033,9 +1033,10 @@ window.anexarRecibosDocsMassa = async function () {
         return;
     }
 
-    const mes = document.getElementById('rec-mes')?.value;
+    const mesValue = document.getElementById('rec-mes')?.value;
+    const mes = mesValue ? String(mesValue).padStart(2, '0') : '';
     const ano = document.getElementById('rec-ano')?.value;
-    const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mes)-1];
+    const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mesValue)-1];
     const valorVR = parseFloat(document.getElementById('rec-valor-vr')?.value) || 35.00;
 
     const btnAnexar = document.getElementById('btn-anexar-massa');

@@ -6335,7 +6335,7 @@ app.post('/api/pagamentos-massa/processar', authenticateToken, multer({ storage:
 // GET: Buscar recibos/documentos pre-anexados que ainda não foram enviados
 app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) => {
     try {
-        const tipo = req.query.tipo || '';
+        const tipo = req.query.tipo || req.query.tipoDocumento || '';
         const mes = req.query.mes || '';
         const ano = req.query.ano || '';
         
@@ -6352,7 +6352,12 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
         `;
         const params = [];
         if (tipo) { query += " AND d.document_type = ?"; params.push(tipo); }
-        if (mes) { query += " AND d.month = ?"; params.push(mes); }
+        if (mes) { 
+            const mesPad = String(mes).padStart(2, '0');
+            const mesNoPad = String(parseInt(mes, 10));
+            query += " AND (d.month = ? OR d.month = ?)"; 
+            params.push(mesPad, mesNoPad); 
+        }
         if (ano) { query += " AND d.year = ?"; params.push(ano); }
 
         const rows = await new Promise((resolve, reject) => {
