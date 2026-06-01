@@ -1,3 +1,6 @@
 const sqlite3 = require('sqlite3');
-const db = new sqlite3.Database('data/Colaboradores/colaboradores.db');
-db.get('SELECT insalubridade_valor FROM colaboradores WHERE nome_completo LIKE "%Marcelo%"', [], (err, row) => console.log(row));
+const db = new sqlite3.Database('backend/database.sqlite');
+db.all("SELECT * FROM colaboradores WHERE nome LIKE '%juli%'", (err, rows) => {
+    if(err) console.error(err);
+    else console.log(JSON.stringify(rows, null, 2));
+});

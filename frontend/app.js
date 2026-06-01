@@ -15974,6 +15974,13 @@ window.reenviarAssinatura = async function (id, source, btn) {
             enviarEmail: true,
         }));
 
+        // Ordenação alfabética
+        _itensProcessados.sort((a, b) => {
+            const nomeA = (a.colaborador_nome || a.nomeDetectado || '').toLowerCase();
+            const nomeB = (b.colaborador_nome || b.nomeDetectado || '').toLowerCase();
+            return nomeA.localeCompare(nomeB);
+        });
+
         // Popular filtros
         const deptos = [...new Set(_itensProcessados.map(i => i.departamento).filter(Boolean))].sort();
         const cargos = [...new Set(_itensProcessados.map(i => i.cargo).filter(Boolean))].sort();

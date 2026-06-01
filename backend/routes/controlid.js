@@ -500,7 +500,8 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
             const status = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
             
             // Se for explicitamente folga, dsr, feriado ou compensado, não é falta!
-            if (status.includes('folga') || status.includes('dsr') || status.includes('feriado') || status.includes('compensad')) {
+            if (status.includes('folga') || status.includes('dsr') || status.includes('feriado') || status.includes('compensad') ||
+                d.folga === true || d.compensado === true || d.isHoliday === 1 || d.isHoliday === true) {
                 return false;
             }
 

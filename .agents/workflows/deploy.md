@@ -20,10 +20,10 @@ git add frontend/index.html frontend/app.js frontend/style.css backend/server.js
 git commit -m "<mensagem descritiva da alteração>"
 ```
 
-3. Enviar para o branch producao (que o Render escuta) e também atualizar o main
+3. Enviar para o branch producao (que o Render escuta) e também atualizar o main, depois disparar o deploy hook
 // turbo
 ```powershell
-git push origin main ; git push origin main:producao
+git push origin main ; git push origin main:producao ; Invoke-RestMethod -Uri "https://api.render.com/deploy/srv-d72pfn5m5p6s73en9tjg?key=BBqh06kkEgg" -Method POST
 ```
 
 ## Regras importantes
@@ -32,4 +32,5 @@ git push origin main ; git push origin main:producao
 - NUNCA incluir `node_modules/`, arquivos `.db`, `tmp/`, arquivos de teste temporários no commit
 - A mensagem do commit deve descrever claramente a mudança feita (em português)
 - O Render escuta o branch `producao` — sempre fazer push para `origin main:producao`
-- Verificar o output do push para confirmar `main -> producao` com sucesso
+- Após o push, disparar o Deploy Hook do Render: https://api.render.com/deploy/srv-d72pfn5m5p6s73en9tjg?key=BBqh06kkEgg
+- Verificar o output do push para confirmar `main -> producao` e `Accepted` do hook
