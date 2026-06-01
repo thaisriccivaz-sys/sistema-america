@@ -6411,7 +6411,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
             if (!docId) {
                 if (!bufferPDF) throw new Error('PDF base não fornecido para extração.');
                 // 1. Extrair página individual
-                const bufPagina = await pagamentosMassa.extrairPagina(bufferPDF, item.pagina);
+                let bufPagina = await pagamentosMassa.extrairPagina(bufferPDF, item.pagina);
 
                 // 2. Buscar colaborador
                 const colab = await new Promise((resolve, reject) =>
@@ -6419,6 +6419,19 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                 );
                 if (!colab) throw new Error(`Colaborador ID ${item.colaborador_id} não encontrado`);
                 colabNome = colab.nome_completo;
+
+                // Merge do Cartão de Ponto se for "Pagamentos"
+                if (tipo === 'Pagamentos') {
+                    const historico = await new Promise(res => db.get('SELECT apuracao_diaria FROM recibos_historico WHERE colaborador_id = ? AND mes = ? AND ano = ?', [item.colaborador_id, String(mesDoc).padStart(2, '0'), anoDoc], (e, r) => res(r)));
+                    if (historico && historico.apuracao_diaria) {
+                        try {
+                            const apuracao = JSON.parse(historico.apuracao_diaria);
+                            const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mesDoc)-1];
+                            const { mergePdfPonto } = require('./cartao_ponto_generator');
+                            bufPagina = await mergePdfPonto(bufPagina, colab, apuracao, String(mesDoc).padStart(2, '0'), anoDoc, mesNome);
+                        } catch(e) { console.error('[PAGAMENTOS-MASSA] Erro ponto:', e); }
+                    }
+                }
 
                 // 3. Gerar nome do arquivo
                 const safeNome = pagamentosMassa.normalizarNome(colab.nome_completo).replace(/\s+/g, '_');
