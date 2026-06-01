@@ -506,12 +506,14 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
                 return false;
             }
 
-            // NOVA LÓGICA: Se não há previsão de horas úteis e não houve trabalho, é folga/dsr!
+            // NOVA LÓGICA: Se não há previsão de horário contratual e não houve trabalho, é folga/dsr!
             // O RHID pode colocar status de "falta" ou "faltasDiasInteiro" indevidamente para folgas de escalas flexíveis.
-            const horasUteis = d.horasUteis || d.horas_uteis || 0;
-            const minutosUteis = parseInt(horasUteis) || 0;
-            if (minutosUteis === 0 && (!d.diasTrabalhados || d.diasTrabalhados === 0)) {
-                return false; // Não é falta, era folga!
+            const idHorario = d.idHorarioContratual || 0;
+            const strHorario = d.strHorarioContratualSimples || '';
+            const semHorarioPrevisto = (idHorario === 0 && strHorario.trim() === '');
+
+            if (semHorarioPrevisto && (!d.diasTrabalhados || d.diasTrabalhados === 0)) {
+                return false; // Não tem turno programado para hoje, portanto é folga, não falta!
             }
 
             // Falta explícita, atestado ou licença
@@ -524,7 +526,8 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
 
             // Tratamento para justificativas genéricas (d.idJustification != null)
             if (d.idJustification != null && (!d.diasTrabalhados || d.diasTrabalhados === 0)) {
-                if (minutosUteis > 0) {
+                // Se tinha horário previsto e justificou sem trabalhar, conta como ausência (que será tratada pelo RH)
+                if (!semHorarioPrevisto) {
                     return true;
                 }
             }
