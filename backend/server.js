@@ -6425,7 +6425,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
 
                 // Merge do Cartão de Ponto se for "Pagamentos"
                 if (tipo === 'Pagamentos') {
-                    const historico = await new Promise(res => db.get('SELECT apuracao_diaria FROM recibos_historico WHERE colaborador_id = ? AND mes = ? AND ano = ?', [item.colaborador_id, String(mesDoc).padStart(2, '0'), anoDoc], (e, r) => res(r)));
+                    const historico = await new Promise(res => db.get('SELECT apuracao_diaria FROM recibos_historico WHERE colaborador_id = ? AND mes = ? AND ano = ?', [item.colaborador_id, parseInt(mesDoc).toString(), anoDoc], (e, r) => res(r)));
                     if (historico && historico.apuracao_diaria) {
                         try {
                             const apuracao = JSON.parse(historico.apuracao_diaria);
