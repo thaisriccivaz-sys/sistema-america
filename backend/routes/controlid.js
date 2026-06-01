@@ -479,8 +479,9 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
                     if (diaStr.includes('-')) {
                         const p = diaStr.split('-');
                         if (p.length === 3) {
-                            const dt = new Date(`${p[2]}-${p[1]}-${p[0]}T12:00:00`);
-                            if (dt.getDay() === 6) isSabado = true;
+                            const dtStr = p[0].length === 4 ? `${p[0]}-${p[1]}-${p[2]}T12:00:00` : `${p[2]}-${p[1]}-${p[0]}T12:00:00`;
+                            const dt = new Date(dtStr);
+                            if (!isNaN(dt.getTime()) && dt.getDay() === 6) isSabado = true;
                         }
                     }
                 }
@@ -515,8 +516,9 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
                 if (diaStr.includes('-')) {
                     const p = diaStr.split('-');
                     if (p.length === 3) {
-                        const dt = new Date(`${p[2]}-${p[1]}-${p[0]}T12:00:00`);
-                        if (dt.getDay() === 6) isSabado = true;
+                        const dtStr = p[0].length === 4 ? `${p[0]}-${p[1]}-${p[2]}T12:00:00` : `${p[2]}-${p[1]}-${p[0]}T12:00:00`;
+                        const dt = new Date(dtStr);
+                        if (!isNaN(dt.getTime()) && dt.getDay() === 6) isSabado = true;
                     }
                 }
             }
