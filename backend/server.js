@@ -6288,7 +6288,10 @@ app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) =
                 // if (colab.email) {
                 //     try { await novoProcesso.enviarDocumentoParaAssinafy(docId, pdfData.colaborador_id); } catch(e3) { }
                 // }
-                try { await uploadDocToOneDrive(docId); } catch(e2) { }
+                
+                // Envia para o OneDrive em background para não travar a tela do usuário
+                uploadDocToOneDrive(docId).catch(e2 => console.warn('Erro bg OneDrive:', e2.message));
+                
                 sucesso++;
             } catch (errLote) {
                 console.error(`Erro ao processar PDF do colaborador ${pdfData.colaborador_id}:`, errLote.message);
