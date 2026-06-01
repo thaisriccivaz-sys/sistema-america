@@ -521,6 +521,28 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `);
 
+            // Tabelas de Notificações de Diretoria e Logística
+            db.run(`
+                CREATE TABLE IF NOT EXISTS diretoria_notificacoes_pendentes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo TEXT,
+                    mensagem TEXT,
+                    link TEXT,
+                    lido INTEGER DEFAULT 0,
+                    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+            db.run(`
+                CREATE TABLE IF NOT EXISTS logistica_notificacoes_pendentes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo TEXT,
+                    mensagem TEXT,
+                    link TEXT,
+                    lido INTEGER DEFAULT 0,
+                    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
             // Tabela de Histórico de Recibos Gerados
             db.run(`
                 CREATE TABLE IF NOT EXISTS recibos_historico (

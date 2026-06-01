@@ -6129,7 +6129,10 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
         db.run('BEGIN TRANSACTION');
         
         let hasError = false;
-        const stmt = db.prepare(`
+        
+        // Failsafe migration just in case it failed on startup
+        db.run("ALTER TABLE recibos_historico ADD COLUMN apuracao_diaria TEXT", () => {
+            const stmt = db.prepare(`
             INSERT INTO recibos_historico (mes, ano, colaborador_id, dias_trabalhados, dias_vr, faltas, dias_extra, valor_vr, apuracao_diaria) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(colaborador_id, mes, ano) 
@@ -6244,63 +6247,67 @@ app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) =
     const { lote, mes, ano } = req.body;
     if (!lote || !Array.isArray(lote) || !mes || !ano) return res.status(400).json({ error: 'Parâmetros inválidos' });
 
+    let browser = null;
     try {
-        const htmlPdf = require('html-pdf-node');
-        const files = lote.map(i => ({ content: i.htmlContent, colaborador_id: i.colaborador_id }));
+        const puppeteer = require('puppeteer');
         
-        // Gera todos os PDFs reutilizando o mesmo browser
-        const pdfsGerados = await htmlPdf.generatePdfs(
-            files,
-            {
-                format: 'A4',
-                margin: { top: '0', bottom: '0', left: '0', right: '0' },
-                printBackground: true,
-                args: ['--no-sandbox', '--disable-setuid-sandbox']
-            }
-        );
+        // Inicia o browser uma única vez por lote
+        browser = await puppeteer.launch({
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+        });
 
         const novoProcesso = require('./novo_processo_assinafy');
         let sucesso = 0;
         let falha = 0;
 
-        for (const pdfData of pdfsGerados) {
+        // Reutiliza a mesma página para economizar memória
+        const page = await browser.newPage();
+
+        for (const i of lote) {
             try {
                 const colab = await new Promise((resolve, reject) =>
-                    db.get('SELECT * FROM colaboradores WHERE id = ?', [pdfData.colaborador_id], (e, r) => e ? reject(e) : resolve(r))
+                    db.get('SELECT * FROM colaboradores WHERE id = ?', [i.colaborador_id], (e, r) => e ? reject(e) : resolve(r))
                 );
-                if (!colab) throw new Error(`Colaborador ID ${pdfData.colaborador_id} não encontrado`);
+                if (!colab) throw new Error(`Colaborador ID ${i.colaborador_id} não encontrado`);
+
+                // Define o HTML da página e aguarda o carregamento
+                await page.setContent(i.htmlContent, { waitUntil: 'load' });
+                
+                // Gera o PDF a partir da página renderizada
+                const bufferPDF = await page.pdf({
+                    format: 'A4',
+                    margin: { top: '0', bottom: '0', left: '0', right: '0' },
+                    printBackground: true
+                });
 
                 const safeNome = (colab.nome_completo || 'Colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
                 const nomeArquivo = `Pagamentos_${safeNome}_${mes}${ano}.pdf`;
 
                 const { docId } = await pagamentosMassa.salvarDocumentoNoBanco({
-                    colaboradorId: pdfData.colaborador_id,
+                    colaboradorId: i.colaborador_id,
                     nomeColab: colab.nome_completo,
-                    bufferPDF: pdfData.buffer,
+                    bufferPDF: bufferPDF,
                     nomeArquivo,
                     tipoDocumento: 'Pagamentos',
                     ano,
                     mes,
                     basePath: BASE_UPLOAD_PATH,
                 });
-
-                // Envio para Assinafy suspenso no momento de anexar (usuário vai juntar com outros documentos na tela de Docs em Massa depois)
-                // if (colab.email) {
-                //     try { await novoProcesso.enviarDocumentoParaAssinafy(docId, pdfData.colaborador_id); } catch(e3) { }
-                // }
                 
                 // Envia para o OneDrive em background para não travar a tela do usuário
                 uploadDocToOneDrive(docId).catch(e2 => console.warn('Erro bg OneDrive:', e2.message));
                 
                 sucesso++;
             } catch (errLote) {
-                console.error(`Erro ao processar PDF do colaborador ${pdfData.colaborador_id}:`, errLote.message);
+                console.error(`Erro ao processar PDF do colaborador ${i.colaborador_id}:`, errLote.message);
                 falha++;
             }
         }
 
+        if (browser) await browser.close();
         res.json({ ok: true, sucesso, falha });
     } catch (e) {
+        if (browser) await browser.close().catch(()=>{});
         console.error('Erro geral ao anexar recibos em lote:', e.message);
         res.status(500).json({ error: e.message });
     }
