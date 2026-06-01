@@ -606,7 +606,7 @@ db.run(`DELETE FROM documentos WHERE UPPER(TRIM(document_type)) LIKE '%ORDEM DE 
 });
 
 // MIGRATION: Remover " - Total" dos grupos de permissão
-db.run("UPDATE grupos_permissao SET nome = REPLACE(nome, ' - Total', '') WHERE nome LIKE '% - Total'", (err) => {
+db.run("UPDATE OR IGNORE grupos_permissao SET nome = REPLACE(nome, ' - Total', '') WHERE nome LIKE '% - Total'", (err) => {
     if (err) console.error("Erro ao atualizar grupos:", err);
     else {
         // Remover duplicatas criadas pela remoção de " - Total" (ex: manter apenas 1 linha por nome)
@@ -6332,17 +6332,67 @@ app.post('/api/pagamentos-massa/processar', authenticateToken, multer({ storage:
     }
 });
 
+// GET: Buscar recibos/documentos pre-anexados que ainda não foram enviados
+app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) => {
+    try {
+        const tipo = req.query.tipo || '';
+        const mes = req.query.mes || '';
+        const ano = req.query.ano || '';
+        
+        let query = `
+            SELECT d.id as doc_id, d.document_type as tipo, d.month, d.year,
+                   c.id as colaborador_id, c.nome_completo as colaborador_nome, 
+                   c.email, c.email_corporativo, c.departamento, c.cargo, dep.tipo as setor
+            FROM documentos d
+            JOIN colaboradores c ON c.id = d.colaborador_id
+            LEFT JOIN departamentos dep ON LOWER(TRIM(dep.nome)) = LOWER(TRIM(c.departamento))
+            WHERE d.tab_name = 'Pagamentos' 
+              AND d.assinafy_status IN ('Pendente', 'Aguardando') 
+              AND d.assinafy_id IS NULL
+        `;
+        const params = [];
+        if (tipo) { query += " AND d.document_type = ?"; params.push(tipo); }
+        if (mes) { query += " AND d.month = ?"; params.push(mes); }
+        if (ano) { query += " AND d.year = ?"; params.push(ano); }
+
+        const rows = await new Promise((resolve, reject) => {
+            db.all(query, params, (err, rows) => err ? reject(err) : resolve(rows || []));
+        });
+
+        const resultado = rows.map(r => ({
+            pagina: '-',
+            nomeDetectado: r.colaborador_nome,
+            colaborador_id: r.colaborador_id,
+            colaborador_nome: r.colaborador_nome,
+            colaborador_email: r.email || r.email_corporativo,
+            departamento: r.departamento,
+            cargo: r.cargo,
+            setor: r.setor,
+            confianca: 'exato',
+            docId: r.doc_id,
+            tipoDocumento: r.tipo,
+            mes: r.month,
+            ano: r.year
+        }));
+        
+        res.json({ ok: true, resultado });
+    } catch (e) {
+        console.error('[PAGAMENTOS-MASSA] Erro pendentes:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // POST: Enviar documentos individuais para assinatura (em massa)
 app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => {
     const { pdfBase64, itens, tipoDocumento, ano, mes } = req.body;
-    if (!pdfBase64 || !itens || !itens.length) return res.status(400).json({ error: 'Parâmetros inválidos' });
+    if (!itens || !itens.length) return res.status(400).json({ error: 'Parâmetros inválidos' });
 
     const jobId = Date.now().toString();
     _massaJobs[jobId] = { total: itens.length, done: 0, erros: 0, resultados: [] };
     res.json({ ok: true, jobId }); // responde imediatamente
 
     // Processa em background
-    const bufferPDF = Buffer.from(pdfBase64, 'base64');
+    const bufferPDF = pdfBase64 ? Buffer.from(pdfBase64, 'base64') : null;
     const novoProcesso = require('./novo_processo_assinafy');
     const tipo = tipoDocumento || 'Holerite Adiantamento';
     const anoDoc = ano || String(new Date().getFullYear());
@@ -6350,31 +6400,42 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
 
     for (const item of itens) {
         try {
-            // 1. Extrair página individual
-            const bufPagina = await pagamentosMassa.extrairPagina(bufferPDF, item.pagina);
+            let docId = item.docId;
+            let colabNome = item.colaborador_nome;
 
-            // 2. Buscar colaborador
-            const colab = await new Promise((resolve, reject) =>
-                db.get('SELECT * FROM colaboradores WHERE id = ?', [item.colaborador_id], (e, r) => e ? reject(e) : resolve(r))
-            );
-            if (!colab) throw new Error(`Colaborador ID ${item.colaborador_id} não encontrado`);
+            if (!docId) {
+                if (!bufferPDF) throw new Error('PDF base não fornecido para extração.');
+                // 1. Extrair página individual
+                const bufPagina = await pagamentosMassa.extrairPagina(bufferPDF, item.pagina);
 
-            // 3. Gerar nome do arquivo
-            const safeNome = pagamentosMassa.normalizarNome(colab.nome_completo).replace(/\s+/g, '_');
-            const safeTipo = tipo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
-            const nomeArquivo = `${safeTipo}_${safeNome}_${mesDoc}${anoDoc}.pdf`;
+                // 2. Buscar colaborador
+                const colab = await new Promise((resolve, reject) =>
+                    db.get('SELECT * FROM colaboradores WHERE id = ?', [item.colaborador_id], (e, r) => e ? reject(e) : resolve(r))
+                );
+                if (!colab) throw new Error(`Colaborador ID ${item.colaborador_id} não encontrado`);
+                colabNome = colab.nome_completo;
 
-            // 4. Salvar no banco
-            const { docId, filePath } = await pagamentosMassa.salvarDocumentoNoBanco({
-                colaboradorId: item.colaborador_id,
-                nomeColab: colab.nome_completo,
-                bufferPDF: bufPagina,
-                nomeArquivo,
-                tipoDocumento: tipo,
-                ano: anoDoc,
-                mes: mesDoc,
-                basePath: BASE_UPLOAD_PATH,
-            });
+                // 3. Gerar nome do arquivo
+                const safeNome = pagamentosMassa.normalizarNome(colab.nome_completo).replace(/\s+/g, '_');
+                const safeTipo = tipo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
+                const nomeArquivo = `${safeTipo}_${safeNome}_${mesDoc}${anoDoc}.pdf`;
+
+                // 4. Salvar no banco
+                const dbRes = await pagamentosMassa.salvarDocumentoNoBanco({
+                    colaboradorId: item.colaborador_id,
+                    nomeColab: colab.nome_completo,
+                    bufferPDF: bufPagina,
+                    nomeArquivo,
+                    tipoDocumento: tipo,
+                    ano: anoDoc,
+                    mes: mesDoc,
+                    basePath: BASE_UPLOAD_PATH,
+                });
+                docId = dbRes.docId;
+
+                // Upload OneDrive para novos documentos
+                try { await uploadDocToOneDrive(docId); } catch(e2) { console.warn('[PAGAMENTOS-MASSA] OneDrive skip:', e2.message); }
+            }
 
             // 5. Enviar para Assinafy (se solicitado)
             let urlAssinatura = null;
@@ -6383,11 +6444,8 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                 urlAssinatura = resultado.urlAssinatura;
             }
 
-            // 6. Upload OneDrive
-            try { await uploadDocToOneDrive(docId); } catch(e2) { console.warn('[PAGAMENTOS-MASSA] OneDrive skip:', e2.message); }
-
             _massaJobs[jobId].done++;
-            _massaJobs[jobId].resultados.push({ colaborador_id: item.colaborador_id, nome: colab.nome_completo, ok: true, docId, urlAssinatura });
+            _massaJobs[jobId].resultados.push({ colaborador_id: item.colaborador_id, nome: colabNome || 'Colaborador', ok: true, docId, urlAssinatura });
         } catch (e) {
             console.error(`[PAGAMENTOS-MASSA] Erro colab ${item.colaborador_id}:`, e.message);
             _massaJobs[jobId].erros++;
