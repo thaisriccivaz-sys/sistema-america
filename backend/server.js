@@ -6184,6 +6184,7 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
         }
     });
 });
+});
 
 // POST: Anexar recibo gerado individualmente aos Docs. em Massa (prontuário digital + Assinafy)
 app.post('/api/recibos/anexar-massa', authenticateToken, async (req, res) => {
