@@ -1102,13 +1102,14 @@ window.baixarConferenciaPonto = async function () {
             valor_vr: valorVR,
             apuracao_diaria: JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria || [])
         }));
-        await fetch(`${API_URL}/recibos/salvar`, {
+        // Executar de forma assíncrona sem aguardar (sem await) para evitar bloqueio de pop-up
+        fetch(`${API_URL}/recibos/salvar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ mes, ano, itens: itensSalvar })
-        });
+        }).catch(e => console.warn('Erro ao salvar histórico da conferência:', e));
     } catch (e) {
-        console.warn('Erro ao salvar histórico da conferência:', e);
+        console.warn('Erro preparatorio ao salvar histórico:', e);
     }
 
     let corpo = '';
