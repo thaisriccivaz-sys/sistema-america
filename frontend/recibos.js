@@ -698,7 +698,13 @@ window._recBuscarPontoSelecionados = async function () {
                     
                     if (data.apuracaoRaw) {
                         try {
-                            s.apuracaoDiaria = typeof data.apuracaoRaw === 'string' ? JSON.parse(data.apuracaoRaw) : data.apuracaoRaw;
+                            let p = typeof data.apuracaoRaw === 'string' ? JSON.parse(data.apuracaoRaw) : data.apuracaoRaw;
+                            if (p && !Array.isArray(p)) {
+                                const k = Object.keys(p).find(key => Array.isArray(p[key]));
+                                if (k) p = p[k];
+                                else p = [p];
+                            }
+                            s.apuracaoDiaria = Array.isArray(p) ? p : [];
                         } catch(e) { console.warn('Erro ao ler apuracaoRaw:', e); }
                     }
                     
@@ -810,7 +816,7 @@ window._recBuscarPontoSelecionados = async function () {
             faltas: _recibosSelecoes[c.id].faltas,
             dias_extra: _recibosSelecoes[c.id].diasExtra,
             valor_vr: valorVR,
-            apuracao_diaria: JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria || [])
+            apuracao_diaria: (_recibosSelecoes[c.id].apuracaoDiaria && _recibosSelecoes[c.id].apuracaoDiaria.length > 0) ? JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria) : null
         }));
         fetch(`${API_URL}/recibos/salvar`, {
             method: 'POST',
@@ -989,7 +995,8 @@ window.carregarHistoricoRecibos = async function () {
                     _recibosSelecoes[h.colaborador_id].selecionado = true; // Auto-seleciona os que já estavam salvos
                     if (h.apuracao_diaria) {
                         try {
-                            _recibosSelecoes[h.colaborador_id].apuracaoDiaria = JSON.parse(h.apuracao_diaria);
+                            const parsed = JSON.parse(h.apuracao_diaria);
+                            _recibosSelecoes[h.colaborador_id].apuracaoDiaria = Array.isArray(parsed) ? parsed : [];
                         } catch(e){}
                     }
                     _recibosSelecoes[h.colaborador_id].pontoStatus = 'ok'; // Mantém a cor verde/azul após carregamento
@@ -1145,7 +1152,7 @@ window.baixarConferenciaPonto = async function () {
             faltas: _recibosSelecoes[c.id].faltas,
             dias_extra: _recibosSelecoes[c.id].diasExtra,
             valor_vr: valorVR,
-            apuracao_diaria: JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria || [])
+            apuracao_diaria: (_recibosSelecoes[c.id].apuracaoDiaria && _recibosSelecoes[c.id].apuracaoDiaria.length > 0) ? JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria) : null
         }));
         // Executar de forma assíncrona sem aguardar (sem await) para evitar bloqueio de pop-up
         fetch(`${API_URL}/recibos/salvar`, {
