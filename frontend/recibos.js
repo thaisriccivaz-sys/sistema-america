@@ -1053,39 +1053,63 @@ window.anexarRecibosDocsMassa = async function () {
             body: JSON.stringify({ mes, ano, itens: itensSalvar })
         });
 
-        // 2. Enviar HTML de cada colaborador para virar PDF no servidor
+        // 2. Enviar HTML de cada colaborador em LOTES para o servidor (otimização de performance)
         const logo = await _recGetLogo();
         let sucesso = 0, falha = 0;
         let progresso = 0;
 
-        for (const c of sels) {
-            progresso++;
+        const LOTE_SIZE = 10;
+        let lotes = [];
+        for (let i = 0; i < sels.length; i += LOTE_SIZE) {
+            lotes.push(sels.slice(i, i + LOTE_SIZE));
+        }
+
+        for (const lote of lotes) {
+            let loteData = [];
+            for (const c of lote) {
+                const s = _recibosSelecoes[c.id] || { diasTrabalhados: 0, diasVR: 0, faltas: 0, diasExtra: 0 };
+                const m = (c.meio_transporte||'').toLowerCase();
+                let corpo = '';
+                
+                corpo += _buildReciboBlock('VR', c, s, mes, mesNome, ano, valorVR, logo);
+                if (_isVT(m)) { corpo += '<div class="pb"></div>' + _buildReciboBlock('VT', c, s, mes, mesNome, ano, valorVR, logo); }
+                if (_isVC(m)) { corpo += '<div class="pb"></div>' + _buildReciboBlock('VC', c, s, mes, mesNome, ano, valorVR, logo); }
+
+                const htmlContent = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Recibos</title>
+                <style>
+                  *{box-sizing:border-box;margin:0;padding:0;}
+                  body{font-family:Arial,Helvetica,sans-serif;font-size:12px;background:#fff;color:#111;}
+                  .pb{page-break-before:always;}
+                  .via{page-break-inside:avoid;}
+                </style>
+                </head><body>${corpo}</body></html>`;
+
+                loteData.push({ htmlContent, colaborador_id: c.id });
+            }
+
+            progresso += lote.length;
             if (btnAnexar) {
                 btnAnexar.innerHTML = `<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Anexando (${progresso}/${sels.length})...`;
             }
-            const s = _recibosSelecoes[c.id] || { diasTrabalhados: 0, diasVR: 0, faltas: 0, diasExtra: 0 };
-            const m = (c.meio_transporte||'').toLowerCase();
-            let corpo = '';
-            
-            corpo += _buildReciboBlock('VR', c, s, mes, mesNome, ano, valorVR, logo);
-            if (_isVT(m)) { corpo += '<div class="pb"></div>' + _buildReciboBlock('VT', c, s, mes, mesNome, ano, valorVR, logo); }
-            if (_isVC(m)) { corpo += '<div class="pb"></div>' + _buildReciboBlock('VC', c, s, mes, mesNome, ano, valorVR, logo); }
 
-            const htmlContent = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Recibos</title>
-            <style>
-              *{box-sizing:border-box;margin:0;padding:0;}
-              body{font-family:Arial,Helvetica,sans-serif;font-size:12px;background:#fff;color:#111;}
-              .pb{page-break-before:always;}
-              .via{page-break-inside:avoid;}
-            </style>
-            </head><body>${corpo}</body></html>`;
-
-            const resUpload = await fetch(`${API_URL}/recibos/anexar-massa`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ htmlContent, colaborador_id: c.id, mes, ano })
-            });
-            if (resUpload.ok) sucesso++; else falha++;
+            try {
+                const resUpload = await fetch(`${API_URL}/recibos/anexar-massa-lote`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ lote: loteData, mes, ano })
+                });
+                
+                if (resUpload.ok) {
+                    const json = await resUpload.json();
+                    sucesso += json.sucesso || 0;
+                    falha += json.falha || 0;
+                } else {
+                    falha += lote.length;
+                }
+            } catch (errReq) {
+                console.error("Erro ao enviar lote", errReq);
+                falha += lote.length;
+            }
         }
 
         if (typeof Swal !== 'undefined') {
