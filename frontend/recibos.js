@@ -896,12 +896,22 @@ window._recBuscarPontoSelecionados = async function () {
                 }
 
                 let faltasJanela = 0;
-                let apuracaoParaCartao = diaria1; // Cartão de ponto usa M-1 completo
+                // Cartão de Ponto = mesmos dias da janela de desconto (não mais o mês M-1 completo)
+                const apuracaoParaCartao = [];
+
+                // Data de admissão: ignora dias anteriores à entrada do colaborador
+                const admissaoColab = c.data_admissao
+                    ? new Date(c.data_admissao + 'T00:00:00')
+                    : null;
 
                 diariaTotal.forEach(d => {
                     const dt = parseDia(d);
                     if (!dt) return;
-                    if (dt < janelaIni || dt > janelaFim) return; // fora da janela
+                    if (dt < janelaIni || dt > janelaFim) return; // fora da janela de desconto
+                    if (admissaoColab && dt < admissaoColab) return; // antes da admissão → ignora
+
+                    // Inclui no Cartão de Ponto (mesmo período da janela)
+                    apuracaoParaCartao.push(d);
 
                     // É falta se: 0 dias trabalhados, 0 horas, não é DSR/folga, não é feriado
                     const horasTrab = d.totalHorasTrabalhadas || d.horasUteis || 0;
@@ -928,7 +938,7 @@ window._recBuscarPontoSelecionados = async function () {
                 if (encontrado) {
                     s.faltas = faltasJanela;
 
-                    // Cartão de ponto: usa apuração de M-1 completo
+                    // Cartão de ponto: período 29/M-2 → 28/M-1
                     if (apuracaoParaCartao.length > 0) {
                         s.apuracaoDiaria = apuracaoParaCartao;
                     }
