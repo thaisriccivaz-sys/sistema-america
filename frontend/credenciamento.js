@@ -158,12 +158,11 @@ async function loadColaboradoresCred() {
         credenciamentoState.colaboradores = (data || []).filter(c => {
             const s = (c.status || '').toLowerCase();
             const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
-            const dept = (c.departamento || '').toLowerCase().trim();
+            // Mostra todos os departamentos do tipo Operacional (campo "tipo" do departamento)
             const tipo = (c.tipo || '').toLowerCase().trim();
-            const isLogistica = dept.includes('logística') || dept.includes('logistica');
-            const isOperacional = !tipo || tipo === 'operacional';
-            return isActive && isLogistica && isOperacional;
+            return isActive && tipo === 'operacional';
         });
+
         renderListaColabsCred();
     } catch (e) {
         console.error('[Credenciamento] Erro ao carregar colaboradores:', e);
@@ -1398,16 +1397,14 @@ window.solDocsProximo = async function() {
             fetch('/api/colaboradores', { headers: { 'Authorization': `Bearer ${token}` } }),
             fetch('/api/frota/veiculos', { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
-        // Apenas Operacionais do departamento Logística
+        // Todos os colaboradores ativos do tipo Operacional (independente do nome do departamento)
         _solDocState.colaboradores = ((await rC.json()) || []).filter(c => {
             const s = (c.status || '').toLowerCase();
             const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
-            const dept = (c.departamento || '').toLowerCase().trim();
             const tipo = (c.tipo || '').toLowerCase().trim();
-            const isLogistica = dept.includes('logística') || dept.includes('logistica');
-            const isOperacional = !tipo || tipo === 'operacional';
-            return isActive && isLogistica && isOperacional;
+            return isActive && tipo === 'operacional';
         });
+
 
         _solDocState.veiculos = (await rV.json()) || [];
     } catch(e) {
