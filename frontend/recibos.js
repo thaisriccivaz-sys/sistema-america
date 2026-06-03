@@ -963,8 +963,19 @@ window._recBuscarPontoSelecionados = async function () {
 
                 // ── 4. Calcular CRÉDITO pelo mês SEGUINTE (M+1) ──────────────────
                 //    Selecionando Maio → crédito para Junho
-                const diasCredito = await _calcularDiasEscala(c, creditAno, creditMes);
+                //    EXCEÇÃO: Intermitente → crédito = dias trabalhados no próprio período
+                const isIntermitente = (c.tipo_contrato || '').toLowerCase().includes('intermitente');
 
+                let diasCredito;
+                if (isIntermitente) {
+                    // Intermitente: conta apenas os dias efetivamente trabalhados na janela
+                    diasCredito = apuracaoParaCartao.filter(d => {
+                        const h = d.totalHorasTrabalhadas || d.horasUteis || 0;
+                        return (d.diasTrabalhados || 0) > 0 || h > 0;
+                    }).length;
+                } else {
+                    diasCredito = await _calcularDiasEscala(c, creditAno, creditMes);
+                }
 
                 const s = _recibosSelecoes[c.id];
                 s.diasTrabalhados = diasCredito;
@@ -976,7 +987,8 @@ window._recBuscarPontoSelecionados = async function () {
                 const encontrado = data1?.encontrado || data2?.encontrado || apuracaoParaCartao.length > 0;
 
                 if (encontrado) {
-                    s.faltas = faltasJanela;
+                    // Intermitente: nunca tem faltas — dias não chamados = simplesmente não remunerados
+                    s.faltas = isIntermitente ? 0 : faltasJanela;
 
                     // Cartão de ponto: período 28/M-1 → 28/M
                     if (apuracaoParaCartao.length > 0) {
