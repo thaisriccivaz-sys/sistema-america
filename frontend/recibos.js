@@ -664,7 +664,7 @@ function _renderTabela() {
             ` : `<span style="color:#94a3b8;font-weight:600;">-</span>`}
           </td>
           <td style="padding:.45rem .4rem;text-align:center;">
-            <input type="number" min="0" max="35" value="${s.diasVR !== null && s.diasVR !== undefined ? s.diasVR : s.diasTrabalhados}"
+            <input type="number" min="0" max="35" value="${(s.diasVR != null && s.diasVR > 0) ? s.diasVR : s.diasTrabalhados}"
               style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${dtrabColor};"
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'diasVR',this.value)">
@@ -1230,7 +1230,11 @@ window.carregarHistoricoRecibos = async function () {
             hist.forEach(h => {
                 if (_recibosSelecoes[h.colaborador_id]) {
                     _recibosSelecoes[h.colaborador_id].diasTrabalhados = h.dias_trabalhados;
-                    _recibosSelecoes[h.colaborador_id].diasVR = h.dias_vr;
+                    // Se dias_vr foi salvo como 0 mas dias_trabalhados é válido, usa dias_trabalhados
+                    _recibosSelecoes[h.colaborador_id].diasVR = (h.dias_vr != null && h.dias_vr > 0)
+                        ? h.dias_vr
+                        : h.dias_trabalhados;
+
                     _recibosSelecoes[h.colaborador_id].faltas = h.faltas;
                     _recibosSelecoes[h.colaborador_id].diasExtra = h.dias_extra;
                     _recibosSelecoes[h.colaborador_id].historicoEncontrado = true;
@@ -1823,7 +1827,10 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
         : `<div style="background:#1e3a5f;padding:16px 32px;"><span style="color:#fff;font-size:1.3rem;font-weight:900;letter-spacing:1px;">AMERICA RENTAL</span></div>`;
 
     const dtrab     = dados.diasTrabalhados || 0;
-    const dVR       = dados.diasVR != null ? dados.diasVR : dtrab;
+    // diasVR: usa o valor específico APENAS se for um número positivo (> 0)
+    // Evita que diasVR=0 (inicialização padrão) sobrescreva diasTrabalhados correto
+    const dVR       = (dados.diasVR != null && dados.diasVR > 0) ? dados.diasVR : dtrab;
+
     const faltas    = dados.faltas   || 0;
     const dExtra    = dados.diasExtra || 0;
     
