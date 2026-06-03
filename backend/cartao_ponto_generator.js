@@ -87,7 +87,7 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         rowsHtml += `
         <tr>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${diaNum} - ${diaSemanaStr}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${previsto}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9; white-space:nowrap;">${previsto}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${ent1_td}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${sai1_td}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : e2}</td>
@@ -102,8 +102,6 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extra60}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extra100}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extraDiurna}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;"></td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;"></td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;"></td>
         </tr>`;
     });
@@ -169,7 +167,7 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             <thead>
                 <tr style="border-bottom: 1px solid #ccc; font-weight: bold; color: #475569;">
                     <th style="padding: 2px 1px;">DIA</th>
-                    <th style="padding: 2px 1px;">PREVISTO</th>
+                    <th style="padding: 2px 1px; min-width:90px; white-space:nowrap;">PREVISTO</th>
                     <th style="padding: 2px 1px;">ENT. 1</th>
                     <th style="padding: 2px 1px;">SAÍ. 1</th>
                     <th style="padding: 2px 1px;">ENT. 2</th>
@@ -185,8 +183,6 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
                     <th style="padding: 2px 1px;">EXTRA 100%</th>
                     <th style="padding: 2px 1px;">EXTRA DIURNA</th>
                     <th style="padding: 2px 1px;">EXTRA NOTURNA</th>
-                    <th style="padding: 2px 1px;">BANCO TOTAL</th>
-                    <th style="padding: 2px 1px;">BANCO SALDO</th>
                 </tr>
             </thead>
             <tbody>
@@ -203,8 +199,6 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
                     <td style="padding: 3px 1px;">${fmtMin(totalExtra60)}</td>
                     <td style="padding: 3px 1px;">${fmtMin(totalExtra100)}</td>
                     <td style="padding: 3px 1px;">${fmtMin(totalExtra60+totalExtra100)}</td>
-                    <td style="padding: 3px 1px;"></td>
-                    <td style="padding: 3px 1px;"></td>
                     <td style="padding: 3px 1px;"></td>
                 </tr>
             </tfoot>
