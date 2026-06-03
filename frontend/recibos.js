@@ -1,4 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
+﻿// ─────────────────────────────────────────────────────────────────────────────
 // recibos.js — Recibos de Benefícios em Massa (VR, VT, VC)
 // v3.0 — campo nome_completo corrigido, sem "dias úteis globais",
 //         VC proporcional via diasTrab+faltas, erro RHID detalhado
@@ -870,25 +870,31 @@ window._recBuscarPontoSelecionados = async function () {
                 const data2 = res2.ok ? await res2.json() : null; // M-1 (anterior)
 
 
-                // ── 2. Combinar apuração diária dos dois meses ──────────────────────
-                function extrairDiaria(dataRaw) {
-                    if (!dataRaw?.apuracaoRaw) return [];
+                // ── 2. Combinar apuracao diaria dos dois meses ─────────────────────
+                const RHID_ARRAY_FIELDS = ['records','listaDias','lista','itens','dias','data','items','apuracao','result','results'];
+                function extrairDiaria(dataRaw, label) {
+                    if (!dataRaw) { console.warn('[extrairDiaria] dataRaw nulo', label); return []; }
+                    if (!dataRaw.apuracaoRaw) { console.warn('[extrairDiaria] apuracaoRaw ausente', label); return []; }
                     try {
                         let p = typeof dataRaw.apuracaoRaw === 'string'
                             ? JSON.parse(dataRaw.apuracaoRaw) : dataRaw.apuracaoRaw;
-                        if (p && !Array.isArray(p)) {
-                            const k = Object.keys(p).find(key => Array.isArray(p[key]));
-                            p = k ? p[k] : [p];
+                        if (Array.isArray(p)) { console.log('[extrairDiaria]', label, '-> array direto, length:', p.length); return p; }
+                        if (p && typeof p === 'object') {
+                            for (const field of RHID_ARRAY_FIELDS) {
+                                if (Array.isArray(p[field]) && p[field].length > 0) { console.log('[extrairDiaria]', label, '-> campo', field); return p[field]; }
+                            }
+                            const k = Object.keys(p).find(key => Array.isArray(p[key]) && p[key].length > 0); if (k) return p[k];
+                            if (p.date || p.dateTimeStr) return [p];
                         }
-                        return Array.isArray(p) ? p : [];
-                    } catch(e) { return []; }
+                        return [];
+                    } catch(e) { console.error('[extrairDiaria] erro:', e.message); return []; }
                 }
 
-                const diaria1 = extrairDiaria(data1); // M-1
-                const diaria2 = extrairDiaria(data2); // M-2
+                const diaria1 = extrairDiaria(data1, 'M='+mes);
+                const diaria2 = extrairDiaria(data2, 'M-1='+mesPrev);
                 const diariaTotal = [...diaria2, ...diaria1];
+                console.log('[ponto] ' + c.nome_completo + ' M=' + diaria1.length + ' M-1=' + diaria2.length);
 
-                // ── 3. Contar faltas apenas dentro da janela 29/M-2 → 28/M-1 ───────
                 function parseDia(d) {
                     let str = String(d.date || d.dateTimeStr || '').substring(0, 10);
                     if (!str) return null;
