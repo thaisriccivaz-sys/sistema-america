@@ -78,28 +78,27 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         const noturnMin = d.horasTotalNoturno || d.horasNoturnasNaoExtra || 0;
         const noturn = fmtMin(noturnMin);
 
-        // ── EXTRAS 60% e 100%: arrays percentuaisExtra + horaExtraDeCadaPercentual
-        let extra60Min = 0, extra100Min = 0;
-        if (Array.isArray(d.percentuaisExtra) && Array.isArray(d.horaExtraDeCadaPercentual)) {
-            d.percentuaisExtra.forEach((pct, idx) => {
-                const min = d.horaExtraDeCadaPercentual[idx] || 0;
-                if (pct <= 60) extra60Min += min;
-                else extra100Min += min;
-            });
-        } else {
-            // Fallback: classifica pelo dia da semana/feriado
-            const totalExtraMin = d.horasExtrasCalculadas || 0;
-            if (d.isHoliday || diaSemanaStr === 'DOM') extra100Min = totalExtraMin;
-            else extra60Min = totalExtraMin;
-        }
-        const extra60 = fmtMin(extra60Min);
-        const extra100 = fmtMin(extra100Min);
-
         // ── EXTRA DIURNA e EXTRA NOTURNA: campos diretos da API RHID ─────────
+        // extraDiurna = total de horas extras diurnas do dia (independente do percentual)
+        // extraNoturna = total de horas extras noturnas do dia
         const extraDiurnaMin = d.extraDiurna || d.extraAdicionadaDiurna || 0;
         const extraNocturnaMin = d.extraNoturna || d.extraAdicionadaNoturna || 0;
         const extraDiurna = fmtMin(extraDiurnaMin);
         const extraNoturna = fmtMin(extraNocturnaMin);
+
+        // ── EXTRA 60% / EXTRA 100%: classificados por dia da semana e feriado ─
+        // Domingo e Feriado → 100%; Demais dias (Seg-Sab) → 60%
+        // O campo extraDiurna da API RHID já contém o valor correto de horas extras
+        let extra60Min = 0, extra100Min = 0;
+        const totalExtraMin = extraDiurnaMin + extraNocturnaMin || d.horasExtrasCalculadas || 0;
+        if (d.isHoliday || diaSemanaStr === 'DOM') {
+            extra100Min = totalExtraMin;
+        } else {
+            extra60Min = totalExtraMin;
+        }
+        const extra60 = fmtMin(extra60Min);
+        const extra100 = fmtMin(extra100Min);
+
 
         // ── FALTA E ATRASO ───────────────────────────────────────────────────
         const faltaAtrasoMin = d.horasFaltaAtraso || 0;
