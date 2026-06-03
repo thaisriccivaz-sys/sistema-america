@@ -29,7 +29,8 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
     const numMatricula = safe(c.matricula_esocial) || safe(c.numero_registro) || safe(c.matricula) || '0';
     
     let rowsHtml = '';
-    let totalNormais = 0, totalExtra60 = 0, totalExtra100 = 0;
+    let totalNormais = 0, totalNoturno = 0, totalExtra60 = 0, totalExtra100 = 0;
+    let totalExtraDiurna = 0, totalExtraNoturna = 0, totalFaltaAtraso = 0;
     const diasSemana = ['DOM','SEG','TER','QUA','QUI','SEX','SAB'];
     
     apuracaoDiaria.forEach(d => {
@@ -69,14 +70,48 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         const e3 = marcacoes[4] || '';
         const s3 = marcacoes[5] || '';
         
-        const normais = fmtMin(d.totalHorasTrabalhadas);
-        const extraDiurna = fmtMin(d.horasExtrasCalculadas);
-        let extra60 = '', extra100 = '';
-        if (d.isHoliday || diaSemanaStr === 'DOM') { extra100 = extraDiurna; } else { extra60 = extraDiurna; }
-        
-        if (d.totalHorasTrabalhadas) totalNormais += d.totalHorasTrabalhadas;
-        if (extra60) totalExtra60 += d.horasExtrasCalculadas;
-        if (extra100) totalExtra100 += d.horasExtrasCalculadas;
+        // ── TOTAL NORMAIS ────────────────────────────────────────────────────
+        const normaisMin = d.totalHorasTrabalhadas || 0;
+        const normais = fmtMin(normaisMin);
+
+        // ── TOTAL NOTURNO: campo direto da API RHID ──────────────────────────
+        const noturnMin = d.horasTotalNoturno || d.horasNoturnasNaoExtra || 0;
+        const noturn = fmtMin(noturnMin);
+
+        // ── EXTRAS 60% e 100%: arrays percentuaisExtra + horaExtraDeCadaPercentual
+        let extra60Min = 0, extra100Min = 0;
+        if (Array.isArray(d.percentuaisExtra) && Array.isArray(d.horaExtraDeCadaPercentual)) {
+            d.percentuaisExtra.forEach((pct, idx) => {
+                const min = d.horaExtraDeCadaPercentual[idx] || 0;
+                if (pct <= 60) extra60Min += min;
+                else extra100Min += min;
+            });
+        } else {
+            // Fallback: classifica pelo dia da semana/feriado
+            const totalExtraMin = d.horasExtrasCalculadas || 0;
+            if (d.isHoliday || diaSemanaStr === 'DOM') extra100Min = totalExtraMin;
+            else extra60Min = totalExtraMin;
+        }
+        const extra60 = fmtMin(extra60Min);
+        const extra100 = fmtMin(extra100Min);
+
+        // ── EXTRA DIURNA e EXTRA NOTURNA: campos diretos da API RHID ─────────
+        const extraDiurnaMin = d.extraDiurna || d.extraAdicionadaDiurna || 0;
+        const extraNocturnaMin = d.extraNoturna || d.extraAdicionadaNoturna || 0;
+        const extraDiurna = fmtMin(extraDiurnaMin);
+        const extraNoturna = fmtMin(extraNocturnaMin);
+
+        // ── FALTA E ATRASO ───────────────────────────────────────────────────
+        const faltaAtrasoMin = d.horasFaltaAtraso || 0;
+
+        // ── ACUMULADORES ─────────────────────────────────────────────────────
+        totalNormais      += normaisMin;
+        totalNoturno      += noturnMin;
+        totalExtra60      += extra60Min;
+        totalExtra100     += extra100Min;
+        totalExtraDiurna  += extraDiurnaMin;
+        totalExtraNoturna += extraNocturnaMin;
+        totalFaltaAtraso  += faltaAtrasoMin;
 
         let previsto = c.escala || '08:00-12:00 13:00-17:48';
         if (status) { previsto = status === 'Falta' ? '' : (status.startsWith('Feriado') ? 'FERIADO' : ''); }
@@ -95,14 +130,14 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${e3}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${s3}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${normais}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;"></td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${noturn}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${status === 'Falta' ? '1' : ''}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${fmtMin(d.horasFaltaAtraso)}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${fmtMin(faltaAtrasoMin)}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;"></td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extra60}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extra100}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extraDiurna}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;"></td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extraNoturna}</td>
         </tr>`;
     });
 
@@ -192,14 +227,14 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
                 <tr style="font-weight: bold; border-top: 1px solid #999; background: #f8fafc;">
                     <td colspan="8" style="padding: 3px 1px;">TOTAIS</td>
                     <td style="padding: 3px 1px;">${fmtMin(totalNormais)}</td>
+                    <td style="padding: 3px 1px;">${fmtMin(totalNoturno)}</td>
                     <td style="padding: 3px 1px;"></td>
-                    <td style="padding: 3px 1px;"></td>
-                    <td style="padding: 3px 1px;"></td>
+                    <td style="padding: 3px 1px;">${fmtMin(totalFaltaAtraso)}</td>
                     <td style="padding: 3px 1px;"></td>
                     <td style="padding: 3px 1px;">${fmtMin(totalExtra60)}</td>
                     <td style="padding: 3px 1px;">${fmtMin(totalExtra100)}</td>
-                    <td style="padding: 3px 1px;">${fmtMin(totalExtra60+totalExtra100)}</td>
-                    <td style="padding: 3px 1px;"></td>
+                    <td style="padding: 3px 1px;">${fmtMin(totalExtraDiurna)}</td>
+                    <td style="padding: 3px 1px;">${fmtMin(totalExtraNoturna)}</td>
                 </tr>
             </tfoot>
         </table>
