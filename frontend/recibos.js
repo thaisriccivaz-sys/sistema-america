@@ -924,40 +924,37 @@ window._recBuscarPontoSelecionados = async function () {
                     // Inclui no Cartão de Ponto (mesmo período da janela)
                     apuracaoParaCartao.push(d);
 
-                    // ── Determinação de FALTA baseada diretamente nos dados do RHID ──
-                    // Regra: só conta como falta se o RHID indica que havia turno previsto
-                    // e o colaborador não compareceu. Folgas/DSR/dias sem turno = não falta.
+                    // ── Determinação de FALTA baseada nos dados do RHID (espelha backend) ──
+                    // ORDEM IMPORTANTE: folga/DSR/feriado é verificado ANTES de faltaDiaInteiro
+                    // (ControlID pode retornar faltaDiaInteiro=true em dias de folga atribuída)
                     const horasTrab = d.totalHorasTrabalhadas || d.horasUteis || 0;
                     const trabalhou = (d.diasTrabalhados || 0) > 0 || horasTrab > 0;
-
-                    // Folga/DSR explícita pelo status do RHID
                     const statusRHID = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
-                    const isFol = statusRHID.includes('folg') || statusRHID.includes('dsr') ||
-                                  statusRHID.includes('f.c.') || d.folga === true;
 
-                    // DSR via campo específico (minutos de DSR computados)
+                    // 1º: Folga/DSR/Feriado explícito — NUNCA é falta
+                    const isFolga = statusRHID.includes('folg') || statusRHID.includes('dsr') ||
+                                    statusRHID.includes('feriado') || statusRHID.includes('f.c.') ||
+                                    d.folga === true || d.isHoliday === 1 || d.isHoliday === true;
+
+                    // 2º: DSR via campo específico
                     const isDSR = (d.dsrConsideradoMinutos || 0) > 0;
 
-                    // Feriado
-                    const isHol = !!(d.isHoliday);
-
-                    // ★ Chave: dia sem horário contratual previsto = folga (não falta)
-                    // Isso cobre: sábados de seg-sex, dias de descanso do 12x36, etc.
+                    // 3º: Dia sem horário contratual previsto = folga/DSR implícito
                     const idHorario = d.idHorarioContratual || 0;
                     const strHorario = (d.strHorarioContratualSimples || '').trim();
                     const semHorarioPrevisto = (idHorario === 0 && strHorario === '');
 
-                    // Falta explícita pelo RHID
-                    const isFaltaRHID = d.faltaDiaInteiro === true || (d.faltasDiasInteiro || 0) > 0;
-
-                    if (isFaltaRHID) {
-                        // RHID diz explicitamente que é falta → conta
-                        faltasJanela++;
-                    } else if (!trabalhou && !isDSR && !isFol && !isHol && !semHorarioPrevisto) {
-                        // Não trabalhou, não é folga/DSR/feriado, e tinha turno previsto → falta
-                        faltasJanela++;
+                    if (isFolga || isDSR || d.isHoliday) {
+                        // Folga/DSR/Feriado → não conta como falta
+                    } else if (semHorarioPrevisto && !trabalhou) {
+                        // Sem horário previsto e não trabalhou → folga implícita, não falta
+                    } else {
+                        // Só aqui verifica faltaDiaInteiro (agora com contexto correto)
+                        const isFaltaRHID = d.faltaDiaInteiro === true || (d.faltasDiasInteiro || 0) > 0;
+                        if (isFaltaRHID || (!trabalhou && !semHorarioPrevisto)) {
+                            faltasJanela++;
+                        }
                     }
-                    // Demais casos (folga, DSR, dia sem turno, feriado) → não conta como falta
                 });
 
 
@@ -1516,17 +1513,22 @@ window.baixarConferenciaPonto = async function () {
                 
                 let status = '-';
 
-                // Determina status baseado nos dados do RHID (não na escala cadastrada)
+                // Determina status baseado nos dados do RHID
+                // ORDEM: folga/DSR/feriado ANTES de faltaDiaInteiro
+                // (ControlID pode setar faltaDiaInteiro=true em dias de folga atribuída)
                 const statusRHID2 = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
                 const semHorarioPrevisto2 = ((d.idHorarioContratual || 0) === 0 && (d.strHorarioContratualSimples || '').trim() === '');
 
-                if (d.faltaDiaInteiro === true || (d.faltasDiasInteiro || 0) > 0) status = 'FALTA';
-                else if (d.isHoliday) status = 'FERIADO';
-                else if (d.dsrConsideradoMinutos > 0) status = 'DSR / FOLGA';
-                else if (statusRHID2.includes('folg') || statusRHID2.includes('dsr') || d.folga === true) status = 'DSR / FOLGA';
+                const isFolgaDisplay = statusRHID2.includes('folg') || statusRHID2.includes('dsr') ||
+                                       statusRHID2.includes('feriado') || d.folga === true;
+
+                if (d.isHoliday) status = 'FERIADO';
+                else if ((d.dsrConsideradoMinutos || 0) > 0 || isFolgaDisplay) status = 'DSR / FOLGA';
+                else if (semHorarioPrevisto2 && (!d.diasTrabalhados || d.diasTrabalhados === 0)) status = 'FOLGA ESCALA';
                 else if (d.diasTrabalhados > 0) status = 'TRABALHADO';
                 else if (d.idJustification) status = 'JUSTIFICADO';
-                else if (semHorarioPrevisto2) status = 'FOLGA ESCALA'; // Dia sem turno previsto = folga
+                else if (d.faltaDiaInteiro === true || (d.faltasDiasInteiro || 0) > 0) status = 'FALTA';
+                else if (!d.diasTrabalhados || d.diasTrabalhados === 0) status = 'FALTA';
 
 
                 let marcacoesStr = '';
