@@ -41,8 +41,11 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             const p = diaStr.split('-');
             if (p.length === 3) {
                 diaNum = `${p[2]}/${p[1]}/${p[0]}`;
-                const dt = new Date(`${p[2]}-${p[1]}-${p[0]}T12:00:00`);
+                // IMPORTANTE: manter formato YYYY-MM-DD para o construtor Date interpretar corretamente
+                const dtFmt = p[0].length === 4 ? `${p[0]}-${p[1]}-${p[2]}` : `${p[2]}-${p[1]}-${p[0]}`;
+                const dt = new Date(`${dtFmt}T12:00:00`);
                 if (!isNaN(dt.getTime())) diaSemanaStr = diasSemana[dt.getDay()];
+
             }
         }
         
