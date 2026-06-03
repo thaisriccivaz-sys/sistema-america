@@ -158,10 +158,11 @@ async function loadColaboradoresCred() {
         credenciamentoState.colaboradores = (data || []).filter(c => {
             const s = (c.status || '').toLowerCase();
             const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
-            // Mostra todos os departamentos do tipo Operacional (campo "tipo" do departamento)
-            const tipo = (c.tipo || '').toLowerCase().trim();
-            return isActive && tipo === 'operacional';
+            // departamento_tipo vem do JOIN com a tabela departamentos no backend
+            const deptTipo = (c.departamento_tipo || '').toLowerCase().trim();
+            return isActive && deptTipo === 'operacional';
         });
+
 
         renderListaColabsCred();
     } catch (e) {
@@ -1397,13 +1398,14 @@ window.solDocsProximo = async function() {
             fetch('/api/colaboradores', { headers: { 'Authorization': `Bearer ${token}` } }),
             fetch('/api/frota/veiculos', { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
-        // Todos os colaboradores ativos do tipo Operacional (independente do nome do departamento)
+        // Todos os colaboradores ativos do tipo Operacional (departamento_tipo vem do backend via JOIN)
         _solDocState.colaboradores = ((await rC.json()) || []).filter(c => {
             const s = (c.status || '').toLowerCase();
             const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
-            const tipo = (c.tipo || '').toLowerCase().trim();
-            return isActive && tipo === 'operacional';
+            const deptTipo = (c.departamento_tipo || '').toLowerCase().trim();
+            return isActive && deptTipo === 'operacional';
         });
+
 
 
         _solDocState.veiculos = (await rV.json()) || [];
