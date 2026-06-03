@@ -57,58 +57,169 @@ async function _getDiasUteis(ano, mes, segASex = false) {
 }
 
 /**
- * ─── NOVA REGRA DE CRÉDITO ──────────────────────────────────────────────
- * Calcula os dias de benefício (crédito) do colaborador no mês/ano
- * com base na escala cadastrada. Feriados que caem em dias de trabalho
- * da escala são INCLUÍDOS (contam como dias trabalhados = geram benefício).
+ * Feriados fixos do Estado de SP e do Município de Guarulhos.
+ * Formato: 'MM-DD' (independente do ano).
+ */
+function _feriadosSPGuarulhos() {
+    return [
+        '01-25', // Aniversário de São Paulo (Estado)
+        '07-09', // Revolução Constitucionalista (Estado SP)
+        '06-13', // Santo Antônio de Pádua — Padroeiro de Guarulhos
+    ];
+}
+
+/**
+ * Verifica se uma data (objeto Date) é feriado SP/Guarulhos.
+ */
+function _isFeriadoSPGru(d) {
+    const mmdd = `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return _feriadosSPGuarulhos().includes(mmdd);
+}
+
+/**
+ * ─── NOVA REGRA DE CRÉDITO ──────────────────────────────────────────────────
  *
- * Regras por escala:
- *   padrao_seg_sexta / sem cadastro → Seg a Sex
- *   padrao_seis_dias                → Seg a Sab
- *   padrao_sab_4h                  → Seg a Sex + Sab (conta Sab inteiro para fins de benefício)
- *   padrao_sab_alternado           → Seg a Sex (conservador — Sab é incerto)
- *   escala_duas_folgas             → todos exceto os 2 dias fixos de folga
- *   supervisão/administrativo      → Seg a Sex
+ * Calcula os dias de benefício (crédito) do colaborador no mês/ano
+ * com base na escala cadastrada.
+ *
+ * Regras gerais:
+ *   • Operacional: feriados que caem em dias de trabalho da escala CONTAM
+ *     (= geram benefício, pois recebem mesmo nos feriados).
+ *   • Supervisores e Administrativos: feriados nacionais, estaduais (SP)
+ *     e municipais (Guarulhos) NÃO CONTAM (= não recebem nesses dias).
+ *
+ * Escalas suportadas:
+ *   padrao_seg_sexta / null   → Seg a Sex
+ *   padrao_seis_dias          → Seg a Sáb
+ *   padrao_sab_4h             → Seg a Sáb (Sáb gera benefício)
+ *   padrao_sab_alternado      → Seg–Sex + Sábados calculados pelo ciclo
+ *                               (usa escala_ciclo_inicio como referência)
+ *   escala_duas_folgas        → Todos os dias menos os fixos de folga
+ *                               + rotação de domingo (2 trabalhados, 1 folga)
+ *                               calculada pelo ciclo
  */
 async function _calcularDiasEscala(colab, ano, mes) {
-    const feriados = await _getFeriados(ano);
+    const feriadosNacionais = await _getFeriados(ano);
+
+    // ── Detecta Supervisor ou ADM (não recebem feriados) ──────────────────
+    const isSupervisao = (window._isSupervisao && window._isSupervisao(colab)) || false;
+    const isAdm = (_recibosDeptTipoMap[(colab.departamento||'').trim()] || '') === 'Administrativo';
+    const isSemFeriado = isSupervisao || isAdm;
+
+    // ── Data de início de contagem (admissão proporcional) ────────────────
+    // Se o colaborador foi admitido neste mês, contar apenas da admissão.
+    // Se foi admitido antes, contar do dia 1 do mês.
+    let diaInicio = 1; // padrão: início do mês
+    if (colab.data_admissao) {
+        const admissao = new Date(colab.data_admissao + 'T00:00:00');
+        // Só aplica se a admissão foi neste mesmo mês/ano
+        if (admissao.getFullYear() === ano && admissao.getMonth() + 1 === mes) {
+            diaInicio = admissao.getDate();
+        }
+    }
+
+    // Feriado para o dia: para operacionais, feriados sempre contam; para sup/ADM, não.
+    function ehFeriado(d) {
+        if (!isSemFeriado) return false;
+        const dataStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        return feriadosNacionais.includes(dataStr) || _isFeriadoSPGru(d);
+    }
 
     const DIAS_NOME = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     const escalaTipo = (colab.escala_tipo || '').trim();
 
-    // Determina quais dias da semana (0=Dom, 1=Seg … 6=Sab) são de trabalho
-    let diasTrabalho; // array de números 0-6
-    if (escalaTipo === 'padrao_seis_dias') {
-        diasTrabalho = [1, 2, 3, 4, 5, 6]; // Seg–Sáb
-    } else if (escalaTipo === 'padrao_sab_4h') {
-        diasTrabalho = [1, 2, 3, 4, 5, 6]; // Seg–Sáb (Sab 4h ainda gera benefício)
-    } else if (escalaTipo === 'escala_duas_folgas') {
-        // Descobre quais dias são folga pelo campo escala_folgas
-        let diasFolga = [];
-        try {
-            const folgas = JSON.parse(colab.escala_folgas || '[]');
-            // Converte nomes ('Ter', 'Qua' …) para números
-            diasFolga = folgas.map(f => DIAS_NOME.indexOf(f)).filter(n => n >= 0);
-        } catch(e) {}
-        diasTrabalho = [0,1,2,3,4,5,6].filter(d => !diasFolga.includes(d));
-    } else {
-        // padrao_seg_sexta, padrao_sab_alternado, sem cadastro, supervisão, ADM → Seg–Sex
-        diasTrabalho = [1, 2, 3, 4, 5];
+    // Sábado alternado: par = trabalhado, ímpar = folga (a partir do cicloRef)
+    function sabadoTrabalhado(dataSab, cicloRef) {
+        if (!cicloRef) return false;
+        const MS_SEMANA = 7 * 24 * 60 * 60 * 1000;
+        const refSab = new Date(cicloRef);
+        while (refSab.getDay() !== 6) refSab.setDate(refSab.getDate() + 1);
+        const semanas = Math.round((dataSab - refSab) / MS_SEMANA);
+        return ((semanas % 2) + 2) % 2 === 0;
     }
 
-    let count = 0;
-    const d = new Date(ano, mes - 1, 1);
-    while (d.getMonth() === mes - 1) {
-        const diaSemana = d.getDay();
-        if (diasTrabalho.includes(diaSemana)) {
-            // Feriados que caem em dias de trabalho da escala → contam (geram benefício)
-            // Portanto somamos independentemente de ser feriado
-            count++;
-        }
-        d.setDate(d.getDate() + 1);
+    // Domingo rotativo: 2 trabalhados, 1 folga (ciclo de 3)
+    function domingoTrabalhado(dataDom, cicloRef) {
+        if (!cicloRef) return false;
+        const MS_SEMANA = 7 * 24 * 60 * 60 * 1000;
+        const refDom = new Date(cicloRef);
+        while (refDom.getDay() !== 0) refDom.setDate(refDom.getDate() + 1);
+        const semanas = Math.round((dataDom - refDom) / MS_SEMANA);
+        const pos = ((semanas % 3) + 3) % 3; // 0=trab, 1=trab, 2=folga
+        return pos !== 2;
     }
+
+    const cicloRef = colab.escala_ciclo_inicio
+        ? new Date(colab.escala_ciclo_inicio + 'T00:00:00')
+        : null;
+
+    let count = 0;
+    // Começa na data de admissão (se for este mês) ou no dia 1
+    const cur = new Date(ano, mes - 1, diaInicio);
+
+    if (escalaTipo === 'padrao_seis_dias' || escalaTipo === 'padrao_sab_4h') {
+        // Seg–Sáb
+        while (cur.getMonth() === mes - 1) {
+            const ds = cur.getDay();
+            if (ds >= 1 && ds <= 6 && !ehFeriado(cur)) count++;
+            cur.setDate(cur.getDate() + 1);
+        }
+
+    } else if (escalaTipo === 'padrao_sab_alternado') {
+        // Seg–Sex + Sábados alternados pelo cicloRef
+        while (cur.getMonth() === mes - 1) {
+            const ds = cur.getDay();
+            if (ds >= 1 && ds <= 5) {
+                if (!ehFeriado(cur)) count++;
+            } else if (ds === 6 && sabadoTrabalhado(cur, cicloRef)) {
+                if (!ehFeriado(cur)) count++;
+            }
+            cur.setDate(cur.getDate() + 1);
+        }
+
+    } else if (escalaTipo === 'escala_duas_folgas') {
+        // Folgas fixas (escala_folgas) + domingos rotativos pelo cicloRef
+        let diasFolgaFixos = [];
+        let temDomingoNasFolgas = false;
+        try {
+            const folgas = JSON.parse(colab.escala_folgas || '[]');
+            temDomingoNasFolgas = folgas.some(f => f.toLowerCase() === 'dom');
+            diasFolgaFixos = folgas
+                .map(f => DIAS_NOME.indexOf(f))
+                .filter(n => n > 0); // exclui dom (0) — tratado separado
+        } catch(e) {}
+
+        while (cur.getMonth() === mes - 1) {
+            const ds = cur.getDay();
+            if (diasFolgaFixos.includes(ds)) {
+                // Folga fixa → não conta
+            } else if (ds === 0) {
+                if (temDomingoNasFolgas) {
+                    // Domingo rotativo: 2 trabalhados, 1 folga
+                    if (domingoTrabalhado(cur, cicloRef) && !ehFeriado(cur)) count++;
+                } else {
+                    // Domingo não é folga fixa → sempre trabalha
+                    if (!ehFeriado(cur)) count++;
+                }
+            } else {
+                // Dia normal de trabalho
+                if (!ehFeriado(cur)) count++;
+            }
+            cur.setDate(cur.getDate() + 1);
+        }
+
+    } else {
+        // padrao_seg_sexta / null / sem cadastro / ADM / supervisão → Seg–Sex
+        while (cur.getMonth() === mes - 1) {
+            const ds = cur.getDay();
+            if (ds >= 1 && ds <= 5 && !ehFeriado(cur)) count++;
+            cur.setDate(cur.getDate() + 1);
+        }
+    }
+
     return count;
 }
+
 
 // ─── Helper: nome seguro do colaborador ──────────────────────────────────────
 function _recNome(c) {
@@ -689,9 +800,10 @@ function _atualizarContador() {
 
 // ─── Buscar ponto RHID em lote ────────────────────────────────────────────────
 // NOVA REGRA:
-//   • Crédito (diasVR / diasTrabalhados) = dias da ESCALA no mês selecionado
-//     (feriados que caem em dias da escala contam como trabalhados)
-//   • Desconto (faltas) = faltas reais do PONTO DO MÊS ANTERIOR via RHID
+//   • CRÉDITO (diasVR / diasTrabalhados) = dias da ESCALA do mês selecionado
+//     (feriados na escala contam como dias trabalhados para operacionais)
+//   • DESCONTO (faltas) = faltas na JANELA 29/M-2 → 28/M-1
+//     Ex: para pagar 01/06 → desconta faltas de 29/04 a 28/05
 window._recBuscarPontoSelecionados = async function () {
     const sels = _recibosAllColabs.filter(c => _recibosSelecoes[c.id]?.selecionado);
     if (!sels.length) {
@@ -702,9 +814,17 @@ window._recBuscarPontoSelecionados = async function () {
     const mes   = parseInt(document.getElementById('rec-mes')?.value);
     const ano   = parseInt(document.getElementById('rec-ano')?.value);
 
-    // Calcular mês anterior (para buscar as faltas)
-    const mesAnt = mes === 1 ? 12 : mes - 1;
-    const anoAnt = mes === 1 ? ano - 1 : ano;
+    // ── Janela de desconto: 29 do M-2 ao 28 do M-1 ──────────────────────
+    // M-1 (mês anterior completo)
+    const mes1Ant = mes === 1 ? 12 : mes - 1;
+    const ano1Ant = mes === 1 ? ano - 1 : ano;
+    // M-2 (dois meses atrás)
+    const mes2Ant = mes1Ant === 1 ? 12 : mes1Ant - 1;
+    const ano2Ant = mes1Ant === 1 ? ano1Ant - 1 : ano1Ant;
+    // Datas limites da janela
+    const janelaIni = new Date(ano2Ant, mes2Ant - 1, 29); // 29/M-2
+    const janelaFim = new Date(ano1Ant, mes1Ant - 1, 28); // 28/M-1
+
 
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     const badge = document.getElementById('rec-ponto-badge');
@@ -735,62 +855,105 @@ window._recBuscarPontoSelecionados = async function () {
                 continue;
             }
             try {
-                // ── 1. Buscar faltas do MÊS ANTERIOR (desconto) ──────────────────
-                const resAnt = await fetch(
-                    `${API_URL}/diretoria/controlid/ponto-colaborador?cpf=${encodeURIComponent(cpf)}&mes=${mesAnt}&ano=${anoAnt}`,
-                    { headers: { 'Authorization': `Bearer ${token}` } }
-                );
-                const dataAnt = resAnt.ok ? await resAnt.json() : null;
+                // ── 1. Buscar M-1 e M-2 em paralelo para montar a janela de desconto ────
+                const [res1, res2] = await Promise.all([
+                    fetch(`${API_URL}/diretoria/controlid/ponto-colaborador?cpf=${encodeURIComponent(cpf)}&mes=${mes1Ant}&ano=${ano1Ant}`,
+                          { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch(`${API_URL}/diretoria/controlid/ponto-colaborador?cpf=${encodeURIComponent(cpf)}&mes=${mes2Ant}&ano=${ano2Ant}`,
+                          { headers: { 'Authorization': `Bearer ${token}` } })
+                ]);
+                const data1 = res1.ok ? await res1.json() : null; // M-1
+                const data2 = res2.ok ? await res2.json() : null; // M-2
 
-                // ── 2. Calcular CRÉDITO pela escala do mês selecionado ────────────
+                // ── 2. Combinar apuração diária dos dois meses ──────────────────────
+                function extrairDiaria(dataRaw) {
+                    if (!dataRaw?.apuracaoRaw) return [];
+                    try {
+                        let p = typeof dataRaw.apuracaoRaw === 'string'
+                            ? JSON.parse(dataRaw.apuracaoRaw) : dataRaw.apuracaoRaw;
+                        if (p && !Array.isArray(p)) {
+                            const k = Object.keys(p).find(key => Array.isArray(p[key]));
+                            p = k ? p[k] : [p];
+                        }
+                        return Array.isArray(p) ? p : [];
+                    } catch(e) { return []; }
+                }
+
+                const diaria1 = extrairDiaria(data1); // M-1
+                const diaria2 = extrairDiaria(data2); // M-2
+                const diariaTotal = [...diaria2, ...diaria1];
+
+                // ── 3. Contar faltas apenas dentro da janela 29/M-2 → 28/M-1 ───────
+                function parseDia(d) {
+                    let str = String(d.date || d.dateTimeStr || '').substring(0, 10);
+                    if (!str) return null;
+                    let dt = new Date(str + 'T00:00:00');
+                    if (isNaN(dt)) {
+                        const p = str.split('/');
+                        if (p.length === 3) dt = new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
+                    }
+                    return isNaN(dt) ? null : dt;
+                }
+
+                let faltasJanela = 0;
+                let apuracaoParaCartao = diaria1; // Cartão de ponto usa M-1 completo
+
+                diariaTotal.forEach(d => {
+                    const dt = parseDia(d);
+                    if (!dt) return;
+                    if (dt < janelaIni || dt > janelaFim) return; // fora da janela
+
+                    // É falta se: 0 dias trabalhados, 0 horas, não é DSR/folga, não é feriado
+                    const horasTrab = d.totalHorasTrabalhadas || d.horasUteis || 0;
+                    const isDSR    = (d.dsrConsideradoMinutos || 0) > 0;
+                    const isFol    = !!(d.status || '').toLowerCase().match(/folg|dsr|f\.c\./);
+                    const isHol    = !!(d.isHoliday);
+                    const trabalhou = (d.diasTrabalhados || 0) > 0 || horasTrab > 0;
+
+                    if (!trabalhou && !isDSR && !isFol && !isHol) {
+                        faltasJanela++;
+                    }
+                });
+
+                // ── 4. Calcular CRÉDITO pela escala do mês selecionado ────────────
                 const diasCredito = await _calcularDiasEscala(c, ano, mes);
 
                 const s = _recibosSelecoes[c.id];
-
-                // Crédito = dias da escala (mês atual). Feriados já incluídos.
                 s.diasTrabalhados = diasCredito;
                 s.diasVR          = diasCredito;
 
-                // ── 3. Aplicar faltas do mês anterior ────────────────────────────
-                if (dataAnt && dataAnt.success && dataAnt.encontrado) {
-                    if (dataAnt.faltas != null) s.faltas = dataAnt.faltas;
+                // ── 5. Aplicar faltas da janela + metadados ──────────────────────
+                const encontrado = (data1?.encontrado || data2?.encontrado);
 
-                    // Guarda apuração do mês anterior para o Cartão de Ponto
-                    if (dataAnt.apuracaoRaw) {
-                        try {
-                            let p = typeof dataAnt.apuracaoRaw === 'string' ? JSON.parse(dataAnt.apuracaoRaw) : dataAnt.apuracaoRaw;
-                            if (p && !Array.isArray(p)) {
-                                const k = Object.keys(p).find(key => Array.isArray(p[key]));
-                                if (k) p = p[k]; else p = [p];
-                            }
-                            s.apuracaoDiaria = Array.isArray(p) ? p : [];
-                        } catch(e) { console.warn('Erro ao ler apuracaoRaw (mês ant.):', e); }
+                if (encontrado) {
+                    s.faltas = faltasJanela;
+
+                    // Cartão de ponto: usa apuração de M-1 completo
+                    if (apuracaoParaCartao.length > 0) {
+                        s.apuracaoDiaria = apuracaoParaCartao;
                     }
 
-                    if (dataAnt.diasComHoraExtra != null) {
+                    // Horas extras (de M-1)
+                    if (data1?.diasComHoraExtra != null) {
                         const tipo = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
-                        s.diasExtra = (tipo === 'Administrativo') ? 0 : dataAnt.diasComHoraExtra;
+                        s.diasExtra = (tipo === 'Administrativo') ? 0 : data1.diasComHoraExtra;
                     }
 
+                    // Férias: zera faltas
                     const isFerias = window._isColabFerias(c, ano, mes);
                     if (isFerias) s.faltas = 0;
 
-                    s.pontoStatus = dataAnt.aviso ? 'erro' : 'ok';
-                    if (dataAnt.aviso) { semApuracao++; errosDetalhes.push(`${_recNome(c)} (mês ant.): ${dataAnt.aviso}`); }
+                    // Status: erro se ambos retornaram aviso
+                    const aviso = data1?.aviso && data2?.aviso;
+                    s.pontoStatus = aviso ? 'erro' : 'ok';
+                    if (aviso) { semApuracao++; errosDetalhes.push(`${_recNome(c)}: sem apuração nos dois meses`); }
                     else ok++;
 
-                } else if (dataAnt && dataAnt.success === false && dataAnt.encontrado === false) {
-                    // Não encontrado no RHID para o mês anterior — mantém faltas = 0
-                    s.faltas = 0;
-                    s.pontoStatus = 'ok'; // crédito calculado com sucesso; desconto = 0
-                    ok++;
                 } else {
-                    // Erro ao buscar mês anterior — crédito OK, mas alerta
-                    s.faltas = 0;
-                    s.pontoStatus = 'erro';
-                    erroApi++;
-                    nomesErroApi.push(_recNome(c));
-                    errosDetalhes.push(`${_recNome(c)}: Erro ao buscar ponto de ${mesAnt}/${anoAnt}`);
+                    // Não encontrado em nenhum dos dois meses
+                    s.faltas      = 0;
+                    s.pontoStatus = 'ok';
+                    ok++;
                 }
 
             } catch (ex) {
@@ -801,6 +964,7 @@ window._recBuscarPontoSelecionados = async function () {
             }
         }
     };
+
 
     // ── RECALCULAR supervisores por escala (nova regra) ─────────────────────
     // Supervisores auto-preenchidos passam a usar o crédito pela escala do mês atual
