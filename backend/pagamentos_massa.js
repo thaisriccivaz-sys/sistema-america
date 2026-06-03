@@ -217,6 +217,33 @@ async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nom
     const colabDir = path.join(basePath, `colab_${colaboradorId}`);
     if (!fs.existsSync(colabDir)) fs.mkdirSync(colabDir, { recursive: true });
 
+    // ── UPSERT: remove documentos de Pagamentos existentes para o mesmo colaborador/mês/ano ──
+    // Isso evita duplicatas quando o usuário clica em "Anexar em Massa" mais de uma vez.
+    const mesPad    = String(mes || '').padStart(2, '0');
+    const mesSemPad = String(parseInt(mes, 10) || '');
+    const docsExistentes = await new Promise((resolve, reject) => {
+        db.all(
+            `SELECT id, file_path FROM documentos
+             WHERE colaborador_id = ? AND tab_name = 'Pagamentos'
+               AND document_type = ?
+               AND (month = ? OR month = ?)
+               AND year = ?`,
+            [colaboradorId, tipoDocumento, mesPad, mesSemPad, ano],
+            (err, rows) => err ? reject(err) : resolve(rows || [])
+        );
+    });
+
+    for (const docAntigo of docsExistentes) {
+        // Remove arquivo físico antigo (silenciosamente)
+        try { if (docAntigo.file_path && fs.existsSync(docAntigo.file_path)) fs.unlinkSync(docAntigo.file_path); } catch(_) {}
+        // Remove registro do banco
+        await new Promise((resolve) => db.run('DELETE FROM documentos WHERE id = ?', [docAntigo.id], () => resolve()));
+    }
+    if (docsExistentes.length > 0) {
+        console.log(`[PAGAMENTOS-MASSA] Substituindo ${docsExistentes.length} doc(s) existente(s) para colaborador ${colaboradorId} (${mes}/${ano})`);
+    }
+    // ────────────────────────────────────────────────────────────────────────────────────────────
+
     const filePath = path.join(colabDir, nomeArquivo);
     fs.writeFileSync(filePath, bufferPDF);
 
