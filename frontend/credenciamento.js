@@ -158,10 +158,14 @@ async function loadColaboradoresCred() {
         credenciamentoState.colaboradores = (data || []).filter(c => {
             const s = (c.status || '').toLowerCase();
             const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
-            // departamento_tipo vem do JOIN com a tabela departamentos no backend
             const deptTipo = (c.departamento_tipo || '').toLowerCase().trim();
-            return isActive && deptTipo === 'operacional';
+            const dept = (c.departamento || '').toLowerCase().trim();
+            // Operacional (qualquer depto) + Logística + Supervisão
+            const isLogistica = dept.includes('logística') || dept.includes('logistica');
+            const isSupervisao = dept.includes('supervisão') || dept.includes('supervisao') || dept.includes('supervis');
+            return isActive && (deptTipo === 'operacional' || isLogistica || isSupervisao);
         });
+
 
 
         renderListaColabsCred();
@@ -1398,13 +1402,17 @@ window.solDocsProximo = async function() {
             fetch('/api/colaboradores', { headers: { 'Authorization': `Bearer ${token}` } }),
             fetch('/api/frota/veiculos', { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
-        // Todos os colaboradores ativos do tipo Operacional (departamento_tipo vem do backend via JOIN)
+        // Operacional (qualquer depto) + Logística + Supervisão
         _solDocState.colaboradores = ((await rC.json()) || []).filter(c => {
             const s = (c.status || '').toLowerCase();
             const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
             const deptTipo = (c.departamento_tipo || '').toLowerCase().trim();
-            return isActive && deptTipo === 'operacional';
+            const dept = (c.departamento || '').toLowerCase().trim();
+            const isLogistica = dept.includes('logística') || dept.includes('logistica');
+            const isSupervisao = dept.includes('supervisão') || dept.includes('supervisao') || dept.includes('supervis');
+            return isActive && (deptTipo === 'operacional' || isLogistica || isSupervisao);
         });
+
 
 
 
