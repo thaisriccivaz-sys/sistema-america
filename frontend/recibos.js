@@ -939,7 +939,9 @@ window._recBuscarPontoSelecionados = async function () {
                 s.diasVR          = diasCredito;
 
                 // ── 5. Aplicar faltas da janela + metadados ──────────────────────
-                const encontrado = (data1?.encontrado || data2?.encontrado);
+                // "encontrado" = RHID achou dados no mês selecionado OU mês anterior
+                // OU há registros na janela (colaborador novo que só tem dados em M)
+                const encontrado = data1?.encontrado || data2?.encontrado || apuracaoParaCartao.length > 0;
 
                 if (encontrado) {
                     s.faltas = faltasJanela;
@@ -949,7 +951,7 @@ window._recBuscarPontoSelecionados = async function () {
                         s.apuracaoDiaria = apuracaoParaCartao;
                     }
 
-                    // Horas extras (de M-1)
+                    // Horas extras (do mês selecionado)
                     if (data1?.diasComHoraExtra != null) {
                         const tipo = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
                         s.diasExtra = (tipo === 'Administrativo') ? 0 : data1.diasComHoraExtra;
@@ -959,14 +961,15 @@ window._recBuscarPontoSelecionados = async function () {
                     const isFerias = window._isColabFerias(c, ano, mes);
                     if (isFerias) s.faltas = 0;
 
-                    // Status: erro se ambos retornaram aviso
-                    const aviso = data1?.aviso && data2?.aviso;
+                    // Status: erro apenas se M (selecionado) não tem dados E não há registros na janela
+                    // (data2 pode não ter dados para colaboradores recém-admitidos — isso é normal)
+                    const aviso = data1?.aviso && !data1?.encontrado && apuracaoParaCartao.length === 0;
                     s.pontoStatus = aviso ? 'erro' : 'ok';
-                    if (aviso) { semApuracao++; errosDetalhes.push(`${_recNome(c)}: sem apuração nos dois meses`); }
+                    if (aviso) { semApuracao++; errosDetalhes.push(`${_recNome(c)}: sem apuração no mês selecionado`); }
                     else ok++;
 
                 } else {
-                    // Não encontrado em nenhum dos dois meses
+                    // Não encontrado em nenhum dos dois meses e sem registros na janela
                     s.faltas      = 0;
                     s.pontoStatus = 'ok';
                     ok++;
