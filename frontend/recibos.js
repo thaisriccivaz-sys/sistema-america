@@ -819,13 +819,14 @@ window._recBuscarPontoSelecionados = async function () {
     const creditMes = mes === 12 ? 1  : mes + 1;
     const creditAno = mes === 12 ? ano + 1 : ano;
 
-    // ── JANELA de desconto: 28 do M-1 ao 28 do M (mês selecionado) ───────
-    // M-1 = mês anterior ao selecionado
+    // ── JANELA de desconto: 29/M-1 ao 28/M (mês selecionado) ───────────────
+    // Início = dia 29 do mês anterior (primeiro dia após o dia 28).
+    // Em fevereiro não-bissexto (sem dia 29), JS avança para 01/março — correto!
     const mesPrev = mes === 1 ? 12 : mes - 1;
     const anoPrev = mes === 1 ? ano - 1 : ano;
-    // Limites da janela
-    const janelaIni = new Date(anoPrev, mesPrev - 1, 28); // 28/M-1
+    const janelaIni = new Date(anoPrev, mesPrev - 1, 29); // 29/M-1 (ou 01/mar em fev não-bissexto)
     const janelaFim = new Date(ano, mes - 1, 28);         // 28/M
+
 
 
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
@@ -1369,8 +1370,19 @@ window.baixarConferenciaPonto = async function () {
 
     const mes = document.getElementById('rec-mes')?.value;
     const ano = document.getElementById('rec-ano')?.value;
-    const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mes)-1];
+    const mesInt = parseInt(mes);
+    const anoInt = parseInt(ano);
+    const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][mesInt-1];
     const valorVR = parseFloat(document.getElementById('rec-valor-vr')?.value) || 35.00;
+
+    // Período da janela de desconto: 29/M-1 → 28/M
+    const mesPrevConf = mesInt === 1 ? 12 : mesInt - 1;
+    const anoPrevConf = mesInt === 1 ? anoInt - 1 : anoInt;
+    const dtIniConf   = new Date(anoPrevConf, mesPrevConf - 1, 29); // 29/M-1 (ou 01/mar em fev não-bissexto)
+    const dtFimConf   = new Date(anoInt, mesInt - 1, 28);           // 28/M
+    const fmtDate = (d) => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+    const periodoTexto = `${fmtDate(dtIniConf)} a ${fmtDate(dtFimConf)}`;
+
 
     // Salvar apuração no backend para guardar o histórico da conferência
     try {
@@ -1451,8 +1463,10 @@ window.baixarConferenciaPonto = async function () {
 
         corpo += `
         <div style="page-break-after:always;padding:20px;">
-          <h2 style="margin:0 0 15px;color:#1e3a5f;">Conferência de Ponto - ${nome}</h2>
+          <h2 style="margin:0 0 4px;color:#1e3a5f;">Conferência de Ponto - ${nome}</h2>
+          <p style="margin:0 0 14px;font-size:12px;color:#475569;"><strong>Período de desconto:</strong> ${periodoTexto}</p>
           <table style="width:100%;border-collapse:collapse;font-size:12px;">
+
             <thead>
               <tr style="background:#e8edf5;">
                 <th style="padding:8px;border:1px solid #ddd;">Data</th>
