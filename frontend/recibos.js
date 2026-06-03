@@ -1413,7 +1413,47 @@ window.baixarConferenciaPonto = async function () {
         let linhas = '';
 
         if (!s.apuracaoDiaria || !Array.isArray(s.apuracaoDiaria) || s.apuracaoDiaria.length === 0) {
-            linhas = `<tr><td colspan="5" style="padding:15px;text-align:center;color:#ef4444;">Nenhuma apuração diária encontrada para este colaborador. Certifique-se de "Buscar Ponto (RHID)" antes.</td></tr>`;
+            // Verificar se o colaborador tem data de admissão dentro do período → gera linhas placeholder
+            const admStr = c.data_admissao || '';
+            let admDt = null;
+            if (admStr) {
+                const admParsed = admStr.includes('/')
+                    ? admStr.split('/').reverse().join('-') + 'T00:00:00'
+                    : admStr + 'T00:00:00';
+                admDt = new Date(admParsed);
+                if (isNaN(admDt)) admDt = null;
+            }
+            const inicioReal = (admDt && admDt > dtIniConf) ? admDt : dtIniConf;
+
+            if (admDt && admDt <= dtFimConf) {
+                // Gera linhas para dias úteis do período (seg-sex), marcados como SEM REGISTRO
+                const placeholders = [];
+                const cur = new Date(inicioReal);
+                while (cur <= dtFimConf) {
+                    const dow = cur.getDay();
+                    if (dow !== 0 && dow !== 6) {
+                        const dd = String(cur.getDate()).padStart(2,'0');
+                        const mm = String(cur.getMonth()+1).padStart(2,'0');
+                        const yy = cur.getFullYear();
+                        placeholders.push(`
+                        <tr style="background:#fff8f0;">
+                          <td style="padding:6px;border:1px solid #ddd;text-align:center;">${dd}/${mm}/${yy}</td>
+                          <td style="padding:6px;border:1px solid #ddd;color:#f59e0b;font-weight:600;">SEM REGISTRO</td>
+                          <td style="padding:6px;border:1px solid #ddd;text-align:center;color:#94a3b8;">—</td>
+                          <td style="padding:6px;border:1px solid #ddd;text-align:center;color:#94a3b8;">—</td>
+                          <td style="padding:6px;border:1px solid #ddd;text-align:center;color:#94a3b8;">—</td>
+                          <td style="padding:6px;border:1px solid #ddd;text-align:center;color:#94a3b8;">—</td>
+                        </tr>`);
+                    }
+                    cur.setDate(cur.getDate() + 1);
+                }
+                linhas = placeholders.length > 0
+                    ? placeholders.join('')
+                    : `<tr><td colspan="6" style="padding:12px;text-align:center;color:#94a3b8;">Nenhum dia útil no período (${fmtDate(inicioReal)} a ${fmtDate(dtFimConf)}).</td></tr>`;
+            } else {
+                linhas = `<tr><td colspan="6" style="padding:15px;text-align:center;color:#ef4444;">Nenhuma apuração diária encontrada. Certifique-se de "Buscar Ponto (RHID)" antes.</td></tr>`;
+            }
+
         } else {
             linhas = s.apuracaoDiaria.map(d => {
                 let dia = String(d.date || d.dateTimeStr || '').substring(0,10);
