@@ -8742,8 +8742,31 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                                                 // --- Foto do produto ---
                                                 let fotoHtml = '';
                                                 let fotoAttachment = null;
+
+                                                // Tenta embutir a foto como CID (inline) para evitar bloqueio do Outlook
                                                 if (item.foto_url && item.foto_url.startsWith('http')) {
-                                                    fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="' + item.foto_url + '" alt="' + item.nome + '" width="200" height="200" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
+                                                    // Baixa a imagem do R2 e embute como CID
+                                                    try {
+                                                        const https = require('https');
+                                                        const http = require('http');
+                                                        const fotoBuffer = await new Promise((resolve, reject) => {
+                                                            const mod = item.foto_url.startsWith('https') ? https : http;
+                                                            mod.get(item.foto_url, (resp) => {
+                                                                const chunks = [];
+                                                                resp.on('data', c => chunks.push(c));
+                                                                resp.on('end', () => resolve(Buffer.concat(chunks)));
+                                                                resp.on('error', reject);
+                                                            }).on('error', reject);
+                                                        });
+                                                        const contentType = item.foto_url.endsWith('.png') ? 'image/png' : (item.foto_url.endsWith('.webp') ? 'image/webp' : 'image/jpeg');
+                                                        const fotoExt = contentType.split('/')[1].replace('jpeg','jpg');
+                                                        fotoAttachment = { filename: 'produto.' + fotoExt, content: fotoBuffer, contentType, cid: 'produto-foto' };
+                                                        fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="cid:produto-foto" alt="' + item.nome + '" width="200" height="200" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
+                                                    } catch(eFoto) {
+                                                        // Fallback: usa URL direta (pode ser bloqueada pelo Outlook)
+                                                        console.warn('[ESTOQUE] Não foi possível baixar foto do R2 para CID:', eFoto.message);
+                                                        fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="' + item.foto_url + '" alt="' + item.nome + '" width="200" height="200" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
+                                                    }
                                                 } else if (item.foto_base64 && item.foto_base64.startsWith('data:image')) {
                                                     const _fm = item.foto_base64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
                                                     if (_fm) {
@@ -8752,6 +8775,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                                                         fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="cid:produto-foto" alt="' + item.nome + '" width="200" height="200" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
                                                     }
                                                 }
+
                                                 const mailOptions = {
                                                     from: `"Estoque América Rental" <${SMTP_CONFIG.auth.user}>`,
                                                     to: emails,
