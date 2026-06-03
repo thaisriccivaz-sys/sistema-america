@@ -154,18 +154,15 @@ async function loadColaboradoresCred() {
         const res = await fetch('/api/colaboradores', { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error(`Erro ${res.status}`);
         const data = await res.json();
-        // Departamentos/Cargos administrativos e de suporte que NÃO devem aparecer no credenciamento
-        const excludedRegex = /\b(administrativ[oa]|admin|comercial|financeir[oa]|rh|recursos humanos|dp|diretoria|limpeza|serviços gerais|servicos gerais|manutenç[ãa]o|manutencao)\b/i;
+        
         credenciamentoState.colaboradores = (data || []).filter(c => {
             const s = (c.status || '').toLowerCase();
             const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
-            
-            // Remove acentos para facilitar o match (ex: manutenção -> manutencao)
-            let str = ((c.cargo || '') + ' ' + (c.departamento || '')).toLowerCase();
-            str = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            
-            const isExcluded = excludedRegex.test(str);
-            return isActive && !isExcluded; // Operacionais e Logística passam
+            const dept = (c.departamento || '').toLowerCase().trim();
+            const tipo = (c.tipo || '').toLowerCase().trim();
+            const isLogistica = dept.includes('logística') || dept.includes('logistica');
+            const isOperacional = !tipo || tipo === 'operacional';
+            return isActive && isLogistica && isOperacional;
         });
         renderListaColabsCred();
     } catch (e) {
@@ -1401,14 +1398,17 @@ window.solDocsProximo = async function() {
             fetch('/api/colaboradores', { headers: { 'Authorization': `Bearer ${token}` } }),
             fetch('/api/frota/veiculos', { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
-        // Mesma regra do credenciamento: exclui departamentos administrativos e limpeza
-        const DEPTS_ADMIN_SOL = ['administrativo', 'comercial', 'financeiro', 'rh', 'recursos humanos', 'diretoria', 'limpeza'];
+        // Apenas Operacionais do departamento Logística
         _solDocState.colaboradores = ((await rC.json()) || []).filter(c => {
             const s = (c.status || '').toLowerCase();
             const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
             const dept = (c.departamento || '').toLowerCase().trim();
-            return isActive && !DEPTS_ADMIN_SOL.includes(dept); // Operacionais e Logística passam
+            const tipo = (c.tipo || '').toLowerCase().trim();
+            const isLogistica = dept.includes('logística') || dept.includes('logistica');
+            const isOperacional = !tipo || tipo === 'operacional';
+            return isActive && isLogistica && isOperacional;
         });
+
         _solDocState.veiculos = (await rV.json()) || [];
     } catch(e) {
         _solDocState.colaboradores = [];
