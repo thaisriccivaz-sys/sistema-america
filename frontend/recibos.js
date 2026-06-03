@@ -1,4 +1,4 @@
-﻿// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // recibos.js — Recibos de Benefícios em Massa (VR, VT, VC)
 // v3.0 — campo nome_completo corrigido, sem "dias úteis globais",
 //         VC proporcional via diasTrab+faltas, erro RHID detalhado
@@ -931,7 +931,19 @@ window._recBuscarPontoSelecionados = async function () {
                     const isHol    = !!(d.isHoliday);
                     const trabalhou = (d.diasTrabalhados || 0) > 0 || horasTrab > 0;
 
-                    if (!trabalhou && !isDSR && !isFol && !isHol) {
+                    // Verifica se é dia de folga na escala 12x36 (dia ímpar no ciclo)
+                    let isFolga12x36 = false;
+                    if (c.escala_tipo === 'escala_12x36' && c.escala_ciclo_inicio) {
+                        const dtCiclo = new Date(c.escala_ciclo_inicio + 'T12:00:00');
+                        const dtMid = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), 12, 0, 0);
+                        const difMs = dtMid - dtCiclo;
+                        if (difMs >= 0) {
+                            const difDias = Math.round(difMs / 86400000);
+                            if (difDias % 2 === 1) isFolga12x36 = true; // Ímpar = folga (36h)
+                        }
+                    }
+
+                    if (!trabalhou && !isDSR && !isFol && !isHol && !isFolga12x36) {
                         faltasJanela++;
                     }
                 });
@@ -1478,7 +1490,20 @@ window.baixarConferenciaPonto = async function () {
                 const hrsFalta = fmtMin(d.horasFaltaAtraso);
                 
                 let status = '-';
-                if (d.faltaDiaInteiro) status = 'FALTA';
+                
+                let isFolga12x36 = false;
+                if (c.escala_tipo === 'escala_12x36' && c.escala_ciclo_inicio) {
+                    const dtCiclo = new Date(c.escala_ciclo_inicio + 'T12:00:00');
+                    const dtMid = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), 12, 0, 0);
+                    const difMs = dtMid - dtCiclo;
+                    if (difMs >= 0) {
+                        const difDias = Math.round(difMs / 86400000);
+                        if (difDias % 2 === 1) isFolga12x36 = true;
+                    }
+                }
+
+                if (isFolga12x36 && (!d.diasTrabalhados || d.diasTrabalhados === 0)) status = 'FOLGA ESCALA';
+                else if (d.faltaDiaInteiro) status = 'FALTA';
                 else if (d.isHoliday) status = 'FERIADO';
                 else if (d.dsrConsideradoMinutos > 0 || (d.diasTrabalhados === 0 && d.horasUteis === 0)) status = 'DSR / FOLGA';
                 else if (d.diasTrabalhados > 0) status = 'TRABALHADO';
