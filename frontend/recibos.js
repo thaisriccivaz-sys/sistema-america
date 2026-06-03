@@ -799,11 +799,12 @@ function _atualizarContador() {
 }
 
 // ─── Buscar ponto RHID em lote ────────────────────────────────────────────────
-// NOVA REGRA:
-//   • CRÉDITO (diasVR / diasTrabalhados) = dias da ESCALA do mês selecionado
-//     (feriados na escala contam como dias trabalhados para operacionais)
-//   • DESCONTO (faltas) = faltas na JANELA 29/M-2 → 28/M-1
-//     Ex: para pagar 01/06 → desconta faltas de 29/04 a 28/05
+// REGRA:
+//   • CRÉDITO = dias de escala do MÊS SEGUINTE ao selecionado (M+1)
+//     Ex: selecionando Maio → crédito para Junho (01/06 a 30/06)
+//   • DESCONTO (faltas) = ponto da JANELA 28/(M-1) → 28/M
+//     Ex: selecionando Maio → desconta faltas de 28/04 a 28/05
+//   • CARTÃO DE PONTO = mesmo período do desconto (28/M-1 a 28/M)
 window._recBuscarPontoSelecionados = async function () {
     const sels = _recibosAllColabs.filter(c => _recibosSelecoes[c.id]?.selecionado);
     if (!sels.length) {
@@ -814,16 +815,17 @@ window._recBuscarPontoSelecionados = async function () {
     const mes   = parseInt(document.getElementById('rec-mes')?.value);
     const ano   = parseInt(document.getElementById('rec-ano')?.value);
 
-    // ── Janela de desconto: 29 do M-2 ao 28 do M-1 ──────────────────────
-    // M-1 (mês anterior completo)
-    const mes1Ant = mes === 1 ? 12 : mes - 1;
-    const ano1Ant = mes === 1 ? ano - 1 : ano;
-    // M-2 (dois meses atrás)
-    const mes2Ant = mes1Ant === 1 ? 12 : mes1Ant - 1;
-    const ano2Ant = mes1Ant === 1 ? ano1Ant - 1 : ano1Ant;
-    // Datas limites da janela
-    const janelaIni = new Date(ano2Ant, mes2Ant - 1, 29); // 29/M-2
-    const janelaFim = new Date(ano1Ant, mes1Ant - 1, 28); // 28/M-1
+    // ── CRÉDITO: mês seguinte (M+1) ──────────────────────────────────
+    const creditMes = mes === 12 ? 1  : mes + 1;
+    const creditAno = mes === 12 ? ano + 1 : ano;
+
+    // ── JANELA de desconto: 28 do M-1 ao 28 do M (mês selecionado) ───────
+    // M-1 = mês anterior ao selecionado
+    const mesPrev = mes === 1 ? 12 : mes - 1;
+    const anoPrev = mes === 1 ? ano - 1 : ano;
+    // Limites da janela
+    const janelaIni = new Date(anoPrev, mesPrev - 1, 28); // 28/M-1
+    const janelaFim = new Date(ano, mes - 1, 28);         // 28/M
 
 
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
@@ -855,15 +857,17 @@ window._recBuscarPontoSelecionados = async function () {
                 continue;
             }
             try {
-                // ── 1. Buscar M-1 e M-2 em paralelo para montar a janela de desconto ────
+                // ── 1. Buscar ponto do MÊS SELECIONADO (M) e do M-1 em paralelo ──────
+                //    A janela 28/M-1 → 28/M abrange dados dos dois meses.
                 const [res1, res2] = await Promise.all([
-                    fetch(`${API_URL}/diretoria/controlid/ponto-colaborador?cpf=${encodeURIComponent(cpf)}&mes=${mes1Ant}&ano=${ano1Ant}`,
+                    fetch(`${API_URL}/diretoria/controlid/ponto-colaborador?cpf=${encodeURIComponent(cpf)}&mes=${mes}&ano=${ano}`,
                           { headers: { 'Authorization': `Bearer ${token}` } }),
-                    fetch(`${API_URL}/diretoria/controlid/ponto-colaborador?cpf=${encodeURIComponent(cpf)}&mes=${mes2Ant}&ano=${ano2Ant}`,
+                    fetch(`${API_URL}/diretoria/controlid/ponto-colaborador?cpf=${encodeURIComponent(cpf)}&mes=${mesPrev}&ano=${anoPrev}`,
                           { headers: { 'Authorization': `Bearer ${token}` } })
                 ]);
-                const data1 = res1.ok ? await res1.json() : null; // M-1
-                const data2 = res2.ok ? await res2.json() : null; // M-2
+                const data1 = res1.ok ? await res1.json() : null; // M (selecionado)
+                const data2 = res2.ok ? await res2.json() : null; // M-1 (anterior)
+
 
                 // ── 2. Combinar apuração diária dos dois meses ──────────────────────
                 function extrairDiaria(dataRaw) {
@@ -925,8 +929,10 @@ window._recBuscarPontoSelecionados = async function () {
                     }
                 });
 
-                // ── 4. Calcular CRÉDITO pela escala do mês selecionado ────────────
-                const diasCredito = await _calcularDiasEscala(c, ano, mes);
+                // ── 4. Calcular CRÉDITO pelo mês SEGUINTE (M+1) ──────────────────
+                //    Selecionando Maio → crédito para Junho
+                const diasCredito = await _calcularDiasEscala(c, creditAno, creditMes);
+
 
                 const s = _recibosSelecoes[c.id];
                 s.diasTrabalhados = diasCredito;
@@ -938,7 +944,7 @@ window._recBuscarPontoSelecionados = async function () {
                 if (encontrado) {
                     s.faltas = faltasJanela;
 
-                    // Cartão de ponto: período 29/M-2 → 28/M-1
+                    // Cartão de ponto: período 28/M-1 → 28/M
                     if (apuracaoParaCartao.length > 0) {
                         s.apuracaoDiaria = apuracaoParaCartao;
                     }
