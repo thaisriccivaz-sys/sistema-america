@@ -14,13 +14,17 @@ let _recibosSortAsc     = true;
 
 // ─── Calendário de Feriados ───────────────────────────────────────────────────
 let _feriadosBrasil = {};
-async function _getDiasUteis(ano, mes, segASex = false) {
+
+/**
+ * Busca feriados do ano e retorna a lista de datas ('YYYY-MM-DD').
+ */
+async function _getFeriados(ano) {
     if (!_feriadosBrasil[ano]) {
         try {
             const res = await fetch(`https://brasilapi.com.br/api/feriados/v1/${ano}`);
             if (res.ok) {
                 const data = await res.json();
-                _feriadosBrasil[ano] = data.map(f => f.date); // 'YYYY-MM-DD'
+                _feriadosBrasil[ano] = data.map(f => f.date);
             } else {
                 _feriadosBrasil[ano] = [];
             }
@@ -28,7 +32,14 @@ async function _getDiasUteis(ano, mes, segASex = false) {
             _feriadosBrasil[ano] = [];
         }
     }
-    const feriados = _feriadosBrasil[ano];
+    return _feriadosBrasil[ano];
+}
+
+/**
+ * Retorna o número de dias úteis (legado — mantido para compatibilidade).
+ */
+async function _getDiasUteis(ano, mes, segASex = false) {
+    const feriados = await _getFeriados(ano);
     let diasUteis = 0;
     const d = new Date(ano, mes - 1, 1);
     while (d.getMonth() === mes - 1) {
@@ -43,6 +54,60 @@ async function _getDiasUteis(ano, mes, segASex = false) {
         d.setDate(d.getDate() + 1);
     }
     return diasUteis;
+}
+
+/**
+ * ─── NOVA REGRA DE CRÉDITO ──────────────────────────────────────────────
+ * Calcula os dias de benefício (crédito) do colaborador no mês/ano
+ * com base na escala cadastrada. Feriados que caem em dias de trabalho
+ * da escala são INCLUÍDOS (contam como dias trabalhados = geram benefício).
+ *
+ * Regras por escala:
+ *   padrao_seg_sexta / sem cadastro → Seg a Sex
+ *   padrao_seis_dias                → Seg a Sab
+ *   padrao_sab_4h                  → Seg a Sex + Sab (conta Sab inteiro para fins de benefício)
+ *   padrao_sab_alternado           → Seg a Sex (conservador — Sab é incerto)
+ *   escala_duas_folgas             → todos exceto os 2 dias fixos de folga
+ *   supervisão/administrativo      → Seg a Sex
+ */
+async function _calcularDiasEscala(colab, ano, mes) {
+    const feriados = await _getFeriados(ano);
+
+    const DIAS_NOME = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const escalaTipo = (colab.escala_tipo || '').trim();
+
+    // Determina quais dias da semana (0=Dom, 1=Seg … 6=Sab) são de trabalho
+    let diasTrabalho; // array de números 0-6
+    if (escalaTipo === 'padrao_seis_dias') {
+        diasTrabalho = [1, 2, 3, 4, 5, 6]; // Seg–Sáb
+    } else if (escalaTipo === 'padrao_sab_4h') {
+        diasTrabalho = [1, 2, 3, 4, 5, 6]; // Seg–Sáb (Sab 4h ainda gera benefício)
+    } else if (escalaTipo === 'escala_duas_folgas') {
+        // Descobre quais dias são folga pelo campo escala_folgas
+        let diasFolga = [];
+        try {
+            const folgas = JSON.parse(colab.escala_folgas || '[]');
+            // Converte nomes ('Ter', 'Qua' …) para números
+            diasFolga = folgas.map(f => DIAS_NOME.indexOf(f)).filter(n => n >= 0);
+        } catch(e) {}
+        diasTrabalho = [0,1,2,3,4,5,6].filter(d => !diasFolga.includes(d));
+    } else {
+        // padrao_seg_sexta, padrao_sab_alternado, sem cadastro, supervisão, ADM → Seg–Sex
+        diasTrabalho = [1, 2, 3, 4, 5];
+    }
+
+    let count = 0;
+    const d = new Date(ano, mes - 1, 1);
+    while (d.getMonth() === mes - 1) {
+        const diaSemana = d.getDay();
+        if (diasTrabalho.includes(diaSemana)) {
+            // Feriados que caem em dias de trabalho da escala → contam (geram benefício)
+            // Portanto somamos independentemente de ser feriado
+            count++;
+        }
+        d.setDate(d.getDate() + 1);
+    }
+    return count;
 }
 
 // ─── Helper: nome seguro do colaborador ──────────────────────────────────────
@@ -623,6 +688,10 @@ function _atualizarContador() {
 }
 
 // ─── Buscar ponto RHID em lote ────────────────────────────────────────────────
+// NOVA REGRA:
+//   • Crédito (diasVR / diasTrabalhados) = dias da ESCALA no mês selecionado
+//     (feriados que caem em dias da escala contam como trabalhados)
+//   • Desconto (faltas) = faltas reais do PONTO DO MÊS ANTERIOR via RHID
 window._recBuscarPontoSelecionados = async function () {
     const sels = _recibosAllColabs.filter(c => _recibosSelecoes[c.id]?.selecionado);
     if (!sels.length) {
@@ -630,8 +699,13 @@ window._recBuscarPontoSelecionados = async function () {
         return;
     }
 
-    const mes   = document.getElementById('rec-mes')?.value;
-    const ano   = document.getElementById('rec-ano')?.value;
+    const mes   = parseInt(document.getElementById('rec-mes')?.value);
+    const ano   = parseInt(document.getElementById('rec-ano')?.value);
+
+    // Calcular mês anterior (para buscar as faltas)
+    const mesAnt = mes === 1 ? 12 : mes - 1;
+    const anoAnt = mes === 1 ? ano - 1 : ano;
+
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     const badge = document.getElementById('rec-ponto-badge');
     const btn   = document.getElementById('btn-buscar-ponto');
@@ -661,82 +735,64 @@ window._recBuscarPontoSelecionados = async function () {
                 continue;
             }
             try {
-                const res  = await fetch(
-                    `${API_URL}/diretoria/controlid/ponto-colaborador?cpf=${encodeURIComponent(cpf)}&mes=${mes}&ano=${ano}`,
+                // ── 1. Buscar faltas do MÊS ANTERIOR (desconto) ──────────────────
+                const resAnt = await fetch(
+                    `${API_URL}/diretoria/controlid/ponto-colaborador?cpf=${encodeURIComponent(cpf)}&mes=${mesAnt}&ano=${anoAnt}`,
                     { headers: { 'Authorization': `Bearer ${token}` } }
                 );
-                const data = await res.json();
+                const dataAnt = resAnt.ok ? await resAnt.json() : null;
 
-                if (!res.ok) {
-                    // Erro HTTP (ex: 500 da API RHID)
-                    const msgRaw = data.message || `Erro HTTP ${res.status}`;
-                    // Remove blocos <style>/<script> e tags HTML caso o RHID retorne página de erro
-                    const msg = msgRaw
-                        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
-                        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
-                        .replace(/<[^>]+>/g, ' ')
-                        .replace(/\s+/g, ' ')
-                        .trim()
-                        .substring(0, 200);
-                    errosDetalhes.push(`${_recNome(c)}: ${msg}`);
-                    _recibosSelecoes[c.id].pontoStatus = 'erro';
-                    erroApi++;
-                    nomesErroApi.push(_recNome(c));
-                    continue;
-                }
+                // ── 2. Calcular CRÉDITO pela escala do mês selecionado ────────────
+                const diasCredito = await _calcularDiasEscala(c, ano, mes);
 
-                if (data.success && data.encontrado) {
-                    const s = _recibosSelecoes[c.id];
-                    // Preenchimento: RHID retorna diasTrabalhados e faltas
-                    if (data.diasTrabalhados != null) s.diasTrabalhados = data.diasTrabalhados;
-                    if (data.diasVR          != null) s.diasVR          = data.diasVR;
-                    if (data.faltas          != null) s.faltas          = data.faltas;
-                    if (data.diasComHoraExtra != null) {
-                        const tipo = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
-                        s.diasExtra = (tipo === 'Administrativo') ? 0 : data.diasComHoraExtra;
-                    }
-                    
-                    if (data.apuracaoRaw) {
+                const s = _recibosSelecoes[c.id];
+
+                // Crédito = dias da escala (mês atual). Feriados já incluídos.
+                s.diasTrabalhados = diasCredito;
+                s.diasVR          = diasCredito;
+
+                // ── 3. Aplicar faltas do mês anterior ────────────────────────────
+                if (dataAnt && dataAnt.success && dataAnt.encontrado) {
+                    if (dataAnt.faltas != null) s.faltas = dataAnt.faltas;
+
+                    // Guarda apuração do mês anterior para o Cartão de Ponto
+                    if (dataAnt.apuracaoRaw) {
                         try {
-                            let p = typeof data.apuracaoRaw === 'string' ? JSON.parse(data.apuracaoRaw) : data.apuracaoRaw;
+                            let p = typeof dataAnt.apuracaoRaw === 'string' ? JSON.parse(dataAnt.apuracaoRaw) : dataAnt.apuracaoRaw;
                             if (p && !Array.isArray(p)) {
                                 const k = Object.keys(p).find(key => Array.isArray(p[key]));
-                                if (k) p = p[k];
-                                else p = [p];
+                                if (k) p = p[k]; else p = [p];
                             }
                             s.apuracaoDiaria = Array.isArray(p) ? p : [];
-                        } catch(e) { console.warn('Erro ao ler apuracaoRaw:', e); }
+                        } catch(e) { console.warn('Erro ao ler apuracaoRaw (mês ant.):', e); }
                     }
-                    
+
+                    if (dataAnt.diasComHoraExtra != null) {
+                        const tipo = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
+                        s.diasExtra = (tipo === 'Administrativo') ? 0 : dataAnt.diasComHoraExtra;
+                    }
+
                     const isFerias = window._isColabFerias(c, ano, mes);
-                    if (isFerias) {
-                        // Zera apenas as faltas, pois o RHID pode não saber das férias e ter gerado faltas indevidas para os dias de descanso.
-                        // MAS NÃO zera os dias trabalhados, porque se ela trabalhou alguns dias do mês, esses dias devem ser pagos!
-                        s.faltas = 0;
-                    }
+                    if (isFerias) s.faltas = 0;
 
-                    // Se RHID retornou dados válidos, remove a flag de supervisão auto, 
-                    // A MENOS que seja supervisão com 0 dias trabalhados (onde assumimos que a falta de ponto é por ser supervisão)
-                    const isSupervisao = window._isSupervisao(c);
-                    if (!(isSupervisao && (data.dtrab || data.diasTrabalhados || 0) === 0)) {
-                        s.isAutoSupervisao = false;
-                    }
-
-                    // Se RHID retornou aviso (apuração não disponível)
-                    s.pontoStatus = data.aviso ? 'erro' : 'ok';
-                    if (data.aviso) { semApuracao++; errosDetalhes.push(`${_recNome(c)}: ${data.aviso}`); }
+                    s.pontoStatus = dataAnt.aviso ? 'erro' : 'ok';
+                    if (dataAnt.aviso) { semApuracao++; errosDetalhes.push(`${_recNome(c)} (mês ant.): ${dataAnt.aviso}`); }
                     else ok++;
-                } else if (data.success === false && data.encontrado === false) {
-                    // Não encontrado no RHID
-                    _recibosSelecoes[c.id].pontoStatus = 'erro';
-                    semCadastro++;
-                    nomesSemCadastro.push(_recNome(c));
+
+                } else if (dataAnt && dataAnt.success === false && dataAnt.encontrado === false) {
+                    // Não encontrado no RHID para o mês anterior — mantém faltas = 0
+                    s.faltas = 0;
+                    s.pontoStatus = 'ok'; // crédito calculado com sucesso; desconto = 0
+                    ok++;
                 } else {
-                    _recibosSelecoes[c.id].pontoStatus = 'erro';
+                    // Erro ao buscar mês anterior — crédito OK, mas alerta
+                    s.faltas = 0;
+                    s.pontoStatus = 'erro';
                     erroApi++;
                     nomesErroApi.push(_recNome(c));
-                    errosDetalhes.push(`${_recNome(c)}: ${data.message || 'Resposta inesperada do RHID'}`);
+                    errosDetalhes.push(`${_recNome(c)}: Erro ao buscar ponto de ${mesAnt}/${anoAnt}`);
                 }
+
             } catch (ex) {
                 _recibosSelecoes[c.id].pontoStatus = 'erro';
                 erroApi++;
@@ -746,63 +802,25 @@ window._recBuscarPontoSelecionados = async function () {
         }
     };
 
+    // ── RECALCULAR supervisores por escala (nova regra) ─────────────────────
+    // Supervisores auto-preenchidos passam a usar o crédito pela escala do mês atual
+    for (const c of sels) {
+        const s = _recibosSelecoes[c.id];
+        if (s && s.isAutoSupervisao) {
+            const diasEscala = await _calcularDiasEscala(c, ano, mes);
+            s.diasTrabalhados = diasEscala;
+            s.diasVR          = diasEscala;
+            s.faltas          = 0;
+            s.pontoStatus     = 'ok';
+        }
+    }
+    // ───────────────────────────────────────────────────────────────────
+
     const workers = Array.from({ length: maxConcurrency }).map(() => worker());
     await Promise.all(workers);
 
-    // ── CONFRONTO DE DADOS (FERIADOS DO RHID) ────────────────────────────
-    // Extrai o calendário real da apuração de algum colaborador para ajustar a Supervisão
-    let diasUteisRHID = null;
-    let diasUteisRHID_SegSex = null;
-    for (const id in _recibosSelecoes) {
-        const sel = _recibosSelecoes[id];
-        if (sel && sel.apuracaoDiaria && Array.isArray(sel.apuracaoDiaria) && sel.apuracaoDiaria.length > 0) {
-            let countSegSab = 0;
-            let countSegSex = 0;
-            sel.apuracaoDiaria.forEach(d => {
-                let dia = String(d.date || d.dateTimeStr || '').substring(0,10);
-                if (!dia) return;
-                let dataObj = new Date(dia + 'T00:00:00'); 
-                if (isNaN(dataObj.getTime())) {
-                    const p = dia.split('/');
-                    if (p.length === 3) dataObj = new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
-                }
-                if (!isNaN(dataObj.getTime())) {
-                    const diaSemana = dataObj.getDay();
-                    if (diaSemana !== 0 && !d.isHoliday) {
-                        countSegSab++;
-                        if (diaSemana !== 6) {
-                            countSegSex++;
-                        }
-                    }
-                }
-            });
-            if (countSegSab > 0) {
-                diasUteisRHID = countSegSab;
-                diasUteisRHID_SegSex = countSegSex;
-                break;
-            }
-        }
-    }
 
-    // Se não encontrou o oficial do RHID nas apurações locais, faz o fallback para o gerador padrão de dias úteis
-    if (diasUteisRHID === null) {
-        diasUteisRHID = await _getDiasUteis(ano, mes, false);
-        diasUteisRHID_SegSex = await _getDiasUteis(ano, mes, true);
-    }
 
-    if (diasUteisRHID !== null) {
-        // Atualiza supervisores auto-preenchidos com a base oficial do RHID (ou fallback)
-        _recibosAllColabs.forEach(c => {
-            const s = _recibosSelecoes[c.id];
-            if (s && s.isAutoSupervisao) {
-                s.diasTrabalhados = diasUteisRHID_SegSex;
-                s.diasVR = diasUteisRHID_SegSex;
-                s.faltas = 0; // Garante que zera as faltas que possam ter retornado
-                s.pontoStatus = 'ok'; // Fica verdinho
-            }
-        });
-    }
-    // ─────────────────────────────────────────────────────────────────────
 
     _renderTabela();
 
@@ -1005,19 +1023,23 @@ window.carregarHistoricoRecibos = async function () {
         }
     } catch(e) { console.warn('Erro ao carregar histórico:', e); }
     
-    // Auto-fill para Supervisão
-    const diasUteis_SegSex = await _getDiasUteis(ano, mes, true);
-    _recibosAllColabs.forEach(c => {
+    // Auto-fill pela escala cadastrada (para quem ainda não tem histórico)
+    for (const c of _recibosAllColabs) {
         const s = _recibosSelecoes[c.id];
+        if (!s) continue;
         const isSupervisao = window._isSupervisao(c);
-        if (isSupervisao && s) {
-            if (s.diasTrabalhados === 0 && !s.historicoEncontrado) {
-                s.diasTrabalhados = diasUteis_SegSex;
-                s.diasVR = diasUteis_SegSex;
-            }
+        if (!s.historicoEncontrado) {
+            // Calcula crédito pela escala do mês vigente
+            const diasEscala = await _calcularDiasEscala(c, parseInt(ano), parseInt(mes));
+            s.diasTrabalhados = diasEscala;
+            s.diasVR          = diasEscala;
+            // Faltas ficam 0 até o RHID ser consultado
+            s.faltas = 0;
+        }
+        if (isSupervisao) {
             s.isAutoSupervisao = true; // Garante a cor azul para supervisores
         }
-    });
+    }
 
     _filtrarERendar();
     
