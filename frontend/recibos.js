@@ -924,29 +924,42 @@ window._recBuscarPontoSelecionados = async function () {
                     // Inclui no Cartão de Ponto (mesmo período da janela)
                     apuracaoParaCartao.push(d);
 
-                    // É falta se: 0 dias trabalhados, 0 horas, não é DSR/folga, não é feriado
+                    // ── Determinação de FALTA baseada diretamente nos dados do RHID ──
+                    // Regra: só conta como falta se o RHID indica que havia turno previsto
+                    // e o colaborador não compareceu. Folgas/DSR/dias sem turno = não falta.
                     const horasTrab = d.totalHorasTrabalhadas || d.horasUteis || 0;
-                    const isDSR    = (d.dsrConsideradoMinutos || 0) > 0;
-                    const isFol    = !!(d.status || '').toLowerCase().match(/folg|dsr|f\.c\./);
-                    const isHol    = !!(d.isHoliday);
                     const trabalhou = (d.diasTrabalhados || 0) > 0 || horasTrab > 0;
 
-                    // Verifica se é dia de folga na escala 12x36 (dia ímpar no ciclo)
-                    let isFolga12x36 = false;
-                    if (c.escala_tipo === 'escala_12x36' && c.escala_ciclo_inicio) {
-                        const dtCiclo = new Date(c.escala_ciclo_inicio + 'T12:00:00');
-                        const dtMid = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), 12, 0, 0);
-                        const difMs = dtMid - dtCiclo;
-                        if (difMs >= 0) {
-                            const difDias = Math.round(difMs / 86400000);
-                            if (difDias % 2 === 1) isFolga12x36 = true; // Ímpar = folga (36h)
-                        }
-                    }
+                    // Folga/DSR explícita pelo status do RHID
+                    const statusRHID = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
+                    const isFol = statusRHID.includes('folg') || statusRHID.includes('dsr') ||
+                                  statusRHID.includes('f.c.') || d.folga === true;
 
-                    if (!trabalhou && !isDSR && !isFol && !isHol && !isFolga12x36) {
+                    // DSR via campo específico (minutos de DSR computados)
+                    const isDSR = (d.dsrConsideradoMinutos || 0) > 0;
+
+                    // Feriado
+                    const isHol = !!(d.isHoliday);
+
+                    // ★ Chave: dia sem horário contratual previsto = folga (não falta)
+                    // Isso cobre: sábados de seg-sex, dias de descanso do 12x36, etc.
+                    const idHorario = d.idHorarioContratual || 0;
+                    const strHorario = (d.strHorarioContratualSimples || '').trim();
+                    const semHorarioPrevisto = (idHorario === 0 && strHorario === '');
+
+                    // Falta explícita pelo RHID
+                    const isFaltaRHID = d.faltaDiaInteiro === true || (d.faltasDiasInteiro || 0) > 0;
+
+                    if (isFaltaRHID) {
+                        // RHID diz explicitamente que é falta → conta
+                        faltasJanela++;
+                    } else if (!trabalhou && !isDSR && !isFol && !isHol && !semHorarioPrevisto) {
+                        // Não trabalhou, não é folga/DSR/feriado, e tinha turno previsto → falta
                         faltasJanela++;
                     }
+                    // Demais casos (folga, DSR, dia sem turno, feriado) → não conta como falta
                 });
+
 
                 // ── 4. Calcular CRÉDITO pelo mês SEGUINTE (M+1) ──────────────────
                 //    Selecionando Maio → crédito para Junho
@@ -1490,24 +1503,19 @@ window.baixarConferenciaPonto = async function () {
                 const hrsFalta = fmtMin(d.horasFaltaAtraso);
                 
                 let status = '-';
-                
-                let isFolga12x36 = false;
-                if (c.escala_tipo === 'escala_12x36' && c.escala_ciclo_inicio) {
-                    const dtCiclo = new Date(c.escala_ciclo_inicio + 'T12:00:00');
-                    const dtMid = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), 12, 0, 0);
-                    const difMs = dtMid - dtCiclo;
-                    if (difMs >= 0) {
-                        const difDias = Math.round(difMs / 86400000);
-                        if (difDias % 2 === 1) isFolga12x36 = true;
-                    }
-                }
 
-                if (isFolga12x36 && (!d.diasTrabalhados || d.diasTrabalhados === 0)) status = 'FOLGA ESCALA';
-                else if (d.faltaDiaInteiro) status = 'FALTA';
+                // Determina status baseado nos dados do RHID (não na escala cadastrada)
+                const statusRHID2 = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
+                const semHorarioPrevisto2 = ((d.idHorarioContratual || 0) === 0 && (d.strHorarioContratualSimples || '').trim() === '');
+
+                if (d.faltaDiaInteiro === true || (d.faltasDiasInteiro || 0) > 0) status = 'FALTA';
                 else if (d.isHoliday) status = 'FERIADO';
-                else if (d.dsrConsideradoMinutos > 0 || (d.diasTrabalhados === 0 && d.horasUteis === 0)) status = 'DSR / FOLGA';
+                else if (d.dsrConsideradoMinutos > 0) status = 'DSR / FOLGA';
+                else if (statusRHID2.includes('folg') || statusRHID2.includes('dsr') || d.folga === true) status = 'DSR / FOLGA';
                 else if (d.diasTrabalhados > 0) status = 'TRABALHADO';
                 else if (d.idJustification) status = 'JUSTIFICADO';
+                else if (semHorarioPrevisto2) status = 'FOLGA ESCALA'; // Dia sem turno previsto = folga
+
 
                 let marcacoesStr = '';
                 if (d.listAfdtManutencao && Array.isArray(d.listAfdtManutencao) && d.listAfdtManutencao.length > 0) {
