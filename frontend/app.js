@@ -15658,14 +15658,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
                   <label style="font-size:0.75rem;font-weight:700;color:#86198f;display:block;margin-bottom:4px;">⚠️ Tipo de Documento <span style="color:#ef4444;">*</span></label>
                   <select id="pm-tipo-doc" onchange="window._pmOnTipoChange()" style="width:100%;padding:0.5rem;border:2px solid #f9a8d4;border-radius:8px;font-size:0.85rem;background:#fff;font-weight:600;">
                     <option value="">-- Selecione o tipo antes de anexar --</option>
-                    <option value="Holerite Adiantamento">Holerite Adiantamento</option>
-                    <option value="Holerite Salario">Holerite Salário</option>
-                    <option value="Ferias">Férias</option>
-                    <option value="Rescisao">Rescisão / FGTS</option>
-                    <option value="Vale Alimentacao">Vale Alimentação</option>
-                    <option value="Vale Transporte">Vale Transporte</option>
                     <option value="Pagamentos">Pagamentos</option>
-                    <option value="Outro">Outro</option>
                   </select>
                 </div>
                 <div style="flex:1;min-width:120px;">
@@ -16122,10 +16115,10 @@ window.reenviarAssinatura = async function (id, source, btn) {
             </td>
             <td style="padding:0.5rem 0.75rem;font-size:0.8rem;color:#64748b;">${item.departamento || '-'}</td>
             <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#22c55e;">
-              ${(item.paginaAdiantamento && item.paginaAdiantamento !== '-') ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
+              ${(item.paginaAdiantamento && item.paginaAdiantamento !== '-') || item.docId ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
             </td>
             <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#22c55e;">
-              ${(item.paginaPagamento && item.paginaPagamento !== '-') ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
+              ${(item.paginaPagamento && item.paginaPagamento !== '-') || item.docId ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
             </td>
             <td style="padding:0.5rem 0.75rem;text-align:center;">
               <button onclick="window._pmPreview(${realIdx})" style="background:transparent;border:none;color:#3b82f6;cursor:pointer;padding:4px;border-radius:4px;" title="Visualizar Documento">
