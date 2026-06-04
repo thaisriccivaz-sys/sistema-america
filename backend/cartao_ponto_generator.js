@@ -1,4 +1,4 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 const htmlPdf = require('html-pdf-node');
 const { PDFDocument } = require('pdf-lib');
@@ -139,8 +139,11 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         if (d.listAfdtManutencao) {
             d.listAfdtManutencao.forEach(m => {
                 if (m.reason && m.reason.trim()) {
-                    const tipoOcorr = m.oculto ? '[D] ' : (m.isManual ? '[I] ' : '');
-                    obsLinhas.push(tipoOcorr + m.reason.trim());
+                    const reasonLower = m.reason.toLowerCase();
+                    if (!reasonLower.includes('batida autom')) {
+                        const tipoOcorr = m.oculto ? '[D] ' : (m.isManual ? '[I] ' : '');
+                        obsLinhas.push(tipoOcorr + m.reason.trim());
+                    }
                 }
             });
         }
