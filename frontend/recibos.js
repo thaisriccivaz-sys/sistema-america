@@ -1,4 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
+﻿// ─────────────────────────────────────────────────────────────────────────────
 // recibos.js — Recibos de Benefícios em Massa (VR, VT, VC)
 // v3.0 — campo nome_completo corrigido, sem "dias úteis globais",
 //         VC proporcional via diasTrab+faltas, erro RHID detalhado
@@ -1861,7 +1861,7 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
         
         <div style="border-top: 1px solid #999; margin-bottom: 5px;"></div>
         
-        <table style="width: 100%; border-collapse: collapse; font-size: 7px; text-align: left; table-layout: fixed;"><colgroup><col style="width:10%"><col style="width:12%"><col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:6%"><col style="width:5%"><col style="width:3%"><col style="width:5%"><col style="width:4%"><col style="width:4%"><col style="width:5%"><col style="width:5%"><col style="width:25%"></colgroup>
+        <table style="width: 100%; border-collapse: collapse; font-size: 7px; text-align: left; table-layout: fixed;"><colgroup><col style="width:10%"><col style="width:12%"><col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:6%"><col style="width:5%"><col style="width:4%"><col style="width:5%"><col style="width:4%"><col style="width:4%"><col style="width:5%"><col style="width:5%"><col style="width:24%"></colgroup>
             <thead>
                 <tr style="border-bottom: 1px solid #ccc; font-weight: bold; color: #475569;">
                     <th style="padding: 2px 1px;">DIA</th>
