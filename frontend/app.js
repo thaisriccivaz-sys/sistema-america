@@ -15654,13 +15654,6 @@ window.reenviarAssinatura = async function (id, source, btn) {
 
               <!-- Tipo de documento PRIMEIRO -->
               <div style="display:flex;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap;padding:1rem;background:#fdf4ff;border:1px solid #f9a8d4;border-radius:10px;">
-                <div style="flex:2;min-width:200px;">
-                  <label style="font-size:0.75rem;font-weight:700;color:#86198f;display:block;margin-bottom:4px;">⚠️ Tipo de Documento <span style="color:#ef4444;">*</span></label>
-                  <select id="pm-tipo-doc" onchange="window._pmOnTipoChange()" style="width:100%;padding:0.5rem;border:2px solid #f9a8d4;border-radius:8px;font-size:0.85rem;background:#fff;font-weight:600;">
-                    <option value="">-- Selecione o tipo antes de anexar --</option>
-                    <option value="Pagamentos">Pagamentos</option>
-                  </select>
-                </div>
                 <div style="flex:1;min-width:120px;">
                   <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Mês</label>
                   <select id="pm-mes" onchange="if(document.getElementById('pm-tipo-doc').value==='Pagamentos') window._pmCarregarDocumentos()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
@@ -15672,6 +15665,13 @@ window.reenviarAssinatura = async function (id, source, btn) {
                   <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Ano</label>
                   <input id="pm-ano" type="number" value="${new Date().getFullYear()}" min="2020" max="2099" onchange="if(document.getElementById('pm-tipo-doc').value==='Pagamentos') window._pmCarregarDocumentos()"
                     style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
+                </div>
+                <div style="flex:2;min-width:200px;">
+                  <label style="font-size:0.75rem;font-weight:700;color:#86198f;display:block;margin-bottom:4px;">⚠️ Tipo de Documento <span style="color:#ef4444;">*</span></label>
+                  <select id="pm-tipo-doc" onchange="window._pmOnTipoChange()" style="width:100%;padding:0.5rem;border:2px solid #f9a8d4;border-radius:8px;font-size:0.85rem;background:#fff;font-weight:600;">
+                    <option value="">-- Selecione o tipo antes de anexar --</option>
+                    <option value="Pagamentos">Pagamentos</option>
+                  </select>
                 </div>
               </div>
 
