@@ -1295,26 +1295,7 @@ window.anexarRecibosDocsMassa = async function () {
     const btnAnexar = document.getElementById('btn-anexar-massa');
     if (btnAnexar) { btnAnexar.disabled = true; btnAnexar.innerHTML = '<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Anexando e Salvando...'; }
 
-    // Aviso se faltar ponto
-    const semPonto = sels.filter(c => {
-        const s = _recibosSelecoes[c.id];
-        return !s || !s.apuracaoDiaria || s.apuracaoDiaria.length === 0;
-    });
-    if (semPonto.length > 0 && typeof Swal !== 'undefined') {
-        const r = await Swal.fire({
-            title: 'Atenção: Cartão de Ponto ausente',
-            html: `<span style="font-size:.9rem;"><b>${semPonto.length}</b> colaborador(es) não possuem os dados de ponto carregados.<br><br>O <b>Cartão de Ponto NÃO SERÁ INCLUÍDO</b> como 1ª página no PDF deles.<br><br>O que deseja fazer?</span>`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Continuar sem Ponto',
-            cancelButtonText: 'Cancelar (Buscar Ponto antes)',
-            confirmButtonColor: '#d33'
-        });
-        if (!r.isConfirmed) {
-            if (btnAnexar) { btnAnexar.disabled = false; btnAnexar.innerHTML = '<i class="ph ph-paperclip"></i> Anexar aos Docs. em Massa'; }
-            return;
-        }
-    }
+    // Aviso se faltar ponto - REMOVIDO a pedido da usuária (2026-06-04)
 
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
