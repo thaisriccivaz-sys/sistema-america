@@ -237,18 +237,8 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             </tfoot>
         </table>
         
-        <div style="margin-top: 15px; font-size: 7px; color: #64748b;">
-            (I)=Incluído, (P)=Pré-assinalado, (M)=Coletor REP-P Mobile/Web, (C)=Coletor REP-P (iDFace/iDFlex)
-        </div>
-        
-        <table style="width: 100%; border-collapse: collapse; margin-top: 35px; font-size: 8px; text-align: center;">
-            <tr>
-                <td style="width: 45%; border-top: 1px solid #94a3b8; padding-top: 4px; color: #475569;">${c.nome_completo}</td>
-                <td style="width: 10%;"></td>
-                <td style="width: 45%; border-top: 1px solid #94a3b8; padding-top: 4px; color: #475569;">AMERICA RENTAL EQUIPAMENTOS LTDA</td>
-            </tr>
-        </table>
     </div></body></html>`;
+
 }
 
 async function mergePdfPonto(originalPdfBuffer, colab, apuracaoDiaria, mes, ano, mesNome) {
