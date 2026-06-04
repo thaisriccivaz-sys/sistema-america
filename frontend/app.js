@@ -14817,6 +14817,12 @@ window.renderBookmarks = function () {
         if (key === 'usuarios-permissoes' || key === 'form-usuario') {
             btnLabel = 'Usuários';
         }
+        if (key === 'pagamentos-massa') {
+            btnLabel = 'Docs. em Massa';
+        }
+        if (key === 'recibos') {
+            btnLabel = 'Recibos';
+        }
 
         return `<button onclick="abrirAbaOuNavegar('${key}')" style="background:${btnColor}; color:white; border:none; border-radius:16px; padding:4px 12px; font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; box-shadow:0 2px 4px rgba(0,0,0,0.2); transition:transform 0.2s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">${btnLabel}</button>`;
     }).join('');
