@@ -6997,17 +6997,29 @@ window.renderPagamentosCompetencia = function () {
     const secOutros = document.createElement('div');
     secOutros.style.cssText = 'margin-top:1.5rem; border-top:2px dashed #e2e8f0; padding-top:1.25rem;';
     secOutros.innerHTML = `
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; flex-wrap:wrap; gap:0.75rem;">
             <h5 style="margin:0; color:#475569; display:flex; align-items:center; gap:0.5rem;">
                 <i class="ph ph-folder-open" style="font-size:1.2rem;"></i> Outros <span style="font-size:0.8rem; font-weight:400; color:#94a3b8; margin-left:4px;">(documentos avulsos do mês)</span>
             </h5>
-            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; background:#475569; color:#fff; border-radius:8px; padding:6px 14px; font-size:0.85rem; font-weight:600; transition:background 0.2s;"
-                   onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'">
-                <i class="ph ph-upload-simple"></i> Adicionar Outro
-                <input type="file" accept=".pdf" style="display:none;"
-                    onchange="window.uploadDocument(this, 'Pagamentos', 'Outros', '${y}', '${m}')">
-            </label>
+            <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:8px; font-size:0.82rem;">
+                    <span style="font-weight:600;color:#64748b;">Exige Assinatura?</span>
+                    <label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin:0;font-weight:500;">
+                        <input type="radio" name="outros-assin-${y}-${m}" value="PENDENTE" checked> Sim
+                    </label>
+                    <label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin:0;font-weight:500;">
+                        <input type="radio" name="outros-assin-${y}-${m}" value="NAO_EXIGE"> Não
+                    </label>
+                </div>
+                <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; background:#475569; color:#fff; border-radius:8px; padding:6px 14px; font-size:0.85rem; font-weight:600; transition:background 0.2s;"
+                       onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'">
+                    <i class="ph ph-upload-simple"></i> Adicionar Outro
+                    <input type="file" accept=".pdf" style="display:none;"
+                        onchange="const r=this.closest('div').querySelector('input[name^=outros-assin-]:checked'); window.uploadDocument(this, 'Pagamentos', 'Outros', '${y}', '${m}', null, r ? r.value : 'PENDENTE')">
+                </label>
+            </div>
         </div>
+
         <div style="display:flex; flex-wrap:wrap; gap:0.75rem;">
             ${outrosDocs.length === 0
                 ? `<p style="color:#94a3b8; font-size:0.85rem; margin:0;">Nenhum documento avulso para este mês.</p>`
