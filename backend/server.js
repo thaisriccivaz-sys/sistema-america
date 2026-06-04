@@ -6244,6 +6244,41 @@ app.post('/api/recibos/anexar-massa', authenticateToken, async (req, res) => {
 });
 
 // POST: Anexar recibos em lote otimizado (usa uma única instância do navegador)
+// ─── Upload de PDF gerado pelo browser (sem Chromium no servidor) ──────────────
+app.post('/api/recibos/upload-pdf-colab',
+    authenticateToken,
+    multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }).single('pdf'),
+    async (req, res) => {
+        try {
+            const { colaborador_id, mes, ano, nomeArquivo } = req.body;
+            if (!colaborador_id || !mes || !ano || !req.file) {
+                return res.status(400).json({ error: 'Parâmetros inválidos' });
+            }
+
+            const bufferPDF = req.file.buffer;
+            const nome = nomeArquivo || `Pagamentos_${colaborador_id}_${mes}${ano}.pdf`;
+
+            const { docId } = await pagamentosMassa.salvarDocumentoNoBanco({
+                colaboradorId: Number(colaborador_id),
+                nomeColab: '',
+                bufferPDF,
+                nomeArquivo: nome,
+                tipoDocumento: 'Pagamentos',
+                ano,
+                mes,
+                basePath: BASE_UPLOAD_PATH,
+            });
+
+            uploadDocToOneDrive(docId).catch(e => console.warn('[UPLOAD-PDF] OneDrive bg:', e.message));
+            console.log(`[UPLOAD-PDF] ✅ Colaborador ${colaborador_id} — ${nome}`);
+            res.json({ ok: true, docId });
+        } catch (e) {
+            console.error('[UPLOAD-PDF] Erro:', e.message);
+            res.status(500).json({ error: e.message });
+        }
+    }
+);
+
 app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) => {
     const { lote, mes, ano } = req.body;
     if (!lote || !Array.isArray(lote) || !mes || !ano) return res.status(400).json({ error: 'Parâmetros inválidos' });

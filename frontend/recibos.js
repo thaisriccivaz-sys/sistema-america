@@ -1324,11 +1324,9 @@ window.anexarRecibosDocsMassa = async function () {
     const valorVR = window._recibosValorVR || 35.00;
 
     const btnAnexar = document.getElementById('btn-anexar-massa');
-    if (btnAnexar) { btnAnexar.disabled = true; btnAnexar.innerHTML = '<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Anexando e Salvando...'; }
+    if (btnAnexar) { btnAnexar.disabled = true; btnAnexar.innerHTML = '<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Gerando PDFs...'; }
     _recShowBannerAnexando(0, sels.length);
     _ensureSpinCss();
-
-    // Aviso se faltar ponto - REMOVIDO a pedido da usuária (2026-06-04)
 
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
@@ -1349,81 +1347,91 @@ window.anexarRecibosDocsMassa = async function () {
             body: JSON.stringify({ mes, ano, itens: itensSalvar })
         });
 
-        // 2. Enviar HTML de cada colaborador em LOTES para o servidor (otimização de performance)
+        // 2. Gerar PDFs NO BROWSER (sem Chromium no servidor) e enviar o binário
         const logo = await _recGetLogo();
         let sucesso = 0, falha = 0;
-        let progresso = 0;
 
-        const LOTE_SIZE = 10;
-        let lotes = [];
-        for (let i = 0; i < sels.length; i += LOTE_SIZE) {
-            lotes.push(sels.slice(i, i + LOTE_SIZE));
+        // Container oculto para renderizar o HTML antes de gerar o PDF
+        let hiddenDiv = document.getElementById('_rec_pdf_render_container');
+        if (!hiddenDiv) {
+            hiddenDiv = document.createElement('div');
+            hiddenDiv.id = '_rec_pdf_render_container';
+            hiddenDiv.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:794px;background:#fff;z-index:-1;';
+            document.body.appendChild(hiddenDiv);
         }
 
-        for (const lote of lotes) {
-            let loteData = [];
-            for (const c of lote) {
-                const s = _recibosSelecoes[c.id] || { diasTrabalhados: 0, diasVR: 0, faltas: 0, diasExtra: 0 };
-                const m = (c.meio_transporte||'').toLowerCase();
-                let corpo = '';
-                
-                // Cartão de Ponto é anexado via PDF-Lib no backend para garantir a formatação
+        for (let idx = 0; idx < sels.length; idx++) {
+            const c = sels[idx];
+            const s = _recibosSelecoes[c.id] || { diasTrabalhados: 0, diasVR: 0, faltas: 0, diasExtra: 0 };
+            const m = (c.meio_transporte||'').toLowerCase();
 
-
-                corpo += _buildReciboBlock('VR', c, s, mes, mesNome, ano, valorVR, logo);
-                if (_isVT(m)) { corpo += '<div class="pb"></div>' + _buildReciboBlock('VT', c, s, mes, mesNome, ano, valorVR, logo); }
-                if (_isVC(m)) { corpo += '<div class="pb"></div>' + _buildReciboBlock('VC', c, s, mes, mesNome, ano, valorVR, logo); }
-
-                const htmlContent = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Recibos</title>
-                <style>
-                  *{box-sizing:border-box;margin:0;padding:0;}
-                  body{font-family:Arial,Helvetica,sans-serif;font-size:12px;background:#fff;color:#111;}
-                  .pb{page-break-before:always;}
-                  .via{page-break-inside:avoid;}
-                </style>
-                </head><body>${corpo}</body></html>`;
-
-                loteData.push({ htmlContent, colaborador_id: c.id });
-            }
-
-            progresso += lote.length;
-            _recShowBannerAnexando(progresso, sels.length);
+            // Atualizar progresso
             const btnAn = document.getElementById('btn-anexar-massa');
-            if (btnAn) {
-                btnAn.innerHTML = `<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Anexando (${progresso}/${sels.length})...`;
-            }
+            if (btnAn) btnAn.innerHTML = `<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Gerando PDF ${idx+1}/${sels.length}...`;
+            _recShowBannerAnexando(idx, sels.length);
 
             try {
-                const resUpload = await fetch(`${API_URL}/recibos/anexar-massa-lote`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ lote: loteData, mes, ano })
+                // Montar HTML do recibo
+                let corpo = '';
+                corpo += _buildReciboBlock('VR', c, s, mes, mesNome, ano, valorVR, logo);
+                if (_isVT(m)) { corpo += '<div style="page-break-before:always;"></div>' + _buildReciboBlock('VT', c, s, mes, mesNome, ano, valorVR, logo); }
+                if (_isVC(m)) { corpo += '<div style="page-break-before:always;"></div>' + _buildReciboBlock('VC', c, s, mes, mesNome, ano, valorVR, logo); }
+
+                hiddenDiv.innerHTML = `<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:Arial,Helvetica,sans-serif;font-size:12px;background:#fff;color:#111;}</style>${corpo}`;
+
+                // Gerar PDF usando html2pdf.js (roda no browser, sem Chromium)
+                const pdfBlob = await new Promise((resolve, reject) => {
+                    if (typeof html2pdf === 'undefined') { reject(new Error('html2pdf não disponível')); return; }
+                    html2pdf().set({
+                        margin: 0,
+                        filename: `recibo_${c.id}.pdf`,
+                        image: { type: 'jpeg', quality: 0.85 },
+                        html2canvas: { scale: 1.5, useCORS: true, logging: false },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                        pagebreak: { mode: ['css', 'legacy'] }
+                    }).from(hiddenDiv).outputPdf('blob').then(resolve).catch(reject);
                 });
-                
+
+                // Enviar o PDF pronto para o servidor (só salva, não gera nada)
+                const safeNome = (c.nome_completo || 'Colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
+                const nomeArquivo = `Pagamentos_${safeNome}_${mes}${ano}.pdf`;
+
+                const formData = new FormData();
+                formData.append('pdf', pdfBlob, nomeArquivo);
+                formData.append('colaborador_id', c.id);
+                formData.append('mes', mes);
+                formData.append('ano', ano);
+                formData.append('nomeArquivo', nomeArquivo);
+
+                const resUpload = await fetch(`${API_URL}/recibos/upload-pdf-colab`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+
                 if (resUpload.ok) {
-                    const json = await resUpload.json();
-                    // Servidor responde imediatamente com processando:true para evitar timeout
-                    // Conta como sucesso se recebeu OK
-                    if (json.processando) {
-                        sucesso += lote.length; // Backend processará em background
-                    } else {
-                        sucesso += json.sucesso || 0;
-                        falha += json.falha || 0;
-                    }
+                    sucesso++;
                 } else {
-                    falha += lote.length;
+                    falha++;
+                    console.error(`Falha upload colaborador ${c.nome_completo}`);
                 }
-            } catch (errReq) {
-                console.error("Erro ao enviar lote", errReq);
-                falha += lote.length;
+            } catch (errColab) {
+                falha++;
+                console.error(`Erro colaborador ${c.nome_completo}:`, errColab.message);
             }
+
+            // Pequena pausa entre colaboradores para não travar o browser
+            await new Promise(r => setTimeout(r, 100));
         }
+
+        // Limpar container temporário
+        hiddenDiv.innerHTML = '';
 
         if (typeof Swal !== 'undefined') {
             Swal.fire({
-                title: 'Enviado com sucesso!',
-                html: `Os recibos de <strong>${sucesso}</strong> colaborador(es) foram enviados para processamento.<br><small style="color:#64748b;">⏳ Os PDFs serão gerados e salvos automaticamente nos próximos minutos. Você pode fechar esta tela.</small>${falha > 0 ? `<br><span style="color:#ef4444;">⚠️ ${falha} não enviado(s)</span>` : ''}`,
-                icon: 'success',
+                title: sucesso > 0 ? 'Concluído!' : 'Atenção',
+                html: `<strong>${sucesso}</strong> recibo(s) salvo(s) com sucesso nos prontuários.${falha > 0 ? `<br><span style="color:#ef4444;">⚠️ ${falha} com erro</span>` : ''}`,
+                icon: sucesso > 0 ? 'success' : 'warning',
                 confirmButtonText: 'OK'
             });
         }
@@ -1433,6 +1441,7 @@ window.anexarRecibosDocsMassa = async function () {
 
     _recHideBannerAnexando();
     const btnAn2 = document.getElementById('btn-anexar-massa');
+
     if (btnAn2) { btnAn2.disabled = false; btnAn2.innerHTML = '<i class="ph ph-paperclip"></i> Anexar aos Docs. em Massa'; }
 };
 
