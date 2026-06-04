@@ -127,7 +127,11 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         // ── OBSERVAÇÕES: toolTipAlert + razões de pontos tratados ──────────────
         const obsLinhas = [];
         if (d.toolTipAlert && d.toolTipAlert.trim()) {
-            obsLinhas.push(d.toolTipAlert.trim());
+            // Filtra mensagens genéricas não relevantes
+            const alertText = d.toolTipAlert.trim();
+            if (!alertText.toLowerCase().includes('extra acima de 10 min')) {
+                obsLinhas.push(alertText);
+            }
         }
         if (d.listAfdtManutencao) {
             d.listAfdtManutencao.forEach(m => {
@@ -156,16 +160,16 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${sai1_td}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : e2}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : s2}</td>
+            <td style="padding:3px 8px 3px 1px;border-bottom:1px solid #f1f5f9;"></td><!-- espaço SAI2-TOTAL -->
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${normais}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${noturn}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${status === 'Falta' ? '1' : ''}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${fmtMin(faltaAtrasoMin)}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;"></td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extra60}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extra100}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extraDiurna}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extraNoturna}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;color:#b45309;font-size:6.5px;">${obsText}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;color:#111;font-size:6.5px;">${obsText}</td>
         </tr>`;
     });
 
@@ -234,12 +238,11 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
                     <th style="padding: 2px 1px;">ENT. 1</th>
                     <th style="padding: 2px 1px;">SAÍ. 1</th>
                     <th style="padding: 2px 1px;">ENT. 2</th>
-                    <th style="padding: 2px 1px;">SAÍ. 2</th>
+                    <th style="padding: 2px 8px 2px 1px;">SAÍ. 2</th><!-- padding-right maior para separar -->
                     <th style="padding: 2px 1px;">TOTAL NORMAIS</th>
                     <th style="padding: 2px 1px;">TOTAL NOTURNO</th>
                     <th style="padding: 2px 1px;">DIA FALTA</th>
                     <th style="padding: 2px 1px;">FALTA E ATRASO</th>
-                    <th style="padding: 2px 1px;">ABONO</th>
                     <th style="padding: 2px 1px;">EXTRA 60%</th>
                     <th style="padding: 2px 1px;">EXTRA 100%</th>
                     <th style="padding: 2px 1px;">EXTRA DIURNA</th>
@@ -252,12 +255,11 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             </tbody>
             <tfoot>
                 <tr style="font-weight: bold; border-top: 1px solid #999; background: #f8fafc;">
-                    <td colspan="6" style="padding: 3px 1px;">TOTAIS</td>
+                    <td colspan="5" style="padding: 3px 1px;">TOTAIS</td>
                     <td style="padding: 3px 1px;">${fmtMin(totalNormais)}</td>
                     <td style="padding: 3px 1px;">${fmtMin(totalNoturno)}</td>
                     <td style="padding: 3px 1px;"></td>
                     <td style="padding: 3px 1px;">${fmtMin(totalFaltaAtraso)}</td>
-                    <td style="padding: 3px 1px;"></td>
                     <td style="padding: 3px 1px;">${fmtMin(totalExtra60)}</td>
                     <td style="padding: 3px 1px;">${fmtMin(totalExtra100)}</td>
                     <td style="padding: 3px 1px;">${fmtMin(totalExtraDiurna)}</td>
