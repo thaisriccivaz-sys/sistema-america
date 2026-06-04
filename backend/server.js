@@ -6468,7 +6468,7 @@ app.post('/api/pagamentos-massa/preview-merge', async (req, res) => {
         // Merge Adiantamento if provided
         if (pdfAdiantamento && paginaAdiantamento) {
             const bufAd = Buffer.from(pdfAdiantamento, 'base64');
-            const bufExtraidaAd = await pagamentosMassa.extrairPagina(bufAd, parseInt(paginaAdiantamento));
+            const bufExtraidaAd = await pagamentosMassa.extrairPagina(bufAd, parseInt(paginaAdiantamento), true);
             const adPdfDoc = await PDFDocument.load(bufExtraidaAd);
             const [adPage] = await basePdfDoc.copyPages(adPdfDoc, [0]);
             basePdfDoc.addPage(adPage);
@@ -6477,7 +6477,7 @@ app.post('/api/pagamentos-massa/preview-merge', async (req, res) => {
         // Merge Pagamento if provided
         if (pdfPagamento && paginaPagamento) {
             const bufPg = Buffer.from(pdfPagamento, 'base64');
-            const bufExtraidaPg = await pagamentosMassa.extrairPagina(bufPg, parseInt(paginaPagamento));
+            const bufExtraidaPg = await pagamentosMassa.extrairPagina(bufPg, parseInt(paginaPagamento), true);
             const pgPdfDoc = await PDFDocument.load(bufExtraidaPg);
             const [pgPage] = await basePdfDoc.copyPages(pgPdfDoc, [0]);
             basePdfDoc.addPage(pgPage);
@@ -6522,7 +6522,8 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
             if (!docId) {
                 if (!bufferPDF) throw new Error('PDF base não fornecido para extração.');
                 // 1. Extrair página individual
-                let bufPagina = await pagamentosMassa.extrairPagina(bufferPDF, item.pagina);
+                const isHolerite = tipoDocumento.toLowerCase().includes('holerite') || tipoDocumento === 'Pagamentos';
+                let bufPagina = await pagamentosMassa.extrairPagina(bufferPDF, item.pagina, isHolerite);
 
                 // 2. Buscar colaborador
                 const colab = await new Promise((resolve, reject) =>
@@ -6574,19 +6575,19 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                         const fs = require('fs').promises;
                         const path = require('path');
                         
-                        const fullPath = path.join(BASE_UPLOAD_PATH, rowBase.file_path);
+                        const fullPath = rowBase.file_path;
                         const baseBytes = await fs.readFile(fullPath);
                         const basePdfDoc = await PDFDocument.load(baseBytes);
                         
                         if (bufAd && item.paginaAdiantamento) {
-                            const bufExtraidaAd = await pagamentosMassa.extrairPagina(bufAd, item.paginaAdiantamento);
+                            const bufExtraidaAd = await pagamentosMassa.extrairPagina(bufAd, item.paginaAdiantamento, true);
                             const adPdfDoc = await PDFDocument.load(bufExtraidaAd);
                             const [adPage] = await basePdfDoc.copyPages(adPdfDoc, [0]);
                             basePdfDoc.addPage(adPage);
                         }
                         
                         if (bufPg && item.paginaPagamento) {
-                            const bufExtraidaPg = await pagamentosMassa.extrairPagina(bufPg, item.paginaPagamento);
+                            const bufExtraidaPg = await pagamentosMassa.extrairPagina(bufPg, item.paginaPagamento, true);
                             const pgPdfDoc = await PDFDocument.load(bufExtraidaPg);
                             const [pgPage] = await basePdfDoc.copyPages(pgPdfDoc, [0]);
                             basePdfDoc.addPage(pgPage);

@@ -199,11 +199,19 @@ async function processarPDF(bufferPDF, tipoDocumento) {
 
 /**
  * Extrai uma página específica do PDF e retorna como Buffer
+ * Se isHolerite = true, recorta a metade superior (para ficar 1 via só).
  */
-async function extrairPagina(bufferPDF, numeroPagina) {
+async function extrairPagina(bufferPDF, numeroPagina, isHolerite = false) {
     const pdfOriginal = await PDFDocument.load(bufferPDF);
     const novoPdf = await PDFDocument.create();
     const [pagina] = await novoPdf.copyPages(pdfOriginal, [numeroPagina - 1]); // 0-indexed
+    
+    if (isHolerite) {
+        const { width, height } = pagina.getSize();
+        // Recorta a metade superior: y = height/2 (em PDF y cresce pra cima), height do recorte = height/2
+        pagina.setCropBox(0, height / 2, width, height / 2);
+    }
+    
     novoPdf.addPage(pagina);
     const pdfBytes = await novoPdf.save();
     return Buffer.from(pdfBytes);
