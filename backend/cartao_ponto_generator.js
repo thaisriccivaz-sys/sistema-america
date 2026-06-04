@@ -32,6 +32,7 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
     let totalNormais = 0, totalNoturno = 0, totalExtra60 = 0, totalExtra100 = 0;
     let totalExtraDiurna = 0, totalExtraNoturna = 0, totalFaltaAtraso = 0;
     const diasSemana = ['DOM','SEG','TER','QUA','QUI','SEX','SAB'];
+    let horarioContratualInfo = null;
     
     apuracaoDiaria.forEach(d => {
         let diaStr = String(d.date || d.dateTimeStr || '').substring(0,10);
@@ -115,6 +116,32 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         totalExtraNoturna += extraNocturnaMin;
         totalFaltaAtraso  += faltaAtrasoMin;
 
+        // ── HORÁRIO CONTRATUAL: coleta da primeira iteração com escala definida ───
+        if (!horarioContratualInfo && d.idHorarioContratual && d.strHorarioContratualSimples && d.strHorarioContratualSimples.trim()) {
+            horarioContratualInfo = {
+                codigo: String(d.idHorarioContratual).padStart(5, '0'),
+                horario: d.strHorarioContratualSimples
+            };
+        }
+
+        // ── OBSERVAÇÕES: toolTipAlert + razões de pontos tratados ──────────────
+        const obsLinhas = [];
+        if (d.toolTipAlert && d.toolTipAlert.trim()) {
+            obsLinhas.push(d.toolTipAlert.trim());
+        }
+        if (d.listAfdtManutencao) {
+            d.listAfdtManutencao.forEach(m => {
+                if (m.reason && m.reason.trim()) {
+                    const mh = Math.floor(m.hora/100).toString().padStart(2,'0');
+                    const mm2 = (m.hora%100).toString().padStart(2,'0');
+                    const tipoOcorr = m.oculto ? 'D' : (m.isManual ? 'I' : '');
+                    const ocorrStr = tipoOcorr ? `[${tipoOcorr}] ${mh}:${mm2}: ` : `${mh}:${mm2}: `;
+                    obsLinhas.push(ocorrStr + m.reason.trim());
+                }
+            });
+        }
+        const obsText = obsLinhas.join(' | ');
+
         let previsto = c.escala || '08:00-12:00 13:00-17:48';
         if (status) { previsto = status === 'Falta' ? '' : (status.startsWith('Feriado') ? 'FERIADO' : ''); }
 
@@ -138,6 +165,7 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extra100}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extraDiurna}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extraNoturna}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;color:#b45309;font-size:6.5px;">${obsText}</td>
         </tr>`;
     });
 
@@ -216,6 +244,7 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
                     <th style="padding: 2px 1px;">EXTRA 100%</th>
                     <th style="padding: 2px 1px;">EXTRA DIURNA</th>
                     <th style="padding: 2px 1px;">EXTRA NOTURNA</th>
+                    <th style="padding: 2px 1px;">OBSERVAÇÕES</th>
                 </tr>
             </thead>
             <tbody>
@@ -233,10 +262,44 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
                     <td style="padding: 3px 1px;">${fmtMin(totalExtra100)}</td>
                     <td style="padding: 3px 1px;">${fmtMin(totalExtraDiurna)}</td>
                     <td style="padding: 3px 1px;">${fmtMin(totalExtraNoturna)}</td>
+                    <td style="padding: 3px 1px;"></td>
                 </tr>
             </tfoot>
         </table>
         
+        ${(() => {
+            if (!horarioContratualInfo) return '';
+            const periodos = horarioContratualInfo.horario.split(/[\r\n]+/).filter(p => p.trim());
+            let headerCols = '';
+            let dataCols = '';
+            periodos.forEach((p, i) => {
+                const parts = p.trim().split('-');
+                const ent = parts[0] ? parts[0].trim() : '';
+                const sai = parts[1] ? parts[1].trim() : '';
+                headerCols += `<th style="padding:2px 8px;border:1px solid #ccc;background:#f1f5f9;">ENT</th><th style="padding:2px 8px;border:1px solid #ccc;background:#f1f5f9;">SAI</th>`;
+                dataCols   += `<td style="padding:3px 8px;border:1px solid #ccc;">${ent}</td><td style="padding:3px 8px;border:1px solid #ccc;">${sai}</td>`;
+            });
+            return `
+            <div style="margin-top:20px;">
+                <div style="font-size:11px;font-weight:bold;margin-bottom:6px;">Horários Contratuais do Empregado</div>
+                <table style="border-collapse:collapse;font-size:8px;">
+                    <thead>
+                        <tr>
+                            <th style="padding:2px 8px;border:1px solid #ccc;background:#f1f5f9;">CÓDIGO DO HORÁRIO (CH)</th>
+                            ${headerCols}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding:3px 8px;border:1px solid #ccc;">${horarioContratualInfo.codigo}</td>
+                            ${dataCols}
+                        </tr>
+                    </tbody>
+                </table>
+                <div style="margin-top:8px;font-size:7px;color:#64748b;">(I)=Incluído, (P)=Pré-assinalado, (D)=Desconsiderado</div>
+            </div>`;
+        })()}
+
     </div></body></html>`;
 
 }
