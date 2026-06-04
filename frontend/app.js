@@ -15872,19 +15872,6 @@ window.reenviarAssinatura = async function (id, source, btn) {
             }
         }
     };
-            dz.style.cursor    = 'pointer';
-            dz.style.opacity   = '1';
-            dz.style.background = '#f8fafc';
-            dz.querySelector('i').style.color = '#f503c5';
-            dz.querySelectorAll('p').forEach(p => p.style.color = p === dz.querySelector('p') ? '#374151' : '#6b7280');
-            dz.querySelector('p').textContent = 'Arraste o PDF aqui ou clique para selecionar';
-            dz.querySelectorAll('p')[1].textContent = 'Apenas arquivos PDF • Máx. 50 MB';
-        } else {
-            dz.style.cursor    = 'not-allowed';
-            dz.style.opacity   = '0.5';
-            dz.style.background = '#f1f5f9';
-        }
-    };
 
     window._pmDropzoneClick = function() {
         if (!window._pmTipoOk()) {
