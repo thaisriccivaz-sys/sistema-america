@@ -15789,6 +15789,8 @@ window.reenviarAssinatura = async function (id, source, btn) {
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">COLABORADOR</th>
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">DEPARTAMENTO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">MATCH</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">ADIANTAMENTO</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">HOLERITE</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">AÇÕES</th>
                      </tr>
                   </thead>
@@ -16121,6 +16123,12 @@ window.reenviarAssinatura = async function (id, source, btn) {
             </td>
             <td style="padding:0.5rem 0.75rem;font-size:0.8rem;color:#64748b;">${item.departamento || '-'}</td>
             <td style="padding:0.5rem 0.75rem;font-size:0.75rem;font-weight:600;">${matchLabels[item.confianca] || matchLabels[null]}</td>
+            <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#22c55e;">
+              ${(item.paginaAdiantamento && item.paginaAdiantamento !== '-') ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
+            </td>
+            <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#22c55e;">
+              ${(item.paginaPagamento && item.paginaPagamento !== '-') ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
+            </td>
             <td style="padding:0.5rem 0.75rem;text-align:center;">
               <button onclick="window._pmPreview(${realIdx})" style="background:transparent;border:none;color:#3b82f6;cursor:pointer;padding:4px;border-radius:4px;" title="Visualizar Documento">
                  <i class="ph ph-eye" style="font-size:1.1rem;"></i>
