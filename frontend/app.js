@@ -6937,7 +6937,7 @@ window.renderPagamentosCompetencia = function () {
     slotPag.style.cssText = 'border-left: 4px solid #a21caf; background: linear-gradient(to right, #fdf4ff, #fff);';
     subContainer.appendChild(slotPag);
 
-    ['Ponto', 'Holerite Pagamento', 'Holerite Adiantamento', 'Recibo Combustível', 'Recibo Alimentação', 'Pendente', 'Outros'].forEach(type => {
+    ['Ponto', 'Holerite Pagamento', 'Holerite Adiantamento', 'Recibo Combustível', 'Recibo Alimentação', 'Pendente'].forEach(type => {
         const d = docs.find(x => x.document_type === type);
         subContainer.appendChild(createDocSlot('Pagamentos', type, d, `'${y}'`, `'${m}'`));
     });
@@ -6993,6 +6993,47 @@ window.renderPagamentosCompetencia = function () {
         </div>
     `;
     subContainer.appendChild(secFerias);
+
+    // ── Seção Outros (documentos avulsos do mês) ──────────────────────────────────────────
+    const outrosDocs = currentDocs.filter(d => d.tab_name === 'Pagamentos' && d.document_type === 'Outros' && d.year == y && d.month == m);
+
+    const secOutros = document.createElement('div');
+    secOutros.style.cssText = 'margin-top:1.5rem; border-top:2px dashed #e2e8f0; padding-top:1.25rem;';
+    secOutros.innerHTML = `
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+            <h5 style="margin:0; color:#475569; display:flex; align-items:center; gap:0.5rem;">
+                <i class="ph ph-folder-open" style="font-size:1.2rem;"></i> Outros <span style="font-size:0.8rem; font-weight:400; color:#94a3b8; margin-left:4px;">(documentos avulsos do mês)</span>
+            </h5>
+            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; background:#475569; color:#fff; border-radius:8px; padding:6px 14px; font-size:0.85rem; font-weight:600; transition:background 0.2s;"
+                   onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'">
+                <i class="ph ph-upload-simple"></i> Adicionar Outro
+                <input type="file" accept=".pdf" style="display:none;"
+                    onchange="window.uploadDocument(this, 'Pagamentos', 'Outros', '${y}', '${m}')">
+            </label>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:0.75rem;">
+            ${outrosDocs.length === 0
+                ? `<p style="color:#94a3b8; font-size:0.85rem; margin:0;">Nenhum documento avulso para este mês.</p>`
+                : outrosDocs.map(d => `
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0.75rem 1rem; display:flex; align-items:center; gap:0.75rem; min-width:220px;">
+                        <i class="ph ph-file-text" style="color:#64748b; font-size:1.4rem;"></i>
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-weight:600; font-size:0.85rem; color:#374151; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${d.file_name || 'Outros'}">Outros</div>
+                            <div style="font-size:0.75rem; color:#64748b;">${d.file_name || ''}</div>
+                        </div>
+                        <div style="display:flex; gap:4px;">
+                            <button onclick="viewDoc(${d.id})" title="Visualizar" style="background:#e2e8f0; color:#475569; border:none; border-radius:6px; padding:4px 8px; cursor:pointer;">
+                                <i class="ph ph-eye"></i>
+                            </button>
+                            <button onclick="deleteDoc(${d.id})" title="Excluir" style="background:#fee2e2; color:#dc2626; border:none; border-radius:6px; padding:4px 8px; cursor:pointer;">
+                                <i class="ph ph-trash"></i>
+                            </button>
+                        </div>
+                    </div>`).join('')
+            }
+        </div>
+    `;
+    subContainer.appendChild(secOutros);
 };
 
 window.uploadDocument = async function (inputEl, tabId, docType, year = null, month = null, vencimento = null, reqAssin = null) {
