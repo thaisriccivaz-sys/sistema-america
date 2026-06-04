@@ -15799,18 +15799,24 @@ window.reenviarAssinatura = async function (id, source, btn) {
               <!-- Botão Enviar -->
               <div style="margin-top:1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
                 <div id="pm-selecionados-info" style="font-size:0.85rem;color:#64748b;"></div>
-                <button id="pm-btn-enviar" onclick="window._pmEnviar()"
-                  style="padding:0.65rem 1.5rem;background:linear-gradient(135deg,#f503c5,#a21caf);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:0.5rem;">
-                  <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
-                </button>
+                <div style="display:flex; gap:0.5rem;">
+                  <button id="pm-btn-salvar" onclick="window._pmSalvar()"
+                    style="padding:0.65rem 1.5rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:0.5rem;">
+                    <i class="ph ph-floppy-disk"></i> Salvar Holerites nos Colaboradores
+                  </button>
+                  <button id="pm-btn-enviar" onclick="window._pmEnviar()"
+                    style="padding:0.65rem 1.5rem;background:linear-gradient(135deg,#f503c5,#a21caf);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:0.5rem;">
+                    <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
+                  </button>
+                </div>
               </div>
             </div>
 
             <!-- ETAPA 3: Progresso -->
             <div id="pm-progress-section" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.5rem;">
-              <h3 style="margin:0 0 1rem;font-size:0.95rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:0.5rem;">
+              <h3 id="pm-progress-title" style="margin:0 0 1rem;font-size:0.95rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:0.5rem;">
                 <span style="background:#f503c5;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">3</span>
-                Enviando...
+                Processando...
               </h3>
               <div style="background:#f1f5f9;border-radius:8px;height:12px;overflow:hidden;margin-bottom:0.75rem;">
                 <div id="pm-progress-bar" style="height:100%;background:linear-gradient(90deg,#f503c5,#a21caf);width:0%;transition:width 0.4s;"></div>
@@ -16214,15 +16220,71 @@ window.reenviarAssinatura = async function (id, source, btn) {
         if (info) info.innerHTML = `<strong>${selecionados}</strong> selecionados para envio${semMatch ? ` • <span style="color:#ef4444">${semMatch} sem match</span>` : ''}`;
     }
 
-    // ── Enviar ─────────────────────────────────────────────────────────────────
+    // ── Salvar e Enviar ────────────────────────────────────────────────────────
+    window._pmSalvar = async function () {
+        const itensSelecionados = _itensProcessados.filter(i => i.selecionado && i.colaborador_id);
+        if (!itensSelecionados.length) { alert('Selecione pelo menos um colaborador para salvar.'); return; }
+        if (!confirm(`Salvar documentos para ${itensSelecionados.length} colaborador(es)?`)) return;
+
+        const btn1 = document.getElementById('pm-btn-salvar');
+        const btn2 = document.getElementById('pm-btn-enviar');
+        if(btn1){ btn1.disabled = true; btn1.style.opacity = '0.6'; }
+        if(btn2){ btn2.disabled = true; btn2.style.opacity = '0.6'; }
+
+        const tipo = document.getElementById('pm-tipo-doc')?.value || 'Holerite Adiantamento';
+        const mes  = document.getElementById('pm-mes')?.value || String(new Date().getMonth()+1).padStart(2,'0');
+        const ano  = document.getElementById('pm-ano')?.value || String(new Date().getFullYear());
+
+        try {
+            const bodyParams = {
+                pdfBase64: _pdfBase64,
+                pdfDuploBase64: window._pdfDuploBase64 || null,
+                tipoDocumento: tipo, mes, ano,
+                itens: itensSelecionados.map(i => ({
+                    pagina: i.pagina,
+                    paginaAdiantamento: i.paginaAdiantamento,
+                    paginaPagamento: i.paginaPagamento,
+                    colaborador_id: i.colaborador_id,
+                    docId: i.docId,
+                    enviarEmail: false, // <-- Só salva, não envia
+                })),
+            };
+
+            const r = await fetch('/api/pagamentos-massa/enviar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) },
+                body: JSON.stringify(bodyParams),
+            });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error);
+            _jobId = data.jobId;
+
+            document.getElementById('pm-progress-section').style.display = 'block';
+            document.getElementById('pm-progress-section').scrollIntoView({ behavior: 'smooth' });
+            
+            // Alterar título do progresso
+            const txt = document.getElementById('pm-progress-title');
+            if(txt) txt.innerHTML = `<span style="background:#10b981;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">3</span> Salvando...`;
+
+            window.onbeforeunload = null; // Remove aviso de recarregar página
+            _pmPollStatus(itensSelecionados.length, true); // true = é salvamento
+        } catch (e) {
+            if(btn1){ btn1.disabled = false; btn1.style.opacity = '1'; }
+            if(btn2){ btn2.disabled = false; btn2.style.opacity = '1'; }
+            alert('Erro ao iniciar salvamento: ' + e.message);
+        }
+    };
+
     window._pmEnviar = async function () {
         const itensSelecionados = _itensProcessados.filter(i => i.selecionado && i.colaborador_id);
         if (!itensSelecionados.length) { alert('Selecione pelo menos um colaborador para enviar.'); return; }
         // if (!_pdfBase64) { alert('PDF não carregado.'); return; } // Allow null if using DB documents
         if (!confirm(`Enviar documentos para ${itensSelecionados.length} colaborador(es)?`)) return;
 
-        const btn = document.getElementById('pm-btn-enviar');
-        btn.disabled = true; btn.style.opacity = '0.6';
+        const btn1 = document.getElementById('pm-btn-salvar');
+        const btn2 = document.getElementById('pm-btn-enviar');
+        if(btn1){ btn1.disabled = true; btn1.style.opacity = '0.6'; }
+        if(btn2){ btn2.disabled = true; btn2.style.opacity = '0.6'; }
 
         const tipo = document.getElementById('pm-tipo-doc')?.value || 'Holerite Adiantamento';
         const mes  = document.getElementById('pm-mes')?.value || String(new Date().getMonth()+1).padStart(2,'0');
@@ -16253,15 +16315,19 @@ window.reenviarAssinatura = async function (id, source, btn) {
             _jobId = data.jobId;
 
             document.getElementById('pm-progress-section').style.display = 'block';
-            document.getElementById('pm-progress-section').scrollIntoView({ behavior: 'smooth' });
-            _pmPollStatus(itensSelecionados.length);
+            const txt = document.getElementById('pm-progress-title');
+            if(txt) txt.innerHTML = `<span style="background:#f503c5;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">3</span> Enviando...`;
+
+            window.onbeforeunload = null;
+            _pmPollStatus(itensSelecionados.length, false);
         } catch (e) {
-            btn.disabled = false; btn.style.opacity = '1';
+            if(btn1){ btn1.disabled = false; btn1.style.opacity = '1'; }
+            if(btn2){ btn2.disabled = false; btn2.style.opacity = '1'; }
             alert('Erro ao iniciar envio: ' + e.message);
         }
     };
 
-    function _pmPollStatus(total) {
+    function _pmPollStatus(total, isSalvarOnly) {
         clearInterval(_pollTimer);
         _pollTimer = setInterval(async () => {
             try {
@@ -16290,11 +16356,27 @@ window.reenviarAssinatura = async function (id, source, btn) {
 
                 if (job.concluido) {
                     clearInterval(_pollTimer);
+                    
+                    // Atualiza o docId nos itens da tabela se vieram
+                    if (job.resultados && job.resultados.length > 0) {
+                        job.resultados.forEach(res => {
+                            if (res.ok && res.docId) {
+                                const localItem = _itensProcessados.find(i => i.colaborador_id === res.colaborador_id);
+                                if (localItem) localItem.docId = res.docId;
+                            }
+                        });
+                        // Re-renderiza a tabela para exibir OKs de db se houver
+                        _pmFiltrar();
+                    }
+
                     const txt2 = document.getElementById('pm-progress-text');
+                    const operacaoStr = isSalvarOnly ? 'salvo(s)' : 'enviado(s)';
                     if (txt2) txt2.innerHTML = `<strong style="color:${job.erros?'#ef4444':'#16a34a'}">
-                        ✅ Concluído! ${job.done - job.erros} enviado(s) com sucesso${job.erros?' • '+job.erros+' erro(s)':''}</strong>`;
-                    const btn = document.getElementById('pm-btn-enviar');
-                    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+                        ✅ Concluído! ${job.done - job.erros} ${operacaoStr} com sucesso${job.erros?' • '+job.erros+' erro(s)':''}</strong>`;
+                    const btn1 = document.getElementById('pm-btn-salvar');
+                    const btn2 = document.getElementById('pm-btn-enviar');
+                    if (btn1) { btn1.disabled = false; btn1.style.opacity = '1'; }
+                    if (btn2) { btn2.disabled = false; btn2.style.opacity = '1'; }
                 }
             } catch(e) { clearInterval(_pollTimer); }
         }, 2000);
