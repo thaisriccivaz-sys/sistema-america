@@ -74,12 +74,15 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         const e3 = marcacoes[4] || '';
         const s3 = marcacoes[5] || '';
         
-        // ── TOTAL NORMAIS ────────────────────────────────────────────────────
-        const normaisMin = d.totalHorasTrabalhadas || 0;
+        // ── TOTAL NORMAIS: soma exclusiva de horas diurnas + noturnas ────────
+        // Na API RHID, colaboradores diurnos usam totalHorasTrabalhadas;
+        // colaboradores noturnos usam horasTotalNoturno. São campos exclusivos.
+        const normaisMin = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
         const normais = fmtMin(normaisMin);
 
-        // ── TOTAL NOTURNO: campo direto da API RHID ──────────────────────────
-        const noturnMin = d.horasTotalNoturno || d.horasNoturnasNaoExtra || 0;
+        // ── TOTAL NOTURNO: horas genuinamente noturnas (suplemento) ──────────
+        // Se totalHorasTrabalhadas=0, é contrato noturno puro → noturno fica vazio
+        const noturnMin = (d.totalHorasTrabalhadas > 0) ? (d.horasNoturnasNaoExtra || 0) : 0;
         const noturn = fmtMin(noturnMin);
 
         // ── EXTRA DIURNA e EXTRA NOTURNA: campos diretos da API RHID ─────────
@@ -136,11 +139,8 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         if (d.listAfdtManutencao) {
             d.listAfdtManutencao.forEach(m => {
                 if (m.reason && m.reason.trim()) {
-                    const mh = Math.floor(m.hora/100).toString().padStart(2,'0');
-                    const mm2 = (m.hora%100).toString().padStart(2,'0');
-                    const tipoOcorr = m.oculto ? 'D' : (m.isManual ? 'I' : '');
-                    const ocorrStr = tipoOcorr ? `[${tipoOcorr}] ${mh}:${mm2}: ` : `${mh}:${mm2}: `;
-                    obsLinhas.push(ocorrStr + m.reason.trim());
+                    const tipoOcorr = m.oculto ? '[D] ' : (m.isManual ? '[I] ' : '');
+                    obsLinhas.push(tipoOcorr + m.reason.trim());
                 }
             });
         }
@@ -154,28 +154,28 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
 
         rowsHtml += `
         <tr>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${diaNum} - ${diaSemanaStr}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9; white-space:nowrap;">${previsto}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${ent1_td}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${sai1_td}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : e2}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : s2}</td>
-            <td style="padding:3px 8px 3px 1px;border-bottom:1px solid #f1f5f9;"></td><!-- espaço SAI2-TOTAL -->
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${normais}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${noturn}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${status === 'Falta' ? '1' : ''}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${fmtMin(faltaAtrasoMin)}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extra60}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extra100}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extraDiurna}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extraNoturna}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;color:#111;font-size:6.5px;word-break:break-all;overflow-wrap:anywhere;white-space:normal;min-width:60px;max-width:90px;">${obsText}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${diaNum} - ${diaSemanaStr}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;word-break:break-all;">${previsto}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${ent1_td}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${sai1_td}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : e2}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : s2}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${normais}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${noturn}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;text-align:center;">${status === 'Falta' ? '1' : ''}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${fmtMin(faltaAtrasoMin)}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${extra60}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${extra100}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${extraDiurna}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${extraNoturna}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;color:#111;font-size:6.5px;word-break:break-word;white-space:normal;">${obsText}</td>
         </tr>`;
     });
 
     const dataAdmissao = c.data_admissao ? c.data_admissao.split('-').reverse().join('/') : '';
     const cpfFmt = safe(c.cpf).replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-    const dataEmissao = new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+    const tzOpts = { timeZone: 'America/Sao_Paulo' };
+    const dataEmissao = new Date().toLocaleDateString('pt-BR', tzOpts) + ' às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', ...tzOpts });
     const ultimoDia = new Date(ano, mes, 0).getDate();
     
     const logoBlock = logoB64 ? `<img src="${logoB64}" style="max-height: 35px;" />` : `<div style="background:#1e3a5f;padding:5px;"><span style="color:#fff;font-size:12px;font-weight:900;">AMERICA RENTAL</span></div>`;
@@ -230,24 +230,24 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         
         <div style="border-top: 1px solid #999; margin-bottom: 5px;"></div>
         
-        <table style="width: 100%; border-collapse: collapse; font-size: 7px; text-align: left;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 7px; text-align: left; table-layout: fixed;"><colgroup><col style="width:10%"><col style="width:12%"><col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:6%"><col style="width:5%"><col style="width:3%"><col style="width:5%"><col style="width:4%"><col style="width:4%"><col style="width:5%"><col style="width:5%"><col style="width:25%"></colgroup>
             <thead>
                 <tr style="border-bottom: 1px solid #ccc; font-weight: bold; color: #475569;">
-                    <th style="padding: 2px 1px;">DIA</th>
-                    <th style="padding: 2px 1px; min-width:90px; white-space:nowrap;">PREVISTO</th>
-                    <th style="padding: 2px 1px;">ENT. 1</th>
-                    <th style="padding: 2px 1px;">SAÍ. 1</th>
-                    <th style="padding: 2px 1px;">ENT. 2</th>
-                    <th style="padding: 2px 8px 2px 1px;">SAÍ. 2</th><!-- padding-right maior para separar -->
-                    <th style="padding: 2px 1px;">TOTAL NORMAIS</th>
-                    <th style="padding: 2px 1px;">TOTAL NOTURNO</th>
-                    <th style="padding: 2px 1px;">DIA FALTA</th>
-                    <th style="padding: 2px 1px;">FALTA E ATRASO</th>
-                    <th style="padding: 2px 1px;">EXTRA 60%</th>
-                    <th style="padding: 2px 1px;">EXTRA 100%</th>
-                    <th style="padding: 2px 1px;">EXTRA DIURNA</th>
-                    <th style="padding: 2px 1px;">EXTRA NOTURNA</th>
-                    <th style="padding: 2px 1px; width: 90px;">OBSERVAÇÕES</th>
+                    <th style="padding: 2px 1px; word-break:break-word;">DIA</th>
+                    <th style="padding: 2px 1px; word-break:break-word;">PREVISTO</th>
+                    <th style="padding: 2px 1px; word-break:break-word;">ENT. 1</th>
+                    <th style="padding: 2px 1px; word-break:break-word;">SAÍ. 1</th>
+                    <th style="padding: 2px 1px; word-break:break-word;">ENT. 2</th>
+                    <th style="padding: 2px 1px; word-break:break-word;">SAÍ. 2</th>
+                    <th style="padding: 2px 1px; word-break:break-word;">TOTAL NORMAIS</th>
+                    <th style="padding: 2px 1px; word-break:break-word;">TOTAL NOTURNO</th>
+                    <th style="padding: 2px 1px; word-break:break-word;">DIA FALTA</th>
+                    <th style="padding: 2px 1px; word-break:break-word;">FALTA E ATRASO</th>
+                    <th style="padding: 2px 1px; word-break:break-word;">EXTRA 60%</th>
+                    <th style="padding: 2px 1px; word-break:break-word;">EXTRA 100%</th>
+                    <th style="padding: 2px 1px; word-break:break-word;">EXTRA DIURNA</th>
+                    <th style="padding: 2px 1px; word-break:break-word;">EXTRA NOTURNA</th>
+                    <th style="padding: 2px 1px; word-break:break-word;">OBSERVAÇÕES</th>
                 </tr>
             </thead>
             <tbody>
@@ -255,7 +255,7 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             </tbody>
             <tfoot>
                 <tr style="font-weight: bold; border-top: 1px solid #999; background: #f8fafc;">
-                    <td colspan="5" style="padding: 3px 1px;">TOTAIS</td>
+                    <td colspan="6" style="padding: 3px 1px;">TOTAIS</td>
                     <td style="padding: 3px 1px;">${fmtMin(totalNormais)}</td>
                     <td style="padding: 3px 1px;">${fmtMin(totalNoturno)}</td>
                     <td style="padding: 3px 1px;"></td>
