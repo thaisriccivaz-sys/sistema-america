@@ -15788,7 +15788,6 @@ window.reenviarAssinatura = async function (id, source, btn) {
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">NOME DETECTADO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">COLABORADOR</th>
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">DEPARTAMENTO</th>
-                      <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">MATCH</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">ADIANTAMENTO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">HOLERITE</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">AÇÕES</th>
@@ -16122,7 +16121,6 @@ window.reenviarAssinatura = async function (id, source, btn) {
               </select>
             </td>
             <td style="padding:0.5rem 0.75rem;font-size:0.8rem;color:#64748b;">${item.departamento || '-'}</td>
-            <td style="padding:0.5rem 0.75rem;font-size:0.75rem;font-weight:600;">${matchLabels[item.confianca] || matchLabels[null]}</td>
             <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#22c55e;">
               ${(item.paginaAdiantamento && item.paginaAdiantamento !== '-') ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
             </td>
