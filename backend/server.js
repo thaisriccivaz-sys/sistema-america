@@ -6255,8 +6255,32 @@ app.post('/api/recibos/upload-pdf-colab',
                 return res.status(400).json({ error: 'Parâmetros inválidos' });
             }
 
-            const bufferPDF = req.file.buffer;
+            let bufferPDF = req.file.buffer;
             const nome = nomeArquivo || `Pagamentos_${colaborador_id}_${mes}${ano}.pdf`;
+
+            // ── Mesclar cartão de ponto (igual ao fluxo anterior) ──────────────
+            try {
+                const colab = await new Promise((resolve, reject) =>
+                    db.get('SELECT * FROM colaboradores WHERE id = ?', [Number(colaborador_id)], (e, r) => e ? reject(e) : resolve(r))
+                );
+                const historico = await new Promise(res =>
+                    db.get('SELECT apuracao_diaria FROM recibos_historico WHERE colaborador_id = ? AND mes = ? AND ano = ?',
+                        [colaborador_id, mes, ano], (e, r) => res(r))
+                );
+                if (colab && historico && historico.apuracao_diaria) {
+                    const apuracao = JSON.parse(historico.apuracao_diaria);
+                    if (Array.isArray(apuracao) && apuracao.length > 0) {
+                        const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mes)-1];
+                        const { mergePdfPonto } = require('./cartao_ponto_generator');
+                        bufferPDF = await mergePdfPonto(bufferPDF, colab, apuracao, String(mes).padStart(2, '0'), ano, mesNome);
+                        console.log(`[UPLOAD-PDF] Cartão de ponto mesclado — colaborador ${colaborador_id}`);
+                    }
+                }
+            } catch (errPonto) {
+                console.error('[UPLOAD-PDF] Erro ao mesclar cartão de ponto (continuando sem ele):', errPonto.message);
+                // Não interrompe — salva o recibo sem o cartão de ponto
+            }
+            // ──────────────────────────────────────────────────────────────────
 
             const { docId } = await pagamentosMassa.salvarDocumentoNoBanco({
                 colaboradorId: Number(colaborador_id),
