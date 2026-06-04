@@ -129,8 +129,6 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${sai1_td}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : e2}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : s2}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${e3}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${s3}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${normais}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${noturn}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${status === 'Falta' ? '1' : ''}</td>
@@ -209,8 +207,6 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
                     <th style="padding: 2px 1px;">SAÍ. 1</th>
                     <th style="padding: 2px 1px;">ENT. 2</th>
                     <th style="padding: 2px 1px;">SAÍ. 2</th>
-                    <th style="padding: 2px 1px;">ENT. 3</th>
-                    <th style="padding: 2px 1px;">SAÍ. 3</th>
                     <th style="padding: 2px 1px;">TOTAL NORMAIS</th>
                     <th style="padding: 2px 1px;">TOTAL NOTURNO</th>
                     <th style="padding: 2px 1px;">DIA FALTA</th>
@@ -227,7 +223,7 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             </tbody>
             <tfoot>
                 <tr style="font-weight: bold; border-top: 1px solid #999; background: #f8fafc;">
-                    <td colspan="8" style="padding: 3px 1px;">TOTAIS</td>
+                    <td colspan="6" style="padding: 3px 1px;">TOTAIS</td>
                     <td style="padding: 3px 1px;">${fmtMin(totalNormais)}</td>
                     <td style="padding: 3px 1px;">${fmtMin(totalNoturno)}</td>
                     <td style="padding: 3px 1px;"></td>
