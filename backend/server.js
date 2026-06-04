@@ -6248,9 +6248,12 @@ app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) =
     const { lote, mes, ano } = req.body;
     if (!lote || !Array.isArray(lote) || !mes || !ano) return res.status(400).json({ error: 'Parâmetros inválidos' });
 
+    // Responde imediatamente para evitar timeout do proxy (502)
+    // O processamento continua em background
+    res.json({ ok: true, sucesso: 0, falha: 0, processando: true, total: lote.length });
+
     try {
         const htmlPdf = require('html-pdf-node');
-        const novoProcesso = require('./novo_processo_assinafy');
         let sucesso = 0;
         let falha = 0;
 
@@ -6264,66 +6267,93 @@ app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) =
                 if (!colab) throw new Error(`Colaborador ID ${lote[i].colaborador_id} não encontrado`);
                 loteProcessar.push({ item: lote[i], colab });
             } catch (err) {
-                console.error(`Erro colaborador:`, err.message);
+                console.error(`[RECIBOS-LOTE] Erro colaborador:`, err.message);
                 falha++;
             }
         }
 
-        // 2. Gerar PDFs de uma única vez (Reaproveita o Chromium)
-        const filesToGenerate = loteProcessar.map(lp => ({ content: lp.item.htmlContent }));
+        // 2. Processar em lotes de 8 para não sobrecarregar o Chromium
+        const TAMANHO_LOTE = 8;
         const options = {
             format: 'A4',
             margin: { top: '0', bottom: '0', left: '0', right: '0' },
             printBackground: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--single-process']
         };
 
-        const generatedPdfs = filesToGenerate.length > 0 ? await htmlPdf.generatePdfs(filesToGenerate, options) : [];
+        for (let inicio = 0; inicio < loteProcessar.length; inicio += TAMANHO_LOTE) {
+            const sublote = loteProcessar.slice(inicio, inicio + TAMANHO_LOTE);
+            const filesToGenerate = sublote.map(lp => ({ content: lp.item.htmlContent }));
 
-        // 3. Salvar no banco de dados e OneDrive
-        for (let idx = 0; idx < loteProcessar.length; idx++) {
+            let generatedPdfs = [];
             try {
-                const { item, colab } = loteProcessar[idx];
-                let bufferPDF = generatedPdfs[idx].buffer;
-
-                const historico = await new Promise(res => db.get('SELECT apuracao_diaria FROM recibos_historico WHERE colaborador_id = ? AND mes = ? AND ano = ?', [item.colaborador_id, mes, ano], (e, r) => res(r)));
-                if (historico && historico.apuracao_diaria) {
+                generatedPdfs = await htmlPdf.generatePdfs(filesToGenerate, options);
+            } catch (errChromium) {
+                console.error(`[RECIBOS-LOTE] Erro Chromium no lote ${inicio}-${inicio+TAMANHO_LOTE}:`, errChromium.message);
+                // Tenta um por um como fallback
+                for (let si = 0; si < sublote.length; si++) {
                     try {
-                        const apuracao = JSON.parse(historico.apuracao_diaria);
-                        const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mes)-1];
-                        const { mergePdfPonto } = require('./cartao_ponto_generator');
-                        bufferPDF = await mergePdfPonto(bufferPDF, colab, apuracao, String(mes).padStart(2, '0'), ano, mesNome);
-                    } catch(e) { console.error('Erro merge ponto lote:', e); }
+                        const [pdf] = await htmlPdf.generatePdfs([filesToGenerate[si]], options);
+                        generatedPdfs[si] = pdf;
+                    } catch(e2) {
+                        console.error(`[RECIBOS-LOTE] Falha individual idx ${inicio+si}:`, e2.message);
+                        generatedPdfs[si] = null;
+                    }
                 }
+            }
 
-                const safeNome = (colab.nome_completo || 'Colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
-                const nomeArquivo = `Pagamentos_${safeNome}_${mes}${ano}.pdf`;
+            // 3. Salvar no banco de dados e OneDrive
+            for (let idx = 0; idx < sublote.length; idx++) {
+                if (!generatedPdfs[idx]) { falha++; continue; }
+                try {
+                    const { item, colab } = sublote[idx];
+                    let bufferPDF = generatedPdfs[idx].buffer;
 
-                const { docId } = await pagamentosMassa.salvarDocumentoNoBanco({
-                    colaboradorId: item.colaborador_id,
-                    nomeColab: colab.nome_completo,
-                    bufferPDF: bufferPDF,
-                    nomeArquivo,
-                    tipoDocumento: 'Pagamentos',
-                    ano,
-                    mes,
-                    basePath: BASE_UPLOAD_PATH,
-                });
-                
-                uploadDocToOneDrive(docId).catch(e2 => console.warn('Erro bg OneDrive:', e2.message));
-                sucesso++;
-            } catch (errSalvar) {
-                console.error(`Erro ao salvar PDF:`, errSalvar.message);
-                falha++;
+                    const historico = await new Promise(res => db.get('SELECT apuracao_diaria FROM recibos_historico WHERE colaborador_id = ? AND mes = ? AND ano = ?', [item.colaborador_id, mes, ano], (e, r) => res(r)));
+                    if (historico && historico.apuracao_diaria) {
+                        try {
+                            const apuracao = JSON.parse(historico.apuracao_diaria);
+                            const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mes)-1];
+                            const { mergePdfPonto } = require('./cartao_ponto_generator');
+                            bufferPDF = await mergePdfPonto(bufferPDF, colab, apuracao, String(mes).padStart(2, '0'), ano, mesNome);
+                        } catch(e) { console.error('[RECIBOS-LOTE] Erro merge ponto:', e.message); }
+                    }
+
+                    const safeNome = (colab.nome_completo || 'Colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
+                    const nomeArquivo = `Pagamentos_${safeNome}_${mes}${ano}.pdf`;
+
+                    const { docId } = await pagamentosMassa.salvarDocumentoNoBanco({
+                        colaboradorId: item.colaborador_id,
+                        nomeColab: colab.nome_completo,
+                        bufferPDF: bufferPDF,
+                        nomeArquivo,
+                        tipoDocumento: 'Pagamentos',
+                        ano,
+                        mes,
+                        basePath: BASE_UPLOAD_PATH,
+                    });
+
+                    uploadDocToOneDrive(docId).catch(e2 => console.warn('[RECIBOS-LOTE] Erro bg OneDrive:', e2.message));
+                    sucesso++;
+                    console.log(`[RECIBOS-LOTE] ✅ ${sucesso}/${loteProcessar.length} — ${sublote[idx].colab.nome_completo}`);
+                } catch (errSalvar) {
+                    console.error(`[RECIBOS-LOTE] Erro ao salvar PDF:`, errSalvar.message);
+                    falha++;
+                }
+            }
+
+            // Pequena pausa entre lotes para não saturar memória
+            if (inicio + TAMANHO_LOTE < loteProcessar.length) {
+                await new Promise(r => setTimeout(r, 500));
             }
         }
 
-        res.json({ ok: true, sucesso, falha });
+        console.log(`[RECIBOS-LOTE] Concluído: ${sucesso} ok, ${falha} falhas`);
     } catch (e) {
-        console.error('Erro geral ao anexar recibos em lote:', e.message);
-        res.status(500).json({ error: e.message });
+        console.error('[RECIBOS-LOTE] Erro geral:', e.message);
     }
 });
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ENVIO EM MASSA DE DOCUMENTOS

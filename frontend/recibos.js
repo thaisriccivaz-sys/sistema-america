@@ -1,4 +1,4 @@
-﻿// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // recibos.js — Recibos de Benefícios em Massa (VR, VT, VC)
 // v3.0 — campo nome_completo corrigido, sem "dias úteis globais",
 //         VC proporcional via diasTrab+faltas, erro RHID detalhado
@@ -1354,7 +1354,7 @@ window.anexarRecibosDocsMassa = async function () {
         let sucesso = 0, falha = 0;
         let progresso = 0;
 
-        const LOTE_SIZE = 20;
+        const LOTE_SIZE = 10;
         let lotes = [];
         for (let i = 0; i < sels.length; i += LOTE_SIZE) {
             lotes.push(sels.slice(i, i + LOTE_SIZE));
@@ -1402,8 +1402,14 @@ window.anexarRecibosDocsMassa = async function () {
                 
                 if (resUpload.ok) {
                     const json = await resUpload.json();
-                    sucesso += json.sucesso || 0;
-                    falha += json.falha || 0;
+                    // Servidor responde imediatamente com processando:true para evitar timeout
+                    // Conta como sucesso se recebeu OK
+                    if (json.processando) {
+                        sucesso += lote.length; // Backend processará em background
+                    } else {
+                        sucesso += json.sucesso || 0;
+                        falha += json.falha || 0;
+                    }
                 } else {
                     falha += lote.length;
                 }
@@ -1414,7 +1420,12 @@ window.anexarRecibosDocsMassa = async function () {
         }
 
         if (typeof Swal !== 'undefined') {
-            Swal.fire('Concluído', `Os recibos foram anexados ao Docs em Massa.<br>Sucesso: ${sucesso} | Falhas: ${falha}`, 'success');
+            Swal.fire({
+                title: 'Enviado com sucesso!',
+                html: `Os recibos de <strong>${sucesso}</strong> colaborador(es) foram enviados para processamento.<br><small style="color:#64748b;">⏳ Os PDFs serão gerados e salvos automaticamente nos próximos minutos. Você pode fechar esta tela.</small>${falha > 0 ? `<br><span style="color:#ef4444;">⚠️ ${falha} não enviado(s)</span>` : ''}`,
+                icon: 'success',
+                confirmButtonText: 'OK'
+            });
         }
     } catch(e) {
         if (typeof Swal !== 'undefined') Swal.fire('Erro', 'Ocorreu um erro ao anexar: ' + e.message, 'error');
