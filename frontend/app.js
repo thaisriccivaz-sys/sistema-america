@@ -16128,10 +16128,10 @@ window.reenviarAssinatura = async function (id, source, btn) {
             </td>
             <td style="padding:0.5rem 0.75rem;font-size:0.8rem;color:#64748b;">${item.departamento || '-'}</td>
             <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#22c55e;">
-              ${(item.paginaAdiantamento && item.paginaAdiantamento !== '-') || item.docId ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
+              ${(item.paginaAdiantamento && item.paginaAdiantamento !== '-') ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
             </td>
             <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#22c55e;">
-              ${(item.paginaPagamento && item.paginaPagamento !== '-') || item.docId ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
+              ${(item.paginaPagamento && item.paginaPagamento !== '-') ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
             </td>
             <td style="padding:0.5rem 0.75rem;text-align:center;">
               <button onclick="window._pmPreview(${realIdx})" style="background:transparent;border:none;color:#3b82f6;cursor:pointer;padding:4px;border-radius:4px;" title="Visualizar Documento">
