@@ -16061,6 +16061,13 @@ window.reenviarAssinatura = async function (id, source, btn) {
 
         document.getElementById('pm-review-section').style.display = 'block';
         _pmFiltrar();
+        
+        // Ativar alerta se tentar recarregar/fechar a página sem salvar
+        if (window._pdfDuploBase64) {
+            window.onbeforeunload = function() {
+                return 'Você tem documentos processados que ainda não foram enviados/salvos. Se atualizar a página, perderá os arquivos carregados.';
+            };
+        }
     }
 
     // ── Filtrar e renderizar tabela ────────────────────────────────────────────
