@@ -1351,9 +1351,10 @@ window.anexarRecibosDocsMassa = async function () {
         const logo = await _recGetLogo();
         let sucesso = 0, falha = 0;
 
-        // NOTA: O html2canvas só renderiza elementos DENTRO da viewport.
-        // Por isso, criamos um div por colaborador em position:fixed left:0 top:0
-        // com opacity quase zero (invisível ao usuário mas renderizável).
+        // Usar iframe isolado: CSS não vaza para o sistema, não bloqueia cliques, não pisca fontes
+        const pdfIframe = document.createElement('iframe');
+        pdfIframe.style.cssText = 'position:fixed;left:0;top:0;width:794px;height:1px;border:none;visibility:hidden;pointer-events:none;z-index:-1;';
+        document.body.appendChild(pdfIframe);
 
         for (let idx = 0; idx < sels.length; idx++) {
             const c = sels[idx];
@@ -1372,30 +1373,60 @@ window.anexarRecibosDocsMassa = async function () {
                 if (_isVT(m)) { corpo += '<div style="page-break-before:always;"></div>' + _buildReciboBlock('VT', c, s, mes, mesNome, ano, valorVR, logo); }
                 if (_isVC(m)) { corpo += '<div style="page-break-before:always;"></div>' + _buildReciboBlock('VC', c, s, mes, mesNome, ano, valorVR, logo); }
 
-                // Div temporário na viewport (opacity ~0) para html2canvas conseguir renderizar
-                const renderDiv = document.createElement('div');
-                renderDiv.style.cssText = 'position:fixed;left:0;top:0;width:794px;background:#fff;z-index:99999;opacity:0.001;pointer-events:none;overflow:hidden;';
-                renderDiv.innerHTML = `<style>*{box-sizing:border-box;margin:0;padding:0;}div,p,span,table,td,th{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#111;}</style>${corpo}`;
-                document.body.appendChild(renderDiv);
+                // Escrever HTML no iframe isolado (CSS fica dentro do iframe, não afeta o sistema)
+                const iDoc = pdfIframe.contentDocument || pdfIframe.contentWindow.document;
+                iDoc.open();
+                iDoc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+                  *{box-sizing:border-box;margin:0;padding:0;}
+                  body{font-family:Arial,Helvetica,sans-serif;font-size:12px;background:#fff;color:#111;width:794px;}
+                </style></head><body>${corpo}</body></html>`);
+                iDoc.close();
 
-                // Gerar PDF usando html2pdf.js (roda no browser, sem Chromium)
-                let pdfBlob;
-                try {
-                    pdfBlob = await new Promise((resolve, reject) => {
-                        if (typeof html2pdf === 'undefined') { reject(new Error('html2pdf não disponível')); return; }
-                        html2pdf().set({
-                            margin: 0,
-                            filename: `recibo_${c.id}.pdf`,
-                            image: { type: 'jpeg', quality: 0.92 },
-                            html2canvas: { scale: 2, useCORS: true, logging: false, allowTaint: false, backgroundColor: '#ffffff' },
-                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                            pagebreak: { mode: ['css', 'legacy'] }
-                        }).from(renderDiv).outputPdf('blob').then(resolve).catch(reject);
-                    });
-                } finally {
-                    // Sempre remover o div do DOM, mesmo se der erro
-                    document.body.removeChild(renderDiv);
+                // Aguardar render do iframe
+                await new Promise(r => setTimeout(r, 150));
+
+                // Capturar com html2canvas o body do iframe
+                const canvas = await html2canvas(iDoc.body, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    allowTaint: false,
+                    backgroundColor: '#ffffff',
+                    width: 794,
+                    windowWidth: 794
+                });
+
+                // Gerar PDF com jsPDF a partir do canvas
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+                const pageW = pdf.internal.pageSize.getWidth();
+                const pageH = pdf.internal.pageSize.getHeight();
+                const imgW = pageW;
+                const imgH = (canvas.height * pageW) / canvas.width;
+                let posY = 0;
+                let remaining = imgH;
+                let firstPage = true;
+
+                while (remaining > 0) {
+                    if (!firstPage) pdf.addPage();
+                    const srcY = posY * (canvas.width / pageW) * (canvas.height / imgH);
+                    const sliceH = Math.min(pageH, remaining);
+
+                    // Recortar a fatia desta página do canvas
+                    const sliceCanvas = document.createElement('canvas');
+                    sliceCanvas.width = canvas.width;
+                    sliceCanvas.height = Math.round(sliceH * canvas.height / imgH);
+                    const ctx = sliceCanvas.getContext('2d');
+                    ctx.drawImage(canvas, 0, Math.round(posY * canvas.height / imgH), canvas.width, sliceCanvas.height, 0, 0, sliceCanvas.width, sliceCanvas.height);
+
+                    pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, sliceH);
+                    posY += sliceH;
+                    remaining -= sliceH;
+                    firstPage = false;
                 }
+
+                const pdfBlob = pdf.output('blob');
+
 
                 // Enviar o PDF pronto para o servidor (só salva, não gera nada)
                 const safeNome = (c.nome_completo || 'Colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
@@ -1429,7 +1460,8 @@ window.anexarRecibosDocsMassa = async function () {
             await new Promise(r => setTimeout(r, 100));
         }
 
-
+        // Remover iframe após processar todos
+        if (pdfIframe && pdfIframe.parentNode) pdfIframe.parentNode.removeChild(pdfIframe);
 
         if (typeof Swal !== 'undefined') {
             Swal.fire({
@@ -1440,6 +1472,9 @@ window.anexarRecibosDocsMassa = async function () {
             });
         }
     } catch(e) {
+        // Garantir limpeza do iframe mesmo em caso de erro
+        const iframeEl = document.querySelector('iframe[style*="z-index:-1"]');
+        if (iframeEl && iframeEl.parentNode) iframeEl.parentNode.removeChild(iframeEl);
         if (typeof Swal !== 'undefined') Swal.fire('Erro', 'Ocorreu um erro ao anexar: ' + e.message, 'error');
     }
 
