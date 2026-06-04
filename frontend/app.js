@@ -15850,6 +15850,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">DEPARTAMENTO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">ADIANTAMENTO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">HOLERITE</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#a21caf;">ENVIADO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">AÇÕES</th>
                      </tr>
                   </thead>
@@ -16200,13 +16201,18 @@ window.reenviarAssinatura = async function (id, source, btn) {
             <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#22c55e;">
               ${(item.paginaPagamento && item.paginaPagamento !== '-') ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
             </td>
+            <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.72rem;">
+              ${item.enviadoEm
+                ? `<span style="color:#a21caf;font-weight:600;white-space:nowrap;"><i class="ph ph-paper-plane-tilt" style="font-size:0.85rem;"></i><br>${item.enviadoEm}</span>`
+                : `<span style="color:#cbd5e1;">-</span>`}
+            </td>
             <td style="padding:0.5rem 0.75rem;text-align:center;">
               <button onclick="window._pmPreview(${realIdx})" style="background:transparent;border:none;color:#3b82f6;cursor:pointer;padding:4px;border-radius:4px;" title="Visualizar Documento">
                  <i class="ph ph-eye" style="font-size:1.1rem;"></i>
               </button>
             </td>
         </tr>`;
-    }).join('') || '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#9ca3af;">Nenhum item encontrado com os filtros.</td></tr>';
+    }).join('') || '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#9ca3af;">Nenhum item encontrado com os filtros.</td></tr>';
     }
 
     // ── Helpers de estado ──────────────────────────────────────────────────────
@@ -16420,10 +16426,16 @@ window.reenviarAssinatura = async function (id, source, btn) {
                     
                     // Atualiza o docId nos itens da tabela se vieram
                     if (job.resultados && job.resultados.length > 0) {
+                        const agora = new Date();
+                        const dataHora = `${String(agora.getDate()).padStart(2,'0')}/${String(agora.getMonth()+1).padStart(2,'0')}/${agora.getFullYear()} ${String(agora.getHours()).padStart(2,'0')}:${String(agora.getMinutes()).padStart(2,'0')}`;
                         job.resultados.forEach(res => {
                             if (res.ok && res.docId) {
                                 const localItem = _itensProcessados.find(i => i.colaborador_id === res.colaborador_id);
-                                if (localItem) localItem.docId = res.docId;
+                                if (localItem) {
+                                    localItem.docId = res.docId;
+                                    // Registrar hora de envio (se foi envio com e-mail)
+                                    if (!isSalvarOnly) localItem.enviadoEm = dataHora;
+                                }
                             }
                         });
                         // Re-renderiza a tabela para exibir OKs de db se houver
