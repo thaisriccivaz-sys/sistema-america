@@ -6461,7 +6461,7 @@ app.post('/api/pagamentos-massa/preview-merge', async (req, res) => {
         const path = require('path');
         const { PDFDocument } = require('pdf-lib');
         
-        const fullPath = path.join(BASE_UPLOAD_PATH, rowBase.file_path);
+        const fullPath = rowBase.file_path;
         const baseBytes = await fs.readFile(fullPath);
         const basePdfDoc = await PDFDocument.load(baseBytes);
 
