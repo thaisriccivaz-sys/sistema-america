@@ -15682,18 +15682,39 @@ window.reenviarAssinatura = async function (id, source, btn) {
                 </div>
               </div>
 
-              <!-- Dropzone (bloqueado até escolher tipo) -->
-              <div id="pm-dropzone"
-                style="border:2px dashed #d1d5db;border-radius:10px;padding:2.5rem 1rem;text-align:center;cursor:not-allowed;transition:all 0.2s;background:#f1f5f9;opacity:0.5;"
-                onclick="window._pmDropzoneClick()"
-                ondragover="event.preventDefault();if(window._pmTipoOk()){this.style.borderColor='#f503c5';this.style.background='#fdf4ff';}"
-                ondragleave="this.style.borderColor='#d1d5db';this.style.background=window._pmTipoOk()?'#f8fafc':'#f1f5f9';"
-                ondrop="window._pmHandleDrop(event)">
-                <i class="ph ph-file-pdf" style="font-size:3rem;color:#94a3b8;display:block;margin-bottom:0.75rem;"></i>
-                <p style="margin:0;font-weight:600;color:#94a3b8;">Selecione o tipo de documento acima primeiro</p>
-                <p style="margin:0.25rem 0 0;font-size:0.8rem;color:#94a3b8;">Apenas arquivos PDF • Máx. 50 MB</p>
+              <!-- SINGLE UPLOAD (Para os demais tipos) -->
+              <div id="pm-single-upload-section">
+                <div id="pm-dropzone"
+                  style="border:2px dashed #d1d5db;border-radius:10px;padding:2.5rem 1rem;text-align:center;cursor:not-allowed;transition:all 0.2s;background:#f1f5f9;opacity:0.5;"
+                  onclick="window._pmDropzoneClick()"
+                  ondragover="event.preventDefault();if(window._pmTipoOk()){this.style.borderColor='#f503c5';this.style.background='#fdf4ff';}"
+                  ondragleave="this.style.borderColor='#d1d5db';this.style.background=window._pmTipoOk()?'#f8fafc':'#f1f5f9';"
+                  ondrop="window._pmHandleDrop(event)">
+                  <i class="ph ph-file-pdf" style="font-size:3rem;color:#94a3b8;display:block;margin-bottom:0.75rem;"></i>
+                  <p style="margin:0;font-weight:600;color:#94a3b8;">Selecione o tipo de documento acima primeiro</p>
+                  <p style="margin:0.25rem 0 0;font-size:0.8rem;color:#94a3b8;">Apenas arquivos PDF • Máx. 50 MB</p>
+                </div>
+                <input id="pm-file-input" type="file" accept=".pdf" style="display:none" onchange="window._pmHandleFile(this.files[0])">
               </div>
-              <input id="pm-file-input" type="file" accept=".pdf" style="display:none" onchange="window._pmHandleFile(this.files[0])">
+
+              <!-- DUAL UPLOAD (Apenas para Pagamentos) -->
+              <div id="pm-dual-upload-section" style="display:none; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.5rem; margin-top:1rem;">
+                <h4 style="margin:0 0 1rem; color:#334155; font-size:0.95rem;">Anexar Holerites (Opcional)</h4>
+                
+                <div style="margin-bottom:1rem;">
+                  <label style="font-size:0.8rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Holerite Adiantamento (PDF Único)</label>
+                  <input id="pm-file-adiantamento" type="file" accept=".pdf" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
+                </div>
+
+                <div style="margin-bottom:1.5rem;">
+                  <label style="font-size:0.8rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Holerite Salário/Pagamento (PDF Único)</label>
+                  <input id="pm-file-pagamento" type="file" accept=".pdf" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
+                </div>
+
+                <button type="button" onclick="window._pmProcessarDuplo()" style="width:100%;padding:0.7rem;background:#8b5cf6;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
+                  <i class="ph ph-magic-wand"></i> Processar Holerites Anexados
+                </button>
+              </div>
 
               <div style="margin-top:1rem;text-align:center;">
                   <button id="pm-btn-load-db" onclick="window._pmCarregarDocumentos()" style="padding:0.6rem 1.2rem;background:#fff;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-weight:600;color:#475569;cursor:pointer;display:inline-flex;align-items:center;gap:0.5rem;transition:all 0.2s;">
@@ -15823,21 +15844,34 @@ window.reenviarAssinatura = async function (id, source, btn) {
 
     window._pmOnTipoChange = function() {
         const t = document.getElementById('pm-tipo-doc');
-        const dz = document.getElementById('pm-dropzone');
+        const dz = document.getElementById('pm-single-upload-section');
+        const dzDual = document.getElementById('pm-dual-upload-section');
         const btnDb = document.getElementById('pm-btn-load-db');
-        if (!dz) return;
+        if (!dz || !dzDual) return;
         
         if (t && t.value === 'Pagamentos') {
             dz.style.display = 'none';
-            if (btnDb) btnDb.parentElement.style.display = 'none';
+            dzDual.style.display = 'block';
+            if (btnDb) btnDb.parentElement.style.display = 'block';
             window._pmCarregarDocumentos();
             return;
         } else {
             dz.style.display = 'block';
+            dzDual.style.display = 'none';
             if (btnDb) btnDb.parentElement.style.display = 'block';
         }
 
         if (window._pmTipoOk()) {
+            const drop = document.getElementById('pm-dropzone');
+            if (drop) {
+                drop.style.cursor = 'pointer';
+                drop.style.opacity = '1';
+                drop.innerHTML = `<i class="ph ph-upload-simple" style="font-size:3rem;color:#f503c5;display:block;margin-bottom:0.75rem;"></i>
+                                  <p style="margin:0;font-weight:600;color:#374151;">Clique ou arraste o PDF consolidado aqui</p>
+                                  <p style="margin:0.25rem 0 0;font-size:0.8rem;color:#64748b;">Máx. 50 MB</p>`;
+            }
+        }
+    };
             dz.style.cursor    = 'pointer';
             dz.style.opacity   = '1';
             dz.style.background = '#f8fafc';
@@ -15926,6 +15960,69 @@ window.reenviarAssinatura = async function (id, source, btn) {
         } catch (e) {
             document.getElementById('pm-processing').style.display = 'none';
             Swal.fire({ icon:'error', title:'Erro ao processar PDF', text: e.message });
+        }
+    };
+
+    window._pmProcessarDuplo = async function () {
+        const fileAd = document.getElementById('pm-file-adiantamento')?.files[0];
+        const filePg = document.getElementById('pm-file-pagamento')?.files[0];
+
+        if (!fileAd && !filePg) {
+            Swal.fire({ icon:'warning', title:'Atenção', text:'Anexe pelo menos um holerite (Adiantamento ou Pagamento) para processar.', timer:3000 });
+            return;
+        }
+
+        // Ler base64
+        const readB64 = async (f) => {
+            if (!f) return null;
+            const buf = await f.arrayBuffer();
+            const bytes = new Uint8Array(buf);
+            let binary = ''; bytes.forEach(b => binary += String.fromCharCode(b));
+            return btoa(binary);
+        };
+
+        const b64Ad = await readB64(fileAd);
+        const b64Pg = await readB64(filePg);
+
+        window._pdfDuploBase64 = { adiantamento: b64Ad, pagamento: b64Pg };
+
+        document.getElementById('pm-processing').style.display = 'block';
+        document.getElementById('pm-processing').innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i> Processando Holerites...';
+
+        try {
+            const formData = new FormData();
+            formData.append('tipoDocumento', 'Pagamentos');
+            formData.append('mes', document.getElementById('pm-mes').value);
+            formData.append('ano', document.getElementById('pm-ano').value);
+            if (fileAd) formData.append('pdfAdiantamento', fileAd);
+            if (filePg) formData.append('pdfPagamento', filePg);
+
+            const r = await fetch('/api/pagamentos-massa/processar', {
+                method: 'POST',
+                headers: { Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) },
+                body: formData,
+            });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error || 'Erro ao processar holerites');
+
+            document.getElementById('pm-processing').style.display = 'none';
+
+            if (data.resultado && data.resultado.length > 0) {
+                let matches = 0;
+                data.resultado.forEach(res => {
+                    const item = _itensProcessados.find(i => String(i.colaborador_id) === String(res.colaborador_id));
+                    if (item) {
+                        item.paginaAdiantamento = res.paginaAdiantamento;
+                        item.paginaPagamento = res.paginaPagamento;
+                        matches++;
+                    }
+                });
+                Swal.fire({ icon:'success', title:'Processado', text: `Encontradas ${matches} correspondências nos holerites anexados. Valide na tabela antes de Enviar.` });
+                _pmFiltrar();
+            }
+        } catch (e) {
+            document.getElementById('pm-processing').style.display = 'none';
+            Swal.fire({ icon:'error', title:'Erro ao processar', text: e.message });
         }
     };
 
@@ -16120,19 +16217,24 @@ window.reenviarAssinatura = async function (id, source, btn) {
         const ano  = document.getElementById('pm-ano')?.value || String(new Date().getFullYear());
 
         try {
+            const bodyParams = {
+                pdfBase64: _pdfBase64,
+                pdfDuploBase64: window._pdfDuploBase64 || null,
+                tipoDocumento: tipo, mes, ano,
+                itens: itensSelecionados.map(i => ({
+                    pagina: i.pagina,
+                    paginaAdiantamento: i.paginaAdiantamento,
+                    paginaPagamento: i.paginaPagamento,
+                    colaborador_id: i.colaborador_id,
+                    docId: i.docId,
+                    enviarEmail: true,
+                })),
+            };
+
             const r = await fetch('/api/pagamentos-massa/enviar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) },
-                body: JSON.stringify({
-                    pdfBase64: _pdfBase64,
-                    tipoDocumento: tipo, mes, ano,
-                    itens: itensSelecionados.map(i => ({
-                        pagina: i.pagina,
-                        colaborador_id: i.colaborador_id,
-                        docId: i.docId,
-                        enviarEmail: true, // sempre envia - selecionado = deve enviar
-                    })),
-                }),
+                body: JSON.stringify(bodyParams),
             });
             const data = await r.json();
             if (!r.ok) throw new Error(data.error);

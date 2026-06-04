@@ -6335,14 +6335,49 @@ try {
 }
 const _massaJobs = {}; // jobId → { total, done, erros, resultados }
 
-// POST: Upload e processamento do PDF consolidado
-app.post('/api/pagamentos-massa/processar', authenticateToken, multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }).single('pdf'), async (req, res) => {
+app.post('/api/pagamentos-massa/processar', authenticateToken, multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }).any(), async (req, res) => {
     try {
         if (!pagamentosMassa) return res.status(503).json({ error: 'Módulo de processamento PDF não disponível. Verifique os logs do servidor.' });
-        if (!req.file) return res.status(400).json({ error: 'Nenhum PDF enviado' });
+        
         const tipoDocumento = req.body.tipoDocumento || 'Holerite Adiantamento';
-        const resultado = await pagamentosMassa.processarPDF(req.file.buffer, tipoDocumento);
-        res.json({ ok: true, ...resultado });
+        const files = req.files || [];
+
+        if (tipoDocumento === 'Pagamentos') {
+            const fileAd = files.find(f => f.fieldname === 'pdfAdiantamento');
+            const filePg = files.find(f => f.fieldname === 'pdfPagamento');
+
+            let resAd = null;
+            let resPg = null;
+
+            if (fileAd) resAd = await pagamentosMassa.processarPDF(fileAd.buffer, 'Holerite Adiantamento');
+            if (filePg) resPg = await pagamentosMassa.processarPDF(filePg.buffer, 'Holerite Salario');
+
+            const colabsMap = {};
+            
+            if (resAd && resAd.resultado) {
+                resAd.resultado.forEach(r => {
+                    if (r.colaborador_id) {
+                        colabsMap[r.colaborador_id] = { ...r, paginaAdiantamento: r.pagina };
+                    }
+                });
+            }
+            if (resPg && resPg.resultado) {
+                resPg.resultado.forEach(r => {
+                    if (r.colaborador_id) {
+                        if (!colabsMap[r.colaborador_id]) colabsMap[r.colaborador_id] = { ...r };
+                        colabsMap[r.colaborador_id].paginaPagamento = r.pagina;
+                    }
+                });
+            }
+
+            res.json({ ok: true, resultado: Object.values(colabsMap) });
+
+        } else {
+            const file = files.find(f => f.fieldname === 'pdf');
+            if (!file) return res.status(400).json({ error: 'Nenhum PDF enviado' });
+            const resultado = await pagamentosMassa.processarPDF(file.buffer, tipoDocumento);
+            res.json({ ok: true, ...resultado });
+        }
     } catch (e) {
         console.error('[PAGAMENTOS-MASSA] Erro ao processar PDF:', e.message);
         res.status(500).json({ error: e.message });
@@ -6406,7 +6441,7 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
 
 // POST: Enviar documentos individuais para assinatura (em massa)
 app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => {
-    const { pdfBase64, itens, tipoDocumento, ano, mes } = req.body;
+    const { pdfBase64, pdfDuploBase64, itens, tipoDocumento, ano, mes } = req.body;
     if (!itens || !itens.length) return res.status(400).json({ error: 'Parâmetros inválidos' });
 
     const jobId = Date.now().toString();
@@ -6415,6 +6450,9 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
 
     // Processa em background
     const bufferPDF = pdfBase64 ? Buffer.from(pdfBase64, 'base64') : null;
+    const bufAd = pdfDuploBase64 && pdfDuploBase64.adiantamento ? Buffer.from(pdfDuploBase64.adiantamento, 'base64') : null;
+    const bufPg = pdfDuploBase64 && pdfDuploBase64.pagamento ? Buffer.from(pdfDuploBase64.pagamento, 'base64') : null;
+    
     const novoProcesso = require('./novo_processo_assinafy');
     const tipo = tipoDocumento || 'Holerite Adiantamento';
     const anoDoc = ano || String(new Date().getFullYear());
@@ -6471,6 +6509,43 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
 
                 // Upload OneDrive para novos documentos
                 try { await uploadDocToOneDrive(docId); } catch(e2) { console.warn('[PAGAMENTOS-MASSA] OneDrive skip:', e2.message); }
+            } else if (tipo === 'Pagamentos' && (bufAd || bufPg)) {
+                // Se o documento base já existe (Ponto + VR + VT), juntar os Holerites
+                const rowBase = await new Promise((res, rej) => db.get('SELECT file_path FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
+                if (rowBase && rowBase.file_path) {
+                    try {
+                        const { PDFDocument } = require('pdf-lib');
+                        const fs = require('fs').promises;
+                        const path = require('path');
+                        
+                        const fullPath = path.join(BASE_UPLOAD_PATH, rowBase.file_path);
+                        const baseBytes = await fs.readFile(fullPath);
+                        const basePdfDoc = await PDFDocument.load(baseBytes);
+                        
+                        if (bufAd && item.paginaAdiantamento) {
+                            const bufExtraidaAd = await pagamentosMassa.extrairPagina(bufAd, item.paginaAdiantamento);
+                            const adPdfDoc = await PDFDocument.load(bufExtraidaAd);
+                            const [adPage] = await basePdfDoc.copyPages(adPdfDoc, [0]);
+                            basePdfDoc.addPage(adPage);
+                        }
+                        
+                        if (bufPg && item.paginaPagamento) {
+                            const bufExtraidaPg = await pagamentosMassa.extrairPagina(bufPg, item.paginaPagamento);
+                            const pgPdfDoc = await PDFDocument.load(bufExtraidaPg);
+                            const [pgPage] = await basePdfDoc.copyPages(pgPdfDoc, [0]);
+                            basePdfDoc.addPage(pgPage);
+                        }
+                        
+                        const mergedPdfBytes = await basePdfDoc.save();
+                        await fs.writeFile(fullPath, mergedPdfBytes);
+                        
+                        // Opcional: Atualizar no OneDrive se configurado
+                        try { await uploadDocToOneDrive(docId); } catch(e2) { console.warn('[PAGAMENTOS-MASSA] OneDrive update skip:', e2.message); }
+                    } catch(mergeErr) {
+                        console.error('[PAGAMENTOS-MASSA] Erro ao juntar holerites ao documento base:', mergeErr);
+                        throw new Error('Falha ao adicionar holerites ao PDF existente');
+                    }
+                }
             }
 
             // 5. Enviar para Assinafy (se solicitado)
