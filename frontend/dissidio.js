@@ -129,6 +129,7 @@
             if (!sel) return;
             sel.innerHTML = `<option value="">Selecione um cargo...</option>` +
                 `<option value="VALE_TRANSPORTE" style="font-weight:bold;color:#0d9488;">-- Atualizar Vale Transporte (VT) --</option>` +
+                `<option value="VALE_REFEICAO" style="font-weight:bold;color:#2563eb;">-- Atualizar Vale Refeição (VR) --</option>` +
                 cargos.map(c => `<option value="${c}">${c}</option>`).join('');
 
             // Store colabs globally for preview
@@ -149,11 +150,26 @@
         const lblValor = document.getElementById('lbl-dissidio-valor');
         
         if (lblValor) {
-            lblValor.textContent = cargo === 'VALE_TRANSPORTE' ? 'Novo Valor do Vale Transporte (R$)' : 'Novo Salário Bruto Final (R$)';
+            if (cargo === 'VALE_TRANSPORTE') lblValor.textContent = 'Novo Valor do Vale Transporte (R$)';
+            else if (cargo === 'VALE_REFEICAO') lblValor.textContent = 'Novo Valor do Vale Refeição por dia (R$)';
+            else lblValor.textContent = 'Novo Salário Bruto Final (R$)';
         }
 
         if (!cargo || !novoSalario || novoSalario <= 0) {
-            if (previewText) previewText.textContent = 'Selecione um cargo e informe o novo salário para ver a prévia';
+            if (previewText) previewText.textContent = 'Selecione um cargo e informe o novo valor para ver a prévia';
+            if (affectedBox) affectedBox.style.display = 'none';
+            return;
+        }
+
+        // Caso especial: VALE_REFEICAO é um valor global (não por colaborador)
+        if (cargo === 'VALE_REFEICAO') {
+            const formatBRL = v => {
+                const num = Math.round(parseFloat(v || 0) * 100);
+                const cents = (num % 100).toString().padStart(2, '0');
+                const reais = Math.floor(num / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                return `R$ ${reais},${cents}`;
+            };
+            if (previewText) previewText.innerHTML = `O valor do VR será atualizado para <strong>${formatBRL(novoSalario)}/dia</strong> para <strong>todos os colaboradores</strong>`;
             if (affectedBox) affectedBox.style.display = 'none';
             return;
         }
@@ -235,10 +251,13 @@
         let colabs = [];
         if (cargo === 'VALE_TRANSPORTE') {
             colabs = (window._dissidioColabs || []).filter(c => (c.meio_transporte || '').toLowerCase().includes('vt') || (c.meio_transporte || '').toLowerCase().includes('vale transporte'));
+        } else if (cargo === 'VALE_REFEICAO') {
+            // VR é global - não filtra colaboradores
+            colabs = [];
         } else {
             colabs = (window._dissidioColabs || []).filter(c => (c.cargo || '').trim() === cargo);
         }
-        if (colabs.length === 0) { Swal.fire('Atenção', 'Nenhum colaborador encontrado.', 'warning'); return; }
+        if (cargo !== 'VALE_REFEICAO' && colabs.length === 0) { Swal.fire('Atenção', 'Nenhum colaborador encontrado.', 'warning'); return; }
 
         const formatBRL = v => {
             const num = Math.round(parseFloat(v || 0) * 100);
@@ -247,7 +266,11 @@
             return `R$ ${reais},${cents}`;
         };
 
-        const targetLabel = cargo === 'VALE_TRANSPORTE' ? 'usuários de Vale Transporte' : `do cargo <strong>${cargo}</strong>`;
+        const targetLabel = cargo === 'VALE_TRANSPORTE'
+            ? 'usuários de Vale Transporte'
+            : cargo === 'VALE_REFEICAO'
+                ? 'todos os colaboradores (valor VR global)'
+                : `do cargo <strong>${cargo}</strong>`;
         const confirm = await Swal.fire({
             title: 'Confirmar Reajuste',
             html: `Alterar o valor de <strong>${colabs.length} colaborador(es)</strong> ${targetLabel} para <strong>${formatBRL(novoSalario)}</strong>?<br><br><span style="font-size:0.85rem;color:#ef4444;">Esta ação não pode ser desfeita automaticamente.</span>`,

@@ -241,6 +241,27 @@ window.initRecibosView = async function () {
     container.innerHTML = _buildRecibosLayout(mesAt, anoAt);
     _ensureSpinCss();
 
+    // Carrega valor do VR da configuração global (fallback R$35,00)
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/configuracoes/valor_vr`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) {
+            const cfg = await res.json();
+            const inputVR = document.getElementById('rec-valor-vr');
+            if (inputVR && cfg.valor_vr) inputVR.value = parseFloat(cfg.valor_vr).toFixed(2);
+        }
+    } catch(e) { /* usa padrão 35.00 */ }
+
+    // Se há um processo de anexação em andamento, atualiza o botão
+    if (window._recibosAnexandoStatus && window._recibosAnexandoStatus.ativo) {
+        const btn = document.getElementById('btn-anexar-massa');
+        if (btn) {
+            btn.disabled = true;
+            const s = window._recibosAnexandoStatus;
+            btn.innerHTML = `<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Anexando (${s.progresso}/${s.total})...`;
+        }
+    }
+
     await Promise.all([_loadDeptsTipo(), _loadColabs()]);
 };
 
@@ -251,6 +272,31 @@ function _ensureSpinCss() {
     s.id = 'rec-spin-css';
     s.textContent = '@keyframes rec-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
     document.head.appendChild(s);
+}
+
+// ─── Banner flutuante de background ──────────────────────────────────────────
+window._recibosAnexandoStatus = { ativo: false, progresso: 0, total: 0 };
+
+function _recShowBannerAnexando(progresso, total) {
+    window._recibosAnexandoStatus = { ativo: true, progresso, total };
+    const banner = document.getElementById('banner-anexando-recibos');
+    const texto  = document.getElementById('banner-anexando-texto');
+    const icon   = document.getElementById('banner-anexando-icon');
+    if (banner) {
+        banner.style.display = 'flex';
+        document.body.style.paddingTop = '42px'; // empurra o conteúdo para baixo do banner
+    }
+    if (texto) texto.textContent = total > 0
+        ? `Anexando recibos em background: ${progresso} / ${total}...`
+        : 'Preparando anexação de recibos...';
+    if (icon) icon.style.animation = 'rec-spin 1s linear infinite';
+}
+
+function _recHideBannerAnexando() {
+    window._recibosAnexandoStatus = { ativo: false, progresso: 0, total: 0 };
+    const banner = document.getElementById('banner-anexando-recibos');
+    if (banner) banner.style.display = 'none';
+    document.body.style.paddingTop = '';
 }
 
 // ─── HTML principal ───────────────────────────────────────────────────────────
@@ -1294,6 +1340,8 @@ window.anexarRecibosDocsMassa = async function () {
 
     const btnAnexar = document.getElementById('btn-anexar-massa');
     if (btnAnexar) { btnAnexar.disabled = true; btnAnexar.innerHTML = '<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Anexando e Salvando...'; }
+    _recShowBannerAnexando(0, sels.length);
+    _ensureSpinCss();
 
     // Aviso se faltar ponto - REMOVIDO a pedido da usuária (2026-06-04)
 
@@ -1354,8 +1402,10 @@ window.anexarRecibosDocsMassa = async function () {
             }
 
             progresso += lote.length;
-            if (btnAnexar) {
-                btnAnexar.innerHTML = `<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Anexando (${progresso}/${sels.length})...`;
+            _recShowBannerAnexando(progresso, sels.length);
+            const btnAn = document.getElementById('btn-anexar-massa');
+            if (btnAn) {
+                btnAn.innerHTML = `<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Anexando (${progresso}/${sels.length})...`;
             }
 
             try {
@@ -1385,7 +1435,9 @@ window.anexarRecibosDocsMassa = async function () {
         if (typeof Swal !== 'undefined') Swal.fire('Erro', 'Ocorreu um erro ao anexar: ' + e.message, 'error');
     }
 
-    if (btnAnexar) { btnAnexar.disabled = false; btnAnexar.innerHTML = '<i class="ph ph-paperclip"></i> Anexar aos Docs. em Massa'; }
+    _recHideBannerAnexando();
+    const btnAn2 = document.getElementById('btn-anexar-massa');
+    if (btnAn2) { btnAn2.disabled = false; btnAn2.innerHTML = '<i class="ph ph-paperclip"></i> Anexar aos Docs. em Massa'; }
 };
 
 // ─── Relatório de Conferência ─────────────────────────────────────────────────

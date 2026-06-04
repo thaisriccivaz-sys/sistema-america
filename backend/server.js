@@ -10578,6 +10578,19 @@ db.run(`CREATE TABLE IF NOT EXISTS dissidios (
     else console.log('[Migration] Tabela dissidios OK');
 });
 
+// Seed: valor padrão do VR (R$35,00) se não existir
+db.run(`INSERT OR IGNORE INTO configuracoes_sistema (chave, valor) VALUES ('valor_vr', '35.00')`, (err) => {
+    if (!err) console.log('[Config] valor_vr seed OK');
+});
+
+// GET /api/configuracoes/valor_vr — retorna o valor atual do VR
+app.get('/api/configuracoes/valor_vr', authenticateToken, (req, res) => {
+    db.get(`SELECT valor FROM configuracoes_sistema WHERE chave = 'valor_vr'`, [], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ valor_vr: row ? parseFloat(row.valor) : 35.00 });
+    });
+});
+
 // POST /api/dissidio/aplicar — aplica reajuste em massa por cargo
 app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
     const { cargo, novo_salario } = req.body;
@@ -10596,6 +10609,23 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
                 db.all(`SELECT id, valor_transporte as salario FROM colaboradores WHERE LOWER(meio_transporte) LIKE '%vt%' OR LOWER(meio_transporte) LIKE '%vale transporte%'`, [], (err, rows) =>
                     err ? reject(err) : resolve(rows || []))
             );
+        } else if (cargo === 'VALE_REFEICAO') {
+            // VR é um valor global — lê o valor antigo ANTES de atualizar
+            const oldRow = await new Promise((resolve) =>
+                db.get(`SELECT valor FROM configuracoes_sistema WHERE chave = 'valor_vr'`, [], (e, r) => resolve(r)));
+            const oldVal = oldRow ? parseFloat(oldRow.valor) : 35.00;
+            // Salva novo valor em configuracoes_sistema
+            await new Promise((resolve, reject) =>
+                db.run(`INSERT OR REPLACE INTO configuracoes_sistema (chave, valor) VALUES ('valor_vr', ?)`, [String(targetSalary)], (err) => err ? reject(err) : resolve())
+            );
+            const pct = oldVal > 0 ? ((targetSalary - oldVal) / oldVal) * 100 : 0;
+            await new Promise((resolve, reject) =>
+                db.run(`INSERT INTO dissidios (cargo, percentual, salario_antes_media, salario_depois_media, total_colaboradores) VALUES (?, ?, ?, ?, ?)`,
+                    ['VALE_REFEICAO', pct, oldVal, targetSalary, 1], (err) => err ? reject(err) : resolve())
+            );
+            db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                [loggedUser, 'Dissídio', 'Reajuste: VALE_REFEICAO', `VR antes: R$ ${oldVal.toFixed(2)}`, `VR depois: R$ ${targetSalary.toFixed(2)}`, 0]);
+            return res.json({ ok: true, atualizados: 1, cargo: 'VALE_REFEICAO', novo_salario: targetSalary, percentual: pct });
         } else {
             colabs = await new Promise((resolve, reject) =>
                 db.all(`SELECT id, salario FROM colaboradores WHERE trim(cargo) = trim(?)`, [cargo], (err, rows) =>
