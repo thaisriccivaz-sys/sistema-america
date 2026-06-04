@@ -1689,12 +1689,13 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
         const e2 = marcacoes[2] || '';
         const s2 = marcacoes[3] || '';
 
-        // TOTAL NORMAIS
-        const normaisMin = d.totalHorasTrabalhadas || 0;
+        // TOTAL NORMAIS — usa totalHorasTrabalhadas; fallback para horasTotalNoturno
+        // (colaboradores com contrato noturno têm horas reportadas em horasTotalNoturno)
+        const normaisMin = d.totalHorasTrabalhadas || d.horasTotalNoturno || d.horasNoturnasNaoExtra || 0;
         const normais = fmtMin(normaisMin);
 
-        // TOTAL NOTURNO
-        const noturnMin = d.horasTotalNoturno || d.horasNoturnasNaoExtra || 0;
+        // TOTAL NOTURNO — somente horas genuinamente noturnas (não confundir com total do contrato noturno)
+        const noturnMin = d.horasNoturnasNaoExtra || 0;
         const noturn = fmtMin(noturnMin);
 
         // EXTRA DIURNA / EXTRA NOTURNA
