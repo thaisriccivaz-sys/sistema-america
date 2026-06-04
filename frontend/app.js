@@ -16194,6 +16194,43 @@ window.reenviarAssinatura = async function (id, source, btn) {
             const bg = matchColors[item.confianca] || matchColors[null];
             const nomeColor = item.colaborador_id ? '#374151' : '#ef4444'; // Red if no match
             const nomeWeight = item.colaborador_id ? 'normal' : '700';
+
+            // Célula SALVO
+            let celulaStatus = '';
+            if (item.enviadoEm) {
+                // Enviado por e-mail (maior prioridade)
+                celulaStatus = `<td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.72rem;">
+                  <span style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">
+                    <span style="background:#f0fdf4;color:#16a34a;border-radius:12px;padding:2px 8px;font-weight:700;font-size:0.7rem;display:flex;align-items:center;gap:3px;">
+                      <i class="ph ph-check-circle"></i> SALVO
+                    </span>
+                    <span style="color:#64748b;font-size:0.68rem;">${item.salvoEm || item.enviadoEm}</span>
+                  </span>
+                </td>
+                <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.72rem;">
+                  <span style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">
+                    <span style="background:#fdf4ff;color:#a21caf;border-radius:12px;padding:2px 8px;font-weight:700;font-size:0.7rem;display:flex;align-items:center;gap:3px;">
+                      <i class="ph ph-paper-plane-tilt"></i> ENVIADO
+                    </span>
+                    <span style="color:#64748b;font-size:0.68rem;">${item.enviadoEm}</span>
+                  </span>
+                </td>`;
+            } else if (item.salvoEm) {
+                // Apenas salvo (sem envio de e-mail)
+                celulaStatus = `<td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.72rem;">
+                  <span style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">
+                    <span style="background:#f0fdf4;color:#16a34a;border-radius:12px;padding:2px 8px;font-weight:700;font-size:0.7rem;display:flex;align-items:center;gap:3px;">
+                      <i class="ph ph-check-circle"></i> SALVO
+                    </span>
+                    <span style="color:#64748b;font-size:0.68rem;">${item.salvoEm}</span>
+                  </span>
+                </td>
+                <td style="padding:0.5rem 0.75rem;text-align:center;"><span style="color:#cbd5e1;font-size:0.8rem;">—</span></td>`;
+            } else {
+                celulaStatus = `<td style="padding:0.5rem 0.75rem;text-align:center;"><span style="color:#cbd5e1;font-size:0.8rem;">—</span></td>
+                <td style="padding:0.5rem 0.75rem;text-align:center;"><span style="color:#cbd5e1;font-size:0.8rem;">—</span></td>`;
+            }
+
         return `<tr style="border-bottom:1px solid #f1f5f9;${!item.colaborador_id?'opacity:0.9':''}">
             <td style="padding:0.5rem 0.75rem;text-align:center;">
               <input type="checkbox" ${item.selecionado&&item.colaborador_id?'checked':''} ${!item.colaborador_id?'disabled':''} onchange="window._pmToggle(${realIdx},this.checked)"
@@ -16213,18 +16250,14 @@ window.reenviarAssinatura = async function (id, source, btn) {
             <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#22c55e;">
               ${(item.paginaPagamento && item.paginaPagamento !== '-') ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
             </td>
-            <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.72rem;">
-              ${item.enviadoEm
-                ? `<span style="color:#a21caf;font-weight:600;white-space:nowrap;"><i class="ph ph-paper-plane-tilt" style="font-size:0.85rem;"></i><br>${item.enviadoEm}</span>`
-                : `<span style="color:#cbd5e1;">-</span>`}
-            </td>
+            ${celulaStatus}
             <td style="padding:0.5rem 0.75rem;text-align:center;">
               <button onclick="window._pmPreview(${realIdx})" style="background:transparent;border:none;color:#3b82f6;cursor:pointer;padding:4px;border-radius:4px;" title="Visualizar Documento">
                  <i class="ph ph-eye" style="font-size:1.1rem;"></i>
               </button>
             </td>
         </tr>`;
-    }).join('') || '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#9ca3af;">Nenhum item encontrado com os filtros.</td></tr>';
+    }).join('') || '<tr><td colspan="9" style="text-align:center;padding:2rem;color:#9ca3af;">Nenhum item encontrado com os filtros.</td></tr>';
     }
 
     // ── Helpers de estado ──────────────────────────────────────────────────────
@@ -16445,8 +16478,12 @@ window.reenviarAssinatura = async function (id, source, btn) {
                                 const localItem = _itensProcessados.find(i => i.colaborador_id === res.colaborador_id);
                                 if (localItem) {
                                     localItem.docId = res.docId;
-                                    // Registrar hora de envio (se foi envio com e-mail)
-                                    if (!isSalvarOnly) localItem.enviadoEm = dataHora;
+                                    if (isSalvarOnly) {
+                                        localItem.salvoEm = dataHora;   // ✅ Data/hora do salvamento
+                                    } else {
+                                        localItem.salvoEm = localItem.salvoEm || dataHora; // Mantém salvo se já existia
+                                        localItem.enviadoEm = dataHora; // ✈ Data/hora do envio por e-mail
+                                    }
                                 }
                             }
                         });
