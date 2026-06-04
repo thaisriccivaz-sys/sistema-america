@@ -15788,6 +15788,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">NOME DETECTADO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">COLABORADOR</th>
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">DEPARTAMENTO</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">MATCH</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">AÇÕES</th>
                      </tr>
                   </thead>
@@ -16119,6 +16120,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
               </select>
             </td>
             <td style="padding:0.5rem 0.75rem;font-size:0.8rem;color:#64748b;">${item.departamento || '-'}</td>
+            <td style="padding:0.5rem 0.75rem;font-size:0.75rem;font-weight:600;">${matchLabels[item.confianca] || matchLabels[null]}</td>
             <td style="padding:0.5rem 0.75rem;text-align:center;">
               <button onclick="window._pmPreview(${realIdx})" style="background:transparent;border:none;color:#3b82f6;cursor:pointer;padding:4px;border-radius:4px;" title="Visualizar Documento">
                  <i class="ph ph-eye" style="font-size:1.1rem;"></i>
@@ -16136,7 +16138,29 @@ window.reenviarAssinatura = async function (id, source, btn) {
         const item = _itensProcessados[idx];
         if (!item) return;
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        if (item.docId) {
+        
+        // Se temos um docId base (do banco) e temos as páginas do holerite anexadas
+        if (item.docId && window._pdfDuploBase64 && (item.paginaAdiantamento || item.paginaPagamento)) {
+            const f = document.createElement('form');
+            f.method = 'POST';
+            f.action = `/api/pagamentos-massa/preview-merge?token=${token}`;
+            f.target = '_blank';
+            
+            const i1 = document.createElement('input'); i1.type='hidden'; i1.name='docId'; i1.value=item.docId; f.appendChild(i1);
+            
+            if (item.paginaAdiantamento && window._pdfDuploBase64.adiantamento) {
+               const i2 = document.createElement('input'); i2.type='hidden'; i2.name='pdfAdiantamento'; i2.value=window._pdfDuploBase64.adiantamento; f.appendChild(i2);
+               const i3 = document.createElement('input'); i3.type='hidden'; i3.name='paginaAdiantamento'; i3.value=item.paginaAdiantamento; f.appendChild(i3);
+            }
+            if (item.paginaPagamento && window._pdfDuploBase64.pagamento) {
+               const i4 = document.createElement('input'); i4.type='hidden'; i4.name='pdfPagamento'; i4.value=window._pdfDuploBase64.pagamento; f.appendChild(i4);
+               const i5 = document.createElement('input'); i5.type='hidden'; i5.name='paginaPagamento'; i5.value=item.paginaPagamento; f.appendChild(i5);
+            }
+            document.body.appendChild(f);
+            f.submit();
+            document.body.removeChild(f);
+            
+        } else if (item.docId) {
             window.open(`/api/documentos/view/${item.docId}?token=${token}`, '_blank');
         } else if (_pdfBase64) {
             let url = `data:application/pdf;base64,${_pdfBase64}`;

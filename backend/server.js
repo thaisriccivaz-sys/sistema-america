@@ -6438,6 +6438,62 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
         res.status(500).json({ error: e.message });
     }
 });
+// POST: Preview merge de holerites on the fly
+app.post('/api/pagamentos-massa/preview-merge', async (req, res) => {
+    // Authenticate manually from query token because form POST doesn't send Bearer header easily
+    const token = req.query.token;
+    if (!token) return res.status(401).send('Acesso não autorizado');
+    
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'america-rental-secret-key-2024');
+    } catch(e) {
+        return res.status(403).send('Token inválido');
+    }
+
+    try {
+        const { docId, pdfAdiantamento, paginaAdiantamento, pdfPagamento, paginaPagamento } = req.body;
+        if (!docId) return res.status(400).send('Doc ID não fornecido');
+
+        const rowBase = await new Promise((resolve, reject) => db.get('SELECT file_path FROM documentos WHERE id = ?', [docId], (e, r) => e ? reject(e) : resolve(r)));
+        if (!rowBase || !rowBase.file_path) return res.status(404).send('Documento base não encontrado');
+
+        const fs = require('fs').promises;
+        const path = require('path');
+        const { PDFDocument } = require('pdf-lib');
+        
+        const fullPath = path.join(BASE_UPLOAD_PATH, rowBase.file_path);
+        const baseBytes = await fs.readFile(fullPath);
+        const basePdfDoc = await PDFDocument.load(baseBytes);
+
+        // Merge Adiantamento if provided
+        if (pdfAdiantamento && paginaAdiantamento) {
+            const bufAd = Buffer.from(pdfAdiantamento, 'base64');
+            const bufExtraidaAd = await pagamentosMassa.extrairPagina(bufAd, parseInt(paginaAdiantamento));
+            const adPdfDoc = await PDFDocument.load(bufExtraidaAd);
+            const [adPage] = await basePdfDoc.copyPages(adPdfDoc, [0]);
+            basePdfDoc.addPage(adPage);
+        }
+
+        // Merge Pagamento if provided
+        if (pdfPagamento && paginaPagamento) {
+            const bufPg = Buffer.from(pdfPagamento, 'base64');
+            const bufExtraidaPg = await pagamentosMassa.extrairPagina(bufPg, parseInt(paginaPagamento));
+            const pgPdfDoc = await PDFDocument.load(bufExtraidaPg);
+            const [pgPage] = await basePdfDoc.copyPages(pgPdfDoc, [0]);
+            basePdfDoc.addPage(pgPage);
+        }
+
+        const mergedPdfBytes = await basePdfDoc.save();
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="preview_holerites.pdf"`);
+        res.send(Buffer.from(mergedPdfBytes));
+
+    } catch (e) {
+        console.error('[PAGAMENTOS-MASSA] Erro no preview-merge:', e);
+        res.status(500).send('Erro ao gerar a pré-visualização: ' + e.message);
+    }
+});
 
 // POST: Enviar documentos individuais para assinatura (em massa)
 app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => {
