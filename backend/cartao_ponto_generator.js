@@ -169,7 +169,7 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extra100}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extraDiurna}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extraNoturna}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;color:#111;font-size:6.5px;word-wrap:break-word;white-space:normal;max-width:90px;">${obsText}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;color:#111;font-size:6.5px;word-break:break-all;overflow-wrap:anywhere;white-space:normal;min-width:60px;max-width:90px;">${obsText}</td>
         </tr>`;
     });
 
@@ -230,7 +230,7 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         
         <div style="border-top: 1px solid #999; margin-bottom: 5px;"></div>
         
-        <table style="width: 100%; border-collapse: collapse; font-size: 7px; text-align: left; table-layout: fixed;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 7px; text-align: left;">
             <thead>
                 <tr style="border-bottom: 1px solid #ccc; font-weight: bold; color: #475569;">
                     <th style="padding: 2px 1px;">DIA</th>
@@ -247,7 +247,7 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
                     <th style="padding: 2px 1px;">EXTRA 100%</th>
                     <th style="padding: 2px 1px;">EXTRA DIURNA</th>
                     <th style="padding: 2px 1px;">EXTRA NOTURNA</th>
-                    <th style="padding: 2px 1px; width: 90px; word-wrap:break-word;">OBSERVAÇÕES</th>
+                    <th style="padding: 2px 1px; width: 90px;">OBSERVAÇÕES</th>
                 </tr>
             </thead>
             <tbody>
