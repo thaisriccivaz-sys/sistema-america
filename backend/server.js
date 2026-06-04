@@ -1488,7 +1488,9 @@ async function pollAdmissaoAssinaturas() {
                             } else {
                                 cloudName = isAtestado
                                     ? (doc.file_name || 'Atestado.pdf').replace(/_\d{8}_\d{6}(\.\w+)$/, '$1')
-                                    : `${formatarPasta(doc.nome_documento || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
+                                    : (safeTab === 'PAGAMENTOS' && doc.file_name)
+                                        ? doc.file_name  // Pagamentos: mesmo nome para sobrescrever o original
+                                        : `${formatarPasta(doc.nome_documento || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
                                 // Montar o targetDir com mês para Pagamentos
                                 targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
                                 if (safeTab === 'PAGAMENTOS' && doc.month && doc.month !== 'null' && doc.month !== '') {

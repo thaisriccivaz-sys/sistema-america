@@ -5554,6 +5554,8 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     // Icone esquerdo: amarelo=criado, azul aviao=enviado, verde caneta=assinado
     const assinafyStatus = isSaved ? (existingDoc.assinafy_status || '') : '';
     const foiEnviado = isSaved && !!existingDoc.assinafy_sent_at;
+    // Cartao especial roxo para tipo 'Pagamentos' na aba Pagamentos
+    const isPagamentosCard = (tabId === 'Pagamentos' && docType === 'Pagamentos');
     let docIconClass, docIconColor;
     if (assinafyStatus === 'Assinado') {
         docIconClass = 'ph-pen-nib';
@@ -5561,6 +5563,9 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     } else if (foiEnviado || assinafyStatus === 'Pendente') {
         docIconClass = 'ph-paper-plane-tilt';
         docIconColor = '#1971c2'; // azul
+    } else if (isPagamentosCard) {
+        docIconClass = isSaved ? 'ph-file-pdf' : 'ph-file-dashed';
+        docIconColor = isSaved ? '#a21caf' : '#c084fc'; // roxo
     } else {
         docIconClass = 'ph-file-text';
         docIconColor = isSaved ? '#e8a000' : '#94a3b8'; // amarelo=salvo, cinza=pendente
@@ -6925,7 +6930,14 @@ window.renderPagamentosCompetencia = function () {
 
     // ── Slots mensais ──────────────────────────────────────────────────────────
     const docs = currentDocs.filter(d => d.tab_name === 'Pagamentos' && d.year == y && d.month == m);
-    ['Ponto', 'Holerite Pagamento', 'Holerite Adiantamento', 'Recibo Combustível', 'Recibo Alimentação', 'Outros'].forEach(type => {
+    // doc tipo Pagamentos (holerite salvo via Docs. em Massa) — fica em primeiro, roxo
+    const docPagamentos = docs.find(x => x.document_type === 'Pagamentos');
+    const slotPag = createDocSlot('Pagamentos', 'Pagamentos', docPagamentos, `'${y}'`, `'${m}'`);
+    // Estilo roxo para o cartão Pagamentos
+    slotPag.style.cssText = 'border-left: 4px solid #a21caf; background: linear-gradient(to right, #fdf4ff, #fff);';
+    subContainer.appendChild(slotPag);
+
+    ['Ponto', 'Holerite Pagamento', 'Holerite Adiantamento', 'Recibo Combustível', 'Recibo Alimentação', 'Pendente', 'Outros'].forEach(type => {
         const d = docs.find(x => x.document_type === type);
         subContainer.appendChild(createDocSlot('Pagamentos', type, d, `'${y}'`, `'${m}'`));
     });
@@ -6936,16 +6948,27 @@ window.renderPagamentosCompetencia = function () {
     const secFerias = document.createElement('div');
     secFerias.style.cssText = 'margin-top:1.5rem; border-top:2px dashed #bfdbfe; padding-top:1.25rem;';
     secFerias.innerHTML = `
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; flex-wrap:wrap; gap:0.75rem;">
             <h5 style="margin:0; color:#1e40af; display:flex; align-items:center; gap:0.5rem;">
                 <i class="ph ph-sun-horizon" style="font-size:1.2rem;"></i> Férias <span style="font-size:0.8rem; font-weight:400; color:#64748b; margin-left:4px;">(${y} — sazonal)</span>
             </h5>
-            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; background:#1e40af; color:#fff; border-radius:8px; padding:6px 14px; font-size:0.85rem; font-weight:600; transition:background 0.2s;"
-                   onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#1e40af'">
-                <i class="ph ph-upload-simple"></i> Adicionar Férias
-                <input type="file" accept=".pdf" style="display:none;"
-                    onchange="window.uploadDocument(this, 'Pagamentos', 'Férias', '${y}', null)">
-            </label>
+            <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:8px; font-size:0.82rem;">
+                    <span style="font-weight:600;color:#64748b;">Exige Assinatura?</span>
+                    <label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin:0;font-weight:500;">
+                        <input type="radio" name="ferias-assin-${y}" value="PENDENTE" checked> Sim
+                    </label>
+                    <label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin:0;font-weight:500;">
+                        <input type="radio" name="ferias-assin-${y}" value="NAO_EXIGE"> Não
+                    </label>
+                </div>
+                <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; background:#1e40af; color:#fff; border-radius:8px; padding:6px 14px; font-size:0.85rem; font-weight:600; transition:background 0.2s;"
+                       onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#1e40af'">
+                    <i class="ph ph-upload-simple"></i> Adicionar Férias
+                    <input type="file" accept=".pdf" style="display:none;"
+                        onchange="const r=this.closest('div').querySelector('input[name^=ferias-assin-]:checked'); window.uploadDocument(this, 'Pagamentos', 'Férias', '${y}', null, null, r ? r.value : 'PENDENTE')">
+                </label>
+            </div>
         </div>
         <div id="ferias-slots-${y}" style="display:flex; flex-wrap:wrap; gap:0.75rem;">
             ${feriasDoAno.length === 0
