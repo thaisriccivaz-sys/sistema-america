@@ -1748,11 +1748,8 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
         if (d.listAfdtManutencao) {
             d.listAfdtManutencao.forEach(m => {
                 if (m.reason && m.reason.trim()) {
-                    const mh = Math.floor(m.hora/100).toString().padStart(2,'0');
-                    const mm2 = (m.hora%100).toString().padStart(2,'0');
-                    const tipoOcorr = m.oculto ? 'D' : (m.isManual ? 'I' : '');
-                    const ocorrStr = tipoOcorr ? `[${tipoOcorr}] ${mh}:${mm2}: ` : `${mh}:${mm2}: `;
-                    obsLinhas.push(ocorrStr + m.reason.trim());
+                    const tipoOcorr = m.oculto ? '[D] ' : (m.isManual ? '[I] ' : '');
+                    obsLinhas.push(tipoOcorr + m.reason.trim());
                 }
             });
         }
@@ -1766,27 +1763,28 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
 
         rowsHtml += `
         <tr>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${diaNum} - ${diaSemanaStr}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9; white-space:nowrap;">${previsto}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${ent1_td}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${sai1_td}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : e2}</td>
-            <td style="padding:3px 8px 3px 1px;border-bottom:1px solid #f1f5f9;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : s2}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${normais}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${noturn}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${status === 'Falta' ? '1' : ''}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${fmtMin(faltaAtrasoMin)}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extra60}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extra100}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extraDiurna}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;">${extraNoturna}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;color:#111;font-size:6.5px;word-break:break-all;overflow-wrap:anywhere;white-space:normal;min-width:60px;max-width:100px;">${obsText}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${diaNum} - ${diaSemanaStr}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;word-break:break-all;">${previsto}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${ent1_td}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${sai1_td}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : e2}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : s2}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${normais}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${noturn}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;text-align:center;">${status === 'Falta' ? '1' : ''}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${fmtMin(faltaAtrasoMin)}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${extra60}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${extra100}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${extraDiurna}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${extraNoturna}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;color:#111;font-size:6.5px;word-break:break-word;white-space:normal;">${obsText}</td>
         </tr>`;
     });
 
     const dataAdmissao = c.data_admissao ? c.data_admissao.split('-').reverse().join('/') : '';
     const cpfFmt = safe(c.cpf).replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-    const dataEmissao = new Date().toLocaleDateString('pt-BR') + ' \u00e0s ' + new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+    const tzOpts = { timeZone: 'America/Sao_Paulo' };
+    const dataEmissao = new Date().toLocaleDateString('pt-BR', tzOpts) + ' \u00e0s ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', ...tzOpts });
     const ultimoDia = new Date(ano, mes, 0).getDate();
 
     // Bloco Horários Contratuais
@@ -1863,7 +1861,7 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
         
         <div style="border-top: 1px solid #999; margin-bottom: 5px;"></div>
         
-        <table style="width: 100%; border-collapse: collapse; font-size: 7px; text-align: left;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 7px; text-align: left; table-layout: fixed;"><colgroup><col style="width:10%"><col style="width:12%"><col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:6%"><col style="width:5%"><col style="width:3%"><col style="width:5%"><col style="width:4%"><col style="width:4%"><col style="width:5%"><col style="width:5%"><col style="width:25%"></colgroup>
             <thead>
                 <tr style="border-bottom: 1px solid #ccc; font-weight: bold; color: #475569;">
                     <th style="padding: 2px 1px;">DIA</th>
