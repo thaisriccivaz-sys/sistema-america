@@ -1689,14 +1689,19 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
         const e2 = marcacoes[2] || '';
         const s2 = marcacoes[3] || '';
 
-        // TOTAL NORMAIS — usa totalHorasTrabalhadas; fallback para horasTotalNoturno
-        // (colaboradores com contrato noturno têm horas reportadas em horasTotalNoturno)
-        const normaisMin = d.totalHorasTrabalhadas || d.horasTotalNoturno || d.horasNoturnasNaoExtra || 0;
+        // TOTAL NORMAIS — soma das horas normais + horas noturnas do contrato
+        // (na API do RHID, dia-shift usa totalHorasTrabalhadas; noturno-contrato usa horasTotalNoturno)
+        // Os campos são EXCLUSIVOS: colaborador diurno tem valor em totalHorasTrabalhadas e 0 em horasTotalNoturno; noturno, o inverso.
+        const normaisMin = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
         const normais = fmtMin(normaisMin);
 
-        // TOTAL NOTURNO — somente horas genuinamente noturnas (não confundir com total do contrato noturno)
-        const noturnMin = d.horasNoturnasNaoExtra || 0;
+        // TOTAL NOTURNO — horas genuinamente noturnas (suplemento para quem trabalha parte do dia e parte da noite)
+        // Se totalHorasTrabalhadas é 0, é contrato noturno puro → TOTAL NOTURNO fica vazio (horas já aparecem em NORMAIS)
+        const noturnMin = (d.totalHorasTrabalhadas > 0)
+            ? (d.horasNoturnasNaoExtra || 0)
+            : 0;
         const noturn = fmtMin(noturnMin);
+
 
         // EXTRA DIURNA / EXTRA NOTURNA
         const extraDiurnaMin = d.extraDiurna || d.extraAdicionadaDiurna || 0;
