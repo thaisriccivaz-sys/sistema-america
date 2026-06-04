@@ -3635,6 +3635,12 @@ window.editColaborador = async function (id) {
 
         if (document.getElementById('colab-escala-padrao')) {
             document.getElementById('colab-escala-padrao').value = c.escala_tipo || '';
+            // Checkbox faz_apontamento: mostrar apenas para Supervisão
+            const divFazApontamento = document.getElementById('div-faz-apontamento');
+            const cbFazApontamento = document.getElementById('colab-faz-apontamento');
+            const isSup = (c.departamento || '').toLowerCase().includes('supervis');
+            if (divFazApontamento) divFazApontamento.style.display = isSup ? 'block' : 'none';
+            if (cbFazApontamento) cbFazApontamento.checked = (c.faz_apontamento == 1);
             if (document.getElementById('colab-entrada')) document.getElementById('colab-entrada').value = c.horario_entrada || '';
             if (document.getElementById('colab-saida')) document.getElementById('colab-saida').value = c.horario_saida || '';
             if (document.getElementById('colab-intervalo-entrada')) document.getElementById('colab-intervalo-entrada').value = c.intervalo_entrada || '';
@@ -4054,6 +4060,7 @@ if (formColab) {
             banco_agencia: document.getElementById('colab-banco-agencia') ? document.getElementById('colab-banco-agencia').value : null,
             banco_conta: document.getElementById('colab-banco-conta') ? document.getElementById('colab-banco-conta').value : null,
             escala_tipo: document.getElementById('colab-escala-padrao') ? document.getElementById('colab-escala-padrao').value : null,
+            faz_apontamento: document.getElementById('colab-faz-apontamento') ? (document.getElementById('colab-faz-apontamento').checked ? 1 : 0) : 0,
             escala_folgas: null,
             escala_ciclo_inicio: document.getElementById('colab-escala-ciclo-inicio') ? (document.getElementById('colab-escala-ciclo-inicio').value || null) : null,
             meio_transporte: document.getElementById('colab-meio-transporte') ? document.getElementById('colab-meio-transporte').value : null,

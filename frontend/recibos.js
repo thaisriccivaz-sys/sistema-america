@@ -701,11 +701,14 @@ window._isColabFerias = function(c, ano, mes) {
 };
 
 window._isSupervisao = function(c) {
+    // Se marcado como "faz apontamento de ponto", trata como operacional (não supervisão)
+    if (c.faz_apontamento == 1 || c.faz_apontamento === true) return false;
     const dept = (c.departamento || '').toLowerCase();
     const cargo = (c.cargo || '').toLowerCase();
     const nome = (c.nome || '').toLowerCase();
     return dept.includes('supervis') || cargo.includes('supervis') || cargo.includes('sup.') || cargo.startsWith('sup ') || nome.includes('thais ricci vaz');
 };
+
 
 window._getRowColors = function(c, s) {
     const mesAt = parseInt(document.getElementById('rec-mes')?.value);
