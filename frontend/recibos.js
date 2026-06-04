@@ -1351,14 +1351,9 @@ window.anexarRecibosDocsMassa = async function () {
         const logo = await _recGetLogo();
         let sucesso = 0, falha = 0;
 
-        // Container oculto para renderizar o HTML antes de gerar o PDF
-        let hiddenDiv = document.getElementById('_rec_pdf_render_container');
-        if (!hiddenDiv) {
-            hiddenDiv = document.createElement('div');
-            hiddenDiv.id = '_rec_pdf_render_container';
-            hiddenDiv.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:794px;background:#fff;z-index:-1;';
-            document.body.appendChild(hiddenDiv);
-        }
+        // NOTA: O html2canvas só renderiza elementos DENTRO da viewport.
+        // Por isso, criamos um div por colaborador em position:fixed left:0 top:0
+        // com opacity quase zero (invisível ao usuário mas renderizável).
 
         for (let idx = 0; idx < sels.length; idx++) {
             const c = sels[idx];
@@ -1377,20 +1372,30 @@ window.anexarRecibosDocsMassa = async function () {
                 if (_isVT(m)) { corpo += '<div style="page-break-before:always;"></div>' + _buildReciboBlock('VT', c, s, mes, mesNome, ano, valorVR, logo); }
                 if (_isVC(m)) { corpo += '<div style="page-break-before:always;"></div>' + _buildReciboBlock('VC', c, s, mes, mesNome, ano, valorVR, logo); }
 
-                hiddenDiv.innerHTML = `<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:Arial,Helvetica,sans-serif;font-size:12px;background:#fff;color:#111;}</style>${corpo}`;
+                // Div temporário na viewport (opacity ~0) para html2canvas conseguir renderizar
+                const renderDiv = document.createElement('div');
+                renderDiv.style.cssText = 'position:fixed;left:0;top:0;width:794px;background:#fff;z-index:99999;opacity:0.001;pointer-events:none;overflow:hidden;';
+                renderDiv.innerHTML = `<style>*{box-sizing:border-box;margin:0;padding:0;}div,p,span,table,td,th{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#111;}</style>${corpo}`;
+                document.body.appendChild(renderDiv);
 
                 // Gerar PDF usando html2pdf.js (roda no browser, sem Chromium)
-                const pdfBlob = await new Promise((resolve, reject) => {
-                    if (typeof html2pdf === 'undefined') { reject(new Error('html2pdf não disponível')); return; }
-                    html2pdf().set({
-                        margin: 0,
-                        filename: `recibo_${c.id}.pdf`,
-                        image: { type: 'jpeg', quality: 0.85 },
-                        html2canvas: { scale: 1.5, useCORS: true, logging: false },
-                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                        pagebreak: { mode: ['css', 'legacy'] }
-                    }).from(hiddenDiv).outputPdf('blob').then(resolve).catch(reject);
-                });
+                let pdfBlob;
+                try {
+                    pdfBlob = await new Promise((resolve, reject) => {
+                        if (typeof html2pdf === 'undefined') { reject(new Error('html2pdf não disponível')); return; }
+                        html2pdf().set({
+                            margin: 0,
+                            filename: `recibo_${c.id}.pdf`,
+                            image: { type: 'jpeg', quality: 0.92 },
+                            html2canvas: { scale: 2, useCORS: true, logging: false, allowTaint: false, backgroundColor: '#ffffff' },
+                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                            pagebreak: { mode: ['css', 'legacy'] }
+                        }).from(renderDiv).outputPdf('blob').then(resolve).catch(reject);
+                    });
+                } finally {
+                    // Sempre remover o div do DOM, mesmo se der erro
+                    document.body.removeChild(renderDiv);
+                }
 
                 // Enviar o PDF pronto para o servidor (só salva, não gera nada)
                 const safeNome = (c.nome_completo || 'Colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
@@ -1424,8 +1429,7 @@ window.anexarRecibosDocsMassa = async function () {
             await new Promise(r => setTimeout(r, 100));
         }
 
-        // Limpar container temporário
-        hiddenDiv.innerHTML = '';
+
 
         if (typeof Swal !== 'undefined') {
             Swal.fire({
