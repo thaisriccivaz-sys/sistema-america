@@ -15716,12 +15716,6 @@ window.reenviarAssinatura = async function (id, source, btn) {
                 </button>
               </div>
 
-              <div style="margin-top:1rem;text-align:center;">
-                  <button id="pm-btn-load-db" onclick="window._pmCarregarDocumentos()" style="padding:0.6rem 1.2rem;background:#fff;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-weight:600;color:#475569;cursor:pointer;display:inline-flex;align-items:center;gap:0.5rem;transition:all 0.2s;">
-                      <i class="ph ph-database" style="color:#f503c5;font-size:1.1rem;"></i> Usar documentos pendentes
-                  </button>
-              </div>
-
               <div id="pm-processing" style="display:none;margin-top:1rem;padding:1rem;background:#f0fdf4;border-radius:8px;color:#166534;font-size:0.85rem;">
                 <i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i>
                 Processando PDF e detectando colaboradores...
@@ -15791,11 +15785,9 @@ window.reenviarAssinatura = async function (id, source, btn) {
                   <thead style="position:sticky;top:0;z-index:2;background:#f8fafc;outline:1px solid #e2e8f0;">
                     <tr>
                       <th style="padding:0.5rem 0.75rem;text-align:center;width:40px;"><i class="ph ph-check-square" style="color:#64748b;"></i></th>
-                      <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">PÁG.</th>
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">NOME DETECTADO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">COLABORADOR</th>
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">DEPARTAMENTO</th>
-                      <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">MATCH</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">AÇÕES</th>
                      </tr>
                   </thead>
@@ -15846,19 +15838,16 @@ window.reenviarAssinatura = async function (id, source, btn) {
         const t = document.getElementById('pm-tipo-doc');
         const dz = document.getElementById('pm-single-upload-section');
         const dzDual = document.getElementById('pm-dual-upload-section');
-        const btnDb = document.getElementById('pm-btn-load-db');
         if (!dz || !dzDual) return;
         
         if (t && t.value === 'Pagamentos') {
             dz.style.display = 'none';
             dzDual.style.display = 'block';
-            if (btnDb) btnDb.parentElement.style.display = 'block';
             window._pmCarregarDocumentos();
             return;
         } else {
             dz.style.display = 'block';
             dzDual.style.display = 'none';
-            if (btnDb) btnDb.parentElement.style.display = 'block';
         }
 
         if (window._pmTipoOk()) {
