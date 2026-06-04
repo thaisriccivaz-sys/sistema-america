@@ -6445,7 +6445,7 @@ app.post('/api/pagamentos-massa/preview-merge', async (req, res) => {
     if (!token) return res.status(401).send('Acesso não autorizado');
     
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'america-rental-secret-key-2024');
+        const decoded = jwt.verify(token, SECRET_KEY);
     } catch(e) {
         return res.status(403).send('Token inválido');
     }
