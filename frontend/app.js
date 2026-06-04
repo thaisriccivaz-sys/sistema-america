@@ -6937,10 +6937,7 @@ window.renderPagamentosCompetencia = function () {
     slotPag.style.cssText = 'border-left: 4px solid #a21caf; background: linear-gradient(to right, #fdf4ff, #fff);';
     subContainer.appendChild(slotPag);
 
-    ['Ponto', 'Holerite Pagamento', 'Holerite Adiantamento', 'Recibo Combustível', 'Recibo Alimentação', 'Pendente'].forEach(type => {
-        const d = docs.find(x => x.document_type === type);
-        subContainer.appendChild(createDocSlot('Pagamentos', type, d, `'${y}'`, `'${m}'`));
-    });
+
 
     // ── Seção sazonal: Férias (por ano, sem vínculo de mês) ───────────────────
     const feriasDoAno = currentDocs.filter(d => d.tab_name === 'Pagamentos' && d.document_type === 'Férias' && d.year == y);
