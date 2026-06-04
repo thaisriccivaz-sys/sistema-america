@@ -241,14 +241,13 @@ window.initRecibosView = async function () {
     container.innerHTML = _buildRecibosLayout(mesAt, anoAt);
     _ensureSpinCss();
 
-    // Carrega valor do VR da configuração global (fallback R$35,00)
+    window._recibosValorVR = 35.00;
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const res = await fetch(`${API_URL}/configuracoes/valor_vr`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (res.ok) {
             const cfg = await res.json();
-            const inputVR = document.getElementById('rec-valor-vr');
-            if (inputVR && cfg.valor_vr) inputVR.value = parseFloat(cfg.valor_vr).toFixed(2);
+            if (cfg.valor_vr) window._recibosValorVR = parseFloat(cfg.valor_vr);
         }
     } catch(e) { /* usa padrão 35.00 */ }
 
@@ -351,24 +350,6 @@ function _buildRecibosLayout(mesAt, anoAt) {
         </select>
       </div>
       <div style="width:1px;height:42px;background:#e2e8f0;align-self:flex-end;"></div>
-      <div>
-        <label style="font-size:.79rem;font-weight:600;color:#475569;display:block;margin-bottom:.3rem;">
-          <i class="ph ph-fork-knife" style="color:#059669;"></i> Valor VR por dia (R$)
-        </label>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <input type="number" id="rec-valor-vr" value="35.00" min="0" step="0.01"
-            style="width:110px;padding:.54rem .75rem;border:1px solid #cbd5e1;border-radius:8px;font-size:.95rem;font-weight:700;color:#059669;">
-        </div>
-      </div>
-      <div style="width:1px;height:42px;background:#e2e8f0;align-self:flex-end;"></div>
-      <!-- Aviso sem "dias úteis globais" -->
-      <div style="display:flex;align-items:center;gap:8px;padding:.5rem .75rem;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;max-width:340px;">
-        <i class="ph ph-info" style="color:#d97706;font-size:1.1rem;flex-shrink:0;"></i>
-        <span style="font-size:.79rem;color:#92400e;line-height:1.4;">
-          Os <strong>dias trabalhados e faltas</strong> são individuais por colaborador.
-          Use <strong>Buscar Ponto (RHID)</strong> para preencher automaticamente.
-        </span>
-      </div>
     </div>
   </div>
 
@@ -1099,7 +1080,7 @@ window._recBuscarPontoSelecionados = async function () {
 
     // Salvar apuração automaticamente no backend após a busca
     try {
-        const valorVR = parseFloat(document.getElementById('rec-valor-vr')?.value) || 35.00;
+        const valorVR = window._recibosValorVR || 35.00;
         const itensSalvar = sels.map(c => ({
             colaborador_id: c.id,
             dias_trabalhados: _recibosSelecoes[c.id].diasTrabalhados,
@@ -1186,7 +1167,7 @@ window.gerarRecibosEmMassa = async function () {
 
     const mes     = parseInt(document.getElementById('rec-mes')?.value);
     const ano     = parseInt(document.getElementById('rec-ano')?.value);
-    const valorVR = parseFloat(document.getElementById('rec-valor-vr')?.value) || 35.00;
+    const valorVR = window._recibosValorVR || 35.00;
     const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][mes-1];
 
     // Aviso se algum selecionado tem dias = 0 e ponto não buscado
@@ -1336,7 +1317,7 @@ window.anexarRecibosDocsMassa = async function () {
     const mes = mesValue ? String(mesValue).padStart(2, '0') : '';
     const ano = document.getElementById('rec-ano')?.value;
     const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mesValue)-1];
-    const valorVR = parseFloat(document.getElementById('rec-valor-vr')?.value) || 35.00;
+    const valorVR = window._recibosValorVR || 35.00;
 
     const btnAnexar = document.getElementById('btn-anexar-massa');
     if (btnAnexar) { btnAnexar.disabled = true; btnAnexar.innerHTML = '<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Anexando e Salvando...'; }
@@ -1453,7 +1434,7 @@ window.baixarConferenciaPonto = async function () {
     const mesInt = parseInt(mes);
     const anoInt = parseInt(ano);
     const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][mesInt-1];
-    const valorVR = parseFloat(document.getElementById('rec-valor-vr')?.value) || 35.00;
+    const valorVR = window._recibosValorVR || 35.00;
 
     // Período da janela de desconto: 29/M-1 → 28/M
     const mesPrevConf = mesInt === 1 ? 12 : mesInt - 1;
