@@ -199,17 +199,25 @@ async function processarPDF(bufferPDF, tipoDocumento) {
 
 /**
  * Extrai uma página específica do PDF e retorna como Buffer
- * Se isHolerite = true, recorta a metade superior (para ficar 1 via só).
+ * Se isHolerite = true, esconde a metade inferior da página com um retângulo branco para manter 1 via em tamanho A4.
  */
 async function extrairPagina(bufferPDF, numeroPagina, isHolerite = false) {
+    const { rgb } = require('pdf-lib');
     const pdfOriginal = await PDFDocument.load(bufferPDF);
     const novoPdf = await PDFDocument.create();
     const [pagina] = await novoPdf.copyPages(pdfOriginal, [numeroPagina - 1]); // 0-indexed
     
     if (isHolerite) {
         const { width, height } = pagina.getSize();
-        // Recorta a metade superior: y = height/2 (em PDF y cresce pra cima), height do recorte = height/2
-        pagina.setCropBox(0, height / 2, width, height / 2);
+        // Desenha um retângulo branco sobre a metade inferior da página
+        // y=0 é a base da página. Cobre de y=0 até y=height/2.
+        pagina.drawRectangle({
+            x: 0,
+            y: 0,
+            width: width,
+            height: height / 2 + 15, // +15 para cobrir a linha tracejada do meio (ajuste fino)
+            color: rgb(1, 1, 1),
+        });
     }
     
     novoPdf.addPage(pagina);
