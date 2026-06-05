@@ -16197,40 +16197,24 @@ window.reenviarAssinatura = async function (id, source, btn) {
             const nomeColor = item.colaborador_id ? '#374151' : '#ef4444'; // Red if no match
             const nomeWeight = item.colaborador_id ? 'normal' : '700';
 
-            // Célula SALVO
+            // Célula única STATUS (SALVO + ENVIADO empilhados)
             let celulaStatus = '';
-            if (item.enviadoEm) {
-                // Enviado por e-mail (maior prioridade)
+            if (item.salvoEm || item.enviadoEm) {
                 celulaStatus = `<td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.72rem;">
-                  <span style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">
-                    <span style="background:#f0fdf4;color:#16a34a;border-radius:12px;padding:2px 8px;font-weight:700;font-size:0.7rem;display:flex;align-items:center;gap:3px;">
+                  <div style="display:inline-flex;flex-direction:column;align-items:center;gap:4px;">
+                    <span style="background:#f0fdf4;color:#16a34a;border-radius:12px;padding:2px 8px;font-weight:700;font-size:0.7rem;display:flex;align-items:center;gap:3px;white-space:nowrap;">
                       <i class="ph ph-check-circle"></i> SALVO
                     </span>
-                    <span style="color:#64748b;font-size:0.68rem;">${item.salvoEm || item.enviadoEm}</span>
-                  </span>
-                </td>
-                <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.72rem;">
-                  <span style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">
-                    <span style="background:#fdf4ff;color:#a21caf;border-radius:12px;padding:2px 8px;font-weight:700;font-size:0.7rem;display:flex;align-items:center;gap:3px;">
+                    <span style="color:#64748b;font-size:0.67rem;">${item.salvoEm || item.enviadoEm}</span>
+                    ${item.enviadoEm ? `
+                    <span style="background:#fdf4ff;color:#a21caf;border-radius:12px;padding:2px 8px;font-weight:700;font-size:0.7rem;display:flex;align-items:center;gap:3px;white-space:nowrap;margin-top:2px;">
                       <i class="ph ph-paper-plane-tilt"></i> ENVIADO
                     </span>
-                    <span style="color:#64748b;font-size:0.68rem;">${item.enviadoEm}</span>
-                  </span>
+                    <span style="color:#64748b;font-size:0.67rem;">${item.enviadoEm}</span>` : ''}
+                  </div>
                 </td>`;
-            } else if (item.salvoEm) {
-                // Apenas salvo (sem envio de e-mail)
-                celulaStatus = `<td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.72rem;">
-                  <span style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">
-                    <span style="background:#f0fdf4;color:#16a34a;border-radius:12px;padding:2px 8px;font-weight:700;font-size:0.7rem;display:flex;align-items:center;gap:3px;">
-                      <i class="ph ph-check-circle"></i> SALVO
-                    </span>
-                    <span style="color:#64748b;font-size:0.68rem;">${item.salvoEm}</span>
-                  </span>
-                </td>
-                <td style="padding:0.5rem 0.75rem;text-align:center;"><span style="color:#cbd5e1;font-size:0.8rem;">—</span></td>`;
             } else {
-                celulaStatus = `<td style="padding:0.5rem 0.75rem;text-align:center;"><span style="color:#cbd5e1;font-size:0.8rem;">—</span></td>
-                <td style="padding:0.5rem 0.75rem;text-align:center;"><span style="color:#cbd5e1;font-size:0.8rem;">—</span></td>`;
+                celulaStatus = `<td style="padding:0.5rem 0.75rem;text-align:center;"><span style="color:#cbd5e1;font-size:0.8rem;">—</span></td>`;
             }
 
         return `<tr style="border-bottom:1px solid #f1f5f9;${!item.colaborador_id?'opacity:0.9':''}">
@@ -16259,7 +16243,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
               </button>
             </td>
         </tr>`;
-    }).join('') || '<tr><td colspan="9" style="text-align:center;padding:2rem;color:#9ca3af;">Nenhum item encontrado com os filtros.</td></tr>';
+    }).join('') || '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#9ca3af;">Nenhum item encontrado com os filtros.</td></tr>';
     }
 
     // ── Helpers de estado ──────────────────────────────────────────────────────
