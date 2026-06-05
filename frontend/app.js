@@ -5489,7 +5489,10 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
             const syyyy = signedObj.getFullYear();
             const sh = String(signedObj.getHours()).padStart(2, '0');
             const smin = String(signedObj.getMinutes()).padStart(2, '0');
-            enviadoHtml += `<br><span style="color:#1c7ed6; font-weight:600;"><i class="ph ph-check-circle" style="font-size:0.9rem;"></i> Assinado: ${sdd}/${smm}/${syyyy} - ${sh}h${smin}m</span>`;
+            enviadoHtml += `<br><span style="display:inline-flex;align-items:center;gap:4px;background:#dbeafe;color:#1d4ed8;border-radius:8px;padding:2px 8px;font-weight:700;font-size:0.78rem;margin-top:2px;">
+              <i class="ph ph-pen-nib" style="font-size:0.9rem;"></i>
+              Assinado: ${sdd}/${smm}/${syyyy} às ${sh}h${smin}m
+            </span>`;
         }
     }
 
@@ -16128,8 +16131,10 @@ window.reenviarAssinatura = async function (id, source, btn) {
             ...item,
             selecionado: !!item.colaborador_id,
             enviarEmail: true,
-            salvoEm: item.salvoEm || null,   // Preservar data de salvamento do banco
-            enviadoEm: item.enviadoEm || null, // Preservar data de envio do banco
+            salvoEm: item.salvoEm || null,       // Data de salvamento do banco
+            enviadoEm: item.enviadoEm || null,    // Data de envio por e-mail
+            assinadoEm: item.assinadoEm || null,  // Data de assinatura pelo colaborador
+            assinadoStatus: item.assinadoStatus || null, // 'Assinado' quando assinado
         }));
 
         // Ordenação alfabética
@@ -16209,17 +16214,31 @@ window.reenviarAssinatura = async function (id, source, btn) {
                   </td>`
                 : `<td style="padding:0.5rem 0.75rem;text-align:center;"><span style="color:#cbd5e1;font-size:0.8rem;">—</span></td>`;
 
-            // Célula ENVIADO
-            let celulaEnviado = item.enviadoEm
-                ? `<td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.72rem;">
+            // Célula ENVIADO — prioridade: ASSINADO > ENVIADO > —
+            let celulaEnviado;
+            if (item.assinadoStatus === 'Assinado' || item.assinadoEm) {
+                // Documento ASSINADO pelo colaborador
+                celulaEnviado = `<td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.72rem;">
+                    <div style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">
+                      <span style="background:#eff6ff;color:#1d4ed8;border-radius:12px;padding:2px 8px;font-weight:700;font-size:0.7rem;display:flex;align-items:center;gap:3px;white-space:nowrap;">
+                        <i class="ph ph-pen-nib"></i> ASSINADO
+                      </span>
+                      <span style="color:#64748b;font-size:0.67rem;">${item.assinadoEm || item.enviadoEm || ''}</span>
+                    </div>
+                  </td>`;
+            } else if (item.enviadoEm) {
+                // Documento enviado por e-mail (aguardando assinatura)
+                celulaEnviado = `<td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.72rem;">
                     <div style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">
                       <span style="background:#fdf4ff;color:#a21caf;border-radius:12px;padding:2px 8px;font-weight:700;font-size:0.7rem;display:flex;align-items:center;gap:3px;white-space:nowrap;">
                         <i class="ph ph-paper-plane-tilt"></i> ENVIADO
                       </span>
                       <span style="color:#64748b;font-size:0.67rem;">${item.enviadoEm}</span>
                     </div>
-                  </td>`
-                : `<td style="padding:0.5rem 0.75rem;text-align:center;"><span style="color:#cbd5e1;font-size:0.8rem;">—</span></td>`;
+                  </td>`;
+            } else {
+                celulaEnviado = `<td style="padding:0.5rem 0.75rem;text-align:center;"><span style="color:#cbd5e1;font-size:0.8rem;">—</span></td>`;
+            }
 
         return `<tr style="border-bottom:1px solid #f1f5f9;${!item.colaborador_id?'opacity:0.9':''}">
             <td style="padding:0.5rem 0.75rem;text-align:center;">

@@ -6484,7 +6484,7 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
         
         let query = `
             SELECT d.id as doc_id, d.document_type as tipo, d.month, d.year,
-                   d.upload_date, d.assinafy_sent_at,
+                   d.upload_date, d.assinafy_sent_at, d.assinafy_signed_at, d.assinafy_status,
                    c.id as colaborador_id, c.nome_completo as colaborador_nome, 
                    c.email, c.email_corporativo, c.departamento, c.cargo, dep.tipo as setor
             FROM documentos d
@@ -6530,6 +6530,8 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
             ano: r.year,
             salvoEm: fmtDt(r.upload_date),
             enviadoEm: fmtDt(r.assinafy_sent_at),
+            assinadoEm: fmtDt(r.assinafy_signed_at),
+            assinadoStatus: r.assinafy_status || null,
         }));
         
         res.json({ ok: true, resultado });
