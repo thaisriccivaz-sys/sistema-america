@@ -199,31 +199,47 @@ async function processarPDF(bufferPDF, tipoDocumento) {
 
 /**
  * Extrai uma página específica do PDF e retorna como Buffer.
- * Se isMeiaPagina = true, desenha um retângulo branco sobre a metade inferior
- * para que cada recibo (Holerites, Vales) ocupe uma página A4 inteira sem a 2ª via.
+ * Se tipoRecorte = 'holerite' ou true, desenha um retângulo branco sobre a metade inferior.
+ * Se tipoRecorte = 'vale', gera um PDF de 2 páginas (Página 1: recibo do topo, Página 2: recibo da base movido pro topo).
  */
-async function extrairPagina(bufferPDF, numeroPagina, isMeiaPagina = false) {
+async function extrairPagina(bufferPDF, numeroPagina, tipoRecorte = false) {
     const { rgb } = require('pdf-lib');
     const pdfOriginal = await PDFDocument.load(bufferPDF);
     const novoPdf = await PDFDocument.create();
-    const [pagina] = await novoPdf.copyPages(pdfOriginal, [numeroPagina - 1]); // 0-indexed
+    const [paginaOriginal] = await novoPdf.copyPages(pdfOriginal, [numeroPagina - 1]); // 0-indexed
+    const { width, height } = paginaOriginal.getSize();
+    const metade = height / 2;
 
-    if (isMeiaPagina) {
-        const { width, height } = pagina.getSize();
-        const metade = height / 2;
-
-        // Cobre a metade inferior (via do funcionário/empresa duplicada) com branco
-        // y=0 é a base da página.
-        pagina.drawRectangle({
-            x: 0,
-            y: 0,
-            width: width,
-            height: metade + 12, // +12 para cobrir a linha tracejada divisória
-            color: rgb(1, 1, 1),
-        });
+    if (tipoRecorte === 'vale') {
+        const page1 = novoPdf.addPage([width, height]);
+        const page2 = novoPdf.addPage([width, height]);
+        
+        const embeddedPage = await novoPdf.embedPage(paginaOriginal);
+        
+        // Page 1: Topo da página original
+        page1.drawPage(embeddedPage, { x: 0, y: 0 });
+        // Cobre a metade inferior
+        page1.drawRectangle({ x: 0, y: 0, width, height: metade + 12, color: rgb(1, 1, 1) });
+        
+        // Page 2: Base da página original movida para o topo
+        // Como y=0 é a base, ao desenhar em y=metade, a parte de baixo sobe
+        page2.drawPage(embeddedPage, { x: 0, y: metade });
+        // Cobre a nova metade inferior (que ficaria em branco ou com lixo)
+        page2.drawRectangle({ x: 0, y: 0, width, height: metade + 12, color: rgb(1, 1, 1) });
+    } else {
+        novoPdf.addPage(paginaOriginal);
+        if (tipoRecorte === true || tipoRecorte === 'holerite') {
+            const ultimaPagina = novoPdf.getPages()[0];
+            ultimaPagina.drawRectangle({
+                x: 0,
+                y: 0,
+                width: width,
+                height: metade + 12, // +12 para cobrir a linha tracejada divisória
+                color: rgb(1, 1, 1),
+            });
+        }
     }
 
-    novoPdf.addPage(pagina);
     const pdfBytes = await novoPdf.save();
     return Buffer.from(pdfBytes);
 }
