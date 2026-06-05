@@ -199,33 +199,26 @@ async function processarPDF(bufferPDF, tipoDocumento) {
 
 /**
  * Extrai uma página específica do PDF e retorna como Buffer.
- * Se isHolerite = true, recorta a metade SUPERIOR da página (via CropBox/MediaBox)
- * para que cada recibo ocupe uma página A4 inteira, eliminando a via inferior duplicada.
- *
- * Holerites padrão têm 2 vias por página A4 (empresa em cima, funcionário embaixo).
- * Guardamos apenas a via superior (do funcionário) como 1 página independente.
+ * Se isMeiaPagina = true, desenha um retângulo branco sobre a metade inferior
+ * para que cada recibo (Holerites, Vales) ocupe uma página A4 inteira sem a 2ª via.
  */
-async function extrairPagina(bufferPDF, numeroPagina, isHolerite = false) {
+async function extrairPagina(bufferPDF, numeroPagina, isMeiaPagina = false) {
     const { rgb } = require('pdf-lib');
     const pdfOriginal = await PDFDocument.load(bufferPDF);
     const novoPdf = await PDFDocument.create();
     const [pagina] = await novoPdf.copyPages(pdfOriginal, [numeroPagina - 1]); // 0-indexed
 
-    if (isHolerite) {
+    if (isMeiaPagina) {
         const { width, height } = pagina.getSize();
         const metade = height / 2;
 
-        // Recorta via CropBox/MediaBox para exibir apenas a metade SUPERIOR
-        // No PDF, y=0 é a base. Portanto, metade superior = y de (metade) até (height).
-        pagina.setMediaBox(0, metade, width, height);
-        pagina.setCropBox(0, metade, width, height);
-
-        // Também cobre a metade inferior por segurança visual
+        // Cobre a metade inferior (via do funcionário/empresa duplicada) com branco
+        // y=0 é a base da página.
         pagina.drawRectangle({
             x: 0,
             y: 0,
             width: width,
-            height: metade + 5,
+            height: metade + 12, // +12 para cobrir a linha tracejada divisória
             color: rgb(1, 1, 1),
         });
     }

@@ -6632,8 +6632,8 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
             if (!docId) {
                 if (!bufferPDF) throw new Error('PDF base não fornecido para extração.');
                 // 1. Extrair página individual
-                const isHolerite = tipoDocumento.toLowerCase().includes('holerite') || tipoDocumento === 'Pagamentos';
-                let bufPagina = await pagamentosMassa.extrairPagina(bufferPDF, item.pagina, isHolerite);
+                const isMeiaPagina = tipoDocumento.toLowerCase().includes('holerite') || tipoDocumento.toLowerCase().includes('vale');
+                let bufPagina = await pagamentosMassa.extrairPagina(bufferPDF, item.pagina, isMeiaPagina);
 
                 // 2. Buscar colaborador
                 const colab = await new Promise((resolve, reject) =>
