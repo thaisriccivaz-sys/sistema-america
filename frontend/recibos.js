@@ -1211,8 +1211,8 @@ window.gerarRecibosEmMassa = async function () {
         corpo += _buildReciboBlock('VR', c, s, mes, mesNome, ano, valorVR, logo);
 
         // VT ou VC — conforme meio_transporte cadastrado
-        if (_isVT(m)) { corpo += _buildReciboBlock('VT', c, s, mes, mesNome, ano, valorVR, logo); }
-        if (_isVC(m)) { corpo += _buildReciboBlock('VC', c, s, mes, mesNome, ano, valorVR, logo); }
+        if (_isVT(m)) { corpo += '<div class="pb"></div>' + _buildReciboBlock('VT', c, s, mes, mesNome, ano, valorVR, logo); }
+        if (_isVC(m)) { corpo += '<div class="pb"></div>' + _buildReciboBlock('VC', c, s, mes, mesNome, ano, valorVR, logo); }
     });
 
     const fullHtml = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
@@ -1369,9 +1369,11 @@ window.anexarRecibosDocsMassa = async function () {
             try {
                 // Montar HTML do recibo
                 let corpo = '';
-                corpo += _buildReciboBlock('VR', c, s, mes, mesNome, ano, valorVR, logo);
-                if (_isVT(m)) { corpo += '<div style="page-break-before:always;"></div>' + _buildReciboBlock('VT', c, s, mes, mesNome, ano, valorVR, logo); }
-                if (_isVC(m)) { corpo += '<div style="page-break-before:always;"></div>' + _buildReciboBlock('VC', c, s, mes, mesNome, ano, valorVR, logo); }
+                // 1123px é a altura proporcional a 794px de largura para o formato A4 (297/210 = 1.414)
+                const pageDiv = '<div style="width:794px; height:1123px; position:relative; overflow:hidden; background:#fff;">';
+                corpo += pageDiv + _buildReciboBlock('VR', c, s, mes, mesNome, ano, valorVR, logo) + '</div>';
+                if (_isVT(m)) { corpo += pageDiv + _buildReciboBlock('VT', c, s, mes, mesNome, ano, valorVR, logo) + '</div>'; }
+                if (_isVC(m)) { corpo += pageDiv + _buildReciboBlock('VC', c, s, mes, mesNome, ano, valorVR, logo) + '</div>'; }
 
                 // Escrever HTML no iframe isolado (CSS fica dentro do iframe, não afeta o sistema)
                 const iDoc = pdfIframe.contentDocument || pdfIframe.contentWindow.document;
