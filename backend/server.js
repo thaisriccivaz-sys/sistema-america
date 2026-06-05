@@ -6484,14 +6484,13 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
         
         let query = `
             SELECT d.id as doc_id, d.document_type as tipo, d.month, d.year,
+                   d.upload_date, d.assinafy_sent_at,
                    c.id as colaborador_id, c.nome_completo as colaborador_nome, 
                    c.email, c.email_corporativo, c.departamento, c.cargo, dep.tipo as setor
             FROM documentos d
             JOIN colaboradores c ON c.id = d.colaborador_id
             LEFT JOIN departamentos dep ON LOWER(TRIM(dep.nome)) = LOWER(TRIM(c.departamento))
-            WHERE d.tab_name = 'Pagamentos' 
-              AND d.assinafy_status IN ('Pendente', 'Aguardando') 
-              AND d.assinafy_id IS NULL
+            WHERE d.tab_name = 'Pagamentos'
         `;
         const params = [];
         if (tipo) { query += " AND d.document_type = ?"; params.push(tipo); }
@@ -6507,6 +6506,14 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
             db.all(query, params, (err, rows) => err ? reject(err) : resolve(rows || []));
         });
 
+        // Formatar data/hora para exibir no front
+        function fmtDt(dt) {
+            if (!dt) return null;
+            const d = new Date(dt);
+            if (isNaN(d)) return null;
+            return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        }
+
         const resultado = rows.map(r => ({
             pagina: '-',
             nomeDetectado: r.colaborador_nome,
@@ -6520,7 +6527,9 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
             docId: r.doc_id,
             tipoDocumento: r.tipo,
             mes: r.month,
-            ano: r.year
+            ano: r.year,
+            salvoEm: fmtDt(r.upload_date),
+            enviadoEm: fmtDt(r.assinafy_sent_at),
         }));
         
         res.json({ ok: true, resultado });
@@ -6609,6 +6618,14 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
         try {
             let docId = item.docId;
             let colabNome = item.colaborador_nome;
+
+            // Garantir que temos o nome mesmo quando o docId já existe
+            if (!colabNome && item.colaborador_id) {
+                const colabRow = await new Promise(res =>
+                    db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [item.colaborador_id], (e, r) => res(r))
+                );
+                colabNome = colabRow?.nome_completo || `Colaborador ${item.colaborador_id}`;
+            }
 
             if (!docId) {
                 if (!bufferPDF) throw new Error('PDF base não fornecido para extração.');

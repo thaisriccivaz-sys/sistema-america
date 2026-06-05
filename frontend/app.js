@@ -16128,6 +16128,8 @@ window.reenviarAssinatura = async function (id, source, btn) {
             ...item,
             selecionado: !!item.colaborador_id,
             enviarEmail: true,
+            salvoEm: item.salvoEm || null,   // Preservar data de salvamento do banco
+            enviadoEm: item.enviadoEm || null, // Preservar data de envio do banco
         }));
 
         // Ordenação alfabética
