@@ -1409,7 +1409,7 @@ window.anexarRecibosDocsMassa = async function () {
                 let remaining = imgH;
                 let firstPage = true;
 
-                while (remaining > 0) {
+                while (remaining > 1) { // > 1 ignora sobras minúsculas de arredondamento que geram páginas em branco
                     if (!firstPage) pdf.addPage();
                     const srcY = posY * (canvas.width / pageW) * (canvas.height / imgH);
                     const sliceH = Math.min(pageH, remaining);
