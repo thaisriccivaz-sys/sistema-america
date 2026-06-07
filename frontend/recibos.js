@@ -1019,9 +1019,7 @@ window._recBuscarPontoSelecionados = async function () {
 
                 const s = _recibosSelecoes[c.id];
                 s.diasTrabalhados = diasCredito; // dias de escala p/ VT/VC
-                // diasVR = total de dias corridos do mês de CRÉDITO (M+1)
-                // Ex: selecionando Maio → crédito Junho → 30 dias corridos
-                s.diasVR = new Date(creditAno, creditMes, 0).getDate();
+                s.diasVR          = diasCredito; // dias de escala p/ VR (base do bruto)
 
                 // ── Calcular FOLGAS da janela (DSR/Folga/Feriado) para desconto VR ──
                 // REGRA 1: dias ANTERIORES à data de admissão → não existem como colaborador, ignorar.
@@ -1351,8 +1349,7 @@ window.carregarHistoricoRecibos = async function () {
             const cAnoAuto = parseInt(mes) === 12 ? parseInt(ano) + 1 : parseInt(ano);
             const diasEscala = await _calcularDiasEscala(c, cAnoAuto, cMesAuto);
             s.diasTrabalhados = diasEscala;
-            // diasVR = total dias corridos do mês de crédito (M+1)
-            s.diasVR = new Date(cAnoAuto, cMesAuto, 0).getDate();
+            s.diasVR          = diasEscala; // dias de escala = base do bruto VR
             // Faltas/folgas ficam 0 até o RHID ser consultado
             s.faltas = 0;
             s.folgas = 0;
@@ -2056,13 +2053,13 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
         titulo    = 'RECIBO DE VALE REFEIÇÃO';
         beneficio = 'Vale Refeição';
 
-        // Bruto = total dias corridos do mês de crédito (M+1), armazenado em dados.diasVR
-        // Fallback: recalcula a partir do mês seguinte ao selecionado
-        const cMesRecibo = parseInt(mes) === 12 ? 1 : parseInt(mes) + 1;
-        const cAnoRecibo = parseInt(mes) === 12 ? parseInt(ano) + 1 : parseInt(ano);
-        const totalDiasMes = (dados.diasVR != null && dados.diasVR > 0)
-            ? dados.diasVR
-            : new Date(cAnoRecibo, cMesRecibo, 0).getDate();
+        // PERÍODO DE DIAS = dias de escala do mês de crédito (campo diasVR)
+        // Mesmo cálculo da planilha manual do RH:
+        //   BRUTO = diasVR × valorVR
+        //   + Janta = diasExtra × valorVR
+        //   - Folgas = folgas × valorVR
+        //   - Faltas = faltas × valorVR
+        const totalDiasMes = (dados.diasVR != null && dados.diasVR > 0) ? dados.diasVR : (dados.diasTrabalhados || 0);
         const folgas = dados.folgas || 0;
 
         // Cálculo Bruto
