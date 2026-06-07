@@ -1024,17 +1024,22 @@ window._recBuscarPontoSelecionados = async function () {
                 s.diasVR = new Date(creditAno, creditMes, 0).getDate();
 
                 // ── Calcular FOLGAS da janela (DSR/Folga/Feriado) para desconto VR ──
-                // Usa exclusivamente o que o sistema de ponto (RHID) registrou para cada dia.
-                // Conta como folga/feriado qualquer dia que o RHID marcar como:
-                // DSR, Folga, Feriado (via flag isHoliday, dsrConsideradoMinutos ou status)
+                // REGRA: se o colaborador fez apontamento no dia (trabalhou), NÃO conta como folga,
+                // mesmo que o RHID marque o dia como feriado.
                 const folgasJanela = apuracaoParaCartao.filter(d => {
+                    const horasTrab = d.totalHorasTrabalhadas || d.horasUteis || 0;
+                    const trabalhou  = (d.diasTrabalhados || 0) > 0 || horasTrab > 0;
+
+                    // Feriado/folga trabalhado → NÃO desconta
+                    if (trabalhou) return false;
+
                     const st = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
-                    const isFolgaSt = st.includes('folg') || st.includes('dsr') || st.includes('feriado') || st.includes('f.c.');
+                    const isFolgaSt  = st.includes('folg') || st.includes('dsr') || st.includes('feriado') || st.includes('f.c.');
                     const isFolgaFlag = d.folga === true || d.isHoliday === true || d.isHoliday === 1;
-                    const isDSRMin = (d.dsrConsideradoMinutos || 0) > 0;
+                    const isDSRMin   = (d.dsrConsideradoMinutos || 0) > 0;
                     const semHorario = ((d.idHorarioContratual || 0) === 0 && (d.strHorarioContratualSimples || '').trim() === '');
-                    const naoTrab = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
-                    return isFolgaSt || isFolgaFlag || isDSRMin || (semHorario && naoTrab);
+
+                    return isFolgaSt || isFolgaFlag || isDSRMin || semHorario;
                 }).length;
                 s.folgas = folgasJanela;
 
