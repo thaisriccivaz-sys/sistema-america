@@ -484,7 +484,7 @@ async function _loadColabs() {
         // Inicializar seleções com 0 — aguarda RHID ou preenchimento manual
         _recibosSelecoes = {};
         _recibosAllColabs.forEach(c => {
-            _recibosSelecoes[c.id] = { selecionado: false, diasTrabalhados: 0, diasVR: 0, faltas: 0, diasExtra: 0, pontoStatus: null, isAutoSupervisao: false, historicoEncontrado: false };
+            _recibosSelecoes[c.id] = { selecionado: false, diasTrabalhados: 0, diasVR: 0, faltas: 0, folgas: 0, diasExtra: 0, pontoStatus: null, isAutoSupervisao: false, historicoEncontrado: false };
         });
 
         _popularFiltros();
@@ -577,6 +577,10 @@ function _filtrarERendar() {
                 valA = selA.diasExtra || 0;
                 valB = selB.diasExtra || 0;
                 break;
+            case 'folgas':
+                valA = selA.folgas || 0;
+                valB = selB.folgas || 0;
+                break;
             case 'faltas':
                 valA = selA.faltas || 0;
                 valB = selB.faltas || 0;
@@ -617,6 +621,7 @@ function _renderTabela() {
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Dias Trabalhados (Base VT/VC)" onclick="window.ordenarRecibos('transporte')">Transp. <i class="ph ${_recibosSortCol==='transporte'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='transporte'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Dias > 6h (Base VR)" onclick="window.ordenarRecibos('vr')">VR <i class="ph ${_recibosSortCol==='vr'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='vr'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Dias > 3h extra" onclick="window.ordenarRecibos('jantar')">Jantar <i class="ph ${_recibosSortCol==='jantar'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='jantar'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Folgas/DSR/Feriados" onclick="window.ordenarRecibos('folgas')">Folgas <i class="ph ${_recibosSortCol==='folgas'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgas'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Faltas com e sem atestado" onclick="window.ordenarRecibos('faltas')">Faltas <i class="ph ${_recibosSortCol==='faltas'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltas'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" onclick="window.ordenarRecibos('ponto')">Ponto <i class="ph ${_recibosSortCol==='ponto'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='ponto'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
         `;
@@ -630,7 +635,7 @@ function _renderTabela() {
     }
 
     tbody.innerHTML = _recibosFiltrados.map(c => {
-        const s    = _recibosSelecoes[c.id] || { selecionado:false, diasTrabalhados:0, diasVR:0, faltas:0, diasExtra:0, pontoStatus:null };
+        const s    = _recibosSelecoes[c.id] || { selecionado:false, diasTrabalhados:0, diasVR:0, faltas:0, folgas:0, diasExtra:0, pontoStatus:null };
         const nome = _recNome(c);
         const tipo = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
 
@@ -701,6 +706,13 @@ function _renderTabela() {
               style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${s.diasExtra>0?'#8b5cf6':'#94a3b8'};"
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'diasExtra',this.value)">
+          </td>
+          <td style="padding:.45rem .4rem;text-align:center;">
+            <input type="number" min="0" max="35" value="${s.folgas||''}"
+              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.folgas||0)>0?'#0891b2':'#94a3b8'};"
+              placeholder="0"
+              title="Folgas/DSR/Feriados"
+              onchange="window.atualizarDadosReciboColab(${c.id},'folgas',this.value)">
           </td>
           <td style="padding:.45rem .4rem;text-align:center;">
             <input type="number" min="0" max="35" value="${s.faltas||''}"
@@ -1012,6 +1024,21 @@ window._recBuscarPontoSelecionados = async function () {
                 s.diasTrabalhados = diasCredito;
                 s.diasVR          = diasCredito;
 
+                // ── Calcular FOLGAS da janela (DSR/Folga/Feriado) para desconto VR ──
+                // Usa exclusivamente o que o sistema de ponto (RHID) registrou para cada dia.
+                // Conta como folga/feriado qualquer dia que o RHID marcar como:
+                // DSR, Folga, Feriado (via flag isHoliday, dsrConsideradoMinutos ou status)
+                const folgasJanela = apuracaoParaCartao.filter(d => {
+                    const st = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
+                    const isFolgaSt = st.includes('folg') || st.includes('dsr') || st.includes('feriado') || st.includes('f.c.');
+                    const isFolgaFlag = d.folga === true || d.isHoliday === true || d.isHoliday === 1;
+                    const isDSRMin = (d.dsrConsideradoMinutos || 0) > 0;
+                    const semHorario = ((d.idHorarioContratual || 0) === 0 && (d.strHorarioContratualSimples || '').trim() === '');
+                    const naoTrab = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
+                    return isFolgaSt || isFolgaFlag || isDSRMin || (semHorario && naoTrab);
+                }).length;
+                s.folgas = folgasJanela;
+
                 // ── 5. Aplicar faltas da janela + metadados ──────────────────────
                 // "encontrado" = RHID achou dados no mês selecionado OU mês anterior
                 // OU há registros na janela (colaborador novo que só tem dados em M)
@@ -1046,6 +1073,7 @@ window._recBuscarPontoSelecionados = async function () {
                 } else {
                     // Não encontrado em nenhum dos dois meses e sem registros na janela
                     s.faltas      = 0;
+                    s.folgas      = 0;
                     s.pontoStatus = 'ok';
                     ok++;
                 }
@@ -1090,6 +1118,7 @@ window._recBuscarPontoSelecionados = async function () {
             dias_trabalhados: _recibosSelecoes[c.id].diasTrabalhados,
             dias_vr: _recibosSelecoes[c.id].diasVR,
             faltas: _recibosSelecoes[c.id].faltas,
+            folgas: _recibosSelecoes[c.id].folgas || 0,
             dias_extra: _recibosSelecoes[c.id].diasExtra,
             valor_vr: valorVR,
             apuracao_diaria: (_recibosSelecoes[c.id].apuracaoDiaria && _recibosSelecoes[c.id].apuracaoDiaria.length > 0) ? JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria) : null
@@ -1270,6 +1299,7 @@ window.carregarHistoricoRecibos = async function () {
                         : h.dias_trabalhados;
 
                     _recibosSelecoes[h.colaborador_id].faltas = h.faltas;
+                    _recibosSelecoes[h.colaborador_id].folgas = h.folgas || 0;
                     _recibosSelecoes[h.colaborador_id].diasExtra = h.dias_extra;
                     _recibosSelecoes[h.colaborador_id].historicoEncontrado = true;
                     _recibosSelecoes[h.colaborador_id].selecionado = true; // Auto-seleciona os que já estavam salvos
@@ -1337,6 +1367,7 @@ window.anexarRecibosDocsMassa = async function () {
             dias_trabalhados: _recibosSelecoes[c.id].diasTrabalhados,
             dias_vr: _recibosSelecoes[c.id].diasVR,
             faltas: _recibosSelecoes[c.id].faltas,
+            folgas: _recibosSelecoes[c.id].folgas || 0,
             dias_extra: _recibosSelecoes[c.id].diasExtra,
             valor_vr: valorVR,
             apuracao_diaria: JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria || [])
@@ -1994,13 +2025,72 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
     if (tipo === 'VR') {
         titulo    = 'RECIBO DE VALE REFEIÇÃO';
         beneficio = 'Vale Refeição';
-        const tVR     = dVR * valorVR;
-        const tJantar = dExtra * valorVR;
-        totalFinal = tVR + tJantar;
+
+        // Total de dias corridos do mês (ex: 31 para Maio)
+        const totalDiasMes = new Date(parseInt(ano), parseInt(mes), 0).getDate();
+        const folgas    = dados.folgas   || 0;
+
+        // Cálculo Bruto
+        const bruttoVR     = totalDiasMes * valorVR;
+        const bruttoJantar = dExtra * valorVR;
+        const totalBruto   = bruttoVR + bruttoJantar;
+
+        // Cálculo Descontos
+        const descFolgas = folgas * valorVR;
+        const descFaltas = faltas * valorVR;
+        const totalDesc  = descFolgas + descFaltas;
+
+        totalFinal = Math.max(0, totalBruto - totalDesc);
+
         linhas = `
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Vale Refeição</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dVR}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tVR)}</td></tr>
-${dExtra>0?`<tr><td style="padding:7px 12px;border:1px solid #ddd;">Jantar</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${dExtra}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(tJantar)}</td></tr>`:''}
-<tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td colspan="2" style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
+<tr>
+  <td colspan="3" style="padding:0;border:none;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="background:#e8edf5;">
+          <th style="padding:6px 12px;border:1px solid #ddd;text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#374151;width:45%;">Indicativos</th>
+          <th style="padding:6px 12px;border:1px solid #ddd;text-align:right;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#374151;width:27.5%;">Bruto</th>
+          <th style="padding:6px 12px;border:1px solid #ddd;text-align:right;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#374151;width:27.5%;">Descontos</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:7px 12px;border:1px solid #ddd;">* &nbsp; ${totalDiasMes} PERÍODO DE DIAS</td>
+          <td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(bruttoVR)}</td>
+          <td style="padding:7px 12px;border:1px solid #ddd;"></td>
+        </tr>
+        ${dExtra > 0 ? `<tr>
+          <td style="padding:7px 12px;border:1px solid #ddd;">* &nbsp; ${dExtra} JANTA${dExtra > 1 ? 'S' : ''}</td>
+          <td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(bruttoJantar)}</td>
+          <td style="padding:7px 12px;border:1px solid #ddd;"></td>
+        </tr>` : `<tr>
+          <td style="padding:7px 12px;border:1px solid #ddd;color:#94a3b8;">* &nbsp; 0 JANTAS</td>
+          <td style="padding:7px 12px;border:1px solid #ddd;text-align:right;color:#94a3b8;">R$&nbsp;-</td>
+          <td style="padding:7px 12px;border:1px solid #ddd;"></td>
+        </tr>`}
+        <tr>
+          <td style="padding:7px 12px;border:1px solid #ddd;">* &nbsp; ${folgas} FOLGA${folgas !== 1 ? 'S' : ''} / FERIADO${folgas !== 1 ? 'S' : ''}</td>
+          <td style="padding:7px 12px;border:1px solid #ddd;"></td>
+          <td style="padding:7px 12px;border:1px solid #ddd;text-align:right;${descFolgas > 0 ? 'color:#b91c1c;' : 'color:#94a3b8;'}">R$&nbsp;${descFolgas > 0 ? _recFmt(descFolgas) : '-'}</td>
+        </tr>
+        <tr>
+          <td style="padding:7px 12px;border:1px solid #ddd;">* &nbsp; ${faltas} FALTA${faltas !== 1 ? 'S' : ''} / ATESTADO${faltas !== 1 ? 'S' : ''}</td>
+          <td style="padding:7px 12px;border:1px solid #ddd;"></td>
+          <td style="padding:7px 12px;border:1px solid #ddd;text-align:right;${descFaltas > 0 ? 'color:#b91c1c;' : 'color:#94a3b8;'}">R$&nbsp;${descFaltas > 0 ? _recFmt(descFaltas) : '-'}</td>
+        </tr>
+        <tr style="background:#f1f5f9;font-weight:700;">
+          <td style="padding:8px 12px;border:1px solid #ddd;">Total:</td>
+          <td style="padding:8px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(totalBruto)}</td>
+          <td style="padding:8px 12px;border:1px solid #ddd;text-align:right;color:#b91c1c;">R$&nbsp;${_recFmt(totalDesc)}</td>
+        </tr>
+        <tr style="background:#1e3a5f;color:#fff;font-weight:700;">
+          <td style="padding:9px 12px;border:1px solid #1e3a5f;font-size:11px;letter-spacing:.5px;">TOTAL RECEBIDO:</td>
+          <td colspan="2" style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </td>
+</tr>`;
 
     } else if (tipo === 'VT') {
         titulo    = 'RECIBO DE VALE TRANSPORTE';

@@ -6134,8 +6134,9 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
     db.serialize(() => {
         db.run('BEGIN TRANSACTION');
         
-        // Failsafe migration just in case it failed on startup
-        db.run("ALTER TABLE recibos_historico ADD COLUMN apuracao_diaria TEXT", function(errAlter) {
+        // Failsafe migrations for columns added over time
+        db.run("ALTER TABLE recibos_historico ADD COLUMN apuracao_diaria TEXT", () => {});
+        db.run("ALTER TABLE recibos_historico ADD COLUMN folgas INTEGER DEFAULT 0", function() {
             let pending = itens.length;
             if (pending === 0) {
                 db.run('COMMIT');
@@ -6143,8 +6144,8 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
             }
 
             const stmt = db.prepare(`
-            INSERT INTO recibos_historico (mes, ano, colaborador_id, dias_trabalhados, dias_vr, faltas, dias_extra, valor_vr, apuracao_diaria) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO recibos_historico (mes, ano, colaborador_id, dias_trabalhados, dias_vr, faltas, dias_extra, valor_vr, apuracao_diaria, folgas) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(colaborador_id, mes, ano) 
             DO UPDATE SET 
                 dias_trabalhados=excluded.dias_trabalhados,
@@ -6152,6 +6153,7 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
                 faltas=excluded.faltas,
                 dias_extra=excluded.dias_extra,
                 valor_vr=excluded.valor_vr,
+                folgas=excluded.folgas,
                 apuracao_diaria=COALESCE(excluded.apuracao_diaria, recibos_historico.apuracao_diaria)
             `, function(errPrep) {
                 if (errPrep) {
@@ -6163,7 +6165,7 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
             
             let runError = null;
             itens.forEach(i => {
-                stmt.run([mes, ano, i.colaborador_id, i.dias_trabalhados, i.dias_vr, i.faltas, i.dias_extra, i.valor_vr, i.apuracao_diaria], function(errRun) {
+                stmt.run([mes, ano, i.colaborador_id, i.dias_trabalhados, i.dias_vr, i.faltas, i.dias_extra, i.valor_vr, i.apuracao_diaria, i.folgas || 0], function(errRun) {
                     if (errRun && !runError) {
                         runError = errRun;
                         console.error('[SALVAR RECIBOS] Erro no stmt.run:', errRun.message);
