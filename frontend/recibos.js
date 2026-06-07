@@ -1018,8 +1018,10 @@ window._recBuscarPontoSelecionados = async function () {
                 }
 
                 const s = _recibosSelecoes[c.id];
-                s.diasTrabalhados = diasCredito;
-                s.diasVR          = diasCredito;
+                s.diasTrabalhados = diasCredito; // dias de escala p/ VT/VC
+                // diasVR = total de dias corridos do mês de CRÉDITO (M+1)
+                // Ex: selecionando Maio → crédito Junho → 30 dias corridos
+                s.diasVR = new Date(creditAno, creditMes, 0).getDate();
 
                 // ── Calcular FOLGAS da janela (DSR/Folga/Feriado) para desconto VR ──
                 // Usa exclusivamente o que o sistema de ponto (RHID) registrou para cada dia.
@@ -1318,12 +1320,16 @@ window.carregarHistoricoRecibos = async function () {
         if (!s) continue;
         const isSupervisao = window._isSupervisao(c);
         if (!s.historicoEncontrado) {
-            // Calcula crédito pela escala do mês vigente
-            const diasEscala = await _calcularDiasEscala(c, parseInt(ano), parseInt(mes));
+            // Calcula crédito pela escala do mês de crédito (M+1)
+            const cMesAuto = parseInt(mes) === 12 ? 1 : parseInt(mes) + 1;
+            const cAnoAuto = parseInt(mes) === 12 ? parseInt(ano) + 1 : parseInt(ano);
+            const diasEscala = await _calcularDiasEscala(c, cAnoAuto, cMesAuto);
             s.diasTrabalhados = diasEscala;
-            s.diasVR          = diasEscala;
-            // Faltas ficam 0 até o RHID ser consultado
+            // diasVR = total dias corridos do mês de crédito (M+1)
+            s.diasVR = new Date(cAnoAuto, cMesAuto, 0).getDate();
+            // Faltas/folgas ficam 0 até o RHID ser consultado
             s.faltas = 0;
+            s.folgas = 0;
         }
         if (isSupervisao) {
             s.isAutoSupervisao = true; // Garante a cor azul para supervisores
@@ -2024,9 +2030,14 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
         titulo    = 'RECIBO DE VALE REFEIÇÃO';
         beneficio = 'Vale Refeição';
 
-        // Total de dias corridos do mês (ex: 31 para Maio)
-        const totalDiasMes = new Date(parseInt(ano), parseInt(mes), 0).getDate();
-        const folgas    = dados.folgas   || 0;
+        // Bruto = total dias corridos do mês de crédito (M+1), armazenado em dados.diasVR
+        // Fallback: recalcula a partir do mês seguinte ao selecionado
+        const cMesRecibo = parseInt(mes) === 12 ? 1 : parseInt(mes) + 1;
+        const cAnoRecibo = parseInt(mes) === 12 ? parseInt(ano) + 1 : parseInt(ano);
+        const totalDiasMes = (dados.diasVR != null && dados.diasVR > 0)
+            ? dados.diasVR
+            : new Date(cAnoRecibo, cMesRecibo, 0).getDate();
+        const folgas = dados.folgas || 0;
 
         // Cálculo Bruto
         const bruttoVR     = totalDiasMes * valorVR;
