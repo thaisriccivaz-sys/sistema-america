@@ -1024,9 +1024,30 @@ window._recBuscarPontoSelecionados = async function () {
                 s.diasVR = new Date(creditAno, creditMes, 0).getDate();
 
                 // ── Calcular FOLGAS da janela (DSR/Folga/Feriado) para desconto VR ──
-                // REGRA: se o colaborador fez apontamento no dia (trabalhou), NÃO conta como folga,
-                // mesmo que o RHID marque o dia como feriado.
+                // REGRA 1: dias ANTERIORES à data de admissão → não existem como colaborador, ignorar.
+                // REGRA 2: feriado/DSR trabalhado → não desconta.
+                // REGRA 3: apenas o que o ponto (RHID) registrou como folga/DSR/feriado desconta.
+
+                // Parse da data de admissão do colaborador
+                let dtAdmissao = null;
+                const admStr = c.data_admissao || '';
+                if (admStr) {
+                    const admParsed = admStr.includes('/')
+                        ? admStr.split('/').reverse().join('-') + 'T00:00:00'
+                        : admStr + 'T00:00:00';
+                    const dtAdm = new Date(admParsed);
+                    if (!isNaN(dtAdm)) dtAdmissao = dtAdm;
+                }
+
                 const folgasJanela = apuracaoParaCartao.filter(d => {
+                    // Extrair data do registro
+                    const dStr = String(d.date || d.dateTimeStr || '').substring(0, 10);
+                    if (dStr && dtAdmissao) {
+                        const dDia = new Date(dStr + 'T00:00:00');
+                        // Dia antes da admissão → não é folga, o colaborador ainda não estava na empresa
+                        if (!isNaN(dDia) && dDia < dtAdmissao) return false;
+                    }
+
                     const horasTrab = d.totalHorasTrabalhadas || d.horasUteis || 0;
                     const trabalhou  = (d.diasTrabalhados || 0) > 0 || horasTrab > 0;
 
