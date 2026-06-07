@@ -1020,28 +1020,43 @@ window._recBuscarPontoSelecionados = async function () {
                 const s = _recibosSelecoes[c.id];
                 s.diasTrabalhados = diasCredito; // dias de escala p/ VT/VC
 
-                // ── diasVR = dias efetivamente PRESENTES no ponto (janela RHID) ────────
-                // Igual ao cálculo da planilha manual do RH:
-                //   diasVR = quantidade de dias que o colaborador compareceu na janela
-                // Se não há dados do RHID, usa dias de escala como fallback.
+                // ── diasVR = dias efetivamente trabalhados com MAIS DE 6h na janela RHID ──
+                // Regra VR: só conta dia em que o colaborador trabalhou > 6 horas (360 min).
+                // Dias com presença mas ≤ 6h (ex: saiu cedo) não geram direito ao VR daquele dia.
+                // Fallback: sem dados RHID → usa dias de escala.
+                const MIN_VR = 360; // 6 horas em minutos
                 if (apuracaoParaCartao.length > 0) {
                     s.diasVR = apuracaoParaCartao.filter(d => {
-                        const horasTrabVR = d.totalHorasTrabalhadas || d.horasUteis || 0;
-                        return (d.diasTrabalhados || 0) > 0 || horasTrabVR > 0;
+                        const minTrab = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
+                        return minTrab > MIN_VR;
                     }).length;
                 } else {
                     s.diasVR = diasCredito; // fallback: sem dados RHID → usa escala
                 }
 
+                // ── Jantar = dias com mais de 10h trabalhadas na janela RHID ───────────
+                // Regra Jantar: colaborador deve ter trabalhado MAIS DE 10h no dia (600 min).
+                // Substitui o campo diasComHoraExtra do RHID (que usa critério diferente).
+                // Administrativo nunca recebe jantar.
+                const MIN_JANTAR = 600; // 10 horas em minutos
+                const tipoDepto = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
+                if (tipoDepto !== 'Administrativo' && apuracaoParaCartao.length > 0) {
+                    s.diasExtra = apuracaoParaCartao.filter(d => {
+                        const minTrab = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
+                        return minTrab > MIN_JANTAR;
+                    }).length;
+                } else if (tipoDepto === 'Administrativo') {
+                    s.diasExtra = 0;
+                }
+                // (se não há apuração, mantém diasExtra que veio do histórico ou do RHID)
+
                 // ── Calcular FOLGAS da janela (DSR/Folga/Feriado) para desconto VR ──────
-                // REGRA 1: dia trabalhado (mesmo feriado) → NÃO desconta.
+                // REGRA 1: dia trabalhado com > 6h → NÃO desconta (colaborador estava presente).
                 // REGRA 2: apenas o que o ponto (RHID) registrou como folga/DSR/feriado desconta.
                 const folgasJanela = apuracaoParaCartao.filter(d => {
-                    const horasTrab = d.totalHorasTrabalhadas || d.horasUteis || 0;
-                    const trabalhou  = (d.diasTrabalhados || 0) > 0 || horasTrab > 0;
-
-                    // Feriado/folga trabalhado → NÃO desconta
-                    if (trabalhou) return false;
+                    const minTrab = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
+                    // Se trabalhou mais de 6h → não é folga (estava presente e com direito ao VR)
+                    if (minTrab > MIN_VR) return false;
 
                     const st = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
                     const isFolgaSt  = st.includes('folg') || st.includes('dsr') || st.includes('feriado') || st.includes('f.c.');
@@ -1052,6 +1067,7 @@ window._recBuscarPontoSelecionados = async function () {
                     return isFolgaSt || isFolgaFlag || isDSRMin || semHorario;
                 }).length;
                 s.folgas = folgasJanela;
+
 
 
 
@@ -1068,12 +1084,7 @@ window._recBuscarPontoSelecionados = async function () {
                     if (apuracaoParaCartao.length > 0) {
                         s.apuracaoDiaria = apuracaoParaCartao;
                     }
-
-                    // Horas extras (do mês selecionado)
-                    if (data1?.diasComHoraExtra != null) {
-                        const tipo = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
-                        s.diasExtra = (tipo === 'Administrativo') ? 0 : data1.diasComHoraExtra;
-                    }
+                    // Nota: diasExtra (jantar) já foi calculado acima a partir da apuração diária (> 10h)
 
                     // Férias: zera faltas
                     const isFerias = window._isColabFerias(c, ano, mes);
