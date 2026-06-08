@@ -6154,6 +6154,10 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
                 dias_extra=excluded.dias_extra,
                 valor_vr=excluded.valor_vr,
                 folgas=excluded.folgas,
+                folgas_vt=excluded.folgas_vt,
+                faltas_vt=excluded.faltas_vt,
+                folgas_vr=excluded.folgas_vr,
+                faltas_vr=excluded.faltas_vr,
                 apuracao_diaria=COALESCE(excluded.apuracao_diaria, recibos_historico.apuracao_diaria)
             `, function(errPrep) {
                 if (errPrep) {

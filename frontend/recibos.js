@@ -870,9 +870,42 @@ window.toggleSelectAllRecibos = function (checked) {
 };
 
 // ─── Atualizar dado individual ────────────────────────────────────────────────
+let _recibosSaveTimeout = null;
 window.atualizarDadosReciboColab = function (id, campo, valor) {
     if (!_recibosSelecoes[id]) return;
     _recibosSelecoes[id][campo] = Math.max(0, parseInt(valor) || 0);
+
+    if (_recibosSaveTimeout) clearTimeout(_recibosSaveTimeout);
+    _recibosSaveTimeout = setTimeout(() => {
+        const mes = parseInt(document.getElementById('rec-mes')?.value);
+        const ano = parseInt(document.getElementById('rec-ano')?.value);
+        if(!mes || !ano) return;
+        
+        const valorVR = window._recibosValorVR || 35.00;
+        const s = _recibosSelecoes[id];
+        
+        const itensSalvar = [{
+            colaborador_id: id,
+            dias_trabalhados: s.diasTrabalhados,
+            dias_vr: s.diasVR,
+            faltas: s.faltas,
+            folgas: s.folgas || 0,
+            folgas_vt: s.folgasVT || 0,
+            faltas_vt: s.faltasVT || 0,
+            folgas_vr: s.folgasVR || 0,
+            faltas_vr: s.faltasVR || 0,
+            dias_extra: s.diasExtra,
+            valor_vr: valorVR,
+            apuracao_diaria: (s.apuracaoDiaria && s.apuracaoDiaria.length > 0) ? JSON.stringify(s.apuracaoDiaria) : null
+        }];
+        
+        const token = localStorage.getItem('token');
+        fetch(`${typeof API_URL !== 'undefined' ? API_URL : '/api'}/recibos/salvar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ mes, ano, itens: itensSalvar })
+        }).catch(e => console.warn('Erro ao auto-salvar edição manual:', e));
+    }, 800);
 };
 
 // ─── Contador de selecionados ─────────────────────────────────────────────────
