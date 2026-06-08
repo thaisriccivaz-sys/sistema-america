@@ -957,6 +957,7 @@ window._recBuscarPontoSelecionados = async function () {
                 }
 
                 let faltasJanela = 0;
+                const MIN_VR = 360; // 6 horas em minutos
                 // Cartão de Ponto = mesmos dias da janela de desconto (não mais o mês M-1 completo)
                 const apuracaoParaCartao = [];
 
@@ -1076,7 +1077,7 @@ window._recBuscarPontoSelecionados = async function () {
                 // FALLBACK: se RHID retorna idHorarioContratual=0 mas o colaborador trabalhou >= 6h
                 //   (ex: DSR marcado incorretamente), o dia conta como dia VR pelo trabalho realizado.
                 // Fallback final: sem dados RHID → usa dias de escala.
-                const MIN_VR = 360; // 6 horas em minutos (usado nas folgas)
+                // MIN_VR já definido acima (360 min = 6h)
                 if (apuracaoParaCartao.length > 0) {
                     s.diasVR = apuracaoParaCartao.filter(d => {
                         // Dia agendado = tem horário contratual cadastrado no RHID
