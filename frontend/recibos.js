@@ -1749,7 +1749,16 @@ window.baixarConferenciaPonto = async function () {
                 totExtra60+=ex60; totExtra100+=ex100; totExtraDiurna+=exDMin; totExtraNoturna+=exNMin;
 
                 const isFlt = tipo==='falta';
-                const bg = isFlt?'#fff5f5':(tipo==='folga'||tipo==='feriado')?'#f8fafc':'#fff';
+                let bg = '#fff';
+                if (hTrab > 600) {
+                    bg = '#e9d5ff'; // Roxo (Jantar)
+                } else if (semHor && hTrab >= 360) {
+                    bg = '#fef08a'; // Amarelo (VR sem escala)
+                } else if (isFlt) {
+                    bg = '#fff5f5'; // Vermelho claro (Falta)
+                } else if (tipo === 'folga' || tipo === 'feriado') {
+                    bg = '#f8fafc'; // Cinza claro (Folga)
+                }
 
                 return `<tr style="background:${bg};">
                     ${tdC(diaFmt+(dsStr?' - '+dsStr:''),'white-space:nowrap;')}
