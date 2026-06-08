@@ -978,7 +978,8 @@ window._recBuscarPontoSelecionados = async function () {
                     // ORDEM IMPORTANTE: folga/DSR/feriado é verificado ANTES de faltaDiaInteiro
                     // (ControlID pode retornar faltaDiaInteiro=true em dias de folga atribuída)
                     const horasTrab = d.totalHorasTrabalhadas || d.horasUteis || 0;
-                    const trabalhou = (d.diasTrabalhados || 0) > 0 || horasTrab > 0;
+                    // IMPORTANTE: usar apenas horas reais — diasTrabalhados pode ser 1 em dias faltosos
+                    const trabalhou = horasTrab > 0;
                     const statusRHID = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
 
                     // 1º: Folga/DSR/Feriado explícito — NUNCA é falta (tratado como folga)
@@ -1741,8 +1742,9 @@ window.baixarConferenciaPonto = async function () {
                 if (d.isHoliday) { tipo = 'feriado'; }
                 else if (d.idJustification) {
                     const ob = (d.toolTipAlert||'').toLowerCase();
-                    if (ob.includes('erro no ponto')) {
-                        tipo = ''; // Considera trabalhado normal
+                    if (ob.includes('erro no ponto') || hTrab > 0) {
+                        // Tem horas reais OU é erro de ponto → mostra horários normais
+                        tipo = '';
                     } else {
                         tipo = (ob.includes('atestado')||ob.includes('medic')) ? 'atestado' : 'justificado';
                     }
