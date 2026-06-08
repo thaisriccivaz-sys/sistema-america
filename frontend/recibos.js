@@ -1030,14 +1030,22 @@ window._recBuscarPontoSelecionados = async function () {
                 // Regra VR: conta todo dia em que o colaborador tinha escala contratual.
                 // Exclui: FOLGA ESCALA sem horário (5x2/6x1), DSR puro de Domingo, FERIADO sem escala.
                 // Inclui: TRABALHADO, JUSTIFICADO, FALTA, DSR e FERIADO em dias agendados (7x0).
-                // Fallback: sem dados RHID → usa dias de escala.
+                // FALLBACK: se RHID retorna idHorarioContratual=0 mas o colaborador trabalhou >= 6h
+                //   (ex: DSR marcado incorretamente), o dia conta como dia VR pelo trabalho realizado.
+                // Fallback final: sem dados RHID → usa dias de escala.
                 const MIN_VR = 360; // 6 horas em minutos (usado nas folgas)
                 if (apuracaoParaCartao.length > 0) {
                     s.diasVR = apuracaoParaCartao.filter(d => {
                         // Dia agendado = tem horário contratual cadastrado no RHID
                         const temHorario = (d.idHorarioContratual || 0) > 0
                                         || (d.strHorarioContratualSimples || '').trim() !== '';
-                        return temHorario;
+                        if (temHorario) return true; // agendado → conta
+
+                        // FALLBACK: RHID pode retornar idHorarioContratual=0 em dias de DSR mús o
+                        // colaborador efetivamente trabalhou (ex: 10/05 Naelson com 8h45m).
+                        // Se trabalhou >= 6h nesse dia, conta como dia VR pelo trabalho real.
+                        const minTrabFallback = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
+                        return minTrabFallback >= MIN_VR;
                     }).length;
                 } else {
                     s.diasVR = diasCredito; // fallback: sem dados RHID → usa escala
@@ -1065,21 +1073,26 @@ window._recBuscarPontoSelecionados = async function () {
                 //   → Inclui: DSR em dia agendado (7x0), FERIADO em dia agendado (7x0).
                 // REGRA 2: dia agendado com status DSR/FOLGA/FERIADO E trabalhou < 6h → desconta.
                 // REGRA 3: dia agendado com >= 6h trabalhadas → NÃO desconta (estava presente).
+                // REGRA 4 (fallback): mesmo sem horário contratual, se trabalhou >= 6h → NÃO é folga.
                 const folgasJanela = apuracaoParaCartao.filter(d => {
+                    const minTrab = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
+
                     // Apenas dias com horário contratual agendado podem gerar desconto de folga
                     const temHorario = (d.idHorarioContratual || 0) > 0
                                     || (d.strHorarioContratualSimples || '').trim() !== '';
-                    if (!temHorario) return false; // Domingo/FOLGA ESCALA sem escala → não desconta
 
-                    const minTrab = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
-                    if (minTrab >= MIN_VR) return false; // trabalhou >= 6h → não desconta
+                    // Fallback: se trabalhou >= 6h (mesmo sem horário contratual) → nunca é folga
+                    if (minTrab >= MIN_VR) return false;
+
+                    // Sem horário e menos de 6h → dia sem escala (DSR puro, FOLGA ESCALA 5x2) → não desconta
+                    if (!temHorario) return false;
 
                     const st = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
                     const isFolgaSt  = st.includes('folg') || st.includes('dsr') || st.includes('feriado');
                     const isFolgaFlag = d.folga === true || d.isHoliday === true || d.isHoliday === 1;
 
                     return isFolgaSt || isFolgaFlag;
-                    // REMOVIDOS: isDSRMin (pegava Domingos) e semHorario (pegava dias sem escala)
+                    // REMOVIDOS: isDSRMin (pegava Domingos) e semHorario catch-all (pegava dias sem escala)
                 }).length;
                 s.folgas = folgasJanela;
 
