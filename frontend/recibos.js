@@ -1004,21 +1004,50 @@ window._recBuscarPontoSelecionados = async function () {
                         (d.idJustification && d.idJustification > 0)
                     );
 
-                    if (isFolga || isDSR || d.isHoliday) {
-                        // Folga/DSR/Feriado → não conta como falta (tratado separadamente em folgas)
-                    } else if (isJustificado && !trabalhou) {
-                        // Falta justificada → desconta VR normalmente
-                        faltasJanela++;
-                    } else if (semHorarioPrevisto && !trabalhou) {
-                        // Sem horário previsto e não trabalhou → folga implícita, não falta
-                    } else {
-                        // Só aqui verifica faltaDiaInteiro (agora com contexto correto)
-                        const isFaltaRHID = d.faltaDiaInteiro === true || (d.faltasDiasInteiro || 0) > 0;
-                        if (isFaltaRHID || (!trabalhou && !semHorarioPrevisto)) {
-                            faltasJanela++;
-                        }
-                    }
+                    // ── Classificação unificada — mesma lógica da exibição ──────────
+                    // Isso garante que o que a conferência mostra é exatamente o que é descontado.
+                    // (faltasJanela e folgasJanela serão recalculados abaixo após apuracaoParaCartao estar completo)
                 });
+
+                // ── 3b. Contagem unificada de faltas e folgas ─────────────────────
+                // Usa a MESMA lógica de classificação da conferência de ponto
+                // para garantir consistência total entre exibição e desconto.
+                let faltasTotal = 0;
+                let folgasTotal = 0;
+
+                apuracaoParaCartao.forEach(d => {
+                    const hT2 = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
+                    const trb2 = (d.diasTrabalhados || 0) > 0 || hT2 > 0;
+                    const st2 = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
+                    const isFolgaSt2 = st2.includes('folg') || st2.includes('dsr') || st2.includes('feriado');
+                    const isDSR2 = (d.dsrConsideradoMinutos || 0) > 0;
+                    const semHor2 = ((d.idHorarioContratual || 0) === 0
+                                 && (d.strHorarioContratualSimples || '').trim() === '');
+                    const isFolgaFlag2 = d.folga === true || d.isHoliday === true || d.isHoliday === 1;
+
+                    let tipo2 = '';
+                    if (d.isHoliday) {
+                        tipo2 = hT2 >= MIN_VR ? '' : 'folga'; // Feriado: se trabalhou 6h+ não desconta
+                    } else if (d.idJustification) {
+                        const ob2 = (d.toolTipAlert || '').toLowerCase();
+                        if (ob2.includes('erro no ponto') || ob2.includes('trabalho externo') || hT2 > 0) {
+                            tipo2 = ''; // Trabalhado
+                        } else {
+                            tipo2 = 'justificado'; // Falta justificada (sem horas)
+                        }
+                    } else if (isFolgaSt2 || isFolgaFlag2 || isDSR2) {
+                        tipo2 = hT2 >= MIN_VR ? '' : 'folga';
+                    } else if (semHor2 && !trb2) {
+                        tipo2 = 'folga'; // Domingo, sábado de descanso
+                    } else if (d.faltaDiaInteiro || (!trb2 && !semHor2)) {
+                        tipo2 = 'falta';
+                    }
+
+                    if (tipo2 === 'justificado' || tipo2 === 'falta') faltasTotal++;
+                    if (tipo2 === 'folga') folgasTotal++;
+                });
+
+                faltasJanela = faltasTotal; // será aplicado em s.faltas abaixo
 
 
                 // ── 4. Calcular CRÉDITO pelo mês SEGUINTE (M+1) ──────────────────
@@ -1103,35 +1132,9 @@ window._recBuscarPontoSelecionados = async function () {
                 }
                 // (se não há apuração, mantém diasExtra que veio do histórico ou do RHID)
 
-                // ── Calcular FOLGAS da janela (DSR/Folga/Feriado agendados) para desconto VR ──
-                // REGRA 1: só desconta se o dia TEM horário contratual agendado no RHID.
-                //   → Exclui: Domingos de 6x1, FOLGA ESCALA de 5x2, FERIADO sem escala.
-                //   → Inclui: DSR em dia agendado (7x0), FERIADO em dia agendado (7x0).
-                // REGRA 2: dia agendado com status DSR/FOLGA/FERIADO E trabalhou < 6h → desconta.
-                // REGRA 3: dia agendado com >= 6h trabalhadas → NÃO desconta (estava presente).
-                // REGRA 4 (fallback): mesmo sem horário contratual, se trabalhou >= 6h → NÃO é folga.
-                const folgasJanela = apuracaoParaCartao.filter(d => {
-                    const minTrab = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
-                    const trab    = (d.diasTrabalhados || 0) > 0 || minTrab > 0;
-
-                    // Trabalhou >= MIN_VR (6h) → VR elegível, não é folga de desconto
-                    if (minTrab >= MIN_VR) return false;
-
-                    const st = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
-                    const isFolgaSt   = st.includes('folg') || st.includes('dsr') || st.includes('feriado');
-                    const isFolgaFlag = d.folga === true || d.isHoliday === true || d.isHoliday === 1;
-
-                    // Folga/Feriado/DSR explícito no RHID
-                    if (isFolgaSt || isFolgaFlag) return true;
-
-                    // Dia sem horário de escala E não trabalhou → folga implícita (DOM, SAB de descanso)
-                    const semHorarioD = (d.idHorarioContratual || 0) === 0
-                                     && (d.strHorarioContratualSimples || '').trim() === '';
-                    if (semHorarioD && !trab) return true;
-
-                    return false;
-                }).length;
-                s.folgas = folgasJanela;
+                // ── Calcular FOLGAS da janela ──────────────────────────────────────
+                // Agora usa folgasTotal da contagem unificada acima
+                s.folgas = folgasTotal;
 
 
 
@@ -1742,9 +1745,8 @@ window.baixarConferenciaPonto = async function () {
                 if (d.isHoliday) { tipo = 'feriado'; }
                 else if (d.idJustification) {
                     const ob = (d.toolTipAlert||'').toLowerCase();
-                    if (ob.includes('erro no ponto') || hTrab > 0) {
-                        // Tem horas reais OU é erro de ponto → mostra horários normais
-                        tipo = '';
+                    if (ob.includes('erro no ponto') || ob.includes('trabalho externo') || hTrab > 0) {
+                        tipo = ''; // Trabalhado (erro de ponto / trabalho externo / horas presentes)
                     } else {
                         tipo = (ob.includes('atestado')||ob.includes('medic')) ? 'atestado' : 'justificado';
                     }
