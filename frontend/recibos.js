@@ -1689,22 +1689,39 @@ window.baixarConferenciaPonto = async function () {
                 
                 let status = '-';
 
-                // Determina status baseado nos dados do RHID
-                // ORDEM: folga/DSR/feriado ANTES de faltaDiaInteiro
-                // (ControlID pode setar faltaDiaInteiro=true em dias de folga atribuída)
+                // ── Determinação do status do dia para a Conferência ──────────────────────
+                // ORDEM IMPORTA: JUSTIFICADO deve ser verificado ANTES de DSR/FOLGA,
+                // pois o RHID pode retornar faltaDiaInteiro=true em dias justificados.
+                // isFolga/isDSR verificados ANTES de faltaDiaInteiro (mesma lógica do backend).
                 const statusRHID2 = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
                 const semHorarioPrevisto2 = ((d.idHorarioContratual || 0) === 0 && (d.strHorarioContratualSimples || '').trim() === '');
+                const horasTrab2 = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
+                const isDSRMin2 = (d.dsrConsideradoMinutos || 0) > 0;
+                const isFolgaSt2 = statusRHID2.includes('folg') || statusRHID2.includes('dsr');
 
-                const isFolgaDisplay = statusRHID2.includes('folg') || statusRHID2.includes('dsr') ||
-                                       statusRHID2.includes('feriado') || d.folga === true;
-
-                if (d.isHoliday) status = 'FERIADO';
-                else if ((d.dsrConsideradoMinutos || 0) > 0 || isFolgaDisplay) status = 'DSR / FOLGA';
-                else if (semHorarioPrevisto2 && (!d.diasTrabalhados || d.diasTrabalhados === 0)) status = 'FOLGA ESCALA';
-                else if (d.diasTrabalhados > 0) status = 'TRABALHADO';
-                else if (d.idJustification) status = 'JUSTIFICADO';
-                else if (d.faltaDiaInteiro === true || (d.faltasDiasInteiro || 0) > 0) status = 'FALTA';
-                else if (!d.diasTrabalhados || d.diasTrabalhados === 0) status = 'FALTA';
+                if (d.isHoliday) {
+                    status = 'FERIADO';
+                } else if (d.idJustification) {
+                    // Justificado (atestado, autorização) — verificado ANTES de DSR/FOLGA
+                    const obsJust2 = (d.toolTipAlert || '').toLowerCase();
+                    if (obsJust2.includes('atestado') || obsJust2.includes('medic')) {
+                        status = 'ATESTADO MÉDICO';
+                    } else {
+                        status = 'JUSTIFICADO';
+                    }
+                } else if (isFolgaSt2 || d.folga === true || isDSRMin2) {
+                    // DSR / FOLGA explícito — mas se trabalhou >= 6h é dia trabalhado
+                    if (horasTrab2 >= 360) status = 'TRABALHADO';
+                    else status = 'DSR / FOLGA';
+                } else if (semHorarioPrevisto2 && horasTrab2 === 0) {
+                    status = 'FOLGA ESCALA';
+                } else if (d.diasTrabalhados > 0 || horasTrab2 > 0) {
+                    status = 'TRABALHADO';
+                } else if (d.faltaDiaInteiro === true || (d.faltasDiasInteiro || 0) > 0) {
+                    status = 'FALTA';
+                } else if (!d.diasTrabalhados || d.diasTrabalhados === 0) {
+                    status = 'FALTA';
+                }
 
 
                 let marcacoesStr = '';
@@ -1818,11 +1835,34 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
             }
         }
         
+        // ── Classificação do status (MESMA lógica do backend cartao_ponto_generator.js) ──
+        // ORDEM IMPORTA: JUSTIFICADO e FERIADO antes de DSR/FOLGA e FALTA
         let status = '';
-        if (d.faltaDiaInteiro) status = 'Falta';
-        else if (d.isHoliday) status = 'Feriado: ' + (d.holidayName || '');
-        else if (d.dsrConsideradoMinutos > 0 || (d.diasTrabalhados === 0 && d.horasUteis === 0)) status = 'Folga';
-        else if (d.idJustification) status = 'Justificado';
+        const stRaw2 = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
+        const isFolgaSt3  = stRaw2.includes('folg') || stRaw2.includes('dsr');
+        const isFolgaFlag3 = d.folga === true;
+        const isDSRMin3   = (d.dsrConsideradoMinutos || 0) > 0;
+        const semHorario3  = ((d.idHorarioContratual || 0) === 0 && (d.strHorarioContratualSimples || '').trim() === '');
+        const horasTrab3   = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
+        const trabalhou3   = (d.diasTrabalhados || 0) > 0 || horasTrab3 > 0;
+
+        if (d.isHoliday) {
+            status = 'Feriado: ' + (d.holidayName || '');
+        } else if (d.idJustification) {
+            const obsJust3 = (d.toolTipAlert || '').toLowerCase();
+            if (obsJust3.includes('atestado') || obsJust3.includes('medic')) {
+                status = 'Atestado Médico';
+            } else {
+                status = 'Justificado';
+            }
+        } else if (isFolgaSt3 || isFolgaFlag3 || isDSRMin3) {
+            if (horasTrab3 >= 360) status = ''; // trabalhado
+            else status = 'Folga';
+        } else if (semHorario3 && !trabalhou3) {
+            status = 'Folga';
+        } else if (d.faltaDiaInteiro) {
+            status = 'Falta';
+        }
         
         let marcacoes = [];
         if (d.listAfdtManutencao && d.listAfdtManutencao.length > 0) {
@@ -1906,11 +1946,25 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
         }
         const obsText = obsLinhas.join(' | ');
 
+        // ── PREVISTO e células de marcação (igual ao backend) ─────────────────────
         let previsto = c.escala || '08:00-12:00 13:00-17:48';
-        if (status) { previsto = status === 'Falta' ? '' : (status.startsWith('Feriado') ? 'FERIADO' : ''); }
+        let ent1_td, sai1_td, ent2_td, sai2_td;
 
-        let ent1_td = status && !e1 ? status : e1;
-        let sai1_td = status && !e1 ? (status === 'Falta' ? 'Falta' : '') : s1;
+        if (status.startsWith('Feriado')) {
+            previsto = 'FERIADO';
+            ent1_td = status; sai1_td = ''; ent2_td = ''; sai2_td = '';
+        } else if (status === 'Folga') {
+            ent1_td = 'Folga'; sai1_td = ''; ent2_td = ''; sai2_td = '';
+        } else if (status === 'Atestado Médico') {
+            ent1_td = 'Atestado Médico'; sai1_td = ''; ent2_td = 'Atestado Médico'; sai2_td = '';
+        } else if (status === 'Justificado') {
+            ent1_td = 'Justificado'; sai1_td = ''; ent2_td = ''; sai2_td = '';
+        } else if (status === 'Falta') {
+            previsto = '';
+            ent1_td = 'Falta'; sai1_td = 'Falta'; ent2_td = 'Falta'; sai2_td = 'Falta';
+        } else {
+            ent1_td = e1; sai1_td = s1; ent2_td = e2; sai2_td = s2;
+        }
 
         rowsHtml += `
         <tr>
@@ -1918,8 +1972,8 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;word-break:break-all;">${previsto}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${ent1_td}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${sai1_td}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : e2}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : s2}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${ent2_td}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${sai2_td}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${normais}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${noturn}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;text-align:center;">${status === 'Falta' ? '1' : ''}</td>
