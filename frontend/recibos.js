@@ -1051,16 +1051,38 @@ window._recBuscarPontoSelecionados = async function () {
                     s.diasVR = diasCredito; // fallback: sem dados RHID → usa escala
                 }
 
-                // ── Jantar = dias com mais de 10h trabalhadas na janela RHID ───────────
-                // Regra Jantar: colaborador deve ter trabalhado MAIS DE 10h no dia (600 min).
-                // Substitui o campo diasComHoraExtra do RHID (que usa critério diferente).
+                // ── Jantar = trabalhou (previsto + 3h) E mínimo 9h totais ──────────────────────────
+                // Regra: colaborador trabalha 3h além do previsto E totaliza pelo menos 9h no dia.
+                // Sem escala prevista (DSR): exige mínimo 12h.
                 // Administrativo nunca recebe jantar.
-                const MIN_JANTAR = 600; // 10 horas em minutos
+                const _parseHorasPrevistas = (d) => {
+                    // Tenta usar horasUteis do RHID primeiro
+                    if (d.horasUteis && d.horasUteis > 0) return d.horasUteis;
+                    // Faz parse do horário contratual
+                    const horStr = (d.strHorarioContratualSimples || '').trim();
+                    if (!horStr) return 0;
+                    let total = 0;
+                    horStr.split(/[\r\n]+/).forEach(p => {
+                        const m = p.trim().match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})/);
+                        if (m) {
+                            const sai = parseInt(m[3])*60 + parseInt(m[4]);
+                            const ent = parseInt(m[1])*60 + parseInt(m[2]);
+                            if (sai > ent) total += (sai - ent);
+                        }
+                    });
+                    return total;
+                };
                 const tipoDepto = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
                 if (tipoDepto !== 'Administrativo' && apuracaoParaCartao.length > 0) {
                     s.diasExtra = apuracaoParaCartao.filter(d => {
                         const minTrab = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
-                        return minTrab > MIN_JANTAR;
+                        const hPrev = _parseHorasPrevistas(d);
+                        if (hPrev > 0) {
+                            // Com escala: previsto + 3h (180min), mínimo 9h (540min) totais
+                            return minTrab >= Math.max(hPrev + 180, 540);
+                        }
+                        // Sem escala (DSR, etc.): mínimo 12h (720min)
+                        return minTrab >= 720;
                     }).length;
                 } else if (tipoDepto === 'Administrativo') {
                     s.diasExtra = 0;
@@ -1709,6 +1731,19 @@ window.baixarConferenciaPonto = async function () {
                 const prevStr = (d.strHorarioContratualSimples||'').trim().replace(/[\r\n]+/g,' ') || c.escala || '';
                 const previsto = tipo==='feriado' ? 'FERIADO' : prevStr;
 
+                // ── Horas previstas/contratadas (para cálculo de Jantar) ────────────────
+                let hPrevConf = d.horasUteis || 0;
+                if (!hPrevConf && d.strHorarioContratualSimples && d.strHorarioContratualSimples.trim()) {
+                    d.strHorarioContratualSimples.trim().split(/[\r\n]+/).forEach(p => {
+                        const m = p.trim().match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})/);
+                        if (m) {
+                            const sv = parseInt(m[3])*60+parseInt(m[4]);
+                            const ev = parseInt(m[1])*60+parseInt(m[2]);
+                            if (sv > ev) hPrevConf += (sv - ev);
+                        }
+                    });
+                }
+
                 // Apontamentos individuais
                 let marc = [];
                 if (d.listAfdtManutencao && d.listAfdtManutencao.length>0) {
@@ -1753,36 +1788,47 @@ window.baixarConferenciaPonto = async function () {
                 const isSat    = dsStr === 'SAB';
                 const isHolidayDay = tipo === 'feriado';
 
-                // ── Departamento: Administrativo não recebe Jantar ──────────────────
+                // Administrativo não recebe Jantar
                 const tipoDeptoConf = (typeof _recibosDeptTipoMap !== 'undefined')
                     ? (_recibosDeptTipoMap[(c.departamento||'').trim()] || '') : '';
                 const isAdminConf = tipoDeptoConf === 'Administrativo';
 
-                // ── Thresholds de Jantar ─────────────────────────────────────────────
-                // Regra: "3 horas a mais que o previsto"
-                // Sábado (compensação) ou sem escala → 12h; Dia normal com escala → 11h
-                const MIN_JANTAR_CONF = (semHor || isSat) ? 720 : 660;
+                // ── Elegibilidade ao Jantar ─────────────────────────────────────────
+                // Regra: trabalhou >= (previsto + 3h) E >= 9h totais
+                // Sem escala prevista (DSR, DOM sem escala): exige 12h
+                let elegivel_jantar = false;
+                if (!isAdminConf) {
+                    if (hPrevConf > 0) {
+                        // Com escala: previsto + 3h (180min), mínimo 9h (540min) totais
+                        elegivel_jantar = hTrab >= Math.max(hPrevConf + 180, 540);
+                    } else {
+                        // Sem escala: 12h (720min)
+                        elegivel_jantar = hTrab >= 720;
+                    }
+                }
 
                 // ── Coloração ────────────────────────────────────────────────────────
                 let bg = '#fff';
 
-                if (!isAdminConf && hTrab > MIN_JANTAR_CONF) {
-                    // 🟣 Roxo — elegível para Jantar (inclui VR)
-                    bg = '#e9d5ff';
+                if (elegivel_jantar) {
+                    bg = '#e9d5ff'; // 🟣 Roxo — Jantar
                 } else if (isSunday || isHolidayDay) {
-                    // 🟡 Amarelo — Domingo e Feriado: VR a partir de 2h trabalhadas
+                    // Domingo e Feriado: VR a partir de 2h
                     if (hTrab >= 120) bg = '#fef08a';
-                    else bg = '#f8fafc'; // trabalhou < 2h, trata como folga
+                    else bg = '#f8fafc';
                 } else if (isSat && hTrab >= 360) {
-                    // 🟡 Amarelo — Sábado (compensação): VR a partir de 6h
+                    // Sábado (compensação): VR a partir de 6h
                     bg = '#fef08a';
                 } else if (semHor && hTrab >= 360) {
-                    // 🟡 Amarelo — Sem escala, dia útil: VR a partir de 6h
+                    // Sem escala, dia útil: VR a partir de 6h
                     bg = '#fef08a';
-                } else if (isFlt) {
-                    bg = '#fff5f5'; // Falta — vermelho claro
+                } else if (!semHor && !isSat && hTrab >= 120 && tipo !== 'falta' && tipo !== 'folga' && tipo !== 'feriado') {
+                    // 🟡 Dia trabalhado normal com escala — VR elegível (>= 2h)
+                    bg = '#fffde7'; // Amarelo bem claro
+                } else if (isFlt || tipo === 'justificado' || tipo === 'atestado') {
+                    bg = '#fee2e2'; // 🔴 Vermelho claro — Falta / Falta Justificada / Atestado (desconto VR)
                 } else if (tipo === 'folga') {
-                    bg = '#f8fafc'; // Folga — cinza claro
+                    bg = '#f8fafc'; // Folga
                 }
 
                 return `<tr style="background:${bg};">
