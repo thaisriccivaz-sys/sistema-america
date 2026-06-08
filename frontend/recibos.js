@@ -871,14 +871,12 @@ window._recBuscarPontoSelecionados = async function () {
     const creditMes = mes === 12 ? 1  : mes + 1;
     const creditAno = mes === 12 ? ano + 1 : ano;
 
-    // ── JANELA de desconto: 29/M-1 ao 28/M (mês selecionado) ───────────────
-    // Início = dia 29 do mês anterior (primeiro dia após o dia 28).
-    // Em fevereiro não-bissexto (sem dia 29), JS avança para 01/março — correto!
+    // ── JANELA de desconto: 01/M ao último dia de M (mês selecionado completo) ─────
+    // Ex: selecionando Maio → desconta faltas de 01/05 a 31/05
     const mesPrev = mes === 1 ? 12 : mes - 1;
     const anoPrev = mes === 1 ? ano - 1 : ano;
-    const janelaIni = new Date(anoPrev, mesPrev - 1, 29); // 29/M-1 (ou 01/mar em fev não-bissexto)
-    const janelaFim = new Date(ano, mes - 1, 28);         // 28/M
-
+    const janelaIni = new Date(ano, mes - 1, 1);      // 01/M
+    const janelaFim = new Date(ano, mes, 0);           // último dia de M
 
 
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
@@ -2302,13 +2300,13 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
         titulo    = 'RECIBO DE VALE REFEIÇÃO';
         beneficio = 'Vale Refeição';
 
-        // PERÍODO DE DIAS = dias de escala do mês de crédito (campo diasVR)
-        // Mesmo cálculo da planilha manual do RH:
-        //   BRUTO = diasVR × valorVR
-        //   + Janta = diasExtra × valorVR
-        //   - Folgas = folgas × valorVR
-        //   - Faltas = faltas × valorVR
-        const totalDiasMes = (dados.diasVR != null && dados.diasVR > 0) ? dados.diasVR : (dados.diasTrabalhados || 0);
+        // BRUTO = total de dias do próximo mês (campo "Dias Mês Seg." da tela)
+        // Ex: selecionando Maio → bruto = dias de Junho (30)
+        // Fonte: window._recibos_diasBruto (campo rec-dias-bruto, auto-calculado)
+        // Fallback: conta a partir do campo diasVR ou diasTrabalhados se o bruto não foi calculado
+        const totalDiasMes = (window._recibos_diasBruto && window._recibos_diasBruto > 0)
+            ? window._recibos_diasBruto
+            : ((dados.diasVR != null && dados.diasVR > 0) ? dados.diasVR : (dados.diasTrabalhados || 0));
         const folgas = dados.folgas || 0;
 
         // Cálculo Bruto
