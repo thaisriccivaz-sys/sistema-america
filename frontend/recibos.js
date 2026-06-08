@@ -1106,15 +1106,9 @@ window._recBuscarPontoSelecionados = async function () {
                 const folgasJanela = apuracaoParaCartao.filter(d => {
                     const minTrab = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
 
-                    // Apenas dias com horário contratual agendado podem gerar desconto de folga
-                    const temHorario = (d.idHorarioContratual || 0) > 0
-                                    || (d.strHorarioContratualSimples || '').trim() !== '';
-
-                    // Fallback: se trabalhou >= 6h (mesmo sem horário contratual) → nunca é folga
+                    // Com a nova regra (bruto fixo de 30 dias), TODA folga/dsr/feriado não trabalhada
+                    // no período deve ser descontada, pois a base já contemplou todos os dias do mês.
                     if (minTrab >= MIN_VR) return false;
-
-                    // Sem horário e menos de 6h → dia sem escala (DSR puro, FOLGA ESCALA 5x2) → não desconta
-                    if (!temHorario) return false;
 
                     const st = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
                     const isFolgaSt  = st.includes('folg') || st.includes('dsr') || st.includes('feriado');
