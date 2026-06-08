@@ -1727,9 +1727,16 @@ window.baixarConferenciaPonto = async function () {
                 } else if (semHor && !trab) { tipo = 'folga'; }
                 else if (d.faltaDiaInteiro) { tipo = 'falta'; }
 
-                // PREVISTO
+                // PREVISTO — folga e dias sem escala não mostram horário previsto
                 const prevStr = (d.strHorarioContratualSimples||'').trim().replace(/[\r\n]+/g,' ') || c.escala || '';
-                const previsto = tipo==='feriado' ? 'FERIADO' : prevStr;
+                const previsto = tipo==='feriado' ? 'FERIADO' : (tipo==='folga' ? '' : prevStr);
+
+                // Número de períodos no horário do SAB (para detectar tipo de escala)
+                // 1 período (ex: "08:30-12:00") = compensação/meio-dia → VR ≥ 6h
+                // 2+ períodos (ex: "08:00-12:00 13:00-17:00") = dia completo (6x1) → VR ≥ 2h
+                const horBruto = (d.strHorarioContratualSimples || '').trim();
+                const satPeriodos = horBruto.split(/[\r\n]+/).filter(p => /\d{1,2}:\d{2}/.test(p)).length;
+                const isSatDiaCompleto = dsStr === 'SAB' && satPeriodos >= 2;
 
                 // ── Horas previstas/contratadas (para cálculo de Jantar) ────────────────
                 let hPrevConf = d.horasUteis || 0;
@@ -1811,22 +1818,24 @@ window.baixarConferenciaPonto = async function () {
                 let bg = '#fff';
 
                 if (elegivel_jantar) {
-                    bg = '#e9d5ff'; // 🟣 Roxo — Jantar
+                    bg = '#e9d5ff'; // Roxo: Jantar
                 } else if (isSunday || isHolidayDay) {
                     // Domingo e Feriado: VR a partir de 2h
-                    if (hTrab >= 120) bg = '#fef08a';
-                    else bg = '#f8fafc';
-                } else if (isSat && hTrab >= 360) {
-                    // Sábado (compensação): VR a partir de 6h
+                    bg = hTrab >= 120 ? '#fef08a' : '#f8fafc';
+                } else if (isSatDiaCompleto && hTrab >= 120) {
+                    // SAB dia completo (6x1, 2 períodos): VR a partir de 2h
                     bg = '#fef08a';
-                } else if (semHor && hTrab >= 360) {
-                    // Sem escala, dia útil: VR a partir de 6h
+                } else if (isSat && !isSatDiaCompleto && hTrab >= 360) {
+                    // SAB meio-dia/compensação (1 período ou sem escala): VR a partir de 6h
                     bg = '#fef08a';
-                } else if (!semHor && !isSat && hTrab >= 120 && tipo !== 'falta' && tipo !== 'folga' && tipo !== 'feriado') {
-                    // 🟡 Dia trabalhado normal com escala — VR elegível (>= 2h)
-                    bg = '#fffde7'; // Amarelo bem claro
+                } else if (!isSat && semHor && hTrab >= 360) {
+                    // Dia útil sem escala: VR a partir de 6h
+                    bg = '#fef08a';
+                } else if (!isSat && !semHor && hTrab >= 120 && tipo !== 'falta' && tipo !== 'folga' && tipo !== 'feriado') {
+                    // Dia normal com escala: VR a partir de 2h (amarelo claro)
+                    bg = '#fffde7';
                 } else if (isFlt || tipo === 'justificado' || tipo === 'atestado') {
-                    bg = '#fee2e2'; // 🔴 Vermelho claro — Falta / Falta Justificada / Atestado (desconto VR)
+                    bg = '#fee2e2'; // Falta / Justificado / Atestado
                 } else if (tipo === 'folga') {
                     bg = '#f8fafc'; // Folga
                 }
