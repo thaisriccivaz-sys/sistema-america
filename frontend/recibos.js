@@ -1784,7 +1784,7 @@ window.baixarConferenciaPonto = async function () {
                 else if (tipo==='atestado')         { ent1='Atestado Médico'; }   // só ENT.1, resto vazio
                 else if (tipo==='justificado')      { ent1='Justificado'; }         // só ENT.1, resto vazio
                 else if (tipo==='falta' && !e1)    { ent1='Falta'; }               // só ENT.1, resto vazio
-                else { ent1=e1; sai1=s1; ent2=e2||(marc.length<3?obsT:''); sai2=s2; }
+                else { ent1=e1; sai1=s1; ent2=e2; sai2=s2; }
 
                 // Horas e extras
                 const normMin = (d.totalHorasTrabalhadas||0)+(d.horasTotalNoturno||0);
