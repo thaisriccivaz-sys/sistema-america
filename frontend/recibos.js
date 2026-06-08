@@ -1053,8 +1053,18 @@ window._recBuscarPontoSelecionados = async function () {
                         }
                     } else if (isFolgaSt2 || isFolgaFlag2 || isDSR2) {
                         tipo2 = hT2 >= MIN_VR ? '' : 'folga';
+                    } else if (semHor2 && trb2) {
+                        // Dia de descanso (sem horário) mas trabalhou:
+                        // SAB: precisa de 6h (360min) para ganhar VR; abaixo disso = ainda é folga descontada
+                        // DOM / outros: precisa de 2h (120min)
+                        const dStr2 = String(d.date || d.dateTimeStr || '').substring(0, 10);
+                        const dParsed2 = new Date(dStr2 + 'T12:00:00');
+                        const isSat2 = !isNaN(dParsed2) && dParsed2.getDay() === 6;
+                        const vrLimite2 = isSat2 ? 360 : 120;
+                        if (hT2 < vrLimite2) tipo2 = 'folga'; // trabalho insuficiente → folga
+                        // else tipo2 = '' (trabalhou o suficiente → conta como VR)
                     } else if (semHor2 && !trb2) {
-                        tipo2 = 'folga'; // Domingo, sábado de descanso
+                        tipo2 = 'folga'; // Dia de descanso sem trabalho
                     } else if (d.faltaDiaInteiro || (!trb2 && !semHor2)) {
                         tipo2 = 'falta';
                     }
@@ -1148,8 +1158,13 @@ window._recBuscarPontoSelecionados = async function () {
                         const minTrab = d.totalHorasTrabalhadas || 0;
                         const hPrev = _parseHorasPrevistas(d);
                         if (hPrev > 0) {
-                            // Com escala: previsto + 3h (180min), mínimo 9h (540min) totais
-                            return minTrab >= Math.max(hPrev + 180, 540);
+                            // SAB com jornada curta (≤5h = ≤300min): jantar exige mínimo 11h01 (661min)
+                            // Aplica-se ao SAB meio-dia (ex: "08:00-12:00", 4h)
+                            const dStr = String(d.date || d.dateTimeStr || '').substring(0,10);
+                            const dParsed = new Date(dStr + 'T12:00:00');
+                            const isSatTbl = !isNaN(dParsed) && dParsed.getDay() === 6;
+                            const minJantar = (isSatTbl && hPrev <= 300) ? 661 : 540;
+                            return minTrab >= Math.max(hPrev + 180, minJantar);
                         }
                         // Sem escala (DSR, etc.): mínimo 12h (720min)
                         return minTrab >= 720;
@@ -1933,8 +1948,10 @@ window.baixarConferenciaPonto = async function () {
                 let elegivel_jantar = false;
                 if (!isAdminConf) {
                     if (hPrevConf > 0) {
-                        // Com escala: previsto + 3h (180min), mínimo 9h (540min) totais
-                        elegivel_jantar = hTrab >= Math.max(hPrevConf + 180, 540);
+                        // SAB com jornada curta (≤5h = ≤300min): jantar exige mínimo 11h01 (661min)
+                        // Ex: Erik no SAB "08:00-12:00" (4h) → precisa trabalhar 11h01 para jantar
+                        const minJantar = (isSat && hPrevConf <= 300) ? 661 : 540;
+                        elegivel_jantar = hTrab >= Math.max(hPrevConf + 180, minJantar);
                     } else {
                         // Sem escala: 12h (720min)
                         elegivel_jantar = hTrab >= 720;
@@ -1946,9 +1963,9 @@ window.baixarConferenciaPonto = async function () {
 
                 if (elegivel_jantar) {
                     bg = '#e9d5ff'; // Roxo: Jantar
-                } else if ((semHor || isHolidayDay) && hTrab >= 120) {
-                    // Trabalhou em dia SEM horário previsto (folga/dia livre do colaborador) ou feriado
-                    // → Amarelo escuro: indica trabalho não programado na escala do colaborador
+                } else if ((semHor || isHolidayDay) && hTrab >= (semHor && isSat && !isHolidayDay ? 360 : 120)) {
+                    // Trabalhou em dia SEM horário (folga/dia livre) ou feriado e atingiu mínimo:
+                    // SAB de descanso: precisa 6h (360min) | DOM/Feriado/outros: 2h (120min)
                     bg = '#fef08a';
                 } else if (!semHor && hTrab >= 120 && tipo !== 'falta' && tipo !== 'folga' && tipo !== 'feriado') {
                     // Dia COM escala prevista e trabalhou normalmente → Amarelo claro
