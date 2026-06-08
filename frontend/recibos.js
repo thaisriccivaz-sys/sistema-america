@@ -665,7 +665,7 @@ function _renderTabela() {
         const tipo = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
         
         const temFeriasJanela = window._temFeriasJanela ? window._temFeriasJanela(c, anoAt, mesAt) : false;
-        const nomeCor = temFeriasJanela ? '#9333ea' : '#1e293b';
+        const nomeCor = '#1e293b'; // Default text color for everyone
 
         const tipoBadge = tipo === 'Operacional'
             ? `<span style="font-size:.72rem;background:#fef3c7;color:#92400e;padding:2px 9px;border-radius:10px;font-weight:600;">OP</span>`
