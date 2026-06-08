@@ -691,31 +691,39 @@ function _renderTabela() {
             <div style="color:#475569;font-size:.85rem;">${c.cargo||'—'}</div>
             <div style="font-size:.74rem;color:#94a3b8;">${c.departamento||'—'}</div>
           </td>
-          <td style="padding:.55rem .75rem;text-align:center;">${transpBadge}</td>
-          <td style="padding:.45rem .4rem;text-align:center;">
-            <input type="number" min="0" max="35" value="${(s.diasVR != null && s.diasVR > 0) ? s.diasVR : s.diasTrabalhados}"
-              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${dtrabColor};"
+          <td style="padding:.55rem .75rem;text-align:center;background:#e0f2fe;">${transpBadge}</td>
+          <td style="padding:.45rem .4rem;text-align:center;background:#e0f2fe;">
+            ${(!window._isVT(m) && m !== '') ? '<span style="color:#94a3b8;font-weight:600;">-</span>' : `
+            <input type="number" min="0" max="35" value="${s.folgasVT||''}"
+              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.folgasVT||0)>0?'#0891b2':'#94a3b8'};"
               placeholder="0"
-              onchange="window.atualizarDadosReciboColab(${c.id},'diasVR',this.value)">
+              title="Folgas VT"
+              onchange="window.atualizarDadosReciboColab(${c.id},'folgasVT',this.value)">`}
           </td>
-          <td style="padding:.45rem .4rem;text-align:center;">
+          <td style="padding:.45rem .4rem;text-align:center;background:#e0f2fe;">
+            <input type="number" min="0" max="35" value="${s.faltasVT||''}"
+              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.faltasVT||0)>0?'#ef4444':'#94a3b8'};"
+              placeholder="0"
+              onchange="window.atualizarDadosReciboColab(${c.id},'faltasVT',this.value)">
+          </td>
+          <td style="padding:.45rem .4rem;text-align:center;background:#dcfce7;">
             <input type="number" min="0" max="35" value="${s.diasExtra||''}"
               style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${s.diasExtra>0?'#8b5cf6':'#94a3b8'};"
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'diasExtra',this.value)">
           </td>
-          <td style="padding:.45rem .4rem;text-align:center;">
-            <input type="number" min="0" max="35" value="${s.folgas||''}"
-              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.folgas||0)>0?'#0891b2':'#94a3b8'};"
+          <td style="padding:.45rem .4rem;text-align:center;background:#dcfce7;">
+            <input type="number" min="0" max="35" value="${s.folgasVR||''}"
+              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.folgasVR||0)>0?'#0891b2':'#94a3b8'};"
               placeholder="0"
-              title="Folgas/DSR/Feriados"
-              onchange="window.atualizarDadosReciboColab(${c.id},'folgas',this.value)">
+              title="Folgas VR"
+              onchange="window.atualizarDadosReciboColab(${c.id},'folgasVR',this.value)">
           </td>
-          <td style="padding:.45rem .4rem;text-align:center;">
-            <input type="number" min="0" max="35" value="${s.faltas||''}"
-              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${faltaColor};"
+          <td style="padding:.45rem .4rem;text-align:center;background:#dcfce7;">
+            <input type="number" min="0" max="35" value="${s.faltasVR||''}"
+              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.faltasVR||0)>0?'#ef4444':'#94a3b8'};"
               placeholder="0"
-              onchange="window.atualizarDadosReciboColab(${c.id},'faltas',this.value)">
+              onchange="window.atualizarDadosReciboColab(${c.id},'faltasVR',this.value)">
           </td>
         </tr>`;
     }).join('');
