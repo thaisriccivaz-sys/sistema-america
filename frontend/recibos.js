@@ -1014,6 +1014,7 @@ window._recBuscarPontoSelecionados = async function () {
                 // Usa a MESMA lógica de classificação da conferência de ponto
                 // para garantir consistência total entre exibição e desconto.
                 let faltasTotal = 0;
+                let faltasJustificadasTotal = 0; // Somente dias com idJustification (faltas reais c/ justificativa)
                 let folgasTotal = 0;
 
                 apuracaoParaCartao.forEach(d => {
@@ -1033,13 +1034,18 @@ window._recBuscarPontoSelecionados = async function () {
                         tipo2 = hT2 >= MIN_VR ? '' : 'folga'; // Feriado: se trabalhou 6h+ não desconta
                     } else if (d.idJustification) {
                         const ob2 = (d.toolTipAlert || '').toLowerCase();
+                        const abr2 = (d.abreviationJustification || '').toLowerCase().trim();
                         const isErroP2  = ob2.includes('erro no ponto');
                         const isExterno2 = ob2.includes('trabalho externo') || ob2.includes('trab. externo')
-                                        || ob2.includes('trab externo') || (ob2.includes('servi') && ob2.includes('externo'));
+                                        || ob2.includes('trab externo') || ob2.includes('externo')
+                                        || (ob2.includes('servi') && ob2.includes('externo'))
+                                        // Abreviação do RHID (ex: "TE", "T.E.", "TRAB.EXT.")
+                                        || abr2 === 'te' || abr2 === 't.e.' || abr2.startsWith('te ')
+                                        || abr2.includes('ext');
                         if (isErroP2 || isExterno2 || hT2 > 0) {
-                            tipo2 = ''; // Trabalhado (erro de ponto / trabalho externo)
+                            tipo2 = ''; // Trabalhado (erro de ponto / trabalho externo → não conta falta)
                         } else {
-                            tipo2 = 'justificado'; // Falta justificada (sem horas)
+                            tipo2 = 'justificado'; // Falta justificada genuína
                         }
                     } else if (isFolgaSt2 || isFolgaFlag2 || isDSR2) {
                         tipo2 = hT2 >= MIN_VR ? '' : 'folga';
@@ -1050,10 +1056,12 @@ window._recBuscarPontoSelecionados = async function () {
                     }
 
                     if (tipo2 === 'justificado' || tipo2 === 'falta') faltasTotal++;
+                    if (tipo2 === 'justificado') faltasJustificadasTotal++; // faltas c/ justificativa real
                     if (tipo2 === 'folga') folgasTotal++;
                 });
 
                 faltasJanela = faltasTotal; // será aplicado em s.faltas abaixo
+                const faltasJustificadasJanela = faltasJustificadasTotal; // só justificadas (supervisão)
 
 
                 // ── 4. Calcular CRÉDITO pelo mês SEGUINTE (M+1) ──────────────────
@@ -1085,15 +1093,24 @@ window._recBuscarPontoSelecionados = async function () {
                 // MIN_VR já definido acima (360 min = 6h)
                 if (apuracaoParaCartao.length > 0) {
                     s.diasVR = apuracaoParaCartao.filter(d => {
+                        // Trabalho externo: campo/serviço fora do escritório → sempre conta VR
+                        if (d.idJustification) {
+                            const abrVR = (d.abreviationJustification || '').toLowerCase().trim();
+                            const obVR  = (d.toolTipAlert || '').toLowerCase();
+                            const isExtVR = obVR.includes('externo')
+                                         || abrVR === 'te' || abrVR === 't.e.'
+                                         || abrVR.startsWith('te ') || abrVR.includes('ext');
+                            if (isExtVR) return true; // trab. externo → conta VR
+                            return false; // falta justificada → não conta VR
+                        }
+
                         // Dia agendado = tem horário contratual cadastrado no RHID
                         const temHorario = (d.idHorarioContratual || 0) > 0
                                         || (d.strHorarioContratualSimples || '').trim() !== '';
                         if (temHorario) return true; // agendado → conta
 
-                        // FALLBACK: RHID pode retornar idHorarioContratual=0 em dias de DSR mús o
-                        // colaborador efetivamente trabalhou (ex: 10/05 Naelson com 8h45m).
-                        // Se trabalhou >= 6h nesse dia, conta como dia VR pelo trabalho real.
-                        const minTrabFallback = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
+                        // FALLBACK: trabalhou >= 6h sem horário cadastrado
+                        const minTrabFallback = d.totalHorasTrabalhadas || 0;
                         return minTrabFallback >= MIN_VR;
                     }).length;
                 } else {
@@ -1181,7 +1198,11 @@ window._recBuscarPontoSelecionados = async function () {
                 const encontrado = data1?.encontrado || data2?.encontrado || apuracaoParaCartao.length > 0;
 
                 if (encontrado) {
-                    s.faltas = (isIntermitente || isSupervisaoColab) ? 0 : faltasJanela;
+                    // Intermitente: sem faltas. Supervisão: conta apenas falta com justificativa
+                    // (não conta ausências simples que o RHID detecta incorretamente)
+                    s.faltas = isIntermitente ? 0
+                             : isSupervisaoColab ? faltasJustificadasJanela
+                             : faltasJanela;
 
                     // Cartão de ponto: período 28/M-1 → 28/M
                     if (apuracaoParaCartao.length > 0) {
@@ -1800,9 +1821,13 @@ window.baixarConferenciaPonto = async function () {
                         all_keys: Object.keys(d).filter(k => !['strHorarioContratualSimples','entrada1','saida1','entrada2','saida2'].includes(k))
                     });
                     const isErroP = ob.includes('erro no ponto');
+                    const abr = (d.abreviationJustification || '').toLowerCase().trim();
                     const isExterno = ob.includes('trabalho externo') || ob.includes('trab. externo')
                                    || ob.includes('trab externo') || ob.includes('externo')
-                                   || (ob.includes('servi') && ob.includes('externo'));
+                                   || (ob.includes('servi') && ob.includes('externo'))
+                                   // Abreviação do RHID (ex: "TE", "T.E.", "TRAB.EXT.")
+                                   || abr === 'te' || abr === 't.e.' || abr.startsWith('te ')
+                                   || abr.includes('ext');
                     if (isErroP || hTrab > 0) {
                         tipo = ''; // Trabalhado normal (erro de ponto / horas presentes)
                     } else if (isExterno) {
@@ -1857,7 +1882,7 @@ window.baixarConferenciaPonto = async function () {
                 if (tipo==='feriado' && !e1)       { ent1='Feriado: '+(d.holidayName||''); }
                 else if (tipo==='folga' && !e1)    { ent1='Folga'; }
                 else if (tipo==='atestado')         { ent1='Atestado Médico'; }   // só ENT.1, resto vazio
-                else if (tipo==='justificado')      { ent1=`Justificado (${d.idJustification||'?'})`; }  // ID visível para debug
+                else if (tipo==='justificado')      { ent1=`Justificado (abr:${d.abreviationJustification||'?'})`; }  // abreviação visível p/ debug
                 else if (tipo==='trab_externo')     { ent1='Trab. Externo'; }       // só ENT.1, resto vazio
                 else if (tipo==='falta')            { ent1='Falta'; }               // só ENT.1, resto vazio
                 else { ent1=e1; sai1=s1; ent2=e2; sai2=s2; }
