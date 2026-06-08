@@ -655,6 +655,9 @@ function _renderTabela() {
         _atualizarContador(); return;
     }
 
+    const mesAt = parseInt(document.getElementById('rec-mes')?.value || (new Date().getMonth()+1));
+    const anoAt = parseInt(document.getElementById('rec-ano')?.value || new Date().getFullYear());
+
     tbody.innerHTML = _recibosFiltrados.map(c => {
         const s    = _recibosSelecoes[c.id] || { selecionado:false, diasTrabalhados:0, diasVR:0, faltas:0, folgas:0, diasExtra:0, pontoStatus:null, folgasVT:0, faltasVT:0, folgasVR:0, faltasVR:0 };
         const nomeCompleto = _recNome(c);
