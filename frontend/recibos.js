@@ -1781,13 +1781,11 @@ window.baixarConferenciaPonto = async function () {
                 const obsT = (d.toolTipAlert||'').trim();
 
                 let ent1='',sai1='',ent2='',sai2='';
-                if (tipo==='feriado' && !e1) { ent1='Feriado: '+(d.holidayName||''); }
-                else if (tipo==='folga' && !e1) { ent1='Folga'; }
-                else if (tipo==='atestado' && !e1) { ent1='Atestado Médico'; ent2='Atestado Médico'; }
-                else if (tipo==='justificado' && !e1) {
-                    ent1=e1; sai1=s1;
-                    ent2=e2||(marc.length<3?obsT:''); sai2=s2;
-                } else if (tipo==='falta' && !e1) { ent1='Falta'; sai1='Falta'; ent2='Falta'; sai2='Falta'; }
+                if (tipo==='feriado' && !e1)       { ent1='Feriado: '+(d.holidayName||''); }
+                else if (tipo==='folga' && !e1)    { ent1='Folga'; }
+                else if (tipo==='atestado')         { ent1='Atestado Médico'; }   // só ENT.1, resto vazio
+                else if (tipo==='justificado')      { ent1='Justificado'; }         // só ENT.1, resto vazio
+                else if (tipo==='falta' && !e1)    { ent1='Falta'; }               // só ENT.1, resto vazio
                 else { ent1=e1; sai1=s1; ent2=e2||(marc.length<3?obsT:''); sai2=s2; }
 
                 // Horas e extras
@@ -1855,7 +1853,11 @@ window.baixarConferenciaPonto = async function () {
                     bg = '#f8fafc'; // Folga
                 }
 
-                return `<tr style="background:${bg};">
+                // Cor da fonte: vermelho para faltas/justificados/atestados
+                const isAusencia = isFlt || tipo === 'justificado' || tipo === 'atestado';
+                const fontColor = isAusencia ? '#b91c1c' : '#1e293b';
+
+                return `<tr style="background:${bg};color:${fontColor};">
                     ${tdC(diaFmt+(dsStr?' - '+dsStr:''),'white-space:nowrap;')}
                     ${tdC(previsto,'font-size:9.5px;word-break:break-word;max-width:90px;')}
                     ${tdC(ent1,'white-space:nowrap;')}
