@@ -1071,7 +1071,11 @@ window._recBuscarPontoSelecionados = async function () {
                             tipo2 = 'justificado'; // Falta justificada genuína
                         }
                     } else if (isFolgaSt2 || isFolgaFlag2 || isDSR2) {
-                        tipo2 = hT2 >= MIN_VR ? '' : 'folga';
+                        const dStr2 = String(d.date || d.dateTimeStr || '').substring(0, 10);
+                        const dParsed2 = new Date(dStr2 + 'T12:00:00');
+                        const isDom2 = !isNaN(dParsed2) && dParsed2.getDay() === 0;
+                        const limiteDsr = isDom2 ? 120 : MIN_VR;
+                        tipo2 = hT2 >= limiteDsr ? '' : 'folga';
                     } else if (semHor2 && trb2) {
                         // Dia de descanso (sem horário) mas trabalhou:
                         // SAB: precisa de 6h (360min) para ganhar VR; abaixo disso = ainda é folga descontada
