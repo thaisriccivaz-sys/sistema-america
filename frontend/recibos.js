@@ -587,12 +587,16 @@ function _filtrarERendar() {
                 valB = selB.diasExtra || 0;
                 break;
             case 'folgas':
-                valA = selA.folgas || 0;
-                valB = selB.folgas || 0;
+            case 'folgasVT':
+            case 'folgasVR':
+                valA = selA[_recibosSortCol] || 0;
+                valB = selB[_recibosSortCol] || 0;
                 break;
             case 'faltas':
-                valA = selA.faltas || 0;
-                valB = selB.faltas || 0;
+            case 'faltasVT':
+            case 'faltasVR':
+                valA = selA[_recibosSortCol] || 0;
+                valB = selB[_recibosSortCol] || 0;
                 break;
             case 'ponto':
                 valA = selA.pontoStatus || '';
@@ -987,7 +991,7 @@ window._recBuscarPontoSelecionados = async function () {
                     // 1º: Folga/DSR/Feriado explícito — NUNCA é falta (tratado como folga)
                     const isFolga = statusRHID.includes('folg') || statusRHID.includes('dsr') ||
                                     statusRHID.includes('feriado') || statusRHID.includes('f.c.') ||
-                                    d.folga === true || d.isHoliday === 1 || d.isHoliday === true;
+                                    d.folga === true || d.isHoliday === true || d.isHoliday === 1;
 
                     // 2º: DSR via campo específico
                     const isDSR = (d.dsrConsideradoMinutos || 0) > 0;
@@ -1033,7 +1037,7 @@ window._recBuscarPontoSelecionados = async function () {
 
                     let tipo2 = '';
                     if (d.isHoliday) {
-                        tipo2 = hT2 >= MIN_VR ? '' : 'folga'; // Feriado: se trabalhou 6h+ não desconta
+                        tipo2 = hT2 >= 120 ? '' : 'folga'; // Feriado: se trabalhou 6h+ não desconta
                     } else if (d.idJustification) {
                         const ob2 = (d.toolTipAlert || '').toLowerCase();
                         const abr2 = (d.abreviationJustification || '').toLowerCase().trim();
