@@ -159,7 +159,6 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         // ── OBSERVAÇÕES: toolTipAlert + razões de pontos tratados ──────────────
         const obsLinhas = [];
         if (d.toolTipAlert && d.toolTipAlert.trim()) {
-            // Filtra mensagens genéricas não relevantes
             const alertText = d.toolTipAlert.trim();
             if (!alertText.toLowerCase().includes('extra acima de 10 min')) {
                 obsLinhas.push(alertText);
@@ -176,7 +175,31 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
                 }
             });
         }
-        const obsText = obsLinhas.join(' | ');
+        
+        let faltaRanges = [];
+        let otherObs = [];
+        
+        for (let obs of obsLinhas) {
+            // Check if it matches "Falta no período entre XX:XX e YY:YY" (with or without [I]/[D] prefix)
+            let m = obs.match(/Falta no período entre ([\d]{2}:[\d]{2}) e ([\d]{2}:[\d]{2})/i);
+            if (m) {
+                if (m[1] !== m[2]) {
+                    faltaRanges.push(`${m[1]} e ${m[2]}`);
+                }
+            } else {
+                otherObs.push(obs);
+            }
+        }
+        
+        let finalObs = Array.from(new Set(otherObs));
+        if (faltaRanges.length > 0) {
+            finalObs.push('Falta no período entre ' + Array.from(new Set(faltaRanges)).join(', '));
+        } else if (obsLinhas.some(o => o.toLowerCase().includes('falta no período entre'))) {
+            // Fallback just in case it didn't match the regex but had the text
+            finalObs.push('Falta no período');
+        }
+
+        const obsText = finalObs.join(' | ');
 
         let previsto = c.escala || '08:00-12:00 13:00-17:48';
         let ent1_td, sai1_td, ent2_td, sai2_td;
