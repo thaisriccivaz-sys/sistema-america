@@ -1124,7 +1124,7 @@ window._recBuscarPontoSelecionados = async function () {
                 const tipoDepto = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
                 if (tipoDepto !== 'Administrativo' && apuracaoParaCartao.length > 0) {
                     s.diasExtra = apuracaoParaCartao.filter(d => {
-                        const minTrab = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
+                        const minTrab = d.totalHorasTrabalhadas || 0;
                         const hPrev = _parseHorasPrevistas(d);
                         if (hPrev > 0) {
                             // Com escala: previsto + 3h (180min), mínimo 9h (540min) totais
@@ -1140,7 +1140,37 @@ window._recBuscarPontoSelecionados = async function () {
 
                 // ── Calcular FOLGAS da janela ──────────────────────────────────────
                 // Agora usa folgasTotal da contagem unificada acima
-                s.folgas = folgasTotal;
+                // Intermitente: nunca tem faltas; Supervisão: sem desconto de faltas
+                const isSupervisaoColab = (() => {
+                    const dept = (c.departamento || '').toLowerCase();
+                    const cargo = (c.cargo || '').toLowerCase();
+                    return dept.includes('supervis') || cargo.includes('supervis')
+                        || cargo.includes('sup.') || cargo.startsWith('sup ');
+                })();
+
+                if (isSupervisaoColab) {
+                    // Supervisão trabalha Seg-Sex:
+                    // Folgas = todos os SAB + DOM no período + feriados em dias úteis
+                    let folgasSup = 0;
+                    // Contar SAB e DOM pelo calendário (independente do RHID)
+                    for (let dtIt = new Date(janelaIni); dtIt <= janelaFim; dtIt.setDate(dtIt.getDate() + 1)) {
+                        const dow = dtIt.getDay();
+                        if (dow === 0 || dow === 6) folgasSup++; // DOM e SAB
+                    }
+                    // Adicionar feriados que caíram em dia útil (Seg-Sex)
+                    apuracaoParaCartao.forEach(d => {
+                        if (d.isHoliday) {
+                            const dtH = parseDia(d);
+                            if (dtH) {
+                                const dow = dtH.getDay();
+                                if (dow >= 1 && dow <= 5) folgasSup++; // Feriado em dia útil
+                            }
+                        }
+                    });
+                    s.folgas = folgasSup;
+                } else {
+                    s.folgas = folgasTotal;
+                }
 
 
 
@@ -1151,13 +1181,6 @@ window._recBuscarPontoSelecionados = async function () {
                 const encontrado = data1?.encontrado || data2?.encontrado || apuracaoParaCartao.length > 0;
 
                 if (encontrado) {
-                    // Intermitente: nunca tem faltas; Supervisão: sem desconto de faltas
-                    const isSupervisaoColab = (() => {
-                        const dept = (c.departamento || '').toLowerCase();
-                        const cargo = (c.cargo || '').toLowerCase();
-                        return dept.includes('supervis') || cargo.includes('supervis')
-                            || cargo.includes('sup.') || cargo.startsWith('sup ');
-                    })();
                     s.faltas = (isIntermitente || isSupervisaoColab) ? 0 : faltasJanela;
 
                     // Cartão de ponto: período 28/M-1 → 28/M
@@ -1758,8 +1781,24 @@ window.baixarConferenciaPonto = async function () {
                 if (d.isHoliday) { tipo = 'feriado'; }
                 else if (d.idJustification) {
                     const ob = (d.toolTipAlert||'').toLowerCase();
-                    // DEBUG: log para identificar texto exato do RHID para justificativas
-                    if (d.idJustification) console.log('[JUSTIF_DEBUG]', diaStr, 'idJust:', d.idJustification, 'toolTip:', d.toolTipAlert);
+                    // DEBUG: mostra todos os campos relevantes do dia justificado
+                    console.log('[JUSTIF_DEBUG]', diaStr, {
+                        idJustification: d.idJustification,
+                        toolTipAlert: d.toolTipAlert,
+                        status: d.status,
+                        situacao: d.situacao,
+                        tipo: d.tipo,
+                        ocorrencia: d.ocorrencia,
+                        descricao: d.descricao,
+                        nomeJustificativa: d.nomeJustificativa,
+                        tipoJustificativa: d.tipoJustificativa,
+                        motivoJustificativa: d.motivoJustificativa,
+                        justificativa: d.justificativa,
+                        observacao: d.observacao,
+                        obs: d.obs,
+                        descricaoOcorrencia: d.descricaoOcorrencia,
+                        all_keys: Object.keys(d).filter(k => !['strHorarioContratualSimples','entrada1','saida1','entrada2','saida2'].includes(k))
+                    });
                     const isErroP = ob.includes('erro no ponto');
                     const isExterno = ob.includes('trabalho externo') || ob.includes('trab. externo')
                                    || ob.includes('trab externo') || ob.includes('externo')
