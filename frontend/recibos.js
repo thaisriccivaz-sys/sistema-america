@@ -1857,7 +1857,7 @@ window.baixarConferenciaPonto = async function () {
                 if (tipo==='feriado' && !e1)       { ent1='Feriado: '+(d.holidayName||''); }
                 else if (tipo==='folga' && !e1)    { ent1='Folga'; }
                 else if (tipo==='atestado')         { ent1='Atestado Médico'; }   // só ENT.1, resto vazio
-                else if (tipo==='justificado')      { ent1='Justificado'; }         // só ENT.1, resto vazio
+                else if (tipo==='justificado')      { ent1=`Justificado (${d.idJustification||'?'})`; }  // ID visível para debug
                 else if (tipo==='trab_externo')     { ent1='Trab. Externo'; }       // só ENT.1, resto vazio
                 else if (tipo==='falta')            { ent1='Falta'; }               // só ENT.1, resto vazio
                 else { ent1=e1; sai1=s1; ent2=e2; sai2=s2; }
