@@ -349,6 +349,15 @@ function _buildRecibosLayout(mesAt, anoAt) {
           ${[anoAt-1,anoAt,anoAt+1].map(a=>`<option value="${a}" ${a===anoAt?'selected':''}>${a}</option>`).join('')}
         </select>
       </div>
+      <div>
+        <label style="font-size:.79rem;font-weight:600;color:#64748b;display:block;margin-bottom:.3rem;" title="Total de dias do mês seguinte — usado como base (bruto) para o VR">
+          <i class="ph ph-calendar-check" style="color:#2563eb;"></i> Dias (Mês Seg.)
+        </label>
+        <input type="number" id="rec-dias-bruto" min="1" max="31" value="0"
+          style="width:72px;padding:.52rem .6rem;border:1.5px solid #2563eb;border-radius:8px;font-size:.97rem;font-weight:700;color:#1e3a8a;background:#eff6ff;text-align:center;"
+          title="Total de dias do mês seguinte (base bruto VR) — editável"
+          onchange="window._recibos_diasBruto = parseInt(this.value)||0">
+      </div>
       <div style="width:1px;height:42px;background:#e2e8f0;align-self:flex-end;"></div>
     </div>
   </div>
@@ -618,7 +627,7 @@ function _renderTabela() {
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" onclick="window.ordenarRecibos('cargo')">Cargo / Depto <i class="ph ${_recibosSortCol==='cargo'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='cargo'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;">Meio Transp.</th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Dias Trabalhados (Base VT/VC)" onclick="window.ordenarRecibos('transporte')">Transp. <i class="ph ${_recibosSortCol==='transporte'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='transporte'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
-            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Dias > 6h (Base VR)" onclick="window.ordenarRecibos('vr')">VR <i class="ph ${_recibosSortCol==='vr'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='vr'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;display:none;" title="Dias > 6h (Base VR)" onclick="window.ordenarRecibos('vr')">VR <i class="ph ${_recibosSortCol==='vr'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='vr'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Dias > 3h extra" onclick="window.ordenarRecibos('jantar')">Jantar <i class="ph ${_recibosSortCol==='jantar'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='jantar'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Folgas/DSR/Feriados" onclick="window.ordenarRecibos('folgas')">Folgas <i class="ph ${_recibosSortCol==='folgas'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgas'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Faltas com e sem atestado" onclick="window.ordenarRecibos('faltas')">Faltas <i class="ph ${_recibosSortCol==='faltas'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltas'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
@@ -693,7 +702,7 @@ function _renderTabela() {
               onchange="window.atualizarDadosReciboColab(${c.id},'diasTrabalhados',this.value); if(_recibosSelecoes[${c.id}].diasVR == null) _recibosSelecoes[${c.id}].diasVR = this.value; window.aplicarFiltrosRecibos();">
             ` : `<span style="color:#94a3b8;font-weight:600;">-</span>`}
           </td>
-          <td style="padding:.45rem .4rem;text-align:center;">
+          <td style="padding:.45rem .4rem;text-align:center;display:none;">
             <input type="number" min="0" max="35" value="${(s.diasVR != null && s.diasVR > 0) ? s.diasVR : s.diasTrabalhados}"
               style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${dtrabColor};"
               placeholder="0"
@@ -1349,6 +1358,15 @@ window.carregarHistoricoRecibos = async function () {
     const mes = document.getElementById('rec-mes')?.value;
     const ano = document.getElementById('rec-ano')?.value;
     if (!mes || !ano) return;
+
+    // ── Atualiza o campo "Dias (Mês Seg.)" automaticamente ─────────────────
+    // Selecionando Maio (mes=5) → conta dias de Junho: new Date(ano, 6, 0) = 30
+    const elBruto = document.getElementById('rec-dias-bruto');
+    if (elBruto) {
+        const diasProxMes = new Date(parseInt(ano), parseInt(mes) + 1, 0).getDate();
+        elBruto.value = diasProxMes;
+        window._recibos_diasBruto = diasProxMes;
+    }
     
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
@@ -1612,14 +1630,11 @@ window.baixarConferenciaPonto = async function () {
     const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][mesInt-1];
     const valorVR = window._recibosValorVR || 35.00;
 
-    // Período da janela de desconto: 29/M-1 → 28/M
-    const mesPrevConf = mesInt === 1 ? 12 : mesInt - 1;
-    const anoPrevConf = mesInt === 1 ? anoInt - 1 : anoInt;
-    const dtIniConf   = new Date(anoPrevConf, mesPrevConf - 1, 29); // 29/M-1 (ou 01/mar em fev não-bissexto)
-    const dtFimConf   = new Date(anoInt, mesInt - 1, 28);           // 28/M
+    // Período da conferência: 01/M → último dia de M (mês selecionado completo)
+    const dtIniConf = new Date(anoInt, mesInt - 1, 1);  // 01/M
+    const dtFimConf = new Date(anoInt, mesInt, 0);       // último dia de M
     const fmtDate = (d) => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
     const periodoTexto = `${fmtDate(dtIniConf)} a ${fmtDate(dtFimConf)}`;
-
 
     // Salvar apuração no backend para guardar o histórico da conferência
     try {
