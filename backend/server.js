@@ -6136,7 +6136,11 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
         
         // Failsafe migrations for columns added over time
         db.run("ALTER TABLE recibos_historico ADD COLUMN apuracao_diaria TEXT", () => {});
-        db.run("ALTER TABLE recibos_historico ADD COLUMN folgas INTEGER DEFAULT 0", function() {
+        db.run("ALTER TABLE recibos_historico ADD COLUMN folgas INTEGER DEFAULT 0", () => {});
+        db.run("ALTER TABLE recibos_historico ADD COLUMN folgas_vt INTEGER DEFAULT 0", () => {});
+        db.run("ALTER TABLE recibos_historico ADD COLUMN faltas_vt INTEGER DEFAULT 0", () => {});
+        db.run("ALTER TABLE recibos_historico ADD COLUMN folgas_vr INTEGER DEFAULT 0", () => {});
+        db.run("ALTER TABLE recibos_historico ADD COLUMN faltas_vr INTEGER DEFAULT 0", function() {
             let pending = itens.length;
             if (pending === 0) {
                 db.run('COMMIT');
