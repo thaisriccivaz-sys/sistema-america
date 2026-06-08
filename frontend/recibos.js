@@ -994,8 +994,14 @@ window._recBuscarPontoSelecionados = async function () {
                     const strHorario = (d.strHorarioContratualSimples || '').trim();
                     const semHorarioPrevisto = (idHorario === 0 && strHorario === '');
 
-                    // 4º: Justificado = falta para fins de VR (não recebe VR no dia)
-                    const isJustificado = statusRHID.includes('justif');
+                    // 4º: Justificado — verifica pelo campo idJustification OU pelo status
+                    //     EXCEÇÃO: 'erro no ponto' não é falta — é dia trabalhado corrigido
+                    const toolTipAlertRaw = (d.toolTipAlert || '').toLowerCase();
+                    const erroNoPonto = toolTipAlertRaw.includes('erro no ponto');
+                    const isJustificado = !erroNoPonto && (
+                        statusRHID.includes('justif') ||
+                        (d.idJustification && d.idJustification > 0)
+                    );
 
                     if (isFolga || isDSR || d.isHoliday) {
                         // Folga/DSR/Feriado → não conta como falta (tratado separadamente em folgas)
@@ -1105,17 +1111,24 @@ window._recBuscarPontoSelecionados = async function () {
                 // REGRA 4 (fallback): mesmo sem horário contratual, se trabalhou >= 6h → NÃO é folga.
                 const folgasJanela = apuracaoParaCartao.filter(d => {
                     const minTrab = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
+                    const trab    = (d.diasTrabalhados || 0) > 0 || minTrab > 0;
 
-                    // Com a nova regra (bruto fixo de 30 dias), TODA folga/dsr/feriado não trabalhada
-                    // no período deve ser descontada, pois a base já contemplou todos os dias do mês.
+                    // Trabalhou >= MIN_VR (6h) → VR elegível, não é folga de desconto
                     if (minTrab >= MIN_VR) return false;
 
                     const st = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
-                    const isFolgaSt  = st.includes('folg') || st.includes('dsr') || st.includes('feriado');
+                    const isFolgaSt   = st.includes('folg') || st.includes('dsr') || st.includes('feriado');
                     const isFolgaFlag = d.folga === true || d.isHoliday === true || d.isHoliday === 1;
 
-                    return isFolgaSt || isFolgaFlag;
-                    // REMOVIDOS: isDSRMin (pegava Domingos) e semHorario catch-all (pegava dias sem escala)
+                    // Folga/Feriado/DSR explícito no RHID
+                    if (isFolgaSt || isFolgaFlag) return true;
+
+                    // Dia sem horário de escala E não trabalhou → folga implícita (DOM, SAB de descanso)
+                    const semHorarioD = (d.idHorarioContratual || 0) === 0
+                                     && (d.strHorarioContratualSimples || '').trim() === '';
+                    if (semHorarioD && !trab) return true;
+
+                    return false;
                 }).length;
                 s.folgas = folgasJanela;
 
