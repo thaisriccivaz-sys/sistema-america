@@ -1045,7 +1045,13 @@ window._recBuscarPontoSelecionados = async function () {
                                         || st2 === 'te'
                                         // Abreviação do RHID (ex: "TE", "T.E.", "TRAB.EXT.")
                                         || abr2 === 'te' || abr2 === 't.e.' || abr2.startsWith('te ')
-                                        || abr2.includes('ext');
+                                        || abr2.includes('ext')
+                                        // ── Texto nas entradas de marcação (listAfdtManutencao) ──────────
+                                        // O RHID escreve "Trabalho Externo" como texto nas marcações
+                                        || (d.listAfdtManutencao || d.marcacoes || []).some(m => {
+                                            const _j = JSON.stringify(m || '').toLowerCase();
+                                            return _j.includes('externo') || _j.includes('trabalho ext');
+                                        });
                         if (isErroP2 || isExterno2 || hT2 > 0) {
                             tipo2 = ''; // Trabalhado (erro de ponto / trabalho externo → não conta falta)
                         } else {
