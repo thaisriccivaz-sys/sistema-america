@@ -696,7 +696,7 @@ function _renderTabela() {
           </td>
           <td style="padding:.55rem .75rem;text-align:center;background:#8aa0fe;">${transpBadge}</td>
           <td style="padding:.45rem .4rem;text-align:center;background:#8aa0fe;">
-            ${(!window._isVT(m) && m !== '') ? '<span style="color:#94a3b8;font-weight:600;">-</span>' : `
+            ${(!window._isVT(m) && m !== '') ? '' : `
             <input type="number" min="0" max="35" value="${s.folgasVT||''}"
               style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.folgasVT||0)>0?'#0891b2':'#94a3b8'};"
               placeholder="0"
@@ -704,7 +704,7 @@ function _renderTabela() {
               onchange="window.atualizarDadosReciboColab(${c.id},'folgasVT',this.value)">`}
           </td>
           <td style="padding:.45rem .4rem;text-align:center;background:#8aa0fe;">
-            ${(m === 'outros') ? '<span style="color:#94a3b8;font-weight:600;">-</span>' : `
+            ${(m === 'outros') ? '' : `
             <input type="number" min="0" max="35" value="${s.faltasVT||''}"
               style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.faltasVT||0)>0?'#ef4444':'#94a3b8'};"
               placeholder="0"
@@ -1290,6 +1290,7 @@ window._recBuscarPontoSelecionados = async function () {
     for (const c of sels) {
         const s = _recibosSelecoes[c.id];
         if (s) {
+            if (window._isSupervisao(c)) { s.faltas = 0; }
             s.folgasVT = s.folgas;
             s.faltasVT = s.faltas;
             s.folgasVR = s.folgas;
@@ -2544,7 +2545,7 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
           <td style="padding:7px 12px;border:1px solid #ddd;text-align:right;${descFolgas > 0 ? 'color:#b91c1c;' : 'color:#94a3b8;'}">R$&nbsp;${descFolgas > 0 ? _recFmt(descFolgas) : '-'}</td>
         </tr>
         <tr>
-          <td style="padding:7px 12px;border:1px solid #ddd;">* &nbsp; ${faltas} FALTA${faltas !== 1 ? 'S' : ''} / ATESTADO${faltas !== 1 ? 'S' : ''}</td>
+          <td style="padding:7px 12px;border:1px solid #ddd;">* &nbsp; ${faltas} FALTA${faltas !== 1 ? 'S' : ''} / JUSTIFICADO${faltas !== 1 ? 'S' : ''}</td>
           <td style="padding:7px 12px;border:1px solid #ddd;"></td>
           <td style="padding:7px 12px;border:1px solid #ddd;text-align:right;${descFaltas > 0 ? 'color:#b91c1c;' : 'color:#94a3b8;'}">R$&nbsp;${descFaltas > 0 ? _recFmt(descFaltas) : '-'}</td>
         </tr>
@@ -2589,7 +2590,7 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
         totalFinal = Math.max(0, valTransp - descVC);
         linhas = `
 <tr><td style="padding:7px 12px;border:1px solid #ddd;">Valor Integral Mensal</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">30 dias</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(valTransp)}</td></tr>
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Descontos por Falta${faltasVC !== 1 ? 's' : ''} (${faltasVC} dia${faltasVC !== 1 ? 's' : ''} × R$&nbsp;${_recFmt(diariaVC)})</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${faltasVC}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;color:#ef4444;">${descVC > 0 ? '-R$&nbsp;' + _recFmt(descVC) : '-'}</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Descontos por Falta${faltasVC !== 1 ? 's' : ''}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${faltasVC}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;color:#ef4444;">${descVC > 0 ? '-R$&nbsp;' + _recFmt(descVC) : '-'}</td></tr>
 <tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td colspan="2" style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
         obs = '';
     }
