@@ -755,7 +755,14 @@ window._isSupervisao = function(c) {
     // Se o colaborador tem dados reais de ponto do RHID (apuracaoDiaria),
     // ele bate ponto e deve ser tratado como operacional (não supervisão)
     const sel = _recibosSelecoes ? _recibosSelecoes[c.id] : null;
-    if (sel && sel.apuracaoDiaria && sel.apuracaoDiaria.length > 0) return false;
+    if (sel && sel.apuracaoDiaria && sel.apuracaoDiaria.length > 0) {
+        const temPontoReal = sel.apuracaoDiaria.some(d => {
+            const trb = (d.diasTrabalhados || 0) > 0 || (d.totalHorasTrabalhadas || 0) > 0;
+            const batidas = d.marcacoes && d.marcacoes.length > 0;
+            return trb || batidas;
+        });
+        if (temPontoReal) return false;
+    }
 
     const dept = (c.departamento || '').toLowerCase();
     const cargo = (c.cargo || '').toLowerCase();
@@ -2012,7 +2019,7 @@ window.baixarConferenciaPonto = async function () {
                 const aboMin  = d.horasAbono||d.abono||0;
                 const exDMin  = Math.max(0, d.extraDiurna||d.extraAdicionadaDiurna||0);
                 const exNMin  = Math.max(0, d.extraNoturna||d.extraAdicionadaNoturna||0);
-                const totEx   = exDMin+exNMin || d.horasExtrasCalculadas||0;
+                const totEx   = exDMin+exNMin || Math.max(0, d.horasExtrasCalculadas || 0) || 0;
                 let ex60=0, ex100=0;
                 if (d.isHoliday||dsStr==='DOM') ex100=totEx; else ex60=totEx;
 
@@ -2278,7 +2285,7 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
 
         // EXTRA 60% / EXTRA 100% por dia da semana
         let extra60Min = 0, extra100Min = 0;
-        const totalExtraMin = extraDiurnaMin + extraNocturnaMin || d.horasExtrasCalculadas || 0;
+        const totalExtraMin = extraDiurnaMin + extraNocturnaMin || Math.max(0, d.horasExtrasCalculadas || 0) || 0;
         if (d.isHoliday || diaSemanaStr === 'DOM') extra100Min = totalExtraMin;
         else extra60Min = totalExtraMin;
         const extra60 = fmtMin(extra60Min);
