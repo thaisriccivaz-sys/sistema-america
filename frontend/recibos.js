@@ -1724,13 +1724,13 @@ window.baixarConferenciaPonto = async function () {
                 const obsT = (d.toolTipAlert||'').trim();
 
                 let ent1='',sai1='',ent2='',sai2='';
-                if (tipo==='feriado')       { ent1='Feriado: '+(d.holidayName||''); }
-                else if (tipo==='folga')    { ent1='Folga'; }
-                else if (tipo==='atestado') { ent1='Atestado Médico'; ent2='Atestado Médico'; }
-                else if (tipo==='justificado') {
+                if (tipo==='feriado' && !e1) { ent1='Feriado: '+(d.holidayName||''); }
+                else if (tipo==='folga' && !e1) { ent1='Folga'; }
+                else if (tipo==='atestado' && !e1) { ent1='Atestado Médico'; ent2='Atestado Médico'; }
+                else if (tipo==='justificado' && !e1) {
                     ent1=e1; sai1=s1;
                     ent2=e2||(marc.length<3?obsT:''); sai2=s2;
-                } else if (tipo==='falta') { ent1='Falta'; sai1='Falta'; ent2='Falta'; sai2='Falta'; }
+                } else if (tipo==='falta' && !e1) { ent1='Falta'; sai1='Falta'; ent2='Falta'; sai2='Falta'; }
                 else { ent1=e1; sai1=s1; ent2=e2||(marc.length<3?obsT:''); sai2=s2; }
 
                 // Horas e extras

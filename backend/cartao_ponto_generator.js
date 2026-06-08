@@ -181,20 +181,21 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         let previsto = c.escala || '08:00-12:00 13:00-17:48';
         let ent1_td, sai1_td, ent2_td, sai2_td;
 
-        if (status.startsWith('Feriado')) {
+        if (status.startsWith('Feriado') && !e1) {
             previsto = 'FERIADO';
             ent1_td = status; sai1_td = ''; ent2_td = ''; sai2_td = '';
-        } else if (status === 'Folga') {
+        } else if (status === 'Folga' && !e1) {
             ent1_td = 'Folga'; sai1_td = ''; ent2_td = ''; sai2_td = '';
-        } else if (status === 'Atestado Médico') {
+        } else if (status === 'Atestado Médico' && !e1) {
             ent1_td = 'Atestado Médico'; sai1_td = ''; ent2_td = 'Atestado Médico'; sai2_td = '';
-        } else if (status === 'Justificado') {
+        } else if (status === 'Justificado' && !e1) {
             ent1_td = 'Justificado'; sai1_td = ''; ent2_td = ''; sai2_td = '';
-        } else if (status === 'Falta') {
+        } else if (status === 'Falta' && !e1) {
             previsto = '';
             ent1_td = 'Falta'; sai1_td = 'Falta'; ent2_td = 'Falta'; sai2_td = 'Falta';
         } else {
             ent1_td = e1; sai1_td = s1; ent2_td = e2; sai2_td = s2;
+            if (status.startsWith('Feriado')) previsto = 'FERIADO';
         }
 
         rowsHtml += `
