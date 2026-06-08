@@ -1012,7 +1012,8 @@ window._recBuscarPontoSelecionados = async function () {
                 // para garantir consistência total entre exibição e desconto.
                 let faltasTotal = 0;
                 let faltasJustificadasTotal = 0; // Somente dias com idJustification (faltas reais c/ justificativa)
-                let folgasTotal = 0;\n                let folgasVR = 0, faltasVR = 0, folgasVT = 0, faltasVT = 0;
+                let folgasTotal = 0;
+                let folgasVR = 0, faltasVR = 0, folgasVT = 0, faltasVT = 0;
 
                 apuracaoParaCartao.forEach(d => {
                     // IMPORTANTE: totalHorasTrabalhadas já inclui horas noturnas
