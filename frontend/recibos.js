@@ -1749,15 +1749,40 @@ window.baixarConferenciaPonto = async function () {
                 totExtra60+=ex60; totExtra100+=ex100; totExtraDiurna+=exDMin; totExtraNoturna+=exNMin;
 
                 const isFlt = tipo==='falta';
+                const isSunday = dsStr === 'DOM';
+                const isSat    = dsStr === 'SAB';
+                const isHolidayDay = tipo === 'feriado';
+
+                // ── Departamento: Administrativo não recebe Jantar ──────────────────
+                const tipoDeptoConf = (typeof _recibosDeptTipoMap !== 'undefined')
+                    ? (_recibosDeptTipoMap[(c.departamento||'').trim()] || '') : '';
+                const isAdminConf = tipoDeptoConf === 'Administrativo';
+
+                // ── Thresholds de Jantar ─────────────────────────────────────────────
+                // Regra: "3 horas a mais que o previsto"
+                // Sábado (compensação) ou sem escala → 12h; Dia normal com escala → 11h
+                const MIN_JANTAR_CONF = (semHor || isSat) ? 720 : 660;
+
+                // ── Coloração ────────────────────────────────────────────────────────
                 let bg = '#fff';
-                if (hTrab > 600) {
-                    bg = '#e9d5ff'; // Roxo (Jantar)
+
+                if (!isAdminConf && hTrab > MIN_JANTAR_CONF) {
+                    // 🟣 Roxo — elegível para Jantar (inclui VR)
+                    bg = '#e9d5ff';
+                } else if (isSunday || isHolidayDay) {
+                    // 🟡 Amarelo — Domingo e Feriado: VR a partir de 2h trabalhadas
+                    if (hTrab >= 120) bg = '#fef08a';
+                    else bg = '#f8fafc'; // trabalhou < 2h, trata como folga
+                } else if (isSat && hTrab >= 360) {
+                    // 🟡 Amarelo — Sábado (compensação): VR a partir de 6h
+                    bg = '#fef08a';
                 } else if (semHor && hTrab >= 360) {
-                    bg = '#fef08a'; // Amarelo (VR sem escala)
+                    // 🟡 Amarelo — Sem escala, dia útil: VR a partir de 6h
+                    bg = '#fef08a';
                 } else if (isFlt) {
-                    bg = '#fff5f5'; // Vermelho claro (Falta)
-                } else if (tipo === 'folga' || tipo === 'feriado') {
-                    bg = '#f8fafc'; // Cinza claro (Folga)
+                    bg = '#fff5f5'; // Falta — vermelho claro
+                } else if (tipo === 'folga') {
+                    bg = '#f8fafc'; // Folga — cinza claro
                 }
 
                 return `<tr style="background:${bg};">
