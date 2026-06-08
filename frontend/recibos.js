@@ -1536,6 +1536,9 @@ window.carregarHistoricoRecibos = async function () {
         }
         if (isSupervisao) {
             s.isAutoSupervisao = true; // Garante a cor azul para supervisores
+            s.faltas = 0;
+            s.faltasVT = 0;
+            s.faltasVR = 0;
         }
     }
 
