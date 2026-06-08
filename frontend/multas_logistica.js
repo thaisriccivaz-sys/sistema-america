@@ -5,7 +5,10 @@ let colaboradoresMultas = [];
 let _multasSortCol = 'data_infracao';
 let _multasSortDir = 'desc'; // mais novo primeiro por padrão
 
-// Helper: badge de data limite (vermelho se < 10 dias)
+// Helper: badge de data limite
+// - VENCIDA (diff <= 0): texto vermelho, SEM ícone ⚠️
+// - PRÓXIMA (1-10 dias): texto amarelo, COM ícone ⚠️
+// - Normal: texto padrão sem destaque
 function _dataLimiteBadge(dl) {
     if (!dl) return '—';
     let fmt = '';
@@ -24,9 +27,15 @@ function _dataLimiteBadge(dl) {
         isoDateForDiff = dl + 'T12:00:00';
     }
     const diff = Math.ceil((new Date(isoDateForDiff) - new Date()) / 86400000);
-    if (diff <= 10 && !isNaN(diff)) {
-        const urgente = diff <= 0 ? 'VENCIDA' : `${diff}d`;
-        return `<span style="color:#dc2626;font-weight:700;white-space:nowrap;" title="${urgente}">⚠️ ${fmt}</span>`;
+    if (!isNaN(diff)) {
+        if (diff <= 0) {
+            // VENCIDA: vermelho, sem ícone ⚠️
+            return `<span style="color:#dc2626; font-weight:700; white-space:nowrap;" title="VENCIDA">${fmt}</span>`;
+        }
+        if (diff <= 10) {
+            // PRÓXIMA DO VENCIMENTO: amarelo, COM ícone ⚠️
+            return `<span style="color:#d97706; font-weight:700; white-space:nowrap;" title="${diff}d para vencer">⚠️ ${fmt}</span>`;
+        }
     }
     return `<span style="white-space:nowrap;">${fmt}</span>`;
 }
