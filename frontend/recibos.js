@@ -1031,8 +1031,11 @@ window._recBuscarPontoSelecionados = async function () {
                         tipo2 = hT2 >= MIN_VR ? '' : 'folga'; // Feriado: se trabalhou 6h+ não desconta
                     } else if (d.idJustification) {
                         const ob2 = (d.toolTipAlert || '').toLowerCase();
-                        if (ob2.includes('erro no ponto') || ob2.includes('trabalho externo') || hT2 > 0) {
-                            tipo2 = ''; // Trabalhado
+                        const isErroP2  = ob2.includes('erro no ponto');
+                        const isExterno2 = ob2.includes('trabalho externo') || ob2.includes('trab. externo')
+                                        || ob2.includes('trab externo') || (ob2.includes('servi') && ob2.includes('externo'));
+                        if (isErroP2 || isExterno2 || hT2 > 0) {
+                            tipo2 = ''; // Trabalhado (erro de ponto / trabalho externo)
                         } else {
                             tipo2 = 'justificado'; // Falta justificada (sem horas)
                         }
@@ -1746,8 +1749,13 @@ window.baixarConferenciaPonto = async function () {
                 if (d.isHoliday) { tipo = 'feriado'; }
                 else if (d.idJustification) {
                     const ob = (d.toolTipAlert||'').toLowerCase();
-                    if (ob.includes('erro no ponto') || ob.includes('trabalho externo') || hTrab > 0) {
-                        tipo = ''; // Trabalhado (erro de ponto / trabalho externo / horas presentes)
+                    const isErroP = ob.includes('erro no ponto');
+                    const isExterno = ob.includes('trabalho externo') || ob.includes('trab. externo')
+                                   || ob.includes('trab externo') || ob.includes('servi') && ob.includes('externo');
+                    if (isErroP || hTrab > 0) {
+                        tipo = ''; // Trabalhado normal (erro de ponto / horas presentes)
+                    } else if (isExterno) {
+                        tipo = 'trab_externo'; // Trabalho externo: não é falta, não é justificado
                     } else {
                         tipo = (ob.includes('atestado')||ob.includes('medic')) ? 'atestado' : 'justificado';
                     }
@@ -1799,6 +1807,7 @@ window.baixarConferenciaPonto = async function () {
                 else if (tipo==='folga' && !e1)    { ent1='Folga'; }
                 else if (tipo==='atestado')         { ent1='Atestado Médico'; }   // só ENT.1, resto vazio
                 else if (tipo==='justificado')      { ent1='Justificado'; }         // só ENT.1, resto vazio
+                else if (tipo==='trab_externo')     { ent1='Trab. Externo'; }       // só ENT.1, resto vazio
                 else if (tipo==='falta')            { ent1='Falta'; }               // só ENT.1, resto vazio
                 else { ent1=e1; sai1=s1; ent2=e2; sai2=s2; }
 
@@ -1863,13 +1872,16 @@ window.baixarConferenciaPonto = async function () {
                     bg = '#fffde7';
                 } else if (isFlt || tipo === 'justificado' || tipo === 'atestado') {
                     bg = '#fee2e2'; // Falta / Justificado / Atestado
+                } else if (tipo === 'trab_externo') {
+                    bg = '#dbeafe'; // Trabalho Externo: azul claro
                 } else if (tipo === 'folga') {
                     bg = '#f8fafc'; // Folga
                 }
 
-                // Cor da fonte: vermelho para faltas/justificados/atestados
+                // Cor da fonte: vermelho para faltas/justificados/atestados; azul para trab. externo
                 const isAusencia = isFlt || tipo === 'justificado' || tipo === 'atestado';
-                const fontColor = isAusencia ? '#b91c1c' : '#1e293b';
+                const isExtDay   = tipo === 'trab_externo';
+                const fontColor  = isAusencia ? '#b91c1c' : isExtDay ? '#1d4ed8' : '#1e293b';
 
                 return `<tr style="background:${bg};color:${fontColor};">
                     ${tdC(diaFmt+(dsStr?' - '+dsStr:''),'white-space:nowrap;')}
