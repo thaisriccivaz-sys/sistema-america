@@ -899,7 +899,7 @@ window.atualizarDadosReciboColab = function (id, campo, valor) {
             apuracao_diaria: (s.apuracaoDiaria && s.apuracaoDiaria.length > 0) ? JSON.stringify(s.apuracaoDiaria) : null
         }];
         
-        const token = localStorage.getItem('token');
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         fetch(`${typeof API_URL !== 'undefined' ? API_URL : '/api'}/recibos/salvar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
