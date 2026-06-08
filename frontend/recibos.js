@@ -1035,10 +1035,14 @@ window._recBuscarPontoSelecionados = async function () {
                     } else if (d.idJustification) {
                         const ob2 = (d.toolTipAlert || '').toLowerCase();
                         const abr2 = (d.abreviationJustification || '').toLowerCase().trim();
+                        const st2  = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
                         const isErroP2  = ob2.includes('erro no ponto');
                         const isExterno2 = ob2.includes('trabalho externo') || ob2.includes('trab. externo')
                                         || ob2.includes('trab externo') || ob2.includes('externo')
                                         || (ob2.includes('servi') && ob2.includes('externo'))
+                                        // Campo status/situacao do RHID
+                                        || st2.includes('externo') || st2.includes('trab. ext')
+                                        || st2 === 'te'
                                         // Abreviação do RHID (ex: "TE", "T.E.", "TRAB.EXT.")
                                         || abr2 === 'te' || abr2 === 't.e.' || abr2.startsWith('te ')
                                         || abr2.includes('ext');
@@ -1822,9 +1826,13 @@ window.baixarConferenciaPonto = async function () {
                     });
                     const isErroP = ob.includes('erro no ponto');
                     const abr = (d.abreviationJustification || '').toLowerCase().trim();
+                    const stJust = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
                     const isExterno = ob.includes('trabalho externo') || ob.includes('trab. externo')
                                    || ob.includes('trab externo') || ob.includes('externo')
                                    || (ob.includes('servi') && ob.includes('externo'))
+                                   // Campo status/situacao do RHID
+                                   || stJust.includes('externo') || stJust.includes('trab. ext')
+                                   || stJust === 'te'
                                    // Abreviação do RHID (ex: "TE", "T.E.", "TRAB.EXT.")
                                    || abr === 'te' || abr === 't.e.' || abr.startsWith('te ')
                                    || abr.includes('ext');
@@ -1882,7 +1890,12 @@ window.baixarConferenciaPonto = async function () {
                 if (tipo==='feriado' && !e1)       { ent1='Feriado: '+(d.holidayName||''); }
                 else if (tipo==='folga' && !e1)    { ent1='Folga'; }
                 else if (tipo==='atestado')         { ent1='Atestado Médico'; }   // só ENT.1, resto vazio
-                else if (tipo==='justificado')      { ent1=`Justificado (abr:${d.abreviationJustification||'?'})`; }  // abreviação visível p/ debug
+                else if (tipo==='justificado')      {
+                    // Debug: mostra status e toolTipAlert para identificar o campo de tipo no RHID
+                    const _st  = (d.status||d.situacao||d.tipo||'?').toString().substring(0,15);
+                    const _tip = (d.toolTipAlert||'?').substring(0,15);
+                    ent1=`Just. [s:${_st}|t:${_tip}]`;
+                }
                 else if (tipo==='trab_externo')     { ent1='Trab. Externo'; }       // só ENT.1, resto vazio
                 else if (tipo==='falta')            { ent1='Falta'; }               // só ENT.1, resto vazio
                 else { ent1=e1; sai1=s1; ent2=e2; sai2=s2; }
@@ -1944,8 +1957,8 @@ window.baixarConferenciaPonto = async function () {
                     bg = '#fee2e2'; // Falta / Justificado / Atestado
                 } else if (tipo === 'trab_externo') {
                     bg = '#dbeafe'; // Trabalho Externo: azul claro
-                } else if (tipo === 'folga') {
-                    bg = '#f8fafc'; // Folga
+                } else if (tipo === 'folga' || tipo === 'feriado') {
+                    bg = '#f8fafc'; // Folga ou Feriado não trabalhado: azul claro
                 }
 
                 // Cor da fonte: vermelho para faltas/justificados/atestados; azul para trab. externo
