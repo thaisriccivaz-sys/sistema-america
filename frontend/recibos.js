@@ -1738,7 +1738,7 @@ window.baixarConferenciaPonto = async function () {
                 } else if (isFolgaSt || d.folga===true || isDSRMin) {
                     tipo = hTrab >= 360 ? '' : 'folga';
                 } else if (semHor && !trab) { tipo = 'folga'; }
-                else if (d.faltaDiaInteiro) { tipo = 'falta'; }
+                else if (d.faltaDiaInteiro || (!trab && !semHor && !d.idJustification)) { tipo = 'falta'; }
 
                 // PREVISTO — folga e dias sem escala não mostram horário previsto
                 const prevStr = (d.strHorarioContratualSimples||'').trim().replace(/[\r\n]+/g,' ') || c.escala || '';
