@@ -1863,6 +1863,14 @@ window.baixarConferenciaPonto = async function () {
                 } else if (semHor && !trab) { tipo = 'folga'; }
                 else if (d.faltaDiaInteiro || (!trab && !semHor && !d.idJustification)) { tipo = 'falta'; }
 
+                // ── Override manual: Justificado ↔ Externo ──────────────────────
+                // Quando o RHID não distingue os tipos, o usuário pode clicar para alternar
+                window._pontoTipoOverride = window._pontoTipoOverride || {};
+                const _ovKey = String(c.id) + '_' + diaStr;
+                if (tipo === 'justificado' && window._pontoTipoOverride[_ovKey] === 'externo') {
+                    tipo = 'trab_externo'; // marcado manualmente como Externo
+                }
+
                 // PREVISTO — folga e dias sem escala não mostram horário previsto
                 const prevStr = (d.strHorarioContratualSimples||'').trim().replace(/[\r\n]+/g,' ') || c.escala || '';
                 const previsto = tipo==='feriado' ? 'FERIADO' : (tipo==='folga' ? '' : prevStr);
@@ -1906,12 +1914,19 @@ window.baixarConferenciaPonto = async function () {
                 else if (tipo==='folga' && !e1)    { ent1='Folga'; }
                 else if (tipo==='atestado')         { ent1='Atestado Médico'; }   // só ENT.1, resto vazio
                 else if (tipo==='justificado')      {
-                    // Debug: mostra status e toolTipAlert para identificar o campo de tipo no RHID
-                    const _st  = (d.status||d.situacao||d.tipo||'?').toString().substring(0,15);
-                    const _tip = (d.toolTipAlert||'?').substring(0,15);
-                    ent1=`Just. [s:${_st}|t:${_tip}]`;
+                    // RHID não distingue tipos: mostra toggle clicavel (Justificado ⇔ Externo)
+                    const _rowIdJ = `pconf-${c.id}-${diaStr.replace(/-/g,'')}`;
+                    ent1 = `<span onclick="window._toggleJustExterno('${c.id}','${diaStr}','${_rowIdJ}')" title="Clique para marcar como Trabalho Externo" style="cursor:pointer;border-bottom:1px dashed #b91c1c;padding-bottom:1px;">Justificado ⇕</span>`;
                 }
-                else if (tipo==='trab_externo')     { ent1='Trab. Externo'; }       // só ENT.1, resto vazio
+                else if (tipo==='trab_externo')     {
+                    const _isManualExt = (window._pontoTipoOverride || {})[String(c.id) + '_' + diaStr] === 'externo';
+                    if (_isManualExt) {
+                        const _rowIdE = `pconf-${c.id}-${diaStr.replace(/-/g,'')}`;
+                        ent1 = `<span onclick="window._toggleJustExterno('${c.id}','${diaStr}','${_rowIdE}')" title="Clique para marcar como Justificado" style="cursor:pointer;border-bottom:1px dashed #374151;padding-bottom:1px;">Externo ⇕</span>`;
+                    } else {
+                        ent1 = 'Trab. Externo';
+                    }
+                }
                 else if (tipo==='falta')            { ent1='Falta'; }               // só ENT.1, resto vazio
                 else { ent1=e1; sai1=s1; ent2=e2; sai2=s2; }
 
@@ -1973,17 +1988,16 @@ window.baixarConferenciaPonto = async function () {
                 } else if (isFlt || tipo === 'justificado' || tipo === 'atestado') {
                     bg = '#fee2e2'; // Falta / Justificado / Atestado
                 } else if (tipo === 'trab_externo') {
-                    bg = '#dbeafe'; // Trabalho Externo: azul claro
+                    bg = '#fffde7'; // Trabalho Externo: amarelo claro (igual ao dia normal trabalhado)
                 } else if (tipo === 'folga' || tipo === 'feriado') {
                     bg = '#f8fafc'; // Folga ou Feriado não trabalhado: azul claro
                 }
 
-                // Cor da fonte: vermelho para faltas/justificados/atestados; azul para trab. externo
+                // Cor da fonte: vermelho para faltas/justificados/atestados; escuro para trab. externo e dias normais
                 const isAusencia = isFlt || tipo === 'justificado' || tipo === 'atestado';
-                const isExtDay   = tipo === 'trab_externo';
-                const fontColor  = isAusencia ? '#b91c1c' : isExtDay ? '#1d4ed8' : '#1e293b';
+                const fontColor  = isAusencia ? '#b91c1c' : '#1e293b';
 
-                return `<tr style="background:${bg};color:${fontColor};">
+                return `<tr id="pconf-${c.id}-${diaStr.replace(/-/g,'')}" style="background:${bg};color:${fontColor};">
                     ${tdC(diaFmt+(dsStr?' - '+dsStr:''),'white-space:nowrap;')}
                     ${tdC(previsto,'font-size:9.5px;word-break:break-word;max-width:90px;')}
                     ${tdC(ent1,'white-space:nowrap;')}
@@ -2613,4 +2627,38 @@ ${_buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logo)}
 
     const win = window.open('', '_blank', 'width=880,height=760');
     if (win) { win.document.write(html); win.document.close(); }
+};
+
+// ─── Toggle manual Justificado ↔ Externo na conferência de ponto ─────────────
+// Chamado ao clicar em "Justificado ⇕" ou "Externo ⇕" na linha da conferência.
+window._toggleJustExterno = function(colabId, date, rowId) {
+    window._pontoTipoOverride = window._pontoTipoOverride || {};
+    const key = String(colabId) + '_' + date;
+    const isNowExterno = (window._pontoTipoOverride[key] !== 'externo');
+    window._pontoTipoOverride[key] = isNowExterno ? 'externo' : 'justificado';
+
+    // Atualiza visual da linha
+    const tr = document.getElementById(rowId);
+    if (tr) {
+        tr.style.background = isNowExterno ? '#fffde7' : '#fee2e2';
+        tr.style.color      = isNowExterno ? '#1e293b' : '#b91c1c';
+        const tds = tr.querySelectorAll('td');
+        if (tds[2]) {
+            tds[2].innerHTML = isNowExterno
+                ? `<span onclick="window._toggleJustExterno('${colabId}','${date}','${rowId}')" title="Clique para marcar como Justificado" style="cursor:pointer;border-bottom:1px dashed #374151;padding-bottom:1px;">Externo \u21d5</span>`
+                : `<span onclick="window._toggleJustExterno('${colabId}','${date}','${rowId}')" title="Clique para marcar como Trabalho Externo" style="cursor:pointer;border-bottom:1px dashed #b91c1c;padding-bottom:1px;">Justificado \u21d5</span>`;
+        }
+    }
+
+    // Atualiza contagem de faltas no _recibosSelecoes
+    if (window._recibosSelecoes && window._recibosSelecoes[colabId]) {
+        const s = window._recibosSelecoes[colabId];
+        if (s._faltasBase === undefined) s._faltasBase = s.faltas; // guarda original
+        const extCount = Object.keys(window._pontoTipoOverride)
+            .filter(k => k.startsWith(String(colabId) + '_') && window._pontoTipoOverride[k] === 'externo')
+            .length;
+        s.faltas = Math.max(0, s._faltasBase - extCount);
+        const inp = document.getElementById('faltas-inp-' + colabId);
+        if (inp) { inp.value = s.faltas; inp.style.color = s.faltas > 0 ? '#ef4444' : '#94a3b8'; }
+    }
 };
