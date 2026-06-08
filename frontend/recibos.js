@@ -1933,20 +1933,12 @@ window.baixarConferenciaPonto = async function () {
 
                 if (elegivel_jantar) {
                     bg = '#e9d5ff'; // Roxo: Jantar
-                } else if (isSunday || isHolidayDay) {
-                    // Domingo e Feriado: VR a partir de 2h
-                    bg = hTrab >= 120 ? '#fef08a' : '#f8fafc';
-                } else if (isSatDiaCompleto && hTrab >= 120) {
-                    // SAB dia completo (6x1, 2 períodos): VR a partir de 2h
+                } else if ((semHor || isHolidayDay) && hTrab >= 120) {
+                    // Trabalhou em dia SEM horário previsto (folga/dia livre do colaborador) ou feriado
+                    // → Amarelo escuro: indica trabalho não programado na escala do colaborador
                     bg = '#fef08a';
-                } else if (isSat && !isSatDiaCompleto && hTrab >= 360) {
-                    // SAB meio-dia/compensação (1 período ou sem escala): VR a partir de 6h
-                    bg = '#fef08a';
-                } else if (!isSat && semHor && hTrab >= 360) {
-                    // Dia útil sem escala: VR a partir de 6h
-                    bg = '#fef08a';
-                } else if (!isSat && !semHor && hTrab >= 120 && tipo !== 'falta' && tipo !== 'folga' && tipo !== 'feriado') {
-                    // Dia normal com escala: VR a partir de 2h (amarelo claro)
+                } else if (!semHor && hTrab >= 120 && tipo !== 'falta' && tipo !== 'folga' && tipo !== 'feriado') {
+                    // Dia COM escala prevista e trabalhou normalmente → Amarelo claro
                     bg = '#fffde7';
                 } else if (isFlt || tipo === 'justificado' || tipo === 'atestado') {
                     bg = '#fee2e2'; // Falta / Justificado / Atestado
