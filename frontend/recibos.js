@@ -1,4 +1,4 @@
-﻿// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // recibos.js — Recibos de Benefícios em Massa (VR, VT, VC)
 // v3.0 — campo nome_completo corrigido, sem "dias úteis globais",
 //         VC proporcional via diasTrab+faltas, erro RHID detalhado
@@ -443,7 +443,7 @@ function _buildRecibosLayout(mesAt, anoAt) {
           </tr>
         </thead>
         <tbody id="rec-tbody">
-          <tr><td colspan="7" style="text-align:center;padding:3rem;color:#94a3b8;">
+          <tr><td colspan="8" style="text-align:center;padding:3rem;color:#94a3b8;">
             <i class="ph ph-spinner" style="font-size:1.5rem;animation:rec-spin 1s linear infinite;display:block;margin-bottom:.6rem;"></i>
             Carregando colaboradores...
           </td></tr>
@@ -633,14 +633,14 @@ function _renderTabela() {
     }
 
     if (!_recibosFiltrados.length) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2.5rem;color:#94a3b8;">
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2.5rem;color:#94a3b8;">
             <i class="ph ph-users" style="font-size:2rem;display:block;margin-bottom:.5rem;"></i>
             Nenhum colaborador encontrado.</td></tr>`;
         _atualizarContador(); return;
     }
 
     tbody.innerHTML = _recibosFiltrados.map(c => {
-        const s    = _recibosSelecoes[c.id] || { selecionado:false, diasTrabalhados:0, diasVR:0, faltas:0, folgas:0, diasExtra:0, pontoStatus:null };
+        const s    = _recibosSelecoes[c.id] || { selecionado:false, diasTrabalhados:0, diasVR:0, faltas:0, folgas:0, diasExtra:0, pontoStatus:null, folgasVT:0, faltasVT:0, folgasVR:0, faltasVR:0 };
         const nome = _recNome(c);
         const tipo = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
 
@@ -1005,7 +1005,7 @@ window._recBuscarPontoSelecionados = async function () {
                 // para garantir consistência total entre exibição e desconto.
                 let faltasTotal = 0;
                 let faltasJustificadasTotal = 0; // Somente dias com idJustification (faltas reais c/ justificativa)
-                let folgasTotal = 0;
+                let folgasTotal = 0;\n                let folgasVR = 0, faltasVR = 0, folgasVT = 0, faltasVT = 0;
 
                 apuracaoParaCartao.forEach(d => {
                     // IMPORTANTE: totalHorasTrabalhadas já inclui horas noturnas
@@ -1092,6 +1092,10 @@ window._recBuscarPontoSelecionados = async function () {
 
                 const s = _recibosSelecoes[c.id];
                 s.diasTrabalhados = diasCredito; // dias de escala p/ VT/VC
+                s.folgasVR = folgasVR;
+                s.faltasVR = faltasVR;
+                s.folgasVT = folgasVT;
+                s.faltasVT = faltasVT;
 
                 // ── diasVR = dias com horário contratual agendado na janela RHID ──
                 // Regra VR: conta todo dia em que o colaborador tinha escala contratual.
@@ -1959,8 +1963,8 @@ window.baixarConferenciaPonto = async function () {
                 const notMin  = (d.totalHorasTrabalhadas>0)?(d.horasNoturnasNaoExtra||0):0;
                 const fatMin  = d.horasFaltaAtraso||0;
                 const aboMin  = d.horasAbono||d.abono||0;
-                const exDMin  = d.extraDiurna||d.extraAdicionadaDiurna||0;
-                const exNMin  = d.extraNoturna||d.extraAdicionadaNoturna||0;
+                const exDMin  = Math.max(0, d.extraDiurna||d.extraAdicionadaDiurna||0);
+                const exNMin  = Math.max(0, d.extraNoturna||d.extraAdicionadaNoturna||0);
                 const totEx   = exDMin+exNMin || d.horasExtrasCalculadas||0;
                 let ex60=0, ex100=0;
                 if (d.isHoliday||dsStr==='DOM') ex100=totEx; else ex60=totEx;
@@ -2448,7 +2452,7 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
     // Evita que diasVR=0 (inicialização padrão) sobrescreva diasTrabalhados correto
     const dVR       = (dados.diasVR != null && dados.diasVR > 0) ? dados.diasVR : dtrab;
 
-    const faltas    = dados.faltas   || 0;
+    const faltas    = dados.faltasVR || 0; // Use faltasVR for VR, and we will extract faltasVT in VT/VC blocks
     const dExtra    = dados.diasExtra || 0;
     
     const mTransp = (colab.meio_transporte||'').toLowerCase();
@@ -2471,7 +2475,7 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
         const totalDiasMes = (window._recibos_diasBruto && window._recibos_diasBruto > 0)
             ? window._recibos_diasBruto
             : ((dados.diasVR != null && dados.diasVR > 0) ? dados.diasVR : (dados.diasTrabalhados || 0));
-        const folgas = dados.folgas || 0;
+        const folgas = dados.folgasVR || 0;
 
         // Cálculo Bruto
         const bruttoVR     = totalDiasMes * valorVR;
@@ -2540,8 +2544,8 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
         beneficio = 'Vale Transporte';
         // Cálculo automático: 30 - folgas(incl.feriados) - faltas(com e sem atestado)
         // Trabalho Externo tem direito a VT (não é descontado)
-        const folgasVT = dados.folgas || 0;
-        const diasVT   = Math.max(0, 30 - folgasVT - faltas);
+        const folgasVT = dados.folgasVT || 0;
+        const diasVT   = Math.max(0, 30 - folgasVT - (dados.faltasVT || 0));
         totalFinal = diasVT * valTransp;
         linhas = `
 <tr><td style="padding:7px 12px;border:1px solid #ddd;">Meio de Transporte</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${colab.meio_transporte||'—'}</td></tr>
@@ -2557,11 +2561,12 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
         // Folgas, feriados e trabalho externo NÃO são descontados
         // Diária = valor mensal / 30 dias
         const diariaVC = valTransp / 30;
-        const descVC   = faltas * diariaVC;
+        const faltasVC = dados.faltasVT || 0;
+        const descVC   = faltasVC * diariaVC;
         totalFinal = Math.max(0, valTransp - descVC);
         linhas = `
 <tr><td style="padding:7px 12px;border:1px solid #ddd;">Valor Integral Mensal</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">30 dias</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(valTransp)}</td></tr>
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Descontos por Falta${faltas !== 1 ? 's' : ''} (${faltas} dia${faltas !== 1 ? 's' : ''} × R$&nbsp;${_recFmt(diariaVC)})</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${faltas}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;color:#ef4444;">${descVC > 0 ? '-R$&nbsp;' + _recFmt(descVC) : '-'}</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Descontos por Falta${faltasVC !== 1 ? 's' : ''} (${faltasVC} dia${faltasVC !== 1 ? 's' : ''} × R$&nbsp;${_recFmt(diariaVC)})</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${faltasVC}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;color:#ef4444;">${descVC > 0 ? '-R$&nbsp;' + _recFmt(descVC) : '-'}</td></tr>
 <tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td colspan="2" style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
         obs = '';
     }
