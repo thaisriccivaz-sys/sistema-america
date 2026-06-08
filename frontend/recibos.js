@@ -1017,7 +1017,9 @@ window._recBuscarPontoSelecionados = async function () {
                 let folgasTotal = 0;
 
                 apuracaoParaCartao.forEach(d => {
-                    const hT2 = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
+                    // IMPORTANTE: totalHorasTrabalhadas já inclui horas noturnas
+                    // NÃO somar horasTotalNoturno (seria dupla contagem para noturnos)
+                    const hT2 = d.totalHorasTrabalhadas || 0;
                     const trb2 = (d.diasTrabalhados || 0) > 0 || hT2 > 0;
                     const st2 = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
                     const isFolgaSt2 = st2.includes('folg') || st2.includes('dsr') || st2.includes('feriado');
@@ -1149,8 +1151,14 @@ window._recBuscarPontoSelecionados = async function () {
                 const encontrado = data1?.encontrado || data2?.encontrado || apuracaoParaCartao.length > 0;
 
                 if (encontrado) {
-                    // Intermitente: nunca tem faltas — dias não chamados = simplesmente não remunerados
-                    s.faltas = isIntermitente ? 0 : faltasJanela;
+                    // Intermitente: nunca tem faltas; Supervisão: sem desconto de faltas
+                    const isSupervisaoColab = (() => {
+                        const dept = (c.departamento || '').toLowerCase();
+                        const cargo = (c.cargo || '').toLowerCase();
+                        return dept.includes('supervis') || cargo.includes('supervis')
+                            || cargo.includes('sup.') || cargo.startsWith('sup ');
+                    })();
+                    s.faltas = (isIntermitente || isSupervisaoColab) ? 0 : faltasJanela;
 
                     // Cartão de ponto: período 28/M-1 → 28/M
                     if (apuracaoParaCartao.length > 0) {
@@ -1742,16 +1750,20 @@ window.baixarConferenciaPonto = async function () {
                 const isDSRMin = (d.dsrConsideradoMinutos||0) > 0;
                 const isFolgaSt = stRaw.includes('folg') || stRaw.includes('dsr');
                 const semHor = ((d.idHorarioContratual||0)===0 && (d.strHorarioContratualSimples||'').trim()==='');
-                const hTrab = (d.totalHorasTrabalhadas||0)+(d.horasTotalNoturno||0);
+                // IMPORTANTE: totalHorasTrabalhadas já inclui horas noturnas — não somar horasTotalNoturno
+                const hTrab = d.totalHorasTrabalhadas || 0;
                 const trab = (d.diasTrabalhados||0)>0 || hTrab>0;
 
                 let tipo = '';
                 if (d.isHoliday) { tipo = 'feriado'; }
                 else if (d.idJustification) {
                     const ob = (d.toolTipAlert||'').toLowerCase();
+                    // DEBUG: log para identificar texto exato do RHID para justificativas
+                    if (d.idJustification) console.log('[JUSTIF_DEBUG]', diaStr, 'idJust:', d.idJustification, 'toolTip:', d.toolTipAlert);
                     const isErroP = ob.includes('erro no ponto');
                     const isExterno = ob.includes('trabalho externo') || ob.includes('trab. externo')
-                                   || ob.includes('trab externo') || ob.includes('servi') && ob.includes('externo');
+                                   || ob.includes('trab externo') || ob.includes('externo')
+                                   || (ob.includes('servi') && ob.includes('externo'));
                     if (isErroP || hTrab > 0) {
                         tipo = ''; // Trabalhado normal (erro de ponto / horas presentes)
                     } else if (isExterno) {
@@ -1812,7 +1824,9 @@ window.baixarConferenciaPonto = async function () {
                 else { ent1=e1; sai1=s1; ent2=e2; sai2=s2; }
 
                 // Horas e extras
-                const normMin = (d.totalHorasTrabalhadas||0)+(d.horasTotalNoturno||0);
+                // TOTAL NORMAIS = total de horas trabalhadas (já inclui noturno)
+                // TOTAL NOTURNO = horas no período noturno (somente adição de adiçional)
+                const normMin = d.totalHorasTrabalhadas || 0;
                 const notMin  = (d.totalHorasTrabalhadas>0)?(d.horasNoturnasNaoExtra||0):0;
                 const fatMin  = d.horasFaltaAtraso||0;
                 const aboMin  = d.horasAbono||d.abono||0;
