@@ -1886,7 +1886,7 @@ window.baixarConferenciaPonto = async function () {
             linhas = rowsArr.join('');
         }
 
-        const thSt = 'padding:5px 3px;border:1px solid #1a335a;text-align:center;font-size:9px;white-space:nowrap;';
+        const thSt = 'padding:5px 3px;border:1px solid #1a335a;text-align:left;font-size:9px;white-space:nowrap;';
         corpo += `
         <div style="page-break-after:always;padding:12px;">
           <h2 style="margin:0 0 3px;color:#1e3a5f;font-size:14px;">Conferência de Ponto — ${nome}</h2>
@@ -1894,10 +1894,10 @@ window.baixarConferenciaPonto = async function () {
           <div style="overflow-x:auto;">
           <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;">
             <colgroup>
-              <col style="width:11%"><col style="width:9%">
-              <col style="width:5%"><col style="width:5%"><col style="width:10%"><col style="width:5%">
-              <col style="width:6%"><col style="width:5%"><col style="width:4%"><col style="width:6%">
-              <col style="width:4%"><col style="width:5%"><col style="width:5%"><col style="width:6%"><col style="width:6%">
+              <col style="width:13%"><col style="width:13%">
+              <col style="width:7%"><col style="width:7%"><col style="width:7%"><col style="width:7%">
+              <col style="width:6%"><col style="width:6%"><col style="width:4%"><col style="width:6%">
+              <col style="width:4%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%">
             </colgroup>
             <thead>
               <tr style="background:#1e3a5f;color:#fff;">
