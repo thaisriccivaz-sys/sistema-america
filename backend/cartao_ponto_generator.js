@@ -72,8 +72,19 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         } else if (d.idJustification) {
             // Justificativa cadastrada no RHID (atestado, autorização supervisora, etc.)
             const obsJust = (d.toolTipAlert || '').toLowerCase();
+            const abr = (d.abreviationJustification || '').toLowerCase().trim();
+            const stJust = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
+            const isExterno = obsJust.includes('trabalho externo') || obsJust.includes('trab. externo')
+                           || obsJust.includes('trab externo') || obsJust.includes('externo')
+                           || (obsJust.includes('servi') && obsJust.includes('externo'))
+                           || stJust.includes('externo') || stJust.includes('trab. ext')
+                           || stJust === 'te'
+                           || abr === 'te' || abr === 't.e.' || abr.startsWith('te ')
+                           || abr.includes('ext');
             if (obsJust.includes('atestado') || obsJust.includes('medic')) {
                 status = 'Atestado Médico';
+            } else if (isExterno) {
+                status = 'Trabalho Externo';
             } else {
                 status = 'Justificado';
             }
@@ -192,11 +203,15 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         }
         
         let finalObs = Array.from(new Set(otherObs));
-        if (faltaRanges.length > 0) {
-            finalObs.push('Falta no período entre ' + Array.from(new Set(faltaRanges)).join(', '));
-        } else if (obsLinhas.some(o => o.toLowerCase().includes('falta no período entre'))) {
-            // Fallback just in case it didn't match the regex but had the text
-            finalObs.push('Falta no período');
+        const isJustified = status === 'Justificado' || status === 'Trabalho Externo' || status === 'Atestado Médico';
+        
+        if (!isJustified) {
+            if (faltaRanges.length > 0) {
+                finalObs.push('Falta no período entre ' + Array.from(new Set(faltaRanges)).join(', '));
+            } else if (obsLinhas.some(o => o.toLowerCase().includes('falta no período entre'))) {
+                // Fallback just in case it didn't match the regex but had the text
+                finalObs.push('Falta no período');
+            }
         }
 
         const obsText = finalObs.join(' | ');
@@ -211,8 +226,10 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             ent1_td = 'Folga'; sai1_td = ''; ent2_td = ''; sai2_td = '';
         } else if (status === 'Atestado Médico' && !e1) {
             ent1_td = 'Atestado Médico'; sai1_td = ''; ent2_td = 'Atestado Médico'; sai2_td = '';
+        } else if (status === 'Trabalho Externo' && !e1) {
+            ent1_td = 'Trabalho Externo'; sai1_td = ''; ent2_td = 'Trabalho Externo'; sai2_td = '';
         } else if (status === 'Justificado' && !e1) {
-            ent1_td = 'Justificado'; sai1_td = ''; ent2_td = ''; sai2_td = '';
+            ent1_td = 'Justificado'; sai1_td = ''; ent2_td = 'Justificado'; sai2_td = '';
         } else if (status === 'Falta' && !e1) {
             previsto = '';
             ent1_td = 'Falta'; sai1_td = 'Falta'; ent2_td = 'Falta'; sai2_td = 'Falta';
