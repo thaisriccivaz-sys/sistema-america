@@ -378,11 +378,13 @@ function _buildRecibosLayout(mesAt, anoAt) {
           <option value="">Todos</option>
         </select>
       </div>
-      <div style="flex:2;min-width:155px;">
-        <label style="font-size:.77rem;font-weight:600;color:#475569;display:block;margin-bottom:.25rem;">Cargo</label>
-        <select id="rec-f-cargo" onchange="window.aplicarFiltrosRecibos()"
+      <div style="flex:1;min-width:130px;">
+        <label style="font-size:.77rem;font-weight:600;color:#475569;display:block;margin-bottom:.25rem;">Férias</label>
+        <select id="rec-f-ferias" onchange="window.aplicarFiltrosRecibos()"
           style="width:100%;padding:.46rem .65rem;border:1px solid #e2e8f0;border-radius:8px;font-size:.88rem;background:#fff;">
           <option value="">Todos</option>
+          <option value="sim">Sim</option>
+          <option value="nao">Não</option>
         </select>
       </div>
       <div style="flex:1;min-width:130px;">
@@ -538,15 +540,22 @@ window.ordenarRecibos = function(col) {
 function _filtrarERendar() {
     const nome   = (document.getElementById('rec-f-nome')?.value || '').toLowerCase().trim();
     const dept   = document.getElementById('rec-f-dept')?.value  || '';
-    const cargo  = document.getElementById('rec-f-cargo')?.value || '';
+    const feriasFiltro = document.getElementById('rec-f-ferias')?.value || '';
     const tipo   = document.getElementById('rec-f-tipo')?.value  || '';
     const transp = document.getElementById('rec-f-transp')?.value || '';
+    
+    const mesAt = parseInt(document.getElementById('rec-mes')?.value || (new Date().getMonth()+1));
+    const anoAt = parseInt(document.getElementById('rec-ano')?.value || new Date().getFullYear());
 
     _recibosFiltrados = _recibosAllColabs.filter(c => {
         const nomeC = _recNome(c).toLowerCase();
         if (nome   && !nomeC.includes(nome))               return false;
         if (dept   && c.departamento !== dept)             return false;
-        if (cargo  && c.cargo        !== cargo)            return false;
+        if (feriasFiltro) {
+            const temFerias = window._temFeriasJanela ? window._temFeriasJanela(c, anoAt, mesAt) : false;
+            if (feriasFiltro === 'sim' && !temFerias) return false;
+            if (feriasFiltro === 'nao' && temFerias) return false;
+        }
         if (tipo) {
             const t = _recibosDeptTipoMap[(c.departamento||'').trim()] || 'Administrativo';
             if (t !== tipo) return false;
@@ -651,6 +660,9 @@ function _renderTabela() {
         const nomeCompleto = _recNome(c);
         const nome = nomeCompleto.length > 30 ? nomeCompleto.substring(0, 30) + '...' : nomeCompleto;
         const tipo = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
+        
+        const temFeriasJanela = window._temFeriasJanela ? window._temFeriasJanela(c, anoAt, mesAt) : false;
+        const nomeCor = temFeriasJanela ? '#9333ea' : '#1e293b';
 
         const tipoBadge = tipo === 'Operacional'
             ? `<span style="font-size:.72rem;background:#fef3c7;color:#92400e;padding:2px 9px;border-radius:10px;font-weight:600;">OP</span>`
@@ -692,7 +704,7 @@ function _renderTabela() {
               onchange="window.toggleReciboColab(${c.id},this.checked)">
           </td>
           <td style="padding:.55rem 1rem;max-width:280px;">
-            <div style="font-weight:600;color:#1e293b;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${nomeCompleto}">${nome}</div>
+            <div style="font-weight:600;color:${nomeCor};font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${nomeCompleto}">${nome}</div>
             <div style="font-size:.74rem;color:#94a3b8;">CPF: ${c.cpf||'—'}</div>
           </td>
           <td style="padding:.55rem 1rem;">
@@ -750,6 +762,13 @@ window._isColabFerias = function(c, ano, mes) {
         if (ini <= dFim && fim >= dIni) return true;
     }
     return false;
+};
+
+window._temFeriasJanela = function(c, ano, mes) {
+    let proxMes = mes + 1;
+    let proxAno = ano;
+    if (proxMes > 12) { proxMes = 1; proxAno++; }
+    return window._isColabFerias(c, ano, mes) || window._isColabFerias(c, proxAno, proxMes);
 };
 
 window._isSupervisao = function(c) {
