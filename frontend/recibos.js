@@ -1909,6 +1909,32 @@ window.baixarConferenciaPonto = async function () {
                 const e1=marc[0]||'', s1=marc[1]||'', e2=marc[2]||'', s2=marc[3]||'';
                 const obsT = (d.toolTipAlert||'').trim();
 
+                // ── Auto-detecção Externo via marcacões ───────────────────────────────
+                // O RHID coloca o texto "Trabalho Externo" nas entradas de listAfdtManutencao
+                // Verificamos o JSON completo de cada entrada para não depender de campo específico
+                if (tipo === 'justificado') {
+                    const _allMarc = d.listAfdtManutencao || d.marcacoes || [];
+                    const _textos = _allMarc.map(m => JSON.stringify(m||'')).join(' ').toLowerCase();
+                    if (_textos.includes('externo') || _textos.includes('trabalho ext') ||
+                        // Também testa os campos de texto brutos da marcacão (m.descricao, m.label etc.)
+                        _allMarc.some(m => {
+                            const v = String(m.descricao||m.label||m.observacao||m.obs||m.tipo||m.type||m.text||'').toLowerCase();
+                            return v.includes('externo');
+                        })) {
+                        tipo = 'trab_externo';
+                        console.log('[CONF] Auto-detectado Trab.Externo via marcacões:', diaStr, _allMarc);
+                    } else {
+                        // Log de debug para identificar campos disponíveis no dia justificado
+                        console.log('[CONF] Justificado (sem externo detectado):', diaStr, {
+                            abreviationJustification: d.abreviationJustification,
+                            toolTipAlert: d.toolTipAlert,
+                            listAfdtManutencao: d.listAfdtManutencao,
+                            marcacoes: d.marcacoes,
+                            allKeys: Object.keys(d)
+                        });
+                    }
+                }
+
                 let ent1='',sai1='',ent2='',sai2='';
                 if (tipo==='feriado' && !e1)       { ent1='Feriado: '+(d.holidayName||''); }
                 else if (tipo==='folga' && !e1)    { ent1='Folga'; }
