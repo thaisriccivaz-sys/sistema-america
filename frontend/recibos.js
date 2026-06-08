@@ -1839,7 +1839,7 @@ window.baixarConferenciaPonto = async function () {
       ${corpo}
       </body></html>`;
 
-    const win = window.open('', '_blank', 'width=900,height=700');
+    const win = window.open('', '_blank', `width=${screen.availWidth},height=${screen.availHeight},top=0,left=0`);
     if (win) { win.document.write(html); win.document.close(); }
     else if (typeof Swal !== 'undefined') Swal.fire('Erro', 'Pop-up bloqueado.', 'warning');
 };
