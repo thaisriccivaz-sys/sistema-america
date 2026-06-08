@@ -1728,7 +1728,11 @@ window.baixarConferenciaPonto = async function () {
                 if (d.isHoliday) { tipo = 'feriado'; }
                 else if (d.idJustification) {
                     const ob = (d.toolTipAlert||'').toLowerCase();
-                    tipo = (ob.includes('atestado')||ob.includes('medic')) ? 'atestado' : 'justificado';
+                    if (ob.includes('erro no ponto')) {
+                        tipo = ''; // Considera trabalhado normal
+                    } else {
+                        tipo = (ob.includes('atestado')||ob.includes('medic')) ? 'atestado' : 'justificado';
+                    }
                 } else if (isFolgaSt || d.folga===true || isDSRMin) {
                     tipo = hTrab >= 360 ? '' : 'folga';
                 } else if (semHor && !trab) { tipo = 'folga'; }
