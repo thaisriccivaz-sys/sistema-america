@@ -1653,119 +1653,176 @@ window.baixarConferenciaPonto = async function () {
                         const yy = cur.getFullYear();
                         placeholders.push(`
                         <tr style="background:#fff8f0;">
-                          <td style="padding:6px;border:1px solid #ddd;text-align:center;">${dd}/${mm}/${yy}</td>
-                          <td style="padding:6px;border:1px solid #ddd;color:#f59e0b;font-weight:600;">SEM REGISTRO</td>
-                          <td style="padding:6px;border:1px solid #ddd;text-align:center;color:#94a3b8;">—</td>
-                          <td style="padding:6px;border:1px solid #ddd;text-align:center;color:#94a3b8;">—</td>
-                          <td style="padding:6px;border:1px solid #ddd;text-align:center;color:#94a3b8;">—</td>
-                          <td style="padding:6px;border:1px solid #ddd;text-align:center;color:#94a3b8;">—</td>
+                          <td style="padding:4px 3px;border-bottom:1px solid #e2e8f0;white-space:nowrap;font-size:10.5px;">${dd}/${mm}/${yy}</td>
+                          <td colspan="14" style="padding:4px 3px;border-bottom:1px solid #e2e8f0;color:#f59e0b;font-weight:600;font-size:10.5px;">SEM REGISTRO NO RHID</td>
                         </tr>`);
                     }
                     cur.setDate(cur.getDate() + 1);
                 }
                 linhas = placeholders.length > 0
                     ? placeholders.join('')
-                    : `<tr><td colspan="6" style="padding:12px;text-align:center;color:#94a3b8;">Nenhum dia útil no período (${fmtDate(inicioReal)} a ${fmtDate(dtFimConf)}).</td></tr>`;
+                    : `<tr><td colspan="15" style="padding:12px;text-align:center;color:#94a3b8;">Nenhum dia útil no período (${fmtDate(inicioReal)} a ${fmtDate(dtFimConf)}).</td></tr>`;
             } else {
-                linhas = `<tr><td colspan="6" style="padding:15px;text-align:center;color:#ef4444;">Nenhuma apuração diária encontrada. Certifique-se de "Buscar Ponto (RHID)" antes.</td></tr>`;
+                linhas = `<tr><td colspan="15" style="padding:15px;text-align:center;color:#ef4444;">Nenhuma apuração diária encontrada. Certifique-se de "Buscar Ponto (RHID)" antes.</td></tr>`;
             }
 
         } else {
-            linhas = s.apuracaoDiaria.map(d => {
-                let dia = String(d.date || d.dateTimeStr || '').substring(0,10);
-                if (dia.includes('-')) {
-                    const p = dia.split('-');
-                    if (p.length === 3) dia = `${p[2]}/${p[1]}/${p[0]}`;
-                }
-                
-                const fmtMin = (m) => {
-                    if (!m) return '0h';
-                    return Math.floor(m/60) + 'h' + (m%60).toString().padStart(2,'0') + 'm';
-                };
+            // ── Acumuladores para linha de TOTAIS ────────────────────────────────
+            let totNormais=0, totNoturno=0, totFaltaAtraso=0, totAbono=0;
+            let totExtra60=0, totExtra100=0, totExtraDiurna=0, totExtraNoturna=0;
+            const DS_CONF = ['DOM','SEG','TER','QUA','QUI','SEX','SAB'];
+            const fmtHM = m => m ? Math.floor(m/60).toString().padStart(2,'0')+':'+(m%60).toString().padStart(2,'0') : '';
+            const tdC = (v,st='') => `<td style="padding:4px 3px;border-bottom:1px solid #e2e8f0;font-size:10.5px;${st}">${v||''}</td>`;
 
-                const hrsTrab = fmtMin(d.totalHorasTrabalhadas);
-                const hrsExt = fmtMin(d.horasExtrasCalculadas);
-                const hrsFalta = fmtMin(d.horasFaltaAtraso);
-                
-                let status = '-';
-
-                // ── Determinação do status do dia para a Conferência ──────────────────────
-                // ORDEM IMPORTA: JUSTIFICADO deve ser verificado ANTES de DSR/FOLGA,
-                // pois o RHID pode retornar faltaDiaInteiro=true em dias justificados.
-                // isFolga/isDSR verificados ANTES de faltaDiaInteiro (mesma lógica do backend).
-                const statusRHID2 = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
-                const semHorarioPrevisto2 = ((d.idHorarioContratual || 0) === 0 && (d.strHorarioContratualSimples || '').trim() === '');
-                const horasTrab2 = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
-                const isDSRMin2 = (d.dsrConsideradoMinutos || 0) > 0;
-                const isFolgaSt2 = statusRHID2.includes('folg') || statusRHID2.includes('dsr');
-
-                if (d.isHoliday) {
-                    status = 'FERIADO';
-                } else if (d.idJustification) {
-                    // Justificado (atestado, autorização) — verificado ANTES de DSR/FOLGA
-                    const obsJust2 = (d.toolTipAlert || '').toLowerCase();
-                    if (obsJust2.includes('atestado') || obsJust2.includes('medic')) {
-                        status = 'ATESTADO MÉDICO';
-                    } else {
-                        status = 'JUSTIFICADO';
+            const rowsArr = s.apuracaoDiaria.map(d => {
+                // Data + dia da semana
+                let diaStr = String(d.date || d.dateTimeStr || '').substring(0,10);
+                let diaFmt = diaStr, dsStr = '';
+                if (diaStr.includes('-')) {
+                    const p = diaStr.split('-');
+                    if (p.length === 3) {
+                        diaFmt = `${p[2]}/${p[1]}/${p[0]}`;
+                        const dt = new Date(`${p[0]}-${p[1]}-${p[2]}T12:00:00`);
+                        if (!isNaN(dt.getTime())) dsStr = DS_CONF[dt.getDay()];
                     }
-                } else if (isFolgaSt2 || d.folga === true || isDSRMin2) {
-                    // DSR / FOLGA explícito — mas se trabalhou >= 6h é dia trabalhado
-                    if (horasTrab2 >= 360) status = 'TRABALHADO';
-                    else status = 'DSR / FOLGA';
-                } else if (semHorarioPrevisto2 && horasTrab2 === 0) {
-                    status = 'FOLGA ESCALA';
-                } else if (d.diasTrabalhados > 0 || horasTrab2 > 0) {
-                    status = 'TRABALHADO';
-                } else if (d.faltaDiaInteiro === true || (d.faltasDiasInteiro || 0) > 0) {
-                    status = 'FALTA';
-                } else if (!d.diasTrabalhados || d.diasTrabalhados === 0) {
-                    status = 'FALTA';
                 }
 
+                // ── Classificação do status (JUSTIFICADO antes de DSR/FOLGA) ─────────
+                const stRaw = (d.status||d.situacao||d.tipo||'').toString().toLowerCase();
+                const isDSRMin = (d.dsrConsideradoMinutos||0) > 0;
+                const isFolgaSt = stRaw.includes('folg') || stRaw.includes('dsr');
+                const semHor = ((d.idHorarioContratual||0)===0 && (d.strHorarioContratualSimples||'').trim()==='');
+                const hTrab = (d.totalHorasTrabalhadas||0)+(d.horasTotalNoturno||0);
+                const trab = (d.diasTrabalhados||0)>0 || hTrab>0;
 
-                let marcacoesStr = '';
-                if (d.listAfdtManutencao && Array.isArray(d.listAfdtManutencao) && d.listAfdtManutencao.length > 0) {
-                    marcacoesStr = d.listAfdtManutencao.map(m => {
+                let tipo = '';
+                if (d.isHoliday) { tipo = 'feriado'; }
+                else if (d.idJustification) {
+                    const ob = (d.toolTipAlert||'').toLowerCase();
+                    tipo = (ob.includes('atestado')||ob.includes('medic')) ? 'atestado' : 'justificado';
+                } else if (isFolgaSt || d.folga===true || isDSRMin) {
+                    tipo = hTrab >= 360 ? '' : 'folga';
+                } else if (semHor && !trab) { tipo = 'folga'; }
+                else if (d.faltaDiaInteiro) { tipo = 'falta'; }
+
+                // PREVISTO
+                const prevStr = (d.strHorarioContratualSimples||'').trim().replace(/[\r\n]+/g,' ') || c.escala || '';
+                const previsto = tipo==='feriado' ? 'FERIADO' : prevStr;
+
+                // Apontamentos individuais
+                let marc = [];
+                if (d.listAfdtManutencao && d.listAfdtManutencao.length>0) {
+                    marc = d.listAfdtManutencao.map(m => {
                         const h = Math.floor(m.hora/100).toString().padStart(2,'0');
                         const mn = (m.hora%100).toString().padStart(2,'0');
-                        return h + ':' + mn;
-                    }).join(' / ');
+                        return h+':'+mn+(m.isPreAssigned?' (P)':'')+(m.isManual?' (I)':'');
+                    });
                 } else if (d.marcacoes && Array.isArray(d.marcacoes)) {
-                    marcacoesStr = d.marcacoes.map(m => m.hora || m.time || m).join(' / ');
+                    marc = d.marcacoes.map(m => m.hora||m.time||m);
                 }
+                const e1=marc[0]||'', s1=marc[1]||'', e2=marc[2]||'', s2=marc[3]||'';
+                const obsT = (d.toolTipAlert||'').trim();
 
-                return `
-                <tr>
-                  <td style="padding:6px;border:1px solid #ddd;text-align:center;">${dia}</td>
-                  <td style="padding:6px;border:1px solid #ddd;">${status}</td>
-                  <td style="padding:6px;border:1px solid #ddd;text-align:center;font-weight:600;color:#2563eb;">${marcacoesStr}</td>
-                  <td style="padding:6px;border:1px solid #ddd;text-align:center;">${hrsTrab}</td>
-                  <td style="padding:6px;border:1px solid #ddd;text-align:center;">${hrsExt}</td>
-                  <td style="padding:6px;border:1px solid #ddd;text-align:center;">${hrsFalta}</td>
+                let ent1='',sai1='',ent2='',sai2='';
+                if (tipo==='feriado')       { ent1='Feriado: '+(d.holidayName||''); }
+                else if (tipo==='folga')    { ent1='Folga'; }
+                else if (tipo==='atestado') { ent1='Atestado Médico'; ent2='Atestado Médico'; }
+                else if (tipo==='justificado') {
+                    ent1=e1; sai1=s1;
+                    ent2=e2||(marc.length<3?obsT:''); sai2=s2;
+                } else if (tipo==='falta') { ent1='Falta'; sai1='Falta'; ent2='Falta'; sai2='Falta'; }
+                else { ent1=e1; sai1=s1; ent2=e2||(marc.length<3?obsT:''); sai2=s2; }
+
+                // Horas e extras
+                const normMin = (d.totalHorasTrabalhadas||0)+(d.horasTotalNoturno||0);
+                const notMin  = (d.totalHorasTrabalhadas>0)?(d.horasNoturnasNaoExtra||0):0;
+                const fatMin  = d.horasFaltaAtraso||0;
+                const aboMin  = d.horasAbono||d.abono||0;
+                const exDMin  = d.extraDiurna||d.extraAdicionadaDiurna||0;
+                const exNMin  = d.extraNoturna||d.extraAdicionadaNoturna||0;
+                const totEx   = exDMin+exNMin || d.horasExtrasCalculadas||0;
+                let ex60=0, ex100=0;
+                if (d.isHoliday||dsStr==='DOM') ex100=totEx; else ex60=totEx;
+
+                // Acumular totais
+                totNormais+=normMin; totNoturno+=notMin; totFaltaAtraso+=fatMin; totAbono+=aboMin;
+                totExtra60+=ex60; totExtra100+=ex100; totExtraDiurna+=exDMin; totExtraNoturna+=exNMin;
+
+                const isFlt = tipo==='falta';
+                const bg = isFlt?'#fff5f5':(tipo==='folga'||tipo==='feriado')?'#f8fafc':'#fff';
+
+                return `<tr style="background:${bg};">
+                    ${tdC(diaFmt+(dsStr?' - '+dsStr:''),'white-space:nowrap;')}
+                    ${tdC(previsto,'font-size:9.5px;word-break:break-word;max-width:90px;')}
+                    ${tdC(ent1,'white-space:nowrap;')}
+                    ${tdC(sai1,'white-space:nowrap;')}
+                    ${tdC(ent2,'font-size:9.5px;')}
+                    ${tdC(sai2,'white-space:nowrap;')}
+                    ${tdC(normMin?fmtHM(normMin):'','text-align:center;font-weight:600;')}
+                    ${tdC(notMin?fmtHM(notMin):'','text-align:center;')}
+                    ${tdC(isFlt?'1':'','text-align:center;font-weight:700;color:'+(isFlt?'#dc2626':'#111')+';')}
+                    ${tdC(fatMin?fmtHM(fatMin):'','text-align:center;')}
+                    ${tdC(aboMin?fmtHM(aboMin):'','text-align:center;')}
+                    ${tdC(ex60?fmtHM(ex60):'','text-align:center;')}
+                    ${tdC(ex100?fmtHM(ex100):'','text-align:center;')}
+                    ${tdC(exDMin?fmtHM(exDMin):'','text-align:center;')}
+                    ${tdC(exNMin?fmtHM(exNMin):'','text-align:center;')}
                 </tr>`;
-            }).join('');
+            });
+
+            // Linha de TOTAIS
+            const totTd = v => `<td style="padding:5px 3px;text-align:center;font-size:10.5px;border-top:2px solid #1e3a5f;">${v||''}</td>`;
+            rowsArr.push(`<tr style="background:#dbeafe;font-weight:700;">
+                <td colspan="6" style="padding:5px 3px;font-size:11px;border-top:2px solid #1e3a5f;">TOTAIS</td>
+                ${totTd(fmtHM(totNormais))}
+                ${totTd(fmtHM(totNoturno))}
+                ${totTd('')}
+                ${totTd(totFaltaAtraso?fmtHM(totFaltaAtraso):'')}
+                ${totTd(totAbono?fmtHM(totAbono):'')}
+                ${totTd(totExtra60?fmtHM(totExtra60):'')}
+                ${totTd(totExtra100?fmtHM(totExtra100):'')}
+                ${totTd(totExtraDiurna?fmtHM(totExtraDiurna):'')}
+                ${totTd(totExtraNoturna?fmtHM(totExtraNoturna):'')}
+            </tr>`);
+
+            linhas = rowsArr.join('');
         }
 
+        const thSt = 'padding:5px 3px;border:1px solid #1a335a;text-align:center;font-size:9px;white-space:nowrap;';
         corpo += `
-        <div style="page-break-after:always;padding:20px;">
-          <h2 style="margin:0 0 4px;color:#1e3a5f;">Conferência de Ponto - ${nome}</h2>
-          <p style="margin:0 0 14px;font-size:12px;color:#475569;"><strong>Período de desconto:</strong> ${periodoTexto}</p>
-          <table style="width:100%;border-collapse:collapse;font-size:12px;">
-
+        <div style="page-break-after:always;padding:12px;">
+          <h2 style="margin:0 0 3px;color:#1e3a5f;font-size:14px;">Conferência de Ponto — ${nome}</h2>
+          <p style="margin:0 0 10px;font-size:11px;color:#475569;"><strong>Período de desconto:</strong> ${periodoTexto}</p>
+          <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;">
+            <colgroup>
+              <col style="width:11%"><col style="width:9%">
+              <col style="width:5%"><col style="width:5%"><col style="width:10%"><col style="width:5%">
+              <col style="width:6%"><col style="width:5%"><col style="width:4%"><col style="width:6%">
+              <col style="width:4%"><col style="width:5%"><col style="width:5%"><col style="width:6%"><col style="width:6%">
+            </colgroup>
             <thead>
-              <tr style="background:#e8edf5;">
-                <th style="padding:8px;border:1px solid #ddd;">Data</th>
-                <th style="padding:8px;border:1px solid #ddd;text-align:left;">Status / Situação</th>
-                <th style="padding:8px;border:1px solid #ddd;">Apontamentos</th>
-                <th style="padding:8px;border:1px solid #ddd;">Total Trabalhado</th>
-                <th style="padding:8px;border:1px solid #ddd;">Horas Extras</th>
-                <th style="padding:8px;border:1px solid #ddd;">Atraso/Falta</th>
+              <tr style="background:#1e3a5f;color:#fff;">
+                <th style="${thSt}">DIA</th>
+                <th style="${thSt}">PREVISTO</th>
+                <th style="${thSt}">ENT. 1</th>
+                <th style="${thSt}">SAÍ. 1</th>
+                <th style="${thSt}">ENT. 2</th>
+                <th style="${thSt}">SAÍ. 2</th>
+                <th style="${thSt}">TOTAL NORMAIS</th>
+                <th style="${thSt}">TOTAL NOTURNO</th>
+                <th style="${thSt}">DIA FALTA</th>
+                <th style="${thSt}">FALTA E ATRASO</th>
+                <th style="${thSt}">ABONO</th>
+                <th style="${thSt}">EXTRA 60%</th>
+                <th style="${thSt}">EXTRA 100%</th>
+                <th style="${thSt}">EXTRA DIURNA</th>
+                <th style="${thSt}">EXTRA NOTURNA</th>
               </tr>
             </thead>
             <tbody>${linhas}</tbody>
           </table>
-          <div style="margin-top:15px;font-size:11px;color:#64748b;">Totais Resumidos: Trabalhados = ${s.diasTrabalhados}, Faltas = ${s.faltas}, Jantar = ${s.diasExtra}</div>
+          </div>
         </div>`;
     });
 
