@@ -50,11 +50,40 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             }
         }
         
+        // ── Classificação do status do dia (MESMA lógica da Conferência de Ponto) ──────
+        // ORDEM IMPORTA: folga/feriado deve ser verificado ANTES de faltaDiaInteiro,
+        // pois o RHID pode retornar faltaDiaInteiro=true em dias de folga agendada
+        // quando o colaborador tem horário contratual todos os dias (7x0) mas não bateu ponto.
         let status = '';
-        if (d.faltaDiaInteiro) status = 'Falta';
-        else if (d.isHoliday) status = 'Feriado: ' + (d.holidayName || '');
-        else if (d.dsrConsideradoMinutos > 0 || (d.diasTrabalhados === 0 && d.horasUteis === 0)) status = 'Folga';
-        else if (d.idJustification) status = 'Justificado';
+        const stRaw = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
+        const isFolgaSt  = stRaw.includes('folg') || stRaw.includes('dsr');
+        const isFolgaFlag = d.folga === true;
+        const isDSRMin   = (d.dsrConsideradoMinutos || 0) > 0;
+        const semHorario  = ((d.idHorarioContratual || 0) === 0 && (d.strHorarioContratualSimples || '').trim() === '');
+        const horasTrab   = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
+        const trabalhou   = (d.diasTrabalhados || 0) > 0 || horasTrab > 0;
+
+        if (d.isHoliday) {
+            status = 'Feriado: ' + (d.holidayName || '');
+        } else if (isFolgaSt || isFolgaFlag || isDSRMin) {
+            // DSR/FOLGA explícito da API — mas se trabalhou >= 6h, é dia trabalhado (ex: 10/05 Naelson)
+            if (horasTrab >= 360) status = ''; // trabalhado — sem status especial
+            else status = 'Folga';
+        } else if (d.idJustification) {
+            // Justificativa cadastrada no RHID (atestado, autorização supervisora, etc.)
+            const obsJust = (d.toolTipAlert || '').toLowerCase();
+            if (obsJust.includes('atestado') || obsJust.includes('medic')) {
+                status = 'Atestado Médico';
+            } else {
+                status = 'Justificado';
+            }
+        } else if (semHorario && !trabalhou) {
+            // Dia sem horário contratual e sem trabalho = folga implícita (ex: DSR de 6x1)
+            status = 'Folga';
+        } else if (d.faltaDiaInteiro) {
+            // Só considera falta se nenhuma das condições acima se aplicar
+            status = 'Falta';
+        }
         
         let marcacoes = [];
         if (d.listAfdtManutencao && d.listAfdtManutencao.length > 0) {
@@ -150,10 +179,23 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         const obsText = obsLinhas.join(' | ');
 
         let previsto = c.escala || '08:00-12:00 13:00-17:48';
-        if (status) { previsto = status === 'Falta' ? '' : (status.startsWith('Feriado') ? 'FERIADO' : ''); }
+        let ent1_td, sai1_td, ent2_td, sai2_td;
 
-        let ent1_td = status && !e1 ? status : e1;
-        let sai1_td = status && !e1 ? (status === 'Falta' ? 'Falta' : '') : s1;
+        if (status.startsWith('Feriado')) {
+            previsto = 'FERIADO';
+            ent1_td = status; sai1_td = ''; ent2_td = ''; sai2_td = '';
+        } else if (status === 'Folga') {
+            ent1_td = 'Folga'; sai1_td = ''; ent2_td = ''; sai2_td = '';
+        } else if (status === 'Atestado Médico') {
+            ent1_td = 'Atestado Médico'; sai1_td = ''; ent2_td = 'Atestado Médico'; sai2_td = '';
+        } else if (status === 'Justificado') {
+            ent1_td = 'Justificado'; sai1_td = ''; ent2_td = ''; sai2_td = '';
+        } else if (status === 'Falta') {
+            previsto = '';
+            ent1_td = 'Falta'; sai1_td = 'Falta'; ent2_td = 'Falta'; sai2_td = 'Falta';
+        } else {
+            ent1_td = e1; sai1_td = s1; ent2_td = e2; sai2_td = s2;
+        }
 
         rowsHtml += `
         <tr>
@@ -161,8 +203,8 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;word-break:break-all;">${previsto}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${ent1_td}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${sai1_td}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : e2}</td>
-            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${status && !e1 ? (status === 'Falta' ? 'Falta' : '') : s2}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${ent2_td}</td>
+            <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${sai2_td}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${normais}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${noturn}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;text-align:center;">${status === 'Falta' ? '1' : ''}</td>
