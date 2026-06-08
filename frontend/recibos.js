@@ -438,7 +438,7 @@ function _buildRecibosLayout(mesAt, anoAt) {
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" onclick="window.ordenarRecibos('cargo')">Cargo / Departamento <i class="ph ${_recibosSortCol==='cargo'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='cargo'?'1':'0.3'}"></i></th>
             <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;">Meio Transp.</th>
             <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Folgas VT" onclick="window.ordenarRecibos('folgasVT')">Folgas VT <i class="ph ${_recibosSortCol==='folgasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVT'?'1':'0.3'}"></i></th>
-            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Faltas VT" onclick="window.ordenarRecibos('faltasVT')">Faltas VT <i class="ph ${_recibosSortCol==='faltasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVT'?'1':'0.3'}"></i></th>
+            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Faltas VT" onclick="window.ordenarRecibos('faltasVT')">Faltas Transp. <i class="ph ${_recibosSortCol==='faltasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVT'?'1':'0.3'}"></i></th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Dias > 3h extra" onclick="window.ordenarRecibos('jantar')">Jantar <i class="ph ${_recibosSortCol==='jantar'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='jantar'?'1':'0.3'}"></i></th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Folgas VR" onclick="window.ordenarRecibos('folgasVR')">Folgas VR <i class="ph ${_recibosSortCol==='folgasVR'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVR'?'1':'0.3'}"></i></th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Faltas VR" onclick="window.ordenarRecibos('faltasVR')">Faltas VR <i class="ph ${_recibosSortCol==='faltasVR'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVR'?'1':'0.3'}"></i></th>
@@ -632,7 +632,7 @@ function _renderTabela() {
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" onclick="window.ordenarRecibos('cargo')">Cargo / Depto <i class="ph ${_recibosSortCol==='cargo'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='cargo'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;">Meio Transp.</th>
             <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Folgas VT" onclick="window.ordenarRecibos('folgasVT')">Folgas VT <i class="ph ${_recibosSortCol==='folgasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
-            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Faltas VT" onclick="window.ordenarRecibos('faltasVT')">Faltas VT <i class="ph ${_recibosSortCol==='faltasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Faltas VT" onclick="window.ordenarRecibos('faltasVT')">Faltas Transp. <i class="ph ${_recibosSortCol==='faltasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Dias > 3h extra" onclick="window.ordenarRecibos('jantar')">Jantar <i class="ph ${_recibosSortCol==='jantar'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='jantar'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Folgas VR" onclick="window.ordenarRecibos('folgasVR')">Folgas VR <i class="ph ${_recibosSortCol==='folgasVR'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVR'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;" title="Faltas VR" onclick="window.ordenarRecibos('faltasVR')">Faltas VR <i class="ph ${_recibosSortCol==='faltasVR'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVR'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
@@ -1317,6 +1317,10 @@ window._recBuscarPontoSelecionados = async function () {
             dias_vr: _recibosSelecoes[c.id].diasVR,
             faltas: _recibosSelecoes[c.id].faltas,
             folgas: _recibosSelecoes[c.id].folgas || 0,
+            folgas_vt: _recibosSelecoes[c.id].folgasVT || 0,
+            faltas_vt: _recibosSelecoes[c.id].faltasVT || 0,
+            folgas_vr: _recibosSelecoes[c.id].folgasVR || 0,
+            faltas_vr: _recibosSelecoes[c.id].faltasVR || 0,
             dias_extra: _recibosSelecoes[c.id].diasExtra,
             valor_vr: valorVR,
             apuracao_diaria: (_recibosSelecoes[c.id].apuracaoDiaria && _recibosSelecoes[c.id].apuracaoDiaria.length > 0) ? JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria) : null
@@ -1507,6 +1511,10 @@ window.carregarHistoricoRecibos = async function () {
 
                     _recibosSelecoes[h.colaborador_id].faltas = h.faltas;
                     _recibosSelecoes[h.colaborador_id].folgas = h.folgas || 0;
+                    _recibosSelecoes[h.colaborador_id].folgasVT = h.folgas_vt != null ? h.folgas_vt : (h.folgas || 0);
+                    _recibosSelecoes[h.colaborador_id].faltasVT = h.faltas_vt != null ? h.faltas_vt : h.faltas;
+                    _recibosSelecoes[h.colaborador_id].folgasVR = h.folgas_vr != null ? h.folgas_vr : (h.folgas || 0);
+                    _recibosSelecoes[h.colaborador_id].faltasVR = h.faltas_vr != null ? h.faltas_vr : h.faltas;
                     _recibosSelecoes[h.colaborador_id].diasExtra = h.dias_extra;
                     _recibosSelecoes[h.colaborador_id].historicoEncontrado = true;
                     _recibosSelecoes[h.colaborador_id].selecionado = true; // Auto-seleciona os que já estavam salvos
@@ -1581,6 +1589,10 @@ window.anexarRecibosDocsMassa = async function () {
             dias_vr: _recibosSelecoes[c.id].diasVR,
             faltas: _recibosSelecoes[c.id].faltas,
             folgas: _recibosSelecoes[c.id].folgas || 0,
+            folgas_vt: _recibosSelecoes[c.id].folgasVT || 0,
+            faltas_vt: _recibosSelecoes[c.id].faltasVT || 0,
+            folgas_vr: _recibosSelecoes[c.id].folgasVR || 0,
+            faltas_vr: _recibosSelecoes[c.id].faltasVR || 0,
             dias_extra: _recibosSelecoes[c.id].diasExtra,
             valor_vr: valorVR,
             apuracao_diaria: JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria || [])
@@ -1760,6 +1772,10 @@ window.baixarConferenciaPonto = async function () {
             dias_vr: _recibosSelecoes[c.id].diasVR,
             faltas: _recibosSelecoes[c.id].faltas,
             folgas: _recibosSelecoes[c.id].folgas || 0,
+            folgas_vt: _recibosSelecoes[c.id].folgasVT || 0,
+            faltas_vt: _recibosSelecoes[c.id].faltasVT || 0,
+            folgas_vr: _recibosSelecoes[c.id].folgasVR || 0,
+            faltas_vr: _recibosSelecoes[c.id].faltasVR || 0,
             dias_extra: _recibosSelecoes[c.id].diasExtra,
             valor_vr: valorVR,
             apuracao_diaria: (_recibosSelecoes[c.id].apuracaoDiaria && _recibosSelecoes[c.id].apuracaoDiaria.length > 0) ? JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria) : null

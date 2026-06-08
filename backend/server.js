@@ -6144,8 +6144,8 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
             }
 
             const stmt = db.prepare(`
-            INSERT INTO recibos_historico (mes, ano, colaborador_id, dias_trabalhados, dias_vr, faltas, dias_extra, valor_vr, apuracao_diaria, folgas) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO recibos_historico (mes, ano, colaborador_id, dias_trabalhados, dias_vr, faltas, dias_extra, valor_vr, apuracao_diaria, folgas, folgas_vt, faltas_vt, folgas_vr, faltas_vr) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(colaborador_id, mes, ano) 
             DO UPDATE SET 
                 dias_trabalhados=excluded.dias_trabalhados,
@@ -6165,7 +6165,7 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
             
             let runError = null;
             itens.forEach(i => {
-                stmt.run([mes, ano, i.colaborador_id, i.dias_trabalhados, i.dias_vr, i.faltas, i.dias_extra, i.valor_vr, i.apuracao_diaria, i.folgas || 0], function(errRun) {
+                stmt.run([mes, ano, i.colaborador_id, i.dias_trabalhados, i.dias_vr, i.faltas, i.dias_extra, i.valor_vr, i.apuracao_diaria, i.folgas || 0, i.folgas_vt || 0, i.faltas_vt || 0, i.folgas_vr || 0, i.faltas_vr || 0], function(errRun) {
                     if (errRun && !runError) {
                         runError = errRun;
                         console.error('[SALVAR RECIBOS] Erro no stmt.run:', errRun.message);
