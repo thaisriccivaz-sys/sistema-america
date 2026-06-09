@@ -660,6 +660,13 @@ function _calcTotaisRecibo(c, s) {
 
 // ─── Renderizar tabela ────────────────────────────────────────────────────────
 function _renderTabela() {
+    if (!document.getElementById('recibos-spin-style')) {
+        const s = document.createElement('style');
+        s.id = 'recibos-spin-style';
+        s.innerHTML = `input[type="number"].no-spin::-webkit-inner-spin-button, input[type="number"].no-spin::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; } input[type="number"].no-spin { -moz-appearance: textfield; }`;
+        document.head.appendChild(s);
+    }
+
     const tbody = document.getElementById('rec-tbody');
     if (!tbody) return;
 
@@ -669,14 +676,14 @@ function _renderTabela() {
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;width:36px;z-index:11;"></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('nome')">Colaborador <i class="ph ${_recibosSortCol==='nome'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='nome'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('cargo')">Cargo / Depto <i class="ph ${_recibosSortCol==='cargo'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='cargo'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
-            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;white-space:nowrap;">Meio Transp.</th>
-            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VT" onclick="window.ordenarRecibos('folgasVT')">Folgas VT <i class="ph ${_recibosSortCol==='folgasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
-            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VT" onclick="window.ordenarRecibos('faltasVT')">Faltas Transp. <i class="ph ${_recibosSortCol==='faltasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
-            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;white-space:nowrap;" title="Valor Total Transp.">Valor Transp.</th>
-            <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Dias > 3h extra" onclick="window.ordenarRecibos('jantar')">Jantar <i class="ph ${_recibosSortCol==='jantar'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='jantar'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
-            <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VR" onclick="window.ordenarRecibos('folgasVR')">Folgas VR <i class="ph ${_recibosSortCol==='folgasVR'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVR'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
-            <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VR" onclick="window.ordenarRecibos('faltasVR')">Faltas VR <i class="ph ${_recibosSortCol==='faltasVR'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVR'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
-            <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;white-space:nowrap;" title="Valor Total VR">Valor VR</th>
+            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;white-space:nowrap;">Meio Transp.</th>
+            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VT" onclick="window.ordenarRecibos('folgasVT')">Folgas VT <i class="ph ${_recibosSortCol==='folgasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VT" onclick="window.ordenarRecibos('faltasVT')">Faltas Transp. <i class="ph ${_recibosSortCol==='faltasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;white-space:nowrap;" title="Valor Total Transp.">Valor Transp.</th>
+            <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Dias > 3h extra" onclick="window.ordenarRecibos('jantar')">Jantar <i class="ph ${_recibosSortCol==='jantar'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='jantar'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VR" onclick="window.ordenarRecibos('folgasVR')">Folgas VR <i class="ph ${_recibosSortCol==='folgasVR'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVR'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VR" onclick="window.ordenarRecibos('faltasVR')">Faltas VR <i class="ph ${_recibosSortCol==='faltasVR'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVR'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;white-space:nowrap;" title="Valor Total VR">Valor VR</th>
         `;
     }
 
@@ -749,49 +756,49 @@ function _renderTabela() {
             <div style="font-size:.74rem;color:#94a3b8;">${c.departamento||'—'}</div>
           </td>
           <td style="padding:.55rem .75rem;text-align:center;background:#8aa0fe;">${transpBadge}</td>
-          <td style="padding:.45rem .4rem;text-align:center;background:#8aa0fe;">
+          <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
             ${window._isVT(m) ? `
             <input type="number" min="0" max="35" value="${s.folgasVT||''}"
-              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.folgasVT||0)>0?'#0891b2':'#94a3b8'};"
+              style="width:42px;padding:.3rem .2rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.folgasVT||0)>0?'#0891b2':'#94a3b8'};"
               placeholder="0"
               title="Folgas VT"
               onchange="window.atualizarDadosReciboColab(${c.id},'folgasVT',this.value)">` : ''}
           </td>
-          <td style="padding:.45rem .4rem;text-align:center;background:#8aa0fe;">
+          <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
             ${(window._isVT(m) || window._isVC(m)) ? `
             <input type="number" min="0" max="35" value="${s.faltasVT||''}"
-              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.faltasVT||0)>0?'#ef4444':'#94a3b8'};"
+              style="width:42px;padding:.3rem .2rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.faltasVT||0)>0?'#ef4444':'#94a3b8'};"
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'faltasVT',this.value)">` : ''}
           </td>
-          <td style="padding:.45rem .4rem;text-align:center;background:#8aa0fe;">
+          <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
             ${(window._isVT(m) || window._isVC(m)) ? `
-            <input type="number" step="0.01" min="0" id="inp-valvt-${c.id}" value="${s.valVTEdit != null ? s.valVTEdit.toFixed(2) : totais.totalFinalTransp.toFixed(2)}"
-              style="width:65px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:#1e3a5f;"
+            <input type="number" step="0.01" min="0" class="no-spin" id="inp-valvt-${c.id}" value="${s.valVTEdit != null ? s.valVTEdit.toFixed(2) : totais.totalFinalTransp.toFixed(2)}"
+              style="width:55px;padding:.3rem .2rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:#1e3a5f;"
               onchange="window.atualizarValorEditado(${c.id},'valVTEdit',this.value)">` : ''}
           </td>
-          <td style="padding:.45rem .4rem;text-align:center;background:#adfca9;">
+          <td style="padding:.45rem .2rem;text-align:center;background:#adfca9;">
             <input type="number" min="0" max="35" value="${s.diasExtra||''}"
-              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${s.diasExtra>0?'#8b5cf6':'#94a3b8'};"
+              style="width:42px;padding:.3rem .2rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${s.diasExtra>0?'#8b5cf6':'#94a3b8'};"
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'diasExtra',this.value)">
           </td>
-          <td style="padding:.45rem .4rem;text-align:center;background:#adfca9;">
+          <td style="padding:.45rem .2rem;text-align:center;background:#adfca9;">
             <input type="number" min="0" max="35" value="${s.folgasVR||''}"
-              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.folgasVR||0)>0?'#0891b2':'#94a3b8'};"
+              style="width:42px;padding:.3rem .2rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.folgasVR||0)>0?'#0891b2':'#94a3b8'};"
               placeholder="0"
               title="Folgas VR"
               onchange="window.atualizarDadosReciboColab(${c.id},'folgasVR',this.value)">
           </td>
-          <td style="padding:.45rem .4rem;text-align:center;background:#adfca9;">
+          <td style="padding:.45rem .2rem;text-align:center;background:#adfca9;">
             <input type="number" min="0" max="35" value="${s.faltasVR||''}"
-              style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.faltasVR||0)>0?'#ef4444':'#94a3b8'};"
+              style="width:42px;padding:.3rem .2rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.faltasVR||0)>0?'#ef4444':'#94a3b8'};"
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'faltasVR',this.value)">
           </td>
-          <td style="padding:.45rem .4rem;text-align:center;background:#adfca9;">
-            <input type="number" step="0.01" min="0" id="inp-valvr-${c.id}" value="${s.valVREdit != null ? s.valVREdit.toFixed(2) : totais.totalFinalVR.toFixed(2)}"
-              style="width:65px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:#064e3b;"
+          <td style="padding:.45rem .2rem;text-align:center;background:#adfca9;">
+            <input type="number" step="0.01" min="0" class="no-spin" id="inp-valvr-${c.id}" value="${s.valVREdit != null ? s.valVREdit.toFixed(2) : totais.totalFinalVR.toFixed(2)}"
+              style="width:55px;padding:.3rem .2rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:#064e3b;"
               onchange="window.atualizarValorEditado(${c.id},'valVREdit',this.value)">
           </td>
         </tr>`;
