@@ -2686,7 +2686,7 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
         totalFinal = Math.max(0, valTransp - descVC);
         linhas = `
 <tr><td style="padding:7px 12px;border:1px solid #ddd;">Valor Integral Mensal</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">30 dias</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(valTransp)}</td></tr>
-<tr><td style="padding:7px 12px;border:1px solid #ddd;">Descontos por Falta${faltasVC !== 1 ? 's' : ''}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${faltasVC}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;color:#ef4444;">${descVC > 0 ? '-R$&nbsp;' + _recFmt(descVC) : '-'}</td></tr>
+<tr><td style="padding:7px 12px;border:1px solid #ddd;">Descontos</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${faltasVC}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;color:#ef4444;">${descVC > 0 ? '-R$&nbsp;' + _recFmt(descVC) : '-'}</td></tr>
 <tr style="background:#1e3a5f;color:#fff;font-weight:700;"><td colspan="2" style="padding:9px 12px;border:1px solid #1e3a5f;">TOTAL A RECEBER</td><td style="padding:9px 12px;border:1px solid #1e3a5f;text-align:right;font-size:1.05rem;">R$&nbsp;${_recFmt(totalFinal)}</td></tr>`;
         obs = '';
     }
