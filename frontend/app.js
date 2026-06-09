@@ -16365,8 +16365,8 @@ window.reenviarAssinatura = async function (id, source, btn) {
                 tipoDocumento: tipo, mes, ano,
                 itens: itensSelecionados.map(i => ({
                     pagina: i.pagina,
-                    paginaAdiantamento: i.paginaAdiantamento,
-                    paginaPagamento: i.paginaPagamento,
+                    paginaAdiantamento: i.salvoEm ? null : i.paginaAdiantamento,
+                    paginaPagamento: i.salvoEm ? null : i.paginaPagamento,
                     colaborador_id: i.colaborador_id,
                     docId: i.docId,
                     enviarEmail: false, // <-- Só salva, não envia
@@ -16420,8 +16420,8 @@ window.reenviarAssinatura = async function (id, source, btn) {
                 tipoDocumento: tipo, mes, ano,
                 itens: itensSelecionados.map(i => ({
                     pagina: i.pagina,
-                    paginaAdiantamento: i.paginaAdiantamento,
-                    paginaPagamento: i.paginaPagamento,
+                    paginaAdiantamento: i.salvoEm ? null : i.paginaAdiantamento,
+                    paginaPagamento: i.salvoEm ? null : i.paginaPagamento,
                     colaborador_id: i.colaborador_id,
                     docId: i.docId,
                     enviarEmail: true,

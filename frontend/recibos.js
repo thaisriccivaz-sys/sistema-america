@@ -457,18 +457,6 @@ function _buildRecibosLayout(mesAt, anoAt) {
     </div>
   </div>
 
-  <!-- LEGENDA -->
-  <div style="display:flex;gap:1.25rem;margin-top:.65rem;flex-wrap:wrap;padding:0 .1rem;">
-    <span style="font-size:.77rem;color:#64748b;display:flex;align-items:center;gap:5px;">
-      <i class="ph ph-check-circle" style="color:#10b981;"></i> Ponto importado do RHID
-    </span>
-    <span style="font-size:.77rem;color:#64748b;display:flex;align-items:center;gap:5px;">
-      <i class="ph ph-warning" style="color:#f59e0b;"></i> Não encontrado no RHID — preencha manualmente
-    </span>
-    <span style="font-size:.77rem;color:#64748b;display:flex;align-items:center;gap:5px;">
-      <i class="ph ph-minus-circle" style="color:#cbd5e1;"></i> Ponto não buscado — preencha manualmente
-    </span>
-  </div>
 </div>`;
 }
 
