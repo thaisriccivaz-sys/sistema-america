@@ -369,6 +369,7 @@ function _buildRecibosLayout(mesAt, anoAt) {
         <label style="font-size:.77rem;font-weight:600;color:#475569;display:block;margin-bottom:.25rem;">Nome</label>
         <input type="text" id="rec-f-nome" placeholder="Buscar colaborador..."
           style="width:100%;padding:.46rem .75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:.88rem;box-sizing:border-box;"
+          autocomplete="new-password" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')"
           oninput="window.aplicarFiltrosRecibos()">
       </div>
       <div style="flex:2;min-width:155px;">
@@ -716,19 +717,19 @@ function _renderTabela() {
           </td>
           <td style="padding:.55rem .75rem;text-align:center;background:#8aa0fe;">${transpBadge}</td>
           <td style="padding:.45rem .4rem;text-align:center;background:#8aa0fe;">
-            ${(!window._isVT(m) && m !== '') ? '' : `
+            ${window._isVT(m) ? `
             <input type="number" min="0" max="35" value="${s.folgasVT||''}"
               style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.folgasVT||0)>0?'#0891b2':'#94a3b8'};"
               placeholder="0"
               title="Folgas VT"
-              onchange="window.atualizarDadosReciboColab(${c.id},'folgasVT',this.value)">`}
+              onchange="window.atualizarDadosReciboColab(${c.id},'folgasVT',this.value)">` : ''}
           </td>
           <td style="padding:.45rem .4rem;text-align:center;background:#8aa0fe;">
-            ${(m === 'outros') ? '' : `
+            ${(window._isVT(m) || window._isVC(m)) ? `
             <input type="number" min="0" max="35" value="${s.faltasVT||''}"
               style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.faltasVT||0)>0?'#ef4444':'#94a3b8'};"
               placeholder="0"
-              onchange="window.atualizarDadosReciboColab(${c.id},'faltasVT',this.value)">`}
+              onchange="window.atualizarDadosReciboColab(${c.id},'faltasVT',this.value)">` : ''}
           </td>
           <td style="padding:.45rem .4rem;text-align:center;background:#adfca9;">
             <input type="number" min="0" max="35" value="${s.diasExtra||''}"
@@ -874,6 +875,7 @@ let _recibosSaveTimeout = null;
 window.atualizarDadosReciboColab = function (id, campo, valor) {
     if (!_recibosSelecoes[id]) return;
     _recibosSelecoes[id][campo] = Math.max(0, parseInt(valor) || 0);
+    _recibosSelecoes[id].is_editado = true;
 
     if (_recibosSaveTimeout) clearTimeout(_recibosSaveTimeout);
     _recibosSaveTimeout = setTimeout(() => {
@@ -930,6 +932,21 @@ window._recBuscarPontoSelecionados = async function () {
     if (!sels.length) {
         if (typeof Swal !== 'undefined') Swal.fire('Atenção', 'Selecione ao menos um colaborador antes de buscar o ponto.', 'warning');
         return;
+    }
+
+    const editados = sels.filter(c => _recibosSelecoes[c.id]?.is_editado);
+    if (editados.length > 0) {
+        const confirm = await Swal.fire({
+            title: 'Sobrescrever dados editados?',
+            text: 'Você fez alterações manuais. Buscar o ponto irá apagar essas alterações. Tem certeza que deseja continuar?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sim, buscar e sobrescrever',
+            cancelButtonText: 'Não, cancelar'
+        });
+        if (!confirm.isConfirmed) return;
     }
 
     const mes   = parseInt(document.getElementById('rec-mes')?.value);
@@ -1366,6 +1383,7 @@ window._recBuscarPontoSelecionados = async function () {
             s.faltasVT = s.faltas;
             s.folgasVR = s.folgas;
             s.faltasVR = s.faltas;
+            s.is_editado = false;
         }
     }
 
@@ -1970,7 +1988,14 @@ window.baixarConferenciaPonto = async function () {
                     } else if (isExterno) {
                         tipo = 'trab_externo'; // Trabalho externo: não é falta, não é justificado
                     } else {
-                        tipo = (ob.includes('atestado')||ob.includes('medic')) ? 'atestado' : 'justificado';
+                        const jn = (d.nomeJustificativa || d.justificativa || d.abreviationJustification || '').toLowerCase();
+                        if (ob.includes('atestado')||ob.includes('medic')) {
+                            tipo = 'atestado';
+                        } else if (ob.includes('férias')||ob.includes('ferias')||jn.includes('ferias')||jn.includes('férias')) {
+                            tipo = 'ferias';
+                        } else {
+                            tipo = 'justificado';
+                        }
                     }
                 } else if (isFolgaSt || d.folga===true || isDSRMin) {
                     tipo = hTrab >= 360 ? '' : 'folga';
@@ -2052,6 +2077,7 @@ window.baixarConferenciaPonto = async function () {
                 let ent1='',sai1='',ent2='',sai2='';
                 if (tipo==='feriado' && !e1)       { ent1='Feriado: '+(d.holidayName||''); }
                 else if (tipo==='folga' && !e1)    { ent1='Folga'; }
+                else if (tipo==='ferias' && !e1)   { ent1='Férias'; }
                 else if (tipo==='atestado')         { ent1='Atestado Médico'; }   // só ENT.1, resto vazio
                 else if (tipo==='justificado')      {
                     // RHID não distingue tipos: mostra toggle clicavel (Justificado ⇔ Externo)
@@ -2133,6 +2159,8 @@ window.baixarConferenciaPonto = async function () {
                     bg = '#fffde7';
                 } else if (isFlt || tipo === 'justificado' || tipo === 'atestado') {
                     bg = '#fee2e2'; // Falta / Justificado / Atestado
+                } else if (tipo === 'ferias') {
+                    bg = '#e9d5ff'; // Férias (roxo)
                 } else if (tipo === 'trab_externo') {
                     bg = '#fffde7'; // Trabalho Externo: amarelo claro (igual ao dia normal trabalhado)
                 } else if (tipo === 'folga' || tipo === 'feriado') {
