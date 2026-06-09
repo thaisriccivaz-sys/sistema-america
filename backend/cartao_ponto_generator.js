@@ -114,34 +114,34 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         const e3 = marcacoes[4] || '';
         const s3 = marcacoes[5] || '';
         
-        // ── TOTAL NORMAIS: soma exclusiva de horas diurnas + noturnas ────────
-        // Na API RHID, colaboradores diurnos usam totalHorasTrabalhadas;
-        // colaboradores noturnos usam horasTotalNoturno. São campos exclusivos.
-        const normaisMin = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
+        // ── TOTAL NORMAIS: total de horas trabalhadas no dia ────────
+        const normaisMin = d.totalHorasTrabalhadas || 0;
         const normais = fmtMin(normaisMin);
 
-        // ── TOTAL NOTURNO: horas genuinamente noturnas (suplemento) ──────────
-        // Se totalHorasTrabalhadas=0, é contrato noturno puro → noturno fica vazio
-        const noturnMin = (d.totalHorasTrabalhadas > 0) ? (d.horasNoturnasNaoExtra || 0) : 0;
+        // ── TOTAL NOTURNO: total de horas noturnas (normais + extras) ──────────
+        // Para bater perfeitamente com o relatório oficial da RHID
+        const noturnMin = d.horasTotalNoturno || 0;
         const noturn = fmtMin(noturnMin);
 
         // ── EXTRA DIURNA e EXTRA NOTURNA: campos diretos da API RHID ─────────
-        // extraDiurna = total de horas extras diurnas do dia (independente do percentual)
-        // extraNoturna = total de horas extras noturnas do dia
         const extraDiurnaMin = d.extraDiurna || d.extraAdicionadaDiurna || 0;
         const extraNocturnaMin = d.extraNoturna || d.extraAdicionadaNoturna || 0;
         const extraDiurna = fmtMin(extraDiurnaMin);
         const extraNoturna = fmtMin(extraNocturnaMin);
 
-        // ── EXTRA 60% / EXTRA 100%: classificados por dia da semana e feriado ─
-        // Domingo e Feriado → 100%; Demais dias (Seg-Sab) → 60%
-        // O campo extraDiurna da API RHID já contém o valor correto de horas extras
+        // ── EXTRA 60% / EXTRA 100%: valores precisos vindos da API ─
+        // A API da RHID já calcula exatamente quantos minutos caem em cada percentual
         let extra60Min = 0, extra100Min = 0;
-        const totalExtraMin = extraDiurnaMin + extraNocturnaMin || d.horasExtrasCalculadas || 0;
-        if (d.isHoliday || diaSemanaStr === 'DOM') {
-            extra100Min = totalExtraMin;
+        if (d.horaExtraDeCadaPercentual && Array.isArray(d.horaExtraDeCadaPercentual) && d.horaExtraDeCadaPercentual.length >= 2) {
+            extra60Min = d.horaExtraDeCadaPercentual[0] || 0;
+            extra100Min = d.horaExtraDeCadaPercentual[1] || 0;
         } else {
-            extra60Min = totalExtraMin;
+            const totalExtraMin = extraDiurnaMin + extraNocturnaMin || d.horasExtrasCalculadas || 0;
+            if (d.isHoliday || diaSemanaStr === 'DOM') {
+                extra100Min = totalExtraMin;
+            } else {
+                extra60Min = totalExtraMin;
+            }
         }
         const extra60 = fmtMin(extra60Min);
         const extra100 = fmtMin(extra100Min);

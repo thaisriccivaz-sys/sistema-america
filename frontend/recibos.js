@@ -2071,17 +2071,23 @@ window.baixarConferenciaPonto = async function () {
                 else { ent1=e1; sai1=s1; ent2=e2; sai2=s2; }
 
                 // Horas e extras
-                // TOTAL NORMAIS = total de horas trabalhadas (já inclui noturno)
-                // TOTAL NOTURNO = horas no período noturno (somente adição de adiçional)
+                // TOTAL NORMAIS = total de horas trabalhadas no dia
+                // TOTAL NOTURNO = total de horas noturnas (normais + extras) para bater com relatorio RHID
                 const normMin = d.totalHorasTrabalhadas || 0;
-                const notMin  = (d.totalHorasTrabalhadas>0)?(d.horasNoturnasNaoExtra||0):0;
+                const notMin  = d.horasTotalNoturno || 0;
                 const fatMin  = d.horasFaltaAtraso||0;
                 const aboMin  = d.horasAbono||d.abono||0;
                 const exDMin  = Math.max(0, d.extraDiurna||d.extraAdicionadaDiurna||0);
                 const exNMin  = Math.max(0, d.extraNoturna||d.extraAdicionadaNoturna||0);
-                const totEx   = exDMin+exNMin || Math.max(0, d.horasExtrasCalculadas || 0) || 0;
+                
                 let ex60=0, ex100=0;
-                if (d.isHoliday||dsStr==='DOM') ex100=totEx; else ex60=totEx;
+                if (d.horaExtraDeCadaPercentual && Array.isArray(d.horaExtraDeCadaPercentual) && d.horaExtraDeCadaPercentual.length >= 2) {
+                    ex60 = d.horaExtraDeCadaPercentual[0] || 0;
+                    ex100 = d.horaExtraDeCadaPercentual[1] || 0;
+                } else {
+                    const totEx = exDMin+exNMin || Math.max(0, d.horasExtrasCalculadas || 0) || 0;
+                    if (d.isHoliday||dsStr==='DOM') ex100=totEx; else ex60=totEx;
+                }
 
                 // Acumular totais
                 totNormais+=normMin; totNoturno+=notMin; totFaltaAtraso+=fatMin; totAbono+=aboMin;
