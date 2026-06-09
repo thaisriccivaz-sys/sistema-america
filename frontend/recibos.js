@@ -945,6 +945,11 @@ window.atualizarDadosReciboColab = function (id, campo, valor) {
         }
     }
 
+    window._autoSalvarRecibo(id);
+};
+
+let _recibosSaveTimeout = null;
+window._autoSalvarRecibo = function(id) {
     if (_recibosSaveTimeout) clearTimeout(_recibosSaveTimeout);
     _recibosSaveTimeout = setTimeout(() => {
         const mes = parseInt(document.getElementById('rec-mes')?.value);
@@ -953,6 +958,7 @@ window.atualizarDadosReciboColab = function (id, campo, valor) {
         
         const valorVR = window._recibosValorVR || 35.00;
         const s = _recibosSelecoes[id];
+        if (!s) return;
         
         const itensSalvar = [{
             colaborador_id: id,
@@ -966,6 +972,8 @@ window.atualizarDadosReciboColab = function (id, campo, valor) {
             faltas_vr: s.faltasVR || 0,
             dias_extra: s.diasExtra,
             valor_vr: valorVR,
+            valor_vt_editado: s.valVTEdit !== undefined ? s.valVTEdit : null,
+            valor_vr_editado: s.valVREdit !== undefined ? s.valVREdit : null,
             apuracao_diaria: (s.apuracaoDiaria && s.apuracaoDiaria.length > 0) ? JSON.stringify(s.apuracaoDiaria) : null
         }];
         
@@ -999,6 +1007,7 @@ window.atualizarValorEditado = function(id, campo, valor) {
             }
         }
     }
+    window._autoSalvarRecibo(id);
 };
 
 // ─── Contador de selecionados ─────────────────────────────────────────────────
@@ -1691,6 +1700,8 @@ window.carregarHistoricoRecibos = async function () {
                     _recibosSelecoes[h.colaborador_id].faltasVT = h.faltas_vt != null ? h.faltas_vt : h.faltas;
                     _recibosSelecoes[h.colaborador_id].folgasVR = h.folgas_vr != null ? h.folgas_vr : (h.folgas || 0);
                     _recibosSelecoes[h.colaborador_id].faltasVR = h.faltas_vr != null ? h.faltas_vr : h.faltas;
+                    _recibosSelecoes[h.colaborador_id].valVTEdit = h.valor_vt_editado != null ? h.valor_vt_editado : null;
+                    _recibosSelecoes[h.colaborador_id].valVREdit = h.valor_vr_editado != null ? h.valor_vr_editado : null;
                     _recibosSelecoes[h.colaborador_id].diasExtra = h.dias_extra;
                     _recibosSelecoes[h.colaborador_id].historicoEncontrado = true;
                     _recibosSelecoes[h.colaborador_id].selecionado = true; // Auto-seleciona os que já estavam salvos
