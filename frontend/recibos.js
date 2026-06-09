@@ -2122,9 +2122,11 @@ window.baixarConferenciaPonto = async function () {
                 let marc = [];
                 if (d.listAfdtManutencao && d.listAfdtManutencao.length>0) {
                     marc = d.listAfdtManutencao.map(m => {
+                        if (m._typeClassification === 'F') return 'Falta';
                         const h = Math.floor(m.hora/100).toString().padStart(2,'0');
                         const mn = (m.hora%100).toString().padStart(2,'0');
-                        return h+':'+mn+(m.isPreAssigned?' (P)':'')+(m.isManual?' (I)':'');
+                        const isMan = m.isManual || m._typeRegister === 'I';
+                        return h+':'+mn+(m.isPreAssigned?' (P)':'')+(isMan?' (I)':'');
                     });
                 } else if (d.marcacoes && Array.isArray(d.marcacoes)) {
                     marc = d.marcacoes.map(m => m.hora||m.time||m);

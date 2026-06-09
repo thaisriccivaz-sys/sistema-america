@@ -102,9 +102,11 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         let marcacoes = [];
         if (d.listAfdtManutencao && d.listAfdtManutencao.length > 0) {
             marcacoes = d.listAfdtManutencao.map(m => {
+                if (m._typeClassification === 'F') return 'Falta';
                 const h = Math.floor(m.hora/100).toString().padStart(2,'0');
                 const mn = (m.hora%100).toString().padStart(2,'0');
-                return h + ':' + mn + (m.isManual ? ' (I)' : '') + (m.isPreAssigned ? ' (P)' : '');
+                const isMan = m.isManual || m._typeRegister === 'I';
+                return h + ':' + mn + (m.isPreAssigned ? ' (P)' : '') + (isMan ? ' (I)' : '');
             });
         } else if (d.marcacoes && Array.isArray(d.marcacoes)) {
             marcacoes = d.marcacoes.map(m => m.hora || m.time || m);
