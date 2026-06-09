@@ -6542,7 +6542,7 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
             tipoDocumento: r.tipo,
             mes: r.month,
             ano: r.year,
-            salvoEm: fmtDt(r.upload_date),
+            salvoEm: null, // Deixe null para não confundir com holerites salvos na sessão
             enviadoEm: fmtDt(r.assinafy_sent_at),
             assinadoEm: fmtDt(r.assinafy_signed_at),
             assinadoStatus: r.assinafy_status || null,
