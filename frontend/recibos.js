@@ -759,7 +759,7 @@ function _renderTabela() {
           <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
             ${window._isVT(m) ? `
             <input type="number" min="0" max="35" value="${s.folgasVT||''}"
-              style="width:42px;padding:.3rem .2rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.folgasVT||0)>0?'#0891b2':'#94a3b8'};"
+              style="width:30px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.folgasVT||0)>0?'#0891b2':'#94a3b8'};"
               placeholder="0"
               title="Folgas VT"
               onchange="window.atualizarDadosReciboColab(${c.id},'folgasVT',this.value)">` : ''}
@@ -767,38 +767,38 @@ function _renderTabela() {
           <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
             ${(window._isVT(m) || window._isVC(m)) ? `
             <input type="number" min="0" max="35" value="${s.faltasVT||''}"
-              style="width:42px;padding:.3rem .2rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.faltasVT||0)>0?'#ef4444':'#94a3b8'};"
+              style="width:30px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.faltasVT||0)>0?'#ef4444':'#94a3b8'};"
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'faltasVT',this.value)">` : ''}
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
             ${(window._isVT(m) || window._isVC(m)) ? `
             <input type="number" step="0.01" min="0" class="no-spin" id="inp-valvt-${c.id}" value="${s.valVTEdit != null ? s.valVTEdit.toFixed(2) : totais.totalFinalTransp.toFixed(2)}"
-              style="width:55px;padding:.3rem .2rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:#1e3a5f;"
+              style="width:48px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:#1e3a5f;"
               onchange="window.atualizarValorEditado(${c.id},'valVTEdit',this.value)">` : ''}
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#adfca9;">
             <input type="number" min="0" max="35" value="${s.diasExtra||''}"
-              style="width:42px;padding:.3rem .2rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${s.diasExtra>0?'#8b5cf6':'#94a3b8'};"
+              style="width:30px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${s.diasExtra>0?'#8b5cf6':'#94a3b8'};"
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'diasExtra',this.value)">
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#adfca9;">
             <input type="number" min="0" max="35" value="${s.folgasVR||''}"
-              style="width:42px;padding:.3rem .2rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.folgasVR||0)>0?'#0891b2':'#94a3b8'};"
+              style="width:30px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.folgasVR||0)>0?'#0891b2':'#94a3b8'};"
               placeholder="0"
               title="Folgas VR"
               onchange="window.atualizarDadosReciboColab(${c.id},'folgasVR',this.value)">
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#adfca9;">
             <input type="number" min="0" max="35" value="${s.faltasVR||''}"
-              style="width:42px;padding:.3rem .2rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.faltasVR||0)>0?'#ef4444':'#94a3b8'};"
+              style="width:30px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.faltasVR||0)>0?'#ef4444':'#94a3b8'};"
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'faltasVR',this.value)">
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#adfca9;">
             <input type="number" step="0.01" min="0" class="no-spin" id="inp-valvr-${c.id}" value="${s.valVREdit != null ? s.valVREdit.toFixed(2) : totais.totalFinalVR.toFixed(2)}"
-              style="width:55px;padding:.3rem .2rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:#064e3b;"
+              style="width:48px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:#064e3b;"
               onchange="window.atualizarValorEditado(${c.id},'valVREdit',this.value)">
           </td>
         </tr>`;
