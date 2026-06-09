@@ -948,7 +948,6 @@ window.atualizarDadosReciboColab = function (id, campo, valor) {
     window._autoSalvarRecibo(id);
 };
 
-let _recibosSaveTimeout = null;
 window._autoSalvarRecibo = function(id) {
     if (_recibosSaveTimeout) clearTimeout(_recibosSaveTimeout);
     _recibosSaveTimeout = setTimeout(() => {
