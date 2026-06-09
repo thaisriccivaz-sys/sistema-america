@@ -6705,16 +6705,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                         const baseBytes = await fs.readFile(fullPath);
                         const basePdfDoc = await PDFDocument.load(baseBytes);
                         
-                        // DEDUPLICAR: remover páginas extras já adicionadas anteriormente
-                        // O documento base (ponto/VR/VT) tem sempre 1 página.
-                        // Se já há mais de 1 página, as extras são de holerites anteriores — remover.
                         const totalPagsAtual = basePdfDoc.getPageCount();
-                        if (totalPagsAtual > 1) {
-                            for (let pi = totalPagsAtual - 1; pi >= 1; pi--) {
-                                basePdfDoc.removePage(pi);
-                            }
-                            console.log(`[PAGAMENTOS-MASSA] Removidas ${totalPagsAtual - 1} pág(s) duplicada(s) do doc ${docId} antes de re-merge.`);
-                        }
                         
                         if (bufAd && item.paginaAdiantamento) {
                             const bufExtraidaAd = await pagamentosMassa.extrairPagina(bufAd, item.paginaAdiantamento, true);
