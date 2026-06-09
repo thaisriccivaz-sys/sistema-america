@@ -629,6 +629,35 @@ function _filtrarERendar() {
 function _isVT(m) { return m.includes('vale transporte') || m.includes('(vt)') || m === 'vt'; }
 function _isVC(m) { return m.includes('combustivel') || m.includes('combustível') || m.includes('(vc)') || m === 'vc'; }
 
+function _calcTotaisRecibo(c, s) {
+    const valorVR = window._recibosValorVR || 35.00;
+    const mTransp = (c.meio_transporte||'').toLowerCase();
+    
+    // VR
+    const totalDiasMes = (window._recibos_diasBruto && window._recibos_diasBruto > 0)
+        ? window._recibos_diasBruto
+        : ((s.diasVR != null && s.diasVR > 0) ? s.diasVR : (s.diasTrabalhados || 0));
+    const brutoVR = totalDiasMes * valorVR;
+    const brutoJantar = (s.diasExtra || 0) * valorVR;
+    const totalDescVR = ((s.folgasVR || 0) * valorVR) + ((s.faltasVR || 0) * valorVR);
+    const totalFinalVR = Math.max(0, brutoVR + brutoJantar - totalDescVR);
+
+    // Transp
+    let totalFinalTransp = 0;
+    let valTransp = parseFloat(c.valor_transporte) || 0;
+    if (_isVT(mTransp)) {
+        valTransp = valTransp * 2;
+        const diasVT = Math.max(0, 30 - (s.folgasVT || 0) - (s.faltasVT || 0));
+        totalFinalTransp = diasVT * valTransp;
+    } else if (_isVC(mTransp)) {
+        const diariaVC = valTransp / 30;
+        const descVC = (s.faltasVT || 0) * diariaVC;
+        totalFinalTransp = Math.max(0, valTransp - descVC);
+    }
+    
+    return { totalFinalVR, totalFinalTransp };
+}
+
 // ─── Renderizar tabela ────────────────────────────────────────────────────────
 function _renderTabela() {
     const tbody = document.getElementById('rec-tbody');
@@ -643,9 +672,11 @@ function _renderTabela() {
             <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;white-space:nowrap;">Meio Transp.</th>
             <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VT" onclick="window.ordenarRecibos('folgasVT')">Folgas VT <i class="ph ${_recibosSortCol==='folgasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VT" onclick="window.ordenarRecibos('faltasVT')">Faltas Transp. <i class="ph ${_recibosSortCol==='faltasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;white-space:nowrap;" title="Valor Total Transp.">Valor Transp.</th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Dias > 3h extra" onclick="window.ordenarRecibos('jantar')">Jantar <i class="ph ${_recibosSortCol==='jantar'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='jantar'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VR" onclick="window.ordenarRecibos('folgasVR')">Folgas VR <i class="ph ${_recibosSortCol==='folgasVR'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVR'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VR" onclick="window.ordenarRecibos('faltasVR')">Faltas VR <i class="ph ${_recibosSortCol==='faltasVR'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVR'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;white-space:nowrap;" title="Valor Total VR">Valor VR</th>
         `;
     }
 
@@ -698,6 +729,8 @@ function _renderTabela() {
         const dtrabColor = isFerias ? '#a855f7' : (s.diasTrabalhados > 0 ? '#1e293b' : '#94a3b8');
         const faltaColor = isFerias ? '#a855f7' : (s.faltas > 0 ? '#ef4444' : '#94a3b8');
 
+        const totais = _calcTotaisRecibo(c, s);
+
         return `<tr id="rec-row-${c.id}"
             style="border-bottom:1px solid #f1f5f9;background:${bg};transition:background .12s;"
             onmouseover="this.style.background='${hoverBg}';"
@@ -731,6 +764,12 @@ function _renderTabela() {
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'faltasVT',this.value)">` : ''}
           </td>
+          <td style="padding:.45rem .4rem;text-align:center;background:#8aa0fe;">
+            ${(window._isVT(m) || window._isVC(m)) ? `
+            <input type="number" step="0.01" min="0" id="inp-valvt-${c.id}" value="${s.valVTEdit != null ? s.valVTEdit.toFixed(2) : totais.totalFinalTransp.toFixed(2)}"
+              style="width:65px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:#1e3a5f;"
+              onchange="window.atualizarValorEditado(${c.id},'valVTEdit',this.value)">` : ''}
+          </td>
           <td style="padding:.45rem .4rem;text-align:center;background:#adfca9;">
             <input type="number" min="0" max="35" value="${s.diasExtra||''}"
               style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${s.diasExtra>0?'#8b5cf6':'#94a3b8'};"
@@ -749,6 +788,11 @@ function _renderTabela() {
               style="width:52px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:${(s.faltasVR||0)>0?'#ef4444':'#94a3b8'};"
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'faltasVR',this.value)">
+          </td>
+          <td style="padding:.45rem .4rem;text-align:center;background:#adfca9;">
+            <input type="number" step="0.01" min="0" id="inp-valvr-${c.id}" value="${s.valVREdit != null ? s.valVREdit.toFixed(2) : totais.totalFinalVR.toFixed(2)}"
+              style="width:65px;padding:.3rem .35rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.88rem;font-weight:600;color:#064e3b;"
+              onchange="window.atualizarValorEditado(${c.id},'valVREdit',this.value)">
           </td>
         </tr>`;
     }).join('');
@@ -877,6 +921,23 @@ window.atualizarDadosReciboColab = function (id, campo, valor) {
     _recibosSelecoes[id][campo] = Math.max(0, parseInt(valor) || 0);
     _recibosSelecoes[id].is_editado = true;
 
+    if (campo.includes('folgas') || campo.includes('faltas') || campo === 'diasExtra') {
+        const c = _recibosAllColabs.find(x => x.id === id);
+        if (c) {
+            if (campo.includes('VT') || campo.includes('Transp')) {
+                _recibosSelecoes[id].valVTEdit = null;
+                const totais = _calcTotaisRecibo(c, _recibosSelecoes[id]);
+                const inp = document.getElementById(`inp-valvt-${id}`);
+                if (inp) inp.value = totais.totalFinalTransp.toFixed(2);
+            } else {
+                _recibosSelecoes[id].valVREdit = null;
+                const totais = _calcTotaisRecibo(c, _recibosSelecoes[id]);
+                const inp = document.getElementById(`inp-valvr-${id}`);
+                if (inp) inp.value = totais.totalFinalVR.toFixed(2);
+            }
+        }
+    }
+
     if (_recibosSaveTimeout) clearTimeout(_recibosSaveTimeout);
     _recibosSaveTimeout = setTimeout(() => {
         const mes = parseInt(document.getElementById('rec-mes')?.value);
@@ -908,6 +969,29 @@ window.atualizarDadosReciboColab = function (id, campo, valor) {
             body: JSON.stringify({ mes, ano, itens: itensSalvar })
         }).catch(e => console.warn('Erro ao auto-salvar edição manual:', e));
     }, 800);
+};
+
+window.atualizarValorEditado = function(id, campo, valor) {
+    if (!_recibosSelecoes[id]) return;
+    const v = parseFloat(valor);
+    if (!isNaN(v) && valor.trim() !== '') {
+        _recibosSelecoes[id][campo] = v;
+        _recibosSelecoes[id].is_editado = true;
+    } else {
+        _recibosSelecoes[id][campo] = null;
+        // Recalcular para mostrar o valor padrão se o usuário apagar o campo
+        const c = _recibosAllColabs.find(x => x.id === id);
+        if (c) {
+            const totais = _calcTotaisRecibo(c, _recibosSelecoes[id]);
+            if (campo === 'valVTEdit') {
+                const inp = document.getElementById(`inp-valvt-${id}`);
+                if (inp) inp.value = totais.totalFinalTransp.toFixed(2);
+            } else {
+                const inp = document.getElementById(`inp-valvr-${id}`);
+                if (inp) inp.value = totais.totalFinalVR.toFixed(2);
+            }
+        }
+    }
 };
 
 // ─── Contador de selecionados ─────────────────────────────────────────────────
@@ -2636,6 +2720,7 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
         const totalDesc  = descFolgas + descFaltas;
 
         totalFinal = Math.max(0, totalBruto - totalDesc);
+        if (dados.valVREdit != null) totalFinal = parseFloat(dados.valVREdit);
 
         linhas = `
 <tr>
@@ -2695,6 +2780,7 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
         const folgasVT = dados.folgasVT || 0;
         const diasVT   = Math.max(0, 30 - folgasVT - (dados.faltasVT || 0));
         totalFinal = diasVT * valTransp;
+        if (dados.valVTEdit != null) totalFinal = parseFloat(dados.valVTEdit);
         linhas = `
 <tr><td style="padding:7px 12px;border:1px solid #ddd;">Meio de Transporte</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">—</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${colab.meio_transporte||'—'}</td></tr>
 <tr><td style="padding:7px 12px;border:1px solid #ddd;">Dias Trabalhados</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${diasVT}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">${diasVT} dias</td></tr>
@@ -2712,6 +2798,7 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
         const faltasVC = dados.faltasVT || 0;
         const descVC   = faltasVC * diariaVC;
         totalFinal = Math.max(0, valTransp - descVC);
+        if (dados.valVTEdit != null) totalFinal = parseFloat(dados.valVTEdit);
         linhas = `
 <tr><td style="padding:7px 12px;border:1px solid #ddd;">Valor Integral Mensal</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">30 dias</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;">R$&nbsp;${_recFmt(valTransp)}</td></tr>
 <tr><td style="padding:7px 12px;border:1px solid #ddd;">Descontos</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:center;">${faltasVC}</td><td style="padding:7px 12px;border:1px solid #ddd;text-align:right;color:#ef4444;">${descVC > 0 ? '-R$&nbsp;' + _recFmt(descVC) : '-'}</td></tr>
