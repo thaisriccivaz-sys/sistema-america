@@ -6499,6 +6499,7 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
         let query = `
             SELECT d.id as doc_id, d.document_type as tipo, d.month, d.year,
                    d.upload_date, d.assinafy_sent_at, d.assinafy_signed_at, d.assinafy_status,
+                   d.tem_adiantamento, d.tem_pagamento,
                    c.id as colaborador_id, c.nome_completo as colaborador_nome, 
                    c.email, c.email_corporativo, c.departamento, c.cargo, dep.tipo as setor
             FROM documentos d

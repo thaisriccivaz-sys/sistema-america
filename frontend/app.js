@@ -16089,13 +16089,55 @@ window.reenviarAssinatura = async function (id, source, btn) {
                 const mes  = document.getElementById('pm-mes')?.value || String(new Date().getMonth()+1).padStart(2,'0');
                 const ano  = document.getElementById('pm-ano')?.value || String(new Date().getFullYear());
 
-                const itensSalvar = _itensProcessados.filter(i => i.selecionado && i.colaborador_id && (i.paginaAdiantamento || i.paginaPagamento));
+                // Itens com holerite identificado e selecionados
+                const itensComHolerite = _itensProcessados.filter(i => i.selecionado && i.colaborador_id && (i.paginaAdiantamento || i.paginaPagamento));
 
-                if (itensSalvar.length === 0) {
+                if (itensComHolerite.length === 0) {
                     Swal.fire({ icon:'success', title:'Processado', text: `${matches} correspondências encontradas, mas nenhuma selecionada para salvar.`, timer:3000 });
                     document.getElementById('pm-processing').style.display = 'none';
                     _pmFiltrar();
                     return;
+                }
+
+                // Verifica se algum item já teve e-mail enviado
+                const itensJaEnviados = itensComHolerite.filter(i => i.enviadoEm || i.assinadoStatus === 'Pendente' || i.assinadoStatus === 'Assinado');
+                let itensSalvar = itensComHolerite;
+
+                if (itensJaEnviados.length > 0) {
+                    document.getElementById('pm-processing').style.display = 'none';
+                    const { value: escolha } = await Swal.fire({
+                        icon: 'question',
+                        title: 'Holerites já enviados para assinatura',
+                        html: `<p style="margin:0 0 0.5rem;color:#374151;">${itensJaEnviados.length} colaborador(es) já tiveram o e-mail de assinatura enviado.</p>
+                               <p style="margin:0;color:#6b7280;font-size:0.9rem;">Como deseja prosseguir?</p>`,
+                        showDenyButton: true,
+                        showCancelButton: true,
+                        confirmButtonText: '<i class="ph ph-users"></i> Anexar em todos',
+                        denyButtonText: '<i class="ph ph-user-check"></i> Apenas quem não recebeu',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#3b82f6',
+                        denyButtonColor: '#10b981',
+                        cancelButtonColor: '#9ca3af',
+                        reverseButtons: false,
+                    });
+
+                    if (!escolha && escolha !== false) {
+                        // Cancelou
+                        _pmFiltrar();
+                        return;
+                    }
+                    if (escolha === false) {
+                        // Clicou em "Apenas quem não recebeu" (denyButton retorna false)
+                        itensSalvar = itensComHolerite.filter(i => !i.enviadoEm && i.assinadoStatus !== 'Pendente' && i.assinadoStatus !== 'Assinado');
+                        if (itensSalvar.length === 0) {
+                            Swal.fire({ icon:'info', title:'Nenhum pendente', text:'Todos os colaboradores já receberam o e-mail de assinatura.', timer:3000 });
+                            _pmFiltrar();
+                            return;
+                        }
+                    }
+                    // Se confirmButtonText (true) → itensSalvar = todos (já está assim)
+                    document.getElementById('pm-processing').style.display = 'block';
+                    document.getElementById('pm-processing').innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i> Salvando holerites nos colaboradores...';
                 }
 
                 const btnEnviar = document.getElementById('pm-btn-enviar');
