@@ -248,7 +248,7 @@ async function extrairPagina(bufferPDF, numeroPagina, tipoRecorte = false) {
  * Salva o PDF individual no disco e insere no banco de dados
  * Retorna { docId, filePath }
  */
-async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nomeArquivo, tipoDocumento, ano, mes, basePath }) {
+async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nomeArquivo, tipoDocumento, ano, mes, basePath, temAdiantamento, temPagamento }) {
     const colabDir = path.join(basePath, `colab_${colaboradorId}`);
     if (!fs.existsSync(colabDir)) fs.mkdirSync(colabDir, { recursive: true });
 
@@ -285,9 +285,9 @@ async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nom
     const docId = await new Promise((resolve, reject) => {
         db.run(
             `INSERT INTO documentos
-             (colaborador_id, tab_name, document_type, file_path, file_name, year, month, assinafy_status, upload_date)
-             VALUES (?, 'Pagamentos', ?, ?, ?, ?, ?, 'Pendente', datetime('now'))`,
-            [colaboradorId, tipoDocumento, filePath, nomeArquivo, ano, mes || ''],
+             (colaborador_id, tab_name, document_type, file_path, file_name, year, month, assinafy_status, upload_date, tem_adiantamento, tem_pagamento)
+             VALUES (?, 'Pagamentos', ?, ?, ?, ?, ?, 'Pendente', datetime('now'), ?, ?)`,
+            [colaboradorId, tipoDocumento, filePath, nomeArquivo, ano, mes || '', temAdiantamento ? 1 : 0, temPagamento ? 1 : 0],
             function(err) {
                 if (err) reject(err);
                 else resolve(this.lastID);

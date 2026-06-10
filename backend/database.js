@@ -679,6 +679,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('atestado_tipo'))  db.run("ALTER TABLE documentos ADD COLUMN atestado_tipo TEXT");  // 'dias' | 'horas'
                     if (!cols.includes('atestado_inicio')) db.run("ALTER TABLE documentos ADD COLUMN atestado_inicio TEXT"); // data ISO ou HH:MM
                     if (!cols.includes('atestado_fim'))    db.run("ALTER TABLE documentos ADD COLUMN atestado_fim TEXT");   // data ISO ou HH:MM
+                    // Indicadores se holerite adiantamento/pagamento foram anexados
+                    if (!cols.includes('tem_adiantamento')) db.run("ALTER TABLE documentos ADD COLUMN tem_adiantamento INTEGER DEFAULT 0");
+                    if (!cols.includes('tem_pagamento'))    db.run("ALTER TABLE documentos ADD COLUMN tem_pagamento INTEGER DEFAULT 0");
                 });
                 
                 // Geradores

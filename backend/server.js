@@ -6546,10 +6546,12 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
             tipoDocumento: r.tipo,
             mes: r.month,
             ano: r.year,
-            salvoEm: null, // Deixe null para não confundir com holerites salvos na sessão
+            salvoEm: fmtDt(r.upload_date),
             enviadoEm: fmtDt(r.assinafy_sent_at),
             assinadoEm: fmtDt(r.assinafy_signed_at),
             assinadoStatus: r.assinafy_status || null,
+            temAdiantamento: r.tem_adiantamento ? true : false,
+            temPagamento:    r.tem_pagamento    ? true : false,
         }));
         
         res.json({ ok: true, resultado });
@@ -6691,6 +6693,8 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                     ano: anoDoc,
                     mes: mesDoc,
                     basePath: BASE_UPLOAD_PATH,
+                    temAdiantamento: !!(item.paginaAdiantamento && bufAd),
+                    temPagamento:    !!(item.paginaPagamento    && bufPg),
                 });
                 docId = dbRes.docId;
 
@@ -6727,7 +6731,15 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                         
                         const mergedPdfBytes = await basePdfDoc.save();
                         await fs.writeFile(fullPath, mergedPdfBytes);
-                        
+
+                        // Atualizar indicadores de holerite no banco
+                        const temAd = !!(bufAd && item.paginaAdiantamento);
+                        const temPg = !!(bufPg && item.paginaPagamento);
+                        await new Promise(r => db.run(
+                            'UPDATE documentos SET tem_adiantamento = MAX(tem_adiantamento, ?), tem_pagamento = MAX(tem_pagamento, ?) WHERE id = ?',
+                            [temAd ? 1 : 0, temPg ? 1 : 0, docId], () => r()
+                        ));
+
                         // Opcional: Atualizar no OneDrive se configurado
                         try { await uploadDocToOneDrive(docId); } catch(e2) { console.warn('[PAGAMENTOS-MASSA] OneDrive update skip:', e2.message); }
                     } catch(mergeErr) {
@@ -6767,10 +6779,18 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
             _massaJobs[jobId].done++;
             _massaJobs[jobId].resultados.push({ colaborador_id: item.colaborador_id, nome: colabNome || 'Colaborador', ok: true, docId, urlAssinatura });
         } catch (e) {
-            console.error(`[PAGAMENTOS-MASSA] Erro colab ${item.colaborador_id}:`, e.message);
+            // Garantir que temos o nome mesmo no catch (colabNome pode ser undefined se erro foi muito cedo)
+            let nomeErro = (typeof colabNome !== 'undefined' && colabNome) ? colabNome : null;
+            if (!nomeErro && item.colaborador_id) {
+                try {
+                    const row = await new Promise(r => db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [item.colaborador_id], (e2, r2) => r(r2)));
+                    nomeErro = row?.nome_completo || null;
+                } catch(_) {}
+            }
+            console.error(`[PAGAMENTOS-MASSA] Erro colab ${nomeErro || item.colaborador_id}:`, e.message);
             _massaJobs[jobId].erros++;
             _massaJobs[jobId].done++;
-            _massaJobs[jobId].resultados.push({ colaborador_id: item.colaborador_id, ok: false, erro: e.message });
+            _massaJobs[jobId].resultados.push({ colaborador_id: item.colaborador_id, nome: nomeErro || `Colaborador ${item.colaborador_id}`, ok: false, erro: e.message });
         }
     }
     _massaJobs[jobId].concluido = true;
