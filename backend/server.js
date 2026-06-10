@@ -6703,41 +6703,75 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                 try { await uploadDocToOneDrive(docId); } catch(e2) { console.warn('[PAGAMENTOS-MASSA] OneDrive skip:', e2.message); }
             } else if (tipo === 'Pagamentos' && (bufAd || bufPg)) {
                 // Se o documento base já existe (Ponto + VR + VT), juntar os Holerites
-                const rowBase = await new Promise((res, rej) => db.get('SELECT file_path FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
+                // Mas primeiro remove páginas de holerites anteriores para evitar duplicação
+                const rowBase = await new Promise((res, rej) => db.get('SELECT file_path, tem_adiantamento, tem_pagamento FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
                 if (rowBase && rowBase.file_path) {
                     try {
                         const { PDFDocument } = require('pdf-lib');
                         const fs = require('fs').promises;
-                        const path = require('path');
                         
                         const fullPath = rowBase.file_path;
                         const baseBytes = await fs.readFile(fullPath);
                         const basePdfDoc = await PDFDocument.load(baseBytes);
                         
+                        // Calcular quantas páginas de holerite já foram adicionadas anteriormente
+                        // Cada holerite de adiantamento = 1 página (recorte superior)
+                        // Cada holerite de pagamento = 1 página (recorte superior)
+                        const paginasHoleriteAnteriores = (rowBase.tem_adiantamento ? 1 : 0) + (rowBase.tem_pagamento ? 1 : 0);
                         const totalPagsAtual = basePdfDoc.getPageCount();
-                        
-                        if (bufAd && item.paginaAdiantamento) {
-                            const bufExtraidaAd = await pagamentosMassa.extrairPagina(bufAd, item.paginaAdiantamento, true);
-                            const adPdfDoc = await PDFDocument.load(bufExtraidaAd);
-                            const [adPage] = await basePdfDoc.copyPages(adPdfDoc, [0]);
-                            basePdfDoc.addPage(adPage);
-                        }
-                        
-                        if (bufPg && item.paginaPagamento) {
-                            const bufExtraidaPg = await pagamentosMassa.extrairPagina(bufPg, item.paginaPagamento, true);
-                            const pgPdfDoc = await PDFDocument.load(bufExtraidaPg);
-                            const [pgPage] = await basePdfDoc.copyPages(pgPdfDoc, [0]);
-                            basePdfDoc.addPage(pgPage);
-                        }
-                        
-                        const mergedPdfBytes = await basePdfDoc.save();
-                        await fs.writeFile(fullPath, mergedPdfBytes);
+                        const paginasBase = totalPagsAtual - paginasHoleriteAnteriores;
 
-                        // Atualizar indicadores de holerite no banco
+                        // Remover páginas de holerite antigas (do final do PDF)
+                        if (paginasHoleriteAnteriores > 0 && paginasBase > 0) {
+                            // Criar PDF novo apenas com as páginas base
+                            const pdfSemHolerites = await PDFDocument.create();
+                            const pagsCopiar = Array.from({ length: paginasBase }, (_, i) => i);
+                            const pagsCopiadasBase = await pdfSemHolerites.copyPages(basePdfDoc, pagsCopiar);
+                            pagsCopiadasBase.forEach(p => pdfSemHolerites.addPage(p));
+                            
+                            // Substituir basePdfDoc pelo PDF sem holerites
+                            const bytesLimpos = await pdfSemHolerites.save();
+                            // Recarregar para poder adicionar novas páginas
+                            const basePdfDocLimpo = await PDFDocument.load(bytesLimpos);
+                            
+                            if (bufAd && item.paginaAdiantamento) {
+                                const bufExtraidaAd = await pagamentosMassa.extrairPagina(bufAd, item.paginaAdiantamento, true);
+                                const adPdfDoc = await PDFDocument.load(bufExtraidaAd);
+                                const [adPage] = await basePdfDocLimpo.copyPages(adPdfDoc, [0]);
+                                basePdfDocLimpo.addPage(adPage);
+                            }
+                            if (bufPg && item.paginaPagamento) {
+                                const bufExtraidaPg = await pagamentosMassa.extrairPagina(bufPg, item.paginaPagamento, true);
+                                const pgPdfDoc = await PDFDocument.load(bufExtraidaPg);
+                                const [pgPage] = await basePdfDocLimpo.copyPages(pgPdfDoc, [0]);
+                                basePdfDocLimpo.addPage(pgPage);
+                            }
+                            
+                            const mergedPdfBytes = await basePdfDocLimpo.save();
+                            await fs.writeFile(fullPath, mergedPdfBytes);
+                        } else {
+                            // Não havia holerites anteriores — adiciona normalmente
+                            if (bufAd && item.paginaAdiantamento) {
+                                const bufExtraidaAd = await pagamentosMassa.extrairPagina(bufAd, item.paginaAdiantamento, true);
+                                const adPdfDoc = await PDFDocument.load(bufExtraidaAd);
+                                const [adPage] = await basePdfDoc.copyPages(adPdfDoc, [0]);
+                                basePdfDoc.addPage(adPage);
+                            }
+                            if (bufPg && item.paginaPagamento) {
+                                const bufExtraidaPg = await pagamentosMassa.extrairPagina(bufPg, item.paginaPagamento, true);
+                                const pgPdfDoc = await PDFDocument.load(bufExtraidaPg);
+                                const [pgPage] = await basePdfDoc.copyPages(pgPdfDoc, [0]);
+                                basePdfDoc.addPage(pgPage);
+                            }
+                            const mergedPdfBytes = await basePdfDoc.save();
+                            await fs.writeFile(fullPath, mergedPdfBytes);
+                        }
+
+                        // Atualizar indicadores de holerite no banco (substituindo o valor anterior)
                         const temAd = !!(bufAd && item.paginaAdiantamento);
                         const temPg = !!(bufPg && item.paginaPagamento);
                         await new Promise(r => db.run(
-                            'UPDATE documentos SET tem_adiantamento = MAX(tem_adiantamento, ?), tem_pagamento = MAX(tem_pagamento, ?) WHERE id = ?',
+                            'UPDATE documentos SET tem_adiantamento = ?, tem_pagamento = ? WHERE id = ?',
                             [temAd ? 1 : 0, temPg ? 1 : 0, docId], () => r()
                         ));
 

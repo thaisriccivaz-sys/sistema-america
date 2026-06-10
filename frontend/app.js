@@ -15710,6 +15710,15 @@ window.reenviarAssinatura = async function (id, source, btn) {
     window.renderPagamentosMassa = function () {
         const main = document.getElementById('main-content');
         if (!main) return;
+
+        // Resetar estado ao re-entrar na tela (garante que dados anteriores não persistam)
+        _pdfBase64 = null;
+        _itensProcessados = [];
+        _jobId = null;
+        if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+        window._pdfDuploBase64 = null;
+        window.onbeforeunload = null;
+
         main.innerHTML = `
         <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;">
 
