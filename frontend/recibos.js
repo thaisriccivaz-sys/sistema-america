@@ -2681,6 +2681,16 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
 // ─── Bloco HTML de recibo (Separado) ──────────────────────────────────────────
 function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB64) {
 
+    const mesesArr = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    const idxMesAtual = mesesArr.findIndex(m => m.toLowerCase() === mesNome.toLowerCase());
+    let refMesNome = mesNome;
+    let refAno = ano;
+    if (idxMesAtual !== -1) {
+        let nextIdx = (idxMesAtual + 1) % 12;
+        refMesNome = mesesArr[nextIdx];
+        if (nextIdx === 0) refAno = parseInt(ano, 10) + 1;
+    }
+
     const nome    = _recNome(colab);
     const logoHtml = logoB64
         ? `<div style="margin:0;padding:0;line-height:0;"><img src="${logoB64}" style="width:100%;display:block;margin:0;padding:0;" alt="America Rental"></div>`
@@ -2843,7 +2853,7 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
       </tr>
       <tr>
         <td style="padding:6px 10px;font-weight:600;color:#475569;font-size:10.5px;">Referência:</td>
-        <td style="padding:6px 10px;font-weight:700;font-size:11px;">${mesNome.toUpperCase()} / ${ano}</td>
+        <td style="padding:6px 10px;font-weight:700;font-size:11px;">${refMesNome.toUpperCase()} / ${refAno}</td>
         <td style="padding:6px 10px;font-weight:600;color:#475569;font-size:10.5px;">Matrícula:</td>
         <td style="padding:6px 10px;font-size:11px;">${colab.matricula_esocial||colab.numero_registro||colab.id||'—'}</td>
       </tr>
