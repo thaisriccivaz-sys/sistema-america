@@ -2655,7 +2655,8 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
         const obsText = obsLinhas.join(' | ');
 
         // ── PREVISTO e células de marcação (igual ao backend) ─────────────────────
-        let previsto = c.escala || '08:00-12:00 13:00-17:48';
+        const prevStr = (d.strHorarioContratualSimples||'').trim().replace(/[\r\n]+/g,' ') || c.escala || '08:00-12:00 13:00-17:48';
+        let previsto = prevStr;
         let ent1_td, sai1_td, ent2_td, sai2_td;
 
         if (status.startsWith('Feriado')) {
