@@ -260,10 +260,9 @@ async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nom
         db.all(
             `SELECT id, file_path FROM documentos
              WHERE colaborador_id = ? AND tab_name = 'Pagamentos'
-               AND document_type = ?
                AND (month = ? OR month = ?)
                AND year = ?`,
-            [colaboradorId, tipoDocumento, mesPad, mesSemPad, ano],
+            [colaboradorId, mesPad, mesSemPad, ano],
             (err, rows) => err ? reject(err) : resolve(rows || [])
         );
     });
