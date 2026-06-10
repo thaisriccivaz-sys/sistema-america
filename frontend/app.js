@@ -16256,8 +16256,9 @@ window.reenviarAssinatura = async function (id, source, btn) {
         tbody.innerHTML = itens.map((item, idx) => {
             const realIdx = _itensProcessados.indexOf(item);
             const bg = matchColors[item.confianca] || matchColors[null];
-            const nomeColor = item.colaborador_id ? '#374151' : '#ef4444'; // Red if no match
-            const nomeWeight = item.colaborador_id ? 'normal' : '700';
+            const temErroEnvio = item.erroEnvio || item.assinadoStatus === 'Erro';
+            const nomeColor = temErroEnvio ? '#dc2626' : (item.colaborador_id ? '#374151' : '#ef4444'); // Red if error or no match
+            const nomeWeight = (temErroEnvio || !item.colaborador_id) ? '700' : 'normal';
 
             // Célula SALVO
             let celulaSalvo = item.salvoEm
@@ -16291,6 +16292,16 @@ window.reenviarAssinatura = async function (id, source, btn) {
                         <i class="ph ph-paper-plane-tilt"></i> ENVIADO
                       </span>
                       <span style="color:#64748b;font-size:0.67rem;">${item.enviadoEm}</span>
+                    </div>
+                  </td>`;
+            } else if (item.assinadoStatus === 'Erro' || item.erroEnvio) {
+                // Erro no envio — exibe badge vermelho
+                celulaEnviado = `<td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.72rem;">
+                    <div style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">
+                      <span style="background:#fef2f2;color:#dc2626;border-radius:12px;padding:2px 8px;font-weight:700;font-size:0.7rem;display:flex;align-items:center;gap:3px;white-space:nowrap;">
+                        <i class="ph ph-warning-circle"></i> ERRO
+                      </span>
+                      <span style="color:#64748b;font-size:0.67rem;">falha no envio</span>
                     </div>
                   </td>`;
             } else {
@@ -16541,17 +16552,22 @@ window.reenviarAssinatura = async function (id, source, btn) {
                         const agora = new Date();
                         const dataHora = `${String(agora.getDate()).padStart(2,'0')}/${String(agora.getMonth()+1).padStart(2,'0')}/${agora.getFullYear()} ${String(agora.getHours()).padStart(2,'0')}:${String(agora.getMinutes()).padStart(2,'0')}`;
                         job.resultados.forEach(res => {
+                            const localItem = _itensProcessados.find(i => i.colaborador_id === res.colaborador_id);
+                            if (!localItem) return;
                             if (res.ok && res.docId) {
-                                const localItem = _itensProcessados.find(i => i.colaborador_id === res.colaborador_id);
-                                if (localItem) {
-                                    localItem.docId = res.docId;
-                                    if (isSalvarOnly) {
-                                        localItem.salvoEm = dataHora;   // ✅ Data/hora do salvamento
-                                    } else {
-                                        localItem.salvoEm = localItem.salvoEm || dataHora; // Mantém salvo se já existia
-                                        localItem.enviadoEm = dataHora; // ✈ Data/hora do envio por e-mail
-                                    }
+                                localItem.docId = res.docId;
+                                // Limpa erro anterior se agora foi com sucesso
+                                localItem.erroEnvio = false;
+                                localItem.assinadoStatus = localItem.assinadoStatus === 'Erro' ? null : localItem.assinadoStatus;
+                                if (isSalvarOnly) {
+                                    localItem.salvoEm = dataHora;   // ✅ Data/hora do salvamento
+                                } else {
+                                    localItem.salvoEm = localItem.salvoEm || dataHora; // Mantém salvo se já existia
+                                    localItem.enviadoEm = dataHora; // ✈ Data/hora do envio por e-mail
                                 }
+                            } else if (!res.ok) {
+                                // Marca erro na sessão para nome ficar vermelho imediatamente
+                                localItem.erroEnvio = true;
                             }
                         });
                         // Re-renderiza a tabela para exibir OKs de db se houver

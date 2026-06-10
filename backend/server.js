@@ -6791,6 +6791,11 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
             _massaJobs[jobId].erros++;
             _massaJobs[jobId].done++;
             _massaJobs[jobId].resultados.push({ colaborador_id: item.colaborador_id, nome: nomeErro || `Colaborador ${item.colaborador_id}`, ok: false, erro: e.message });
+            // Persistir erro no banco para que a tabela exiba vermelho ao recarregar
+            if (item.docId || (typeof docId !== 'undefined' && docId)) {
+                const erroDocId = item.docId || docId;
+                db.run("UPDATE documentos SET assinafy_status = 'Erro' WHERE id = ?", [erroDocId]);
+            }
         }
     }
     _massaJobs[jobId].concluido = true;
