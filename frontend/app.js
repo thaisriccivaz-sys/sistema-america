@@ -16397,8 +16397,15 @@ window.reenviarAssinatura = async function (id, source, btn) {
         const item = _itensProcessados[idx];
         if (!item) return;
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        
-        // Se temos um docId base (do banco) e temos as páginas do holerite anexadas
+
+        // Se já foi salvo (holerites já estão no arquivo do banco), abre direto o arquivo salvo
+        if (item.docId && item.salvoEm) {
+            window.open(`/api/documentos/view/${item.docId}?token=${token}`, '_blank');
+            return;
+        }
+
+        // Se temos um docId base (do banco) e temos as páginas do holerite ainda não salvas,
+        // usa preview-merge para mostrar como ficará (sem salvar)
         if (item.docId && window._pdfDuploBase64 && (item.paginaAdiantamento || item.paginaPagamento)) {
             const f = document.createElement('form');
             f.method = 'POST';
@@ -16429,6 +16436,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
             if (typeof Swal !== 'undefined') Swal.fire('Aviso', 'Não há documento disponível para pré-visualização.', 'warning');
         }
     };
+
     window._pmToggleEmail = function (idx, val) {
         if (_itensProcessados[idx]) _itensProcessados[idx].enviarEmail = val;
     };
