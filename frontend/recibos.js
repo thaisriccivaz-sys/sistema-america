@@ -328,9 +328,9 @@ function _recLog_renderizarPainel() {
     try { log = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
 
     const cfg = [
-        { tipo: 'ponto',   icon: 'ph-fingerprint',  label: 'Ponto buscado',  cor: '#1d4ed8', bg: '#eff6ff', borda: '#bfdbfe' },
-        { tipo: 'recibos', icon: 'ph-printer',       label: 'Recibos gerados', cor: '#065f46', bg: '#d1fae5', borda: '#6ee7b7' },
-        { tipo: 'anexo',   icon: 'ph-paperclip',     label: 'Docs anexados',   cor: '#6d28d9', bg: '#ede9fe', borda: '#c4b5fd' },
+        { tipo: 'ponto',   icon: 'ph-fingerprint',  label: 'Ponto buscado',  cor: '#475569', bg: '#f1f5f9', borda: '#e2e8f0' },
+        { tipo: 'recibos', icon: 'ph-printer',       label: 'Recibos gerados', cor: '#1d4ed8', bg: '#eff6ff', borda: '#bfdbfe' },
+        { tipo: 'anexo',   icon: 'ph-paperclip',     label: 'Docs anexados',   cor: '#059669', bg: '#d1fae5', borda: '#6ee7b7' },
     ];
 
     // Garante que o tooltip global existe
@@ -345,11 +345,13 @@ function _recLog_renderizarPainel() {
         const entry = log[c.tipo];
         if (!entry) return '';
         const nomesCurtos = entry.nomes.slice(0, 5);
-        const extra = entry.nomes.length > 5 ? `\n+${entry.nomes.length - 5} mais...` : '';
+        const extraNum = entry.nomes.length - 5;
+        const extra = extraNum > 0 ? `\n+${extraNum} mais... (Clique para ver todos)` : '';
         const tooltipText = `${c.label}\n${entry.dataHora}\n\n${nomesCurtos.join('\n')}${extra}`;
         return `<div
-            style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:8px;background:${c.bg};border:1px solid ${c.borda};cursor:default;"
+            style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:8px;background:${c.bg};border:1px solid ${c.borda};cursor:pointer;transition:filter 0.2s;"
             data-reclog="${encodeURIComponent(tooltipText)}"
+            onclick="window._recLogShowModal('${c.tipo}')" onmouseover="this.style.filter='brightness(0.95)'" onmouseout="this.style.filter='brightness(1)'"
             onmouseenter="window._recLogShowTip(this,event)" onmouseleave="window._recLogHideTip()">
             <i class="ph ${c.icon}" style="font-size:.9rem;color:${c.cor};"></i>
             <span style="font-size:.72rem;font-weight:700;color:${c.cor};">${c.label}</span>
@@ -357,6 +359,36 @@ function _recLog_renderizarPainel() {
         </div>`;
     }).join('');
 }
+
+window._recLogShowModal = function(tipo) {
+    const mes = parseInt(document.getElementById('rec-mes')?.value || new Date().getMonth()+1);
+    const ano = parseInt(document.getElementById('rec-ano')?.value || new Date().getFullYear());
+    const key = _recLog_key(mes, ano);
+    let log = {};
+    try { log = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
+    const entry = log[tipo];
+    if (!entry) return;
+
+    const lbl = {
+        'ponto': 'Ponto buscado',
+        'recibos': 'Recibos gerados',
+        'anexo': 'Docs anexados'
+    }[tipo] || tipo;
+
+    const listHtml = entry.nomes.map(n => `<div style="padding:6px 0;border-bottom:1px solid #e2e8f0;font-size:0.85rem;color:#333;">${n}</div>`).join('');
+
+    if (typeof Swal !== 'undefined') {
+        window._recLogHideTip();
+        Swal.fire({
+            title: lbl,
+            html: `<div style="margin-bottom:10px;font-size:0.8rem;color:#64748b;">${entry.dataHora} — ${entry.nomes.length} colaborador(es)</div>
+                   <div style="text-align:left;max-height:300px;overflow-y:auto;padding-right:8px;">${listHtml}</div>`,
+            showConfirmButton: true,
+            confirmButtonText: 'Fechar',
+            width: 500
+        });
+    }
+};
 
 window._recLogShowTip = function(el, e) {
     const tt = document.getElementById('rec-log-tooltip');
@@ -434,7 +466,7 @@ function _buildRecibosLayout(mesAt, anoAt) {
       </div>
       <div style="width:1px;height:42px;background:#e2e8f0;align-self:flex-end;"></div>
       <!-- PAINEL DE AUDITORIA -->
-      <div id="rec-log-painel" style="margin-left:auto;display:flex;flex-direction:column;gap:6px;justify-content:center;"></div>
+      <div id="rec-log-painel" style="margin-left:auto;display:flex;flex-direction:row;flex-wrap:wrap;gap:8px;align-items:center;"></div>
     </div>
   </div>
 
