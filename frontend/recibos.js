@@ -291,6 +291,7 @@ function _recShowBannerAnexando(progresso, total) {
     if (icon) icon.style.animation = 'rec-spin 1s linear infinite';
 }
 
+
 function _recHideBannerAnexando() {
     window._recibosAnexandoStatus = { ativo: false, progresso: 0, total: 0 };
     const banner = document.getElementById('banner-anexando-recibos');
@@ -298,7 +299,80 @@ function _recHideBannerAnexando() {
     document.body.style.paddingTop = '';
 }
 
-// ─── HTML principal ───────────────────────────────────────────────────────────
+// ─── LOG DE AUDITORIA DAS AÇÕES ──────────────────────────────────────────────
+// Salva no localStorage por chave: recibos_log_{mes}_{ano}
+// Tipos: 'ponto', 'recibos', 'anexo'
+
+function _recLog_key(mes, ano) {
+    return `recibos_log_${String(mes).padStart(2,'0')}_${ano}`;
+}
+
+function _recLog_registrar(tipo, mes, ano, nomes) {
+    if (!nomes || !nomes.length) return;
+    const key = _recLog_key(mes, ano);
+    let log = {};
+    try { log = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
+    const agora = new Date();
+    const dt = `${String(agora.getDate()).padStart(2,'0')}/${String(agora.getMonth()+1).padStart(2,'0')}/${agora.getFullYear()} ${String(agora.getHours()).padStart(2,'0')}:${String(agora.getMinutes()).padStart(2,'0')}`;
+    log[tipo] = { dataHora: dt, nomes: nomes };
+    try { localStorage.setItem(key, JSON.stringify(log)); } catch(e) {}
+}
+
+function _recLog_renderizarPainel() {
+    const painel = document.getElementById('rec-log-painel');
+    if (!painel) return;
+    const mes = parseInt(document.getElementById('rec-mes')?.value || new Date().getMonth()+1);
+    const ano = parseInt(document.getElementById('rec-ano')?.value || new Date().getFullYear());
+    const key = _recLog_key(mes, ano);
+    let log = {};
+    try { log = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
+
+    const cfg = [
+        { tipo: 'ponto',   icon: 'ph-fingerprint',  label: 'Ponto buscado',  cor: '#1d4ed8', bg: '#eff6ff', borda: '#bfdbfe' },
+        { tipo: 'recibos', icon: 'ph-printer',       label: 'Recibos gerados', cor: '#065f46', bg: '#d1fae5', borda: '#6ee7b7' },
+        { tipo: 'anexo',   icon: 'ph-paperclip',     label: 'Docs anexados',   cor: '#6d28d9', bg: '#ede9fe', borda: '#c4b5fd' },
+    ];
+
+    // Garante que o tooltip global existe
+    if (!document.getElementById('rec-log-tooltip')) {
+        const tt = document.createElement('div');
+        tt.id = 'rec-log-tooltip';
+        tt.style.cssText = 'position:fixed;z-index:9999;background:#0f172a;color:#f8fafc;padding:10px 14px;border-radius:10px;font-size:.78rem;line-height:1.6;max-width:320px;pointer-events:none;opacity:0;transition:opacity .15s;box-shadow:0 8px 24px rgba(0,0,0,.35);white-space:pre-wrap;';
+        document.body.appendChild(tt);
+    }
+
+    painel.innerHTML = cfg.map(c => {
+        const entry = log[c.tipo];
+        if (!entry) return '';
+        const nomesCurtos = entry.nomes.slice(0, 5);
+        const extra = entry.nomes.length > 5 ? `\n+${entry.nomes.length - 5} mais...` : '';
+        const tooltipText = `${c.label}\n${entry.dataHora}\n\n${nomesCurtos.join('\n')}${extra}`;
+        return `<div
+            style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:8px;background:${c.bg};border:1px solid ${c.borda};cursor:default;"
+            data-reclog="${encodeURIComponent(tooltipText)}"
+            onmouseenter="window._recLogShowTip(this,event)" onmouseleave="window._recLogHideTip()">
+            <i class="ph ${c.icon}" style="font-size:.9rem;color:${c.cor};"></i>
+            <span style="font-size:.72rem;font-weight:700;color:${c.cor};">${c.label}</span>
+            <span style="font-size:.7rem;color:#64748b;font-weight:500;">${entry.dataHora}</span>
+        </div>`;
+    }).join('');
+}
+
+window._recLogShowTip = function(el, e) {
+    const tt = document.getElementById('rec-log-tooltip');
+    if (!tt) return;
+    tt.textContent = decodeURIComponent(el.dataset.reclog || '');
+    tt.style.opacity = '1';
+    const rect = el.getBoundingClientRect();
+    tt.style.top  = (rect.bottom + 8) + 'px';
+    tt.style.left = Math.max(8, rect.left) + 'px';
+};
+window._recLogHideTip = function() {
+    const tt = document.getElementById('rec-log-tooltip');
+    if (tt) tt.style.opacity = '0';
+};
+
+
 function _buildRecibosLayout(mesAt, anoAt) {
     const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -359,6 +433,8 @@ function _buildRecibosLayout(mesAt, anoAt) {
           onchange="window._recibos_diasBruto = parseInt(this.value)||0">
       </div>
       <div style="width:1px;height:42px;background:#e2e8f0;align-self:flex-end;"></div>
+      <!-- PAINEL DE AUDITORIA -->
+      <div id="rec-log-painel" style="margin-left:auto;display:flex;flex-direction:column;gap:6px;justify-content:center;"></div>
     </div>
   </div>
 
@@ -1573,6 +1649,13 @@ window._recBuscarPontoSelecionados = async function () {
             });
         }
     }
+
+    // ── Registrar log de busca de ponto ──────────────────────────────────
+    const _nomesBuscados = sels
+        .filter(c => _recibosSelecoes[c.id]?.pontoStatus === 'ok')
+        .map(c => _recNome(c));
+    _recLog_registrar('ponto', mes, ano, _nomesBuscados);
+    _recLog_renderizarPainel();
 };
 
 // ─── Geração em massa ─────────────────────────────────────────────────────────
@@ -1651,7 +1734,12 @@ ${corpo}
     if (!win) { if (typeof Swal !== 'undefined') Swal.fire('Pop-up bloqueado', 'Habilite pop-ups no navegador para gerar os recibos.', 'warning'); return; }
     win.document.write(fullHtml);
     win.document.close();
+
+    // ── Registrar log de geração de recibos ──────────────────────────────
+    _recLog_registrar('recibos', mes, ano, sels.map(c => _recNome(c)));
+    _recLog_renderizarPainel();
 };
+
 
 window.carregarHistoricoRecibos = async function () {
     const mes = document.getElementById('rec-mes')?.value;
@@ -1744,6 +1832,9 @@ window.carregarHistoricoRecibos = async function () {
     // Atualiza checkbox 'Selecionar todos'
     const sa = document.getElementById('rec-select-all');
     if (sa) sa.checked = _recibosFiltrados.length > 0 && _recibosFiltrados.every(c => _recibosSelecoes[c.id]?.selecionado);
+
+    // Atualiza painel de auditoria ao trocar mês/ano
+    _recLog_renderizarPainel();
 };
 
 window.anexarRecibosDocsMassa = async function () {
@@ -1923,8 +2014,14 @@ window.anexarRecibosDocsMassa = async function () {
 
     _recHideBannerAnexando();
     const btnAn2 = document.getElementById('btn-anexar-massa');
-
     if (btnAn2) { btnAn2.disabled = false; btnAn2.innerHTML = '<i class="ph ph-paperclip"></i> Anexar aos Docs. em Massa'; }
+
+    // ── Registrar log de anexo em docs em massa ───────────────────────────
+    const _mesAnexo = parseInt(document.getElementById('rec-mes')?.value || new Date().getMonth()+1);
+    const _anoAnexo = parseInt(document.getElementById('rec-ano')?.value || new Date().getFullYear());
+    const _selsFinal = _recibosAllColabs.filter(c => _recibosSelecoes[c.id]?.selecionado);
+    _recLog_registrar('anexo', _mesAnexo, _anoAnexo, _selsFinal.map(c => _recNome(c)));
+    _recLog_renderizarPainel();
 };
 
 // ─── Relatório de Conferência ─────────────────────────────────────────────────
