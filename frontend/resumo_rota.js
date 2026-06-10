@@ -815,7 +815,15 @@ function _rrRenderCorpo() {
             if (!disp || !nome || !nome.trim()) return null;
             const { status, motivo } = disp;
             if (status === 'disponivel') return null; // só alerta se indisponível
-            
+
+            // Colaborador desligado — banner diferenciado, mais urgente
+            if (status === 'desligado') {
+                return `<div style="background:#7f1d1d;color:#fca5a5;padding:10px 16px;border-bottom:2px solid #991b1b;font-size:0.83rem;font-weight:700;display:flex;align-items:center;gap:8px;">
+                    <i class="ph ph-user-minus" style="font-size:1.1rem;color:#f87171;"></i>
+                    <span><b style="color:#fff;">${nome}</b> — <span style="color:#fde047;letter-spacing:0.03em;">⚠️ COLABORADOR DESLIGADO</span> — Este colaborador não faz mais parte do quadro de funcionários</span>
+                </div>`;
+            }
+
             if (status === 'terapia') {
                 return `<div style="background:#fdf2f8;color:#db2777;padding:8px 16px;border-bottom:1px solid #fbcfe8;font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:8px;">
                     <i class="ph ph-brain" style="font-size:1rem;"></i>
@@ -835,6 +843,7 @@ function _rrRenderCorpo() {
                 <span><b>${nome}</b> — ${label}${motivo && motivo !== label ? ': ' + motivo : ''}</span>
             </div>`;
         };
+
 
         const _motDisp = _dispInfo(v._dispMotorista, v.motorista);
         const _ajuDisp = _dispInfo(v._dispAjudante,  v.ajudante);

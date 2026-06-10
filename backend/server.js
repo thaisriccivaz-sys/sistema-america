@@ -16024,7 +16024,10 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                     const hojeDate = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
                     const hojeStr = hojeDate.getFullYear() + '-' + String(hojeDate.getMonth() + 1).padStart(2, '0') + '-' + String(hojeDate.getDate()).padStart(2, '0');
 
-                    if (statusSistema === 'férias' || statusSistema === 'ferias') {
+                    if (statusSistema === 'desligado') {
+                        status = 'desligado';
+                        motivo = 'Colaborador desligado';
+                    } else if (statusSistema === 'férias' || statusSistema === 'ferias') {
                         if (c.ferias_programadas_fim && data > c.ferias_programadas_fim) {
                             // Data da rota é DEPOIS das férias, então está disponível
                         } else {
