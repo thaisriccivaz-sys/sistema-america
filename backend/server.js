@@ -6296,7 +6296,7 @@ app.post('/api/recibos/upload-pdf-colab',
             }
             // ──────────────────────────────────────────────────────────────────
 
-            const { docId } = await pagamentosMassa.salvarDocumentoNoBanco({
+            const { docId, filePath: savedPath } = await pagamentosMassa.salvarDocumentoNoBanco({
                 colaboradorId: Number(colaborador_id),
                 nomeColab: '',
                 bufferPDF,
@@ -6306,6 +6306,14 @@ app.post('/api/recibos/upload-pdf-colab',
                 mes,
                 basePath: BASE_UPLOAD_PATH,
             });
+
+            // Salvar cópia _base.pdf para permitir reconstrução ao processar holerites sem duplicação
+            try {
+                const path = require('path');
+                const fs = require('fs');
+                const basePath = savedPath.replace(/\.pdf$/i, '_base.pdf');
+                fs.writeFileSync(basePath, bufferPDF);
+            } catch(errBase) { console.warn('[UPLOAD-PDF] Erro ao salvar _base.pdf:', errBase.message); }
 
             uploadDocToOneDrive(docId).catch(e => console.warn('[UPLOAD-PDF] OneDrive bg:', e.message));
             console.log(`[UPLOAD-PDF] ✅ Colaborador ${colaborador_id} — ${nome}`);
@@ -6703,71 +6711,60 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                 try { await uploadDocToOneDrive(docId); } catch(e2) { console.warn('[PAGAMENTOS-MASSA] OneDrive skip:', e2.message); }
             } else if (tipo === 'Pagamentos' && (bufAd || bufPg)) {
                 // Se o documento base já existe (Ponto + VR + VT), juntar os Holerites
-                // Mas primeiro remove páginas de holerites anteriores para evitar duplicação
+                // Sempre reconstrói a partir do _base.pdf para nunca duplicar
                 const rowBase = await new Promise((res, rej) => db.get('SELECT file_path, tem_adiantamento, tem_pagamento FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
                 if (rowBase && rowBase.file_path) {
                     try {
                         const { PDFDocument } = require('pdf-lib');
                         const fs = require('fs').promises;
-                        
-                        const fullPath = rowBase.file_path;
-                        const baseBytes = await fs.readFile(fullPath);
-                        const basePdfDoc = await PDFDocument.load(baseBytes);
-                        
-                        // Calcular quantas páginas de holerite já foram adicionadas anteriormente
-                        // Cada holerite de adiantamento = 1 página (recorte superior)
-                        // Cada holerite de pagamento = 1 página (recorte superior)
-                        const paginasHoleriteAnteriores = (rowBase.tem_adiantamento ? 1 : 0) + (rowBase.tem_pagamento ? 1 : 0);
-                        const totalPagsAtual = basePdfDoc.getPageCount();
-                        const paginasBase = totalPagsAtual - paginasHoleriteAnteriores;
+                        const fsSync = require('fs');
+                        const path = require('path');
 
-                        // Remover páginas de holerite antigas (do final do PDF)
-                        if (paginasHoleriteAnteriores > 0 && paginasBase > 0) {
-                            // Criar PDF novo apenas com as páginas base
-                            const pdfSemHolerites = await PDFDocument.create();
-                            const pagsCopiar = Array.from({ length: paginasBase }, (_, i) => i);
-                            const pagsCopiadasBase = await pdfSemHolerites.copyPages(basePdfDoc, pagsCopiar);
-                            pagsCopiadasBase.forEach(p => pdfSemHolerites.addPage(p));
-                            
-                            // Substituir basePdfDoc pelo PDF sem holerites
-                            const bytesLimpos = await pdfSemHolerites.save();
-                            // Recarregar para poder adicionar novas páginas
-                            const basePdfDocLimpo = await PDFDocument.load(bytesLimpos);
-                            
-                            if (bufAd && item.paginaAdiantamento) {
-                                const bufExtraidaAd = await pagamentosMassa.extrairPagina(bufAd, item.paginaAdiantamento, true);
-                                const adPdfDoc = await PDFDocument.load(bufExtraidaAd);
-                                const [adPage] = await basePdfDocLimpo.copyPages(adPdfDoc, [0]);
-                                basePdfDocLimpo.addPage(adPage);
-                            }
-                            if (bufPg && item.paginaPagamento) {
-                                const bufExtraidaPg = await pagamentosMassa.extrairPagina(bufPg, item.paginaPagamento, true);
-                                const pgPdfDoc = await PDFDocument.load(bufExtraidaPg);
-                                const [pgPage] = await basePdfDocLimpo.copyPages(pgPdfDoc, [0]);
-                                basePdfDocLimpo.addPage(pgPage);
-                            }
-                            
-                            const mergedPdfBytes = await basePdfDocLimpo.save();
-                            await fs.writeFile(fullPath, mergedPdfBytes);
+                        const fullPath = rowBase.file_path;
+                        // Tentar carregar o _base.pdf (PDF sem holerites, salvo no upload)
+                        const baseCopyPath = fullPath.replace(/\.pdf$/i, '_base.pdf');
+                        let baseBytes;
+                        if (fsSync.existsSync(baseCopyPath)) {
+                            // Usa a cópia base — sem holerites, 100% limpo
+                            baseBytes = await fs.readFile(baseCopyPath);
+                            console.log(`[PAGAMENTOS-MASSA] Usando _base.pdf para colaborador ${item.colaborador_id}`);
                         } else {
-                            // Não havia holerites anteriores — adiciona normalmente
-                            if (bufAd && item.paginaAdiantamento) {
-                                const bufExtraidaAd = await pagamentosMassa.extrairPagina(bufAd, item.paginaAdiantamento, true);
-                                const adPdfDoc = await PDFDocument.load(bufExtraidaAd);
-                                const [adPage] = await basePdfDoc.copyPages(adPdfDoc, [0]);
-                                basePdfDoc.addPage(adPage);
+                            // Fallback: usa o arquivo atual e tenta remover páginas de holerite
+                            baseBytes = await fs.readFile(fullPath);
+                            const tempDoc = await PDFDocument.load(baseBytes);
+                            const paginasHoleriteAnteriores = (rowBase.tem_adiantamento ? 1 : 0) + (rowBase.tem_pagamento ? 1 : 0);
+                            if (paginasHoleriteAnteriores > 0) {
+                                const totalPags = tempDoc.getPageCount();
+                                const paginasBase = Math.max(1, totalPags - paginasHoleriteAnteriores);
+                                const docLimpo = await PDFDocument.create();
+                                const pagsCopiar = Array.from({ length: paginasBase }, (_, i) => i);
+                                const pagsCopiadasBase = await docLimpo.copyPages(tempDoc, pagsCopiar);
+                                pagsCopiadasBase.forEach(p => docLimpo.addPage(p));
+                                baseBytes = await docLimpo.save();
+                                console.log(`[PAGAMENTOS-MASSA] Fallback: truncando ${paginasHoleriteAnteriores} página(s) de holerite anterior`);
                             }
-                            if (bufPg && item.paginaPagamento) {
-                                const bufExtraidaPg = await pagamentosMassa.extrairPagina(bufPg, item.paginaPagamento, true);
-                                const pgPdfDoc = await PDFDocument.load(bufExtraidaPg);
-                                const [pgPage] = await basePdfDoc.copyPages(pgPdfDoc, [0]);
-                                basePdfDoc.addPage(pgPage);
-                            }
-                            const mergedPdfBytes = await basePdfDoc.save();
-                            await fs.writeFile(fullPath, mergedPdfBytes);
                         }
 
-                        // Atualizar indicadores de holerite no banco (substituindo o valor anterior)
+                        // Agora monta o PDF final: base + novos holerites
+                        const basePdfDoc = await PDFDocument.load(baseBytes);
+
+                        if (bufAd && item.paginaAdiantamento) {
+                            const bufExtraidaAd = await pagamentosMassa.extrairPagina(bufAd, item.paginaAdiantamento, true);
+                            const adPdfDoc = await PDFDocument.load(bufExtraidaAd);
+                            const [adPage] = await basePdfDoc.copyPages(adPdfDoc, [0]);
+                            basePdfDoc.addPage(adPage);
+                        }
+                        if (bufPg && item.paginaPagamento) {
+                            const bufExtraidaPg = await pagamentosMassa.extrairPagina(bufPg, item.paginaPagamento, true);
+                            const pgPdfDoc = await PDFDocument.load(bufExtraidaPg);
+                            const [pgPage] = await basePdfDoc.copyPages(pgPdfDoc, [0]);
+                            basePdfDoc.addPage(pgPage);
+                        }
+
+                        const mergedPdfBytes = await basePdfDoc.save();
+                        await fs.writeFile(fullPath, mergedPdfBytes);
+
+                        // Atualizar indicadores de holerite no banco
                         const temAd = !!(bufAd && item.paginaAdiantamento);
                         const temPg = !!(bufPg && item.paginaPagamento);
                         await new Promise(r => db.run(
@@ -6783,6 +6780,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                     }
                 }
             }
+
 
 
             // 5. Enviar para Assinafy (se solicitado) — com retry em Rate Limit (429)
