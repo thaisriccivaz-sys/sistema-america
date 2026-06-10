@@ -1021,20 +1021,31 @@ window._recBuscarPontoSelecionados = async function () {
         return;
     }
 
-    const editados = sels.filter(c => _recibosSelecoes[c.id]?.is_editado);
-    if (editados.length > 0) {
-        const confirm = await Swal.fire({
-            title: 'Sobrescrever dados editados?',
-            text: 'Você fez alterações manuais. Buscar o ponto irá apagar essas alterações. Tem certeza que deseja continuar?',
+    // Verifica se algum colaborador selecionado já tem ponto preenchido (RHID ou edição manual)
+    const comPontoJaPreenchido = sels.filter(c => {
+        const sel = _recibosSelecoes[c.id];
+        return sel && (sel.pontoStatus === 'ok' || sel.pontoStatus === 'erro' || sel.is_editado);
+    });
+
+    if (comPontoJaPreenchido.length > 0) {
+        const { isConfirmed } = await Swal.fire({
             icon: 'warning',
+            title: 'Dados anteriores serão apagados',
+            html: `<p style="margin:0 0 0.5rem;color:#374151;">
+                       ${comPontoJaPreenchido.length} colaborador(es) já possuem dados de ponto preenchidos.
+                   </p>
+                   <p style="margin:0;color:#6b7280;font-size:0.9rem;">
+                       Ao continuar, <strong>todos os dados de ponto serão apagados</strong> e substituídos pelos novos dados buscados do RHID.<br>Tem certeza que deseja continuar?
+                   </p>`,
             showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Sim, buscar e sobrescrever',
-            cancelButtonText: 'Não, cancelar'
+            confirmButtonText: '<i class="ph ph-arrow-clockwise"></i> Sim, buscar e substituir',
+            cancelButtonText: 'Não, cancelar',
+            confirmButtonColor: '#d97706',
+            cancelButtonColor: '#64748b',
         });
-        if (!confirm.isConfirmed) return;
+        if (!isConfirmed) return;
     }
+
 
     const mes   = parseInt(document.getElementById('rec-mes')?.value);
     const ano   = parseInt(document.getElementById('rec-ano')?.value);
