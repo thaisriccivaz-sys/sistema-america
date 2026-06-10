@@ -1,4 +1,4 @@
-const API_URL = '/api';
+﻿const API_URL = '/api';
 
 
 
@@ -15878,10 +15878,6 @@ window.reenviarAssinatura = async function (id, source, btn) {
               <div style="margin-top:1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
                 <div id="pm-selecionados-info" style="font-size:0.85rem;color:#64748b;"></div>
                 <div style="display:flex; gap:0.5rem;">
-                  <button id="pm-btn-salvar" onclick="window._pmSalvar()"
-                    style="padding:0.65rem 1.5rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:0.5rem;">
-                    <i class="ph ph-floppy-disk"></i> Salvar Holerites nos Colaboradores
-                  </button>
                   <button id="pm-btn-enviar" onclick="window._pmEnviar()"
                     style="padding:0.65rem 1.5rem;background:linear-gradient(135deg,#f503c5,#a21caf);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:0.5rem;">
                     <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
@@ -16078,8 +16074,68 @@ window.reenviarAssinatura = async function (id, source, btn) {
                         matches++;
                     }
                 });
-                Swal.fire({ icon:'success', title:'Processado', text: `Encontradas ${matches} correspondências nos holerites anexados. Valide na tabela antes de Enviar.` });
-                _pmFiltrar();
+
+                if (matches === 0) {
+                    Swal.fire({ icon:'warning', title:'Nenhuma correspondência', text:'Nenhum colaborador foi encontrado nos holerites anexados.', timer:3000 });
+                    _pmFiltrar();
+                    return;
+                }
+
+                // Auto-salvar automaticamente após processar
+                document.getElementById('pm-processing').style.display = 'block';
+                document.getElementById('pm-processing').innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i> Salvando holerites nos colaboradores...';
+
+                const tipo = document.getElementById('pm-tipo-doc')?.value || 'Pagamentos';
+                const mes  = document.getElementById('pm-mes')?.value || String(new Date().getMonth()+1).padStart(2,'0');
+                const ano  = document.getElementById('pm-ano')?.value || String(new Date().getFullYear());
+
+                const itensSalvar = _itensProcessados.filter(i => i.selecionado && i.colaborador_id && (i.paginaAdiantamento || i.paginaPagamento));
+
+                if (itensSalvar.length === 0) {
+                    Swal.fire({ icon:'success', title:'Processado', text: `${matches} correspondências encontradas, mas nenhuma selecionada para salvar.`, timer:3000 });
+                    document.getElementById('pm-processing').style.display = 'none';
+                    _pmFiltrar();
+                    return;
+                }
+
+                const btnEnviar = document.getElementById('pm-btn-enviar');
+                if(btnEnviar){ btnEnviar.disabled = true; btnEnviar.style.opacity = '0.6'; }
+
+                try {
+                    const salvBody = {
+                        pdfBase64: null,
+                        pdfDuploBase64: window._pdfDuploBase64 || null,
+                        tipoDocumento: tipo, mes, ano,
+                        itens: itensSalvar.map(i => ({
+                            pagina: i.pagina,
+                            paginaAdiantamento: i.paginaAdiantamento,
+                            paginaPagamento: i.paginaPagamento,
+                            colaborador_id: i.colaborador_id,
+                            docId: i.docId,
+                            enviarEmail: false,
+                        })),
+                    };
+                    const rs = await fetch('/api/pagamentos-massa/enviar', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) },
+                        body: JSON.stringify(salvBody),
+                    });
+                    const sd = await rs.json();
+                    document.getElementById('pm-processing').style.display = 'none';
+                    if (!rs.ok) throw new Error(sd.error);
+                    _jobId = sd.jobId;
+
+                    document.getElementById('pm-progress-section').style.display = 'block';
+                    document.getElementById('pm-progress-section').scrollIntoView({ behavior: 'smooth' });
+                    const ptxt = document.getElementById('pm-progress-title');
+                    if(ptxt) ptxt.innerHTML = `<span style="background:#10b981;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">3</span> Salvando holerites...`;
+                    window.onbeforeunload = null;
+                    _pmPollStatus(itensSalvar.length, true);
+                } catch(eS) {
+                    document.getElementById('pm-processing').style.display = 'none';
+                    if(btnEnviar){ btnEnviar.disabled = false; btnEnviar.style.opacity = '1'; }
+                    Swal.fire({ icon:'error', title:'Erro ao salvar', text: eS.message });
+                }
             }
         } catch (e) {
             document.getElementById('pm-processing').style.display = 'none';

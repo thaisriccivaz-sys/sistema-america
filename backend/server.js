@@ -6505,6 +6505,7 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
             JOIN colaboradores c ON c.id = d.colaborador_id
             LEFT JOIN departamentos dep ON LOWER(TRIM(dep.nome)) = LOWER(TRIM(c.departamento))
             WHERE d.tab_name = 'Pagamentos'
+              AND (c.status IS NULL OR LOWER(TRIM(c.status)) != 'desligado')
         `;
         const params = [];
         if (tipo) { query += " AND d.document_type = ?"; params.push(tipo); }
@@ -6523,9 +6524,12 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
         // Formatar data/hora para exibir no front
         function fmtDt(dt) {
             if (!dt) return null;
-            const d = new Date(dt);
+            const raw = String(dt);
+            // SQLite retorna sem 'Z', portanto adicionamos para forcar UTC
+            const d = new Date(raw.includes('T') || raw.includes('+') || raw.includes('Z') ? raw : raw.replace(' ', 'T') + 'Z');
             if (isNaN(d)) return null;
-            return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            const brt = new Date(d.getTime() - 3 * 60 * 60 * 1000); // UTC -> UTC-3 (Brasilia)
+            return `${String(brt.getUTCDate()).padStart(2,'0')}/${String(brt.getUTCMonth()+1).padStart(2,'0')}/${brt.getUTCFullYear()} ${String(brt.getUTCHours()).padStart(2,'0')}:${String(brt.getUTCMinutes()).padStart(2,'0')}`;
         }
 
         const resultado = rows.map(r => ({
@@ -6734,11 +6738,30 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
             }
 
 
-            // 5. Enviar para Assinafy (se solicitado)
+            // 5. Enviar para Assinafy (se solicitado) — com retry em Rate Limit (429)
             let urlAssinatura = null;
             if (item.enviarEmail !== false) {
-                const resultado = await novoProcesso.enviarDocumentoParaAssinafy(docId, item.colaborador_id);
-                urlAssinatura = resultado.urlAssinatura;
+                const MAX_RETRIES = 4;
+                let tentativa = 0;
+                let ultimoErro = null;
+                while (tentativa < MAX_RETRIES) {
+                    try {
+                        const resultado = await novoProcesso.enviarDocumentoParaAssinafy(docId, item.colaborador_id);
+                        urlAssinatura = resultado.urlAssinatura;
+                        ultimoErro = null;
+                        break;
+                    } catch(retryErr) {
+                        ultimoErro = retryErr;
+                        const msg = retryErr.message || '';
+                        const isRateLimit = msg.includes('429') || msg.toLowerCase().includes('rate limit');
+                        if (!isRateLimit || tentativa >= MAX_RETRIES - 1) break;
+                        const wait = [8000, 15000, 25000][tentativa] || 30000;
+                        console.warn(`[PAGAMENTOS-MASSA] Rate limit Assinafy — aguardando ${wait/1000}s (tentativa ${tentativa+1}/${MAX_RETRIES})`);
+                        await new Promise(r => setTimeout(r, wait));
+                        tentativa++;
+                    }
+                }
+                if (ultimoErro) throw ultimoErro;
             }
 
             _massaJobs[jobId].done++;
