@@ -53,8 +53,19 @@ window.renderGerenciarAvaliacoes = async function () {
     }
 
     // Mesclar com os templates padrão do AVALIACAO_QUESTIONS
-    // Grupos que já estão no banco não serão duplicados (usa grupo_key como chave única)
-    const dbKeys = new Set(gaTemplates.map(t => `${t.tipo}:${t.grupo_key}`));
+    // Grupos que já estão no banco não serão duplicados.
+    // IMPORTANTE: grupo_key pode ser lista separada por vírgula (ex: 'motorista,ajudante').
+    // Precisamos marcar CADA chave individual para evitar que o padrão reapareça como duplicata.
+    const dbKeys = new Set();
+    gaTemplates.forEach(t => {
+        // Adiciona a chave completa
+        dbKeys.add(`${t.tipo}:${t.grupo_key}`);
+        // Adiciona cada chave individual (para compatibilidade com grupo_key = 'a,b,c')
+        (t.grupo_key || '').split(',').forEach(k => {
+            const kTrimmed = k.trim().toLowerCase();
+            if (kTrimmed) dbKeys.add(`${t.tipo}:${kTrimmed}`);
+        });
+    });
     const defaultTemplates = [];
 
     let hiddenDefaults = [];

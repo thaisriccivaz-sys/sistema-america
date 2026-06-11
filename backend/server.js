@@ -7791,6 +7791,38 @@ app.delete('/api/avaliacao-templates/:id', authenticateToken, (req, res) => {
     });
 });
 
+// Limpeza de duplicatas de avaliacao_templates:
+// Mantém apenas o registro de MAIOR id por (tipo, nome), removendo os mais antigos.
+app.post('/api/avaliacao-templates/dedup', authenticateToken, (req, res) => {
+    db.all('SELECT id, tipo, nome FROM avaliacao_templates ORDER BY tipo, nome, id', (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        // Agrupar por tipo+nome, manter o maior id
+        const seen = new Map();
+        const toDelete = [];
+        rows.forEach(r => {
+            const key = `${r.tipo}::${(r.nome || '').trim().toLowerCase()}`;
+            if (seen.has(key)) {
+                // Manter o maior id, deletar o menor
+                const existing = seen.get(key);
+                if (r.id > existing.id) {
+                    toDelete.push(existing.id);
+                    seen.set(key, r);
+                } else {
+                    toDelete.push(r.id);
+                }
+            } else {
+                seen.set(key, r);
+            }
+        });
+        if (toDelete.length === 0) return res.json({ deleted: 0, message: 'Nenhuma duplicata encontrada.' });
+        const placeholders = toDelete.map(() => '?').join(',');
+        db.run(`DELETE FROM avaliacao_templates WHERE id IN (${placeholders})`, toDelete, function(err2) {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ deleted: this.changes, ids: toDelete });
+        });
+    });
+});
+
 // --- ROTA DE ENVIO DE E-MAIL ASO ---
 app.post('/api/send-aso-email', authenticateToken, (req, res) => {
     const { colaborador_id, email_to, data_exame, cc, tipo_exame, nova_funcao } = req.body;
