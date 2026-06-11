@@ -7926,12 +7926,8 @@ window.loadGeradores = async function () {
 // ─── Seção de Recibos de Benefícios nos Geradores ─────────────────────────────
 window.renderRecibosGeradoresSection = function () {
     const sec = document.getElementById('recibos-geradores-section');
-    if (!sec) return;
-
-    const hoje = new Date();
-    const mesAt = hoje.getMonth() + 1;
-    const anoAt = hoje.getFullYear();
-    const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    if (sec) sec.style.display = 'none';
+    return;
 
     sec.innerHTML = `
     <div style="margin-bottom:1.5rem;">
