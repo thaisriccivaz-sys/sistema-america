@@ -53,65 +53,13 @@ db.serialize(() => {
     // Para manter o banco leve, podemos limpar recibos antigos também
     db.run('DELETE FROM recibos_historico'); 
 
-    // B. Anonimizar Colaboradores
-    console.log('B. Anonimizando dados dos Colaboradores...');
-    db.all('SELECT id FROM colaboradores', [], (err, rows) => {
-        if (err) throw err;
-        
-        const stmt = db.prepare(`
-            UPDATE colaboradores 
-            SET nome_completo = ?, cpf = ?, rg = ?, data_nascimento = ?, 
-                nome_mae = ?, nome_pai = ?, telefone = ?, email = ?, 
-                endereco = ?, salario = ?, contato_emergencia_nome = ?, 
-                contato_emergencia_telefone = ?, contato_emergencia2_nome = ?, 
-                contato_emergencia2_telefone = ?, cnh_numero = ?, 
-                email_corporativo = ?, banco_conta = ?, banco_agencia = ?, 
-                pis = ?, ctps_numero = ?, titulo_eleitoral = ?, foto_base64 = ?
-            WHERE id = ?
-        `);
-
-        rows.forEach((row, index) => {
-            const fakeId = index + 1;
-            stmt.run(
-                `Colaborador Fictício ${fakeId}`, // nome_completo
-                getRandomCPF(),                   // cpf
-                `RG-${fakeId}99999`,              // rg
-                '1990-01-01',                     // data_nascimento
-                'Mãe Fictícia',                   // nome_mae
-                'Pai Fictício',                   // nome_pai
-                getRandomPhone(),                 // telefone
-                `colaborador${fakeId}@teste.com`, // email
-                'Rua Fictícia, 123, Bairro Teste, São Paulo - SP', // endereco
-                1500.00,                          // salario
-                'Emergência 1',                   // contato_emergencia_nome
-                getRandomPhone(),                 // contato_emergencia_telefone
-                'Emergência 2',                   // contato_emergencia2_nome
-                getRandomPhone(),                 // contato_emergencia2_telefone
-                `CNH${fakeId}000`,                // cnh_numero
-                `corp${fakeId}@america.com`,      // email_corporativo
-                '0000-0',                         // banco_conta
-                '0000',                           // banco_agencia
-                `PIS-${fakeId}000`,               // pis
-                `CTPS-${fakeId}`,                 // ctps_numero
-                `TITULO-${fakeId}`,               // titulo_eleitoral
-                null,                             // foto_base64
-                row.id                            // WHERE id
-            );
-        });
-        stmt.finalize();
-        console.log(`   -> ${rows.length} colaboradores anonimizados.`);
+    // B. Excluir todos os Colaboradores
+    console.log('B. Excluindo todos os Colaboradores (a pedido para limpar o ambiente)...');
+    db.run('DELETE FROM colaboradores', function(err) {
+        if (!err) console.log(`   -> ${this.changes} colaboradores excluídos.`);
     });
-
-    // C. Anonimizar Dependentes
-    console.log('C. Anonimizando Dependentes...');
-    db.all('SELECT id FROM dependentes', [], (err, rows) => {
-        if (err) throw err;
-        const stmt = db.prepare('UPDATE dependentes SET nome = ?, cpf = ? WHERE id = ?');
-        rows.forEach((row, index) => {
-            stmt.run(`Dependente Fictício ${index + 1}`, getRandomCPF(), row.id);
-        });
-        stmt.finalize();
-    });
+    db.run('DELETE FROM dependentes');
+    db.run('DELETE FROM avaliacoes');
 
     // D. Anonimizar Usuários do Sistema
     console.log('D. Anonimizando Usuários (Senha e Login configurados)...');
