@@ -174,7 +174,7 @@ function _renderAll(el) {
         <input id="equipes-search" type="text" placeholder="Buscar colaborador..." oninput="window._equipesSearch(this.value)" style="flex:1;">
         <div style="display:flex;gap:8px;font-size:0.72rem;align-items:center;white-space:nowrap;">
           <div style="display:flex;align-items:center;gap:4px;color:#64748b;"><div style="width:10px;height:10px;border-radius:2px;background:#faf5ff;border:1.5px solid #a855f7;"></div> Afastado/Férias</div>
-          <div style="display:flex;align-items:center;gap:4px;color:#64748b;"><div style="width:10px;height:10px;border-radius:2px;background:#f0fdf4;border:1.5px solid #22c55e;"></div> Experiência</div>
+          <div style="display:flex;align-items:center;gap:4px;color:#64748b;"><div style="width:10px;height:10px;border-radius:2px;background:#fff;border:1.5px solid #e2e8f0;"></div> Experiência</div>
           <div style="display:flex;align-items:center;gap:4px;color:#64748b;"><div style="width:10px;height:10px;border-radius:2px;background:#f3f4f6;border:1.5px dashed #cbd5e1;"></div> Folga Hoje</div>
         </div>
       </div>
@@ -274,7 +274,7 @@ function _isHojeFolga(m) {
       if (!m.escala_ciclo_inicio) return false;
       const MS_DIA = 24 * 60 * 60 * 1000;
       const ref = new Date(m.escala_ciclo_inicio + 'T00:00:00');
-      const diasDif = Math.floor((hoje - ref) / MS_DIA);
+      const diasDif = Math.round((hoje - ref) / MS_DIA);
       return Math.abs(diasDif) % 2 !== 0; // se ímpar, é folga
   }
 
@@ -445,7 +445,7 @@ const FUNC_STYLE = {
   lider:        { bg: '#fef3c7', color: '#92400e', label: 'Líder' },
 };
 
-const STATUS_COR = { ativo: '#22c55e', folga: '#94a3b8', ferias: '#8b5cf6', afastado: '#8b5cf6', experiencia: '#eab308' };
+const STATUS_COR = { ativo: '#22c55e', folga: '#94a3b8', ferias: '#8b5cf6', afastado: '#8b5cf6', experiencia: '#22c55e' };
 
 function _renderCard(m) {
   const fs = FUNC_STYLE[m.funcao] || FUNC_STYLE.ajudante;
@@ -497,8 +497,8 @@ function _renderCard(m) {
       borderStyle = 'border-color:#a855f7;background:#faf5ff;';
       avatarBorder = 'border-color:#9333ea;border-width:2px;';
   } else if (emExp) {
-      borderStyle = 'border-color:#22c55e;background:#f0fdf4;';
-      avatarBorder = 'border-color:#16a34a;border-width:2px;';
+      borderStyle = '';
+      avatarBorder = '';
   }
   
   const isMotorista = (m.cargo || '').toLowerCase().includes('motorista');
@@ -507,6 +507,7 @@ function _renderCard(m) {
   const labelText = `${baseCargo}${isMotorista && m.cnh_categoria && !baseCargo.includes('(') ? ` (${m.cnh_categoria})` : ''}`;
   const badgeBg = isMotorista ? '#dbeafe' : '#f1f5f9';
   const badgeColor = isMotorista ? '#1d4ed8' : '#475569';
+  const expTag = emExp ? ` <span style="color:#f97316;font-weight:800;">- EXPERIÊNCIA</span>` : '';
 
   const avatarHtml = _eq_fotoSrc(m)
     ? `<img class="eq-avatar" src="${_eq_fotoSrc(m)}" alt="${nome}" style="${avatarBorder}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
@@ -527,8 +528,8 @@ function _renderCard(m) {
     style="position:relative;${borderStyle}">
     ${avatarHtml}
     <div class="eq-card-info">
-      <div class="eq-card-name" style="${isHojeFolga ? 'color:#64748b;text-decoration:line-through;' : ''}">${nome}${emExp?` <span style="font-size:.58rem;background:#bbf7d0;color:#166534;border-radius:3px;padding:0 3px;font-weight:800;">EXP</span>`:''}</div>
-      <span class="eq-card-func" style="background:${isHojeFolga ? '#e2e8f0' : badgeBg};color:${isHojeFolga ? '#64748b' : badgeColor};">${labelText}</span>
+      <div class="eq-card-name" style="${isHojeFolga ? 'color:#64748b;text-decoration:line-through;' : ''}">${nome}</div>
+      <span class="eq-card-func" style="background:${isHojeFolga ? '#e2e8f0' : badgeBg};color:${isHojeFolga ? '#64748b' : badgeColor};">${labelText}${expTag}</span>
       ${m.escala ? `<div class="eq-card-escala" style="${isHojeFolga ? 'color:#94a3b8;' : ''}">${isHojeFolga ? '<i class="ph ph-moon"></i> Em Folga' : m.escala}</div>` : ''}
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
