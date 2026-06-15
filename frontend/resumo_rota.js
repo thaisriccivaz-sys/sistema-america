@@ -1890,66 +1890,39 @@ async function _rrGerarExcel() {
     try { canvases = await _rrGerarImagensRota() || []; }
     catch (e) { console.error('[RR] Erro ao gerar imagens:', e); }
 
-    const excelBlob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    // ── Empacotar tudo em ZIP ────────────────────────────────────
+    try {
+        const zip = new JSZip();
 
-    // ── Salvar em pasta via File System Access API (Chrome/Edge) ───
-    if (typeof window.showDirectoryPicker === 'function') {
-        try {
-            showToast('📂 Selecione a pasta onde os arquivos serão salvos...', 'info');
-            const dirHandle = await window.showDirectoryPicker({
-                id: 'rr-export-dir',
-                mode: 'readwrite',
-                startIn: 'downloads',
-            });
+        // Excel na raiz do ZIP
+        zip.file(`${nomeBase}.xlsx`, buf);
 
-            // Salva Excel
-            const xlsHandle = await dirHandle.getFileHandle(`${nomeBase}.xlsx`, { create: true });
-            const xlsWritable = await xlsHandle.createWritable();
-            await xlsWritable.write(excelBlob);
-            await xlsWritable.close();
-
-            // Salva cada imagem
-            let imgCount = 0;
-            for (let i = 0; i < canvases.length; i++) {
-                try {
-                    const imgBlob = await new Promise((res, rej) =>
-                        canvases[i].toBlob(b => b ? res(b) : rej(new Error('toBlob null')), 'image/png'));
-                    const imgHandle = await dirHandle.getFileHandle(
-                        `${nomeBase}_img${String(i + 1).padStart(2, '0')}.png`, { create: true });
-                    const imgWritable = await imgHandle.createWritable();
-                    await imgWritable.write(imgBlob);
-                    await imgWritable.close();
-                    imgCount++;
-                } catch (e) { console.warn(`[RR] Imagem ${i + 1} falhou:`, e); }
-            }
-
-            showToast(`✅ Planilha + ${imgCount} imagem(ns) salvas na pasta "${dirHandle.name}"!`, 'success');
-            return;
-        } catch (e) {
-            if (e.name === 'AbortError') {
-                // Usuário cancelou o seletor
-                showToast('⚠️ Exportação cancelada pelo usuário.', 'warning');
-                return;
-            }
-            console.warn('[RR] showDirectoryPicker falhou, usando fallback:', e);
+        // Imagens em pasta Imagens/
+        if (canvases.length > 0) {
+            const imgFolder = zip.folder('Imagens');
+            await Promise.all(canvases.map((cv, i) =>
+                new Promise(res => cv.toBlob(b => {
+                    if (b) imgFolder.file(`img_${String(i + 1).padStart(2, '0')}.png`, b);
+                    res();
+                }, 'image/png'))
+            ));
         }
-    }
 
-    // ── Fallback: downloads individuais (Firefox / Safari) ─────────
-    saveAs(excelBlob, `${nomeBase}.xlsx`);
-    let imgCount = 0;
-    for (let i = 0; i < canvases.length; i++) {
-        try {
-            await new Promise((res, rej) => canvases[i].toBlob(b => {
-                if (!b) { rej(new Error('toBlob null')); return; }
-                saveAs(b, `${nomeBase}_img${String(i + 1).padStart(2, '0')}.png`);
-                imgCount++;
-                res();
-            }, 'image/png'));
-            if (i < canvases.length - 1) await new Promise(r => setTimeout(r, 400));
-        } catch (e) { console.warn(`[RR] Imagem ${i + 1}:`, e); }
+        const zipBlob = await zip.generateAsync({
+            type: 'blob',
+            compression: 'DEFLATE',
+            compressionOptions: { level: 4 },
+        });
+
+        saveAs(zipBlob, `${nomeBase}.zip`);
+        showToast(`✅ ZIP gerado: planilha + ${canvases.length} imagem(ns)!`, 'success');
+    } catch (err) {
+        console.error('[RR] Erro ao gerar ZIP:', err);
+        // Fallback: baixa só o Excel
+        const excelBlob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveAs(excelBlob, `${nomeBase}.xlsx`);
+        showToast('⚠️ Erro no ZIP. Planilha baixada individualmente: ' + (err.message || err), 'warning');
     }
-    showToast(`✅ Planilha + ${imgCount} imagem(ns) exportadas!`, 'success');
 }
 
 
