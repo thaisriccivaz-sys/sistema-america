@@ -2606,6 +2606,35 @@ app.get('/api/equipes/colaboradores-sem-equipe', authenticateToken, (req, res) =
     });
 });
 
+// ── GET /api/equipes/colaboradores-disponiveis ────────────────────────────────
+// Retorna todos os colaboradores operacionais ativos, com status de disponibilidade
+// para a data informada (folga, férias, afastado são marcados mas retornados)
+app.get('/api/equipes/colaboradores-disponiveis', authenticateToken, (req, res) => {
+    const data = req.query.data || new Date().toISOString().split('T')[0];
+    db.all(`
+        SELECT c.id, c.nome_completo, c.cargo, c.foto_base64, c.foto_path,
+               c.status as colab_status, c.ferias_programadas_inicio, c.ferias_programadas_fim,
+               c.tipo_contrato, c.data_admissao, c.escala_tipo, c.escala_folgas, c.escala_ciclo_inicio,
+               c.horario_entrada, c.horario_saida,
+               em.equipe_id, em.funcao, em.escala, eq.nome as equipe_nome,
+               d.tipo as departamento_tipo
+        FROM colaboradores c
+        LEFT JOIN equipes_membros em ON em.colaborador_id = c.id
+        LEFT JOIN equipes eq ON eq.id = em.equipe_id
+        LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
+                                  OR LOWER(TRIM(d.nome)) = LOWER(TRIM(c.cargo))
+        WHERE LOWER(c.status) NOT LIKE '%desligado%'
+          AND LOWER(c.status) NOT LIKE '%iniciado%'
+          AND (d.tipo = 'Operacional'
+               OR (d.id IS NULL AND c.departamento IN ('EXTERNO', 'PÁTIO', 'MOTORISTA FREE'))
+               OR em.equipe_id IS NOT NULL)
+        GROUP BY c.id
+        ORDER BY c.nome_completo ASC`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
 console.log('[EQUIPES] Endpoints registrados.');
 
 // ─────────────────────────────────────────────────────────────────────────────

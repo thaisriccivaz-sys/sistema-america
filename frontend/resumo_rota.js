@@ -918,9 +918,228 @@ function _rrRenderCorpo() {
             </div>
         `;
     }).join('');
+
+    // Append painel de colaboradores disponíveis
+    _rrRenderColabDisponiveis();
 }
 
-// ── Atualiza veiculo/motorista/ajudante diretamente na estrutura de dados ──────
+// ══════════════════════════════════════════════════════════════
+//  PAINEL: COLABORADORES DISPONÍVEIS NO DIA
+// ══════════════════════════════════════════════════════════════
+window._rrColabDisponiveisObs = window._rrColabDisponiveisObs || {}; // id -> { obs, obsAlt }
+
+async function _rrRenderColabDisponiveis() {
+    const corpo = document.getElementById('rr-corpo');
+    if (!corpo) return;
+
+    // Insere container placeholder se não existir
+    let painel = document.getElementById('rr-colab-disp-painel');
+    if (!painel) {
+        painel = document.createElement('div');
+        painel.id = 'rr-colab-disp-painel';
+        corpo.appendChild(painel);
+    }
+    painel.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:16px 0 8px;"
+        ><i class="ph ph-users" style="font-size:1.4rem;color:#2d9e5f;"></i
+        ><span style="font-size:1rem;font-weight:700;color:#1e293b;">Colaboradores Disponíveis para Trabalho hoje</span
+        ><span id="rr-colab-disp-loading" style="font-size:0.8rem;color:#94a3b8;margin-left:6px;">carregando...</span></div>`;
+
+    // Dados da rota para cruzar nomes na rota
+    const dataRota = window._rrDataRotaAtual || new Date().toISOString().split('T')[0];
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    const headers = { 'Authorization': 'Bearer ' + token };
+
+    let colabs = [];
+    try {
+        const res = await fetch(`/api/equipes/colaboradores-disponiveis?data=${dataRota}`, { headers });
+        if (res.ok) colabs = await res.json();
+    } catch(e) {
+        console.error('[RR] Erro ao carregar colaboradores disponíveis:', e);
+    }
+
+    // Função para checar se está de folga no dia
+    function _rrIsFolga(c, dataStr) {
+        const hoje = new Date(dataStr + 'T00:00:00');
+        const ds = hoje.getDay();
+        const escalaTipo = (c.escala_tipo || '').trim();
+        if (!escalaTipo || escalaTipo === 'null') return ds === 0 || ds === 6;
+        if (escalaTipo === 'padrao_seis_dias' || escalaTipo === 'padrao_sab_4h') return ds === 0;
+        if (escalaTipo === 'padrao_sab_alternado') {
+            if (ds === 0) return true;
+            if (ds === 6) {
+                if (!c.escala_ciclo_inicio) return false;
+                const MS_SEMANA = 7 * 24 * 60 * 60 * 1000;
+                const refSab = new Date(c.escala_ciclo_inicio + 'T00:00:00');
+                while (refSab.getDay() !== 6) refSab.setDate(refSab.getDate() + 1);
+                const semanas = Math.round((hoje - refSab) / MS_SEMANA);
+                return ((semanas % 2) + 2) % 2 !== 0;
+            }
+            return false;
+        }
+        if (escalaTipo === 'escala_duas_folgas') {
+            let folgas = [];
+            try { folgas = JSON.parse(c.escala_folgas || '[]'); } catch(e) {}
+            const DIAS_NOME = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+            const diasFolgaFixos = folgas.map(f => DIAS_NOME.indexOf(f)).filter(n => n >= 0);
+            if (diasFolgaFixos.includes(ds)) return true;
+            if (ds === 0) {
+                if (!c.escala_ciclo_inicio) return false;
+                const MS_SEMANA = 7 * 24 * 60 * 60 * 1000;
+                const refDom = new Date(c.escala_ciclo_inicio + 'T00:00:00');
+                while (refDom.getDay() !== 0) refDom.setDate(refDom.getDate() + 1);
+                const semanas = Math.round((hoje - refDom) / MS_SEMANA);
+                return ((semanas % 3) + 3) % 3 === 2;
+            }
+            return false;
+        }
+        if (escalaTipo === 'escala_12x36') {
+            if (!c.escala_ciclo_inicio) return false;
+            const MS_DIA = 24 * 60 * 60 * 1000;
+            const ref = new Date(c.escala_ciclo_inicio + 'T00:00:00');
+            const diasDif = Math.round((hoje - ref) / MS_DIA);
+            return Math.abs(diasDif) % 2 !== 0;
+        }
+        if (escalaTipo === 'padrao_seg_sexta') return ds === 0 || ds === 6;
+        return ds === 0 || ds === 6;
+    }
+
+    function _rrIsFeriasAfastado(c, dataStr) {
+        const st = (c.colab_status || '').toLowerCase();
+        if (st.includes('afastado')) return 'afastado';
+        if (c.ferias_programadas_inicio && c.ferias_programadas_fim) {
+            const parse = d => { if (!d) return null; if (d.includes('/')) { const p = d.split('/'); return new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`); } return new Date(d + 'T00:00:00'); };
+            const ini = parse(c.ferias_programadas_inicio), fim = parse(c.ferias_programadas_fim);
+            const ref = new Date(dataStr + 'T00:00:00');
+            if (ini && fim && ref >= ini && ref <= fim) return 'ferias';
+        }
+        return null;
+    }
+
+    // Nomes que estão na rota
+    const nomesNaRota = new Set();
+    (_rrVeiculos || []).forEach(v => {
+        if (v.motorista && v.motorista.trim()) nomesNaRota.add(v.motorista.trim().toLowerCase());
+        if (v.ajudante && v.ajudante.trim()) nomesNaRota.add(v.ajudante.trim().toLowerCase());
+    });
+
+    // Filtrar: remover folga, férias, afastados
+    const disponiveis = colabs.filter(c => {
+        const indisponivel = _rrIsFeriasAfastado(c, dataRota);
+        if (indisponivel) return false;
+        if (_rrIsFolga(c, dataRota)) return false;
+        return true;
+    });
+
+    // Separar em rota vs sem atribuição
+    const naRota = disponiveis.filter(c => nomesNaRota.has((c.nome_completo || '').toLowerCase().trim()));
+    const semAtribuicao = disponiveis.filter(c => !nomesNaRota.has((c.nome_completo || '').toLowerCase().trim()));
+
+    const fotoUrl = c => c.foto_path ? `/api/colaboradores/foto/${c.id}` : null;
+    const avatarHtml = c => {
+        const f = fotoUrl(c);
+        const iniciais = (c.nome_completo || '?').split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase();
+        const bg = ['#6366f1','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'][c.id % 6];
+        return f
+            ? `<img src="${f}" alt="${c.nome_completo}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div style="width:52px;height:52px;border-radius:50%;background:${bg};display:none;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:#fff;flex-shrink:0;">${iniciais}</div>`
+            : `<div style="width:52px;height:52px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:#fff;flex-shrink:0;">${iniciais}</div>`;
+    };
+
+    const cardRota = c => {
+        const cargo = (c.cargo || c.funcao || '').replace(/Motorista/i,'Mot.').replace(/Ajudante/i,'Aj.');
+        return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 8px;background:#f0fdf4;border-radius:10px;border:1.5px solid #bbf7d0;min-width:90px;max-width:110px;text-align:center;">
+            <div style="display:flex;justify-content:center;">${avatarHtml(c)}</div>
+            <div style="font-size:0.72rem;font-weight:700;color:#15803d;line-height:1.2;">${(c.nome_completo||'').split(' ').slice(0,2).join(' ')}</div>
+            ${cargo ? `<div style="font-size:0.65rem;color:#6b7280;background:#d1fae5;padding:2px 6px;border-radius:4px;">${cargo}</div>` : ''}
+            <div style="font-size:0.62rem;color:#22c55e;font-weight:600;"><i class="ph ph-check-circle"></i> Na Rota</div>
+        </div>`;
+    };
+
+    const cardSemAtribuicao = c => {
+        const savedObs = (window._rrColabDisponiveisObs[c.id] || {});
+        const cargo = (c.cargo || '').replace(/Motorista/i,'Mot.').replace(/Ajudante/i,'Aj.');
+        return `<div style="display:flex;flex-direction:column;gap:8px;padding:12px;background:#fff;border-radius:10px;border:1.5px solid #e2e8f0;min-width:200px;max-width:240px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="flex-shrink:0;display:flex;">${avatarHtml(c)}</div>
+                <div>
+                    <div style="font-size:0.8rem;font-weight:700;color:#1e293b;line-height:1.3;">${c.nome_completo||''}</div>
+                    ${cargo ? `<div style="font-size:0.68rem;color:#6b7280;margin-top:2px;">${cargo}</div>` : ''}
+                    <div style="font-size:0.65rem;color:#f59e0b;font-weight:600;margin-top:2px;"><i class="ph ph-warning"></i> Sem atribuição</div>
+                </div>
+            </div>
+            <div>
+                <div style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">Obs. Roteirizador</div>
+                <textarea rows="2" data-colab-id="${c.id}" data-colab-field="obs"
+                    placeholder="Observação para este colaborador..."
+                    style="width:100%;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;font-size:0.75rem;color:#1e293b;resize:vertical;outline:none;box-sizing:border-box;background:#fefce8;"
+                    onfocus="this.style.borderColor='#ca8a04'"
+                    onblur="this.style.borderColor='#e2e8f0'; window._rrSalvarColabObs(${c.id},'obs',this.value)"
+                >${savedObs.obs || ''}</textarea>
+            </div>
+            <div>
+                <div style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">Obs. Alterações</div>
+                <textarea rows="2" data-colab-id="${c.id}" data-colab-field="obsAlt"
+                    placeholder="Obs. de alterações..."
+                    style="width:100%;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;font-size:0.75rem;color:#1e293b;resize:vertical;outline:none;box-sizing:border-box;background:#f8fafc;"
+                    onfocus="this.style.borderColor='#3b82f6'"
+                    onblur="this.style.borderColor='#e2e8f0'; window._rrSalvarColabObs(${c.id},'obsAlt',this.value)"
+                >${savedObs.obsAlt || ''}</textarea>
+            </div>
+        </div>`;
+    };
+
+    const dataLabel = new Date(dataRota + 'T12:00:00').toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long'});
+    const totalDisp = disponiveis.length;
+    const totalFora = semAtribuicao.length;
+
+    painel.innerHTML = `
+    <div style="margin-top:24px;border-radius:14px;overflow:hidden;border:1.5px solid #e2e8f0;background:#fff;">
+        <div style="background:linear-gradient(135deg,#2d9e5f 0%,#1a7a48 100%);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <i class="ph ph-users" style="font-size:1.5rem;color:rgba(255,255,255,0.9);"></i>
+                <div>
+                    <div style="color:#fff;font-weight:800;font-size:1rem;">Colaboradores Disponíveis para Trabalho</div>
+                    <div style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:2px;"><i class="ph ph-calendar"></i> ${dataLabel}</div>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;">
+                <div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:6px 14px;text-align:center;">
+                    <div style="color:#fff;font-size:1.2rem;font-weight:800;">${totalDisp}</div>
+                    <div style="color:rgba(255,255,255,0.75);font-size:0.7rem;">disponíveis</div>
+                </div>
+                <div style="background:rgba(255,165,0,0.3);border-radius:8px;padding:6px 14px;text-align:center;">
+                    <div style="color:#fde047;font-size:1.2rem;font-weight:800;">${totalFora}</div>
+                    <div style="color:rgba(255,255,255,0.75);font-size:0.7rem;">sem atribuição</div>
+                </div>
+            </div>
+        </div>
+
+        ${naRota.length ? `
+        <div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;">
+            <div style="font-size:0.7rem;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+                <i class="ph ph-truck"></i> Na Rota (${naRota.length})
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;">${naRota.map(cardRota).join('')}</div>
+        </div>` : ''}
+
+        ${semAtribuicao.length ? `
+        <div style="padding:16px 20px;">
+            <div style="font-size:0.7rem;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+                <i class="ph ph-warning-circle"></i> Sem Atribuição — Aguardam Designação (${semAtribuicao.length})
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;">${semAtribuicao.map(cardSemAtribuicao).join('')}</div>
+        </div>` : `
+        <div style="padding:20px;text-align:center;color:#22c55e;font-size:0.9rem;">
+            <i class="ph ph-check-circle" style="font-size:1.5rem;"></i>
+            <p>Todos os colaboradores disponíveis hoje estão com atribuição na rota! 🎉</p>
+        </div>`}
+    </div>`;
+}
+
+window._rrSalvarColabObs = function(colabId, field, value) {
+    if (!window._rrColabDisponiveisObs[colabId]) window._rrColabDisponiveisObs[colabId] = {};
+    window._rrColabDisponiveisObs[colabId][field] = value;
+};
+
 window._rrAtualizarVeiculo = function(idx, campo, valor) {
     if (!_rrVeiculos[idx]) return;
     _rrVeiculos[idx][campo] = valor;
