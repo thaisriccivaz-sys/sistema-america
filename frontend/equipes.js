@@ -309,6 +309,37 @@ function _eqAlertas(membros) {
   return [];
 }
 
+window._eqToggleDestaque = async function(e, colabId) {
+  // Ignora se estiver arrastando (evita disparar no final do drag) ou clicou no botão excluir
+  if (e.target.closest('button') || e.target.closest('.ph-x')) return;
+  
+  try {
+      const res = await _eq_patch(`/colaboradores/${colabId}/destaque`, {});
+      if (res.sucesso) {
+          // Atualiza localmente nos dados para refletir instantaneamente
+          let changed = false;
+          _equipes.forEach(eq => {
+              const m = eq.membros.find(x => (x.colaborador_id||x.id) === colabId);
+              if (m) { m.destaque_equipe = m.destaque_equipe === 1 ? 0 : 1; changed = true; }
+          });
+          if (!changed) {
+              const sem = _semEquipe.find(x => (x.colaborador_id||x.id) === colabId);
+              if (sem) sem.destaque_equipe = sem.destaque_equipe === 1 ? 0 : 1;
+          }
+          const board = document.getElementById('equipes-board');
+          if (board) board.innerHTML = _renderBoard(_busca);
+          _reRenderFora();
+          const { vEq } = _getVirtualData();
+          const reservaEq = vEq.find(eq => eq.nome === 'Equipe Reserva');
+          const intermitenteEq = vEq.find(eq => eq.nome === 'Equipe Intermitente');
+          if (reservaEq) _reRenderColuna(reservaEq.id);
+          if (intermitenteEq) _reRenderColuna(intermitenteEq.id);
+      }
+  } catch (err) {
+      console.error('Erro ao alternar destaque:', err);
+  }
+};
+
 function _eqStatus(membros) {
   if (membros.length === 0) return { cor: '#ef4444', label: 'Incompleta' };
   const temMotorista = membros.some(m => m.funcao === 'motorista');
@@ -542,6 +573,10 @@ function _renderCard(m) {
       avatarBorder = '';
   }
   
+  if (m.destaque_equipe === 1) {
+      borderStyle += 'border-color:#ef4444;border-width:2px;border-style:solid;';
+  }
+  
   const isMotorista = (m.cargo || '').toLowerCase().includes('motorista');
   let baseCargo = m.cargo || (m.funcao === 'motorista' ? 'Motorista' : 'Ajudante');
   baseCargo = baseCargo.replace(/Motorista/i, 'Mot.').replace(/Ajudante/i, 'Aj.');
@@ -566,6 +601,7 @@ function _renderCard(m) {
     ondragleave="window._eqCardDragLeave(event,this)"
     onmouseenter="window._eqShowTooltip(event,${m.colaborador_id||m.id})"
     onmouseleave="window._eqHideTooltip()"
+    onclick="window._eqToggleDestaque(event, ${m.colaborador_id||m.id})"
     style="position:relative;${borderStyle}">
     ${avatarHtml}
     <div class="eq-card-info">

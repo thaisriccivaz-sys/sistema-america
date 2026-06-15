@@ -2410,7 +2410,7 @@ app.get('/api/equipes', authenticateToken, (req, res) => {
 
         // Para cada equipe, buscar membros com dados do colaborador
         const promises = equipes.map(eq => new Promise((resolve) => {
-            db.all(`SELECT em.*, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.status as colab_status, c.cnh_categoria, c.ferias_programadas_inicio, c.ferias_programadas_fim, c.tipo_contrato, c.data_admissao, c.escala_tipo, c.escala_folgas, c.escala_ciclo_inicio, c.horario_entrada, c.horario_saida
+            db.all(`SELECT em.*, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.status as colab_status, c.cnh_categoria, c.ferias_programadas_inicio, c.ferias_programadas_fim, c.tipo_contrato, c.data_admissao, c.escala_tipo, c.escala_folgas, c.escala_ciclo_inicio, c.horario_entrada, c.horario_saida, c.destaque_equipe
                 FROM equipes_membros em
                 JOIN colaboradores c ON c.id = em.colaborador_id
                 WHERE em.equipe_id = ? AND LOWER(c.status) NOT LIKE '%desligado%' AND LOWER(c.status) NOT LIKE '%iniciado%'
@@ -2489,6 +2489,14 @@ app.delete('/api/equipes/:id/membros/:colaborador_id', authenticateToken, (req, 
             if (err) return res.status(500).json({ error: err.message });
             res.json({ sucesso: true });
         });
+});
+
+// ── PATCH /api/colaboradores/:id/destaque ──────────────────────────────────────────
+app.patch('/api/colaboradores/:id/destaque', authenticateToken, (req, res) => {
+    db.run('UPDATE colaboradores SET destaque_equipe = CASE WHEN destaque_equipe = 1 THEN 0 ELSE 1 END WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ sucesso: true });
+    });
 });
 
 // ── PATCH /api/equipes/trocar ────────────────────────────────────────────────────────
@@ -2585,7 +2593,7 @@ app.post('/api/equipes/verificar-ferias', authenticateToken, (req, res) => {
 
 // ── GET /api/equipes/colaboradores-sem-equipe ─────────────────────────────────
 app.get('/api/equipes/colaboradores-sem-equipe', authenticateToken, (req, res) => {
-    db.all(`SELECT c.id, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.cnh_categoria, c.status as colab_status, c.ferias_programadas_inicio, c.ferias_programadas_fim, c.tipo_contrato, c.data_admissao, c.escala_tipo, c.escala_folgas, c.escala_ciclo_inicio, c.horario_entrada, c.horario_saida
+    db.all(`SELECT c.id, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.cnh_categoria, c.status as colab_status, c.ferias_programadas_inicio, c.ferias_programadas_fim, c.tipo_contrato, c.data_admissao, c.escala_tipo, c.escala_folgas, c.escala_ciclo_inicio, c.horario_entrada, c.horario_saida, c.destaque_equipe
         FROM colaboradores c
         LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) OR LOWER(TRIM(d.nome)) = LOWER(TRIM(c.cargo))
         WHERE LOWER(c.status) NOT LIKE '%desligado%' AND LOWER(c.status) NOT LIKE '%iniciado%'
