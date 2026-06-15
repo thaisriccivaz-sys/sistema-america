@@ -1511,11 +1511,16 @@ async function _rrGerarImagensRota() {
 
     function lineStyle(line) {
         const u = line.toUpperCase().trim();
-        // Todos os textos em preto padrão — apenas headers ficam em negrito
-        const isHeader = u.includes('RETIRADA') || u.includes('ENTREGA')
-            || u.includes('MANUTENCAO') || u.includes('MANUTEN\u00c7\u00c3O') || u.includes('MANUTENÇÃO')
-            || u.startsWith('\u2757') || u.startsWith('\u2b55') || u.includes('COMPRAS');
-        return { color: '#1e293b', bold: isHeader && !/^\s+\d/.test(line) };
+        // Apenas títulos de seção (terminam com ':') recebem cor especial
+        if (u.endsWith(':')) {
+            if (u.includes('RETIRADA'))
+                return { color: '#b91c1c', bold: true };   // vermelho
+            if (u.includes('ENTREGA'))
+                return { color: '#1e40af', bold: true };   // azul
+            if (u.includes('MANUTENCAO') || u.includes('MANUTEN\u00c7\u00c3O') || u.includes('MANUTEN\u00c7\u00c3O'))
+                return { color: '#78350f', bold: true };   // marrom
+        }
+        return { color: '#1e293b', bold: false };
     }
 
     // Quebra de texto em múltiplas linhas para evitar compressão
@@ -1879,39 +1884,72 @@ async function _rrGerarExcel() {
     const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
     const nomeBase = `Resumo_Rota_${hoje}`;
 
-    // ── Baixa Excel SEMPRE primeiro ─────────────────────────────────
-    const excelBlob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(excelBlob, `${nomeBase}.xlsx`);
-
-    // ── Gerar e baixar imagens individualmente ────────────────────────
+    // ── Gerar imagens ─────────────────────────────────────────────
     showToast('⏳ Gerando imagens da rota...', 'info');
-    try {
-        const canvases = await _rrGerarImagensRota();
-        if (!canvases || canvases.length === 0) {
-            showToast('✅ Planilha exportada! (Nenhuma imagem gerada — rota vazia?)', 'warning');
-            return;
-        }
+    let canvases = [];
+    try { canvases = await _rrGerarImagensRota() || []; }
+    catch (e) { console.error('[RR] Erro ao gerar imagens:', e); }
 
-        let imgCount = 0;
-        for (let i = 0; i < canvases.length; i++) {
-            try {
-                await new Promise((res, rej) => canvases[i].toBlob(b => {
-                    if (!b) { rej(new Error('toBlob retornou null')); return; }
-                    saveAs(b, `${nomeBase}_img${String(i + 1).padStart(2, '0')}.png`);
+    const excelBlob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    // ── Salvar em pasta via File System Access API (Chrome/Edge) ───
+    if (typeof window.showDirectoryPicker === 'function') {
+        try {
+            showToast('📂 Selecione a pasta onde os arquivos serão salvos...', 'info');
+            const dirHandle = await window.showDirectoryPicker({
+                id: 'rr-export-dir',
+                mode: 'readwrite',
+                startIn: 'downloads',
+            });
+
+            // Salva Excel
+            const xlsHandle = await dirHandle.getFileHandle(`${nomeBase}.xlsx`, { create: true });
+            const xlsWritable = await xlsHandle.createWritable();
+            await xlsWritable.write(excelBlob);
+            await xlsWritable.close();
+
+            // Salva cada imagem
+            let imgCount = 0;
+            for (let i = 0; i < canvases.length; i++) {
+                try {
+                    const imgBlob = await new Promise((res, rej) =>
+                        canvases[i].toBlob(b => b ? res(b) : rej(new Error('toBlob null')), 'image/png'));
+                    const imgHandle = await dirHandle.getFileHandle(
+                        `${nomeBase}_img${String(i + 1).padStart(2, '0')}.png`, { create: true });
+                    const imgWritable = await imgHandle.createWritable();
+                    await imgWritable.write(imgBlob);
+                    await imgWritable.close();
                     imgCount++;
-                    res();
-                }, 'image/png'));
-                if (i < canvases.length - 1) await new Promise(r => setTimeout(r, 400));
-            } catch (e) {
-                console.warn(`[RR] Erro ao baixar imagem ${i + 1}:`, e);
+                } catch (e) { console.warn(`[RR] Imagem ${i + 1} falhou:`, e); }
             }
-        }
 
-        showToast(`✅ Planilha + ${imgCount} imagem(ns) exportadas com sucesso!`, 'success');
-    } catch (imgErr) {
-        console.error('[RR] Erro ao gerar imagens da rota:', imgErr);
-        showToast('⚠️ Planilha baixada. Falha nas imagens: ' + (imgErr.message || imgErr), 'warning');
+            showToast(`✅ Planilha + ${imgCount} imagem(ns) salvas na pasta "${dirHandle.name}"!`, 'success');
+            return;
+        } catch (e) {
+            if (e.name === 'AbortError') {
+                // Usuário cancelou o seletor
+                showToast('⚠️ Exportação cancelada pelo usuário.', 'warning');
+                return;
+            }
+            console.warn('[RR] showDirectoryPicker falhou, usando fallback:', e);
+        }
     }
+
+    // ── Fallback: downloads individuais (Firefox / Safari) ─────────
+    saveAs(excelBlob, `${nomeBase}.xlsx`);
+    let imgCount = 0;
+    for (let i = 0; i < canvases.length; i++) {
+        try {
+            await new Promise((res, rej) => canvases[i].toBlob(b => {
+                if (!b) { rej(new Error('toBlob null')); return; }
+                saveAs(b, `${nomeBase}_img${String(i + 1).padStart(2, '0')}.png`);
+                imgCount++;
+                res();
+            }, 'image/png'));
+            if (i < canvases.length - 1) await new Promise(r => setTimeout(r, 400));
+        } catch (e) { console.warn(`[RR] Imagem ${i + 1}:`, e); }
+    }
+    showToast(`✅ Planilha + ${imgCount} imagem(ns) exportadas!`, 'success');
 }
 
 
