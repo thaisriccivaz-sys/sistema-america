@@ -916,6 +916,7 @@ function _rrRenderCorpo() {
                     >${v.obsAlteracoes || ''}</textarea>
                 </div>
             </div>
+        </div>
         `;
     }).join('');
 
@@ -1106,20 +1107,16 @@ async function _rrRenderColabDisponiveis() {
                     <div style="color:#fff;font-size:1.2rem;font-weight:800;">${totalDisp}</div>
                     <div style="color:rgba(255,255,255,0.75);font-size:0.7rem;">disponíveis</div>
                 </div>
+                <div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:6px 14px;text-align:center;">
+                    <div style="color:#fff;font-size:1.2rem;font-weight:800;">${naRota.length}</div>
+                    <div style="color:rgba(255,255,255,0.75);font-size:0.7rem;">na rota</div>
+                </div>
                 <div style="background:rgba(255,165,0,0.3);border-radius:8px;padding:6px 14px;text-align:center;">
                     <div style="color:#fde047;font-size:1.2rem;font-weight:800;">${totalFora}</div>
                     <div style="color:rgba(255,255,255,0.75);font-size:0.7rem;">sem atribuição</div>
                 </div>
             </div>
         </div>
-
-        ${naRota.length ? `
-        <div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;">
-            <div style="font-size:0.7rem;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
-                <i class="ph ph-truck"></i> Na Rota (${naRota.length})
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:10px;">${naRota.map(cardRota).join('')}</div>
-        </div>` : ''}
 
         ${semAtribuicao.length ? `
         <div style="padding:16px 20px;">
