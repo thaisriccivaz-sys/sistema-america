@@ -1509,6 +1509,34 @@ async function _rrGerarImagensRota() {
         } catch { cache[url] = null; }
     }));
 
+    function lineStyle(line) {
+        const u = line.toUpperCase().trim();
+        // Todos os textos em preto padrão — apenas headers ficam em negrito
+        const isHeader = u.includes('RETIRADA') || u.includes('ENTREGA')
+            || u.includes('MANUTENCAO') || u.includes('MANUTEN\u00c7\u00c3O') || u.includes('MANUTENÇÃO')
+            || u.startsWith('\u2757') || u.startsWith('\u2b55') || u.includes('COMPRAS');
+        return { color: '#1e293b', bold: isHeader && !/^\s+\d/.test(line) };
+    }
+
+    // Quebra de texto em múltiplas linhas para evitar compressão
+    function wrapText(ctx, text, maxW) {
+        if (ctx.measureText(text).width <= maxW) return [text];
+        const words = text.split(' ');
+        const lines = [];
+        let cur = '';
+        for (const word of words) {
+            const test = cur ? cur + ' ' + word : word;
+            if (ctx.measureText(test).width > maxW && cur) {
+                lines.push(cur);
+                cur = word;
+            } else {
+                cur = test;
+            }
+        }
+        if (cur) lines.push(cur);
+        return lines.length ? lines : [text];
+    }
+
     // ── Estimativa de altura do card ─────────────────────────────
     function cardH(v) {
         const colB = v.colBEditado || _rrMontarColB(v);
@@ -1574,19 +1602,6 @@ async function _rrGerarImagensRota() {
         ctx.lineWidth = 3.5;
         ctx.stroke();
         ctx.restore();
-    }
-
-    function lineStyle(line) {
-        const u = line.toUpperCase().trim();
-        if (u.startsWith('⭕') || (u.includes('RETIRADA') && !/^\s+\d/.test(line)))
-            return { color: '#b91c1c', bold: true };
-        if (u.includes('ENTREGA') && !/^\s+\d/.test(line))
-            return { color: '#1e40af', bold: true };
-        if (u.includes('MANUTENCAO') || u.includes('MANUTENÇÃO'))
-            return { color: '#78350f', bold: true };
-        if (/^[🚨❗⏰🌀🛒🦺♻️👷💧🏗]/.test(line.trim()))
-            return { color: '#7c2d12', bold: false };
-        return { color: '#1e293b', bold: false };
     }
 
     // ── Renderizar páginas ────────────────────────────────────────
@@ -1723,19 +1738,25 @@ async function _rrGerarImagensRota() {
 
             drawMember(v.ajudante, 'Ajudante Geral', v._fotoAjudante, '#d97706'); // amarelo
 
-            // ── Direita: Serviços ──
+            // ── Direita: Serviços (word-wrap, sem compressão) ──
             let sy = bodyY + BODY_PAD_V;
             for (const line of lines) {
                 if (!line.trim()) { sy += 8; continue; }
                 const { color, bold } = lineStyle(line);
                 const isIndent = /^\s{2,}/.test(line);
                 const dx = isIndent ? 18 : 0;
+                const fs = bold ? 21 : 20;
                 ctx.fillStyle = color;
-                ctx.font = `${bold ? 'bold ' : ''}${bold ? 21 : 20}px Arial`;
+                ctx.font = `${bold ? 'bold ' : ''}${fs}px Arial`;
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'top';
-                ctx.fillText(line.trim(), RIGHT_X + dx, sy, RIGHT_W - dx - 8);
-                sy += SRV_LH + 3;
+                // Quebra em múltiplas linhas se necessário
+                const wrapped = wrapText(ctx, line.trim(), RIGHT_W - dx - 8);
+                for (const wl of wrapped) {
+                    ctx.fillText(wl, RIGHT_X + dx, sy); // sem maxWidth — usa word-wrap
+                    sy += SRV_LH + 3;
+                    if (sy > bodyY + bodyH - 10) break;
+                }
                 if (sy > bodyY + bodyH - 10) break;
             }
 
