@@ -277,12 +277,19 @@ function _rrMontarColB(v) {
 }
 
 // ── Estado global ──────────────────────────────────────────────
-let _rrVeiculos        = [];
-let _rrCurrentId       = null;
-let _rrHistoricoList   = [];
+let _rrVeiculos = [];
+let _rrSearchTerm = '';
+let _rrDate = null;
+let _rrColabDisponiveisObs = {};
+let _rrPeriodoSelecionado = 'todos'; // todos, diurno, noturno
 window._rrOriginalFileBase64 = null;
 window._rrOriginalFileName   = null;
 window._rrDefaultNomeResumo  = '';
+
+window._rrChangePeriodo = function(val) {
+    window._rrPeriodoSelecionado = val;
+    window._rrRenderColabDisponiveis();
+};
 window._rrColabFotoMap       = {};
 window._rrColabNomes         = [];
 
@@ -1024,13 +1031,42 @@ async function _rrRenderColabDisponiveis() {
     });
 
     // Filtrar: remover folga, férias, afastados e intermitentes
-    const disponiveis = colabs.filter(c => {
+    let disponiveis = colabs.filter(c => {
         if ((c.tipo_contrato || '').toLowerCase().includes('intermitente')) return false;
         const indisponivel = _rrIsFeriasAfastado(c, dataRota);
         if (indisponivel) return false;
         if (_rrIsFolga(c, dataRota)) return false;
         return true;
     });
+
+    // Filtro por Período
+    if (window._rrPeriodoSelecionado && window._rrPeriodoSelecionado !== 'todos') {
+        disponiveis = disponiveis.filter(c => {
+            let isNoturno = false;
+            const eqNome = (c.equipe_nome || '').toLowerCase();
+            if (eqNome.includes('noturn')) {
+                isNoturno = true;
+            } else if (eqNome.includes('lider') || eqNome.includes('líder')) {
+                // Checa lideranca
+                const entrada = c.horario_entrada || '';
+                if (entrada >= '17:00' || entrada >= '18:00' || entrada >= '19:00' || entrada >= '20:00') {
+                    isNoturno = true;
+                }
+                const nomeLower = (c.nome_completo || '').toLowerCase();
+                if (nomeLower.includes('vitor leandro')) {
+                    isNoturno = true; // explicitly noturno according to user
+                } else if (nomeLower.includes('vivian') || nomeLower.includes('eduardo') || nomeLower.includes('joaquim')) {
+                    isNoturno = false;
+                }
+            }
+            if (window._rrPeriodoSelecionado === 'noturno') {
+                return isNoturno;
+            } else if (window._rrPeriodoSelecionado === 'diurno') {
+                return !isNoturno;
+            }
+            return true;
+        });
+    }
 
     // Separar em rota vs sem atribuição
     const naRota = disponiveis.filter(c => nomesNaRota.has((c.nome_completo || '').toLowerCase().trim()));
@@ -1103,7 +1139,18 @@ async function _rrRenderColabDisponiveis() {
                     <div style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:2px;"><i class="ph ph-calendar"></i> ${dataLabel}</div>
                 </div>
             </div>
-            <div style="display:flex;gap:10px;">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <div style="color:rgba(255,255,255,0.95);font-size:0.8rem;font-weight:600;display:flex;gap:16px;margin-right:12px;">
+                    <label style="cursor:pointer;display:flex;align-items:center;gap:4px;" title="Mostrar todos">
+                        <input type="radio" name="rr_periodo" value="todos" ${window._rrPeriodoSelecionado==='todos'?'checked':''} onchange="window._rrChangePeriodo(this.value)"> Todos
+                    </label>
+                    <label style="cursor:pointer;display:flex;align-items:center;gap:4px;" title="Diurnos">
+                        <input type="radio" name="rr_periodo" value="diurno" ${window._rrPeriodoSelecionado==='diurno'?'checked':''} onchange="window._rrChangePeriodo(this.value)"> Diurno
+                    </label>
+                    <label style="cursor:pointer;display:flex;align-items:center;gap:4px;" title="Noturnos">
+                        <input type="radio" name="rr_periodo" value="noturno" ${window._rrPeriodoSelecionado==='noturno'?'checked':''} onchange="window._rrChangePeriodo(this.value)"> Noturno
+                    </label>
+                </div>
                 <div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:6px 14px;text-align:center;">
                     <div style="color:#fff;font-size:1.2rem;font-weight:800;">${totalDisp}</div>
                     <div style="color:rgba(255,255,255,0.75);font-size:0.7rem;">disponíveis</div>

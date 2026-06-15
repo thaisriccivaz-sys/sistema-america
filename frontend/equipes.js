@@ -63,11 +63,11 @@ window.initEquipes = async function (showSkeleton = true) {
       'Equipe Padrão': 1,
       'Equipe folga 2d semana': 2,
       'Ajudante pátio': 3,
-      'Equipe Noturna': 4,
-      'Equipe Intermitente': 5,
-      'Equipe Reserva': 6,
-      'Líderes': 7,
-      'Ajudantes noturnos 12x36': 8
+      'Líderes': 4,
+      'Equipe Noturna': 5,
+      'Ajudantes noturnos 12x36': 6,
+      'Equipe Intermitente': 7,
+      'Equipe Reserva': 8
     };
     _equipes.forEach(eq => {
       if (orderMap[eq.nome]) {
@@ -80,11 +80,11 @@ window.initEquipes = async function (showSkeleton = true) {
         { nome: 'Equipe Padrão', descricao: '', cor: '#2563eb', ordem: 1 },
         { nome: 'Equipe folga 2d semana', descricao: '', cor: '#0ea5e9', ordem: 2 },
         { nome: 'Ajudante pátio', descricao: '', cor: '#10b981', ordem: 3 },
-        { nome: 'Equipe Noturna', descricao: '', cor: '#4f46e5', ordem: 4 },
-        { nome: 'Equipe Intermitente', descricao: '', cor: '#f59e0b', ordem: 5 },
-        { nome: 'Equipe Reserva', descricao: '', cor: '#db2777', ordem: 6 },
-        { nome: 'Líderes', descricao: '', cor: '#64748b', ordem: 7 },
-        { nome: 'Ajudantes noturnos 12x36', descricao: '', cor: '#14b8a6', ordem: 8 }
+        { nome: 'Líderes', descricao: '', cor: '#64748b', ordem: 4 },
+        { nome: 'Equipe Noturna', descricao: '', cor: '#4f46e5', ordem: 5 },
+        { nome: 'Ajudantes noturnos 12x36', descricao: '', cor: '#14b8a6', ordem: 6 },
+        { nome: 'Equipe Intermitente', descricao: '', cor: '#f59e0b', ordem: 7 },
+        { nome: 'Equipe Reserva', descricao: '', cor: '#db2777', ordem: 8 }
       ];
       for (const d of defaults) {
         const eq = await _eq_post('/equipes', d);
