@@ -1023,8 +1023,9 @@ async function _rrRenderColabDisponiveis() {
         if (v.ajudante && v.ajudante.trim()) nomesNaRota.add(v.ajudante.trim().toLowerCase());
     });
 
-    // Filtrar: remover folga, férias, afastados
+    // Filtrar: remover folga, férias, afastados e intermitentes
     const disponiveis = colabs.filter(c => {
+        if ((c.tipo_contrato || '').toLowerCase().includes('intermitente')) return false;
         const indisponivel = _rrIsFeriasAfastado(c, dataRota);
         if (indisponivel) return false;
         if (_rrIsFolga(c, dataRota)) return false;
