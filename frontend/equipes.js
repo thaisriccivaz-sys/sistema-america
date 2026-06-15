@@ -173,10 +173,7 @@ function _renderAll(el) {
       <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:220px;">
         <input id="equipes-data-ref" type="date" value="${(window._dataRefEquipes || new Date()).toISOString().split('T')[0]}" onchange="window._equipesChangeData(this.value)" style="border:1.5px solid #e2e8f0; border-radius:8px; padding:0 .5rem; height:38px; font-size:.85rem; color:#475569; background:#fff;">
         <input id="equipes-search" type="text" placeholder="Buscar colaborador..." oninput="window._equipesSearch(this.value)" style="flex:1;">
-        <div style="display:flex;gap:8px;font-size:0.72rem;align-items:center;white-space:nowrap;">
-          <div style="display:flex;align-items:center;gap:4px;color:#64748b;"><div style="width:10px;height:10px;border-radius:2px;background:#faf5ff;border:1.5px solid #a855f7;"></div> Afastado/Férias</div>
-          <div style="display:flex;align-items:center;gap:4px;color:#64748b;"><div style="width:10px;height:10px;border-radius:2px;background:#f3f4f6;border:1.5px dashed #cbd5e1;"></div> Folga Ref</div>
-        </div>
+
       </div>
       <div style="margin-left:auto;display:flex;gap:.5rem;flex-wrap:wrap;display:none;">
         <button class="eq-btn-sec" onclick="window._equipesNovaEquipe()"><i class="ph ph-plus"></i> Criar equipe</button>
