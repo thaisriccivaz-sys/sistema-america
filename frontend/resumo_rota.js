@@ -185,7 +185,8 @@ function _rrTipoObraEvento(lista) {
 function _rrMontarColB(v) {
     const lines = [];
 
-    // 1. OBS + Ícone de informações importantes
+    // 1. OBS + Ícone de informações importantes (sem duplicatas)
+    const obsLinhasSet = new Set();
     const obsLinhas = [];
     v.os.forEach(os => {
         // Determina ícone: checa tanto obs quanto notas_raw (habilidades/variáveis)
@@ -198,35 +199,36 @@ function _rrMontarColB(v) {
 
         let nome = (os.cliente || '').trim();
         // Remove emojis do nome do cliente
-        nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🔸]+/gu, '').trim();
+        nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s\u{1F3D7}\u{1F389}\u23D5\u{1F536}\u{1F4A7}\u{1F4A6}\u2699\uFE0F\u{1F4CB}\u{1F6D2}\u25C6\uFE0F\u267B\uFE0F\u{1F517}\u2757\u23F0\u{1F4DE}\u{1F300}\u{1F6A8}\u{1F9BA}\u{1F477}\u{1F51B}\u{1F318}\u{1F499}\u{1F49C}\u{1F7E6}\u{1F7E3}\u{1F535}\u267F\u{1F6BF}\u{1F6BE}\u{1F9BC}\u{1F6D4}\u{1F9F4}\u2B1C\u26AA]+/gu, '').trim();
         nome = nome.substring(0, 25).trim();
 
-        let obsLimpa = (os.obs || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🛒]+/gu, '').trim().toUpperCase();
+        let obsLimpa = (os.obs || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s\u{1F6D2}]+/gu, '').trim().toUpperCase();
 
         if (obsLimpa) {
-            obsLinhas.push(`${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`);
+            const linhaObs = `${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`;
+            if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
         } else if (temInfoImportante) {
-            // Só tem a marcação de informações importantes, sem obs de texto
-            obsLinhas.push(`🚨 ${nome}`);
+            const linhaObs = `🚨 ${nome}`;
+            if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
         }
     });
     if (obsLinhas.length) { lines.push(...obsLinhas); lines.push(''); }
 
-    // 2. ENTREGAS
+    // 2. ENTREGAS (Obra + Evento juntos, sem distinguir)
     const entregas = v.os.filter(o => o.tipo === 'ENTREGA');
     if (entregas.length) {
         const ag = _rrAgruparProdutos(entregas);
-        lines.push(`ENTREGA ${_rrTipoObraEvento(entregas)}:`);
+        lines.push('ENTREGA:');
         for (const [nome, { qtd, icon }] of Object.entries(ag))
             lines.push(`   ${icon}${qtd} ${nome}`);
         lines.push('');
     }
 
-    // 3. RETIRADAS
+    // 3. RETIRADAS (Obra + Evento juntos, sem distinguir)
     const retiradas = v.os.filter(o => o.tipo === 'RETIRADA');
     if (retiradas.length) {
         const ag = _rrAgruparProdutos(retiradas);
-        lines.push(`⭕ RETIRADA ${_rrTipoObraEvento(retiradas)}:`);
+        lines.push('⭕ RETIRADA:');
         for (const [nome, { qtd, icon }] of Object.entries(ag))
             lines.push(`   ${qtd} ${nome}`);
         lines.push('');
@@ -268,10 +270,6 @@ function _rrMontarColB(v) {
         });
         lines.push('');
     }
-
-    // 6. MOTORISTA / AJUDANTE
-    if (v.motorista) lines.push(`Motorista: ${v.motorista}`);
-    if (v.ajudante)  lines.push(`Ajudante: ${v.ajudante}`);
 
     return lines.join('\n');
 }
@@ -1548,10 +1546,8 @@ async function _rrGerarImagensRota() {
         ctx.save();
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.closePath();
+        // NÃO chamar closePath() para arco completo — evita linha diagonal na foto
         if (img) {
-            ctx.fillStyle = '#dde4ee';
-            ctx.fill();
             ctx.clip();
             ctx.drawImage(img, cx - r, cy - r, r * 2, r * 2);
         } else {
@@ -1707,12 +1703,16 @@ async function _rrGerarImagensRota() {
 
             drawMember(v.motorista, 'Motorista', v._fotoMotorista, '#1d4ed8');
 
-            // Separador entre motorista e ajudante
-            ctx.strokeStyle = '#edf2f7';
+            // Separador entre motorista e ajudante — desenhado ENTRE as duas fotos
+            // crY após motor = bodyY + BODY_PAD_V + CREW_ROW_H
+            // motor foto bottom = crY - CREW_ROW_H + CREW_R*2 + 4  
+            // aju foto top    = crY + 4
+            // meio da lacuna = crY - (CREW_ROW_H - CREW_R*2 - 4) / 2 = crY - 3
+            ctx.strokeStyle = '#e9eef3';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(PAD + 10, crY - CREW_ROW_H / 2 + 6);
-            ctx.lineTo(PAD + LEFT_W - 8, crY - CREW_ROW_H / 2 + 6);
+            ctx.moveTo(PAD + 10, crY - 4);
+            ctx.lineTo(PAD + LEFT_W - 8, crY - 4);
             ctx.stroke();
 
             drawMember(v.ajudante, 'Ajudante Geral', v._fotoAjudante, '#7c3aed');
