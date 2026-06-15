@@ -443,7 +443,7 @@ function _renderBoard(busca) {
 
     const emPares = ['Equipe Padrão', 'Equipe folga 2d semana', 'Equipe Noturna'].includes(eq.nome);
     const isEquipePadrao = eq.nome === 'Equipe Padrão';
-    const colWidth = isEquipePadrao ? 'width: 780px; min-width: 780px;' : (emPares ? 'width: 390px; min-width: 390px;' : '');
+    const colWidth = isEquipePadrao ? 'width: 680px; min-width: 680px;' : (emPares ? 'width: 340px; min-width: 340px;' : '');
 
     return `<div class="eq-col" data-equipe-id="${eq.id}" style="${colWidth}">
       <div class="eq-col-header" style="background:${eq.cor};">
