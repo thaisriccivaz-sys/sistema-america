@@ -1858,33 +1858,38 @@ async function _rrGerarExcel() {
     const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
     const nomeBase = `Resumo_Rota_${hoje}`;
 
-    // ── Gerar imagens e empacotar com Excel ────────────────────────
+    // ── Baixa Excel SEMPRE primeiro ─────────────────────────────────
+    const excelBlob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(excelBlob, `${nomeBase}.xlsx`);
+
+    // ── Gerar e baixar imagens individualmente ────────────────────────
     showToast('⏳ Gerando imagens da rota...', 'info');
     try {
         const canvases = await _rrGerarImagensRota();
-        const excelBlob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        if (!canvases || canvases.length === 0) {
+            showToast('✅ Planilha exportada! (Nenhuma imagem gerada — rota vazia?)', 'warning');
+            return;
+        }
 
-        // Baixa Excel primeiro
-        saveAs(excelBlob, `${nomeBase}.xlsx`);
-
-        // Baixa cada imagem individualmente (sem ZIP)
+        let imgCount = 0;
         for (let i = 0; i < canvases.length; i++) {
-            await new Promise(res => canvases[i].toBlob(b => {
-                saveAs(b, `${nomeBase}_img${String(i + 1).padStart(2, '0')}.png`);
-                res();
-            }, 'image/png'));
-            if (i < canvases.length - 1) {
-                await new Promise(r => setTimeout(r, 400)); // pausa entre downloads
+            try {
+                await new Promise((res, rej) => canvases[i].toBlob(b => {
+                    if (!b) { rej(new Error('toBlob retornou null')); return; }
+                    saveAs(b, `${nomeBase}_img${String(i + 1).padStart(2, '0')}.png`);
+                    imgCount++;
+                    res();
+                }, 'image/png'));
+                if (i < canvases.length - 1) await new Promise(r => setTimeout(r, 400));
+            } catch (e) {
+                console.warn(`[RR] Erro ao baixar imagem ${i + 1}:`, e);
             }
         }
 
-        showToast(`✅ Planilha + ${canvases.length} imagem(ns) exportadas com sucesso!`, 'success');
+        showToast(`✅ Planilha + ${imgCount} imagem(ns) exportadas com sucesso!`, 'success');
     } catch (imgErr) {
-        console.error('[RR] Erro ao gerar imagens:', imgErr);
-        // Fallback: baixa só o Excel
-        const excelBlob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        saveAs(excelBlob, `${nomeBase}.xlsx`);
-        showToast('✅ Planilha exportada. Erro ao gerar imagens: ' + imgErr.message, 'warning');
+        console.error('[RR] Erro ao gerar imagens da rota:', imgErr);
+        showToast('⚠️ Planilha baixada. Falha nas imagens: ' + (imgErr.message || imgErr), 'warning');
     }
 }
 
