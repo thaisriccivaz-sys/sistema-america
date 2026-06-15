@@ -2746,6 +2746,34 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
             });
         }
 
+        // Nova notificação de distribuição de equipe na criação
+        const novoStatus = values[colunas.indexOf('status')];
+        const dept = values[colunas.indexOf('departamento')];
+        const isOperacional = ['EXTERNO', 'PÁTIO', 'MOTORISTA FREE'].includes(dept);
+
+        if (novoStatus && novoStatus !== 'Desligado' && novoStatus !== 'Iniciado' && !novoStatus.toLowerCase().includes('iniciado')) {
+            db.get(`SELECT d.tipo as tipo_dept FROM departamentos d WHERE LOWER(TRIM(d.nome)) = LOWER(TRIM(?))`, [dept], (errD, rowD) => {
+                if (isOperacional || (rowD && rowD.tipo_dept === 'Operacional')) {
+                    db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'novo_colaborador_equipe'", [], (errConf, rowsConf) => {
+                        if (!errConf && rowsConf) {
+                            const msg = `O colaborador ${nomeOriginal} é um novo colaborador para distribuição de equipe.`;
+                            const dadosStr = JSON.stringify({ nome: nomeOriginal, id: newColabId });
+                            rowsConf.forEach(c => {
+                                db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", 
+                                    [c.usuario_id, 'novo_colaborador_equipe', msg, dadosStr]);
+                            });
+                        }
+                    });
+                    db.all(`SELECT u.email FROM usuarios u JOIN config_notificacoes cn ON u.id = cn.usuario_id WHERE cn.tipo = 'novo_colaborador_equipe' AND u.email IS NOT NULL AND u.email != ''`, [], (errU, rowsU) => {
+                        if (!errU && rowsU && rowsU.length > 0) {
+                            const emails = rowsU.map(r => r.email);
+                            if (typeof enviarEmailNovoColaboradorEquipe === 'function') enviarEmailNovoColaboradorEquipe(emails, nomeOriginal);
+                        }
+                    });
+                }
+            });
+        }
+
         // Inserir dependentes se houver
         if (data.dependentes && Array.isArray(data.dependentes)) {
             data.dependentes.forEach(dep => {
@@ -3308,6 +3336,40 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                 checkColaboradorDesligado(id);
                 db.run("UPDATE usuarios SET ativo = 0 WHERE nome = ?", [data.nome_completo || oldColab.nome_completo], (err) => {
                     if (err) console.error("Erro ao inativar usuário vinculado:", err);
+                });
+            }
+
+            // Novo colaborador para distribuição de equipe (status mudou de Iniciado para Ativo/Experiência ou similar)
+            const novoStatus = data.status;
+            const velhoStatus = oldColab.status;
+            if (novoStatus && novoStatus !== velhoStatus && novoStatus !== 'Desligado' && !novoStatus.toLowerCase().includes('iniciado') && (velhoStatus.toLowerCase().includes('iniciado') || velhoStatus === 'Desligado')) {
+                db.get(`SELECT c.id, c.nome_completo, c.departamento, c.cargo, 
+                        (SELECT COUNT(*) FROM equipes_membros em WHERE em.colaborador_id = c.id) as tem_equipe,
+                        d.tipo as tipo_dept
+                        FROM colaboradores c
+                        LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) OR LOWER(TRIM(d.nome)) = LOWER(TRIM(c.cargo))
+                        WHERE c.id = ?`, [id], (errC, rowC) => {
+                    if (!errC && rowC && rowC.tem_equipe === 0) {
+                        const isOperacional = rowC.tipo_dept === 'Operacional' || ['EXTERNO', 'PÁTIO', 'MOTORISTA FREE'].includes(rowC.departamento);
+                        if (isOperacional) {
+                            db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'novo_colaborador_equipe'", [], (errConf, rowsConf) => {
+                                if (!errConf && rowsConf) {
+                                    const msg = `O colaborador ${rowC.nome_completo} é um novo colaborador para distribuição de equipe.`;
+                                    const dadosStr = JSON.stringify({ nome: rowC.nome_completo, id: rowC.id });
+                                    rowsConf.forEach(c => {
+                                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", 
+                                            [c.usuario_id, 'novo_colaborador_equipe', msg, dadosStr]);
+                                    });
+                                }
+                            });
+                            db.all(`SELECT u.email FROM usuarios u JOIN config_notificacoes cn ON u.id = cn.usuario_id WHERE cn.tipo = 'novo_colaborador_equipe' AND u.email IS NOT NULL AND u.email != ''`, [], (errU, rowsU) => {
+                                if (!errU && rowsU && rowsU.length > 0) {
+                                    const emails = rowsU.map(r => r.email);
+                                    if (typeof enviarEmailNovoColaboradorEquipe === 'function') enviarEmailNovoColaboradorEquipe(emails, rowC.nome_completo);
+                                }
+                            });
+                        }
+                    }
                 });
             }
 
@@ -11742,6 +11804,83 @@ function verificarExperienciasVencendo() {
             } catch (emailErr) {
                 console.error(`[Experiência CRON] Erro no e-mail para ${r.nome_completo}:`, emailErr.message);
             }
+        }
+    });
+}
+
+function enviarEmailLogistica(destinatarios, row) {
+    // ... implementation existing logic ...
+    const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <img src="cid:empresa-logo" style="max-height: 80px;">
+            </div>
+            <h2 style="color: #c0392b; border-bottom: 2px solid #e74c3c; padding-bottom: 10px;">Equipe Desfalcada</h2>
+            <p>O colaborador <strong>${row.colab_nome}</strong> que pertencia à <strong>${row.equipe_nome}</strong> entrou de férias hoje.</p>
+            <div style="margin-top: 30px; padding: 15px; border: 2px solid #3498db; border-radius: 8px; background: #ebf5fb; text-align: center;">
+                <p style="color: #2980b9; font-weight: bold; margin: 0;">
+                    A equipe encontra-se desfalcada (apenas 1 membro ativo).<br>
+                    Por favor, acesse o módulo de Equipes para alocar um substituto.
+                </p>
+            </div>
+            <p style="margin-top: 30px; font-size: 0.9em; color: #7f8c8d;">Atenciosamente,<br>Sistema América Rental</p>
+        </div>
+    `;
+    destinatarios.forEach(async (emailTo) => {
+        try {
+            const transporter = nodemailer.createTransport(SMTP_CONFIG);
+            await sendMailHelper({
+                from: `"América Rental Sistema" <${SMTP_CONFIG.auth.user}>`,
+                to: emailTo,
+                subject: `[URGENTE] Equipe Desfalcada - ${row.equipe_nome}`,
+                html: htmlContent,
+                attachments: [{
+                    filename: 'logo.png',
+                    path: logoPath,
+                    cid: 'empresa-logo'
+                }]
+            }, transporter);
+        } catch (emailErr) {
+            console.log('[FERIAS] Erro ao enviar email logistica:', emailErr.message);
+        }
+    });
+}
+
+function enviarEmailNovoColaboradorEquipe(destinatarios, nomeColaborador) {
+    const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <img src="cid:empresa-logo" style="max-height: 80px;">
+            </div>
+            <h2 style="color: #ec4899; border-bottom: 2px solid #fbcfe8; padding-bottom: 10px;">Novo Colaborador Disponível</h2>
+            <p>O colaborador <strong>${nomeColaborador}</strong> é um novo colaborador disponível para distribuição de equipe (Fora de Equipe).</p>
+            <div style="margin-top: 30px; padding: 15px; border: 2px solid #ec4899; border-radius: 8px; background: #fdf2f8; text-align: center;">
+                <p style="color: #be185d; font-weight: bold; margin: 0;">
+                    Por favor, acesse o módulo de Equipes na aba Logística para definir a sua alocação.
+                </p>
+            </div>
+            <p style="margin-top: 30px; font-size: 0.9em; color: #7f8c8d;">Atenciosamente,<br>Sistema América Rental</p>
+        </div>
+    `;
+
+    destinatarios.forEach(async (emailTo) => {
+        try {
+            const transporter = nodemailer.createTransport(SMTP_CONFIG);
+            await sendMailHelper({
+                from: `"América Rental Sistema" <${SMTP_CONFIG.auth.user}>`,
+                to: emailTo,
+                subject: `Novo Colaborador Disponível: ${nomeColaborador}`,
+                html: htmlContent,
+                attachments: [{
+                    filename: 'logo.png',
+                    path: logoPath,
+                    cid: 'empresa-logo'
+                }]
+            }, transporter);
+        } catch (emailErr) {
+            console.log('[NOVO_COLAB_EQUIPE] Erro ao enviar email:', emailErr.message);
         }
     });
 }

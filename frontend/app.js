@@ -678,7 +678,7 @@ const TAB_META = {
     'logistica-entregas': { color: '#2d9e5f', icon: 'ph-package', title: 'Entregas' },
     'logistica-multas': { color: '#2d9e5f', icon: 'ph-receipt', title: 'Multas' },
     'logistica-multas-monaco': { color: '#dc2626', icon: 'ph-car', title: 'Multas Mônaco' },
-    'logistica-equipes': { color: '#6366f1', icon: 'ph-users-three', title: 'Equipes' },
+    'logistica-equipes': { color: '#2d9e5f', icon: 'ph-users-three', title: 'Equipes' },
     'logistica-frota': { color: '#2d9e5f', icon: 'ph-truck', title: 'Frota' },
     'logistica-credenciamento': { color: '#2d9e5f', icon: 'ph-identification-card', title: 'Credenciamento' },
     'logistica-senhas': { color: '#2d9e5f', icon: 'ph-lock-key', title: 'Cofre de Senhas' },
@@ -13101,6 +13101,8 @@ async function checkUserNotificacoes() {
                     bg = '#dcfce7'; color = '#059669'; icon = 'ph-warning'; titulo = 'Novo Sinistro (Logística)'; navTarget = 'colaboradores';
                 } else if (notif.tipo === 'estoque_minimo') {
                     bg = '#fff5e6'; color = '#e67700'; icon = 'ph-package'; titulo = 'Estoque Mínimo'; navTarget = 'estoque';
+                } else if (notif.tipo === 'novo_colaborador_equipe') {
+                    bg = '#fdf2f8'; color = '#ec4899'; icon = 'ph-user-plus'; titulo = 'Novo Colaborador para Distribuição'; navTarget = 'logistica-equipes';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -13186,6 +13188,14 @@ async function checkUserNotificacoes() {
                         <div style="color:#94a3b8;font-size:0.75rem;">
                             Preenchido por: ${respNome}
                         </div>
+                    `;
+                } else if (notif.tipo === 'novo_colaborador_equipe') {
+                    const colabNome = dados.nome || 'Colaborador';
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#64748b;font-size:0.85rem;">O colaborador <b style="color:${color}">${colabNome}</b> é um novo colaborador para distribuição de equipe.</div>
                     `;
                 } else {
                     contentHTML = `
