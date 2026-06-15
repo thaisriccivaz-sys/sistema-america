@@ -527,7 +527,7 @@ function _renderCard(m) {
     style="position:relative;${borderStyle}">
     ${avatarHtml}
     <div class="eq-card-info">
-      <div class="eq-card-name" style="${isHojeFolga ? 'color:#64748b;text-decoration:line-through;' : ''}">${nome}</div>
+      <div class="eq-card-name" style="${isHojeFolga ? 'color:#64748b;' : ''}">${nome}</div>
       <div style="display:flex;align-items:center;flex-wrap:nowrap;gap:4px;width:100%;overflow:hidden;">
         <span class="eq-card-func" style="background:${isHojeFolga ? '#e2e8f0' : badgeBg};color:${isHojeFolga ? '#64748b' : badgeColor};flex-shrink:0;max-width:75%;min-width:0;">${labelText}</span>
         ${expTag}
