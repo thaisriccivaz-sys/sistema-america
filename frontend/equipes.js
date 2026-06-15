@@ -378,38 +378,45 @@ function _renderFora() {
       ondragleave="this.classList.remove('drag-over-zone');"
       ondrop="this.classList.remove('drag-over-zone'); window._eqDrop(event,0)"><div style="text-align:center;font-size:.72rem;color:#94a3b8;padding:.25rem;">Arraste para uma equipe</div></div>
   </div>`;
-  // Renderiza na sidebar: Fora de Equipe + Equipe Reserva empilhados
+  // Renderiza na sidebar: Fora de Equipe + Equipe Reserva + Equipe Intermitente empilhados
   const sidebar = document.getElementById('equipes-sidebar');
   if (sidebar) {
-    const reservaEq = _equipes.find(e => e.nome === 'Equipe Reserva');
+    const { vEq } = _getVirtualData();
+    const reservaEq = vEq.find(e => e.nome === 'Equipe Reserva');
+    const intermitenteEq = vEq.find(e => e.nome === 'Equipe Intermitente');
+    
     let sidebarHtml = foraHtml;
-    if (reservaEq) {
-      const membrosRes = _busca ? reservaEq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(_busca.toLowerCase())) : reservaEq.membros;
-      const { cor: indRes } = _eqStatus(membrosRes);
-      const cardsRes = membrosRes.map(m => _renderCard(m)).join('');
-      sidebarHtml += `<div class="eq-col" data-equipe-id="${reservaEq.id}">
-        <div class="eq-col-header" style="background:${reservaEq.cor};">
-          <div class="eq-col-title">
-            <div style="display:flex; align-items:center; gap:6px;">
-              <span class="eq-indicator" style="background:${indRes};border:2px solid rgba(255,255,255,.5);"></span> ${reservaEq.nome}
+    
+    [reservaEq, intermitenteEq].forEach(eq => {
+      if (eq) {
+        const membrosEq = _busca ? eq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(_busca.toLowerCase())) : eq.membros;
+        const { cor: indEq } = _eqStatus(membrosEq);
+        const cardsEq = membrosEq.map(m => _renderCard(m)).join('');
+        sidebarHtml += `<div class="eq-col" data-equipe-id="${eq.id}">
+          <div class="eq-col-header" style="background:${eq.cor};">
+            <div class="eq-col-title">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span class="eq-indicator" style="background:${indEq};border:2px solid rgba(255,255,255,.5);"></span> ${eq.nome}
+              </div>
+              <span class="eq-badge">${membrosEq.length}</span>
             </div>
-            <span class="eq-badge">${membrosRes.length}</span>
           </div>
-        </div>
-        <div class="eq-col-body" id="eq-body-${reservaEq.id}"
-          ondragover="event.preventDefault();window._eqDragOver(event,${reservaEq.id})"
-          ondragleave="window._eqDragLeave(event)"
-          ondrop="window._eqDrop(event,${reservaEq.id})">
-          ${cardsRes || '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>'}
-        </div>
-        <div class="eq-col-footer"
-          ondragover="event.preventDefault(); this.classList.add('drag-over-zone');"
-          ondragleave="this.classList.remove('drag-over-zone');"
-          ondrop="this.classList.remove('drag-over-zone'); window._eqDrop(event,${reservaEq.id})">
-          <button class="eq-add-btn" onclick="window._equipesAdicionarMembro(${reservaEq.id})"><i class="ph ph-plus"></i> Adicionar</button>
-        </div>
-      </div>`;
-    }
+          <div class="eq-col-body" id="eq-body-${eq.id}"
+            ondragover="event.preventDefault();window._eqDragOver(event,${eq.id})"
+            ondragleave="window._eqDragLeave(event)"
+            ondrop="window._eqDrop(event,${eq.id})">
+            ${cardsEq || '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>'}
+          </div>
+          <div class="eq-col-footer"
+            ondragover="event.preventDefault(); this.classList.add('drag-over-zone');"
+            ondragleave="this.classList.remove('drag-over-zone');"
+            ondrop="this.classList.remove('drag-over-zone'); window._eqDrop(event,${eq.id})">
+            <button class="eq-add-btn" onclick="window._equipesAdicionarMembro(${eq.id})"><i class="ph ph-plus"></i> Adicionar</button>
+          </div>
+        </div>`;
+      }
+    });
+
     sidebar.innerHTML = sidebarHtml;
   }
 }
@@ -428,7 +435,7 @@ function _renderBoard(busca) {
     summaryEl.innerHTML = '';
   }
 
-  return vEq.filter(eq => eq.nome !== 'Equipe Reserva').map(eq => {
+  return vEq.filter(eq => eq.nome !== 'Equipe Reserva' && eq.nome !== 'Equipe Intermitente').map(eq => {
     const membros = b ? eq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(b)) : eq.membros;
     const { cor: indicadorCor } = _eqStatus(membros);
     const alertas = _eqAlertas(membros);
@@ -586,9 +593,9 @@ window._equipesSearch = function(val) {
   _reRenderFora();
   const { vEq } = _getVirtualData();
   const reservaEq = vEq.find(e => e.nome === 'Equipe Reserva');
-  if (reservaEq) {
-    _reRenderColuna(reservaEq.id);
-  }
+  const intermitenteEq = vEq.find(e => e.nome === 'Equipe Intermitente');
+  if (reservaEq) _reRenderColuna(reservaEq.id);
+  if (intermitenteEq) _reRenderColuna(intermitenteEq.id);
 };
 
 window._equipesNovaEquipe = function() {
