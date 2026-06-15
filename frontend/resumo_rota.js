@@ -198,9 +198,9 @@ function _rrMontarColB(v) {
         if (!os.obs && !temInfoImportante) return;
 
         let nome = (os.cliente || '').trim();
-        // Remove emojis do nome do cliente
-        nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s\u{1F3D7}\u{1F389}\u23D5\u{1F536}\u{1F4A7}\u{1F4A6}\u2699\uFE0F\u{1F4CB}\u{1F6D2}\u25C6\uFE0F\u267B\uFE0F\u{1F517}\u2757\u23F0\u{1F4DE}\u{1F300}\u{1F6A8}\u{1F9BA}\u{1F477}\u{1F51B}\u{1F318}\u{1F499}\u{1F49C}\u{1F7E6}\u{1F7E3}\u{1F535}\u267F\u{1F6BF}\u{1F6BE}\u{1F9BC}\u{1F6D4}\u{1F9F4}\u2B1C\u26AA]+/gu, '').trim();
-        nome = nome.substring(0, 25).trim();
+        // Remove emojis do nome do cliente (inclui ⭕ U+2B55 explicitamente)
+        nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC]+/gu, '').trim();
+        nome = nome.replace(/^[\ud83c\udf00-\ud83e\uddff\u2600-\u27bf\u{1F000}-\u{1FFFF}\u2b00-\u2bff\uFE0F\s]+/gu, '').trim();
 
         let obsLimpa = (os.obs || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s\u{1F6D2}]+/gu, '').trim().toUpperCase();
 
@@ -214,7 +214,7 @@ function _rrMontarColB(v) {
     });
     if (obsLinhas.length) { lines.push(...obsLinhas); lines.push(''); }
 
-    // 2. ENTREGAS (Obra + Evento juntos, sem distinguir)
+    // 2. ENTREGAS
     const entregas = v.os.filter(o => o.tipo === 'ENTREGA');
     if (entregas.length) {
         const ag = _rrAgruparProdutos(entregas);
@@ -224,7 +224,7 @@ function _rrMontarColB(v) {
         lines.push('');
     }
 
-    // 3. RETIRADAS (Obra + Evento juntos, sem distinguir)
+    // 3. RETIRADAS
     const retiradas = v.os.filter(o => o.tipo === 'RETIRADA');
     if (retiradas.length) {
         const ag = _rrAgruparProdutos(retiradas);
@@ -234,19 +234,13 @@ function _rrMontarColB(v) {
         lines.push('');
     }
 
-        // 4. OUTROS E AVULSA
+    // 4. AVULSA
     const avulsas = v.os.filter(o => o.tipo === 'AVULSA');
     if (avulsas.length) {
         const ag = _rrAgruparProdutos(avulsas);
-        lines.push('❗ MANUTENCAO AVULSA ' + _rrTipoObraEvento(avulsas) + ':');
+        lines.push('❗ MANUTENÇÃO AVULSA:');
         for (const [nome, { qtd, icon }] of Object.entries(ag))
             lines.push('   ' + qtd + ' × ' + nome);
-        lines.push('');
-    }
-
-    const outros = v.os.filter(o => o.tipo === 'OUTROS');
-    if (outros.length) {
-        outros.forEach(o => lines.push(o.servico.toUpperCase()));
         lines.push('');
     }
 
@@ -254,13 +248,20 @@ function _rrMontarColB(v) {
     const manut = v.os.filter(o => o.tipo === 'MANUTENCAO');
     if (manut.length) {
         const ag = _rrAgruparProdutos(manut);
-        lines.push(`MANUTENCAO ${_rrTipoObraEvento(manut)}:`);
+        lines.push('MANUTENÇÃO:');
         for (const [nome, { qtd, icon }] of Object.entries(ag))
             lines.push(`   ${qtd} × ${nome}`);
         lines.push('');
     }
 
-    // 6. COMPRAS (sem produto / sem capacidade)
+    // 6. OUTROS
+    const outros = v.os.filter(o => o.tipo === 'OUTROS');
+    if (outros.length) {
+        outros.forEach(o => lines.push(o.servico.toUpperCase()));
+        lines.push('');
+    }
+
+    // 7. COMPRAS
     const compras = v.os.filter(o => o.tipo === 'COMPRAS');
     if (compras.length) {
         lines.push('💳Compras América:');
@@ -1858,29 +1859,18 @@ async function _rrGerarExcel() {
         const canvases = await _rrGerarImagensRota();
         const excelBlob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-        if (!window.JSZip || canvases.length <= 1) {
-            // Sem ZIP: baixa planilha + 1 imagem separadamente
-            saveAs(excelBlob, `${nomeBase}.xlsx`);
-            if (canvases.length === 1) {
-                await new Promise(res => canvases[0].toBlob(b => { saveAs(b, `${nomeBase}.png`); res(); }, 'image/png'));
+        // Baixa Excel primeiro
+        saveAs(excelBlob, `${nomeBase}.xlsx`);
+
+        // Baixa cada imagem individualmente (sem ZIP)
+        for (let i = 0; i < canvases.length; i++) {
+            await new Promise(res => canvases[i].toBlob(b => {
+                saveAs(b, `${nomeBase}_img${String(i + 1).padStart(2, '0')}.png`);
+                res();
+            }, 'image/png'));
+            if (i < canvases.length - 1) {
+                await new Promise(r => setTimeout(r, 400)); // pausa entre downloads
             }
-        } else {
-            // Empacota tudo num ZIP: Excel na raiz + pasta Imagens/
-            const zip = new JSZip();
-            zip.file(`${nomeBase}.xlsx`, buf);
-            const imgFolder = zip.folder('Imagens');
-            await Promise.all(canvases.map((cv, i) =>
-                new Promise(res => cv.toBlob(b => {
-                    imgFolder.file(`img_${String(i + 1).padStart(2, '0')}.png`, b);
-                    res();
-                }, 'image/png'))
-            ));
-            const zipBlob = await zip.generateAsync({
-                type: 'blob',
-                compression: 'DEFLATE',
-                compressionOptions: { level: 6 }
-            });
-            saveAs(zipBlob, `${nomeBase}.zip`);
         }
 
         showToast(`✅ Planilha + ${canvases.length} imagem(ns) exportadas com sucesso!`, 'success');
