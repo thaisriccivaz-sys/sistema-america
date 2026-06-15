@@ -174,7 +174,8 @@ function _renderAll(el) {
         <input id="equipes-search" type="text" placeholder="Buscar colaborador..." oninput="window._equipesSearch(this.value)" style="flex:1;">
         <div style="display:flex;gap:8px;font-size:0.72rem;align-items:center;white-space:nowrap;">
           <div style="display:flex;align-items:center;gap:4px;color:#64748b;"><div style="width:10px;height:10px;border-radius:2px;background:#faf5ff;border:1.5px solid #a855f7;"></div> Afastado/Férias</div>
-          <div style="display:flex;align-items:center;gap:4px;color:#64748b;"><div style="width:10px;height:10px;border-radius:2px;background:#fefce8;border:1.5px solid #eab308;"></div> Experiência</div>
+          <div style="display:flex;align-items:center;gap:4px;color:#64748b;"><div style="width:10px;height:10px;border-radius:2px;background:#f0fdf4;border:1.5px solid #22c55e;"></div> Experiência</div>
+          <div style="display:flex;align-items:center;gap:4px;color:#64748b;"><div style="width:10px;height:10px;border-radius:2px;background:#f3f4f6;border:1.5px dashed #cbd5e1;"></div> Folga Hoje</div>
         </div>
       </div>
       <div style="margin-left:auto;display:flex;gap:.5rem;flex-wrap:wrap;display:none;">
@@ -216,6 +217,69 @@ function _renderAll(el) {
 
 // Store de dados dos membros por id
 let _eqCardData = {};
+
+function _isHojeFolga(m) {
+  const escalaTipo = (m.escala_tipo || '').trim();
+  const hoje = new Date();
+  hoje.setHours(0,0,0,0);
+  const ds = hoje.getDay(); // 0=Dom, 6=Sab
+
+  // Se nao tiver escala, assumimos o padrao seg-sex
+  if (!escalaTipo || escalaTipo === 'null') {
+      return ds === 0 || ds === 6;
+  }
+
+  if (escalaTipo === 'padrao_seis_dias' || escalaTipo === 'padrao_sab_4h') {
+      return ds === 0; // Folga no domingo
+  }
+
+  if (escalaTipo === 'padrao_sab_alternado') {
+      if (ds === 0) return true; // Domingo sempre folga
+      if (ds === 6) {
+          if (!m.escala_ciclo_inicio) return false;
+          const MS_SEMANA = 7 * 24 * 60 * 60 * 1000;
+          const refSab = new Date(m.escala_ciclo_inicio + 'T00:00:00');
+          while (refSab.getDay() !== 6) refSab.setDate(refSab.getDate() + 1);
+          const semanas = Math.round((hoje - refSab) / MS_SEMANA);
+          const trabalhado = ((semanas % 2) + 2) % 2 === 0;
+          return !trabalhado; // se trabalhado=false, é folga
+      }
+      return false; // Seg-Sex trabalha
+  }
+
+  if (escalaTipo === 'escala_duas_folgas') {
+      let folgas = [];
+      try { folgas = JSON.parse(m.escala_folgas || '[]'); } catch(e) {}
+      const DIAS_NOME = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      
+      let diasFolgaFixos = folgas.map(f => DIAS_NOME.indexOf(f)).filter(n => n > 0);
+      let temDomingoNasFolgas = folgas.some(f => f.toLowerCase() === 'dom');
+      
+      if (diasFolgaFixos.includes(ds)) return true;
+      
+      if (ds === 0) {
+          if (!temDomingoNasFolgas) return false;
+          if (!m.escala_ciclo_inicio) return false;
+          const MS_SEMANA = 7 * 24 * 60 * 60 * 1000;
+          const refDom = new Date(m.escala_ciclo_inicio + 'T00:00:00');
+          while (refDom.getDay() !== 0) refDom.setDate(refDom.getDate() + 1);
+          const semanas = Math.round((hoje - refDom) / MS_SEMANA);
+          const pos = ((semanas % 3) + 3) % 3; // 0=trab, 1=trab, 2=folga
+          return pos === 2;
+      }
+      return false;
+  }
+
+  if (escalaTipo === 'escala_12x36') {
+      if (!m.escala_ciclo_inicio) return false;
+      const MS_DIA = 24 * 60 * 60 * 1000;
+      const ref = new Date(m.escala_ciclo_inicio + 'T00:00:00');
+      const diasDif = Math.floor((hoje - ref) / MS_DIA);
+      return Math.abs(diasDif) % 2 !== 0; // se ímpar, é folga
+  }
+
+  return ds === 0 || ds === 6;
+}
 
 window._eqShowTooltip = function(ev, membId) {
   const m = _eqCardData[membId];
@@ -422,8 +486,21 @@ function _renderCard(m) {
   const nome = nomeRaw.replace(/\s*\(Experi[^)]*\)/i,'').replace(/\s*\(E\)/i,'').trim();
   const iniciais = nome.split(' ').slice(0,2).map(p => p[0]).join('').toUpperCase();
   const avatarBg = ['#6366f1','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'][(m.colaborador_id||m.id) % 6];
-  const borderStyle = isLaranja ? 'border-color:#a855f7;background:#faf5ff;' : emExp ? 'border-color:#eab308;background:#fefce8;' : '';
-  const avatarBorder = isLaranja ? 'border-color:#9333ea;border-width:2px;' : emExp ? 'border-color:#ca8a04;border-width:2px;' : '';
+  
+  const isHojeFolga = _isHojeFolga(m);
+  let borderStyle = '';
+  let avatarBorder = '';
+  if (isHojeFolga) {
+      borderStyle = 'border-color:#cbd5e1;background:#f3f4f6;border-style:dashed;opacity:0.8;';
+      avatarBorder = 'border-color:#94a3b8;border-width:2px;filter:grayscale(100%);';
+  } else if (isLaranja) {
+      borderStyle = 'border-color:#a855f7;background:#faf5ff;';
+      avatarBorder = 'border-color:#9333ea;border-width:2px;';
+  } else if (emExp) {
+      borderStyle = 'border-color:#22c55e;background:#f0fdf4;';
+      avatarBorder = 'border-color:#16a34a;border-width:2px;';
+  }
+  
   const isMotorista = (m.cargo || '').toLowerCase().includes('motorista');
   let baseCargo = m.cargo || (m.funcao === 'motorista' ? 'Motorista' : 'Ajudante');
   baseCargo = baseCargo.replace(/Motorista/i, 'Mot.').replace(/Ajudante/i, 'Aj.');
@@ -450,9 +527,9 @@ function _renderCard(m) {
     style="position:relative;${borderStyle}">
     ${avatarHtml}
     <div class="eq-card-info">
-      <div class="eq-card-name">${nome}${emExp?` <span style="font-size:.58rem;background:#fde68a;color:#92400e;border-radius:3px;padding:0 3px;font-weight:800;">EXP</span>`:''}</div>
-      <span class="eq-card-func" style="background:${badgeBg};color:${badgeColor};">${labelText}</span>
-      ${m.escala ? `<div class="eq-card-escala">${m.escala}</div>` : ''}
+      <div class="eq-card-name" style="${isHojeFolga ? 'color:#64748b;text-decoration:line-through;' : ''}">${nome}${emExp?` <span style="font-size:.58rem;background:#bbf7d0;color:#166534;border-radius:3px;padding:0 3px;font-weight:800;">EXP</span>`:''}</div>
+      <span class="eq-card-func" style="background:${isHojeFolga ? '#e2e8f0' : badgeBg};color:${isHojeFolga ? '#64748b' : badgeColor};">${labelText}</span>
+      ${m.escala ? `<div class="eq-card-escala" style="${isHojeFolga ? 'color:#94a3b8;' : ''}">${isHojeFolga ? '<i class="ph ph-moon"></i> Em Folga' : m.escala}</div>` : ''}
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
       <div class="eq-status-dot" title="${st||'ativo'}" style="background:${sc};"></div>
