@@ -2754,22 +2754,10 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         if (novoStatus && novoStatus !== 'Desligado' && novoStatus !== 'Iniciado' && !novoStatus.toLowerCase().includes('iniciado')) {
             db.get(`SELECT d.tipo as tipo_dept FROM departamentos d WHERE LOWER(TRIM(d.nome)) = LOWER(TRIM(?))`, [dept], (errD, rowD) => {
                 if (isOperacional || (rowD && rowD.tipo_dept === 'Operacional')) {
-                    db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'novo_colaborador_equipe'", [], (errConf, rowsConf) => {
-                        if (!errConf && rowsConf) {
-                            const msg = `O colaborador ${nomeOriginal} é um novo colaborador para distribuição de equipe.`;
-                            const dadosStr = JSON.stringify({ nome: nomeOriginal, id: newColabId });
-                            rowsConf.forEach(c => {
-                                db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", 
-                                    [c.usuario_id, 'novo_colaborador_equipe', msg, dadosStr]);
-                            });
-                        }
-                    });
-                    db.all(`SELECT u.email FROM usuarios u JOIN config_notificacoes cn ON u.id = cn.usuario_id WHERE cn.tipo = 'novo_colaborador_equipe' AND u.email IS NOT NULL AND u.email != ''`, [], (errU, rowsU) => {
-                        if (!errU && rowsU && rowsU.length > 0) {
-                            const emails = rowsU.map(r => r.email);
-                            if (typeof enviarEmailNovoColaboradorEquipe === 'function') enviarEmailNovoColaboradorEquipe(emails, nomeOriginal);
-                        }
-                    });
+                    const msg = `O colaborador <strong>${nomeOriginal}</strong> é um novo colaborador disponível para distribuição de equipe (Fora de Equipe).`;
+                    if (typeof notificarResponsaveisEquipes === 'function') {
+                        notificarResponsaveisEquipes(msg, 'Novo Colaborador Disponível', 'ph-user-plus', '#ec4899', false);
+                    }
                 }
             });
         }
@@ -2798,7 +2786,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
             const PASTAS_PADRAO = [
                 '00_CHECKLIST', '01_FICHA_CADASTRAL', 'ASO', 'ATESTADOS',
                 'AVALIACAO', 'CERTIFICADOS', 'CONTRATOS', 'DEPENDENTES',
-                'EPI', 'FACULDADE', 'FOTOS', 'MULTAS', 'OCORRENCIAS',
+                'EPI', 'FOTOS', 'MULTAS', 'OCORRENCIAS',
                 'PAGAMENTOS', 'SINISTROS', 'TERAPIA', 'TREINAMENTO'
             ];
             const safeNome = (nomeOriginal || '')
@@ -11808,81 +11796,137 @@ function verificarExperienciasVencendo() {
     });
 }
 
-function enviarEmailLogistica(destinatarios, row) {
-    // ... implementation existing logic ...
-    const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-    const htmlContent = `
-        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <img src="cid:empresa-logo" style="max-height: 80px;">
-            </div>
-            <h2 style="color: #c0392b; border-bottom: 2px solid #e74c3c; padding-bottom: 10px;">Equipe Desfalcada</h2>
-            <p>O colaborador <strong>${row.colab_nome}</strong> que pertencia à <strong>${row.equipe_nome}</strong> entrou de férias hoje.</p>
-            <div style="margin-top: 30px; padding: 15px; border: 2px solid #3498db; border-radius: 8px; background: #ebf5fb; text-align: center;">
-                <p style="color: #2980b9; font-weight: bold; margin: 0;">
-                    A equipe encontra-se desfalcada (apenas 1 membro ativo).<br>
-                    Por favor, acesse o módulo de Equipes para alocar um substituto.
-                </p>
-            </div>
-            <p style="margin-top: 30px; font-size: 0.9em; color: #7f8c8d;">Atenciosamente,<br>Sistema América Rental</p>
-        </div>
-    `;
-    destinatarios.forEach(async (emailTo) => {
-        try {
-            const transporter = nodemailer.createTransport(SMTP_CONFIG);
-            await sendMailHelper({
-                from: `"América Rental Sistema" <${SMTP_CONFIG.auth.user}>`,
-                to: emailTo,
-                subject: `[URGENTE] Equipe Desfalcada - ${row.equipe_nome}`,
-                html: htmlContent,
-                attachments: [{
-                    filename: 'logo.png',
-                    path: logoPath,
-                    cid: 'empresa-logo'
-                }]
-            }, transporter);
-        } catch (emailErr) {
-            console.log('[FERIAS] Erro ao enviar email logistica:', emailErr.message);
-        }
+// HELPER GLOBAL PARA NOTIFICACOES DE EQUIPE
+async function notificarResponsaveisEquipes(mensagem, titulo, icone = 'ph-users-three', cor = '#ec4899', isUrgente = false) {
+    return new Promise((resolve) => {
+        db.all(`SELECT usuario_id FROM notificacoes_usuarios WHERE novo_colaborador_equipe = 1`, [], (err, rows) => {
+            if (err || !rows || rows.length === 0) return resolve();
+            
+            rows.forEach(r => {
+                db.run(`INSERT INTO notificacoes (usuario_id, mensagem, lida, icone, cor, link) VALUES (?, ?, 0, ?, ?, '?tela=equipes')`, 
+                [r.usuario_id, mensagem.replace(/<\/?[^>]+(>|$)/g, ""), icone, cor]); // save without HTML for in-app
+            });
+
+            const userIds = rows.map(r => r.usuario_id);
+            db.all(`SELECT email FROM usuarios WHERE id IN (${userIds.map(()=>'?').join(',')}) AND email IS NOT NULL AND email != ''`, userIds, (err, users) => {
+                if (err || !users || users.length === 0) return resolve();
+                const emails = users.map(u => u.email).join(', ');
+                
+                const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                const htmlContent = `
+                    <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <img src="cid:empresa-logo" style="max-height: 80px;">
+                        </div>
+                        <h2 style="color: ${cor}; border-bottom: 2px solid #fbcfe8; padding-bottom: 10px;">${titulo}</h2>
+                        <p>${mensagem}</p>
+                        <div style="margin-top: 30px; padding: 15px; border: 2px solid ${cor}; border-radius: 8px; background: #fdf2f8; text-align: center;">
+                            <p style="color: #be185d; font-weight: bold; margin: 0;">Por favor, acesse o módulo de Equipes na aba Logística para mais detalhes.</p>
+                        </div>
+                        <p style="margin-top: 30px; font-size: 0.9em; color: #7f8c8d;">Atenciosamente,<br>Sistema América Rental</p>
+                    </div>
+                `;
+
+                try {
+                    const nodemailer = require('nodemailer');
+                    const transporter = nodemailer.createTransport(SMTP_CONFIG);
+                    sendMailHelper({
+                        from: `"América Rental Sistema" <${SMTP_CONFIG.auth.user}>`,
+                        to: emails,
+                        subject: isUrgente ? `[URGENTE] ${titulo}` : titulo,
+                        html: htmlContent,
+                        attachments: [{ filename: 'logo.png', path: logoPath, cid: 'empresa-logo' }]
+                    }, transporter);
+                } catch (e) {
+                    console.log('[NOTIFICACOES EQUIPE] Erro ao enviar email:', e.message);
+                }
+                resolve();
+            });
+        });
     });
 }
 
-function enviarEmailNovoColaboradorEquipe(destinatarios, nomeColaborador) {
-    const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-    const htmlContent = `
-        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <img src="cid:empresa-logo" style="max-height: 80px;">
-            </div>
-            <h2 style="color: #ec4899; border-bottom: 2px solid #fbcfe8; padding-bottom: 10px;">Novo Colaborador Disponível</h2>
-            <p>O colaborador <strong>${nomeColaborador}</strong> é um novo colaborador disponível para distribuição de equipe (Fora de Equipe).</p>
-            <div style="margin-top: 30px; padding: 15px; border: 2px solid #ec4899; border-radius: 8px; background: #fdf2f8; text-align: center;">
-                <p style="color: #be185d; font-weight: bold; margin: 0;">
-                    Por favor, acesse o módulo de Equipes na aba Logística para definir a sua alocação.
-                </p>
-            </div>
-            <p style="margin-top: 30px; font-size: 0.9em; color: #7f8c8d;">Atenciosamente,<br>Sistema América Rental</p>
-        </div>
-    `;
+function parseDataLocal(d) {
+    if (!d) return null;
+    if (d.includes('/')) {
+        const p = d.split('/');
+        return new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
+    }
+    return new Date(`${d}T00:00:00`);
+}
 
-    destinatarios.forEach(async (emailTo) => {
-        try {
-            const transporter = nodemailer.createTransport(SMTP_CONFIG);
-            await sendMailHelper({
-                from: `"América Rental Sistema" <${SMTP_CONFIG.auth.user}>`,
-                to: emailTo,
-                subject: `Novo Colaborador Disponível: ${nomeColaborador}`,
-                html: htmlContent,
-                attachments: [{
-                    filename: 'logo.png',
-                    path: logoPath,
-                    cid: 'empresa-logo'
-                }]
-            }, transporter);
-        } catch (emailErr) {
-            console.log('[NOVO_COLAB_EQUIPE] Erro ao enviar email:', emailErr.message);
+async function verificarFeriasEquipes() {
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+
+    try {
+        const emEquipe = await new Promise((resolve, reject) => {
+            db.all(`SELECT em.colaborador_id, em.equipe_id, c.nome_completo, c.status, c.ferias_programadas_inicio, c.ferias_programadas_fim, eq.nome as equipe_nome
+                    FROM equipes_membros em
+                    JOIN colaboradores c ON c.id = em.colaborador_id
+                    JOIN equipes eq ON eq.id = em.equipe_id`, (err, rows) => {
+                if (err) reject(err); else resolve(rows);
+            });
+        });
+
+        for (const m of emEquipe) {
+            let taDeFerias = false;
+            const st = (m.status || '').toLowerCase();
+            if (st === 'férias' || st === 'ferias' || st === 'afastado') taDeFerias = true;
+            
+            if (!taDeFerias && m.ferias_programadas_inicio && m.ferias_programadas_fim) {
+                const ini = parseDataLocal(m.ferias_programadas_inicio);
+                const fim = parseDataLocal(m.ferias_programadas_fim);
+                if (ini && fim && hoje >= ini && hoje <= fim) {
+                    taDeFerias = true;
+                }
+            }
+
+            if (taDeFerias) {
+                await new Promise((res) => db.run('DELETE FROM equipes_membros WHERE colaborador_id = ?', [m.colaborador_id], res));
+                const nomeEq = (m.equipe_nome || '').toLowerCase();
+                if (!nomeEq.includes('reserva') && !nomeEq.includes('intermitente')) {
+                    const msg = `O colaborador <strong>${m.nome_completo}</strong> entrou em férias/afastamento e foi <strong>removido</strong> da <strong>${m.equipe_nome}</strong>. É necessário realocar alguém para a equipe.`;
+                    await notificarResponsaveisEquipes(msg, 'Equipe Desfalcada por Férias', 'ph-warning', '#eab308', true);
+                }
+            }
         }
-    });
+
+        const ontem = new Date(hoje); ontem.setDate(ontem.getDate() - 5);
+        
+        const foraEquipe = await new Promise((resolve, reject) => {
+            db.all(`SELECT c.id, c.nome_completo, c.status, c.ferias_programadas_fim
+                    FROM colaboradores c
+                    LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) OR LOWER(TRIM(d.nome)) = LOWER(TRIM(c.cargo))
+                    WHERE c.id NOT IN (SELECT colaborador_id FROM equipes_membros)
+                    AND LOWER(c.status) NOT LIKE '%desligado%' AND LOWER(c.status) NOT LIKE '%iniciado%'
+                    AND (d.tipo = 'Operacional' OR (d.id IS NULL AND c.departamento IN ('EXTERNO', 'PÁTIO', 'MOTORISTA FREE')))`, (err, rows) => {
+                if (err) reject(err); else resolve(rows);
+            });
+        });
+
+        for (const c of foraEquipe) {
+            const st = (c.status || '').toLowerCase();
+            if (st === 'férias' || st === 'ferias' || st === 'afastado') continue;
+
+            if (c.ferias_programadas_fim) {
+                const fim = parseDataLocal(c.ferias_programadas_fim);
+                if (fim && hoje > fim && fim >= ontem) {
+                    const jaNotificado = await new Promise(res => {
+                        const txtBusca = `%${c.nome_completo}%retornou das férias%`;
+                        db.get(`SELECT id FROM notificacoes WHERE mensagem LIKE ? AND data_criacao >= datetime('now', '-10 days')`, [txtBusca], (err, row) => res(!!row));
+                    });
+
+                    if (!jaNotificado) {
+                        const msg = `O colaborador <strong>${c.nome_completo}</strong> retornou das férias e aguarda alocação na tela de equipes (Fora de Equipe).`;
+                        await notificarResponsaveisEquipes(msg, 'Retorno de Férias para Distribuição', 'ph-user-plus', '#22c55e', false);
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.error('[CRON FERIAS] Erro:', e);
+    }
 }
 
 // CRON JOB — Verificar atestados vencidos e retornar para Ativo
