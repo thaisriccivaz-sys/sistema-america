@@ -781,10 +781,13 @@ function _rrRenderCorpo() {
         const nLines = (colB.match(/\n/g) || []).length + 2;
         const h      = Math.max(120, nLines * 20);
         
-        // Helper de avatar (foto ou inicial)
-        const _avatar = (foto, nome) => foto
-            ? `<img src="${foto}" title="${nome||''}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.6);">`
-            : `<div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:#fff;border:1px dashed rgba(255,255,255,0.5);">${(nome&&nome.trim()) ? nome.trim()[0].toUpperCase() : '+'}</div>`;
+        // Helper de avatar (foto ou inicial) — cor diferente para motorista e ajudante
+        const _avatarMot = (foto, nome) => foto
+            ? `<img src="${foto}" title="${nome||''}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:3px solid #1d4ed8;box-shadow:0 0 0 1px #93c5fd;">`
+            : `<div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:#fff;border:3px solid #1d4ed8;">${(nome&&nome.trim()) ? nome.trim()[0].toUpperCase() : '+'}</div>`;
+        const _avatarAju = (foto, nome) => foto
+            ? `<img src="${foto}" title="${nome||''}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:3px solid #d97706;box-shadow:0 0 0 1px #fcd34d;">`
+            : `<div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:#fff;border:3px solid #d97706;">${(nome&&nome.trim()) ? nome.trim()[0].toUpperCase() : '+'}</div>`;
 
         // Helper de input editável inline (sempre visível, inclusive se vazio) com datalist
         const _inp = (campo, val, placeholder) =>
@@ -796,10 +799,10 @@ function _rrRenderCorpo() {
                 title="Editar ${placeholder}">`;
 
         const fotosMot = `<div style="display:flex;align-items:center;gap:6px;" title="Motorista">
-            <span id="rr-avatar-mot-${i}">${_avatar(v._fotoMotorista, v.motorista)}</span>
+            <span id="rr-avatar-mot-${i}">${_avatarMot(v._fotoMotorista, v.motorista)}</span>
             ${_inp('motorista', v.motorista, 'Motorista...')}</div>`;
         const fotosAju = `<div style="display:flex;align-items:center;gap:6px;" title="Ajudante">
-            <span id="rr-avatar-aju-${i}">${_avatar(v._fotoAjudante, v.ajudante)}</span>
+            <span id="rr-avatar-aju-${i}">${_avatarAju(v._fotoAjudante, v.ajudante)}</span>
             ${_inp('ajudante', v.ajudante, 'Ajudante...')}</div>`;
         const fotosDiv = `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">${fotosMot}${fotosAju}</div>`;
 
@@ -1192,6 +1195,8 @@ window._rrAtualizarVeiculo = function(idx, campo, valor) {
 
     if (campo === 'motorista' || campo === 'ajudante') {
         const fotoKey = campo === 'motorista' ? '_fotoMotorista' : '_fotoAjudante';
+        const ringColor = campo === 'motorista' ? '#1d4ed8' : '#d97706';
+        const ringGlow  = campo === 'motorista' ? '#93c5fd' : '#fcd34d';
         const spanId  = campo === 'motorista' ? `rr-avatar-mot-${idx}` : `rr-avatar-aju-${idx}`;
         const nomeLower = (valor || '').trim().toLowerCase();
         
@@ -1716,7 +1721,7 @@ async function _rrGerarImagensRota() {
             ctx.lineTo(PAD + LEFT_W - 8, crY - 4);
             ctx.stroke();
 
-            drawMember(v.ajudante, 'Ajudante Geral', v._fotoAjudante, '#7c3aed');
+            drawMember(v.ajudante, 'Ajudante Geral', v._fotoAjudante, '#d97706'); // amarelo
 
             // ── Direita: Serviços ──
             let sy = bodyY + BODY_PAD_V;
