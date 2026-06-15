@@ -2413,7 +2413,7 @@ app.get('/api/equipes', authenticateToken, (req, res) => {
             db.all(`SELECT em.*, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.status as colab_status, c.cnh_categoria, c.ferias_programadas_inicio, c.ferias_programadas_fim, c.tipo_contrato, c.data_admissao, c.escala_tipo, c.horario_entrada, c.horario_saida
                 FROM equipes_membros em
                 JOIN colaboradores c ON c.id = em.colaborador_id
-                WHERE em.equipe_id = ? AND c.status != 'Desligado' AND c.status != 'Iniciado'
+                WHERE em.equipe_id = ? AND LOWER(TRIM(c.status)) NOT IN ('desligado', 'iniciado')
                 ORDER BY em.funcao ASC, em.ordem ASC`, [eq.id], (err2, membros) => {
                 eq.membros = membros || [];
                 resolve(eq);
@@ -2427,7 +2427,7 @@ app.get('/api/equipes', authenticateToken, (req, res) => {
 // Auto-limpeza: remover colaboradores desligados ou iniciados das equipes
 setTimeout(() => {
     db.run(`DELETE FROM equipes_membros WHERE colaborador_id IN (
-        SELECT id FROM colaboradores WHERE status IN ('Desligado', 'Iniciado')
+        SELECT id FROM colaboradores WHERE LOWER(TRIM(status)) IN ('desligado', 'iniciado')
     )`, (err) => {
         if (err) console.error('[EQUIPES] Erro ao limpar desligados/iniciados:', err.message);
         else console.log('[EQUIPES] Membros desligados/iniciados removidos das equipes.');
@@ -2588,7 +2588,7 @@ app.get('/api/equipes/colaboradores-sem-equipe', authenticateToken, (req, res) =
     db.all(`SELECT c.id, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.cnh_categoria, c.status as colab_status, c.ferias_programadas_inicio, c.ferias_programadas_fim, c.tipo_contrato, c.data_admissao, c.escala_tipo, c.horario_entrada, c.horario_saida
         FROM colaboradores c
         LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) OR LOWER(TRIM(d.nome)) = LOWER(TRIM(c.cargo))
-        WHERE c.status != 'Desligado' AND c.status != 'Iniciado'
+        WHERE LOWER(TRIM(c.status)) NOT IN ('desligado', 'iniciado')
         AND c.id NOT IN (SELECT colaborador_id FROM equipes_membros)
         AND (d.tipo = 'Operacional' OR (d.id IS NULL AND c.departamento IN ('EXTERNO', 'PÁTIO', 'MOTORISTA FREE')))
         GROUP BY c.id
