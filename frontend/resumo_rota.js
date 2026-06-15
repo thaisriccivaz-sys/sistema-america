@@ -1463,6 +1463,290 @@ window.rrSalvarResumo = async function() {
     await _rrGerarExcel();
 };
 
+// ══════════════════════════════════════════════════════════════
+//  GERAR IMAGENS PNG DA ROTA  (1080 × 1920)
+// ══════════════════════════════════════════════════════════════
+async function _rrGerarImagensRota() {
+    const W = 1080, H = 1920;
+    const PAD = 28;
+    const HDR_H = 96;          // altura do cabeçalho de página
+    const V_HDR_H = 54;        // altura do header do card de veículo
+    const CREW_R = 38;         // raio da foto circular
+    const CREW_ROW_H = 90;     // altura por tripulante
+    const LEFT_W = 270;        // largura da coluna esquerda (equipe)
+    const RIGHT_X = PAD + LEFT_W + 16;
+    const RIGHT_W = W - RIGHT_X - PAD;
+    const SRV_LH = 30;         // line-height dos serviços
+    const BODY_PAD_V = 18;     // padding vertical interno do card
+    const CREW_H = BODY_PAD_V + CREW_ROW_H * 2 + 8 + BODY_PAD_V;
+    const CARD_GAP = 10;
+
+    // ── Pre-carregar fotos via fetch + auth ─────────────────────
+    const cache = {};
+    const toLoad = new Set();
+    _rrVeiculos.forEach(v => {
+        if (v._fotoMotorista) toLoad.add(v._fotoMotorista);
+        if (v._fotoAjudante)  toLoad.add(v._fotoAjudante);
+    });
+    await Promise.allSettled([...toLoad].map(async url => {
+        try {
+            const r = await fetch(url, { headers: _rrAuthHeaders() });
+            if (!r.ok) throw 0;
+            const b = await r.blob();
+            const bu = URL.createObjectURL(b);
+            await new Promise((ok, fail) => {
+                const im = new Image();
+                im.onload = () => { cache[url] = im; URL.revokeObjectURL(bu); ok(); };
+                im.onerror = () => { cache[url] = null; ok(); };
+                im.src = bu;
+            });
+        } catch { cache[url] = null; }
+    }));
+
+    // ── Estimativa de altura do card ─────────────────────────────
+    function cardH(v) {
+        const colB = v.colBEditado || _rrMontarColB(v);
+        let sh = BODY_PAD_V;
+        colB.split('\n').forEach(l => { sh += l.trim() ? SRV_LH + 3 : 8; });
+        sh += BODY_PAD_V;
+        return V_HDR_H + 1 + Math.max(CREW_H, sh) + 2 + CARD_GAP;
+    }
+
+    // ── Paginação ─────────────────────────────────────────────────
+    const AVAIL = H - HDR_H - PAD;
+    const pages = [[]];
+    let used = 0;
+    for (const v of _rrVeiculos) {
+        const h = cardH(v);
+        if (used + h > AVAIL && pages[pages.length - 1].length > 0) {
+            pages.push([]);
+            used = 0;
+        }
+        pages[pages.length - 1].push(v);
+        used += h;
+    }
+
+    // ── Helpers de desenho ────────────────────────────────────────
+    function roundRect(ctx, x, y, w, h, r, fill) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.arcTo(x + w, y, x + w, y + r, r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+        ctx.lineTo(x + r, y + h);
+        ctx.arcTo(x, y + h, x, y + h - r, r);
+        ctx.lineTo(x, y + r);
+        ctx.arcTo(x, y, x + r, y, r);
+        ctx.closePath();
+        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    }
+
+    function drawPhoto(ctx, img, cx, cy, r, initials, ring) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.closePath();
+        if (img) {
+            ctx.fillStyle = '#dde4ee';
+            ctx.fill();
+            ctx.clip();
+            ctx.drawImage(img, cx - r, cy - r, r * 2, r * 2);
+        } else {
+            ctx.fillStyle = ring || '#16a34a';
+            ctx.fill();
+            ctx.clip();
+            ctx.fillStyle = '#fff';
+            ctx.font = `bold ${Math.floor(r * 0.74)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(initials || '?').substring(0, 2).toUpperCase(), cx, cy + 1);
+        }
+        ctx.restore();
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + 2.5, 0, Math.PI * 2);
+        ctx.strokeStyle = ring || '#16a34a';
+        ctx.lineWidth = 3.5;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function lineStyle(line) {
+        const u = line.toUpperCase().trim();
+        if (u.startsWith('⭕') || (u.includes('RETIRADA') && !/^\s+\d/.test(line)))
+            return { color: '#b91c1c', bold: true };
+        if (u.includes('ENTREGA') && !/^\s+\d/.test(line))
+            return { color: '#1e40af', bold: true };
+        if (u.includes('MANUTENCAO') || u.includes('MANUTENÇÃO'))
+            return { color: '#78350f', bold: true };
+        if (/^[🚨❗⏰🌀🛒🦺♻️👷💧🏗]/.test(line.trim()))
+            return { color: '#7c2d12', bold: false };
+        return { color: '#1e293b', bold: false };
+    }
+
+    // ── Renderizar páginas ────────────────────────────────────────
+    const canvases = [];
+
+    for (let pi = 0; pi < pages.length; pi++) {
+        const cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        const ctx = cv.getContext('2d');
+
+        // Fundo da página
+        ctx.fillStyle = '#f1f5f9';
+        ctx.fillRect(0, 0, W, H);
+
+        // Cabeçalho verde
+        const hg = ctx.createLinearGradient(0, 0, 0, HDR_H);
+        hg.addColorStop(0, '#155d38');
+        hg.addColorStop(1, '#2d9e5f');
+        ctx.fillStyle = hg;
+        ctx.fillRect(0, 0, W, HDR_H);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 40px Arial';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('AMÉRICA RENTAL', PAD + 6, HDR_H * 0.37);
+
+        const ds = window._rrDataRotaAtual
+            ? new Date(window._rrDataRotaAtual + 'T12:00:00').toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long', year:'numeric'})
+            : new Date().toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
+        ctx.font = '22px Arial';
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.fillText('Resumo de Rota — ' + ds.charAt(0).toUpperCase() + ds.slice(1), PAD + 6, HDR_H * 0.7);
+
+        ctx.font = 'bold 22px Arial';
+        ctx.fillStyle = 'rgba(255,255,255,0.65)';
+        ctx.textAlign = 'right';
+        ctx.fillText(`${pi + 1} / ${pages.length}`, W - PAD, HDR_H * 0.5);
+
+        // Veículos
+        let cy = HDR_H + PAD;
+
+        for (const v of pages[pi]) {
+            const colB = v.colBEditado || _rrMontarColB(v);
+            const lines = colB.split('\n');
+
+            let sh = BODY_PAD_V;
+            lines.forEach(l => { sh += l.trim() ? SRV_LH + 3 : 8; });
+            sh += BODY_PAD_V;
+            const bodyH = Math.max(CREW_H, sh);
+            const totalH = V_HDR_H + 1 + bodyH;
+
+            // Sombra suave + fundo branco do card
+            ctx.shadowColor = 'rgba(0,0,0,0.09)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 3;
+            roundRect(ctx, PAD, cy, W - PAD * 2, totalH, 10, '#ffffff');
+            ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+            // Borda do card
+            ctx.save();
+            roundRect(ctx, PAD, cy, W - PAD * 2, totalH, 10);
+            ctx.strokeStyle = '#dde3ea';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.restore();
+
+            // Header do veículo (cinza)
+            ctx.fillStyle = '#e8edf2';
+            roundRect(ctx, PAD, cy, W - PAD * 2, V_HDR_H, 10, '#e8edf2');
+            ctx.fillStyle = '#e8edf2';
+            ctx.fillRect(PAD, cy + 10, W - PAD * 2, V_HDR_H - 10);
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = 'bold 26px Arial';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🚚  ' + (v.veiculo || ''), PAD + 18, cy + V_HDR_H / 2);
+
+            // Linha divisória após header do veículo
+            ctx.fillStyle = '#cdd5df';
+            ctx.fillRect(PAD, cy + V_HDR_H, W - PAD * 2, 1);
+
+            const bodyY = cy + V_HDR_H + 1;
+
+            // Divisor vertical esquerda|direita
+            ctx.fillStyle = '#e9eef3';
+            ctx.fillRect(PAD + LEFT_W, bodyY, 1, bodyH);
+
+            // ── Esquerda: Equipe ──
+            let crY = bodyY + BODY_PAD_V;
+
+            const drawMember = (nome, cargo, fotoUrl, ring) => {
+                const photoX = PAD + CREW_R + 12;
+                const photoY = crY + CREW_R + 4;
+                const img = fotoUrl ? (cache[fotoUrl] || null) : null;
+                const ini = (nome || '?').split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
+                drawPhoto(ctx, img, photoX, photoY, CREW_R, ini, ring);
+
+                const tx = PAD + CREW_R * 2 + 22;
+                const tw = LEFT_W - CREW_R * 2 - 30;
+
+                ctx.fillStyle = '#0f172a';
+                ctx.font = 'bold 21px Arial';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                let displayNome = (nome || '—').replace(/\s+/g, ' ').trim();
+                if (ctx.measureText(displayNome).width > tw) {
+                    const parts = displayNome.split(' ');
+                    displayNome = parts.slice(0, 2).join(' ');
+                    if (ctx.measureText(displayNome).width > tw) displayNome = parts[0];
+                }
+                ctx.fillText(displayNome, tx, crY + 10);
+
+                ctx.fillStyle = '#64748b';
+                ctx.font = '18px Arial';
+                ctx.fillText(cargo || '', tx, crY + 37);
+                crY += CREW_ROW_H;
+            };
+
+            drawMember(v.motorista, 'Motorista', v._fotoMotorista, '#1d4ed8');
+
+            // Separador entre motorista e ajudante
+            ctx.strokeStyle = '#edf2f7';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(PAD + 10, crY - CREW_ROW_H / 2 + 6);
+            ctx.lineTo(PAD + LEFT_W - 8, crY - CREW_ROW_H / 2 + 6);
+            ctx.stroke();
+
+            drawMember(v.ajudante, 'Ajudante Geral', v._fotoAjudante, '#7c3aed');
+
+            // ── Direita: Serviços ──
+            let sy = bodyY + BODY_PAD_V;
+            for (const line of lines) {
+                if (!line.trim()) { sy += 8; continue; }
+                const { color, bold } = lineStyle(line);
+                const isIndent = /^\s{2,}/.test(line);
+                const dx = isIndent ? 18 : 0;
+                ctx.fillStyle = color;
+                ctx.font = `${bold ? 'bold ' : ''}${bold ? 21 : 20}px Arial`;
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                ctx.fillText(line.trim(), RIGHT_X + dx, sy, RIGHT_W - dx - 8);
+                sy += SRV_LH + 3;
+                if (sy > bodyY + bodyH - 10) break;
+            }
+
+            cy += totalH + CARD_GAP;
+        }
+
+        // Rodapé
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '19px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('América Rental Equipamentos — Logística', W / 2, H - 20);
+
+        canvases.push(cv);
+    }
+
+    return canvases;
+}
+
 // ── Gera e baixa o arquivo Excel ──────────────
 async function _rrGerarExcel() {
     const wb = new ExcelJS.Workbook();
@@ -1563,10 +1847,48 @@ async function _rrGerarExcel() {
     }
 
     const buf  = await wb.xlsx.writeBuffer();
-    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
-    saveAs(blob, `Resumo_Rota_${hoje}.xlsx`);
-    showToast('✅ Planilha exportada e salva no histórico!', 'success');
+    const nomeBase = `Resumo_Rota_${hoje}`;
+
+    // ── Gerar imagens e empacotar com Excel ────────────────────────
+    showToast('⏳ Gerando imagens da rota...', 'info');
+    try {
+        const canvases = await _rrGerarImagensRota();
+        const excelBlob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+        if (!window.JSZip || canvases.length <= 1) {
+            // Sem ZIP: baixa planilha + 1 imagem separadamente
+            saveAs(excelBlob, `${nomeBase}.xlsx`);
+            if (canvases.length === 1) {
+                await new Promise(res => canvases[0].toBlob(b => { saveAs(b, `${nomeBase}.png`); res(); }, 'image/png'));
+            }
+        } else {
+            // Empacota tudo num ZIP: Excel na raiz + pasta Imagens/
+            const zip = new JSZip();
+            zip.file(`${nomeBase}.xlsx`, buf);
+            const imgFolder = zip.folder('Imagens');
+            await Promise.all(canvases.map((cv, i) =>
+                new Promise(res => cv.toBlob(b => {
+                    imgFolder.file(`img_${String(i + 1).padStart(2, '0')}.png`, b);
+                    res();
+                }, 'image/png'))
+            ));
+            const zipBlob = await zip.generateAsync({
+                type: 'blob',
+                compression: 'DEFLATE',
+                compressionOptions: { level: 6 }
+            });
+            saveAs(zipBlob, `${nomeBase}.zip`);
+        }
+
+        showToast(`✅ Planilha + ${canvases.length} imagem(ns) exportadas com sucesso!`, 'success');
+    } catch (imgErr) {
+        console.error('[RR] Erro ao gerar imagens:', imgErr);
+        // Fallback: baixa só o Excel
+        const excelBlob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveAs(excelBlob, `${nomeBase}.xlsx`);
+        showToast('✅ Planilha exportada. Erro ao gerar imagens: ' + imgErr.message, 'warning');
+    }
 }
 
 
