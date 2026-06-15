@@ -277,7 +277,9 @@ function _rrMontarColB(v) {
 }
 
 // ── Estado global ──────────────────────────────────────────────
-let _rrVeiculos = [];
+let _rrVeiculos      = [];
+let _rrCurrentId     = null;
+let _rrHistoricoList = [];
 let _rrSearchTerm = '';
 let _rrDate = null;
 let _rrColabDisponiveisObs = {};
@@ -290,8 +292,8 @@ window._rrChangePeriodo = function(val) {
     window._rrPeriodoSelecionado = val;
     window._rrRenderColabDisponiveis();
 };
-window._rrColabFotoMap       = {};
-window._rrColabNomes         = [];
+window._rrColabFotoMap = {};
+window._rrColabNomes   = [];
 
 // ── Token helper ───────────────────────────────────────────────
 function _rrAuthHeaders() {
