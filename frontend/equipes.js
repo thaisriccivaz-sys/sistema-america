@@ -507,7 +507,7 @@ function _renderCard(m) {
   const labelText = `${baseCargo}${isMotorista && m.cnh_categoria && !baseCargo.includes('(') ? ` (${m.cnh_categoria})` : ''}`;
   const badgeBg = isMotorista ? '#dbeafe' : '#f1f5f9';
   const badgeColor = isMotorista ? '#1d4ed8' : '#475569';
-  const expTag = emExp ? ` <span style="color:#f97316;font-weight:800;">- EXPERIÊNCIA</span>` : '';
+  const expTag = emExp ? ` <span class="eq-card-func" style="background:#ffedd5;color:#c2410c;margin-left:4px;">EXPERIÊNCIA</span>` : '';
 
   const avatarHtml = _eq_fotoSrc(m)
     ? `<img class="eq-avatar" src="${_eq_fotoSrc(m)}" alt="${nome}" style="${avatarBorder}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
@@ -529,7 +529,10 @@ function _renderCard(m) {
     ${avatarHtml}
     <div class="eq-card-info">
       <div class="eq-card-name" style="${isHojeFolga ? 'color:#64748b;text-decoration:line-through;' : ''}">${nome}</div>
-      <span class="eq-card-func" style="background:${isHojeFolga ? '#e2e8f0' : badgeBg};color:${isHojeFolga ? '#64748b' : badgeColor};">${labelText}${expTag}</span>
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;">
+        <span class="eq-card-func" style="background:${isHojeFolga ? '#e2e8f0' : badgeBg};color:${isHojeFolga ? '#64748b' : badgeColor};">${labelText}</span>
+        ${expTag}
+      </div>
       ${m.escala ? `<div class="eq-card-escala" style="${isHojeFolga ? 'color:#94a3b8;' : ''}">${isHojeFolga ? '<i class="ph ph-moon"></i> Em Folga' : m.escala}</div>` : ''}
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
