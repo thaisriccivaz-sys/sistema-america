@@ -138,13 +138,17 @@
                     <a href="#" class="nav-item" data-target="logistica-dashboard"
                         onclick="navigateTo('logistica-dashboard'); return false;"><i class="ph ph-chart-bar"></i>
                         Dashboard</a>
-                    <!-- ▸ Grupo: Rota Redonda -->
-                    <div class="nav-group">
-                        <div class="nav-group-label">
-                            <i class="ph ph-map-trifold"></i>
-                            Rota Redonda
-                        </div>
-                        <div class="nav-group-items">
+                    <!-- ▸ Grupo: Rota Redonda (acordeão) -->
+                    <div class="nav-group" id="nav-group-rota-redonda">
+                        <button class="nav-group-label nav-group-toggle"
+                                onclick="toggleNavGroup('nav-group-rota-redonda')">
+                            <span style="display:flex;align-items:center;gap:0.55rem;">
+                                <i class="ph ph-map-trifold"></i>
+                                Rota Redonda
+                            </span>
+                            <i class="ph ph-caret-right nav-group-chevron"></i>
+                        </button>
+                        <div class="nav-group-items" id="nav-group-items-rota-redonda">
                             <a href="#" class="nav-item nav-item-sub" data-target="logistica-pipeline"
                                 onclick="navigateTo('logistica-pipeline'); return false;"><i class="ph ph-kanban"></i>
                                 Pipeline</a>
@@ -5220,9 +5224,40 @@
     <script src="config-sigor.js"></script>
     <script src="/frota_manutencao.js?v=1778890494626"></script>
     <script src="/sort_table.js?v=1"></script>
+
+    <script>
+        /* ── Acordeão nav-group ─────────────────────────────────────── */
+        function toggleNavGroup(groupId) {
+            const group = document.getElementById(groupId);
+            if (!group) return;
+            group.classList.toggle('open');
+        }
+
+        /* Recolhe todos os nav-groups quando o submenu de Logística fecha */
+        (function() {
+            function collapseAllNavGroups() {
+                document.querySelectorAll('.nav-group.open').forEach(function(g) {
+                    g.classList.remove('open');
+                });
+            }
+
+            /* Observa mouseleave em cada dept-item que contém nav-groups */
+            document.querySelectorAll('.dept-item').forEach(function(item) {
+                item.addEventListener('mouseleave', collapseAllNavGroups);
+            });
+
+            /* Também recolhe ao clicar fora (caso fique aberto por outro motivo) */
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.dept-submenu')) {
+                    collapseAllNavGroups();
+                }
+            });
+        })();
+    </script>
 </body>
 
 </html>
+
 
 
 
