@@ -15749,18 +15749,32 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
             const ids = (colabs || []).map(c => c.id);
             if (!ids.length) return resolve([]);
             const ph = ids.map(() => '?').join(',');
-            db.all(`SELECT id, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores
-                    WHERE id IN (${ph}) AND ferias_programadas_inicio IS NOT NULL AND ferias_programadas_inicio != ''`, ids, (e, rows) => {
+            db.all(`SELECT id, ferias_programadas_inicio, ferias_programadas_fim, ferias_fracionadas, ferias_fracionadas_tipo, ferias_fracionadas_inicio2, ferias_fracionadas_fim2 FROM colaboradores
+                    WHERE id IN (${ph})`, ids, (e, rows) => {
                 const ausFeriasSet = {};
                 (rows || []).forEach(r => {
-                    if (!r.ferias_programadas_inicio || !r.ferias_programadas_fim) return;
-                    let cur = new Date(r.ferias_programadas_inicio + 'T12:00:00');
-                    const end = new Date(r.ferias_programadas_fim + 'T12:00:00');
-                    while (cur <= end) {
-                        const d = cur.toISOString().split('T')[0];
-                        if (!ausFeriasSet[r.id]) ausFeriasSet[r.id] = {};
-                        ausFeriasSet[r.id][d] = 'ferias';
-                        cur.setDate(cur.getDate() + 1);
+                    const addFerias = (inicio, fim) => {
+                        if (!inicio || !fim) return;
+                        let dStart = inicio;
+                        if (dStart.includes('/')) { const p = dStart.split('/'); dStart = `${p[2]}-${p[1]}-${p[0]}`; }
+                        let dEnd = fim;
+                        if (dEnd.includes('/')) { const p = dEnd.split('/'); dEnd = `${p[2]}-${p[1]}-${p[0]}`; }
+                        
+                        let cur = new Date(dStart + 'T12:00:00');
+                        const end = new Date(dEnd + 'T12:00:00');
+                        if (isNaN(cur.getTime()) || isNaN(end.getTime())) return;
+                        
+                        while (cur <= end) {
+                            const d = cur.toISOString().split('T')[0];
+                            if (!ausFeriasSet[r.id]) ausFeriasSet[r.id] = {};
+                            ausFeriasSet[r.id][d] = 'ferias';
+                            cur.setDate(cur.getDate() + 1);
+                        }
+                    };
+
+                    addFerias(r.ferias_programadas_inicio, r.ferias_programadas_fim);
+                    if (r.ferias_fracionadas === 'Sim' && r.ferias_fracionadas_tipo === 'Tirada') {
+                        addFerias(r.ferias_fracionadas_inicio2, r.ferias_fracionadas_fim2);
                     }
                 });
                 resolve(ausFeriasSet);
@@ -16013,14 +16027,33 @@ app.get('/api/rh/escala', authenticateToken, (req, res) => {
         const ph = ids.map(() => '?').join(',');
 
         const p1 = new Promise(resolve => {
-            db.all(`SELECT id, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores
-                    WHERE id IN (${ph}) AND ferias_programadas_inicio IS NOT NULL AND ferias_programadas_inicio != ''`, ids, (e, rows) => {
+            db.all(`SELECT id, ferias_programadas_inicio, ferias_programadas_fim, ferias_fracionadas, ferias_fracionadas_tipo, ferias_fracionadas_inicio2, ferias_fracionadas_fim2 FROM colaboradores
+                    WHERE id IN (${ph})`, ids, (e, rows) => {
                 const s = {};
                 (rows||[]).forEach(r => {
-                    if (!r.ferias_programadas_inicio || !r.ferias_programadas_fim) return;
-                    let cur = new Date(r.ferias_programadas_inicio + 'T12:00:00');
-                    const end = new Date(r.ferias_programadas_fim + 'T12:00:00');
-                    while (cur <= end) { const d = cur.toISOString().split('T')[0]; if (!s[r.id]) s[r.id]={}; s[r.id][d]='ferias'; cur.setDate(cur.getDate()+1); }
+                    const addFerias = (inicio, fim) => {
+                        if (!inicio || !fim) return;
+                        let dStart = inicio;
+                        if (dStart.includes('/')) { const p = dStart.split('/'); dStart = `${p[2]}-${p[1]}-${p[0]}`; }
+                        let dEnd = fim;
+                        if (dEnd.includes('/')) { const p = dEnd.split('/'); dEnd = `${p[2]}-${p[1]}-${p[0]}`; }
+                        
+                        let cur = new Date(dStart + 'T12:00:00');
+                        const end = new Date(dEnd + 'T12:00:00');
+                        if (isNaN(cur.getTime()) || isNaN(end.getTime())) return;
+                        
+                        while (cur <= end) {
+                            const d = cur.toISOString().split('T')[0];
+                            if (!s[r.id]) s[r.id] = {};
+                            s[r.id][d] = 'ferias';
+                            cur.setDate(cur.getDate() + 1);
+                        }
+                    };
+
+                    addFerias(r.ferias_programadas_inicio, r.ferias_programadas_fim);
+                    if (r.ferias_fracionadas === 'Sim' && r.ferias_fracionadas_tipo === 'Tirada') {
+                        addFerias(r.ferias_fracionadas_inicio2, r.ferias_fracionadas_fim2);
+                    }
                 });
                 resolve(s);
             });
