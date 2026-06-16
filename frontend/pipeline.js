@@ -591,21 +591,47 @@ async function pipelineExportarExcel(registrosOverride) {
         const produtosArr    = parseArr(r.produtos);
         const diasArr        = parseArr(r.dias_semana);
 
-        // Ícones das habilidades (PIPELINE_EQ_ICONS)
-        const icHab = habilidadesArr
-            .map(h => PIPELINE_EQ_ICONS[(h || '').trim().toUpperCase()] || '')
-            .filter(Boolean).join('');
-
-        // Ícones das variáveis que têm ícone cadastrado (PIPELINE_VARS_CORES)
+        // Ícones das variáveis (PIPELINE_VARS_CORES) — vêm primeiro
         const icVar = variaveisArr.map(v => {
             const vUp = (v || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             for (const [key, style] of Object.entries(PIPELINE_VARS_CORES)) {
                 if (vUp.includes(key)) return style.icon;
             }
             return '';
-        }).filter(Boolean).join('');
+        }).filter(Boolean);
 
-        const iconesTitulo = [icHab, icVar].filter(Boolean).join('');
+        // Ícones das habilidades (PIPELINE_VARS_CORES, igual ao card) — vêm depois das variáveis
+        const isVacTs = ts.includes('vac');
+        const icHab = habilidadesArr.map(h => {
+            const hUp = (h || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            for (const [key, style] of Object.entries(PIPELINE_VARS_CORES)) {
+                if (hUp.includes(key)) {
+                    if (key === 'VAC' && !isVacTs) return ''; // 🏗️ só para serviço VAC
+                    return style.icon;
+                }
+            }
+            return '';
+        }).filter(Boolean);
+
+        // Ícones de produto (ENTREGA) ou ⭕ (RETIRADA) — vêm por último, após var e hab
+        const icProdOuRetir = [];
+        if (ts.includes('retirada')) {
+            icProdOuRetir.push('⭕');
+        } else if (ts.includes('entrega') && produtosArr.length) {
+            const prodSet = new Set();
+            produtosArr.forEach(p => {
+                const desc = (p.desc || '').trim().toUpperCase();
+                const descNorm = desc.replace(/ EVENTO$/, ' OBRA');
+                const ic = PIPELINE_EQ_ICONS[desc] || PIPELINE_EQ_ICONS[descNorm];
+                if (ic) prodSet.add(ic);
+            });
+            prodSet.forEach(ic => icProdOuRetir.push(ic));
+        }
+
+        // Monta prefixo do título: icVar + icHab + icProdOuRetir (sem duplicatas globais)
+        const todosIconesTitulo = [...new Set([...icVar, ...icHab, ...icProdOuRetir])];
+        const iconesTitulo = todosIconesTitulo.join(' ');
+
         let nomeLimpo = (r.cliente || '').trim();
         nomeLimpo = nomeLimpo.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/gu, '').trim();
         nomeLimpo = nomeLimpo.replace(/^[\ud83c\udf00-\ud83e\uddff\u2600-\u27bf\u{1F000}-\u{1FFFF}\u2b00-\u2bff\uFE0F\s]+/gu, '').trim();
@@ -750,12 +776,13 @@ async function pipelineExportarExcel(registrosOverride) {
         let obsStr = stripClientPrefix(r.observacoes, r.cliente);
         let obsIntStr = stripClientPrefix(r.observacoes_internas, r.cliente);
         
+        const icVarStr = icVar.join(''); // icVar é array, converter para string
         let obsComIcone = '';
         let combinacaoObs = [obsStr].filter(Boolean).join(' | ');
 
-        if (combinacaoObs || icVar) {
+        if (combinacaoObs || icVarStr) {
             // Adiciona todos os ícones de variáveis (icVar) na frente
-            obsComIcone = (icVar ? icVar + ' ' : '') + combinacaoObs;
+            obsComIcone = (icVarStr ? icVarStr + ' ' : '') + combinacaoObs;
         }
 
         // Linha 3: NOME DO SERVIÇO
@@ -822,7 +849,7 @@ async function pipelineExportarExcel(registrosOverride) {
         const habilidades = Array.isArray(r.habilidades) ? r.habilidades.join(', ') : (r.habilidades || '');
 
         const rowData = [
-            (icVar ? icVar + ' ' : '') + obsIntStr, // A Obs Internas (com ícones tbm e sem nome do cliente)
+            (icVarStr ? icVarStr + ' ' : '') + obsIntStr, // A Obs Internas (com ícones tbm e sem nome do cliente)
             titulo,                  // B Titulo
             endereco,                // C Endereço completo
             valTanque,               // D Carga (Tanque)
