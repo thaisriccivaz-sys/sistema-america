@@ -9121,6 +9121,32 @@ app.get('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
     );
 });
 
+// Criação da tabela de selfies de entrega de EPI (migration automática)
+db.run(`CREATE TABLE IF NOT EXISTS epi_selfies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    colaborador_id INTEGER NOT NULL,
+    selfie_base64 TEXT NOT NULL,
+    registrado_por TEXT,
+    timestamp TEXT,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
+// POST: salvar selfie da entrega de EPI
+app.post('/api/epi-selfie', authenticateToken, (req, res) => {
+    const { colaborador_id, selfie_base64, registrado_por, timestamp } = req.body;
+    if (!colaborador_id || !selfie_base64) return res.status(400).json({ error: 'Dados incompletos.' });
+    const registradoPor = registrado_por || (req.user ? (req.user.nome || req.user.username || '') : '');
+    const ts = timestamp || new Date().toISOString();
+    db.run(
+        `INSERT INTO epi_selfies (colaborador_id, selfie_base64, registrado_por, timestamp) VALUES (?,?,?,?)`,
+        [colaborador_id, selfie_base64, registradoPor, ts],
+        function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, id: this.lastID });
+        }
+    );
+});
+
 // POST: registrar entrega assinada de EPIs
 app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
     const fichaId = req.params.id;

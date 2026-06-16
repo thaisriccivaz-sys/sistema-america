@@ -13568,24 +13568,184 @@ window.salvarAssinaturasTestemunhas = async function () {
 let ctxColaborador = {};
 let currentDocIdForColab = null;
 
+// ─── SELFIE EPI ─────────────────────────────────────────────────────────────
+let _epiSelfieStream = null;
+let _epiSelfieBase64 = null;
+let _epiSelfieTimestamp = null;
+
+window._fecharModalAssinaturaColab = function () {
+    document.getElementById('modal-assinatura-colaborador').style.display = 'none';
+    _epiPararCamera();
+};
+
+function _epiPararCamera() {
+    if (_epiSelfieStream) {
+        _epiSelfieStream.getTracks().forEach(t => t.stop());
+        _epiSelfieStream = null;
+    }
+    const video = document.getElementById('epi-selfie-video');
+    if (video) { video.srcObject = null; }
+}
+
+async function _epiIniciarCamera() {
+    const statusEl = document.getElementById('epi-selfie-status');
+    try {
+        // Preferir câmera frontal (user-facing)
+        _epiSelfieStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+            audio: false
+        });
+        const video = document.getElementById('epi-selfie-video');
+        video.srcObject = _epiSelfieStream;
+        video.style.display = 'block';
+        document.getElementById('epi-selfie-canvas').style.display = 'none';
+        document.getElementById('btn-epi-tirar-foto').style.display = 'flex';
+        document.getElementById('btn-epi-refazer-foto').style.display = 'none';
+        document.getElementById('btn-epi-confirmar-foto').style.display = 'none';
+        if (statusEl) statusEl.textContent = 'Câmera pronta. Posicione seu rosto.';
+    } catch (err) {
+        console.error('[EPI Selfie] Câmera:', err);
+        if (statusEl) statusEl.innerHTML = '<span style="color:#dc2626;"><i class="ph ph-warning"></i> Não foi possível acessar a câmera. Verifique as permissões do navegador.</span>';
+        document.getElementById('btn-epi-tirar-foto').style.display = 'none';
+    }
+}
+
+window._epiTirarFoto = function () {
+    const video = document.getElementById('epi-selfie-video');
+    const canvas = document.getElementById('epi-selfie-canvas');
+    if (!video || !_epiSelfieStream) return;
+
+    // Captura o frame do vídeo no canvas — espelhado para ficar natural
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+
+    // Espelha horizontalmente (pois o vídeo está flipado via CSS; queremos salvar sem flip)
+    ctx.save();
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    // Timestamp e info de quem fez a entrega
+    _epiSelfieTimestamp = new Date();
+    const dtStr = _epiSelfieTimestamp.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const entregadorNome = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.nome || currentUser.username || 'Usuário') : 'Usuário';
+    const colabNome = (typeof viewedColaborador !== 'undefined' && viewedColaborador) ? (viewedColaborador.nome_completo || '') : '';
+
+    // Desenhar overlay de texto na foto salva
+    const overlayH = 56;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0, canvas.height - overlayH, canvas.width, overlayH);
+
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 13px Arial';
+    ctx.fillText('Entregue por: ' + entregadorNome, 8, canvas.height - overlayH + 16);
+
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '12px Arial';
+    ctx.fillText('Colaborador: ' + colabNome, 8, canvas.height - overlayH + 32);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px Arial';
+    ctx.fillText(dtStr, 8, canvas.height - overlayH + 48);
+
+    _epiSelfieBase64 = canvas.toDataURL('image/jpeg', 0.88);
+
+    // Mostrar canvas com foto, esconder vídeo
+    video.style.display = 'none';
+    canvas.style.display = 'block';
+
+    document.getElementById('btn-epi-tirar-foto').style.display = 'none';
+    document.getElementById('btn-epi-refazer-foto').style.display = 'flex';
+    document.getElementById('btn-epi-confirmar-foto').style.display = 'flex';
+
+    const statusEl = document.getElementById('epi-selfie-status');
+    if (statusEl) statusEl.innerHTML = '<span style="color:#16a34a;"><i class="ph ph-check-circle"></i> Foto tirada! Confirme ou refaça.</span>';
+};
+
+window._epiRefazerFoto = function () {
+    _epiSelfieBase64 = null;
+    _epiSelfieTimestamp = null;
+    const video = document.getElementById('epi-selfie-video');
+    const canvas = document.getElementById('epi-selfie-canvas');
+    video.style.display = 'block';
+    canvas.style.display = 'none';
+    document.getElementById('btn-epi-tirar-foto').style.display = 'flex';
+    document.getElementById('btn-epi-refazer-foto').style.display = 'none';
+    document.getElementById('btn-epi-confirmar-foto').style.display = 'none';
+    const statusEl = document.getElementById('epi-selfie-status');
+    if (statusEl) statusEl.textContent = 'Câmera pronta. Posicione seu rosto.';
+};
+
+window._epiConfirmarFotoIrParaAssinatura = function () {
+    if (!_epiSelfieBase64) return;
+
+    // Para a câmera
+    _epiPararCamera();
+
+    // Copia selfie para o thumb no passo 2
+    const srcCanvas = document.getElementById('epi-selfie-canvas');
+    const thumb = document.getElementById('epi-selfie-thumb');
+    if (srcCanvas && thumb) {
+        const thumbCtx = thumb.getContext('2d');
+        thumb.width = srcCanvas.width;
+        thumb.height = srcCanvas.height;
+        thumbCtx.drawImage(srcCanvas, 0, 0);
+    }
+
+    const dtStr = _epiSelfieTimestamp
+        ? _epiSelfieTimestamp.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+        : '';
+    const thumbDt = document.getElementById('epi-selfie-thumb-dt');
+    if (thumbDt) thumbDt.textContent = dtStr;
+
+    // Transição para o passo 2
+    document.getElementById('epi-step-selfie').style.display = 'none';
+    const assinaturaArea = document.getElementById('area-assinatura-colaborador');
+    assinaturaArea.style.display = 'flex';
+    setTimeout(() => { setupHighDpiCanvas('canvas-colaborador', ctxColaborador, 'ctx1'); }, 100);
+};
+
 window.abrirModalAssinaturaColaborador = async function (docId) {
     currentDocIdForColab = docId;
-    const doc = currentDocs.find(d => d.id === docId);
+    _epiSelfieBase64 = null;
+    _epiSelfieTimestamp = null;
 
     const modal = document.getElementById('modal-assinatura-colaborador');
-    const formArea = document.getElementById('area-assinatura-colaborador');
-    formArea.style.display = 'none';
+    document.getElementById('area-assinatura-colaborador').style.display = 'none';
+    document.getElementById('epi-step-selfie').style.display = 'none';
     modal.style.display = 'block';
 
     document.getElementById('nome-assinatura-colab').innerText = viewedColaborador.nome_completo || 'Colaborador';
 
-    const pdfUrl = `${API_URL}/documentos/view/${docId}?token=${currentToken}`;
+    // Preencher overlay info
+    const entregadorNome = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.nome || currentUser.username || 'Usuário') : 'Usuário';
+    const colabNome = viewedColaborador.nome_completo || '';
+    const el = document.getElementById('epi-selfie-info-entregador');
+    if (el) el.textContent = 'Entregue por: ' + entregadorNome;
+    const el2 = document.getElementById('epi-selfie-info-colab');
+    if (el2) el2.textContent = 'Colaborador: ' + colabNome;
 
+    // Atualizar timestamp no overlay em tempo real
+    const dtEl = document.getElementById('epi-selfie-info-dt');
+    if (dtEl) {
+        const _tick = () => { dtEl.textContent = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }); };
+        _tick();
+        clearInterval(window._epiSelfieClock);
+        window._epiSelfieClock = setInterval(() => {
+            if (!document.getElementById('epi-step-selfie') || document.getElementById('epi-step-selfie').style.display === 'none') {
+                clearInterval(window._epiSelfieClock);
+            } else { _tick(); }
+        }, 1000);
+    }
+
+    const pdfUrl = `${API_URL}/documentos/view/${docId}?token=${currentToken}`;
     renderPdfToContainer(pdfUrl, 'pdf-viewer-colaborador', () => {
-        formArea.style.display = 'block';
-        setTimeout(() => {
-            setupHighDpiCanvas('canvas-colaborador', ctxColaborador, 'ctx1');
-        }, 100);
+        // Após PDF carregado, iniciar câmera e mostrar passo 1
+        const selfieArea = document.getElementById('epi-step-selfie');
+        selfieArea.style.display = 'flex';
+        _epiIniciarCamera();
     });
 };
 
@@ -13597,6 +13757,9 @@ window.limparCanvasColaborador = function () {
 };
 
 window.salvarAssinaturaColaborador = async function () {
+    if (!_epiSelfieBase64) {
+        alert('É necessário tirar a selfie antes de assinar.'); return;
+    }
     if (isCanvasBlank('canvas-colaborador')) {
         alert('A assinatura do colaborador é obrigatória.'); return;
     }
@@ -13674,6 +13837,25 @@ window.salvarAssinaturaColaborador = async function () {
         if (doc.year) formData.append('year', doc.year);
         if (doc.month) formData.append('month', doc.month);
 
+        // Salva selfie no banco antes de fechar
+        if (_epiSelfieBase64) {
+            try {
+                const entregadorNome = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.nome || currentUser.username || '') : '';
+                await fetch(`${API_URL}/epi-selfie`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        colaborador_id: viewedColaborador.id,
+                        selfie_base64: _epiSelfieBase64,
+                        registrado_por: entregadorNome,
+                        timestamp: _epiSelfieTimestamp ? _epiSelfieTimestamp.toISOString() : new Date().toISOString()
+                    })
+                });
+            } catch (selfieErr) {
+                console.error('[EPI Selfie] Erro ao salvar selfie:', selfieErr);
+            }
+        }
+
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando Documento...';
         const resUpload = await fetch(`${API_URL}/documentos`, {
             method: 'POST',
@@ -13687,6 +13869,7 @@ window.salvarAssinaturaColaborador = async function () {
         }
 
         alert('Assinatura do colaborador coletada!');
+        _epiPararCamera();
         document.getElementById('modal-assinatura-colaborador').style.display = 'none';
 
         await loadDocumentosList();
