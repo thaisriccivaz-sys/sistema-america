@@ -138,15 +138,25 @@
                     <a href="#" class="nav-item" data-target="logistica-dashboard"
                         onclick="navigateTo('logistica-dashboard'); return false;"><i class="ph ph-chart-bar"></i>
                         Dashboard</a>
-                    <a href="#" class="nav-item" data-target="logistica-pipeline"
-                        onclick="navigateTo('logistica-pipeline'); return false;"><i class="ph ph-kanban"></i>
-                        Pipeline</a>
-                    <a href="#" class="nav-item" data-target="logistica-rota-redonda"
-                        onclick="navigateTo('logistica-rota-redonda'); return false;"><i class="ph ph-map-trifold"></i>
-                        Rota Redonda</a>
-                    <a href="#" class="nav-item" data-target="logistica-resumo-rota"
-                        onclick="navigateTo('logistica-resumo-rota'); return false;"><i class="ph ph-list-bullets"></i>
-                        Resumo de Rota</a>
+                    <!-- ▸ Grupo: Rota Redonda -->
+                    <div class="nav-group">
+                        <div class="nav-group-label">
+                            <i class="ph ph-map-trifold"></i>
+                            Rota Redonda
+                        </div>
+                        <div class="nav-group-items">
+                            <a href="#" class="nav-item nav-item-sub" data-target="logistica-pipeline"
+                                onclick="navigateTo('logistica-pipeline'); return false;"><i class="ph ph-kanban"></i>
+                                Pipeline</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="logistica-resumo-rota"
+                                onclick="navigateTo('logistica-resumo-rota'); return false;"><i class="ph ph-list-bullets"></i>
+                                Resumo da Rota</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="logistica-rota-redonda"
+                                onclick="navigateTo('logistica-rota-redonda'); return false;"><i class="ph ph-clipboard-text"></i>
+                                OS</a>
+                        </div>
+                    </div>
+
                     <a href="#" class="nav-item" data-target="logistica-agenda"
                         onclick="navigateTo('logistica-agenda'); return false;"><i class="ph ph-calendar-check"></i>
                         Agenda</a>

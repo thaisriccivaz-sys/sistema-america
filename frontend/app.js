@@ -464,7 +464,7 @@ const BREADCRUMB_MAP = {
     // Logística
     'logistica-dashboard': { path: 'Dashboard Logística', code: 'LOG000' },
     'logistica-sinistros': { path: 'Sinistros Logística', code: 'LOG010' },
-    'logistica-rota-redonda': { path: 'Rota Redonda', code: 'LOG001' },
+    'logistica-rota-redonda': { path: 'Rota Redonda → OS', code: 'LOG001' },
     'logistica-frota-resumo': { path: 'Resumo de Frota', code: 'LOG002' },
     'logistica-pipeline': { path: 'Pipeline OS', code: 'LOG003' },
     'logistica-multas': { path: 'Multas', code: 'LOG004' },
@@ -671,7 +671,7 @@ const TAB_META = {
     'logistica-em-breve': { color: '#2d9e5f', icon: 'ph-truck', title: 'Logística' },
     'logistica-dashboard': { color: '#2d9e5f', icon: 'ph-chart-bar', title: 'Dashboard Logística' },
     'logistica-sinistros': { color: '#059669', icon: 'ph-warning', title: 'Sinistros Logística' },
-    'logistica-rota-redonda': { color: '#2d9e5f', icon: 'ph-map-trifold', title: 'Rota Redonda' },
+    'logistica-rota-redonda': { color: '#2d9e5f', icon: 'ph-clipboard-text', title: 'OS' },
     'logistica-resumo-rota': { color: '#2d9e5f', icon: 'ph-list-bullets', title: 'Resumo de Rota' },
     'logistica-frota-resumo': { color: '#1e3a5f', icon: 'ph-truck', title: 'Resumo de Frota' },
     'logistica-pipeline': { color: '#2d9e5f', icon: 'ph-kanban', title: 'Pipeline' },
