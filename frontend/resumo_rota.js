@@ -1821,7 +1821,15 @@ async function _rrGerarExcel() {
     const veiculosOrdenados = [..._rrVeiculos].sort((a, b) => (a.veiculo || '').localeCompare(b.veiculo || '', 'pt-BR', { sensitivity: 'base' }));
 
     veiculosOrdenados.forEach((v, i) => {
-        const colB = v.colBEditado || _rrMontarColB(v);
+        let colB = v.colBEditado || _rrMontarColB(v);
+        
+        let equipeText = [];
+        if (v.motorista && v.motorista.trim()) equipeText.push(`MOTORISTA: ${v.motorista.trim().toUpperCase()}`);
+        if (v.ajudante && v.ajudante.trim()) equipeText.push(`AJUDANTE: ${v.ajudante.trim().toUpperCase()}`);
+        if (equipeText.length > 0) {
+            colB = equipeText.join('\n') + '\n\n' + colB;
+        }
+
         const nLines = (colB.match(/\n/g) || []).length + 1;
         const rowH   = Math.max(20, nLines * 14);
         const zebra  = i % 2 === 0 ? lightGreen : null;
