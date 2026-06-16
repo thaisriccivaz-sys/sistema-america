@@ -13701,7 +13701,7 @@ window._epiConfirmarFotoIrParaAssinatura = function () {
     if (thumbDt) thumbDt.textContent = dtStr;
 
     // Transição para o passo 2
-    document.getElementById('epi-step-selfie').style.display = 'none';
+    document.getElementById('epiov-step-selfie').style.display = 'none';
     const assinaturaArea = document.getElementById('area-assinatura-colaborador');
     assinaturaArea.style.display = 'flex';
     setTimeout(() => { setupHighDpiCanvas('canvas-colaborador', ctxColaborador, 'ctx1'); }, 100);
@@ -13714,7 +13714,7 @@ window.abrirModalAssinaturaColaborador = async function (docId) {
 
     const modal = document.getElementById('modal-assinatura-colaborador');
     document.getElementById('area-assinatura-colaborador').style.display = 'none';
-    document.getElementById('epi-step-selfie').style.display = 'none';
+    document.getElementById('epiov-step-selfie').style.display = 'none';
     modal.style.display = 'block';
 
     document.getElementById('nome-assinatura-colab').innerText = viewedColaborador.nome_completo || 'Colaborador';
@@ -13734,7 +13734,7 @@ window.abrirModalAssinaturaColaborador = async function (docId) {
         _tick();
         clearInterval(window._epiSelfieClock);
         window._epiSelfieClock = setInterval(() => {
-            if (!document.getElementById('epi-step-selfie') || document.getElementById('epi-step-selfie').style.display === 'none') {
+            if (!document.getElementById('epiov-step-selfie') || document.getElementById('epiov-step-selfie').style.display === 'none') {
                 clearInterval(window._epiSelfieClock);
             } else { _tick(); }
         }, 1000);
@@ -13743,7 +13743,7 @@ window.abrirModalAssinaturaColaborador = async function (docId) {
     const pdfUrl = `${API_URL}/documentos/view/${docId}?token=${currentToken}`;
     renderPdfToContainer(pdfUrl, 'pdf-viewer-colaborador', () => {
         // Após PDF carregado, iniciar câmera e mostrar passo 1
-        const selfieArea = document.getElementById('epi-step-selfie');
+        const selfieArea = document.getElementById('epiov-step-selfie');
         selfieArea.style.display = 'flex';
         _epiIniciarCamera();
     });
@@ -14297,7 +14297,7 @@ window.abrirAssinaturaEpi = async function (fichaId) {
             </div>
 
             <!-- PASSO SELFIE -->
-            <div id="epi-step-selfie" style="display:none;max-width:520px;margin:0 auto;">
+            <div id="epiov-step-selfie" style="display:none;max-width:520px;margin:0 auto;">
                 <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#eff6ff;border-radius:10px;border-left:4px solid #2563eb;margin-bottom:1.25rem;">
                     <i class="ph ph-camera" style="font-size:1.5rem;color:#2563eb;"></i>
                     <div>
@@ -14500,7 +14500,7 @@ window.abrirAssinaturaEpi = async function (fichaId) {
 
     // Navegar para o passo de assinatura (step 2)
     window._assinGoToStep2 = function() {
-        document.getElementById('epi-step-selfie').style.display = 'none';
+        document.getElementById('epiov-step-selfie').style.display = 'none';
         const s2 = document.getElementById('epi-step-2');
         s2.style.display = 'grid';
         window._assinCurrentStep = 2;
@@ -14529,7 +14529,7 @@ window.abrirAssinaturaEpi = async function (fichaId) {
         } else if (window._assinCurrentStep === 2) {
             // voltar para selfie
             document.getElementById('epi-step-2').style.display = 'none';
-            const selfieDiv = document.getElementById('epi-step-selfie');
+            const selfieDiv = document.getElementById('epiov-step-selfie');
             selfieDiv.style.display = 'block';
             window._assinCurrentStep = 'selfie';
             ['1','selfie','2','3'].forEach((s, i) => {
@@ -14570,7 +14570,7 @@ window.abrirAssinaturaEpi = async function (fichaId) {
             const tick = () => { dtEl.textContent = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' }); };
             tick(); clearInterval(window._epiAssinClock);
             window._epiAssinClock = setInterval(() => {
-                const sv = document.getElementById('epi-step-selfie');
+                const sv = document.getElementById('epiov-step-selfie');
                 if (!sv || sv.style.display === 'none') { clearInterval(window._epiAssinClock); } else { tick(); }
             }, 1000);
         }
@@ -14838,7 +14838,7 @@ window._assinStep = function (n) {
         const el = document.getElementById(`epi-step-${s}`);
         if (el) el.style.display = 'none';
     });
-    const selfieDiv = document.getElementById('epi-step-selfie');
+    const selfieDiv = document.getElementById('epiov-step-selfie');
     if (selfieDiv) selfieDiv.style.display = 'none';
 
     if (n === 1) {
@@ -14909,7 +14909,7 @@ window._assinNextStep = async function () {
             return;
         }
         // Ir para selfie
-        const selfieDiv = document.getElementById('epi-step-selfie');
+        const selfieDiv = document.getElementById('epiov-step-selfie');
         if (selfieDiv) selfieDiv.style.display = 'block';
         document.getElementById('epi-step-1').style.display = 'none';
         window._assinCurrentStep = 'selfie';
