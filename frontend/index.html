@@ -5241,12 +5241,14 @@
                 });
             }
 
-            /* Observa mouseleave em cada dept-item que contém nav-groups */
-            document.querySelectorAll('.dept-item').forEach(function(item) {
-                item.addEventListener('mouseleave', collapseAllNavGroups);
+            /* Recolhe apenas quando o mouse SAI do painel do submenu.
+               O painel é position:fixed, então o mouseleave do dept-item
+               disparava ao mover do ícone para o painel — corrigido aqui. */
+            document.querySelectorAll('.dept-submenu').forEach(function(panel) {
+                panel.addEventListener('mouseleave', collapseAllNavGroups);
             });
 
-            /* Também recolhe ao clicar fora (caso fique aberto por outro motivo) */
+            /* Recolhe ao clicar fora do submenu (ex: ao clicar em uma tela) */
             document.addEventListener('click', function(e) {
                 if (!e.target.closest('.dept-submenu')) {
                     collapseAllNavGroups();
