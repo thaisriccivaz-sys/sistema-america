@@ -189,18 +189,26 @@ function _rrMontarColB(v) {
     const obsLinhasSet = new Set();
     const obsLinhas = [];
     v.os.forEach(os => {
-        // Determina ícone: checa tanto obs quanto notas_raw (habilidades/variáveis)
-        const textoParaIcone = [os.obs, os.notas_raw].filter(Boolean).join(' ');
+        // Determina ícone: checa tanto obs, notas_raw, e habilidades
+        let habs = Array.isArray(os.habilidades) ? os.habilidades.join(' ') : (os.habilidades || '');
+        const textoParaIcone = [os.obs, os.notas_raw, habs].filter(Boolean).join(' ');
         let icon = _rrObsIcon(textoParaIcone);
 
         // Se tem ícone de informações importantes, mostra o cliente MESMO SEM obs
         const temInfoImportante = textoParaIcone.toUpperCase().includes('INFORMA') && textoParaIcone.toUpperCase().includes('IMPORTANTE');
+        if (temInfoImportante) icon = '🚨'; // Força o ícone de emergência
+
         if (!os.obs && !temInfoImportante) return;
 
         let nome = (os.cliente || '').trim();
         // Remove emojis do nome do cliente (inclui ⭕ U+2B55 explicitamente)
         nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC]+/gu, '').trim();
         nome = nome.replace(/^[\ud83c\udf00-\ud83e\uddff\u2600-\u27bf\u{1F000}-\u{1FFFF}\u2b00-\u2bff\uFE0F\s]+/gu, '').trim();
+        
+        // Limita o nome do cliente a 20 caracteres
+        if (nome.length > 20) {
+            nome = nome.substring(0, 20).trim();
+        }
 
         let obsLimpa = (os.obs || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s\u{1F6D2}]+/gu, '').trim().toUpperCase();
 
@@ -208,7 +216,7 @@ function _rrMontarColB(v) {
             const linhaObs = `${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`;
             if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
         } else if (temInfoImportante) {
-            const linhaObs = `🚨 ${nome}`;
+            const linhaObs = `🚨 ${nome}: AVISO IMPORTANTE!`;
             if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
         }
     });
@@ -1757,8 +1765,27 @@ async function _rrGerarImagensRota() {
                 ctx.textBaseline = 'top';
                 // Quebra em múltiplas linhas se necessário
                 const wrapped = wrapText(ctx, line.trim(), RIGHT_W - dx - 8);
-                for (const wl of wrapped) {
-                    ctx.fillText(wl, RIGHT_X + dx, sy); // sem maxWidth — usa word-wrap
+                const isObsLine = !line.trim().endsWith(':') && line.includes(':') && !bold;
+                
+                for (let j = 0; j < wrapped.length; j++) {
+                    const wl = wrapped[j];
+                    if (j === 0 && isObsLine) {
+                        const idx = wl.indexOf(':');
+                        if (idx !== -1) {
+                            const p1 = wl.substring(0, idx + 1);
+                            const p2 = wl.substring(idx + 1);
+                            ctx.font = `bold ${fs}px Arial`;
+                            ctx.fillText(p1, RIGHT_X + dx, sy);
+                            const w1 = ctx.measureText(p1).width;
+                            ctx.font = `${fs}px Arial`;
+                            ctx.fillText(p2, RIGHT_X + dx + w1, sy);
+                        } else {
+                            ctx.fillText(wl, RIGHT_X + dx, sy);
+                        }
+                    } else {
+                        ctx.font = `${bold ? 'bold ' : ''}${fs}px Arial`;
+                        ctx.fillText(wl, RIGHT_X + dx, sy);
+                    }
                     sy += SRV_LH + 3;
                     if (sy > bodyY + bodyH - 10) break;
                 }
