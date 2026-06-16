@@ -355,21 +355,6 @@ body {
     font-size: 0.84rem;
     border-left: 3px solid transparent;
 }
-.dept-submenu .nav-item.nav-item-sub::before {
-    content: '';
-    display: inline-block;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: #cbd5e1;
-    margin-right: 6px;
-    flex-shrink: 0;
-    transition: background 0.15s;
-}
-.dept-submenu .nav-item.nav-item-sub:hover::before,
-.dept-submenu .nav-item.nav-item-sub.active::before {
-    background: var(--dept-color, #2d9e5f);
-}
 
 /* Keep old sidebar references inert */
 
