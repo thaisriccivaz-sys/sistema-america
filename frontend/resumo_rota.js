@@ -42,7 +42,9 @@ const RR_EQ = {
 
 const RR_VAR_ICONS = {
     'LEVAR CARRINHO':          '🛒',
+    '🛒':                      '🛒',
     'NOTURNO':                 '🌘',
+    '🌘':                      '🌘',
     'INFORMACOES IMPORTANTES': '🚨',
     'INFORMAÇÕES IMPORTANTES': '🚨',
     '🚨':                      '🚨',
@@ -70,10 +72,13 @@ const RR_VAR_ICONS = {
 
 function _rrObsIcon(t) {
     const up = (t || '').toUpperCase();
+    const icons = [];
     for (const [k, ic] of Object.entries(RR_VAR_ICONS)) {
-        if (up.includes(k)) return ic;
+        if (up.includes(k) && !icons.includes(ic)) {
+            icons.push(ic);
+        }
     }
-    return '';
+    return icons.join('');
 }
 
 function _rrEquip(codigo) {
@@ -189,20 +194,21 @@ function _rrMontarColB(v) {
     const obsLinhasSet = new Set();
     const obsLinhas = [];
     v.os.forEach(os => {
-        // Determina ícone: checa tanto obs, notas_raw, e habilidades
+        // Determina ícone: checa cliente, obs, notas_raw, e habilidades
         let habs = Array.isArray(os.habilidades) ? os.habilidades.join(' ') : (os.habilidades || '');
-        const textoParaIcone = [os.obs, os.notas_raw, habs].filter(Boolean).join(' ');
+        const textoParaIcone = [os.cliente, os.obs, os.notas_raw, habs].filter(Boolean).join(' ');
         let icon = _rrObsIcon(textoParaIcone);
 
-        let nomeOriginal = (os.cliente || '').trim();
-        const tinhaSirene = nomeOriginal.includes('🚨');
-
-        // Se tem ícone de informações importantes, mostra o cliente MESMO SEM obs
         const temInfoImportante = textoParaIcone.toUpperCase().includes('INFORMA') && textoParaIcone.toUpperCase().includes('IMPORTANTE');
-        if (temInfoImportante || tinhaSirene) icon = '🚨'; // Força o ícone de emergência
+        
+        // Garante que a sirene esteja presente se a tag explícita existir
+        if (temInfoImportante && !icon.includes('🚨')) {
+            icon = '🚨' + icon;
+        }
 
-        if (!os.obs && !temInfoImportante && !tinhaSirene) return;
+        if (!os.obs && !icon) return;
 
+        let nomeOriginal = (os.cliente || '').trim();
         let nome = nomeOriginal;
         // Remove emojis do nome do cliente (inclui ⭕ U+2B55 explicitamente e todos os da Rota Redonda)
         nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/gu, '').trim();
@@ -218,8 +224,10 @@ function _rrMontarColB(v) {
         if (obsLimpa) {
             const linhaObs = `${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`;
             if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
-        } else if (temInfoImportante || tinhaSirene) {
-            const linhaObs = `🚨 ${nome}: AVISO IMPORTANTE!`;
+        } else if (icon) {
+            // Mostra a tag principal da variável se a pessoa clicou no botão e não escreveu nada
+            const fallbackTxt = icon.includes('🚨') ? 'AVISO IMPORTANTE!' : 'VERIFICAR DETALHES!';
+            const linhaObs = `${icon} ${nome}: ${fallbackTxt}`;
             if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
         }
     });

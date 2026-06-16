@@ -105,9 +105,14 @@ const ACOES_DICT = {
 };
 const ACOES = Object.keys(ACOES_DICT);
 
-// ── CÁLCULO DE TEMPO (espelho do calcularTipoDeServico() do Flutter) ──────────
 function calcularTempo() {
-    const tipoServico = (document.getElementById('rr-tipo-servico')?.value || '').trim().toUpperCase();
+    let tipoServico = (document.getElementById('rr-tipo-servico')?.value || '').trim().toUpperCase();
+    if (!tipoServico) {
+        tipoServico = (document.getElementById('rr-tipo-servico-search')?.value || '').trim().toUpperCase();
+    }
+    
+    // Se ainda não tem tipo, zera e retorna
+    if (!tipoServico) return '00:00';
 
     // Base: 10 min para entregas/retiradas/visitas, 0 para manutencao e compras
     let baseMin = 10;
@@ -141,8 +146,11 @@ function calcularCargaProporcional(quantidade) {
 
 // ── CÁLCULO DE CARGA (espelho do calcularCargaTotalFromLista() do Flutter) ────
 function calcularCargaTotalFromLista() {
-    const tipoServico = (document.getElementById('rr-tipo-servico')?.value || '')
-        .replace(/  /g, ' ').trim().toUpperCase();
+    let tipoServico = (document.getElementById('rr-tipo-servico')?.value || '').trim().toUpperCase();
+    if (!tipoServico) {
+        tipoServico = (document.getElementById('rr-tipo-servico-search')?.value || '').trim().toUpperCase();
+    }
+    tipoServico = tipoServico.replace(/  /g, ' ');
     const isManutencao = tipoServico.includes('MANUTENCAO');
 
     let totalCargaVeiculo = 0;
@@ -1507,6 +1515,9 @@ function carregarRegistroNaTela(os) {
 
     atualizarUI();
     atualizarBloqueio();
+    
+    // Forçar recálculo de capacidades e tempo que estava faltando ao abrir OS
+    calcularTempo();
 }
 
 function parseDiasFront(diasJson) {
