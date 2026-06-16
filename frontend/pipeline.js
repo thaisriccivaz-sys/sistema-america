@@ -606,7 +606,10 @@ async function pipelineExportarExcel(registrosOverride) {
         }).filter(Boolean).join('');
 
         const iconesTitulo = [icHab, icVar].filter(Boolean).join('');
-        const titulo = (iconesTitulo ? iconesTitulo + ' ' : '') + (r.cliente || '').trim();
+        let nomeLimpo = (r.cliente || '').trim();
+        nomeLimpo = nomeLimpo.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/gu, '').trim();
+        nomeLimpo = nomeLimpo.replace(/^[\ud83c\udf00-\ud83e\uddff\u2600-\u27bf\u{1F000}-\u{1FFFF}\u2b00-\u2bff\uFE0F\s]+/gu, '').trim();
+        const titulo = (iconesTitulo ? iconesTitulo + ' ' : '') + nomeLimpo;
 
         // --- INÍCIO: Cálculo Dinâmico de Cargas e Tempo de Serviço ---
         let totalCargaVeiculo = 0;

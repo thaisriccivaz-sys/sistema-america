@@ -204,8 +204,8 @@ function _rrMontarColB(v) {
         if (!os.obs && !temInfoImportante && !tinhaSirene) return;
 
         let nome = nomeOriginal;
-        // Remove emojis do nome do cliente (inclui ⭕ U+2B55 explicitamente)
-        nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC]+/gu, '').trim();
+        // Remove emojis do nome do cliente (inclui ⭕ U+2B55 explicitamente e todos os da Rota Redonda)
+        nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/gu, '').trim();
         nome = nome.replace(/^[\ud83c\udf00-\ud83e\uddff\u2600-\u27bf\u{1F000}-\u{1FFFF}\u2b00-\u2bff\uFE0F\s]+/gu, '').trim();
         
         // Limita o nome do cliente a 20 caracteres
@@ -213,7 +213,7 @@ function _rrMontarColB(v) {
             nome = nome.substring(0, 20).trim();
         }
 
-        let obsLimpa = (os.obs || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s\u{1F6D2}]+/gu, '').trim().toUpperCase();
+        let obsLimpa = (os.obs || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/gu, '').trim().toUpperCase();
 
         if (obsLimpa) {
             const linhaObs = `${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`;
