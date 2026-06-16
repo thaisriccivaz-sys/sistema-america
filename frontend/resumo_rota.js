@@ -194,13 +194,16 @@ function _rrMontarColB(v) {
         const textoParaIcone = [os.obs, os.notas_raw, habs].filter(Boolean).join(' ');
         let icon = _rrObsIcon(textoParaIcone);
 
+        let nomeOriginal = (os.cliente || '').trim();
+        const tinhaSirene = nomeOriginal.includes('🚨');
+
         // Se tem ícone de informações importantes, mostra o cliente MESMO SEM obs
         const temInfoImportante = textoParaIcone.toUpperCase().includes('INFORMA') && textoParaIcone.toUpperCase().includes('IMPORTANTE');
-        if (temInfoImportante) icon = '🚨'; // Força o ícone de emergência
+        if (temInfoImportante || tinhaSirene) icon = '🚨'; // Força o ícone de emergência
 
-        if (!os.obs && !temInfoImportante) return;
+        if (!os.obs && !temInfoImportante && !tinhaSirene) return;
 
-        let nome = (os.cliente || '').trim();
+        let nome = nomeOriginal;
         // Remove emojis do nome do cliente (inclui ⭕ U+2B55 explicitamente)
         nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC]+/gu, '').trim();
         nome = nome.replace(/^[\ud83c\udf00-\ud83e\uddff\u2600-\u27bf\u{1F000}-\u{1FFFF}\u2b00-\u2bff\uFE0F\s]+/gu, '').trim();
@@ -215,7 +218,7 @@ function _rrMontarColB(v) {
         if (obsLimpa) {
             const linhaObs = `${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`;
             if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
-        } else if (temInfoImportante) {
+        } else if (temInfoImportante || tinhaSirene) {
             const linhaObs = `🚨 ${nome}: AVISO IMPORTANTE!`;
             if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
         }
