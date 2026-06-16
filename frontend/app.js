@@ -14073,17 +14073,114 @@ async function renderFichaEpiTab(container) {
                     <td style="padding:0.55rem 0.85rem;font-size:0.8rem;color:#64748b;">${e.grupo || '—'}</td>
                     <td style="padding:0.55rem 0.85rem;font-size:0.8rem;color:#64748b;">${e.registrado_por || '—'}</td>
                     <td style="padding:0.35rem 0.6rem;text-align:center;">
-                        <button
-                            onclick="window._excluirEpiEntrega(${e.id}, '${(e.epi_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', this, ${e.ficha_id})"
-                            title="Excluir este EPI da ficha"
-                            style="background:none;border:1.5px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.78rem;display:inline-flex;align-items:center;gap:3px;transition:all .15s;"
-                            onmouseover="this.style.background='#fef2f2'"
-                            onmouseout="this.style.background='none'">
-                            <i class="ph ph-trash" style="font-size:0.85rem;"></i>
-                        </button>
+                        <div style="display:inline-flex;align-items:center;gap:4px;">
+                            <button
+                                onclick="window._verSelfieEpiEntrega(${colabId}, '${(e.data_entrega||'').replace(/'/g,String.fromCharCode(92,39))}')"
+                                title="Ver selfie desta entrega"
+                                style="background:none;border:1.5px solid #93c5fd;color:#2563eb;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.78rem;display:inline-flex;align-items:center;gap:3px;transition:all .15s;"
+                                onmouseover="this.style.background='#eff6ff'"
+                                onmouseout="this.style.background='none'">
+                                <i class="ph ph-eye" style="font-size:0.85rem;"></i>
+                            </button>
+                            <button
+                                onclick="window._excluirEpiEntrega(${e.id}, '${(e.epi_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', this, ${e.ficha_id})"
+                                title="Excluir este EPI da ficha"
+                                style="background:none;border:1.5px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.78rem;display:inline-flex;align-items:center;gap:3px;transition:all .15s;"
+                                onmouseover="this.style.background='#fef2f2'"
+                                onmouseout="this.style.background='none'">
+                                <i class="ph ph-trash" style="font-size:0.85rem;"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>`;
+
         }).join('');
+
+        // ── Função: ver selfie de entrega de EPI ──────────────────────────────
+        window._verSelfieEpiEntrega = async function(colaboradorId, dataEntrega) {
+            const old = document.getElementById('epi-selfie-lightbox');
+            if (old) old.remove();
+
+            // Modal de loading
+            const lb = document.createElement('div');
+            lb.id = 'epi-selfie-lightbox';
+            lb.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;padding:1rem;';
+            lb.innerHTML = `<div style="background:#1e293b;border-radius:16px;padding:2rem;min-width:280px;text-align:center;color:#e2e8f0;">
+                <div style="font-size:2rem;display:block;margin-bottom:0.5rem;">⏳</div>
+                <p style="margin:0;font-size:0.9rem;">Buscando selfie...</p></div>`;
+            document.body.appendChild(lb);
+            lb.addEventListener('click', (ev) => { if (ev.target === lb) lb.remove(); });
+
+            try {
+                const resp = await fetch(`${API_URL}/epi-selfie/${colaboradorId}`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                if (!resp.ok) throw new Error('Erro ' + resp.status);
+                const selfies = await resp.json();
+
+                if (!selfies || selfies.length === 0) {
+                    lb.innerHTML = `<div style="background:#1e293b;border-radius:16px;padding:2rem;min-width:280px;max-width:480px;text-align:center;color:#e2e8f0;position:relative;">
+                        <button onclick="document.getElementById('epi-selfie-lightbox').remove()" style="position:absolute;top:12px;right:14px;background:rgba(255,255,255,0.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1.1rem;">&times;</button>
+                        <div style="font-size:3rem;margin-bottom:0.75rem;">📷</div>
+                        <p style="font-weight:700;margin:0 0 4px;">Nenhuma selfie encontrada</p>
+                        <p style="font-size:0.8rem;color:#94a3b8;margin:0;">Esta entrega não possui selfie registrada.<br>As selfies são salvas nas entregas a partir de agora.</p>
+                    </div>`;
+                    return;
+                }
+
+                // Selfie mais próxima da data de entrega (DD/MM/YYYY)
+                let selfieAlvo = selfies[0];
+                if (dataEntrega) {
+                    const partes = dataEntrega.split('/');
+                    if (partes.length === 3) {
+                        const dataRef = new Date(+partes[2], +partes[1] - 1, +partes[0]);
+                        let menorDiff = Infinity;
+                        selfies.forEach(s => {
+                            const ts = new Date(s.timestamp || s.criado_em);
+                            const diff = Math.abs(ts - dataRef);
+                            if (diff < menorDiff) { menorDiff = diff; selfieAlvo = s; }
+                        });
+                    }
+                }
+
+                const tsFormatado = selfieAlvo.timestamp
+                    ? new Date(selfieAlvo.timestamp).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
+                    : (selfieAlvo.criado_em ? new Date(selfieAlvo.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '');
+
+                lb.innerHTML = `
+                <div style="background:#0f172a;border-radius:16px;overflow:hidden;max-width:560px;width:100%;position:relative;box-shadow:0 25px 60px rgba(0,0,0,0.7);">
+                    <div style="background:#1e3a5f;padding:0.85rem 1.25rem;display:flex;align-items:center;justify-content:space-between;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <i class="ph ph-camera" style="color:#93c5fd;font-size:1.25rem;"></i>
+                            <div>
+                                <div style="color:#f1f5f9;font-weight:700;font-size:0.92rem;">Selfie da Entrega de EPI</div>
+                                <div style="color:#93c5fd;font-size:0.75rem;">Entrega em ${dataEntrega || '—'}</div>
+                            </div>
+                        </div>
+                        <button onclick="document.getElementById('epi-selfie-lightbox').remove()"
+                                style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">&times;</button>
+                    </div>
+                    <img src="${selfieAlvo.selfie_base64}" alt="Selfie EPI" style="width:100%;display:block;max-height:420px;object-fit:contain;background:#000;">
+                    <div style="padding:0.75rem 1.25rem;background:#1e293b;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+                        <div style="font-size:0.78rem;color:#94a3b8;">
+                            <span style="color:#fbbf24;font-weight:600;">Registrado por:</span> ${selfieAlvo.registrado_por || '—'}
+                        </div>
+                        <div style="font-size:0.73rem;color:#64748b;">${tsFormatado}</div>
+                    </div>
+                    ${selfies.length > 1 ? `<div style="padding:0.4rem 1.25rem;background:#1e293b;border-top:1px solid #334155;font-size:0.72rem;color:#64748b;text-align:center;">
+                        ${selfies.length} selfies registradas no total para este colaborador
+                    </div>` : ''}
+                </div>`;
+
+            } catch (err) {
+                lb.innerHTML = `<div style="background:#1e293b;border-radius:16px;padding:2rem;min-width:280px;max-width:480px;text-align:center;color:#e2e8f0;position:relative;">
+                    <button onclick="document.getElementById('epi-selfie-lightbox').remove()" style="position:absolute;top:12px;right:14px;background:rgba(255,255,255,0.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1.1rem;">&times;</button>
+                    <div style="font-size:3rem;margin-bottom:0.75rem;">⚠️</div>
+                    <p style="font-weight:700;margin:0 0 4px;">Erro ao buscar selfie</p>
+                    <p style="font-size:0.8rem;color:#94a3b8;margin:0;">${err.message}</p>
+                </div>`;
+            }
+        };
 
         tabelaHtml = `
         <div style="margin-top:2rem;">

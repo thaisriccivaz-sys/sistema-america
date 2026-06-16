@@ -9147,6 +9147,21 @@ app.post('/api/epi-selfie', authenticateToken, (req, res) => {
     );
 });
 
+// GET: buscar selfies de EPI de um colaborador
+app.get('/api/epi-selfie/:colaborador_id', authenticateToken, (req, res) => {
+    const { colaborador_id } = req.params;
+    db.all(
+        `SELECT id, colaborador_id, selfie_base64, registrado_por, timestamp, criado_em
+         FROM epi_selfies WHERE colaborador_id = ?
+         ORDER BY criado_em DESC`,
+        [colaborador_id],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows || []);
+        }
+    );
+});
+
 // POST: registrar entrega assinada de EPIs
 app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
     const fichaId = req.params.id;
