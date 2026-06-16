@@ -14246,26 +14246,34 @@ window.abrirAssinaturaEpi = async function (fichaId) {
                     <p style="margin:0;color:#93c5fd;font-size:0.8rem;">${nomeColab} &mdash; ${ficha.grupo}</p>
                 </div>
             </div>
-            <button onclick="document.getElementById('epi-assinatura-overlay').remove()"
+            <button onclick="window._fecharOverlayEpi()"
                     style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">&times;</button>
         </div>
-        <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:0.6rem 2rem;display:flex;align-items:center;gap:1rem;flex-shrink:0;">
-            <div id="step-ind-1" style="display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:700;color:#1e3a5f;">
-                <span style="background:#1e3a5f;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;">1</span>
-                Selecionar EPIs
+        <!-- Step indicators: 4 passos -->
+        <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:0.6rem 1.5rem;display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+            <div id="step-ind-1" style="display:flex;align-items:center;gap:5px;font-size:0.82rem;font-weight:700;color:#1e3a5f;white-space:nowrap;">
+                <span id="step-badge-1" style="background:#1e3a5f;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">1</span>
+                Selecionar
             </div>
             <div style="flex:1;height:2px;background:#e2e8f0;"></div>
-            <div id="step-ind-2" style="display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:700;color:#94a3b8;">
-                <span id="step-badge-2" style="background:#cbd5e1;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;">2</span>
+            <div id="step-ind-selfie" style="display:flex;align-items:center;gap:5px;font-size:0.82rem;font-weight:700;color:#94a3b8;white-space:nowrap;">
+                <span id="step-badge-selfie" style="background:#cbd5e1;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">📷</span>
+                Selfie
+            </div>
+            <div style="flex:1;height:2px;background:#e2e8f0;"></div>
+            <div id="step-ind-2" style="display:flex;align-items:center;gap:5px;font-size:0.82rem;font-weight:700;color:#94a3b8;white-space:nowrap;">
+                <span id="step-badge-2" style="background:#cbd5e1;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">3</span>
                 Assinar
             </div>
             <div style="flex:1;height:2px;background:#e2e8f0;"></div>
-            <div id="step-ind-3" style="display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:700;color:#94a3b8;">
-                <span id="step-badge-3" style="background:#cbd5e1;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;">3</span>
+            <div id="step-ind-3" style="display:flex;align-items:center;gap:5px;font-size:0.82rem;font-weight:700;color:#94a3b8;white-space:nowrap;">
+                <span id="step-badge-3" style="background:#cbd5e1;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">4</span>
                 Confirmar
             </div>
         </div>
         <div id="epi-assin-body" style="flex:1;overflow-y:auto;padding:1.5rem 2rem;">
+
+            <!-- PASSO 1: Selecionar EPIs -->
             <div id="epi-step-1">
                 <div style="display:flex;align-items:flex-end;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap;">
                     <div>
@@ -14287,12 +14295,62 @@ window.abrirAssinaturaEpi = async function (fichaId) {
                 <div id="epi-lista-botoes" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;"></div>
                 <p id="epi-select-warn" style="color:#dc2626;font-size:0.85rem;margin:0.75rem 0 0;display:none;">&#9888; Defina quantidade &gt; 0 em pelo menos um EPI.</p>
             </div>
+
+            <!-- PASSO SELFIE -->
+            <div id="epi-step-selfie" style="display:none;max-width:520px;margin:0 auto;">
+                <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#eff6ff;border-radius:10px;border-left:4px solid #2563eb;margin-bottom:1.25rem;">
+                    <i class="ph ph-camera" style="font-size:1.5rem;color:#2563eb;"></i>
+                    <div>
+                        <div style="font-weight:700;font-size:0.95rem;color:#1e40af;">Passo 2 de 4 &mdash; Selfie do Colaborador</div>
+                        <div style="font-size:0.8rem;color:#3b82f6;">Posicione o rosto do colaborador e clique em &quot;Tirar Foto&quot;</div>
+                    </div>
+                </div>
+
+                <div style="position:relative;border-radius:12px;overflow:hidden;background:#0f172a;aspect-ratio:4/3;">
+                    <video id="epi-assin-selfie-video" autoplay playsinline muted
+                           style="width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1);"></video>
+                    <canvas id="epi-assin-selfie-canvas"
+                            style="display:none;width:100%;height:100%;object-fit:cover;"></canvas>
+                    <div style="position:absolute;bottom:0;left:0;right:0;padding:8px 10px;background:linear-gradient(transparent,rgba(0,0,0,0.8));pointer-events:none;">
+                        <div id="epi-assin-selfie-info1" style="font-size:0.72rem;color:#fbbf24;font-weight:600;margin-bottom:2px;"></div>
+                        <div id="epi-assin-selfie-info2" style="font-size:0.7rem;color:#e2e8f0;"></div>
+                        <div id="epi-assin-selfie-dt" style="font-size:0.65rem;color:#94a3b8;"></div>
+                    </div>
+                </div>
+
+                <div id="epi-assin-selfie-status" style="font-size:0.8rem;color:#6b7280;text-align:center;margin:0.6rem 0;"></div>
+
+                <div style="display:flex;flex-direction:column;gap:0.6rem;margin-top:0.5rem;">
+                    <button id="btn-epi-assin-tirar" type="button" onclick="window._epiAssinTirarFoto()"
+                            style="padding:0.75rem;background:#2563eb;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                        <i class="ph ph-camera"></i> Tirar Foto
+                    </button>
+                    <button id="btn-epi-assin-refazer" type="button" onclick="window._epiAssinRefazerFoto()"
+                            style="padding:0.65rem;background:#f1f5f9;color:#374151;border:1px solid #e2e8f0;border-radius:10px;font-weight:600;font-size:0.85rem;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;">
+                        <i class="ph ph-arrow-counter-clockwise"></i> Refazer Foto
+                    </button>
+                    <button id="btn-epi-assin-confirmar" type="button" onclick="window._epiAssinConfirmarFoto()"
+                            style="padding:0.75rem;background:#16a34a;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 6px -1px rgba(22,163,74,0.3);">
+                        <i class="ph ph-check-circle"></i> Confirmar e Assinar
+                    </button>
+                </div>
+            </div>
+
+            <!-- PASSO 2: Assinatura (agora passo 3) -->
             <div id="epi-step-2" style="display:none; grid-template-columns: 1fr 1fr; gap: 2rem;">
-                <!-- Esquerda: EPIs e Termo -->
+                <!-- Esquerda: EPIs, selfie thumb e Termo -->
                 <div style="display:flex;flex-direction:column;min-width:0;">
-                    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem;">
+                    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:0.85rem 1rem;margin-bottom:0.75rem;">
                         <p style="font-size:0.85rem;font-weight:700;color:#166534;margin:0 0 6px;">EPIs para entrega em <strong id="epi-data-display"></strong>:</p>
                         <ul id="epi-lista-selecionada" style="margin:0;padding-left:1.25rem;font-size:0.85rem;color:#15803d;column-count:1;"></ul>
+                    </div>
+                    <!-- Selfie thumbnail -->
+                    <div id="epi-assin-selfie-thumb-box" style="display:none;border-radius:8px;border:2px solid #bbf7d0;background:#f0fdf4;padding:8px;display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+                        <canvas id="epi-assin-selfie-thumb" style="width:64px;height:48px;border-radius:6px;flex-shrink:0;"></canvas>
+                        <div style="font-size:0.78rem;color:#166534;">
+                            <div style="font-weight:700;"><i class="ph ph-shield-check"></i> Selfie registrada</div>
+                            <div id="epi-assin-selfie-thumb-dt" style="color:#4ade80;font-size:0.7rem;"></div>
+                        </div>
                     </div>
                     <p style="font-size:0.85rem;font-weight:700;color:#374151;margin:0 0 6px;">Termo de Responsabilidade:</p>
                     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.9rem;font-size:0.82rem;color:#374151;overflow-y:auto;line-height:1.6;white-space:pre-wrap;flex:1;">${termo}</div>
@@ -14310,6 +14368,8 @@ window.abrirAssinaturaEpi = async function (fichaId) {
                     <p id="epi-assin-warn" style="color:#dc2626;font-size:0.82rem;margin:0.5rem 0 0;display:none;">A assinatura &eacute; obrigat&oacute;ria.</p>
                 </div>
             </div>
+
+            <!-- PASSO 3: Sucesso -->
             <div id="epi-step-3" style="display:none;text-align:center;padding:4rem 1rem;">
                 <i class="ph ph-check-circle" style="font-size:5rem;color:#16a34a;display:block;margin-bottom:1rem;"></i>
                 <p style="font-weight:700;font-size:1.2rem;color:#15803d;margin:0 0 6px;">Entrega registrada com sucesso!</p>
@@ -14317,7 +14377,7 @@ window.abrirAssinaturaEpi = async function (fichaId) {
             </div>
         </div>
         <div id="epi-assin-footer" style="border-top:1px solid #e2e8f0;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;flex-shrink:0;">
-            <button id="btn-assin-back" onclick="window._assinStep(1)"
+            <button id="btn-assin-back" onclick="window._assinBackStep()"
                     style="display:none;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.65rem 1.5rem;font-weight:600;font-size:0.9rem;cursor:pointer;color:#475569;">
                 <i class="ph ph-arrow-left"></i> Voltar
             </button>
@@ -14336,12 +14396,184 @@ window.abrirAssinaturaEpi = async function (fichaId) {
     window._assinColabId = colabId;
     window._assinEpisDisponiveis = epis;
     window._assinQtds = {};
+    window._assinSelfieBase64 = null;
+    window._assinSelfieTs = null;
+    window._assinSelfieStream = null;
+
+    // Fechar overlay parando câmera
+    window._fecharOverlayEpi = function() {
+        if (window._assinSelfieStream) {
+            window._assinSelfieStream.getTracks().forEach(t => t.stop());
+            window._assinSelfieStream = null;
+        }
+        const ov = document.getElementById('epi-assinatura-overlay');
+        if (ov) ov.remove();
+    };
+
+    // Inicia câmera do passo selfie
+    window._epiAssinIniciarCamera = async function() {
+        const statusEl = document.getElementById('epi-assin-selfie-status');
+        try {
+            window._assinSelfieStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+                audio: false
+            });
+            const video = document.getElementById('epi-assin-selfie-video');
+            if (video) { video.srcObject = window._assinSelfieStream; video.style.display = 'block'; }
+            document.getElementById('epi-assin-selfie-canvas').style.display = 'none';
+            document.getElementById('btn-epi-assin-tirar').style.display = 'flex';
+            document.getElementById('btn-epi-assin-refazer').style.display = 'none';
+            document.getElementById('btn-epi-assin-confirmar').style.display = 'none';
+            if (statusEl) statusEl.textContent = 'Câmera pronta. Posicione o rosto do colaborador.';
+        } catch(err) {
+            console.error('[EPI Selfie]', err);
+            if (statusEl) statusEl.innerHTML = '<span style="color:#dc2626;"><i class="ph ph-warning"></i> Câmera não acessível. Verifique as permissões.</span>';
+            document.getElementById('btn-epi-assin-tirar').style.display = 'none';
+        }
+    };
+
+    window._epiAssinTirarFoto = function() {
+        const video = document.getElementById('epi-assin-selfie-video');
+        const canvas = document.getElementById('epi-assin-selfie-canvas');
+        if (!video || !window._assinSelfieStream) return;
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext('2d');
+        ctx.save(); ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        window._assinSelfieTs = new Date();
+        const dtStr = window._assinSelfieTs.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+        const entregadorNome = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.nome || currentUser.username || 'Usuário') : 'Usuário';
+        // overlay de texto na foto
+        const overlayH = 56;
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        ctx.fillRect(0, canvas.height - overlayH, canvas.width, overlayH);
+        ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 13px Arial';
+        ctx.fillText('Entregue por: ' + entregadorNome, 8, canvas.height - overlayH + 16);
+        ctx.fillStyle = '#e2e8f0'; ctx.font = '12px Arial';
+        ctx.fillText('Colaborador: ' + nomeColab, 8, canvas.height - overlayH + 32);
+        ctx.fillStyle = '#94a3b8'; ctx.font = '11px Arial';
+        ctx.fillText(dtStr, 8, canvas.height - overlayH + 48);
+        window._assinSelfieBase64 = canvas.toDataURL('image/jpeg', 0.88);
+        video.style.display = 'none';
+        canvas.style.display = 'block';
+        document.getElementById('btn-epi-assin-tirar').style.display = 'none';
+        document.getElementById('btn-epi-assin-refazer').style.display = 'flex';
+        document.getElementById('btn-epi-assin-confirmar').style.display = 'flex';
+        const statusEl = document.getElementById('epi-assin-selfie-status');
+        if (statusEl) statusEl.innerHTML = '<span style="color:#16a34a;"><i class="ph ph-check-circle"></i> Foto tirada! Confirme ou refaça.</span>';
+    };
+
+    window._epiAssinRefazerFoto = function() {
+        window._assinSelfieBase64 = null; window._assinSelfieTs = null;
+        const video = document.getElementById('epi-assin-selfie-video');
+        const canvas = document.getElementById('epi-assin-selfie-canvas');
+        video.style.display = 'block'; canvas.style.display = 'none';
+        document.getElementById('btn-epi-assin-tirar').style.display = 'flex';
+        document.getElementById('btn-epi-assin-refazer').style.display = 'none';
+        document.getElementById('btn-epi-assin-confirmar').style.display = 'none';
+        const statusEl = document.getElementById('epi-assin-selfie-status');
+        if (statusEl) statusEl.textContent = 'Câmera pronta. Posicione o rosto do colaborador.';
+    };
+
+    window._epiAssinConfirmarFoto = function() {
+        if (!window._assinSelfieBase64) return;
+        // Para câmera
+        if (window._assinSelfieStream) { window._assinSelfieStream.getTracks().forEach(t => t.stop()); window._assinSelfieStream = null; }
+        // Thumb no passo de assinatura
+        const srcC = document.getElementById('epi-assin-selfie-canvas');
+        const thumb = document.getElementById('epi-assin-selfie-thumb');
+        if (srcC && thumb) {
+            const tctx = thumb.getContext('2d'); thumb.width = srcC.width; thumb.height = srcC.height;
+            tctx.drawImage(srcC, 0, 0);
+        }
+        const thumbBox = document.getElementById('epi-assin-selfie-thumb-box');
+        if (thumbBox) thumbBox.style.display = 'flex';
+        const thumbDt = document.getElementById('epi-assin-selfie-thumb-dt');
+        if (thumbDt && window._assinSelfieTs) {
+            thumbDt.textContent = window._assinSelfieTs.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        }
+        // Ir para assinatura
+        window._assinGoToStep2();
+    };
+
+    // Navegar para o passo de assinatura (step 2)
+    window._assinGoToStep2 = function() {
+        document.getElementById('epi-step-selfie').style.display = 'none';
+        const s2 = document.getElementById('epi-step-2');
+        s2.style.display = 'grid';
+        window._assinCurrentStep = 2;
+        // Atualiza badges
+        ['1','selfie','2','3'].forEach((s, i) => {
+            const badge = document.getElementById('step-badge-' + s);
+            const ind = document.getElementById('step-ind-' + s);
+            if (!badge || !ind) return;
+            const done = i < 2; const active = i === 2;
+            badge.style.background = done ? '#16a34a' : active ? '#1e3a5f' : '#cbd5e1';
+            badge.innerHTML = done ? '✓' : (s === 'selfie' ? '📷' : (i + 1));
+            ind.style.color = (done || active) ? (done ? '#16a34a' : '#1e3a5f') : '#94a3b8';
+        });
+        const btnBack = document.getElementById('btn-assin-back');
+        if (btnBack) btnBack.style.display = 'flex';
+        const btnNext = document.getElementById('btn-assin-next');
+        if (btnNext) { btnNext.style.display = 'flex'; btnNext.innerHTML = 'Confirmar Entrega <i class="ph ph-check"></i>'; }
+        setTimeout(() => { window._initSignatureCanvas(); }, 100);
+    };
+
+    // Voltar do step selfie ou assinatura
+    window._assinBackStep = function() {
+        if (window._assinCurrentStep === 'selfie') {
+            if (window._assinSelfieStream) { window._assinSelfieStream.getTracks().forEach(t => t.stop()); window._assinSelfieStream = null; }
+            window._assinStep(1);
+        } else if (window._assinCurrentStep === 2) {
+            // voltar para selfie
+            document.getElementById('epi-step-2').style.display = 'none';
+            const selfieDiv = document.getElementById('epi-step-selfie');
+            selfieDiv.style.display = 'block';
+            window._assinCurrentStep = 'selfie';
+            ['1','selfie','2','3'].forEach((s, i) => {
+                const badge = document.getElementById('step-badge-' + s);
+                const ind = document.getElementById('step-ind-' + s);
+                if (!badge || !ind) return;
+                const done = i < 1; const active = i === 1;
+                badge.style.background = done ? '#16a34a' : active ? '#1e3a5f' : '#cbd5e1';
+                badge.innerHTML = done ? '✓' : (s === 'selfie' ? '📷' : (active ? '📷' : (i + 1)));
+                ind.style.color = (done || active) ? (done ? '#16a34a' : '#1e3a5f') : '#94a3b8';
+            });
+            const btnBack = document.getElementById('btn-assin-back');
+            if (btnBack) btnBack.style.display = 'flex';
+            const btnNext = document.getElementById('btn-assin-next');
+            if (btnNext) { btnNext.style.display = 'none'; }
+            // Reiniciar câmera se necessário
+            if (!window._assinSelfieBase64) { window._epiAssinIniciarCamera(); }
+        } else {
+            window._assinStep(1);
+        }
+    };
+
     setTimeout(() => {
         window._initSignatureCanvas();
         const today = new Date();
         const di = document.getElementById('epi-data-entrega');
         if (di) { di.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'); }
         window._renderEpiGrid('');
+        // Preencher infos do overlay da selfie
+        const entregadorNome = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.nome || currentUser.username || 'Usuário') : 'Usuário';
+        const el1 = document.getElementById('epi-assin-selfie-info1');
+        if (el1) el1.textContent = 'Entregue por: ' + entregadorNome;
+        const el2 = document.getElementById('epi-assin-selfie-info2');
+        if (el2) el2.textContent = 'Colaborador: ' + nomeColab;
+        // Clock no overlay
+        const dtEl = document.getElementById('epi-assin-selfie-dt');
+        if (dtEl) {
+            const tick = () => { dtEl.textContent = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' }); };
+            tick(); clearInterval(window._epiAssinClock);
+            window._epiAssinClock = setInterval(() => {
+                const sv = document.getElementById('epi-step-selfie');
+                if (!sv || sv.style.display === 'none') { clearInterval(window._epiAssinClock); } else { tick(); }
+            }, 1000);
+        }
     }, 100);
 };
 
@@ -14599,25 +14831,42 @@ window._renderItensLista = function () { };
 
 window._syncEpiSelection = function () { };
 
-// Navega para step
+// Navega para step (numéricos: 1 e 3; selfie tem controle próprio)
 window._assinStep = function (n) {
+    // Esconde tudo
     [1, 2, 3].forEach(s => {
         const el = document.getElementById(`epi-step-${s}`);
-        if (el) {
-            if (s === n) el.style.display = (s === 2) ? 'grid' : 'block';
-            else el.style.display = 'none';
-        }
+        if (el) el.style.display = 'none';
     });
+    const selfieDiv = document.getElementById('epi-step-selfie');
+    if (selfieDiv) selfieDiv.style.display = 'none';
+
+    if (n === 1) {
+        const el = document.getElementById('epi-step-1');
+        if (el) el.style.display = 'block';
+        const btnBack = document.getElementById('btn-assin-back');
+        if (btnBack) btnBack.style.display = 'none';
+        const btnNext = document.getElementById('btn-assin-next');
+        if (btnNext) { btnNext.style.display = 'flex'; btnNext.innerHTML = 'Próximo <i class="ph ph-arrow-right"></i>'; }
+    } else if (n === 3) {
+        const el = document.getElementById('epi-step-3');
+        if (el) el.style.display = 'block';
+        const footer = document.getElementById('epi-assin-footer');
+        if (footer) footer.style.display = 'none';
+    }
     window._assinCurrentStep = n;
 
     // Atualiza indicadores de step
-    [1, 2, 3].forEach(s => {
+    const stepOrder = [1, 'selfie', 2, 3];
+    const nIdx = stepOrder.indexOf(n);
+    stepOrder.forEach((s, i) => {
         const badge = document.getElementById(`step-badge-${s}`);
         const ind = document.getElementById(`step-ind-${s}`);
         if (!badge || !ind) return;
-        const done = s < n;
-        const active = s === n;
+        const done = i < nIdx;
+        const active = i === nIdx;
         badge.style.background = done ? '#16a34a' : active ? '#1e3a5f' : '#cbd5e1';
+        if (done) badge.innerHTML = '✓';
         if (ind) ind.style.color = active ? '#1e3a5f' : done ? '#15803d' : '#94a3b8';
     });
 
@@ -14659,11 +14908,35 @@ window._assinNextStep = async function () {
             if (warn) warn.style.display = '';
             return;
         }
-        window._assinStep(2);
+        // Ir para selfie
+        const selfieDiv = document.getElementById('epi-step-selfie');
+        if (selfieDiv) selfieDiv.style.display = 'block';
+        document.getElementById('epi-step-1').style.display = 'none';
+        window._assinCurrentStep = 'selfie';
+        // Atualiza badges
+        const stepOrder2 = [1, 'selfie', 2, 3];
+        stepOrder2.forEach((s, i) => {
+            const badge = document.getElementById('step-badge-' + s);
+            const ind = document.getElementById('step-ind-' + s);
+            if (!badge || !ind) return;
+            const done = i < 1; const active = i === 1;
+            badge.style.background = done ? '#16a34a' : active ? '#1e3a5f' : '#cbd5e1';
+            if (done) badge.innerHTML = '✓';
+            ind.style.color = active ? '#1e3a5f' : done ? '#16a34a' : '#94a3b8';
+        });
+        const btnBack = document.getElementById('btn-assin-back');
+        if (btnBack) btnBack.style.display = 'flex';
+        const btnNext = document.getElementById('btn-assin-next');
+        if (btnNext) btnNext.style.display = 'none'; // selfie usa botões próprios
+        window._epiAssinIniciarCamera();
         return;
     }
 
     if (step === 2) {
+        // Valida selfie obrigatória
+        if (!window._assinSelfieBase64) {
+            alert('É necessário tirar a selfie antes de assinar.'); return;
+        }
         // Valida assinatura
         if (!window._assinaturaTemConteudo()) {
             const warn = document.getElementById('epi-assin-warn');
@@ -14684,6 +14957,23 @@ window._assinNextStep = async function () {
             // Timeout de 30s para evitar que o botão fique preso em "Salvando..."
             const saveController = new AbortController();
             const saveTimeout = setTimeout(() => saveController.abort(), 30000);
+
+            // Salvar selfie antes do registro principal
+            if (window._assinSelfieBase64) {
+                try {
+                    const entregadorNome2 = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.nome || currentUser.username || '') : '';
+                    await fetch(`${API_URL}/epi-selfie`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            colaborador_id: window._assinColabId,
+                            selfie_base64: window._assinSelfieBase64,
+                            registrado_por: entregadorNome2,
+                            timestamp: window._assinSelfieTs ? window._assinSelfieTs.toISOString() : new Date().toISOString()
+                        })
+                    });
+                } catch(selfieErr) { console.error('[EPI Selfie]', selfieErr); }
+            }
 
             const resp = await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`, {
                 method: 'POST',
