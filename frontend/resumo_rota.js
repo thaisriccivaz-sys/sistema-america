@@ -360,10 +360,6 @@ window.renderResumoRota = function() {
                 style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:none;align-items:center;gap:7px;">
                 <i class="ph ph-file-xls"></i> Baixar Rota Original
             </button>
-            <button id="rr-btn-excluir" onclick="window.rrExcluirResumo()"
-                style="background:#ef4444;color:#fff;border:1px solid #dc2626;border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:none;align-items:center;gap:7px;box-shadow:0 2px 8px rgba(239,68,68,0.4);">
-                <i class="ph ph-trash"></i> Excluir
-            </button>
         </div>
     </div>
     <div id="rr-corpo" style="padding:20px;"></div>`;
