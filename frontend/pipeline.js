@@ -758,13 +758,34 @@ async function pipelineExportarExcel(registrosOverride) {
             obsComIcone = (icVar ? icVar + ' ' : '') + combinacaoObs;
         }
 
-        // Linha 3: NOME DO SERVIÇO — sem ícone para Entrega e Manutenção Recorrente
-        const isEntrega = ts.includes('entrega');
+        // Linha 3: NOME DO SERVIÇO
+        // Retirada → sempre ⭕
+        // Entrega  → ícones dos produtos selecionados (igual ao card do cliente)
+        // Outros   → ícone genérico via pipelineGetIconServico
+        // Manutenção recorrente → sem ícone
         const isManutRecorr = (ts.includes('manut') || ts.includes('manutenção')) && !ts.includes('avulsa');
+        const isRetiradaExp = ts.includes('retirada');
+        const isEntregaExp  = ts.includes('entrega');
         let iconeServico = '';
-        if (!isEntrega && !isManutRecorr) {
-            iconeServico = pipelineGetIconServico(r.tipo_servico);
+
+        if (!isManutRecorr) {
+            if (isRetiradaExp) {
+                iconeServico = '⭕';
+            } else if (isEntregaExp && produtosArr.length) {
+                // Coleta ícones únicos dos produtos (preserva ordem, sem duplicatas)
+                const iconesProdSet = new Set();
+                produtosArr.forEach(p => {
+                    const desc = (p.desc || '').trim().toUpperCase();
+                    const descNorm = desc.replace(/ EVENTO$/, ' OBRA');
+                    const ic = PIPELINE_EQ_ICONS[desc] || PIPELINE_EQ_ICONS[descNorm];
+                    if (ic) iconesProdSet.add(ic);
+                });
+                iconeServico = [...iconesProdSet].join(' ');
+            } else {
+                iconeServico = pipelineGetIconServico(r.tipo_servico);
+            }
         }
+
         const nomeServico = ((iconeServico ? iconeServico + ' ' : '') + (r.tipo_servico || '').trim().toUpperCase());
 
         // Linha 4: PRODUTOS — "QTD NOME" (sem ícone do produto, a pedido do usuário)
