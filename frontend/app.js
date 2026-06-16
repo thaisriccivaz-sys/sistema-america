@@ -464,7 +464,7 @@ const BREADCRUMB_MAP = {
     // Logística
     'logistica-dashboard': { path: 'Dashboard Logística', code: 'LOG000' },
     'logistica-sinistros': { path: 'Sinistros Logística', code: 'LOG010' },
-    'logistica-rota-redonda': { path: 'Rota Redonda → OS', code: 'LOG001' },
+    'logistica-rota-redonda': { path: 'OS', code: 'LOG001' },
     'logistica-frota-resumo': { path: 'Resumo de Frota', code: 'LOG002' },
     'logistica-pipeline': { path: 'Pipeline OS', code: 'LOG003' },
     'logistica-multas': { path: 'Multas', code: 'LOG004' },
