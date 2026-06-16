@@ -5103,6 +5103,18 @@ app.post('/api/logistica/resumo-rota', authenticateToken, (req, res) => {
     }
 });
 
+// DELETE /api/logistica/resumo-rota/:id - Exclui um resumo permanentemente
+app.delete('/api/logistica/resumo-rota/:id', authenticateToken, (req, res) => {
+    const resumoId = req.params.id;
+    if (!resumoId) return res.status(400).json({ error: 'ID não fornecido' });
+    
+    db.run("DELETE FROM logistica_resumo_rota WHERE id = ?", [resumoId], function(err) {
+        if (err) return res.status(500).json({ error: err.message, success: false });
+        if (this.changes === 0) return res.status(404).json({ error: 'Resumo não encontrado', success: false });
+        res.json({ success: true });
+    });
+});
+
 // GET /api/logistica/multas — lista todas as multas
 app.get('/api/logistica/multas', authenticateToken, (req, res) => {
     db.all(`SELECT ml.*, c.nome_completo as motorista_nome_colab, c.cpf as motorista_cpf, c.cnh_numero as motorista_habilitacao

@@ -360,6 +360,10 @@ window.renderResumoRota = function() {
                 style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:none;align-items:center;gap:7px;">
                 <i class="ph ph-file-xls"></i> Baixar Rota Original
             </button>
+            <button id="rr-btn-excluir" onclick="window.rrExcluirResumo()"
+                style="background:#ef4444;color:#fff;border:1px solid #dc2626;border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:none;align-items:center;gap:7px;box-shadow:0 2px 8px rgba(239,68,68,0.4);">
+                <i class="ph ph-trash"></i> Excluir
+            </button>
         </div>
     </div>
     <div id="rr-corpo" style="padding:20px;"></div>`;
@@ -424,6 +428,8 @@ window.rrCarregarHistorico = async function(id) {
         if (btnSalvar) btnSalvar.style.display = 'none';
         if (btnExportar) btnExportar.style.display = 'none';
         if (btnOrig)     btnOrig.style.display = 'none';
+        const btnExcluir = document.getElementById('rr-btn-excluir');
+        if (btnExcluir) btnExcluir.style.display = 'none';
         return;
     }
 
@@ -459,6 +465,9 @@ window.rrCarregarHistorico = async function(id) {
         if (btnSalvar) btnSalvar.style.display = 'flex';
         if (btnExportar) btnExportar.style.display = 'flex';
         if (btnOrig) btnOrig.style.display = window._rrOriginalFileBase64 ? 'flex' : 'none';
+        
+        const btnExcluir = document.getElementById('rr-btn-excluir');
+        if (btnExcluir) btnExcluir.style.display = 'flex';
 
         // Re-consulta disponibilidade em background se tiver data detectada
         if (dataHistorico) {
@@ -1387,6 +1396,28 @@ window.rrExportarExcel = async function() {
     }
 
     await _rrGerarExcel();
+};
+
+window.rrExcluirResumo = async function() {
+    if (!_rrCurrentId) return;
+    if (!confirm('Tem certeza que deseja excluir permanentemente este resumo da rota?')) return;
+    try {
+        const res = await fetch(`/api/logistica/resumo-rota/${_rrCurrentId}`, {
+            method: 'DELETE',
+            headers: _rrAuthHeaders()
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('Resumo excluído com sucesso!', 'success');
+            window.rrLimparResumo();
+            window.rrListarHistorico();
+        } else {
+            showToast(data.error || 'Erro ao excluir.', 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('Erro de conexão ao excluir.', 'error');
+    }
 };
 
 window.rrSalvarResumo = async function() {
