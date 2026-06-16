@@ -1865,7 +1865,7 @@ async function _rrGerarExcel() {
         if (v.motorista && v.motorista.trim()) equipeText.push(`MOTORISTA: ${v.motorista.trim().toUpperCase()}`);
         if (v.ajudante && v.ajudante.trim()) equipeText.push(`AJUDANTE: ${v.ajudante.trim().toUpperCase()}`);
         if (equipeText.length > 0) {
-            colB = equipeText.join('\n') + '\n\n' + colB;
+            colB = colB + '\n\n' + equipeText.join('\n');
         }
 
         const nLines = (colB.match(/\n/g) || []).length + 1;
