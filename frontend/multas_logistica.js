@@ -333,6 +333,25 @@ function filtrarMultasLogistica() {
     listaFiltrada.sort((a, b) => {
         const isDate = DATE_COLS.includes(_multasSortCol);
         let va, vb;
+
+        // Status Mônaco: ordenar pela DATA de atualização (a data exibida abaixo do badge),
+        // usando o texto do status só como desempate secundário
+        if (_multasSortCol === 'status_monaco') {
+            const da = parseDate(a.updated_at || a.atualizado_em || '');
+            const db = parseDate(b.updated_at || b.atualizado_em || '');
+            // Registros sem data ficam por último
+            if (!da && db) return 1;
+            if (da && !db) return -1;
+            if (da < db) return _multasSortDir === 'asc' ? -1 : 1;
+            if (da > db) return _multasSortDir === 'asc' ? 1 : -1;
+            // Mesmo data: desempata pelo texto do status
+            const sa = (a.status_monaco || '').toLowerCase();
+            const sb = (b.status_monaco || '').toLowerCase();
+            if (sa < sb) return -1;
+            if (sa > sb) return 1;
+            return 0;
+        }
+
         if (isDate) {
             va = parseDate(a[_multasSortCol]);
             vb = parseDate(b[_multasSortCol]);
@@ -346,15 +365,6 @@ function filtrarMultasLogistica() {
             if (va && !vb) return -1;
             if (va < vb) return _multasSortDir === 'asc' ? -1 : 1;
             if (va > vb) return _multasSortDir === 'asc' ? 1 : -1;
-
-            // Desempate para status_monaco: quando o texto é igual,
-            // sub-ordena pela data de atualização (mais recente no topo em desc)
-            if (_multasSortCol === 'status_monaco') {
-                const da = parseDate(a.updated_at || a.atualizado_em || '');
-                const db = parseDate(b.updated_at || b.atualizado_em || '');
-                if (da < db) return _multasSortDir === 'asc' ? -1 : 1;
-                if (da > db) return _multasSortDir === 'asc' ? 1 : -1;
-            }
         }
         return 0;
     });
