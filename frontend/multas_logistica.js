@@ -319,19 +319,21 @@ function filtrarMultasLogistica() {
 
     const listaFiltrada = _aplicarFiltrosMultas(multasLogistica);
 
-    // Colunas de data: comparar como timestamp para ordenar do mais novo para o mais antigo
+    // Colunas de data pura: comparar como timestamp
     const DATE_COLS = ['data_infracao', 'data_limite', 'criado_em', 'atualizado_em', 'updated_at'];
+
+    // Helper de parse de data (ISO ou DD/MM/YYYY)
+    const parseDate = v => {
+        if (!v) return 0;
+        const m = String(v).match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+        if (m) return new Date(`${m[3]}-${m[2]}-${m[1]}T12:00:00`).getTime();
+        return new Date(v).getTime() || 0;
+    };
+
     listaFiltrada.sort((a, b) => {
         const isDate = DATE_COLS.includes(_multasSortCol);
         let va, vb;
         if (isDate) {
-            const parseDate = v => {
-                if (!v) return 0;
-                // Tenta DD/MM/YYYY
-                const m = String(v).match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-                if (m) return new Date(`${m[3]}-${m[2]}-${m[1]}T12:00:00`).getTime();
-                return new Date(v).getTime() || 0;
-            };
             va = parseDate(a[_multasSortCol]);
             vb = parseDate(b[_multasSortCol]);
             if (va < vb) return _multasSortDir === 'asc' ? -1 : 1;
@@ -344,6 +346,15 @@ function filtrarMultasLogistica() {
             if (va && !vb) return -1;
             if (va < vb) return _multasSortDir === 'asc' ? -1 : 1;
             if (va > vb) return _multasSortDir === 'asc' ? 1 : -1;
+
+            // Desempate para status_monaco: quando o texto é igual,
+            // sub-ordena pela data de atualização (mais recente no topo em desc)
+            if (_multasSortCol === 'status_monaco') {
+                const da = parseDate(a.updated_at || a.atualizado_em || '');
+                const db = parseDate(b.updated_at || b.atualizado_em || '');
+                if (da < db) return _multasSortDir === 'asc' ? -1 : 1;
+                if (da > db) return _multasSortDir === 'asc' ? 1 : -1;
+            }
         }
         return 0;
     });
