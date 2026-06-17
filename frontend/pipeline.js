@@ -594,9 +594,14 @@ async function pipelineExportarExcel(registrosOverride) {
         // Ícones das variáveis (PIPELINE_VARS_CORES) — vêm primeiro
         const icVar = variaveisArr.map(v => {
             const vUp = (v || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            // 1. Busca pelo nome normalizado (sem acentos) em PIPELINE_VARS_CORES
             for (const [key, style] of Object.entries(PIPELINE_VARS_CORES)) {
-                if (vUp.includes(key)) return style.icon;
+                const keyNorm = key.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                if (vUp.includes(keyNorm)) return style.icon;
             }
+            // 2. Fallback: extrai o primeiro emoji do texto da variável e usa diretamente
+            const emojiMatch = (v || '').trim().match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})/u);
+            if (emojiMatch) return emojiMatch[0];
             return '';
         }).filter(Boolean);
 
@@ -605,7 +610,8 @@ async function pipelineExportarExcel(registrosOverride) {
         const icHab = habilidadesArr.map(h => {
             const hUp = (h || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             for (const [key, style] of Object.entries(PIPELINE_VARS_CORES)) {
-                if (hUp.includes(key)) {
+                const keyNorm = key.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                if (hUp.includes(keyNorm)) {
                     if (key === 'VAC' && !isVacTs) return ''; // 🏗️ só para serviço VAC
                     return style.icon;
                 }
