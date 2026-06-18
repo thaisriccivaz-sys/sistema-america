@@ -5246,28 +5246,8 @@
             group.classList.toggle('open');
         }
 
-        /* Recolhe todos os nav-groups quando o submenu de Logística fecha */
-        (function() {
-            function collapseAllNavGroups() {
-                document.querySelectorAll('.nav-group.open').forEach(function(g) {
-                    g.classList.remove('open');
-                });
-            }
-
-            /* Recolhe apenas quando o mouse SAI do painel do submenu.
-               O painel é position:fixed, então o mouseleave do dept-item
-               disparava ao mover do ícone para o painel — corrigido aqui. */
-            document.querySelectorAll('.dept-submenu').forEach(function(panel) {
-                panel.addEventListener('mouseleave', collapseAllNavGroups);
-            });
-
-            /* Recolhe ao clicar fora do submenu (ex: ao clicar em uma tela) */
-            document.addEventListener('click', function(e) {
-                if (!e.target.closest('.dept-submenu')) {
-                    collapseAllNavGroups();
-                }
-            });
-        })();
+        /* O auto-collapse (mouseleave e click fora) foi removido a pedido.
+           O acordeão só fechará se o usuário clicar nele novamente. */
     </script>
 </body>
 

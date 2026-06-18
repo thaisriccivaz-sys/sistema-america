@@ -341,7 +341,7 @@ body {
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--dept-color, #2d9e5f);
+    color: var(--text-main);
     user-select: none;
     margin-top: 0.4rem;
     border-top: 1px solid #f1f5f9;
@@ -352,10 +352,14 @@ body {
     border-right: none;
     text-align: left;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: var(--transition);
 }
-.nav-group-label:hover { background: #f0fdf4; }
-.nav-group-label i { font-size: 0.95rem; opacity: 0.85; }
+.nav-group-label:hover { 
+    background: var(--bg-main); 
+    color: var(--dept-color, var(--primary-color));
+}
+.nav-group-label i { font-size: 0.95rem; color: #94a3b8; transition: var(--transition); }
+.nav-group-label:hover i { color: var(--dept-color, var(--primary-color)); }
 
 /* Seta do acordeão */
 .nav-group-chevron {
