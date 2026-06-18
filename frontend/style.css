@@ -335,19 +335,15 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.55rem;
-    padding: 0.65rem 1.25rem 0.65rem 1.25rem;
+    padding: 0.7rem 1.25rem;
     font-size: 0.88rem;
     font-weight: 500;
     color: var(--text-main);
     user-select: none;
-    margin-top: 0.4rem;
-    border-top: 1px solid #f1f5f9;
-    border-bottom: 1px solid #f1f5f9;
-    background: #f8fafc;
+    background: transparent;
     width: 100%;
-    border-left: none;
-    border-right: none;
+    border: none;
+    border-left: 3px solid transparent;
     text-align: left;
     cursor: pointer;
     transition: var(--transition);
@@ -356,7 +352,8 @@ body {
     background: var(--bg-main); 
     color: var(--dept-color, var(--primary-color));
 }
-.nav-group-label i { font-size: 0.95rem; color: #94a3b8; transition: var(--transition); }
+.nav-group-label i { font-size: 1.05rem; color: #94a3b8; transition: var(--transition); }
+.nav-group-label i.nav-group-chevron { font-size: 0.85rem; }
 .nav-group-label:hover i { color: var(--dept-color, var(--primary-color)); }
 
 /* Seta do acordeão */
