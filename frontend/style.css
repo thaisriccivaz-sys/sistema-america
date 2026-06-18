@@ -337,10 +337,8 @@ body {
     justify-content: space-between;
     gap: 0.55rem;
     padding: 0.65rem 1.25rem 0.65rem 1.25rem;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-size: 0.88rem;
+    font-weight: 500;
     color: var(--text-main);
     user-select: none;
     margin-top: 0.4rem;
