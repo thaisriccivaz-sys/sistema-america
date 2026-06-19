@@ -5751,6 +5751,35 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                         if (_podeOneDrive) {
                             setImmediate(() => uploadDocToOneDrive(newDocId));
                         }
+
+                        if (tab_name === 'Advertências' && _isOcorr) {
+                            setImmediate(() => {
+                                db.get("SELECT nome_completo FROM colaboradores WHERE id = ?", [colaborador_id], (errC, colab) => {
+                                    if (!errC && colab) {
+                                        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'nova_ocorrencia'", [], (errN, rowsN) => {
+                                            if (!errN && rowsN && rowsN.length > 0) {
+                                                const msg = `Uma nova ocorrência foi registrada no prontuário do colaborador: ${colab.nome_completo}`;
+                                                const dadosStr = JSON.stringify({ colaborador_id, document_id: newDocId });
+                                                rowsN.forEach(c => {
+                                                    db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", 
+                                                        [c.usuario_id, 'nova_ocorrencia', msg, dadosStr]);
+                                                });
+                                                
+                                                sendEmailParaNotificados('nova_ocorrencia', {
+                                                    subject: '?? Nova Ocorrência Registrada',
+                                                    html: `<div style="font-family: Arial, sans-serif; color: #333;">
+                                                            <h2 style="color: #d9480f;">Nova Ocorrência Registrada</h2>
+                                                            <p>Uma nova ocorrência disciplinar foi inserida no sistema.</p>
+                                                            <p><strong>Colaborador:</strong> ${colab.nome_completo}</p>
+                                                            <p>Acesse o <strong>Prontuário Digital</strong> para visualizar os detalhes.</p>
+                                                           </div>`
+                                                });
+                                            }
+                                        });
+                                    }
+                                });
+                            });
+                        }
                     }
 
                     if (tab_name === 'Atestados' && atestado_tipo === 'dias' && atestado_inicio && atestado_fim) {
@@ -8282,9 +8311,10 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
             db.get('SELECT * FROM colaboradores WHERE id = ?', [doc.colaborador_id], (err, row) => err ? reject(err) : resolve(row)));
         if (!colab) return res.status(404).json({ sucesso: false, error: 'Colaborador não encontrado.' });
 
-        // Extrair tipo da suspensão do document_type (formato: "Título###Suspensão X dias")
+        // Extrair tipo de documento (Advertência ou Suspensão) do document_type
         const parts = (doc.document_type || '').split('###');
-        const tipoSuspensao = parts[1] || parts[0] || 'Suspensão';
+        const tipoDocumento = parts[1] || parts[0] || 'Documento Disciplinar';
+        const isAdvertencia = tipoDocumento.toLowerCase().includes('advert');
 
         // Data do documento
         const dataDoc = doc.upload_date
@@ -8307,7 +8337,8 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
             const dd = String(hoje.getDate()).padStart(2, '0');
             const mm = String(hoje.getMonth() + 1).padStart(2, '0');
             const yyyy = hoje.getFullYear();
-            attachments.push({ filename: `Suspensao_Assinada_${dd}-${mm}-${yyyy}_${nomeNorm}.pdf`, path: activeFilePath, contentType: 'application/pdf' });
+            const prefixoNome = isAdvertencia ? 'Advertencia' : 'Suspensao';
+            attachments.push({ filename: `${prefixoNome}_Assinada_${dd}-${mm}-${yyyy}_${nomeNorm}.pdf`, path: activeFilePath, contentType: 'application/pdf' });
         } else {
             return res.status(404).json({ sucesso: false, error: 'Arquivo PDF assinado não encontrado no servidor.' });
         }
@@ -8320,8 +8351,8 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
                 <div style="text-align: center; margin-bottom: 20px;">
                     <img src="cid:empresa-logo" style="max-height: 80px; max-width:100%;">
                 </div>
-                <h2 style="color: #c0392b; border-bottom: 2px solid #c0392b; padding-bottom: 10px;">?? Suspensão Disciplinar</h2>
-                <p>Informamos que o colaborador abaixo recebeu uma <strong>suspensão disciplinar</strong> que deve ser <strong>considerada no fechamento da folha de pagamento</strong>.</p>
+                <h2 style="color: #c0392b; border-bottom: 2px solid #c0392b; padding-bottom: 10px;">?? ${tipoDocumento}</h2>
+                <p>Informamos que o colaborador abaixo recebeu uma <strong>${tipoDocumento.toLowerCase()}</strong> que deve ser <strong>considerada no fechamento da folha de pagamento</strong>.</p>
 
                 <div style="background:#f1f5f9; padding:15px; border-radius:8px; margin:20px 0;">
                     <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
@@ -8331,18 +8362,18 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
                 </div>
 
                 <div style="background:#fff5f5; border:2px solid #e74c3c; padding:15px; border-radius:8px; margin:20px 0;">
-                    <p style="margin:4px 0;"><strong>Tipo:</strong> <span style="color:#c0392b; font-weight:700;">${tipoSuspensao}</span></p>
+                    <p style="margin:4px 0;"><strong>Tipo:</strong> <span style="color:#c0392b; font-weight:700;">${tipoDocumento}</span></p>
                     <p style="margin:4px 0;"><strong>Data do registro:</strong> ${dataDoc}</p>
                 </div>
 
                 <div style="background:#fff3cd; border:1px solid #ffc107; padding:15px; border-radius:8px; margin:20px 0; text-align:center;">
                     <p style="margin:0; color:#856404; font-weight:700; font-size:1rem;">
-                        ?? Atenção: Esta suspensão deve ser descontada na folha de pagamento do colaborador.<br>
-                        Favor considerar para o fechamento do mês.
+                        ?? Atenção: Este documento disciplinar deve ser considerado na folha de pagamento do colaborador.<br>
+                        Favor analisar para o fechamento do mês.
                     </p>
                 </div>
 
-                ${attachments.length > 1 ? '<p>O documento de suspensão está em anexo neste e-mail.</p>' : ''}
+                ${attachments.length > 1 ? `<p>O documento de ${isAdvertencia ? 'advertência' : 'suspensão'} está em anexo neste e-mail.</p>` : ''}
                 <p style="margin-top:30px; font-size:0.9em; color:#7f8c8d;">Atenciosamente,<br>Equipe de RH — América Rental</p>
             </div>
         `;
@@ -8351,12 +8382,12 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
         await sendMailHelper({
             from: `"RH América Rental" <${SMTP_CONFIG.auth.user}>`,
             to: email_to,
-            subject: `?? Suspensão para Folha — ${colab.nome_completo} (${tipoSuspensao})`,
+            subject: `?? Documento Disciplinar para Folha — ${colab.nome_completo} (${tipoDocumento})`,
             html: htmlContent,
             attachments
         });
 
-        console.log(`[SUSPENSAO CONTAB] Enviado para ${email_to} | Doc: ${document_id} | Colab: ${colab.nome_completo}`);
+        console.log(`[DOC DISCIPLINAR CONTAB] Enviado para ${email_to} | Doc: ${document_id} | Colab: ${colab.nome_completo}`);
 
         // Salvar timestamp do envio no documento (usando o mesmo campo da contabilidade)
         const agora = new Date().toISOString();
@@ -8364,7 +8395,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
             db.run('UPDATE documentos SET atestado_contab_enviado_em = ? WHERE id = ?',
                 [agora, document_id], (err) => err ? reject(err) : resolve()));
 
-        res.json({ sucesso: true, message: 'E-mail de suspensão enviado com sucesso para a contabilidade!', enviado_em: agora });
+        res.json({ sucesso: true, message: `E-mail de ${isAdvertencia ? 'advertência' : 'suspensão'} enviado com sucesso para a contabilidade!`, enviado_em: agora });
     } catch (error) {
         console.error('[SUSPENSAO CONTAB] ERRO:', error.message);
         res.status(500).json({ sucesso: false, error: error.message });

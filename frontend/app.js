@@ -5542,7 +5542,6 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     }
 
     let atestadoInfoHtml = '';
-    let atestadoContabHtml = '';
     if (isSaved) {
         if (existingDoc.atestado_tipo) {
             if (existingDoc.atestado_tipo === 'dias') {
@@ -5557,19 +5556,19 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                 atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${existingDoc.atestado_inicio} às ${existingDoc.atestado_fim}</span> `;
             }
         }
+    }
 
-        if (existingDoc.atestado_contab_enviado_em) {
-            let sd = existingDoc.atestado_contab_enviado_em;
-            if (!sd.includes('T')) sd = sd.replace(' ', 'T');
-            if (!sd.endsWith('Z')) sd += 'Z';
-            const contabDateObj = new Date(sd);
-            const dd = String(contabDateObj.getDate()).padStart(2, '0');
-            const mm = String(contabDateObj.getMonth() + 1).padStart(2, '0');
-            const yyyy = contabDateObj.getFullYear();
-            const h = String(contabDateObj.getHours()).padStart(2, '0');
-            const min = String(contabDateObj.getMinutes()).padStart(2, '0');
-            atestadoContabHtml = ` <br><span style="color:#2f9e44; font-weight:600; font-size:0.75rem;"><i class="ph ph-check-circle"></i> Enviado p/ Contab: ${dd}/${mm}/${yyyy} - ${h}h${min}m</span> `;
-        }
+    let atestadoContabHtml = '';    if (isSaved && (existingDoc.enviado_contabilidade_em || existingDoc.atestado_contab_enviado_em)) {
+        let sd = existingDoc.enviado_contabilidade_em || existingDoc.atestado_contab_enviado_em;
+        if (!sd.includes('T')) sd = sd.replace(' ', 'T');
+        if (!sd.endsWith('Z')) sd += 'Z';
+        const contabDateObj = new Date(sd);
+        const dd = String(contabDateObj.getDate()).padStart(2, '0');
+        const mm = String(contabDateObj.getMonth() + 1).padStart(2, '0');
+        const yyyy = contabDateObj.getFullYear();
+        const h = String(contabDateObj.getHours()).padStart(2, '0');
+        const min = String(contabDateObj.getMinutes()).padStart(2, '0');
+        atestadoContabHtml = ` <br><span style="color:#2f9e44; font-weight:600; font-size:0.75rem;"><i class="ph ph-check-circle"></i> Enviado p/ Contab: ${dd}/${mm}/${yyyy} - ${h}h${min}m</span> `;
     }
 
     const subInfoLine = (vencInfoHtml || enviadoHtml || atestadoInfoHtml || atestadoContabHtml)
@@ -5742,18 +5741,16 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
                     ` : ''}
 
-                    ${(tabId === 'Advertências' && isSaved && ['Assinado', 'Testemunhas', 'Aguardando', 'Pendente'].includes(stMain) && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
-                    <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end; width:100%; border-top: 1px dashed #e2e8f0; padding-top: 0.5rem;">
-                        <div style="display:flex; gap:0.5rem; align-items:center; justify-content:flex-end; width:100%;">
-                            <input type="email" id="susp-contab-email-${existingDoc.id}"
-                                   value="thais.ricci@americarental.com.br"
-                                   style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; max-width:250px;">
-                            <button type="button"
-                                    onclick="window.enviarSuspensaoContabilidade(${existingDoc.id}, 'susp-contab-email-${existingDoc.id}', this)"
-                                    style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; max-width:250px;">
-                                <i class="ph ph-buildings"></i> Enviar para Contabilidade
-                            </button>
-                        </div>
+                    ${(tabId === 'Advertências' && isSaved && ['Assinado', 'Testemunhas'].includes(stMain) && (docType && (docType.toLowerCase().includes('suspens') || docType.toLowerCase().includes('advert')))) ? `
+                    <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end;">
+                        <input type="text" id="susp-contab-email-${existingDoc.id}"
+                               value="vanessa.santana@grupowp.com.br; vanessa.caroline@grupowp.com.br"
+                               style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; min-width:340px; max-width:420px;">
+                        <button type="button"
+                                onclick="window.enviarSuspensaoContabilidade(${existingDoc.id}, 'susp-contab-email-${existingDoc.id}', this)"
+                                style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
+                            <i class="ph ph-buildings"></i> Enviar para Contabilidade
+                        </button>
                     </div>` : ''}
                     
                     ${(tabId === 'Faculdade' && isSaved && docType === 'Boleto') ? ` 
