@@ -18135,21 +18135,21 @@ window.gerarFichaSantander = async function () {
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #000; background: #fff; padding: 20px; }
   .page { max-width: 750px; margin: 0 auto; }
-  .logo-area { text-align: center; margin-bottom: 10px; }
-  .logo-area img { width: 100%; max-height: 70px; object-fit: contain; object-position: center; }
-  h1.titulo { text-align: center; font-size: 13pt; font-weight: 900; background: #e8e8e8; border: 1.5px solid #ccc; padding: 6px 0; margin: 10px 0 15px 0; letter-spacing: 1px; }
-  .colab-label { font-size: 10pt; font-weight: 900; margin: 6px 0 2px; }
-  .colab-nome { font-size: 14pt; font-weight: 900; margin-bottom: 10px; }
-  p.body-text { font-size: 9.5pt; margin-bottom: 8px; text-align: justify; line-height: 1.4; }
-  ul.docs { font-size: 9.5pt; margin: 4px 0 10px 20px; line-height: 1.5; }
-  .data-box { border: 1.5px solid #555; margin: 10px 0; }
+  .logo-area { text-align: center; margin-bottom: 5px; }
+  .logo-area img { width: 100%; max-height: 55px; object-fit: contain; object-position: center; }
+  h1.titulo { text-align: center; font-size: 12pt; font-weight: 900; background: #e8e8e8; border: 1.5px solid #ccc; padding: 4px 0; margin: 5px 0 10px 0; letter-spacing: 1px; }
+  .colab-label { font-size: 10pt; font-weight: 900; margin: 4px 0 2px; }
+  .colab-nome { font-size: 13pt; font-weight: 900; margin-bottom: 5px; }
+  p.body-text { font-size: 9pt; margin-bottom: 5px; text-align: justify; line-height: 1.25; }
+  ul.docs { font-size: 9pt; margin: 2px 0 5px 20px; line-height: 1.25; }
+  .data-box { border: 1.5px solid #555; margin: 5px 0; }
   .data-box-title { background: #d0d0d0; font-weight: 900; font-size: 10pt; padding: 4px 8px; border-bottom: 1.5px solid #555; }
-  .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 8px 10px; }
-  .data-line { font-size: 9pt; margin: 2px 0; }
+  .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 6px 8px; }
+  .data-line { font-size: 9pt; margin: 1px 0; }
   .data-line b { font-weight: 700; }
-  .assinaturas { display: flex; justify-content: space-between; margin-top: 25px; align-items: flex-end; }
+  .assinaturas { display: flex; justify-content: space-between; margin-top: 15px; align-items: flex-end; }
   .assin-block { text-align: center; width: 45%; }
-  .assin-line { border-top: 1px solid #000; padding-top: 6px; margin-top: 35px; font-size: 9pt; }
+  .assin-line { border-top: 1px solid #000; padding-top: 4px; margin-top: 25px; font-size: 9pt; }
   .assin-label { font-size: 9pt; color: #333; margin-top: 3px; }
   @media print {
     body { padding: 0; }
@@ -18196,14 +18196,14 @@ window.gerarFichaSantander = async function () {
     </div>
   </div>
 
-  <div style="font-size: 9.5pt; margin-top: 15px; line-height: 1.5;">
+  <div style="font-size: 9pt; margin-top: 10px; line-height: 1.3;">
     Responsável de RH: Juliene de Camargo Corrêa<br>
     Telefone: - (11) 99025-2820 ou (11) 2499-3353<br>
     EMPRESA: America Rental Equipamentos LTDA<br>
     CNPJ: 03.434.448/0001-01
   </div>
 
-  <div style="font-size: 9.5pt; margin-top: 25px;">
+  <div style="font-size: 9pt; margin-top: 15px;">
     Guarulhos, ${hoje.getDate()} de ${mesExtenso} de ${anoStr}.
   </div>
 
@@ -18222,11 +18222,11 @@ window.gerarFichaSantander = async function () {
   </div>
 
   <!-- Anexo 3 (Rodapé e Quadro) -->
-  <div style="font-size: 8pt; margin-top: 20px; text-align: justify; line-height: 1.3;">
+  <div style="font-size: 7.5pt; margin-top: 10px; text-align: justify; line-height: 1.2;">
     *Exceto nos casos de pedidos de reposição formulados pelo cliente decorrentes de perda, roubo, danificação ou outros motivos não imputáveis ao Banco. ** Serviços gratuitos: duas consultas ao saldo de sua conta, dois extratos dos últimos 30 dias, um DOC/TED pelo valor total do crédito e cinco saques (por evento de crédito). A utilização acima desses limites ou de quaisquer outros serviços estará sujeita à cobrança de tarifas.
   </div>
 
-  <div style="border: 2px solid #000; margin-top: 15px;">
+  <div style="border: 2px solid #000; margin-top: 10px; page-break-inside: avoid;">
     <div style="background: #ccc; font-weight: bold; font-size: 9pt; padding: 4px 8px; border-bottom: 2px solid #000;">
       Para uso exclusivo do Banco Santander:
     </div>
