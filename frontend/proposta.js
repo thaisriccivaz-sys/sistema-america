@@ -40,6 +40,7 @@ const PROP_STATUS_CORES = {
 
 let _propostasData = [];
 let _propostasEditandoId = null;
+let _currentPropostaTab = 'lista'; // 'lista' ou 'form'
 
 /* ── Inicialização ──────────────────────────────────────────────────── */
 async function inicializarPropostas() {
@@ -68,7 +69,7 @@ function renderTelaPropostas() {
         <div style="max-width:1400px; margin:0 auto;">
 
             <!-- Cabeçalho -->
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:1rem;">
                 <div>
                     <h2 style="margin:0; color:#1e293b; font-size:1.4rem; font-weight:700; display:flex; align-items:center; gap:0.5rem;">
                         <i class="ph ph-file-text" style="color:#7048e8;"></i> Propostas Comerciais
@@ -77,73 +78,102 @@ function renderTelaPropostas() {
                         Gerencie as propostas de locação da América Rental
                     </p>
                 </div>
-                <button onclick="abrirFormProposta(null)" style="
-                    background:linear-gradient(135deg,#7048e8,#9775fa);
-                    color:white; border:none; padding:0.65rem 1.3rem;
-                    border-radius:8px; cursor:pointer; font-weight:600;
-                    display:flex; align-items:center; gap:0.5rem;
-                    font-size:0.9rem; box-shadow:0 4px 12px rgba(112,72,232,0.35);
-                    transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'"
-                    onmouseout="this.style.transform='translateY(0)'">
-                    <i class="ph ph-plus-circle"></i> Nova Proposta
+            </div>
+
+            <!-- ABAS INTERNAS -->
+            <div style="display:flex; gap:1rem; border-bottom:1px solid #e2e8f0; margin-bottom:1.5rem;">
+                <button id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="background:none; border:none; border-bottom:2px solid ${_currentPropostaTab === 'lista' ? '#7048e8' : 'transparent'}; color:${_currentPropostaTab === 'lista' ? '#7048e8' : '#64748b'}; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem; outline:none; transition:all 0.2s;">
+                    <i class="ph ph-list-bullets"></i> Lista de Propostas
+                </button>
+                <button id="tab-prop-form" onclick="switchPropostaTab('form')" style="background:none; border:none; border-bottom:2px solid ${_currentPropostaTab === 'form' ? '#7048e8' : 'transparent'}; color:${_currentPropostaTab === 'form' ? '#7048e8' : '#64748b'}; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem; outline:none; transition:all 0.2s; display:${_currentPropostaTab === 'form' ? 'block' : 'none'};">
+                    <i class="ph ph-pencil-simple"></i> ${_propostasEditandoId ? 'Editar Proposta' : 'Nova Proposta'}
                 </button>
             </div>
 
-            <!-- Cards de resumo -->
-            <div id="prop-cards-resumo" style="display:flex; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
-                ${_renderCardsResumoProp()}
-            </div>
-
-            <!-- Filtros -->
-            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0.9rem 1.1rem; margin-bottom:1rem;">
-                <div style="display:flex; flex-wrap:wrap; gap:0.6rem; align-items:center;">
-                    <input id="prop-filtro-texto" type="text" placeholder="🔍 Buscar por cliente, código, tipo..."
-                        oninput="filtrarPropostas()"
-                        style="flex:2; min-width:200px; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
-                    <select id="prop-filtro-fase" onchange="filtrarPropostas()"
-                        style="flex:1; min-width:160px; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
-                        <option value="">Todas as Fases</option>
-                        ${PROP_FASES.map(f => `<option value="${f}">${f}</option>`).join('')}
-                    </select>
-                    <input id="prop-filtro-de" type="date" title="Período de" onchange="filtrarPropostas()"
-                        style="flex:0 0 auto; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
-                    <input id="prop-filtro-ate" type="date" title="Período até" onchange="filtrarPropostas()"
-                        style="flex:0 0 auto; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
-                    <button onclick="limparFiltrosPropostas()" style="padding:0.45rem 0.85rem; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.83rem; color:#475569;">
-                        ✕ Limpar
+            <!-- VIEW: LISTA -->
+            <div id="prop-view-lista" style="display:${_currentPropostaTab === 'lista' ? 'block' : 'none'};">
+                <div style="display:flex; justify-content:flex-end; margin-bottom:1rem;">
+                    <button onclick="abrirFormProposta(null)" style="
+                        background:linear-gradient(135deg,#7048e8,#9775fa);
+                        color:white; border:none; padding:0.65rem 1.3rem;
+                        border-radius:8px; cursor:pointer; font-weight:600;
+                        display:flex; align-items:center; gap:0.5rem;
+                        font-size:0.9rem; box-shadow:0 4px 12px rgba(112,72,232,0.35);
+                        transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'"
+                        onmouseout="this.style.transform='translateY(0)'">
+                        <i class="ph ph-plus-circle"></i> Nova Proposta
                     </button>
                 </div>
-            </div>
 
-            <!-- Tabela -->
-            <div style="background:#fff; border-radius:10px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                <div style="overflow-x:auto;">
-                    <table style="width:100%; border-collapse:collapse; font-size:0.87rem; min-width:900px;">
-                        <thead>
-                            <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
-                                <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569; white-space:nowrap;">Código</th>
-                                <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569;">Cliente</th>
-                                <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569;">Tipo</th>
-                                <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569;">Fase</th>
-                                <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569; white-space:nowrap;">Período</th>
-                                <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569;">Atendente</th>
-                                <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569; white-space:nowrap;">Cadastro</th>
-                                <th style="padding:0.9rem 1rem; text-align:center; font-weight:700; color:#475569;">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="prop-tbody">
-                            ${_renderLinhasPropostas(_propostasData)}
-                        </tbody>
-                    </table>
+                <!-- Cards de resumo -->
+                <div id="prop-cards-resumo" style="display:flex; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+                    ${_renderCardsResumoProp()}
                 </div>
+
+                <!-- Filtros -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0.9rem 1.1rem; margin-bottom:1rem;">
+                    <div style="display:flex; flex-wrap:wrap; gap:0.6rem; align-items:center;">
+                        <input id="prop-filtro-texto" type="text" placeholder="🔍 Buscar por cliente, código, tipo..."
+                            oninput="filtrarPropostas()"
+                            style="flex:2; min-width:200px; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
+                        <select id="prop-filtro-fase" onchange="filtrarPropostas()"
+                            style="flex:1; min-width:160px; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
+                            <option value="">Todas as Fases</option>
+                            ${PROP_FASES.map(f => `<option value="${f}">${f}</option>`).join('')}
+                        </select>
+                        <input id="prop-filtro-de" type="date" title="Período de" onchange="filtrarPropostas()"
+                            style="flex:0 0 auto; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
+                        <input id="prop-filtro-ate" type="date" title="Período até" onchange="filtrarPropostas()"
+                            style="flex:0 0 auto; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
+                        <button onclick="limparFiltrosPropostas()" style="padding:0.45rem 0.85rem; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.83rem; color:#475569;">
+                            ✕ Limpar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tabela -->
+                <div style="background:#fff; border-radius:10px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.87rem; min-width:900px;">
+                            <thead>
+                                <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
+                                    <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569; white-space:nowrap;">Código</th>
+                                    <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569;">Cliente</th>
+                                    <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569;">Tipo</th>
+                                    <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569;">Fase</th>
+                                    <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569; white-space:nowrap;">Período</th>
+                                    <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569;">Atendente</th>
+                                    <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569; white-space:nowrap;">Cadastro</th>
+                                    <th style="padding:0.9rem 1rem; text-align:center; font-weight:700; color:#475569;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="prop-tbody">
+                                ${_renderLinhasPropostas(_propostasData)}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <p id="prop-count" style="text-align:right; font-size:0.8rem; color:#94a3b8; margin-top:0.5rem;">
+                    ${_propostasData.length} proposta(s) encontrada(s)
+                </p>
             </div>
 
-            <p id="prop-count" style="text-align:right; font-size:0.8rem; color:#94a3b8; margin-top:0.5rem;">
-                ${_propostasData.length} proposta(s) encontrada(s)
-            </p>
+            <!-- VIEW: FORMULÁRIO -->
+            <div id="prop-view-form" style="display:${_currentPropostaTab === 'form' ? 'block' : 'none'};"></div>
+
         </div>
     `;
+
+    if (_currentPropostaTab === 'form') {
+        _renderFormPropostaInt();
+    }
 }
+
+window.switchPropostaTab = function(tab) {
+    _currentPropostaTab = tab;
+    renderTelaPropostas();
+};
 
 function _renderCardsResumoProp() {
     const total = _propostasData.length;
@@ -250,19 +280,24 @@ function limparFiltrosPropostas() {
 /* ── Formulário (Modal) ─────────────────────────────────────────────── */
 function abrirFormProposta(id) {
     _propostasEditandoId = id;
+    window.switchPropostaTab('form');
+}
+
+function _renderFormPropostaInt() {
+    const id = _propostasEditandoId;
     const prop = id ? _propostasData.find(p => p.id === id) : null;
     const isNovo = !prop;
     const hoje = new Date().toISOString().split('T')[0];
     const titulo = isNovo ? '📄 Nova Proposta' : `✏️ Editar Proposta — ${prop.codigo}`;
 
-    const container = document.getElementById('view-form-proposta');
+    const container = document.getElementById('prop-view-form');
     if (!container) return;
 
     const v = (campo) => prop ? (prop[campo] || '') : '';
     const vn = (campo, def='0') => prop ? (prop[campo] ?? def) : def;
 
     container.innerHTML = `
-        <div style="background:#fff; width:100%; max-width:1100px; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:hidden; margin:auto; border: 1px solid #e2e8f0;">
+        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:hidden; margin:auto; border: 1px solid #e2e8f0;">
 
             <!-- Header -->
             <div style="background:linear-gradient(135deg,#4c1d95,#7048e8); padding:1.2rem 1.5rem; display:flex; justify-content:space-between; align-items:center;">
@@ -498,18 +533,11 @@ function abrirFormProposta(id) {
                 </form>
             </div>
     `;
-
-    // Abre a aba no sistema
-    if (typeof window._openPropostaTab === 'function') {
-        window._openPropostaTab(id, prop ? prop.codigo : null);
-    }
 }
 
 window.fecharFormProposta = function() {
-    const tabId = _propostasEditandoId ? 'form-proposta-' + _propostasEditandoId : 'form-proposta-nova';
-    if (typeof window.closeAppTab === 'function') {
-        window.closeAppTab(tabId);
-    }
+    _propostasEditandoId = null;
+    window.switchPropostaTab('lista');
 };
 
 /* ── Cálculos auxiliares ────────────────────────────────────────────── */
