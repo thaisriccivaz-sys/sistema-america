@@ -1611,7 +1611,7 @@ window.solDocsBaixar = function() {
         return;
     }
 
-    const token = localStorage.getItem('token');
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     
     let tempo = 0;
     colabs.forEach((c) => {
