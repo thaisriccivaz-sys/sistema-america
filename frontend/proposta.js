@@ -85,8 +85,8 @@ function renderTelaPropostas() {
                 <button id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="background:none; border:none; border-bottom:2px solid ${_currentPropostaTab === 'lista' ? '#7048e8' : 'transparent'}; color:${_currentPropostaTab === 'lista' ? '#7048e8' : '#64748b'}; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem; outline:none; transition:all 0.2s;">
                     <i class="ph ph-list-bullets"></i> Lista de Propostas
                 </button>
-                <button id="tab-prop-form" onclick="switchPropostaTab('form')" style="background:none; border:none; border-bottom:2px solid ${_currentPropostaTab === 'form' ? '#7048e8' : 'transparent'}; color:${_currentPropostaTab === 'form' ? '#7048e8' : '#64748b'}; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem; outline:none; transition:all 0.2s; display:${_currentPropostaTab === 'form' ? 'block' : 'none'};">
-                    <i class="ph ph-pencil-simple"></i> ${_propostasEditandoId ? 'Editar Proposta' : 'Nova Proposta'}
+                <button id="tab-prop-form" onclick="switchPropostaTab('form')" style="background:none; border:none; border-bottom:2px solid ${_currentPropostaTab === 'form' ? '#7048e8' : 'transparent'}; color:${_currentPropostaTab === 'form' ? '#7048e8' : '#64748b'}; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem; outline:none; transition:all 0.2s;">
+                    <i class="ph ph-pencil-simple"></i> <span id="tab-prop-form-text">${_propostasEditandoId ? 'Editar Proposta' : 'Nova Proposta'}</span>
                 </button>
             </div>
 
@@ -172,7 +172,38 @@ function renderTelaPropostas() {
 
 window.switchPropostaTab = function(tab) {
     _currentPropostaTab = tab;
-    renderTelaPropostas();
+    
+    const viewLista = document.getElementById('prop-view-lista');
+    const viewForm = document.getElementById('prop-view-form');
+    const tabLista = document.getElementById('tab-prop-lista');
+    const tabForm = document.getElementById('tab-prop-form');
+
+    if (viewLista && viewForm && tabLista && tabForm) {
+        if (tab === 'form' && viewForm.innerHTML.trim() === '') {
+            _renderFormPropostaInt();
+        }
+
+        if (tab === 'lista') {
+            viewLista.style.display = 'block';
+            viewForm.style.display = 'none';
+            tabLista.style.borderBottom = '2px solid #7048e8';
+            tabLista.style.color = '#7048e8';
+            tabForm.style.borderBottom = '2px solid transparent';
+            tabForm.style.color = '#64748b';
+        } else {
+            viewLista.style.display = 'none';
+            viewForm.style.display = 'block';
+            tabLista.style.borderBottom = '2px solid transparent';
+            tabLista.style.color = '#64748b';
+            tabForm.style.borderBottom = '2px solid #7048e8';
+            tabForm.style.color = '#7048e8';
+
+            const span = document.getElementById('tab-prop-form-text');
+            if (span) span.innerText = _propostasEditandoId ? 'Editar Proposta' : 'Nova Proposta';
+        }
+    } else {
+        renderTelaPropostas();
+    }
 };
 
 function _renderCardsResumoProp() {
@@ -280,6 +311,12 @@ function limparFiltrosPropostas() {
 /* ── Formulário (Modal) ─────────────────────────────────────────────── */
 function abrirFormProposta(id) {
     _propostasEditandoId = id;
+    _currentPropostaTab = 'form';
+    
+    // Sempre re-renderiza o form ao abrir pelo botão de Editar ou Nova Proposta (para resetar dados)
+    if (document.getElementById('prop-view-form')) {
+        _renderFormPropostaInt();
+    }
     window.switchPropostaTab('form');
 }
 
@@ -298,20 +335,6 @@ function _renderFormPropostaInt() {
 
     container.innerHTML = `
         <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:hidden; margin:auto; border: 1px solid #e2e8f0;">
-
-            <!-- Header -->
-            <div style="background:linear-gradient(135deg,#4c1d95,#7048e8); padding:1.2rem 1.5rem; display:flex; justify-content:space-between; align-items:center;">
-                <div style="display:flex; align-items:center; gap:0.75rem;">
-                    <div style="width:40px;height:40px;background:rgba(255,255,255,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;">
-                        <i class="ph ph-file-text" style="color:white;font-size:1.3rem;"></i>
-                    </div>
-                    <div>
-                        <h3 style="margin:0;color:white;font-size:1.05rem;font-weight:700;">${titulo}</h3>
-                        <p style="margin:0;color:rgba(255,255,255,0.7);font-size:0.78rem;">Proposta de Locação — América Rental</p>
-                    </div>
-                </div>
-                <button onclick="fecharFormProposta()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">&times;</button>
-            </div>
 
             <!-- Toolbar -->
             <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; gap:0.6rem; flex-wrap:wrap;">
@@ -537,6 +560,8 @@ function _renderFormPropostaInt() {
 
 window.fecharFormProposta = function() {
     _propostasEditandoId = null;
+    const viewForm = document.getElementById('prop-view-form');
+    if (viewForm) viewForm.innerHTML = '';
     window.switchPropostaTab('lista');
 };
 
