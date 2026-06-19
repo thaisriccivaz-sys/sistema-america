@@ -480,6 +480,7 @@ const BREADCRUMB_MAP = {
     // Comercial
     'comercial-credenciamento': { path: 'Solicitar Credencial', code: 'COM001' },
     'comercial-proposta': { path: 'Proposta', code: 'COM002' },
+    'form-proposta': { path: 'Proposta → Formulário' },
     // Administrativo
     'licencas': { path: 'Licenças', code: 'ADM001' },
     'estoque': { path: 'Estoque', code: 'ADM002' },
@@ -691,6 +692,7 @@ const TAB_META = {
     // Comercial - Roxo
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
     'comercial-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Proposta' },
+    'form-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Formulário de Proposta' },
     'comercial-em-breve': { color: '#7048e8', icon: 'ph-handshake', title: 'Comercial' },
     // Administrativo - Amarelo
     'admin-em-breve': { color: '#e67700', icon: 'ph-gear', title: 'Administrativo' },
@@ -965,6 +967,29 @@ window._openColaboradorTab = function (colabId, nomeColab) {
     if (targetView) targetView.classList.add('active');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     updateBreadcrumb('form-colaborador');
+};
+
+// Abre uma aba de FORMULÁRIO DE PROPOSTA.
+window._openPropostaTab = function (propId, propCodigo) {
+    const tabId = propId ? `form-proposta-${propId}` : 'form-proposta-nova';
+    const label = propCodigo ? `Proposta: ${propCodigo}` : 'Nova Proposta';
+    const meta = getTabMeta('form-proposta');
+
+    const existingTab = appOpenTabs.find(t => t.tabId === tabId);
+    if (!existingTab) {
+        appOpenTabs.push({ tabId, target: 'form-proposta', title: label, color: meta.color, icon: meta.icon, active: true });
+    } else {
+        existingTab.title = label;
+    }
+    appOpenTabs.forEach(t => t.active = (t.tabId === tabId));
+    renderAppTabs();
+
+    document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    const targetView = document.getElementById('view-form-proposta');
+    if (targetView) targetView.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    updateBreadcrumb('form-proposta');
 };
 
 // Abre uma aba de PRONTUÁRIO, nomeada com o colaborador.

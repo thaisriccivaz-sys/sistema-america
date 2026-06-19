@@ -255,15 +255,14 @@ function abrirFormProposta(id) {
     const hoje = new Date().toISOString().split('T')[0];
     const titulo = isNovo ? '📄 Nova Proposta' : `✏️ Editar Proposta — ${prop.codigo}`;
 
-    const modal = document.createElement('div');
-    modal.id = 'modal-proposta';
-    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.65);display:flex;justify-content:center;align-items:flex-start;z-index:9999;padding:1.5rem;overflow-y:auto;backdrop-filter:blur(2px);';
+    const container = document.getElementById('view-form-proposta');
+    if (!container) return;
 
     const v = (campo) => prop ? (prop[campo] || '') : '';
     const vn = (campo, def='0') => prop ? (prop[campo] ?? def) : def;
 
-    modal.innerHTML = `
-        <div style="background:#fff; width:100%; max-width:900px; border-radius:14px; box-shadow:0 25px 80px rgba(0,0,0,0.3); overflow:hidden; margin:auto;">
+    container.innerHTML = `
+        <div style="background:#fff; width:100%; max-width:1100px; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:hidden; margin:auto; border: 1px solid #e2e8f0;">
 
             <!-- Header -->
             <div style="background:linear-gradient(135deg,#4c1d95,#7048e8); padding:1.2rem 1.5rem; display:flex; justify-content:space-between; align-items:center;">
@@ -276,7 +275,7 @@ function abrirFormProposta(id) {
                         <p style="margin:0;color:rgba(255,255,255,0.7);font-size:0.78rem;">Proposta de Locação — América Rental</p>
                     </div>
                 </div>
-                <button onclick="document.getElementById('modal-proposta').remove()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">&times;</button>
+                <button onclick="fecharFormProposta()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">&times;</button>
             </div>
 
             <!-- Toolbar -->
@@ -284,7 +283,7 @@ function abrirFormProposta(id) {
                 <button onclick="salvarProposta()" style="background:#16a34a;color:white;border:none;padding:0.5rem 1rem;border-radius:7px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;">
                     <i class="ph ph-floppy-disk"></i> Salvar
                 </button>
-                <button onclick="document.getElementById('modal-proposta').remove()" style="background:#64748b;color:white;border:none;padding:0.5rem 1rem;border-radius:7px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;">
+                <button onclick="fecharFormProposta()" style="background:#64748b;color:white;border:none;padding:0.5rem 1rem;border-radius:7px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;">
                     <i class="ph ph-x"></i> Cancelar
                 </button>
                 ${!isNovo ? `
@@ -498,12 +497,20 @@ function abrirFormProposta(id) {
 
                 </form>
             </div>
-        </div>
     `;
 
-    document.body.appendChild(modal);
-    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    // Abre a aba no sistema
+    if (typeof window._openPropostaTab === 'function') {
+        window._openPropostaTab(id, prop ? prop.codigo : null);
+    }
 }
+
+window.fecharFormProposta = function() {
+    const tabId = _propostasEditandoId ? 'form-proposta-' + _propostasEditandoId : 'form-proposta-nova';
+    if (typeof window.closeAppTab === 'function') {
+        window.closeAppTab(tabId);
+    }
+};
 
 /* ── Cálculos auxiliares ────────────────────────────────────────────── */
 function calcularDiasContrato() {
@@ -574,7 +581,7 @@ async function salvarProposta() {
         }
 
         if (resp && (resp.success || resp.id)) {
-            document.getElementById('modal-proposta')?.remove();
+            fecharFormProposta();
             await carregarPropostas();
             renderTelaPropostas();
             if (typeof mostrarToastSucesso === 'function') {
@@ -595,7 +602,7 @@ async function excluirProposta(id) {
     try {
         const resp = await apiDelete(`/api/propostas/${id}`);
         if (resp && resp.success) {
-            document.getElementById('modal-proposta')?.remove();
+            fecharFormProposta();
             await carregarPropostas();
             renderTelaPropostas();
             if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso('Proposta excluída.');
