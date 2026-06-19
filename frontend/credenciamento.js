@@ -1359,6 +1359,9 @@ window.abrirModalSolicitarDocumentos = async function() {
                         <button onclick="solDocsVoltar2()" style="flex:1; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; padding:12px; border-radius:8px; font-weight:600; cursor:pointer;">
                             <i class="ph ph-arrow-left"></i> Voltar
                         </button>
+                        <button onclick="solDocsBaixar()" id="btn-sol-baixar" style="flex:2; background:#3b82f6; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                            <i class="ph-bold ph-download-simple"></i> Baixar Documentos
+                        </button>
                         <button onclick="solDocsCopiar()" id="btn-sol-copiar" style="flex:2; background:#16a34a; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
                             <i class="ph-bold ph-copy"></i> Copiar Conteúdo
                         </button>
@@ -1555,7 +1558,7 @@ window.solDocsGerarResultado = function() {
             linhas.push(`${i + 1}. ${c.nome_completo}`);
             linhas.push(`   CPF: ${c.cpf || 'Não cadastrado'}`);
             if (isMotorista) {
-                linhas.push(`   CNH: ${c.cnh || 'Não cadastrada'}`);
+                linhas.push(`   CNH: ${c.cnh_numero || c.cnh || 'Não cadastrada'}`);
             }
             if (i < colabs.length - 1) linhas.push('');
         });
@@ -1598,4 +1601,26 @@ window.solDocsCopiar = async function() {
         document.body.removeChild(ta);
         alert('Conteúdo copiado!');
     }
+};
+
+window.solDocsBaixar = function() {
+    const colabs = [..._solDocState.colabsSelecionados].map(id => _solDocState.colaboradores.find(c => String(c.id) === id)).filter(Boolean);
+    
+    if (!colabs.length) {
+        alert('Nenhum colaborador selecionado para baixar documentos.');
+        return;
+    }
+
+    const token = localStorage.getItem('token');
+    
+    let tempo = 0;
+    colabs.forEach((c) => {
+        const isMotorista = c.cargo && c.cargo.toUpperCase().includes('MOTORISTA');
+        const url = isMotorista ? `/api/colaboradores/${c.id}/arquivo/cnh?token=${token}` : `/api/colaboradores/${c.id}/arquivo/cpf_rg?token=${token}`;
+        
+        setTimeout(() => {
+            window.open(url, '_blank');
+        }, tempo);
+        tempo += 500; // intervalo de meio segundo para não ser bloqueado pelo popup blocker do navegador
+    });
 };

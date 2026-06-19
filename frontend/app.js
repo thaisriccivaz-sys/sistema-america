@@ -252,15 +252,48 @@ if (btnLogout) {
 // ── Sessão automática: logout após 5 horas ─────────────────────────────
 (function () {
     const SESSION_MS = 5 * 60 * 60 * 1000; // 5 horas em ms
+    const AVISO_MS = 60 * 1000; // Avisar 60 segundos antes
 
-    function sessaoExpirada() {
+    function getTempoSessao() {
         const t = localStorage.getItem('erp_login_time');
-        if (!t) return false;
-        return (Date.now() - parseInt(t)) >= SESSION_MS;
+        if (!t) return -1;
+        return Date.now() - parseInt(t);
+    }
+
+    function mostrarAvisoExpiracao(faltamMs) {
+        let div = document.getElementById('aviso-sessao-expirando');
+        if (!div) {
+            div = document.createElement('div');
+            div.id = 'aviso-sessao-expirando';
+            div.style.cssText = 'position:fixed; bottom:20px; left:20px; background:#ef4444; color:#fff; padding:15px 20px; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.3); z-index:99999; display:flex; align-items:center; gap:12px; font-family:Inter, sans-serif; max-width:320px; animation: slideInLeft 0.3s ease-out;';
+            
+            // Animação CSS para o card aparecer da esquerda
+            const style = document.createElement('style');
+            style.textContent = `@keyframes slideInLeft { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`;
+            document.head.appendChild(style);
+
+            div.innerHTML = `
+                <i class="ph ph-warning-circle" style="font-size:2.2rem; flex-shrink:0;"></i>
+                <div>
+                    <h4 style="margin:0 0 4px; font-size:0.95rem; font-weight:700;">Atenção! Salve tudo.</h4>
+                    <p style="margin:0; font-size:0.85rem; line-height:1.4;">
+                        O sistema será relogado em <strong id="aviso-sessao-timer" style="font-size:1.1rem;">--</strong> segundos.
+                    </p>
+                </div>
+            `;
+            document.body.appendChild(div);
+        }
+        
+        let faltamSeg = Math.max(0, Math.ceil(faltamMs / 1000));
+        document.getElementById('aviso-sessao-timer').textContent = faltamSeg;
     }
 
     function mostrarModalSessaoExpirada() {
         if (document.getElementById('modal-sessao-expirada')) return;
+        
+        const aviso = document.getElementById('aviso-sessao-expirando');
+        if (aviso) aviso.remove();
+
         const ov = document.createElement('div');
         ov.id = 'modal-sessao-expirada';
         ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;';
@@ -291,7 +324,15 @@ if (btnLogout) {
 
     function verificarSessao() {
         if (!localStorage.getItem('erp_token')) return; // não logado
-        if (sessaoExpirada()) mostrarModalSessaoExpirada();
+        
+        const tempoDecorrido = getTempoSessao();
+        if (tempoDecorrido < 0) return;
+
+        if (tempoDecorrido >= SESSION_MS) {
+            mostrarModalSessaoExpirada();
+        } else if (tempoDecorrido >= (SESSION_MS - AVISO_MS)) {
+            mostrarAvisoExpiracao(SESSION_MS - tempoDecorrido);
+        }
     }
 
     // Verificar ao carregar (caso o usuário reabra após 5h)
@@ -301,8 +342,8 @@ if (btnLogout) {
         setTimeout(verificarSessao, 3000);
     }
 
-    // Verificar a cada 60 segundos
-    setInterval(verificarSessao, 60 * 1000);
+    // Verificar a cada 1 segundo para o cronômetro funcionar corretamente
+    setInterval(verificarSessao, 1000);
 })();
 
 
@@ -18074,26 +18115,8 @@ window.gerarFichaSantander = async function () {
     // Salário formatado
     const salario = colab.salario ? parseFloat(colab.salario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—';
 
-    // Endereço e Cidade extraídos corretamente do endereço do Colaborador (agora separado por vírgula e traço)
-    let enderecoPuro = fmt(colab.endereco_completo);
-    let numero = '—', complemento = '—', bairro = '—', cidade = '—', estado = '—', cep = '—';
-    if (colab.endereco_completo) {
-        // Separação típica: "Rua X, 123, Bairro, Cidade - SP, CEP"
-        const parts = colab.endereco_completo.split(',');
-        enderecoPuro = parts[0] ? parts[0].trim() : '—';
-        if (parts.length > 1) {
-            const part2 = parts[1].trim();
-            numero = part2.split(' ')[0] || part2;
-            if (part2.includes(' ')) complemento = part2.substring(numero.length).trim();
-        }
-        if (parts.length > 2) bairro = parts[2].trim();
-        if (parts.length > 3) {
-            const cidadeEst = parts[3].trim().split('-');
-            if (cidadeEst.length === 2) { cidade = cidadeEst[0].trim(); estado = cidadeEst[1].trim(); }
-            else { cidade = parts[3].trim(); }
-        }
-        if (colab.cep) cep = colab.cep;
-    }
+    // Endereço completo (usado em um único campo)
+    const enderecoPuro = fmt(colab.endereco);
 
     // Data admissão formatada
     let admissaoFmt = '—';
@@ -18112,25 +18135,24 @@ window.gerarFichaSantander = async function () {
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #000; background: #fff; padding: 20px; }
   .page { max-width: 750px; margin: 0 auto; }
-  .logo-area { text-align: center; margin-bottom: 16px; }
-  .logo-area { text-align: center; }
-  .logo-area img { width: 100%; max-height: 100px; object-fit: contain; object-position: center; }
-  h1.titulo { text-align: center; font-size: 13pt; font-weight: 900; background: #e8e8e8; border: 1.5px solid #ccc; padding: 8px 0; margin: 14px 0 20px 0; letter-spacing: 1px; }
-  .colab-label { font-size: 10pt; font-weight: 900; margin: 10px 0 4px; }
-  .colab-nome { font-size: 14pt; font-weight: 900; margin-bottom: 18px; }
-  p.body-text { font-size: 9.5pt; margin-bottom: 10px; text-align: justify; line-height: 1.5; }
-  ul.docs { font-size: 9.5pt; margin: 4px 0 14px 20px; line-height: 1.7; }
-  .data-box { border: 1.5px solid #555; margin: 18px 0; }
-  .data-box-title { background: #d0d0d0; font-weight: 900; font-size: 10pt; padding: 5px 10px; border-bottom: 1.5px solid #555; }
-  .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 10px 12px; }
+  .logo-area { text-align: center; margin-bottom: 10px; }
+  .logo-area img { width: 100%; max-height: 70px; object-fit: contain; object-position: center; }
+  h1.titulo { text-align: center; font-size: 13pt; font-weight: 900; background: #e8e8e8; border: 1.5px solid #ccc; padding: 6px 0; margin: 10px 0 15px 0; letter-spacing: 1px; }
+  .colab-label { font-size: 10pt; font-weight: 900; margin: 6px 0 2px; }
+  .colab-nome { font-size: 14pt; font-weight: 900; margin-bottom: 10px; }
+  p.body-text { font-size: 9.5pt; margin-bottom: 8px; text-align: justify; line-height: 1.4; }
+  ul.docs { font-size: 9.5pt; margin: 4px 0 10px 20px; line-height: 1.5; }
+  .data-box { border: 1.5px solid #555; margin: 10px 0; }
+  .data-box-title { background: #d0d0d0; font-weight: 900; font-size: 10pt; padding: 4px 8px; border-bottom: 1.5px solid #555; }
+  .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 8px 10px; }
   .data-line { font-size: 9pt; margin: 2px 0; }
   .data-line b { font-weight: 700; }
-  .assinaturas { display: flex; justify-content: space-between; margin-top: 50px; align-items: flex-end; }
+  .assinaturas { display: flex; justify-content: space-between; margin-top: 25px; align-items: flex-end; }
   .assin-block { text-align: center; width: 45%; }
-  .assin-line { border-top: 1px solid #000; padding-top: 6px; margin-top: 55px; font-size: 9pt; }
+  .assin-line { border-top: 1px solid #000; padding-top: 6px; margin-top: 35px; font-size: 9pt; }
   .assin-label { font-size: 9pt; color: #333; margin-top: 3px; }
   @media print {
-    body { padding: 8px; }
+    body { padding: 0; }
     .no-print { display: none !important; }
   }
 </style>
@@ -18150,7 +18172,7 @@ window.gerarFichaSantander = async function () {
   <p class="body-text">Prezado (a)</p>
   <p class="body-text">Escolhemos o Santander como nosso parceiro para o processamento do pagamento do seu salário.</p>
   <p class="body-text">Conforme determinam as Resoluções nº 3.402 e 3.424/06, do Conselho Monetário Nacional, seu salário será creditado em uma conta de registro, denominada 'conta salário', que não é movimentável por cheque, não admite créditos de outras naturezas que não salariais e possui serviços limitados.</p>
-  <p class="body-text">Você também poderá aproveitar as vantagens de ter uma <b>CONTA CORRENTE</b> e transferir automaticamente o seu salário, possibilitando assim fazer uso de diversos outros serviços e condições diferenciadas oferecidas pelo Santander, que acreditamos que tenham um valor diferenciado para você. Para conhecer as vantagens de uma conta corrente compareça a uma agência até a data da sua admissão e apresente o original e uma cópia simples (frente e verso) dos documentos abaixo indicados:</p>
+  <p class="body-text">Você também poderá aproveitar as vantagens de ter uma <b>CONTA SALÁRIO</b> e transferir automaticamente o seu salário, possibilitando assim fazer uso de diversos outros serviços e condições diferenciadas oferecidas pelo Santander, que acreditamos que tenham um valor diferenciado para você. Para conhecer as vantagens de uma conta salário compareça a uma agência até a data da sua admissão e apresente o original e uma cópia simples (frente e verso) dos documentos abaixo indicados:</p>
 
   <ul class="docs">
     <li>Esta carta;</li>
@@ -18168,13 +18190,21 @@ window.gerarFichaSantander = async function () {
     <div class="data-grid">
       <div class="data-line">Declaramos que o Sr (a) <b>${fmt(colab.nome_completo)}</b></div>
       <div class="data-line">CPF: <b>${fmt(colab.cpf)}</b>&nbsp;&nbsp;&nbsp;Admissão: <b>${admissaoFmt}</b></div>
-      <div class="data-line">Endereço: <b>${enderecoPuro}</b></div>
-      <div class="data-line">Nº <b>${numero}</b>&nbsp;&nbsp;Complemento: <b>${complemento}</b></div>
-      <div class="data-line">Bairro: <b>${bairro}</b></div>
-      <div class="data-line">Cidade: <b>${cidade}</b>&nbsp;&nbsp;&nbsp;Estado: <b>${estado}</b>&nbsp;&nbsp;&nbsp;CEP: <b>${cep}</b></div>
+      <div class="data-line" style="grid-column: 1 / -1;">Endereço: <b>${enderecoPuro}</b></div>
       <div class="data-line">Cargo: <b>${fmt(colab.cargo)}</b></div>
       <div class="data-line">Salário Mensal: <b>${salario}</b></div>
     </div>
+  </div>
+
+  <div style="font-size: 9.5pt; margin-top: 15px; line-height: 1.5;">
+    Responsável de RH: Juliene de Camargo Corrêa<br>
+    Telefone: - (11) 99025-2820 ou (11) 2499-3353<br>
+    EMPRESA: America Rental Equipamentos LTDA<br>
+    CNPJ: 03.434.448/0001-01
+  </div>
+
+  <div style="font-size: 9.5pt; margin-top: 25px;">
+    Guarulhos, ${hoje.getDate()} de ${mesExtenso} de ${anoStr}.
   </div>
 
   <!-- Assinaturas -->
@@ -18188,6 +18218,31 @@ window.gerarFichaSantander = async function () {
     <!-- Bloco colaborador -->
     <div class="assin-block">
       <div class="assin-line">${fmt(colab.nome_completo)}</div>
+    </div>
+  </div>
+
+  <!-- Anexo 3 (Rodapé e Quadro) -->
+  <div style="font-size: 8pt; margin-top: 20px; text-align: justify; line-height: 1.3;">
+    *Exceto nos casos de pedidos de reposição formulados pelo cliente decorrentes de perda, roubo, danificação ou outros motivos não imputáveis ao Banco. ** Serviços gratuitos: duas consultas ao saldo de sua conta, dois extratos dos últimos 30 dias, um DOC/TED pelo valor total do crédito e cinco saques (por evento de crédito). A utilização acima desses limites ou de quaisquer outros serviços estará sujeita à cobrança de tarifas.
+  </div>
+
+  <div style="border: 2px solid #000; margin-top: 15px;">
+    <div style="background: #ccc; font-weight: bold; font-size: 9pt; padding: 4px 8px; border-bottom: 2px solid #000;">
+      Para uso exclusivo do Banco Santander:
+    </div>
+    <div style="padding: 6px 8px; font-size: 9pt; line-height: 2;">
+      <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+        <span style="white-space: nowrap;">Nome e Número da Agência: Guarulhos</span>
+        <span style="border-bottom: 1px solid #000; flex-grow: 1; margin-left: 10px;"></span>
+      </div>
+      <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+        <span style="white-space: nowrap;">Número da Conta:</span>
+        <span style="border-bottom: 1px solid #000; flex-grow: 1; margin-left: 10px;"></span>
+      </div>
+      <div style="display: flex; align-items: flex-end;">
+        <span style="white-space: nowrap;">Responsável pelo atendimento:</span>
+        <span style="border-bottom: 1px solid #000; flex-grow: 1; margin-left: 10px;"></span>
+      </div>
     </div>
   </div>
 

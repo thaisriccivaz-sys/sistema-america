@@ -5505,6 +5505,25 @@ app.get('/api/colaboradores/:id/arquivo/cnh', (req, res) => {
         });
     });
 });
+
+// GET /api/colaboradores/:id/arquivo/cpf_rg — serve o arquivo de CPF ou RG do colaborador
+app.get('/api/colaboradores/:id/arquivo/cpf_rg', (req, res) => {
+    const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Não autorizado' });
+    try { require('jsonwebtoken').verify(token, SECRET_KEY); } catch (e) { return res.status(401).json({ error: 'Token inválido' }); }
+
+    db.get('SELECT id, nome_completo FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado.' });
+
+        db.get("SELECT file_path, file_name FROM documentos WHERE colaborador_id = ? AND (document_type LIKE '%CPF%' OR document_type LIKE '%RG%' OR file_name LIKE '%CPF%' OR file_name LIKE '%RG%') ORDER BY id DESC LIMIT 1", [req.params.id], (err3, rowDoc) => {
+            if (!err3 && rowDoc && rowDoc.file_path && require('fs').existsSync(rowDoc.file_path)) {
+                return res.download(rowDoc.file_path, rowDoc.file_name || `Doc_Pessoal_${encodeURIComponent(row.nome_completo)}.pdf`);
+            } else {
+                return res.status(404).send(`Nenhum arquivo de CPF ou RG cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o Prontuário Digital para anexar.`);
+            }
+        });
+    });
+});
 // ------------------------------------------------------------------------------
 
 // =============================================================================

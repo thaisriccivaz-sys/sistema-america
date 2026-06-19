@@ -1042,6 +1042,7 @@ async function _rrRenderColabDisponiveis() {
     function _rrIsFeriasAfastado(c, dataStr) {
         const st = (c.colab_status || '').toLowerCase();
         if (st.includes('afastado')) return 'afastado';
+        if (st.includes('falta')) return 'falta';
         if (c.ferias_programadas_inicio && c.ferias_programadas_fim) {
             const parse = d => { if (!d) return null; if (d.includes('/')) { const p = d.split('/'); return new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`); } return new Date(d + 'T00:00:00'); };
             const ini = parse(c.ferias_programadas_inicio), fim = parse(c.ferias_programadas_fim);
