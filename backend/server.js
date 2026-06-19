@@ -18635,3 +18635,142 @@ setInterval(async () => {
 }, 60 * 60 * 1000);
 
 app.get('/api/frota/force-seed', (req, res) => { const db = require('./database'); const cats = [[1,'Motor','engine',1],[2,'Freios','disc',2],[3,'Pneus e Rodagem','tire',3],[4,'Suspensão e Direção','car',4],[5,'Transmissão','gear-six',5],[6,'Sistema Elétrico','lightning',6],[7,'Ar Condicionado','thermometer',7],[8,'Hidráulica / Operacional','drop',8],[9,'Sistema de Sucção','funnel',9],[10,'Estrutura / Carroceria','truck',10],[11,'Segurança e Legalização','shield-check',11]]; let errors = []; cats.forEach(c => db.run('INSERT OR IGNORE INTO frota_categorias_manutencao(id,nome,icone,ordem) VALUES(?,?,?,?)', c, (err) => { if(err) errors.push(err.message); })); setTimeout(() => res.json({ success: true, errors }), 1000); });
+
+// ══════════════════════════════════════════════════════════════════════
+// MÓDULO: PROPOSTAS COMERCIAIS
+// ══════════════════════════════════════════════════════════════════════
+
+db.run(`CREATE TABLE IF NOT EXISTS propostas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  codigo TEXT UNIQUE,
+  local TEXT,
+  tipo TEXT,
+  atendente TEXT,
+  data_cadastro TEXT,
+  previsao_fechamento TEXT,
+  fase_negociacao TEXT,
+  modelo_impressao TEXT,
+  cliente_nome TEXT,
+  contato_nome TEXT,
+  periodo_inicio TEXT,
+  periodo_fim TEXT,
+  hora_inicio TEXT DEFAULT '00:00',
+  hora_fim TEXT DEFAULT '00:00',
+  dias_contrato INTEGER DEFAULT 0,
+  tabela_precos TEXT,
+  endereco_instalacao TEXT,
+  desconto_percent REAL DEFAULT 0,
+  desconto_reais REAL DEFAULT 0,
+  condicao_pagamento TEXT,
+  representante TEXT,
+  transportadora TEXT,
+  tipo_frete TEXT,
+  valor_frete_ida REAL DEFAULT 0,
+  valor_frete_volta REAL DEFAULT 0,
+  observacoes TEXT,
+  valor_total REAL DEFAULT 0,
+  status TEXT DEFAULT 'Ativa',
+  criado_por TEXT,
+  criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+  atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+)`, (err) => {
+  if (err) console.error('[PROPOSTAS] Erro ao criar tabela:', err.message);
+  else console.log('[PROPOSTAS] Tabela propostas OK.');
+});
+
+// Gerar código único para proposta
+function gerarCodigoProposta(cb) {
+  const ano = new Date().getFullYear();
+  db.get(`SELECT MAX(CAST(SUBSTR(codigo, 6) AS INTEGER)) as max_seq FROM propostas WHERE codigo LIKE 'PR${ano}%'`, [], (err, row) => {
+    const seq = (row && row.max_seq ? row.max_seq : 0) + 1;
+    cb(`PR${ano}${String(seq).padStart(4, '0')}`);
+  });
+}
+
+// GET /api/propostas - Listar todas
+app.get('/api/propostas', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM propostas ORDER BY criado_em DESC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// GET /api/propostas/:id - Buscar por ID
+app.get('/api/propostas/:id', authenticateToken, (req, res) => {
+  db.get('SELECT * FROM propostas WHERE id = ?', [req.params.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Proposta não encontrada' });
+    res.json(row);
+  });
+});
+
+// POST /api/propostas - Criar nova proposta
+app.post('/api/propostas', authenticateToken, (req, res) => {
+  const d = req.body;
+  gerarCodigoProposta((codigo) => {
+    const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+    db.run(`INSERT INTO propostas (
+      codigo, local, tipo, atendente, data_cadastro, previsao_fechamento,
+      fase_negociacao, modelo_impressao, cliente_nome, contato_nome,
+      periodo_inicio, periodo_fim, hora_inicio, hora_fim, dias_contrato,
+      tabela_precos, endereco_instalacao, desconto_percent, desconto_reais,
+      condicao_pagamento, representante, transportadora, tipo_frete,
+      valor_frete_ida, valor_frete_volta, observacoes, valor_total,
+      status, criado_por, criado_em, atualizado_em
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [
+      codigo, d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
+      d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
+      d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
+      d.dias_contrato||0, d.tabela_precos, d.endereco_instalacao,
+      d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
+      d.representante, d.transportadora, d.tipo_frete,
+      d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
+      d.valor_total||0, d.status||'Ativa', d.criado_por, agora, agora
+    ], function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, id: this.lastID, codigo });
+    });
+  });
+});
+
+// PUT /api/propostas/:id - Atualizar proposta
+app.put('/api/propostas/:id', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  db.run(`UPDATE propostas SET
+    local=?, tipo=?, atendente=?, data_cadastro=?, previsao_fechamento=?,
+    fase_negociacao=?, modelo_impressao=?, cliente_nome=?, contato_nome=?,
+    periodo_inicio=?, periodo_fim=?, hora_inicio=?, hora_fim=?, dias_contrato=?,
+    tabela_precos=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
+    condicao_pagamento=?, representante=?, transportadora=?, tipo_frete=?,
+    valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
+    status=?, atualizado_em=?
+    WHERE id=?`,
+  [
+    d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
+    d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
+    d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
+    d.dias_contrato||0, d.tabela_precos, d.endereco_instalacao,
+    d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
+    d.representante, d.transportadora, d.tipo_frete,
+    d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
+    d.valor_total||0, d.status||'Ativa', agora, req.params.id
+  ], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Proposta não encontrada' });
+    res.json({ success: true });
+  });
+});
+
+// DELETE /api/propostas/:id - Excluir proposta
+app.delete('/api/propostas/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM propostas WHERE id = ?', [req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Proposta não encontrada' });
+    res.json({ success: true });
+  });
+});
+
+console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
+

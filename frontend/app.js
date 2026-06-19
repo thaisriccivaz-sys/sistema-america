@@ -479,6 +479,7 @@ const BREADCRUMB_MAP = {
     'logistica-agenda': { path: 'Agenda Logística', code: 'LOG011' },
     // Comercial
     'comercial-credenciamento': { path: 'Solicitar Credencial', code: 'COM001' },
+    'comercial-proposta': { path: 'Proposta', code: 'COM002' },
     // Administrativo
     'licencas': { path: 'Licenças', code: 'ADM001' },
     'estoque': { path: 'Estoque', code: 'ADM002' },
@@ -616,7 +617,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'departamentos' || key === 'logistica-agenda' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -689,6 +690,7 @@ const TAB_META = {
     'financeiro-em-breve': { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
     // Comercial - Roxo
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
+    'comercial-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Proposta' },
     'comercial-em-breve': { color: '#7048e8', icon: 'ph-handshake', title: 'Comercial' },
     // Administrativo - Amarelo
     'admin-em-breve': { color: '#e67700', icon: 'ph-gear', title: 'Administrativo' },
@@ -931,6 +933,8 @@ function navigateTo(target) {
         if (typeof window.renderAgendaLogistica === 'function') setTimeout(() => window.renderAgendaLogistica(), 80);
     } else if (target === 'comercial-credenciamento') {
         if (typeof window.carregarHistoricoComCred === 'function') setTimeout(() => window.carregarHistoricoComCred(), 80);
+    } else if (target === 'comercial-proposta') {
+        if (typeof window.inicializarPropostas === 'function') setTimeout(() => window.inicializarPropostas(), 80);
     } else if (target === 'licencas') {
         if (typeof window.initLicencas === 'function') setTimeout(() => window.initLicencas(), 80);
     } else if (target === 'config-sigor') {
