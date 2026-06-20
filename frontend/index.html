@@ -1306,10 +1306,15 @@
                                                 required>
                                         </div>
                                         <div class="input-group">
+                                            <label id="lbl-colab-rg">RG</label>
+                                            <input type="text" id="colab-rg" placeholder="00.000.000-0"
+                                                maxlength="20">
+                                        </div>
+                                        <div class="input-group">
                                             <label>Data de Nascimento</label>
                                             <input type="date" id="colab-nascimento">
                                         </div>
-                                        <div class="input-group span-2">
+                                        <div class="input-group">
                                             <label>Estado Civil</label>
                                             <select id="colab-estadocivil" onchange="toggleConjuge()">
                                                 <option value="">Selecione</option>
@@ -2664,9 +2669,6 @@
                                     <div style="display:flex; justify-content:space-between; align-items:center;">
                                         <span style="font-weight:600; font-size:0.9rem; color:#334155;"><i
                                                 class="ph ph-file-pdf"></i> Ficha de Admissão (Gerada)</span>
-                                        <button class="btn btn-outline btn-sm"
-                                            onclick="window.previewFichaAdmissao()"><i class="ph ph-eye"></i> Conferir
-                                            Ficha</button>
                                     </div>
                                     <hr style="border:0; border-top:1px dashed #cbd5e1; margin: 0.5rem 0;">
 
@@ -2689,6 +2691,10 @@
                                         <button class="btn btn-primary" onclick="window.enviarFichaContabilidade(this)"
                                             style="height: 38px; display:flex; align-items:center; gap:6px; font-weight:700;">
                                             <i class="ph ph-paper-plane-tilt"></i> Enviar para Contabilidade
+                                        </button>
+                                        <button class="btn btn-outline" onclick="window.previewFichaAdmissao()"
+                                            style="height: 38px; display:flex; align-items:center; gap:6px; font-weight:600; background-color: #fff; border: 1px solid #cbd5e1; color: #334155;">
+                                            <i class="ph ph-eye"></i> Conferir Ficha
                                         </button>
                                     </div>
                                     <p style="margin:0; font-size:0.75rem; color:#64748b; font-style:italic;">* O e-mail
