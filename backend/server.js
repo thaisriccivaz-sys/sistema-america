@@ -17842,7 +17842,7 @@ function syncToLogistica(uuid, tipoEvento, payload) {
                 monaco_uuid, numero_ait, placa, data_infracao, hora_infracao,
                 motivo, valor_multa, pontuacao, local_infracao, data_limite,
                 status, created_by_nome, observacao, documento_base64, documento_nome, status_monaco, link_formulario, termo_desconto_base64, termo_desconto_nome
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Integração Mônaco', 'Multa importada automaticamente da Mônaco via webhook.', ?, ?, ?, ?, ?, ?)`, [
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Integração Mônaco', NULL, ?, ?, ?, ?, ?, ?)`, [
                 uuid, payload.numero_ait, payload.placa, payload.data_da_infracao, payload.hora_da_infracao,
                 payload.descricao, payload.valor_da_infracao, payload.pontos, localInfracao, dataLimite,
                 isAitAntiga(payload.numero_ait) ? 'Antiga' : 'Conferência',

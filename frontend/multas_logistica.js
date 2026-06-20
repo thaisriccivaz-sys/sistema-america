@@ -390,7 +390,7 @@ window.atualizarLabelStatusRH = function() {
 
 function _buildOptionsMotoristas(motorista_id_atual) {
     let opts = `<option value="">-- Selecione o Motorista (Deixe em branco se não souber) --</option>`;
-    let lista = (window.colaboradoresMultas || []).filter(c => c.status !== 'Desligado' || c.id == motorista_id_atual);
+    let lista = (colaboradoresMultas || []).filter(c => c.status !== 'Desligado' || c.id == motorista_id_atual);
     lista.sort((a, b) => {
         const na = (a.nome_completo || a.nome || '').toLowerCase();
         const nb = (b.nome_completo || b.nome || '').toLowerCase();
@@ -797,6 +797,10 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
             ${cpf ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
                 <span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code id="gm-cpf-val">${cpf}</code></span>
                 <button type="button" onclick="navigator.clipboard.writeText('${cpf}'); mostrarToastSucesso('CPF copiado!'); event.stopPropagation();" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
+            </div>` : ''}
+            ${motoristaColab?.rg ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
+                <span style="font-size:0.8rem; color:#374151;"><b>RG:</b> <code id="gm-rg-val">${motoristaColab.rg}</code></span>
+                <button type="button" onclick="navigator.clipboard.writeText('${motoristaColab.rg}'); mostrarToastSucesso('RG copiado!'); event.stopPropagation();" title="Copiar RG" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
             </div>` : ''}
             ${habilitacao ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
                 <span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code id="gm-hab-val">${habilitacao}</code></span>
