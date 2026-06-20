@@ -1094,6 +1094,10 @@ function atualizarInfoMotoristaModal(sel) {
             <span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code>${c.cpf}</code></span>
             <button type="button" onclick="navigator.clipboard.writeText('${c.cpf}'); mostrarToastSucesso('CPF copiado!'); event.stopPropagation();" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
         </div>` : ''}
+        ${c.rg ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
+            <span style="font-size:0.8rem; color:#374151;"><b>RG:</b> <code>${c.rg}</code></span>
+            <button type="button" onclick="navigator.clipboard.writeText('${c.rg}'); mostrarToastSucesso('RG copiado!'); event.stopPropagation();" title="Copiar RG" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
+        </div>` : ''}
         ${c.cnh_numero ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
             <span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code>${c.cnh_numero}</code></span>
             <button type="button" onclick="navigator.clipboard.writeText('${c.cnh_numero}'); mostrarToastSucesso('CNH copiada!'); event.stopPropagation();" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
