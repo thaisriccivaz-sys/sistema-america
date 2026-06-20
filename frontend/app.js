@@ -7542,6 +7542,28 @@ window.mascaraCPF = function (el) {
     }
 };
 
+// RG Masking
+window.mascaraRG = function (el) {
+    // Permite números e letras (ex: 'X'), remove outros caracteres e transforma em maiúsculo
+    let v = el.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    
+    // Limita a 14 caracteres alfanuméricos (tamanho máximo seguro para RG no Brasil)
+    if (v.length > 14) v = v.substring(0, 14);
+
+    // Aplica a formatação padrão 00.000.000-0...
+    if (v.length > 2) {
+        v = v.substring(0, 2) + '.' + v.substring(2);
+    }
+    if (v.length > 6) {
+        v = v.substring(0, 6) + '.' + v.substring(6);
+    }
+    if (v.length > 10) {
+        v = v.substring(0, 10) + '-' + v.substring(10);
+    }
+    
+    el.value = v;
+};
+
 window.toggleTipoDocumento = function () {
     const sel = document.getElementById('colab-rg-tipo');
     const rgInput = document.getElementById('colab-rg');
