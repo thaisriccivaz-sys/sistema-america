@@ -14287,7 +14287,7 @@ async function renderFichaEpiTab(container) {
             <div style="flex:1;">
                 <p style="margin:0;font-weight:700;color:${btnDesabilitado ? '#be123c' : '#15803d'};">Ficha Ativa: ${fichaAtiva.grupo}</p>
                 <p style="margin:2px 0 0;font-size:0.8rem;color:${btnDesabilitado ? '#9f1239' : '#166534'};">Criada em ${fmtDate(fichaAtiva.created_at)}</p>
-                ${btnDesabilitado ? `<p style="margin:4px 0 0;font-size:0.85rem;color:#b91c1c;font-weight:600;">O cargo atual exige o padrão (${templateDoColab?.grupo || 'N/A'}).</p>` : ''}
+                
             </div>
             ${btnDesabilitado && templateDoColab ? `
                 <button onclick="window.gerarFichaEpiManualProntuario(${templateDoColab.id})" class="btn btn-danger"
@@ -14327,6 +14327,9 @@ async function renderFichaEpiTab(container) {
                 <button onclick="window.previewFichaEpi(${f.id})" class="btn btn-secondary btn-sm" style="height:32px;display:flex;align-items:center;gap:4px;">
                     <i class="ph ph-eye"></i>
                 </button>
+                <button onclick="window.excluirFichaEpi(${f.id}, '${f.grupo}')" class="btn btn-sm" title="Excluir ficha" style="height:32px;display:flex;align-items:center;gap:4px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;padding:0 10px;">
+                    <i class="ph ph-trash"></i>
+                </button>
             </div>
             `).join('')}
         </div>
@@ -14336,6 +14339,30 @@ async function renderFichaEpiTab(container) {
 
     window._epiProntuarioData = { fichas, templates, fichaAtiva, colabId, templateDoColab, todasEntregas };
 }
+
+// ============================================================
+// EXCLUIR FICHA DE EPI
+// ============================================================
+
+window.excluirFichaEpi = async function (fichaId, grupo) {
+    if (!confirm(`Tem certeza que deseja excluir a Ficha: ${grupo}?\n\nEsta ação também removerá todos os registros de entrega vinculados a esta ficha e não pode ser desfeita.`)) return;
+
+    try {
+        const resp = await fetch(`/api/epi-fichas/${fichaId}`, {
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Erro ao excluir ficha.');
+        showToast('Ficha excluída com sucesso!', 'success');
+        // Recarregar a aba de EPI
+        if (typeof window.renderEpiProntuario === 'function') {
+            await window.renderEpiProntuario();
+        }
+    } catch (e) {
+        alert('Erro: ' + e.message);
+    }
+};
 
 // ============================================================
 // FLUXO DE ASSINATURA DE ENTREGA DE EPI

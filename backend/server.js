@@ -9238,6 +9238,25 @@ app.post('/api/epi-fichas/recalcular-todos', authenticateToken, (req, res) => {
     });
 });
 
+
+// DELETE: excluir uma ficha de EPI pelo ID
+app.delete('/api/epi-fichas/:id', authenticateToken, (req, res) => {
+    const fichaId = parseInt(req.params.id, 10);
+    if (isNaN(fichaId)) return res.status(400).json({ error: 'ID inválido.' });
+    db.get('SELECT * FROM colaborador_epi_fichas WHERE id = ?', [fichaId], (err, ficha) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!ficha) return res.status(404).json({ error: 'Ficha não encontrada.' });
+        // Deletar entregas vinculadas e depois a ficha
+        db.run('DELETE FROM colaborador_epi_entregas WHERE ficha_id = ?', [fichaId], (e1) => {
+            if (e1) return res.status(500).json({ error: e1.message });
+            db.run('DELETE FROM colaborador_epi_fichas WHERE id = ?', [fichaId], (e2) => {
+                if (e2) return res.status(500).json({ error: e2.message });
+                res.json({ sucesso: true, mensagem: 'Ficha excluída com sucesso.' });
+            });
+        });
+    });
+});
+
 // DELETE: excluir todas as fichas fechadas no sistema (requer senha)
 app.delete('/api/epi-fichas/excluir-fechadas', authenticateToken, (req, res) => {
     const { senha } = req.body;
