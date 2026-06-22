@@ -14061,26 +14061,33 @@ async function renderFichaEpiTab(container) {
     const SETORES_ADMIN = ['Comercial', 'Financeiro', 'Logística', 'Logistica', 'Administrativo', 'RH'];
     const isSetorAdmin = SETORES_ADMIN.includes(dept) || SETORES_ADMIN.includes(cargo);
 
-    // Procura template por departamento ou por cargo com suporte a match parcial
-    let templateDoColab = templates.find(t => {
+    // Procura template por pontuação: cargo tem prioridade sobre departamento para evitar matches incorretos
+    const scoreTemplate = (t, deptStr, cargoStr) => {
         const list = (t.departamentos || []).map(d => d.trim().toLowerCase());
-        const cLow = cargo.trim().toLowerCase();
-        const dLow = dept.trim().toLowerCase();
+        const cLow = (cargoStr || '').trim().toLowerCase();
+        const dLow = (deptStr || '').trim().toLowerCase();
         const gLow = (t.grupo || '').trim().toLowerCase();
-        
-        // Match exato
-        if (list.includes(dLow) || list.includes(cLow)) return true;
-        if (gLow === dLow || gLow === cLow) return true;
-        
-        // Match parcial: permite que o cargo ou departamento contenha a palavra do template (ex: "Aux. de Manutenção" contém "Manutenção")
-        if (cLow && (list.some(l => l.length > 3 && cLow.includes(l)) || (gLow.length > 3 && cLow.includes(gLow)))) return true;
-        if (dLow && (list.some(l => l.length > 3 && dLow.includes(l)) || (gLow.length > 3 && dLow.includes(gLow)))) return true;
-        
-        return false;
-    }) ||
-        // Fallback: se for setor admin, usa o template de categoria Administrativo
-        (isSetorAdmin ? templates.find(t => t.categoria === 'Administrativo') : null) ||
-        templates[0];
+        let score = 0;
+        if (cLow && list.includes(cLow)) score = Math.max(score, 100);
+        if (cLow && gLow === cLow) score = Math.max(score, 90);
+        if (cLow && list.some(l => l.length > 3 && cLow.includes(l))) score = Math.max(score, 70);
+        if (cLow && gLow.length > 3 && cLow.includes(gLow)) score = Math.max(score, 60);
+        if (dLow && list.includes(dLow)) score = Math.max(score, 50);
+        if (dLow && gLow === dLow) score = Math.max(score, 40);
+        if (dLow && list.some(l => l.length > 3 && dLow.includes(l))) score = Math.max(score, 20);
+        if (dLow && gLow.length > 3 && dLow.includes(gLow)) score = Math.max(score, 10);
+        return score;
+    };
+    let templateDoColab = null;
+    let bestScore = 0;
+    templates.forEach(t => {
+        const s = scoreTemplate(t, dept, cargo);
+        if (s > bestScore) { bestScore = s; templateDoColab = t; }
+    });
+    // Fallback: se for setor admin e nenhum match forte, usa template de categoria Administrativo
+    if (!templateDoColab || bestScore < 40) {
+        if (isSetorAdmin) templateDoColab = templates.find(t => t.categoria === 'Administrativo') || templateDoColab;
+    }
 
     let btnDesabilitado = false;
     if (fichaAtiva && templateDoColab) {

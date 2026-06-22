@@ -3403,48 +3403,76 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
             const novoCargo = data.cargo || oldColab.cargo || '';
             const antigoCargo = oldColab.cargo || '';
             
-            if (novoDept !== antigoDept || novoCargo !== antigoCargo) {
-                // Buscar template do novo departamento/cargo
-                db.all('SELECT id, grupo, epis_json, departamentos_json, termo_texto, rodape_texto FROM epi_templates', [], (eErr, templates) => {
-                    if (eErr || !templates) return;
-                    
-                    const findTemplate = (deptStr, cargoStr) => {
-                        const dLow = (deptStr || '').trim().toLowerCase();
-                        const cLow = (cargoStr || '').trim().toLowerCase();
-                        return templates.find(t => {
-                            let list = [];
-                            try { list = JSON.parse(t.departamentos_json || '[]'); } catch(e){}
-                            list = list.map(x => x.trim().toLowerCase());
-                            const gLow = (t.grupo || '').trim().toLowerCase();
+            // EPI: Verificar se a ficha ativa corresponde ao cargo/dept atual (sempre, não só em mudanças)
+            db.all('SELECT id, grupo, epis_json, departamentos_json, termo_texto, rodape_texto FROM epi_templates', [], (eErr, templates) => {
+                if (eErr || !templates || templates.length === 0) return;
 
-                            if (list.includes(dLow) || list.includes(cLow)) return true;
-                            if (gLow === dLow || gLow === cLow) return true;
-                            if (cLow && (list.some(l => l.length > 3 && cLow.includes(l)) || (gLow.length > 3 && cLow.includes(gLow)))) return true;
-                            if (dLow && (list.some(l => l.length > 3 && dLow.includes(l)) || (gLow.length > 3 && dLow.includes(gLow)))) return true;
-                            return false;
-                        });
-                    };
+                // findTemplate com pontuação: cargo tem prioridade sobre dept para evitar matches incorretos
+                const findTemplate = (deptStr, cargoStr) => {
+                    const dLow = (deptStr || '').trim().toLowerCase();
+                    const cLow = (cargoStr || '').trim().toLowerCase();
+                    let bestScore = 0;
+                    let bestTemplate = null;
+                    templates.forEach(t => {
+                        let list = [];
+                        try { list = JSON.parse(t.departamentos_json || '[]'); } catch(e){}
+                        list = list.map(x => x.trim().toLowerCase());
+                        const gLow = (t.grupo || '').trim().toLowerCase();
+                        let score = 0;
+                        // Cargo: match exato na lista do template (ex: lista tem 'manutencao', cargo é 'manutencao')
+                        if (cLow && list.includes(cLow)) score = Math.max(score, 100);
+                        // Cargo: igual ao nome do grupo do template
+                        if (cLow && gLow === cLow) score = Math.max(score, 90);
+                        // Cargo: CONTÉM algum item da lista (ex: 'ass. de manutencao 1' contém 'manutencao')
+                        if (cLow && list.some(l => l.length > 3 && cLow.includes(l))) score = Math.max(score, 70);
+                        // Cargo: contém o nome do grupo
+                        if (cLow && gLow.length > 3 && cLow.includes(gLow)) score = Math.max(score, 60);
+                        // Dept: match exato na lista
+                        if (dLow && list.includes(dLow)) score = Math.max(score, 50);
+                        // Dept: igual ao nome do grupo
+                        if (dLow && gLow === dLow) score = Math.max(score, 40);
+                        // Dept: contém algum item da lista
+                        if (dLow && list.some(l => l.length > 3 && dLow.includes(l))) score = Math.max(score, 20);
+                        // Dept: contém o nome do grupo
+                        if (dLow && gLow.length > 3 && dLow.includes(gLow)) score = Math.max(score, 10);
 
-                    const tmplNovo = findTemplate(novoDept, novoCargo);
-                    const tmplAntigo = findTemplate(antigoDept, antigoCargo);
-                    
-                    if (!tmplNovo) return; // Novo dept/cargo sem template EPI — sem ação
-                    if (tmplAntigo && tmplNovo.id === tmplAntigo.id) return; // Mesmo template — sem ação
+                        if (score > bestScore) { bestScore = score; bestTemplate = t; }
+                    });
+                    return bestTemplate;
+                };
 
-                    // Templates diferentes: fechar ficha atual e abrir nova
-                    db.run(
-                        `UPDATE colaborador_epi_fichas SET status='fechada', fechada_em=CURRENT_TIMESTAMP, motivo_fechamento='Troca de departamento ou cargo' WHERE colaborador_id=? AND status='ativa'`,
-                        [id],
-                        () => {
-                            db.run(
-                                `INSERT INTO colaborador_epi_fichas (colaborador_id, template_id, grupo, snapshot_epis, snapshot_termo, snapshot_rodape, linhas_usadas, status) VALUES (?,?,?,?,?,?,0,'ativa')`,
-                                [id, tmplNovo.id, tmplNovo.grupo, tmplNovo.epis_json, tmplNovo.termo_texto, tmplNovo.rodape_texto],
-                                (insErr) => { if (insErr) console.error('[EPI troca] Erro ao criar nova ficha:', insErr.message); }
-                            );
-                        }
-                    );
-                });
-            }
+                const novoDept = data.departamento || oldColab.departamento || '';
+                const antigoDept = oldColab.departamento || '';
+                const novoCargo = data.cargo || oldColab.cargo || '';
+                const antigoCargo = oldColab.cargo || '';
+
+                const tmplNovo = findTemplate(novoDept, novoCargo);
+                if (!tmplNovo) return; // Sem template para este cargo/dept
+
+                // Verificar qual template a ficha ativa atual usa
+                db.get(
+                    'SELECT template_id FROM colaborador_epi_fichas WHERE colaborador_id=? AND status=\'ativa\' ORDER BY id DESC LIMIT 1',
+                    [id],
+                    (fErr, fichaAtiva) => {
+                        const fichaTemplateId = fichaAtiva ? fichaAtiva.template_id : null;
+                        // Só troca se a ficha atual não corresponde ao template correto
+                        if (fichaTemplateId === tmplNovo.id) return;
+
+                        console.log('[EPI auto-fix] Colaborador', id, '- ficha atual template_id:', fichaTemplateId, '-> correto:', tmplNovo.id, tmplNovo.grupo);
+                        db.run(
+                            `UPDATE colaborador_epi_fichas SET status='fechada', fechada_em=CURRENT_TIMESTAMP, motivo_fechamento='Troca de departamento ou cargo' WHERE colaborador_id=? AND status='ativa'`,
+                            [id],
+                            () => {
+                                db.run(
+                                    `INSERT INTO colaborador_epi_fichas (colaborador_id, template_id, grupo, snapshot_epis, snapshot_termo, snapshot_rodape, linhas_usadas, status) VALUES (?,?,?,?,?,?,0,'ativa')`,
+                                    [id, tmplNovo.id, tmplNovo.grupo, tmplNovo.epis_json, tmplNovo.termo_texto, tmplNovo.rodape_texto],
+                                    (insErr) => { if (insErr) console.error('[EPI troca] Erro ao criar nova ficha:', insErr.message); }
+                                );
+                            }
+                        );
+                    }
+                );
+            });
         });
     });
 });
@@ -9143,6 +9171,70 @@ app.post('/api/epi-fichas/fechar-todas', authenticateToken, (req, res) => {
             res.json({ message: 'Todas as fichas foram fechadas com sucesso', affectedRows: this.changes });
         }
     );
+});
+
+// POST: recalcular fichas de EPI de TODOS os colaboradores ativos com base no cargo/dept atual
+app.post('/api/epi-fichas/recalcular-todos', authenticateToken, (req, res) => {
+    db.all('SELECT id, cargo, departamento FROM colaboradores WHERE status = \'ativo\'', [], (err, colabs) => {
+        if (err) return res.status(500).json({ error: err.message });
+        db.all('SELECT id, grupo, epis_json, departamentos_json, termo_texto, rodape_texto FROM epi_templates', [], (eErr, templates) => {
+            if (eErr) return res.status(500).json({ error: eErr.message });
+
+            const findTemplate = (deptStr, cargoStr) => {
+                const dLow = (deptStr || '').trim().toLowerCase();
+                const cLow = (cargoStr || '').trim().toLowerCase();
+                let bestScore = 0, bestTemplate = null;
+                templates.forEach(t => {
+                    let list = [];
+                    try { list = JSON.parse(t.departamentos_json || '[]'); } catch(e){}
+                    list = list.map(x => x.trim().toLowerCase());
+                    const gLow = (t.grupo || '').trim().toLowerCase();
+                    let score = 0;
+                    if (cLow && list.includes(cLow)) score = Math.max(score, 100);
+                    if (cLow && gLow === cLow) score = Math.max(score, 90);
+                    if (cLow && list.some(l => l.length > 3 && cLow.includes(l))) score = Math.max(score, 70);
+                    if (cLow && gLow.length > 3 && cLow.includes(gLow)) score = Math.max(score, 60);
+                    if (dLow && list.includes(dLow)) score = Math.max(score, 50);
+                    if (dLow && gLow === dLow) score = Math.max(score, 40);
+                    if (dLow && list.some(l => l.length > 3 && dLow.includes(l))) score = Math.max(score, 20);
+                    if (dLow && gLow.length > 3 && dLow.includes(gLow)) score = Math.max(score, 10);
+                    if (score > bestScore) { bestScore = score; bestTemplate = t; }
+                });
+                return bestTemplate;
+            };
+
+            let fixed = 0, skipped = 0, noTemplate = 0;
+            let pending = colabs.length;
+            if (pending === 0) return res.json({ fixed, skipped, noTemplate });
+
+            colabs.forEach(colab => {
+                const tmpl = findTemplate(colab.departamento, colab.cargo);
+                if (!tmpl) { noTemplate++; if (--pending === 0) res.json({ fixed, skipped, noTemplate }); return; }
+
+                db.get('SELECT template_id FROM colaborador_epi_fichas WHERE colaborador_id=? AND status=\'ativa\' ORDER BY id DESC LIMIT 1',
+                    [colab.id], (fErr, fichaAtiva) => {
+                        if (fichaAtiva && fichaAtiva.template_id === tmpl.id) {
+                            skipped++;
+                            if (--pending === 0) res.json({ fixed, skipped, noTemplate });
+                            return;
+                        }
+                        // Fecha a ficha errada e abre a correta
+                        db.run(`UPDATE colaborador_epi_fichas SET status='fechada', fechada_em=CURRENT_TIMESTAMP, motivo_fechamento='Recalculo automático de EPI' WHERE colaborador_id=? AND status='ativa'`,
+                            [colab.id], () => {
+                                db.run(`INSERT INTO colaborador_epi_fichas (colaborador_id, template_id, grupo, snapshot_epis, snapshot_termo, snapshot_rodape, linhas_usadas, status) VALUES (?,?,?,?,?,?,0,'ativa')`,
+                                    [colab.id, tmpl.id, tmpl.grupo, tmpl.epis_json, tmpl.termo_texto, tmpl.rodape_texto],
+                                    (insErr) => {
+                                        if (!insErr) fixed++;
+                                        if (--pending === 0) res.json({ fixed, skipped, noTemplate });
+                                    }
+                                );
+                            }
+                        );
+                    }
+                );
+            });
+        });
+    });
 });
 
 // DELETE: excluir todas as fichas fechadas no sistema (requer senha)
