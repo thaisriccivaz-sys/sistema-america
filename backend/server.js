@@ -9247,7 +9247,7 @@ app.delete('/api/epi-fichas/:id', authenticateToken, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!ficha) return res.status(404).json({ error: 'Ficha não encontrada.' });
         // Deletar entregas vinculadas e depois a ficha
-        db.run('DELETE FROM colaborador_epi_entregas WHERE ficha_id = ?', [fichaId], (e1) => {
+        db.run('DELETE FROM epi_entregas WHERE ficha_id = ?', [fichaId], (e1) => {
             if (e1) return res.status(500).json({ error: e1.message });
             db.run('DELETE FROM colaborador_epi_fichas WHERE id = ?', [fichaId], (e2) => {
                 if (e2) return res.status(500).json({ error: e2.message });
@@ -12976,7 +12976,7 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
         return res.status(400).json({ error: 'Número da OS e nome do cliente são obrigatórios.' });
     }
 
-    const sanitizeCliente = (str) => (str || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦵👷🔛🌘🟢🔴🔄💙💜🟦🟣🔵♿🚿🚽🧴⬜⚪🛤🧊]+/u, '').trim().toLowerCase();
+    const sanitizeCliente = (str) => (str || '').replace(/[\p{Emoji}\p{So}\s]+/gu, ' ').trim().toLowerCase();
 
     // Verifica se já existe uma OS com esse número mas cliente DIFERENTE
     db.get(
@@ -13036,7 +13036,7 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     const osId = req.params.id;
 
-    const sanitizeCliente = (str) => (str || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦵👷🔛🌘🟢🔴🔄💙💜🟦🟣🔵♿🚿🚽🧴⬜⚪🛤🧊]+/u, '').trim().toLowerCase();
+    const sanitizeCliente = (str) => (str || '').replace(/[\p{Emoji}\p{So}\s]+/gu, ' ').trim().toLowerCase();
 
     db.get(`SELECT * FROM os_logistica WHERE id = ?`, [osId], (errOld, oldRow) => {
         db.get(`SELECT cliente FROM os_logistica WHERE numero_os = ? AND id != ? AND status = 'ativo' LIMIT 1`, [numero_os?.trim(), osId], (errCheck, existente) => {
