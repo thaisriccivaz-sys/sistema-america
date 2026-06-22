@@ -14144,14 +14144,7 @@ async function renderFichaEpiTab(container) {
                                 onmouseout="this.style.background='none'">
                                 <i class="ph ph-eye" style="font-size:0.85rem;"></i>
                             </button>
-                            <button
-                                onclick="window._excluirEpiEntrega(${e.id}, '${(e.epi_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', this, ${e.ficha_id})"
-                                title="Excluir este EPI da ficha"
-                                style="background:none;border:1.5px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.78rem;display:inline-flex;align-items:center;gap:3px;transition:all .15s;"
-                                onmouseover="this.style.background='#fef2f2'"
-                                onmouseout="this.style.background='none'">
-                                <i class="ph ph-trash" style="font-size:0.85rem;"></i>
-                            </button>
+
                         </div>
                     </td>
                 </tr>`;
@@ -14319,9 +14312,7 @@ async function renderFichaEpiTab(container) {
                 <button onclick="window.previewFichaEpi(${f.id})" class="btn btn-secondary btn-sm" style="height:32px;display:flex;align-items:center;gap:4px;">
                     <i class="ph ph-eye"></i>
                 </button>
-                <button onclick="window.excluirFichaEpi(${f.id}, '${f.grupo}')" class="btn btn-sm" title="Excluir ficha" style="height:32px;display:flex;align-items:center;gap:4px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;padding:0 10px;">
-                    <i class="ph ph-trash"></i>
-                </button>
+
             </div>
             `).join('')}
         </div>

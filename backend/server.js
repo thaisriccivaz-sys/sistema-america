@@ -13036,64 +13036,51 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     const osId = req.params.id;
 
-    const sanitizeCliente = (str) => (str || '').replace(/[\p{Emoji}\p{So}\s]+/gu, ' ').trim().toLowerCase();
-
+    // Ao editar uma OS existente, o usuário pode alterar o cliente livremente.
+    // A validação de conflito de cliente só se aplica ao criar uma nova OS (POST).
     db.get(`SELECT * FROM os_logistica WHERE id = ?`, [osId], (errOld, oldRow) => {
-        db.get(`SELECT cliente FROM os_logistica WHERE numero_os = ? AND id != ? AND status = 'ativo' LIMIT 1`, [numero_os?.trim(), osId], (errCheck, existente) => {
-            if (errCheck) return res.status(500).json({ error: errCheck.message });
+        if (errOld) return res.status(500).json({ error: errOld.message });
 
-            if (existente) {
-                const clienteExistente = sanitizeCliente(existente.cliente);
-                const clienteNovo = sanitizeCliente(cliente);
-                if (clienteExistente !== clienteNovo) {
-                    return res.status(409).json({
-                        error: `O número de OS "${numero_os}" já está cadastrado para o cliente: "${existente.cliente}". Não é possível usar este número para outro cliente.`,
-                        cliente_existente: existente.cliente
+        db.run(`UPDATE os_logistica SET 
+            numero_os=?, tipo_os=?, cliente=?, endereco=?, complemento=?, cep=?, lat=?, lng=?,
+            contrato=?, data_os=?, responsavel=?, telefone=?, email=?, tipo_servico=?, hora_inicio=?, hora_fim=?,
+            turno=?, dias_semana=?, produtos=?, observacoes=?, observacoes_internas=?, habilidades=?, variaveis=?, link_video=?, patrimonio=?,
+            atualizado_em=datetime('now') WHERE id=?`,
+            [numero_os, tipo_os, cliente, endereco, complemento, cep,
+                lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
+                contrato, data_os, responsavel, telefone, email, tipo_servico,
+                hora_inicio, hora_fim, turno,
+                typeof dias_semana === 'object' ? JSON.stringify(dias_semana) : dias_semana,
+                typeof produtos === 'object' ? JSON.stringify(produtos) : produtos,
+                observacoes, observacoes_internas,
+                typeof habilidades === 'object' ? JSON.stringify(habilidades) : habilidades,
+                typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
+                link_video, patrimonio, osId],
+            function (err) {
+                if (err) return res.status(500).json({ error: err.message });
+
+                // Auditoria: detectar campos alterados
+                if (oldRow) {
+                    const changes = [];
+                    if (oldRow.cliente !== cliente) changes.push({ campo: 'Cliente', old: oldRow.cliente || '', new: cliente || '' });
+                    if (oldRow.endereco !== endereco) changes.push({ campo: 'Endereço', old: oldRow.endereco || '', new: endereco || '' });
+                    if (oldRow.tipo_servico !== tipo_servico) changes.push({ campo: 'Tipo de Serviço', old: oldRow.tipo_servico || '', new: tipo_servico || '' });
+                    if (oldRow.data_os !== data_os) changes.push({ campo: 'Data', old: oldRow.data_os || '', new: data_os || '' });
+                    if (oldRow.responsavel !== responsavel) changes.push({ campo: 'Responsável', old: oldRow.responsavel || '', new: responsavel || '' });
+                    if (oldRow.telefone !== telefone) changes.push({ campo: 'Telefone', old: oldRow.telefone || '', new: telefone || '' });
+                    if (oldRow.observacoes !== observacoes) changes.push({ campo: 'Observações', old: oldRow.observacoes || '', new: observacoes || '' });
+                    if (oldRow.turno !== turno) changes.push({ campo: 'Turno', old: oldRow.turno || '', new: turno || '' });
+                    if (oldRow.hora_inicio !== hora_inicio || oldRow.hora_fim !== hora_fim) changes.push({ campo: 'Horário', old: `${oldRow.hora_inicio || ''}-${oldRow.hora_fim || ''}`, new: `${hora_inicio || ''}-${hora_fim || ''}` });
+                    if (changes.length === 0) changes.push({ campo: 'Atualização', old: '', new: `OS ${numero_os} | ${cliente}` });
+                    changes.forEach(c => {
+                        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                            [loggedUser, 'OS Logística', c.campo, c.old, c.new, osId]);
                     });
                 }
+
+                res.json({ ok: true });
             }
-
-            db.run(`UPDATE os_logistica SET 
-                numero_os=?, tipo_os=?, cliente=?, endereco=?, complemento=?, cep=?, lat=?, lng=?,
-                contrato=?, data_os=?, responsavel=?, telefone=?, email=?, tipo_servico=?, hora_inicio=?, hora_fim=?,
-                turno=?, dias_semana=?, produtos=?, observacoes=?, observacoes_internas=?, habilidades=?, variaveis=?, link_video=?, patrimonio=?,
-                atualizado_em=datetime('now') WHERE id=?`,
-                [numero_os, tipo_os, cliente, endereco, complemento, cep,
-                    lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
-                    contrato, data_os, responsavel, telefone, email, tipo_servico,
-                    hora_inicio, hora_fim, turno,
-                    typeof dias_semana === 'object' ? JSON.stringify(dias_semana) : dias_semana,
-                    typeof produtos === 'object' ? JSON.stringify(produtos) : produtos,
-                    observacoes, observacoes_internas,
-                    typeof habilidades === 'object' ? JSON.stringify(habilidades) : habilidades,
-                    typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
-                    link_video, patrimonio, osId],
-                function (err) {
-                    if (err) return res.status(500).json({ error: err.message });
-
-                    // Auditoria: detectar campos alterados
-                    if (oldRow) {
-                        const changes = [];
-                        if (oldRow.cliente !== cliente) changes.push({ campo: 'Cliente', old: oldRow.cliente || '', new: cliente || '' });
-                        if (oldRow.endereco !== endereco) changes.push({ campo: 'Endereço', old: oldRow.endereco || '', new: endereco || '' });
-                        if (oldRow.tipo_servico !== tipo_servico) changes.push({ campo: 'Tipo de Serviço', old: oldRow.tipo_servico || '', new: tipo_servico || '' });
-                        if (oldRow.data_os !== data_os) changes.push({ campo: 'Data', old: oldRow.data_os || '', new: data_os || '' });
-                        if (oldRow.responsavel !== responsavel) changes.push({ campo: 'Responsável', old: oldRow.responsavel || '', new: responsavel || '' });
-                        if (oldRow.telefone !== telefone) changes.push({ campo: 'Telefone', old: oldRow.telefone || '', new: telefone || '' });
-                        if (oldRow.observacoes !== observacoes) changes.push({ campo: 'Observações', old: oldRow.observacoes || '', new: observacoes || '' });
-                        if (oldRow.turno !== turno) changes.push({ campo: 'Turno', old: oldRow.turno || '', new: turno || '' });
-                        if (oldRow.hora_inicio !== hora_inicio || oldRow.hora_fim !== hora_fim) changes.push({ campo: 'Horário', old: `${oldRow.hora_inicio || ''}-${oldRow.hora_fim || ''}`, new: `${hora_inicio || ''}-${hora_fim || ''}` });
-                        if (changes.length === 0) changes.push({ campo: 'Atualização', old: '', new: `OS ${numero_os} | ${cliente}` });
-                        changes.forEach(c => {
-                            db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
-                                [loggedUser, 'OS Logística', c.campo, c.old, c.new, osId]);
-                        });
-                    }
-
-                    res.json({ ok: true });
-                }
-            );
-        });
+        );
     });
 });
 
