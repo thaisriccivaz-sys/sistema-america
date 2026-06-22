@@ -1308,7 +1308,7 @@
                                         <div class="input-group">
                                             <label id="lbl-colab-rg">RG</label>
                                             <input type="text" id="colab-rg" placeholder="00.000.000-0"
-                                                onkeyup="mascaraRG(this)" maxlength="18">
+                                                onkeyup="mascaraRG(this)" maxlength="20">
                                         </div>
                                         <div class="input-group">
                                             <label>Data de Nascimento</label>
@@ -2225,9 +2225,13 @@
                                     style="margin: 0; font-size: 1.85rem; font-weight: 700; color: #334155; letter-spacing: -0.02em;">
                                     Nome do Colaborador</h1>
                                 <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem;">
-                                    <p id="prontuario-cargo-info"
-                                        style="margin: 0; color: #64748b; font-size: 1rem; font-weight: 500;">Cargo |
-                                        CPF: 000.000.000-00</p>
+                                    <div style="display: flex; flex-direction: column;">
+                                        <p id="prontuario-cargo-info"
+                                            style="margin: 0; color: #64748b; font-size: 1rem; font-weight: 500;">Cargo |
+                                            CPF: 000.000.000-00</p>
+                                        <p id="prontuario-rg-info"
+                                            style="margin: 2px 0 0; color: #64748b; font-size: 0.95rem; font-weight: 500;">RG: 00.000.000-0</p>
+                                    </div>
                                     <div id="prontuario-status-display"></div>
 
                                     <!-- Botão de Sincronização OneDrive (Diagnóstico) - Ocultado -->

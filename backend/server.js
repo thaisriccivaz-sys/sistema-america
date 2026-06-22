@@ -3398,23 +3398,42 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                 });
             }
 
-            const novoDept = data.departamento;
-            const antigoDept = oldColab.departamento;
-            if (novoDept && novoDept !== antigoDept) {
-                // Buscar template do novo departamento
+            const novoDept = data.departamento || oldColab.departamento || '';
+            const antigoDept = oldColab.departamento || '';
+            const novoCargo = data.cargo || oldColab.cargo || '';
+            const antigoCargo = oldColab.cargo || '';
+            
+            if (novoDept !== antigoDept || novoCargo !== antigoCargo) {
+                // Buscar template do novo departamento/cargo
                 db.all('SELECT id, grupo, epis_json, departamentos_json, termo_texto, rodape_texto FROM epi_templates', [], (eErr, templates) => {
                     if (eErr || !templates) return;
-                    const findTemplate = (dept) => templates.find(t => {
-                        try { return (JSON.parse(t.departamentos_json || '[]')).includes(dept); } catch { return false; }
-                    });
-                    const tmplNovo = findTemplate(novoDept);
-                    const tmplAntigo = findTemplate(antigoDept);
-                    if (!tmplNovo) return; // Novo dept sem template EPI — sem ação
+                    
+                    const findTemplate = (deptStr, cargoStr) => {
+                        const dLow = (deptStr || '').trim().toLowerCase();
+                        const cLow = (cargoStr || '').trim().toLowerCase();
+                        return templates.find(t => {
+                            let list = [];
+                            try { list = JSON.parse(t.departamentos_json || '[]'); } catch(e){}
+                            list = list.map(x => x.trim().toLowerCase());
+                            const gLow = (t.grupo || '').trim().toLowerCase();
+
+                            if (list.includes(dLow) || list.includes(cLow)) return true;
+                            if (gLow === dLow || gLow === cLow) return true;
+                            if (cLow && (list.some(l => l.length > 3 && cLow.includes(l)) || (gLow.length > 3 && cLow.includes(gLow)))) return true;
+                            if (dLow && (list.some(l => l.length > 3 && dLow.includes(l)) || (gLow.length > 3 && dLow.includes(gLow)))) return true;
+                            return false;
+                        });
+                    };
+
+                    const tmplNovo = findTemplate(novoDept, novoCargo);
+                    const tmplAntigo = findTemplate(antigoDept, antigoCargo);
+                    
+                    if (!tmplNovo) return; // Novo dept/cargo sem template EPI — sem ação
                     if (tmplAntigo && tmplNovo.id === tmplAntigo.id) return; // Mesmo template — sem ação
 
                     // Templates diferentes: fechar ficha atual e abrir nova
                     db.run(
-                        `UPDATE colaborador_epi_fichas SET status='fechada', fechada_em=CURRENT_TIMESTAMP, motivo_fechamento='Troca de departamento: ${antigoDept} → ${novoDept}' WHERE colaborador_id=? AND status='ativa'`,
+                        `UPDATE colaborador_epi_fichas SET status='fechada', fechada_em=CURRENT_TIMESTAMP, motivo_fechamento='Troca de departamento ou cargo' WHERE colaborador_id=? AND status='ativa'`,
                         [id],
                         () => {
                             db.run(
@@ -9098,12 +9117,18 @@ app.post('/api/colaboradores/:id/epi-fichas', authenticateToken, (req, res) => {
     const colaboradorId = req.params.id;
 
     db.run(
-        `INSERT INTO colaborador_epi_fichas (colaborador_id, template_id, grupo, snapshot_epis, snapshot_termo, snapshot_rodape, linhas_usadas, status)
-         VALUES (?,?,?,?,?,?,0,'ativa')`,
-        [colaboradorId, template_id, grupo, JSON.stringify(snapshot_epis || []), snapshot_termo, snapshot_rodape],
-        function (err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ id: this.lastID });
+        `UPDATE colaborador_epi_fichas SET status='fechada', fechada_em=CURRENT_TIMESTAMP, motivo_fechamento='Substituída por nova ficha manual' WHERE colaborador_id=? AND status='ativa'`,
+        [colaboradorId],
+        () => {
+            db.run(
+                `INSERT INTO colaborador_epi_fichas (colaborador_id, template_id, grupo, snapshot_epis, snapshot_termo, snapshot_rodape, linhas_usadas, status)
+                 VALUES (?,?,?,?,?,?,0,'ativa')`,
+                [colaboradorId, template_id, grupo, JSON.stringify(snapshot_epis || []), snapshot_termo, snapshot_rodape],
+                function (err) {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.json({ id: this.lastID });
+                }
+            );
         }
     );
 });

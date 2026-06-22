@@ -4316,6 +4316,9 @@ window.openProntuario = async function (id, nome, cargo, cpf, sexo = '', admissa
 
     const cargoEl = document.getElementById('prontuario-cargo-info');
     if (cargoEl) cargoEl.textContent = `${viewedColaborador.cargo || cargo || 'Sem Cargo'} | CPF: ${viewedColaborador.cpf || cpf || ''}`;
+    
+    const rgEl = document.getElementById('prontuario-rg-info');
+    if (rgEl) rgEl.textContent = `${viewedColaborador.rg_tipo || 'RG'}: ${viewedColaborador.rg || 'Não informado'}`;
 
     // Status Badge
     const statusDisplay = document.getElementById('prontuario-status-display');
@@ -7544,21 +7547,18 @@ window.mascaraCPF = function (el) {
 
 // RG Masking
 window.mascaraRG = function (el) {
-    let v = el.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    let raw = el.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
     
-    if (v.length > 14) v = v.substring(0, 14);
-
-    if (v.length <= 9) {
+    if (raw.length <= 9) {
+        let v = raw;
         if (v.length > 2) v = v.substring(0, 2) + '.' + v.substring(2);
         if (v.length > 6) v = v.substring(0, 6) + '.' + v.substring(6);
         if (v.length > 10) v = v.substring(0, 10) + '-' + v.substring(10);
+        el.value = v;
     } else {
-        let body = v.substring(0, v.length - 1);
-        let digit = v.substring(v.length - 1);
-        v = body + '-' + digit;
+        // Para RGs maiores que 9 dígitos, permite formato livre mantendo a pontuação original digitada
+        el.value = el.value.toUpperCase().replace(/[^A-Z0-9.-]/g, "").substring(0, 20);
     }
-    
-    el.value = v;
 };
 
 window.toggleTipoDocumento = function () {
@@ -14061,9 +14061,23 @@ async function renderFichaEpiTab(container) {
     const SETORES_ADMIN = ['Comercial', 'Financeiro', 'Logística', 'Logistica', 'Administrativo', 'RH'];
     const isSetorAdmin = SETORES_ADMIN.includes(dept) || SETORES_ADMIN.includes(cargo);
 
-    // Procura template por departamento ou por cargo (e.g. Motorista)
-    let templateDoColab = templates.find(t => (t.departamentos || []).includes(dept) || (t.departamentos || []).includes(cargo)) ||
-        templates.find(t => t.grupo === dept || t.grupo === cargo) ||
+    // Procura template por departamento ou por cargo com suporte a match parcial
+    let templateDoColab = templates.find(t => {
+        const list = (t.departamentos || []).map(d => d.trim().toLowerCase());
+        const cLow = cargo.trim().toLowerCase();
+        const dLow = dept.trim().toLowerCase();
+        const gLow = (t.grupo || '').trim().toLowerCase();
+        
+        // Match exato
+        if (list.includes(dLow) || list.includes(cLow)) return true;
+        if (gLow === dLow || gLow === cLow) return true;
+        
+        // Match parcial: permite que o cargo ou departamento contenha a palavra do template (ex: "Aux. de Manutenção" contém "Manutenção")
+        if (cLow && (list.some(l => l.length > 3 && cLow.includes(l)) || (gLow.length > 3 && cLow.includes(gLow)))) return true;
+        if (dLow && (list.some(l => l.length > 3 && dLow.includes(l)) || (gLow.length > 3 && dLow.includes(gLow)))) return true;
+        
+        return false;
+    }) ||
         // Fallback: se for setor admin, usa o template de categoria Administrativo
         (isSetorAdmin ? templates.find(t => t.categoria === 'Administrativo') : null) ||
         templates[0];
@@ -14261,16 +14275,24 @@ async function renderFichaEpiTab(container) {
         </div>
 
         ${fichaAtiva ? `
-        <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-            <i class="ph ph-check-circle" style="color:#16a34a;font-size:1.5rem;"></i>
+        <div style="background:${btnDesabilitado ? '#fff1f2' : '#f0fdf4'};border:1.5px solid ${btnDesabilitado ? '#fecdd3' : '#86efac'};border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+            <i class="${btnDesabilitado ? 'ph ph-warning-circle' : 'ph ph-check-circle'}" style="color:${btnDesabilitado ? '#e11d48' : '#16a34a'};font-size:1.5rem;"></i>
             <div style="flex:1;">
-                <p style="margin:0;font-weight:700;color:#15803d;">Ficha Ativa: ${fichaAtiva.grupo}</p>
-                <p style="margin:2px 0 0;font-size:0.8rem;color:#166534;">Criada em ${fmtDate(fichaAtiva.created_at)}</p>
+                <p style="margin:0;font-weight:700;color:${btnDesabilitado ? '#be123c' : '#15803d'};">Ficha Ativa: ${fichaAtiva.grupo}</p>
+                <p style="margin:2px 0 0;font-size:0.8rem;color:${btnDesabilitado ? '#9f1239' : '#166534'};">Criada em ${fmtDate(fichaAtiva.created_at)}</p>
+                ${btnDesabilitado ? `<p style="margin:4px 0 0;font-size:0.85rem;color:#b91c1c;font-weight:600;">O cargo atual exige o padrão (${templateDoColab?.grupo || 'N/A'}).</p>` : ''}
             </div>
-            <button onclick="window.abrirAssinaturaEpi(${fichaAtiva.id})" class="btn btn-primary"
-                    style="height:36px;display:flex;align-items:center;gap:6px;font-weight:700;">
-                <i class="ph ph-pen"></i> Registrar Entrega
-            </button>
+            ${btnDesabilitado && templateDoColab ? `
+                <button onclick="window.gerarFichaEpiManualProntuario(${templateDoColab.id})" class="btn btn-danger"
+                        style="height:36px;display:flex;align-items:center;gap:6px;font-weight:700;background:#e11d48;border:none;">
+                    <i class="ph ph-arrows-clockwise"></i> Atualizar Ficha
+                </button>
+            ` : `
+                <button onclick="window.abrirAssinaturaEpi(${fichaAtiva.id})" class="btn btn-primary"
+                        style="height:36px;display:flex;align-items:center;gap:6px;font-weight:700;">
+                    <i class="ph ph-pen"></i> Registrar Entrega
+                </button>
+            `}
         </div>` : `
         <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
             <div style="display:flex;align-items:center;gap:0.75rem;">
