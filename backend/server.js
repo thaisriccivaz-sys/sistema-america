@@ -9175,7 +9175,8 @@ app.post('/api/epi-fichas/fechar-todas', authenticateToken, (req, res) => {
 
 // POST: recalcular fichas de EPI de TODOS os colaboradores ativos com base no cargo/dept atual
 app.post('/api/epi-fichas/recalcular-todos', authenticateToken, (req, res) => {
-    db.all('SELECT id, cargo, departamento FROM colaboradores WHERE status = \'ativo\'', [], (err, colabs) => {
+    db.all("SELECT id, cargo, departamento FROM colaboradores WHERE LOWER(status) = 'ativo'", [], (err, colabs) => {
+
         if (err) return res.status(500).json({ error: err.message });
         db.all('SELECT id, grupo, epis_json, departamentos_json, termo_texto, rodape_texto FROM epi_templates', [], (eErr, templates) => {
             if (eErr) return res.status(500).json({ error: eErr.message });
