@@ -14282,24 +14282,16 @@ async function renderFichaEpiTab(container) {
         </div>
 
         ${fichaAtiva ? `
-        <div style="background:${btnDesabilitado ? '#fff1f2' : '#f0fdf4'};border:1.5px solid ${btnDesabilitado ? '#fecdd3' : '#86efac'};border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-            <i class="${btnDesabilitado ? 'ph ph-warning-circle' : 'ph ph-check-circle'}" style="color:${btnDesabilitado ? '#e11d48' : '#16a34a'};font-size:1.5rem;"></i>
+        <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+            <i class="ph ph-check-circle" style="color:#16a34a;font-size:1.5rem;"></i>
             <div style="flex:1;">
-                <p style="margin:0;font-weight:700;color:${btnDesabilitado ? '#be123c' : '#15803d'};">Ficha Ativa: ${fichaAtiva.grupo}</p>
-                <p style="margin:2px 0 0;font-size:0.8rem;color:${btnDesabilitado ? '#9f1239' : '#166534'};">Criada em ${fmtDate(fichaAtiva.created_at)}</p>
-                
+                <p style="margin:0;font-weight:700;color:#15803d;">Ficha Ativa: ${fichaAtiva.grupo}</p>
+                <p style="margin:2px 0 0;font-size:0.8rem;color:#166534;">Criada em ${fmtDate(fichaAtiva.created_at)}</p>
             </div>
-            ${btnDesabilitado && templateDoColab ? `
-                <button onclick="window.gerarFichaEpiManualProntuario(${templateDoColab.id})" class="btn btn-danger"
-                        style="height:36px;display:flex;align-items:center;gap:6px;font-weight:700;background:#e11d48;border:none;">
-                    <i class="ph ph-arrows-clockwise"></i> Atualizar Ficha
-                </button>
-            ` : `
-                <button onclick="window.abrirAssinaturaEpi(${fichaAtiva.id})" class="btn btn-primary"
-                        style="height:36px;display:flex;align-items:center;gap:6px;font-weight:700;">
-                    <i class="ph ph-pen"></i> Registrar Entrega
-                </button>
-            `}
+            <button onclick="window.abrirAssinaturaEpi(${fichaAtiva.id})" class="btn btn-primary"
+                    style="height:36px;display:flex;align-items:center;gap:6px;font-weight:700;">
+                <i class="ph ph-pen"></i> Registrar Entrega
+            </button>
         </div>` : `
         <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
             <div style="display:flex;align-items:center;gap:0.75rem;">
