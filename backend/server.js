@@ -1184,7 +1184,31 @@ const uploadFoto = multer({ storage: storageFoto });
 
 
 // --- CONFIGURAÃ‡ÃƒO DE MIDDLEWARES ---
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
+  'http://127.0.0.1:5500', // VSCode Live Server
+  'https://sistema-america.onrender.com'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    
+    // Permite domínios locais, o domínio oficial, domínios do Render e o BASE_URL configurado
+    if (
+        allowedOrigins.includes(origin) || 
+        origin.endsWith('.onrender.com') ||
+        (process.env.BASE_URL && origin.startsWith(process.env.BASE_URL))
+    ) {
+      return callback(null, true);
+    }
+    
+    return callback(new Error('Acesso bloqueado por CORS (Segurança)'), false);
+  }
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
