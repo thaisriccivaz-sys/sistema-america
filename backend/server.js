@@ -1030,8 +1030,8 @@ const BASE_UPLOAD_PATH = BASE_PATH; // Mantendo compatibilidade
 
 // Configuração Assinafy (Preencha aqui com sua chave de API e Account ID)
 const ASSINAFY_CONFIG = {
-    apiKey: '6mPX9DpdGQkzF2VOCokYQARRMIUgq5ddyKOucKvaSm8y9DIin9TN0UfxrOL_bHyt',
-    accountId: '10237785fb23cf473d54845a013e',
+    apiKey: process.env.ASSINAFY_API_KEY || '',
+    accountId: process.env.ASSINAFY_ACCOUNT_ID || '',
     baseUrl: 'https://api.assinafy.com.br/v1'
 };
 
@@ -2888,8 +2888,8 @@ app.get('/api/maintenance/assinafy-signer', async (req, res) => {
     const email = (req.query.email || '').trim();
     if (!email) return res.status(400).json({ error: 'Parâmetro ?email= obrigatório' });
     const https2 = require('https');
-    const _AK   = '6mPX9DpdGQkzF2VOCokYQARRMIUgq5ddyKOucKvaSm8y9DIin9TN0UfxrOL_bHyt';
-    const _ACID = '10237785fb23cf473d54845a013e';
+    const _AK   = process.env.ASSINAFY_API_KEY || '';
+    const _ACID = process.env.ASSINAFY_ACCOUNT_ID || '';
     const callApi = (urlPath) => new Promise((resolve, reject) => {
         const r2 = https2.request({ hostname: 'api.assinafy.com.br', path: urlPath, method: 'GET',
             headers: { 'X-Api-Key': _AK, 'Accept': 'application/json' } }, (r) => {
