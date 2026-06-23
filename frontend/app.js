@@ -1065,6 +1065,61 @@ function setupNavigation() {
         });
     }
 
+    // ── [DEV] Botão Limpar Todos os Colaboradores ──────────────────────────
+    // Visível SOMENTE no ambiente de homologação do desenvolvedor
+    const DEV_HOST = 'sistema-america-36v6.onrender.com';
+    const btnDevReset = document.getElementById('btn-dev-reset-colabs');
+    if (btnDevReset && window.location.hostname === DEV_HOST) {
+        btnDevReset.style.display = 'inline-flex';
+        btnDevReset.addEventListener('click', () => {
+            // Modal de confirmação
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;';
+            overlay.innerHTML = `
+                <div style="background:#fff;border-radius:16px;padding:2rem 2.5rem;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;">
+                    <div style="width:60px;height:60px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.8rem;">
+                        <i class="ph ph-warning" style="color:#dc2626;"></i>
+                    </div>
+                    <h3 style="margin:0 0 0.5rem;font-size:1.2rem;color:#0f172a;">Excluir todos os colaboradores?</h3>
+                    <p style="margin:0 0 1.5rem;color:#64748b;font-size:0.9rem;">Esta ação é <strong>irreversível</strong> e removerá <strong>todos</strong> os colaboradores, documentos e dependentes do banco de dados de homologação.</p>
+                    <div style="display:flex;gap:0.75rem;justify-content:center;">
+                        <button id="dev-reset-cancel" style="padding:0.6rem 1.5rem;border:1px solid #cbd5e1;background:#fff;border-radius:8px;cursor:pointer;font-weight:600;color:#64748b;">Cancelar</button>
+                        <button id="dev-reset-confirm" style="padding:0.6rem 1.5rem;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;">
+                            <i class="ph ph-trash"></i> Sim, excluir tudo
+                        </button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+
+            document.getElementById('dev-reset-cancel').onclick = () => overlay.remove();
+            document.getElementById('dev-reset-confirm').onclick = async () => {
+                const confirmBtn = document.getElementById('dev-reset-confirm');
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;"></i> Aguarde...';
+                try {
+                    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+                    const resp = await fetch('/api/maintenance/reset', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+                    });
+                    const data = await resp.json();
+                    if (resp.ok && data.sucesso) {
+                        overlay.remove();
+                        if (typeof renderColaboradores === 'function') renderColaboradores();
+                        else window.location.reload();
+                    } else {
+                        alert('Erro: ' + (data.error || 'Falha ao resetar'));
+                        overlay.remove();
+                    }
+                } catch (e) {
+                    alert('Erro de rede: ' + e.message);
+                    overlay.remove();
+                }
+            };
+        });
+    }
+    // ── fim [DEV] ───────────────────────────────────────────────────────────
+
     document.querySelectorAll('#tabs-list li').forEach(tab => {
         tab.addEventListener('click', (e) => {
             document.querySelectorAll('#tabs-list li').forEach(t => t.classList.remove('active'));
