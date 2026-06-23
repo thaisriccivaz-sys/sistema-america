@@ -10,7 +10,7 @@ const nodemailer = require('nodemailer');
 const pdfParse = require('pdf-parse');
 const cron = require('node-cron');
 const cloudinary = require('cloudinary').v2;
-
+const rateLimit = require('express-rate-limit');
 // ─── MULTAS ANTIGAS: AITs já tratados e encerrados ──────────────────────────
 // Quando o sistema detectar qualquer um desses AITs (criação manual ou webhook
 // Mônaco), registra automaticamente com status "Antiga".
@@ -1985,7 +1985,13 @@ function authenticateToken(req, res, next) {
 }
 
 // --- ROTAS DE AUTENTICAÃ‡ÃƒO ---
-app.post('/api/auth/login', (req, res) => {
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 10, // Limite de 10 tentativas por IP
+    message: { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' }
+});
+
+app.post('/api/auth/login', loginLimiter, (req, res) => {
     const { username, password } = req.body;
     db.get(`SELECT u.*, g.nome as grupo_nome FROM usuarios u LEFT JOIN grupos_permissao g ON g.id = u.grupo_permissao_id WHERE u.username = ?`, [username], (err, user) => {
         if (err || !user) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
