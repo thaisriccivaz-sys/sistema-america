@@ -3392,96 +3392,115 @@ window.deleteColaborador = async function (id, isStatusIncompleto = false) {
     } catch (e) { console.error(e); }
 }
 
-// ── [DEV] Exclusão permanente individual (apenas homologação) ─────────────
-window.devExcluirColaborador = async function(id, nome) {
+// ── [DEV] Anonimizar colaborador individual ───────────────────────────────
+window.devAnonimizarColaborador = async function(id, nome) {
     if (!window._IS_DEV_HOMOLOG) return;
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;';
-    overlay.innerHTML = `
-        <div style="background:#fff;border-radius:16px;padding:2rem 2.5rem;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;">
-            <div style="width:56px;height:56px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.6rem;"><i class="ph ph-warning" style="color:#dc2626;"></i></div>
-            <h3 style="margin:0 0 0.4rem;font-size:1.1rem;color:#0f172a;">Excluir permanentemente?</h3>
-            <p style="margin:0 0 1.25rem;color:#64748b;font-size:0.85rem;"><strong>${nome}</strong> será removido definitivamente do banco de dados de homologação.</p>
-            <div style="display:flex;gap:0.75rem;justify-content:center;">
-                <button id="dev-del-cancel" style="padding:0.55rem 1.25rem;border:1px solid #cbd5e1;background:#fff;border-radius:8px;cursor:pointer;font-weight:600;color:#64748b;">Cancelar</button>
-                <button id="dev-del-confirm" style="padding:0.55rem 1.25rem;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;">
-                    <i class="ph ph-trash"></i> Excluir
-                </button>
-            </div>
-        </div>`;
-    document.body.appendChild(overlay);
-    document.getElementById('dev-del-cancel').onclick = () => overlay.remove();
-    document.getElementById('dev-del-confirm').onclick = async () => {
-        document.getElementById('dev-del-confirm').innerHTML = '<i class="ph ph-spinner"></i> Aguarde...';
-        document.getElementById('dev-del-confirm').disabled = true;
-        try {
-            const res = await fetch(`${API_URL}/colaboradores/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${currentToken}` }
-            });
-            overlay.remove();
-            if (res.ok) {
-                _todosColaboradores = _todosColaboradores.filter(x => x.id !== id);
-                aplicarFiltrosColaboradores();
-            } else {
-                alert('Erro ao excluir colaborador.');
-            }
-        } catch(e) { overlay.remove(); alert('Erro de rede.'); }
+    // descobre o índice desse colaborador na lista para gerar dados únicos
+    const idx = _todosColaboradores.findIndex(c => c.id === id);
+    const dados = _devDadosFicticios(idx >= 0 ? idx : Math.floor(Math.random() * 100));
+    try {
+        const res = await fetch(`${API_URL}/colaboradores/${id}`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        if (res.ok) {
+            aplicarFiltrosColaboradores();
+            loadColaboradores();
+        } else { alert('Erro ao anonimizar colaborador.'); }
+    } catch(e) { alert('Erro de rede.'); }
+}
+
+// ── [DEV] Gera dados fictícios para anonimização ─────────────────────────
+function _devDadosFicticios(index) {
+    const nomes = ['João','Maria','Carlos','Ana','Pedro','Lucia','Rafael','Juliana','Marcos','Fernanda'];
+    const sobrenomes = ['Silva','Santos','Oliveira','Souza','Lima','Pereira','Costa','Ferreira','Alves','Rodrigues'];
+    const depts = ['Logística','Administrativo','Comercial','RH','Financeiro'];
+    const cargos = ['Assistente','Analista','Auxiliar','Operador','Técnico'];
+    const n = nomes[index % nomes.length];
+    const s = sobrenomes[(index + 3) % sobrenomes.length];
+    const s2 = sobrenomes[(index + 7) % sobrenomes.length];
+    const pad = String(index + 1).padStart(2, '0');
+    return {
+        nome_completo: `${n} ${s} ${s2}`,
+        cpf: `000.000.${pad.padStart(3,'0')}-${pad}`,
+        rg: `0000000${pad}`,
+        data_nascimento: '1990-01-01',
+        email: `teste${index + 1}@homologacao.com`,
+        email_corporativo: `colaborador${index + 1}@americarental.com.br`,
+        telefone: `(11) 9${pad}000-000${pad.slice(-1)}`,
+        departamento: depts[index % depts.length],
+        cargo: cargos[index % cargos.length],
+        status: 'Ativo',
+        data_admissao: '2024-01-01',
+        tipo_contrato: 'CLT',
+        endereco: `Rua Fictícia, ${index + 1} - São Paulo/SP`,
+        nome_mae: 'Maria de Teste',
+        nome_pai: 'José de Teste',
+        estado_civil: 'Solteiro',
+        nacionalidade: 'Brasileiro',
+        sexo: index % 2 === 0 ? 'M' : 'F',
     };
 }
 
-// ── [DEV] Exclusão em massa (todos exceto Teste de Sistema da Silva) ───────
-window.devExcluirTodosColaboradores = async function() {
+// ── [DEV] Anonimizar todos (exceto Teste de Sistema da Silva) ─────────────
+window.devAnonimizarTodosColaboradores = async function() {
     if (!window._IS_DEV_HOMOLOG) return;
     const protegido = 'teste de sistema da silva';
-    const paraExcluir = _todosColaboradores.filter(c =>
+    const paraAnonimizar = _todosColaboradores.filter(c =>
         (c.nome_completo || '').trim().toLowerCase() !== protegido
     );
-    if (paraExcluir.length === 0) { alert('Nenhum colaborador para excluir (apenas o protegido existe).'); return; }
+    if (paraAnonimizar.length === 0) { alert('Nenhum colaborador para anonimizar.'); return; }
 
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;';
     overlay.innerHTML = `
         <div style="background:#fff;border-radius:16px;padding:2rem 2.5rem;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;">
-            <div style="width:56px;height:56px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.6rem;"><i class="ph ph-warning" style="color:#dc2626;"></i></div>
-            <h3 style="margin:0 0 0.4rem;font-size:1.1rem;color:#0f172a;">Excluir todos os colaboradores?</h3>
-            <p style="margin:0 0 1.25rem;color:#64748b;font-size:0.85rem;">Serão excluídos <strong>${paraExcluir.length} colaboradores</strong> permanentemente.<br><span style="color:#059669;font-weight:600;">"Teste de Sistema da Silva" será mantido.</span></p>
-            <div id="dev-del-all-progress" style="display:none;margin-bottom:1rem;">
+            <div style="width:56px;height:56px;background:#fef3c7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.6rem;"><i class="ph ph-shuffle" style="color:#d97706;"></i></div>
+            <h3 style="margin:0 0 0.4rem;font-size:1.1rem;color:#0f172a;">Substituir dados por fictícios?</h3>
+            <p style="margin:0 0 1.25rem;color:#64748b;font-size:0.85rem;">
+                Os dados de <strong>${paraAnonimizar.length} colaboradores</strong> serão substituídos por informações fictícias para testes.<br>
+                <span style="color:#059669;font-weight:600;">"Teste de Sistema da Silva" será mantido intacto.</span>
+            </p>
+            <div id="dev-anon-progress" style="display:none;margin-bottom:1rem;">
                 <div style="background:#f1f5f9;border-radius:8px;height:8px;overflow:hidden;">
-                    <div id="dev-del-all-bar" style="height:100%;background:#dc2626;width:0%;transition:width 0.2s;"></div>
+                    <div id="dev-anon-bar" style="height:100%;background:#d97706;width:0%;transition:width 0.2s;"></div>
                 </div>
-                <p id="dev-del-all-txt" style="font-size:0.8rem;color:#64748b;margin-top:6px;">Aguarde...</p>
+                <p id="dev-anon-txt" style="font-size:0.8rem;color:#64748b;margin-top:6px;">Aguarde...</p>
             </div>
-            <div id="dev-del-all-btns" style="display:flex;gap:0.75rem;justify-content:center;">
-                <button id="dev-del-all-cancel" style="padding:0.55rem 1.25rem;border:1px solid #cbd5e1;background:#fff;border-radius:8px;cursor:pointer;font-weight:600;color:#64748b;">Cancelar</button>
-                <button id="dev-del-all-confirm" style="padding:0.55rem 1.25rem;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;">
-                    <i class="ph ph-trash"></i> Sim, excluir ${paraExcluir.length}
+            <div id="dev-anon-btns" style="display:flex;gap:0.75rem;justify-content:center;">
+                <button id="dev-anon-cancel" style="padding:0.55rem 1.25rem;border:1px solid #cbd5e1;background:#fff;border-radius:8px;cursor:pointer;font-weight:600;color:#64748b;">Cancelar</button>
+                <button id="dev-anon-confirm" style="padding:0.55rem 1.25rem;background:#d97706;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-shuffle"></i> Sim, substituir ${paraAnonimizar.length}
                 </button>
             </div>
         </div>`;
     document.body.appendChild(overlay);
-    document.getElementById('dev-del-all-cancel').onclick = () => overlay.remove();
-    document.getElementById('dev-del-all-confirm').onclick = async () => {
-        document.getElementById('dev-del-all-btns').style.display = 'none';
-        document.getElementById('dev-del-all-progress').style.display = 'block';
-        let excluidos = 0;
-        for (const colab of paraExcluir) {
+    document.getElementById('dev-anon-cancel').onclick = () => overlay.remove();
+    document.getElementById('dev-anon-confirm').onclick = async () => {
+        document.getElementById('dev-anon-btns').style.display = 'none';
+        document.getElementById('dev-anon-progress').style.display = 'block';
+        let processados = 0;
+        for (let i = 0; i < paraAnonimizar.length; i++) {
+            const colab = paraAnonimizar[i];
             try {
                 await fetch(`${API_URL}/colaboradores/${colab.id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(_devDadosFicticios(i))
                 });
             } catch(e) {}
-            excluidos++;
-            const pct = Math.round((excluidos / paraExcluir.length) * 100);
-            document.getElementById('dev-del-all-bar').style.width = pct + '%';
-            document.getElementById('dev-del-all-txt').textContent = `Excluindo... ${excluidos} de ${paraExcluir.length}`;
+            processados++;
+            const pct = Math.round((processados / paraAnonimizar.length) * 100);
+            document.getElementById('dev-anon-bar').style.width = pct + '%';
+            document.getElementById('dev-anon-txt').textContent = `Processando... ${processados} de ${paraAnonimizar.length}`;
         }
         overlay.remove();
         loadColaboradores();
     };
 }
 // ── fim [DEV] ──────────────────────────────────────────────────────────────
+
 
 window.resetFormColaborador = function () {
     const form = document.getElementById('form-colaborador');

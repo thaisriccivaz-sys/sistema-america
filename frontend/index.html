@@ -798,10 +798,10 @@
                         style="flex-shrink: 0; display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
                         <h2 style="font-size:1.5rem; font-weight:600; margin:0;">Colaboradores</h2>
                         <div style="display:flex; gap:0.5rem; align-items:center;">
-                            <button id="btn-dev-excluir-todos" onclick="devExcluirTodosColaboradores()"
-                                style="display:none; gap:6px; align-items:center; padding:0.5rem 1rem; background:#dc2626; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:600; font-size:0.85rem;"
-                                title="[DEV] Excluir todos os colaboradores (exceto Teste de Sistema da Silva)">
-                                <i class="ph ph-trash"></i> Excluir Todos
+                            <button id="btn-dev-excluir-todos" onclick="devAnonimizarTodosColaboradores()"
+                                style="display:none; gap:6px; align-items:center; padding:0.5rem 1rem; background:#d97706; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:600; font-size:0.85rem;"
+                                title="[DEV] Substituir dados de todos os colaboradores por dados fictícios (exceto Teste de Sistema da Silva)">
+                                <i class="ph ph-shuffle"></i> Anonimizar Todos
                             </button>
                             <script>if(window._IS_DEV_HOMOLOG) document.getElementById('btn-dev-excluir-todos').style.display='inline-flex';</script>
                             <button class="btn btn-primary" id="btn-novo-colab"><i class="ph ph-plus"></i> Novo
