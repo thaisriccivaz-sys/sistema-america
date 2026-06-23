@@ -177,6 +177,9 @@
                     <a href="#" class="nav-item" data-target="logistica-agenda"
                         onclick="navigateTo('logistica-agenda'); return false;"><i class="ph ph-calendar-check"></i>
                         Agenda</a>
+                    <a href="#" class="nav-item" data-target="logistica-epi"
+                        onclick="navigateTo('logistica-epi'); return false;"><i class="ph ph-shield-check"></i>
+                        Entrega de EPI</a>
                     <a href="#" class="nav-item" data-target="logistica-multas"
                         onclick="navigateTo('logistica-multas'); return false;"><i class="ph ph-receipt"></i> Multas</a>
                     <a href="#" class="nav-item" data-target="logistica-equipes"
@@ -359,6 +362,11 @@
 
                 <section id="view-logistica-agenda" class="content-view" style="padding:0; background:#f0f4f8;">
                     <div id="logistica-agenda-container"></div>
+                </section>
+
+                <!-- VIEW: ENTREGA EPI - LOGISTICA -->
+                <section id="view-logistica-epi" class="content-view" style="padding:0; background:#f0f4f8;">
+                    <div id="logistica-epi-container"></div>
                 </section>
 
                 <!-- VIEW: SINISTROS LOGÍSTICA -->
@@ -5269,6 +5277,7 @@
         }
     </style>
     <script src="logistica_agenda.js?v=1778869020176"></script>
+    <script src="logistica_epi.js?v=1778869020176"></script>
     <script src="config-sigor.js"></script>
     <script src="/frota_manutencao.js?v=1778890494626"></script>
     <script src="/sort_table.js?v=1"></script>
