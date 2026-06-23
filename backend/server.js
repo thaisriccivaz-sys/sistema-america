@@ -1191,7 +1191,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // ROTA DE VERSÃO (Para verificar implantação)
 app.get('/api/version', (req, res) => res.json({ version: 'V51_FIX_CONTRATOS_AVULSOS_PATH' }));
 
-app.get('/api/debug-pfx3', async (req, res) => {
+app.get('/api/debug-pfx3', authenticateToken, async (req, res) => {
     try {
         const doc = await new Promise(r => db.get("SELECT assinafy_id FROM documentos WHERE assinafy_status = 'Assinado' ORDER BY id DESC LIMIT 1", [], (err, row) => r(row)));
         if (!doc) return res.send("No doc");
@@ -1202,7 +1202,7 @@ app.get('/api/debug-pfx3', async (req, res) => {
     } catch (e) { res.send(e.message); }
 });
 
-app.get('/api/debug-pfx2', async (req, res) => {
+app.get('/api/debug-pfx2', authenticateToken, async (req, res) => {
     db.all("SELECT id, document_type, assinafy_status, file_name, signed_file_path FROM documentos ORDER BY id DESC LIMIT 10", [], (err, rows) => {
         res.json(rows);
     });
@@ -1221,7 +1221,7 @@ app.get('/api/debug-pfx2', async (req, res) => {
         res.json({ error: e.message, stack: e.stack });
     }
 });
-app.get('/api/get-system-logs', (req, res) => {
+app.get('/api/get-system-logs', authenticateToken, (req, res) => {
     try {
         db.all('SELECT * FROM system_logs ORDER BY id DESC LIMIT 50', [], (err, rows) => {
             res.json(err ? { error: err.message } : rows);
@@ -1323,7 +1323,7 @@ app.post('/api/admin/resetar-assinatura-falsa', authenticateToken, async (req, r
     }
 });
 
-app.get('/api/check-pfx', (req, res) => {
+app.get('/api/check-pfx', authenticateToken, (req, res) => {
     try {
         const signPdfPfx = require('./sign_pdf_pfx');
         const disp = signPdfPfx.verificarDisponibilidade();
@@ -2884,7 +2884,7 @@ app.get('/api/maintenance/buscar-email', authenticateToken, (req, res) => {
  * DIAGNÓSTICO: Consultar signatário diretamente na API Assinafy
  * GET /api/maintenance/assinafy-signer?email=xxx
  */
-app.get('/api/maintenance/assinafy-signer', async (req, res) => {
+app.get('/api/maintenance/assinafy-signer', authenticateToken, async (req, res) => {
     const email = (req.query.email || '').trim();
     if (!email) return res.status(400).json({ error: 'Parâmetro ?email= obrigatório' });
     const https2 = require('https');
