@@ -1987,7 +1987,7 @@ function authenticateToken(req, res, next) {
 // --- ROTAS DE AUTENTICAÃ‡ÃƒO ---
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 10, // Limite de 10 tentativas por IP
+    max: 3, // Limite de 3 tentativas por IP
     message: { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' }
 });
 
