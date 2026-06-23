@@ -3392,6 +3392,97 @@ window.deleteColaborador = async function (id, isStatusIncompleto = false) {
     } catch (e) { console.error(e); }
 }
 
+// ── [DEV] Exclusão permanente individual (apenas homologação) ─────────────
+window.devExcluirColaborador = async function(id, nome) {
+    if (!window._IS_DEV_HOMOLOG) return;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:16px;padding:2rem 2.5rem;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;">
+            <div style="width:56px;height:56px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.6rem;"><i class="ph ph-warning" style="color:#dc2626;"></i></div>
+            <h3 style="margin:0 0 0.4rem;font-size:1.1rem;color:#0f172a;">Excluir permanentemente?</h3>
+            <p style="margin:0 0 1.25rem;color:#64748b;font-size:0.85rem;"><strong>${nome}</strong> será removido definitivamente do banco de dados de homologação.</p>
+            <div style="display:flex;gap:0.75rem;justify-content:center;">
+                <button id="dev-del-cancel" style="padding:0.55rem 1.25rem;border:1px solid #cbd5e1;background:#fff;border-radius:8px;cursor:pointer;font-weight:600;color:#64748b;">Cancelar</button>
+                <button id="dev-del-confirm" style="padding:0.55rem 1.25rem;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-trash"></i> Excluir
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('dev-del-cancel').onclick = () => overlay.remove();
+    document.getElementById('dev-del-confirm').onclick = async () => {
+        document.getElementById('dev-del-confirm').innerHTML = '<i class="ph ph-spinner"></i> Aguarde...';
+        document.getElementById('dev-del-confirm').disabled = true;
+        try {
+            const res = await fetch(`${API_URL}/colaboradores/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+            overlay.remove();
+            if (res.ok) {
+                _todosColaboradores = _todosColaboradores.filter(x => x.id !== id);
+                aplicarFiltrosColaboradores();
+            } else {
+                alert('Erro ao excluir colaborador.');
+            }
+        } catch(e) { overlay.remove(); alert('Erro de rede.'); }
+    };
+}
+
+// ── [DEV] Exclusão em massa (todos exceto Teste de Sistema da Silva) ───────
+window.devExcluirTodosColaboradores = async function() {
+    if (!window._IS_DEV_HOMOLOG) return;
+    const protegido = 'teste de sistema da silva';
+    const paraExcluir = _todosColaboradores.filter(c =>
+        (c.nome_completo || '').trim().toLowerCase() !== protegido
+    );
+    if (paraExcluir.length === 0) { alert('Nenhum colaborador para excluir (apenas o protegido existe).'); return; }
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:16px;padding:2rem 2.5rem;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;">
+            <div style="width:56px;height:56px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.6rem;"><i class="ph ph-warning" style="color:#dc2626;"></i></div>
+            <h3 style="margin:0 0 0.4rem;font-size:1.1rem;color:#0f172a;">Excluir todos os colaboradores?</h3>
+            <p style="margin:0 0 1.25rem;color:#64748b;font-size:0.85rem;">Serão excluídos <strong>${paraExcluir.length} colaboradores</strong> permanentemente.<br><span style="color:#059669;font-weight:600;">"Teste de Sistema da Silva" será mantido.</span></p>
+            <div id="dev-del-all-progress" style="display:none;margin-bottom:1rem;">
+                <div style="background:#f1f5f9;border-radius:8px;height:8px;overflow:hidden;">
+                    <div id="dev-del-all-bar" style="height:100%;background:#dc2626;width:0%;transition:width 0.2s;"></div>
+                </div>
+                <p id="dev-del-all-txt" style="font-size:0.8rem;color:#64748b;margin-top:6px;">Aguarde...</p>
+            </div>
+            <div id="dev-del-all-btns" style="display:flex;gap:0.75rem;justify-content:center;">
+                <button id="dev-del-all-cancel" style="padding:0.55rem 1.25rem;border:1px solid #cbd5e1;background:#fff;border-radius:8px;cursor:pointer;font-weight:600;color:#64748b;">Cancelar</button>
+                <button id="dev-del-all-confirm" style="padding:0.55rem 1.25rem;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-trash"></i> Sim, excluir ${paraExcluir.length}
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('dev-del-all-cancel').onclick = () => overlay.remove();
+    document.getElementById('dev-del-all-confirm').onclick = async () => {
+        document.getElementById('dev-del-all-btns').style.display = 'none';
+        document.getElementById('dev-del-all-progress').style.display = 'block';
+        let excluidos = 0;
+        for (const colab of paraExcluir) {
+            try {
+                await fetch(`${API_URL}/colaboradores/${colab.id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+            } catch(e) {}
+            excluidos++;
+            const pct = Math.round((excluidos / paraExcluir.length) * 100);
+            document.getElementById('dev-del-all-bar').style.width = pct + '%';
+            document.getElementById('dev-del-all-txt').textContent = `Excluindo... ${excluidos} de ${paraExcluir.length}`;
+        }
+        overlay.remove();
+        loadColaboradores();
+    };
+}
+// ── fim [DEV] ──────────────────────────────────────────────────────────────
+
 window.resetFormColaborador = function () {
     const form = document.getElementById('form-colaborador');
     if (form) form.reset();
