@@ -5750,12 +5750,13 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                                value="vanessa.santana@grupowp.com.br; vanessa.caroline@grupowp.com.br"
                                style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; min-width:340px; max-width:420px;">
                         <div style="display:flex; gap:0.5rem; align-items:center; justify-content:flex-end; width:100%;">
+                            <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 36px;"><i class="ph ph-eye"></i></button>
+                            ${!isAssinado ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height:36px;"><i class="ph ph-trash"></i></button>` : ''}
                             <button type="button"
                                     onclick="window.enviarSuspensaoContabilidade(${existingDoc.id}, 'susp-contab-email-${existingDoc.id}', this)"
-                                    style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
+                                    style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; min-width:230px; max-width:250px;">
                                 <i class="ph ph-buildings"></i> Enviar para Contabilidade
                             </button>
-                            <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 36px;"><i class="ph ph-eye"></i></button>
                         </div>
                     </div>` : ''}
                     
@@ -5827,11 +5828,17 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <input type="text" id="contab-email-${existingDoc.id}"
                                value="vanessa.santana@grupowp.com.br; vanessa.caroline@grupowp.com.br"
                                style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; min-width:340px; max-width:420px;">
-                        <button type="button"
-                                onclick="window.enviarAtestadoContabilidade(${existingDoc.id}, 'contab-email-${existingDoc.id}', this)"
-                                style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
-                            <i class="ph ph-buildings"></i> Enviar para Contabilidade
-                        </button>
+                        <div style="display:flex; gap:0.5rem; align-items:center; justify-content:flex-end; width:100%;">
+                            <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height:36px;">
+                                <i class="ph ph-eye"></i>
+                            </button>
+                            ${!isAssinado ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height:36px;"><i class="ph ph-trash"></i></button>` : ''}
+                            <button type="button"
+                                    onclick="window.enviarAtestadoContabilidade(${existingDoc.id}, 'contab-email-${existingDoc.id}', this)"
+                                    style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; min-width:230px; max-width:250px;">
+                                <i class="ph ph-buildings"></i> Enviar para Contabilidade
+                            </button>
+                        </div>
                     </div>` : ''}
 
                     ${(tabId === 'Faculdade' && isSaved && docType === 'Boleto') ? `
