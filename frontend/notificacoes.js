@@ -12,7 +12,9 @@ const TIPOS_NOTIFICACAO = [
     { id: 'novo_sinistro', nome: 'Novo Sinistro Registrado', icone: 'ph-warning' },
     { id: 'nova_multa_prontuario', nome: 'Nova Multa no Prontuário', icone: 'ph-traffic-cone' },
     { id: 'nova_multa_monaco', nome: 'Nova Multa Integrada Mônaco', icone: 'ph-police-car' },
-    { id: 'estoque_minimo', nome: 'Notificação Estoque Mínimo', icone: 'ph-package' }
+    { id: 'estoque_minimo', nome: 'Notificação Estoque Mínimo', icone: 'ph-package' },
+    { id: 'novo_colaborador_equipe', nome: 'Equipe para distribuição', icone: 'ph-users-three' },
+    { id: 'nova_ocorrencia', nome: 'Nova Ocorrência no Prontuário', icone: 'ph-warning' }
 ];
 
 let globalUsuariosConfig = [];

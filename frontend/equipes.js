@@ -63,11 +63,11 @@ window.initEquipes = async function (showSkeleton = true) {
       'Equipe Padrão': 1,
       'Equipe folga 2d semana': 2,
       'Ajudante pátio': 3,
-      'Equipe Noturna': 4,
-      'Equipe Intermitente': 5,
-      'Equipe Reserva': 6,
-      'Líderes': 7,
-      'Ajudantes noturnos 12x36': 8
+      'Líderes': 4,
+      'Equipe Noturna': 5,
+      'Ajudantes noturnos 12x36': 6,
+      'Equipe Intermitente': 7,
+      'Equipe Reserva': 8
     };
     _equipes.forEach(eq => {
       if (orderMap[eq.nome]) {
@@ -80,11 +80,11 @@ window.initEquipes = async function (showSkeleton = true) {
         { nome: 'Equipe Padrão', descricao: '', cor: '#2563eb', ordem: 1 },
         { nome: 'Equipe folga 2d semana', descricao: '', cor: '#0ea5e9', ordem: 2 },
         { nome: 'Ajudante pátio', descricao: '', cor: '#10b981', ordem: 3 },
-        { nome: 'Equipe Noturna', descricao: '', cor: '#4f46e5', ordem: 4 },
-        { nome: 'Equipe Intermitente', descricao: '', cor: '#f59e0b', ordem: 5 },
-        { nome: 'Equipe Reserva', descricao: '', cor: '#db2777', ordem: 6 },
-        { nome: 'Líderes', descricao: '', cor: '#64748b', ordem: 7 },
-        { nome: 'Ajudantes noturnos 12x36', descricao: '', cor: '#14b8a6', ordem: 8 }
+        { nome: 'Líderes', descricao: '', cor: '#64748b', ordem: 4 },
+        { nome: 'Equipe Noturna', descricao: '', cor: '#4f46e5', ordem: 5 },
+        { nome: 'Ajudantes noturnos 12x36', descricao: '', cor: '#14b8a6', ordem: 6 },
+        { nome: 'Equipe Intermitente', descricao: '', cor: '#f59e0b', ordem: 7 },
+        { nome: 'Equipe Reserva', descricao: '', cor: '#db2777', ordem: 8 }
       ];
       for (const d of defaults) {
         const eq = await _eq_post('/equipes', d);
@@ -146,9 +146,9 @@ function _renderAll(el) {
     .eq-avatar { width:28px; height:28px; border-radius:50%; object-fit:cover; flex-shrink:0; border:2px solid #e2e8f0; }
     .eq-avatar-placeholder { width:28px; height:28px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.65rem; color:#fff; }
     .eq-card-info { flex:1; min-width:0; }
-    .eq-card-name { font-size:.68rem; font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .eq-card-func { font-size:.55rem; font-weight:700; padding:1px 5px; border-radius:8px; display:inline-block; margin-top:0px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
-    .eq-card-escala { font-size:.65rem; color:#94a3b8; margin-top:1px; }
+    .eq-card-name { font-size:.65rem; font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .eq-card-func { font-size:.50rem; font-weight:700; padding:1px 5px; border-radius:8px; display:inline-block; margin-top:0px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+    .eq-card-escala { font-size:.60rem; color:#94a3b8; margin-top:1px; }
     .eq-status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
     .eq-empty { text-align:center; padding:1.5rem .5rem; color:#cbd5e1; font-size:.7rem; }
     .eq-col-footer { padding:.5rem; border-top:1px solid #f1f5f9; }
@@ -170,12 +170,10 @@ function _renderAll(el) {
       <div style="display:flex;flex-direction:column;gap:2px;">
         <h2><i class="ph ph-users-three" style="color:#2d9e5f;font-size:1.6rem;"></i> Equipes</h2>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:220px;max-width:420px;">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:220px;">
+        <input id="equipes-data-ref" type="date" value="${(window._dataRefEquipes || new Date()).toISOString().split('T')[0]}" onchange="window._equipesChangeData(this.value)" style="border:1.5px solid #e2e8f0; border-radius:8px; padding:0 .5rem; height:38px; font-size:.85rem; color:#475569; background:#fff;">
         <input id="equipes-search" type="text" placeholder="Buscar colaborador..." oninput="window._equipesSearch(this.value)" style="flex:1;">
-        <div style="display:flex;gap:8px;font-size:0.72rem;align-items:center;white-space:nowrap;">
-          <div style="display:flex;align-items:center;gap:4px;color:#64748b;"><div style="width:10px;height:10px;border-radius:2px;background:#faf5ff;border:1.5px solid #a855f7;"></div> Afastado/Férias</div>
-          <div style="display:flex;align-items:center;gap:4px;color:#64748b;"><div style="width:10px;height:10px;border-radius:2px;background:#fefce8;border:1.5px solid #eab308;"></div> Experiência</div>
-        </div>
+
       </div>
       <div style="margin-left:auto;display:flex;gap:.5rem;flex-wrap:wrap;display:none;">
         <button class="eq-btn-sec" onclick="window._equipesNovaEquipe()"><i class="ph ph-plus"></i> Criar equipe</button>
@@ -217,6 +215,69 @@ function _renderAll(el) {
 // Store de dados dos membros por id
 let _eqCardData = {};
 
+function _isHojeFolga(m) {
+  const escalaTipo = (m.escala_tipo || '').trim();
+  const hoje = new Date(window._dataRefEquipes || new Date());
+  hoje.setHours(0,0,0,0);
+  const ds = hoje.getDay(); // 0=Dom, 6=Sab
+
+  // Se nao tiver escala, assumimos o padrao seg-sex
+  if (!escalaTipo || escalaTipo === 'null') {
+      return ds === 0 || ds === 6;
+  }
+
+  if (escalaTipo === 'padrao_seis_dias' || escalaTipo === 'padrao_sab_4h') {
+      return ds === 0; // Folga no domingo
+  }
+
+  if (escalaTipo === 'padrao_sab_alternado') {
+      if (ds === 0) return true; // Domingo sempre folga
+      if (ds === 6) {
+          if (!m.escala_ciclo_inicio) return false;
+          const MS_SEMANA = 7 * 24 * 60 * 60 * 1000;
+          const refSab = new Date(m.escala_ciclo_inicio + 'T00:00:00');
+          while (refSab.getDay() !== 6) refSab.setDate(refSab.getDate() + 1);
+          const semanas = Math.round((hoje - refSab) / MS_SEMANA);
+          const trabalhado = ((semanas % 2) + 2) % 2 === 0;
+          return !trabalhado; // se trabalhado=false, é folga
+      }
+      return false; // Seg-Sex trabalha
+  }
+
+  if (escalaTipo === 'escala_duas_folgas') {
+      let folgas = [];
+      try { folgas = JSON.parse(m.escala_folgas || '[]'); } catch(e) {}
+      const DIAS_NOME = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      
+      let diasFolgaFixos = folgas.map(f => DIAS_NOME.indexOf(f)).filter(n => n > 0);
+      let temDomingoNasFolgas = folgas.some(f => f.toLowerCase() === 'dom');
+      
+      if (diasFolgaFixos.includes(ds)) return true;
+      
+      if (ds === 0) {
+          if (!temDomingoNasFolgas) return false;
+          if (!m.escala_ciclo_inicio) return false;
+          const MS_SEMANA = 7 * 24 * 60 * 60 * 1000;
+          const refDom = new Date(m.escala_ciclo_inicio + 'T00:00:00');
+          while (refDom.getDay() !== 0) refDom.setDate(refDom.getDate() + 1);
+          const semanas = Math.round((hoje - refDom) / MS_SEMANA);
+          const pos = ((semanas % 3) + 3) % 3; // 0=trab, 1=trab, 2=folga
+          return pos === 2;
+      }
+      return false;
+  }
+
+  if (escalaTipo === 'escala_12x36') {
+      if (!m.escala_ciclo_inicio) return false;
+      const MS_DIA = 24 * 60 * 60 * 1000;
+      const ref = new Date(m.escala_ciclo_inicio + 'T00:00:00');
+      const diasDif = Math.round((hoje - ref) / MS_DIA);
+      return Math.abs(diasDif) % 2 !== 0; // se ímpar, é folga
+  }
+
+  return ds === 0 || ds === 6;
+}
+
 window._eqShowTooltip = function(ev, membId) {
   const m = _eqCardData[membId];
   const tt = document.getElementById('eq-tooltip');
@@ -248,6 +309,37 @@ function _eqAlertas(membros) {
   return [];
 }
 
+window._eqToggleDestaque = async function(e, colabId) {
+  // Ignora se estiver arrastando (evita disparar no final do drag) ou clicou no botão excluir
+  if (e.target.closest('button') || e.target.closest('.ph-x')) return;
+  
+  try {
+      const res = await _eq_patch(`/colaboradores/${colabId}/destaque`, {});
+      if (res.sucesso) {
+          // Atualiza localmente nos dados para refletir instantaneamente
+          let changed = false;
+          _equipes.forEach(eq => {
+              const m = eq.membros.find(x => (x.colaborador_id||x.id) === colabId);
+              if (m) { m.destaque_equipe = m.destaque_equipe === 1 ? 0 : 1; changed = true; }
+          });
+          if (!changed) {
+              const sem = _semEquipe.find(x => (x.colaborador_id||x.id) === colabId);
+              if (sem) sem.destaque_equipe = sem.destaque_equipe === 1 ? 0 : 1;
+          }
+          const board = document.getElementById('equipes-board');
+          if (board) board.innerHTML = _renderBoard(_busca);
+          _reRenderFora();
+          const { vEq } = _getVirtualData();
+          const reservaEq = vEq.find(eq => eq.nome === 'Equipe Reserva');
+          const intermitenteEq = vEq.find(eq => eq.nome === 'Equipe Intermitente');
+          if (reservaEq) _reRenderColuna(reservaEq.id);
+          if (intermitenteEq) _reRenderColuna(intermitenteEq.id);
+      }
+  } catch (err) {
+      console.error('Erro ao alternar destaque:', err);
+  }
+};
+
 function _eqStatus(membros) {
   if (membros.length === 0) return { cor: '#ef4444', label: 'Incompleta' };
   const temMotorista = membros.some(m => m.funcao === 'motorista');
@@ -257,9 +349,45 @@ function _eqStatus(membros) {
   return { cor: '#ef4444', label: 'Incompleta' };
 }
 
+window._equipesChangeData = function(val) {
+  window._dataRefEquipes = val ? new Date(val + 'T12:00:00') : new Date();
+  const b = document.getElementById('equipes-board');
+  if(b) b.innerHTML = _renderBoard();
+  _renderFora();
+};
+
+function _getVirtualData() {
+  const dRef = new Date(window._dataRefEquipes || new Date());
+  dRef.setHours(0,0,0,0);
+  const vEq = JSON.parse(JSON.stringify(_equipes));
+  const vSem = JSON.parse(JSON.stringify(_semEquipe));
+
+  vEq.forEach(eq => {
+      if (eq.nome === 'Equipe Reserva' || eq.nome === 'Equipe Intermitente') return;
+      const remaining = [];
+      eq.membros.forEach(m => {
+          let onVacation = false;
+          if (m.ferias_programadas_inicio && m.ferias_programadas_fim) {
+              const ini = new Date(m.ferias_programadas_inicio + 'T00:00:00');
+              const fim = new Date(m.ferias_programadas_fim + 'T00:00:00');
+              if (dRef >= ini && dRef <= fim) onVacation = true;
+          }
+          if (onVacation) {
+              vSem.push(m);
+          } else {
+              remaining.push(m);
+          }
+      });
+      eq.membros = remaining;
+  });
+
+  return { vEq, vSem };
+}
+
 function _renderFora() {
+  const { vSem } = _getVirtualData();
   const b = _busca.toLowerCase();
-  const lista = b ? _semEquipe.filter(m => (m.nome_completo||'').toLowerCase().includes(b)) : _semEquipe;
+  const lista = b ? vSem.filter(m => (m.nome_completo||'').toLowerCase().includes(b)) : vSem;
   const cards = lista.map(m => _renderCard({ ...m, equipe_id: 0 })).join('');
   const foraHtml = `<div class="eq-col" data-equipe-id="0" style="border:2px dashed #cbd5e1;background:#f8fafc;">
     <div class="eq-col-header" style="background:#64748b;">
@@ -281,48 +409,56 @@ function _renderFora() {
       ondragleave="this.classList.remove('drag-over-zone');"
       ondrop="this.classList.remove('drag-over-zone'); window._eqDrop(event,0)"><div style="text-align:center;font-size:.72rem;color:#94a3b8;padding:.25rem;">Arraste para uma equipe</div></div>
   </div>`;
-  // Renderiza na sidebar: Fora de Equipe + Equipe Reserva empilhados
+  // Renderiza na sidebar: Fora de Equipe + Equipe Reserva + Equipe Intermitente empilhados
   const sidebar = document.getElementById('equipes-sidebar');
   if (sidebar) {
-    const reservaEq = _equipes.find(e => e.nome === 'Equipe Reserva');
+    const { vEq } = _getVirtualData();
+    const reservaEq = vEq.find(e => e.nome === 'Equipe Reserva');
+    const intermitenteEq = vEq.find(e => e.nome === 'Equipe Intermitente');
+    
     let sidebarHtml = foraHtml;
-    if (reservaEq) {
-      const membrosRes = _busca ? reservaEq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(_busca.toLowerCase())) : reservaEq.membros;
-      const { cor: indRes } = _eqStatus(membrosRes);
-      const cardsRes = membrosRes.map(m => _renderCard(m)).join('');
-      sidebarHtml += `<div class="eq-col" data-equipe-id="${reservaEq.id}">
-        <div class="eq-col-header" style="background:${reservaEq.cor};">
-          <div class="eq-col-title">
-            <div style="display:flex; align-items:center; gap:6px;">
-              <span class="eq-indicator" style="background:${indRes};border:2px solid rgba(255,255,255,.5);"></span> ${reservaEq.nome}
+    
+    [reservaEq, intermitenteEq].forEach(eq => {
+      if (eq) {
+        const membrosEq = _busca ? eq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(_busca.toLowerCase())) : eq.membros;
+        const { cor: indEq } = _eqStatus(membrosEq);
+        const cardsEq = membrosEq.map(m => _renderCard(m)).join('');
+        sidebarHtml += `<div class="eq-col" data-equipe-id="${eq.id}">
+          <div class="eq-col-header" style="background:${eq.cor};">
+            <div class="eq-col-title">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span class="eq-indicator" style="background:${indEq};border:2px solid rgba(255,255,255,.5);"></span> ${eq.nome}
+              </div>
+              <span class="eq-badge">${membrosEq.length}</span>
             </div>
-            <span class="eq-badge">${membrosRes.length}</span>
           </div>
-        </div>
-        <div class="eq-col-body" id="eq-body-${reservaEq.id}"
-          ondragover="event.preventDefault();window._eqDragOver(event,${reservaEq.id})"
-          ondragleave="window._eqDragLeave(event)"
-          ondrop="window._eqDrop(event,${reservaEq.id})">
-          ${cardsRes || '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>'}
-        </div>
-        <div class="eq-col-footer"
-          ondragover="event.preventDefault(); this.classList.add('drag-over-zone');"
-          ondragleave="this.classList.remove('drag-over-zone');"
-          ondrop="this.classList.remove('drag-over-zone'); window._eqDrop(event,${reservaEq.id})">
-          <button class="eq-add-btn" onclick="window._equipesAdicionarMembro(${reservaEq.id})"><i class="ph ph-plus"></i> Adicionar</button>
-        </div>
-      </div>`;
-    }
+          <div class="eq-col-body" id="eq-body-${eq.id}"
+            ondragover="event.preventDefault();window._eqDragOver(event,${eq.id})"
+            ondragleave="window._eqDragLeave(event)"
+            ondrop="window._eqDrop(event,${eq.id})">
+            ${cardsEq || '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>'}
+          </div>
+          <div class="eq-col-footer"
+            ondragover="event.preventDefault(); this.classList.add('drag-over-zone');"
+            ondragleave="this.classList.remove('drag-over-zone');"
+            ondrop="this.classList.remove('drag-over-zone'); window._eqDrop(event,${eq.id})">
+            <button class="eq-add-btn" onclick="window._equipesAdicionarMembro(${eq.id})"><i class="ph ph-plus"></i> Adicionar</button>
+          </div>
+        </div>`;
+      }
+    });
+
     sidebar.innerHTML = sidebarHtml;
   }
 }
 
 function _renderBoard(busca) {
+  const { vEq } = _getVirtualData();
   const b = (busca || _busca || '').toLowerCase();
   // Summary bar
-  const totalEquipes = _equipes.length;
-  const incompletas = _equipes.filter(e => _eqStatus(e.membros).label !== 'Completa').length;
-  const totalMembros = _equipes.reduce((acc, e) => acc + e.membros.length, 0);
+  const totalEquipes = vEq.length;
+  const incompletas = vEq.filter(e => _eqStatus(e.membros).label !== 'Completa').length;
+  const totalMembros = vEq.reduce((acc, e) => acc + e.membros.length, 0);
 
   const summaryEl = document.getElementById('equipes-summary');
   if (summaryEl) {
@@ -330,7 +466,7 @@ function _renderBoard(busca) {
     summaryEl.innerHTML = '';
   }
 
-  return _equipes.filter(eq => eq.nome !== 'Equipe Reserva').map(eq => {
+  return vEq.filter(eq => eq.nome !== 'Equipe Reserva' && eq.nome !== 'Equipe Intermitente').map(eq => {
     const membros = b ? eq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(b)) : eq.membros;
     const { cor: indicadorCor } = _eqStatus(membros);
     const alertas = _eqAlertas(membros);
@@ -342,7 +478,7 @@ function _renderBoard(busca) {
 
     const emPares = ['Equipe Padrão', 'Equipe folga 2d semana', 'Equipe Noturna'].includes(eq.nome);
     const isEquipePadrao = eq.nome === 'Equipe Padrão';
-    const colWidth = isEquipePadrao ? 'width: 610px; min-width: 610px;' : (emPares ? 'width: 300px; min-width: 300px;' : '');
+    const colWidth = isEquipePadrao ? 'width: 680px; min-width: 680px;' : (emPares ? 'width: 340px; min-width: 340px;' : '');
 
     return `<div class="eq-col" data-equipe-id="${eq.id}" style="${colWidth}">
       <div class="eq-col-header" style="background:${eq.cor};">
@@ -381,7 +517,7 @@ const FUNC_STYLE = {
   lider:        { bg: '#fef3c7', color: '#92400e', label: 'Líder' },
 };
 
-const STATUS_COR = { ativo: '#22c55e', folga: '#94a3b8', ferias: '#8b5cf6', afastado: '#8b5cf6', experiencia: '#eab308' };
+const STATUS_COR = { ativo: '#22c55e', folga: '#94a3b8', ferias: '#8b5cf6', afastado: '#8b5cf6', experiencia: '#22c55e' };
 
 function _renderCard(m) {
   const fs = FUNC_STYLE[m.funcao] || FUNC_STYLE.ajudante;
@@ -422,14 +558,32 @@ function _renderCard(m) {
   const nome = nomeRaw.replace(/\s*\(Experi[^)]*\)/i,'').replace(/\s*\(E\)/i,'').trim();
   const iniciais = nome.split(' ').slice(0,2).map(p => p[0]).join('').toUpperCase();
   const avatarBg = ['#6366f1','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'][(m.colaborador_id||m.id) % 6];
-  const borderStyle = isLaranja ? 'border-color:#a855f7;background:#faf5ff;' : emExp ? 'border-color:#eab308;background:#fefce8;' : '';
-  const avatarBorder = isLaranja ? 'border-color:#9333ea;border-width:2px;' : emExp ? 'border-color:#ca8a04;border-width:2px;' : '';
+  
+  const isHojeFolga = _isHojeFolga(m);
+  let borderStyle = '';
+  let avatarBorder = '';
+  if (isHojeFolga) {
+      borderStyle = 'border-color:#cbd5e1;background:#f3f4f6;border-style:dashed;opacity:0.8;';
+      avatarBorder = 'border-color:#94a3b8;border-width:2px;filter:grayscale(100%);';
+  } else if (isLaranja) {
+      borderStyle = 'border-color:#a855f7;background:#faf5ff;';
+      avatarBorder = 'border-color:#9333ea;border-width:2px;';
+  } else if (emExp) {
+      borderStyle = '';
+      avatarBorder = '';
+  }
+  
+  if (m.destaque_equipe === 1) {
+      borderStyle += 'border-color:#ef4444;border-width:2px;border-style:solid;';
+  }
+  
   const isMotorista = (m.cargo || '').toLowerCase().includes('motorista');
   let baseCargo = m.cargo || (m.funcao === 'motorista' ? 'Motorista' : 'Ajudante');
   baseCargo = baseCargo.replace(/Motorista/i, 'Mot.').replace(/Ajudante/i, 'Aj.');
   const labelText = `${baseCargo}${isMotorista && m.cnh_categoria && !baseCargo.includes('(') ? ` (${m.cnh_categoria})` : ''}`;
   const badgeBg = isMotorista ? '#dbeafe' : '#f1f5f9';
   const badgeColor = isMotorista ? '#1d4ed8' : '#475569';
+  const expTag = emExp ? `<span class="eq-card-func" style="background:#ffedd5;color:#c2410c;flex-shrink:1;min-width:0;">EXPERIÊNCIA</span>` : '';
 
   const avatarHtml = _eq_fotoSrc(m)
     ? `<img class="eq-avatar" src="${_eq_fotoSrc(m)}" alt="${nome}" style="${avatarBorder}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
@@ -447,12 +601,16 @@ function _renderCard(m) {
     ondragleave="window._eqCardDragLeave(event,this)"
     onmouseenter="window._eqShowTooltip(event,${m.colaborador_id||m.id})"
     onmouseleave="window._eqHideTooltip()"
+    onclick="window._eqToggleDestaque(event, ${m.colaborador_id||m.id})"
     style="position:relative;${borderStyle}">
     ${avatarHtml}
     <div class="eq-card-info">
-      <div class="eq-card-name">${nome}${emExp?` <span style="font-size:.58rem;background:#fde68a;color:#92400e;border-radius:3px;padding:0 3px;font-weight:800;">EXP</span>`:''}</div>
-      <span class="eq-card-func" style="background:${badgeBg};color:${badgeColor};">${labelText}</span>
-      ${m.escala ? `<div class="eq-card-escala">${m.escala}</div>` : ''}
+      <div class="eq-card-name" style="${isHojeFolga ? 'color:#64748b;' : ''}">${nome}</div>
+      <div style="display:flex;align-items:center;flex-wrap:nowrap;gap:4px;width:100%;overflow:hidden;">
+        <span class="eq-card-func" style="background:${isHojeFolga ? '#e2e8f0' : badgeBg};color:${isHojeFolga ? '#64748b' : badgeColor};flex-shrink:0;max-width:75%;min-width:0;">${labelText}</span>
+        ${expTag}
+      </div>
+      ${m.escala ? `<div class="eq-card-escala" style="${isHojeFolga ? 'color:#94a3b8;' : ''}">${isHojeFolga ? '<i class="ph ph-moon"></i> Em Folga' : m.escala}</div>` : ''}
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
       <div class="eq-status-dot" title="${st||'ativo'}" style="background:${sc};"></div>
@@ -469,10 +627,11 @@ window._equipesSearch = function(val) {
   if (board) board.innerHTML = _renderBoard(val);
   
   _reRenderFora();
-  const reservaEq = _equipes.find(e => e.nome === 'Equipe Reserva');
-  if (reservaEq) {
-    _reRenderColuna(reservaEq.id);
-  }
+  const { vEq } = _getVirtualData();
+  const reservaEq = vEq.find(e => e.nome === 'Equipe Reserva');
+  const intermitenteEq = vEq.find(e => e.nome === 'Equipe Intermitente');
+  if (reservaEq) _reRenderColuna(reservaEq.id);
+  if (intermitenteEq) _reRenderColuna(intermitenteEq.id);
 };
 
 window._equipesNovaEquipe = function() {
@@ -758,7 +917,8 @@ window._eqDrop = async function(ev, equipeDestinoId) {
 
 function _reRenderColuna(equipeId) {
   if (equipeId === 0) { _reRenderFora(); return; }
-  const eq = _equipes.find(e => e.id === equipeId);
+  const { vEq } = _getVirtualData();
+  const eq = vEq.find(e => e.id === equipeId);
   if (!eq) return;
   const { cor: indicadorCor } = _eqStatus(eq.membros);
   const b = _busca.toLowerCase();
@@ -828,8 +988,9 @@ function _renderParesHtml(membros, b, isEquipePadrao = false) {
 function _reRenderFora() {
   const foraCol = document.querySelector('.eq-col[data-equipe-id="0"]');
   if (!foraCol) return;
+  const { vSem } = _getVirtualData();
   const b = _busca.toLowerCase();
-  const lista = b ? _semEquipe.filter(m => (m.nome_completo||'').toLowerCase().includes(b)) : _semEquipe;
+  const lista = b ? vSem.filter(m => (m.nome_completo||'').toLowerCase().includes(b)) : vSem;
   const badge = foraCol.querySelector('.eq-badge');
   if (badge) badge.textContent = lista.length;
   const body = document.getElementById('eq-body-0');

@@ -252,15 +252,48 @@ if (btnLogout) {
 // ── Sessão automática: logout após 5 horas ─────────────────────────────
 (function () {
     const SESSION_MS = 5 * 60 * 60 * 1000; // 5 horas em ms
+    const AVISO_MS = 60 * 1000; // Avisar 60 segundos antes
 
-    function sessaoExpirada() {
+    function getTempoSessao() {
         const t = localStorage.getItem('erp_login_time');
-        if (!t) return false;
-        return (Date.now() - parseInt(t)) >= SESSION_MS;
+        if (!t) return -1;
+        return Date.now() - parseInt(t);
+    }
+
+    function mostrarAvisoExpiracao(faltamMs) {
+        let div = document.getElementById('aviso-sessao-expirando');
+        if (!div) {
+            div = document.createElement('div');
+            div.id = 'aviso-sessao-expirando';
+            div.style.cssText = 'position:fixed; bottom:20px; left:20px; background:#ef4444; color:#fff; padding:15px 20px; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.3); z-index:99999; display:flex; align-items:center; gap:12px; font-family:Inter, sans-serif; max-width:320px; animation: slideInLeft 0.3s ease-out;';
+            
+            // Animação CSS para o card aparecer da esquerda
+            const style = document.createElement('style');
+            style.textContent = `@keyframes slideInLeft { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`;
+            document.head.appendChild(style);
+
+            div.innerHTML = `
+                <i class="ph ph-warning-circle" style="font-size:2.2rem; flex-shrink:0;"></i>
+                <div>
+                    <h4 style="margin:0 0 4px; font-size:0.95rem; font-weight:700;">Atenção! Salve tudo.</h4>
+                    <p style="margin:0; font-size:0.85rem; line-height:1.4;">
+                        O sistema será relogado em <strong id="aviso-sessao-timer" style="font-size:1.1rem;">--</strong> segundos.
+                    </p>
+                </div>
+            `;
+            document.body.appendChild(div);
+        }
+        
+        let faltamSeg = Math.max(0, Math.ceil(faltamMs / 1000));
+        document.getElementById('aviso-sessao-timer').textContent = faltamSeg;
     }
 
     function mostrarModalSessaoExpirada() {
         if (document.getElementById('modal-sessao-expirada')) return;
+        
+        const aviso = document.getElementById('aviso-sessao-expirando');
+        if (aviso) aviso.remove();
+
         const ov = document.createElement('div');
         ov.id = 'modal-sessao-expirada';
         ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;';
@@ -291,7 +324,15 @@ if (btnLogout) {
 
     function verificarSessao() {
         if (!localStorage.getItem('erp_token')) return; // não logado
-        if (sessaoExpirada()) mostrarModalSessaoExpirada();
+        
+        const tempoDecorrido = getTempoSessao();
+        if (tempoDecorrido < 0) return;
+
+        if (tempoDecorrido >= SESSION_MS) {
+            mostrarModalSessaoExpirada();
+        } else if (tempoDecorrido >= (SESSION_MS - AVISO_MS)) {
+            mostrarAvisoExpiracao(SESSION_MS - tempoDecorrido);
+        }
     }
 
     // Verificar ao carregar (caso o usuário reabra após 5h)
@@ -301,8 +342,8 @@ if (btnLogout) {
         setTimeout(verificarSessao, 3000);
     }
 
-    // Verificar a cada 60 segundos
-    setInterval(verificarSessao, 60 * 1000);
+    // Verificar a cada 1 segundo para o cronômetro funcionar corretamente
+    setInterval(verificarSessao, 1000);
 })();
 
 
@@ -464,7 +505,7 @@ const BREADCRUMB_MAP = {
     // Logística
     'logistica-dashboard': { path: 'Dashboard Logística', code: 'LOG000' },
     'logistica-sinistros': { path: 'Sinistros Logística', code: 'LOG010' },
-    'logistica-rota-redonda': { path: 'Rota Redonda', code: 'LOG001' },
+    'logistica-rota-redonda': { path: 'OS', code: 'LOG001' },
     'logistica-frota-resumo': { path: 'Resumo de Frota', code: 'LOG002' },
     'logistica-pipeline': { path: 'Pipeline OS', code: 'LOG003' },
     'logistica-multas': { path: 'Multas', code: 'LOG004' },
@@ -479,6 +520,7 @@ const BREADCRUMB_MAP = {
     'logistica-agenda': { path: 'Agenda Logística', code: 'LOG011' },
     // Comercial
     'comercial-credenciamento': { path: 'Solicitar Credencial', code: 'COM001' },
+    'comercial-proposta': { path: 'Proposta', code: 'COM002' },
     // Administrativo
     'licencas': { path: 'Licenças', code: 'ADM001' },
     'estoque': { path: 'Estoque', code: 'ADM002' },
@@ -616,7 +658,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'departamentos' || key === 'logistica-agenda' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -671,14 +713,14 @@ const TAB_META = {
     'logistica-em-breve': { color: '#2d9e5f', icon: 'ph-truck', title: 'Logística' },
     'logistica-dashboard': { color: '#2d9e5f', icon: 'ph-chart-bar', title: 'Dashboard Logística' },
     'logistica-sinistros': { color: '#059669', icon: 'ph-warning', title: 'Sinistros Logística' },
-    'logistica-rota-redonda': { color: '#2d9e5f', icon: 'ph-map-trifold', title: 'Rota Redonda' },
+    'logistica-rota-redonda': { color: '#2d9e5f', icon: 'ph-clipboard-text', title: 'OS' },
     'logistica-resumo-rota': { color: '#2d9e5f', icon: 'ph-list-bullets', title: 'Resumo de Rota' },
     'logistica-frota-resumo': { color: '#1e3a5f', icon: 'ph-truck', title: 'Resumo de Frota' },
     'logistica-pipeline': { color: '#2d9e5f', icon: 'ph-kanban', title: 'Pipeline' },
     'logistica-entregas': { color: '#2d9e5f', icon: 'ph-package', title: 'Entregas' },
     'logistica-multas': { color: '#2d9e5f', icon: 'ph-receipt', title: 'Multas' },
     'logistica-multas-monaco': { color: '#dc2626', icon: 'ph-car', title: 'Multas Mônaco' },
-    'logistica-equipes': { color: '#6366f1', icon: 'ph-users-three', title: 'Equipes' },
+    'logistica-equipes': { color: '#2d9e5f', icon: 'ph-users-three', title: 'Equipes' },
     'logistica-frota': { color: '#2d9e5f', icon: 'ph-truck', title: 'Frota' },
     'logistica-credenciamento': { color: '#2d9e5f', icon: 'ph-identification-card', title: 'Credenciamento' },
     'logistica-senhas': { color: '#2d9e5f', icon: 'ph-lock-key', title: 'Cofre de Senhas' },
@@ -689,6 +731,7 @@ const TAB_META = {
     'financeiro-em-breve': { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
     // Comercial - Roxo
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
+    'comercial-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Proposta' },
     'comercial-em-breve': { color: '#7048e8', icon: 'ph-handshake', title: 'Comercial' },
     // Administrativo - Amarelo
     'admin-em-breve': { color: '#e67700', icon: 'ph-gear', title: 'Administrativo' },
@@ -931,6 +974,8 @@ function navigateTo(target) {
         if (typeof window.renderAgendaLogistica === 'function') setTimeout(() => window.renderAgendaLogistica(), 80);
     } else if (target === 'comercial-credenciamento') {
         if (typeof window.carregarHistoricoComCred === 'function') setTimeout(() => window.carregarHistoricoComCred(), 80);
+    } else if (target === 'comercial-proposta') {
+        if (typeof window.inicializarPropostas === 'function') setTimeout(() => window.inicializarPropostas(), 80);
     } else if (target === 'licencas') {
         if (typeof window.initLicencas === 'function') setTimeout(() => window.initLicencas(), 80);
     } else if (target === 'config-sigor') {
@@ -1019,6 +1064,7 @@ function setupNavigation() {
             window._openColaboradorTab(null, null);
         });
     }
+
 
     document.querySelectorAll('#tabs-list li').forEach(tab => {
         tab.addEventListener('click', (e) => {
@@ -2483,7 +2529,7 @@ async function loadDashboard() {
             if (!cols || cols.length === 0) {
                 tbAniver.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;font-style:italic;">Nenhum aniversariante.</td></tr>';
                 const titAniv = document.getElementById('titulo-aniversariantes');
-                if (titAniv) titAniv.innerHTML = '<i class="ph ph-cake"></i> 0 Aniversariantes do Mês';
+                if (titAniv) titAniv.innerHTML = '0';
             } else {
                 const mesAtual = new Date().getMonth() + 1;
                 const aniversariantes = cols.filter(c => {
@@ -2515,10 +2561,10 @@ async function loadDashboard() {
                 if (aniversariantes.length === 0) {
                     tbAniver.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;font-style:italic;">Nenhum aniversariante neste mês.</td></tr>';
                     const titAniv = document.getElementById('titulo-aniversariantes');
-                    if (titAniv) titAniv.innerHTML = '<i class="ph ph-cake"></i> 0 Aniversariantes do Mês';
+                    if (titAniv) titAniv.innerHTML = '0';
                 } else {
                     const titAniv = document.getElementById('titulo-aniversariantes');
-                    if (titAniv) titAniv.innerHTML = `<i class="ph ph-cake"></i> ${aniversariantes.length} Aniversariantes do Mês`;
+                    if (titAniv) titAniv.innerHTML = aniversariantes.length;
                     aniversariantes.forEach(c => {
                         const getFormatData = dtStr => {
                             if (dtStr.includes('-')) { const p = dtStr.split('-'); return `${p[2]}/${p[1]}`; }
@@ -3345,6 +3391,116 @@ window.deleteColaborador = async function (id, isStatusIncompleto = false) {
         }
     } catch (e) { console.error(e); }
 }
+
+// ── [DEV] Anonimizar colaborador individual ───────────────────────────────
+window.devAnonimizarColaborador = async function(id, nome) {
+    if (!window._IS_DEV_HOMOLOG) return;
+    // descobre o índice desse colaborador na lista para gerar dados únicos
+    const idx = _todosColaboradores.findIndex(c => c.id === id);
+    const dados = _devDadosFicticios(idx >= 0 ? idx : Math.floor(Math.random() * 100));
+    try {
+        const res = await fetch(`${API_URL}/colaboradores/${id}`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        if (res.ok) {
+            aplicarFiltrosColaboradores();
+            loadColaboradores();
+        } else { alert('Erro ao anonimizar colaborador.'); }
+    } catch(e) { alert('Erro de rede.'); }
+}
+
+// ── [DEV] Gera dados fictícios para anonimização ─────────────────────────
+function _devDadosFicticios(index) {
+    const nomes = ['João','Maria','Carlos','Ana','Pedro','Lucia','Rafael','Juliana','Marcos','Fernanda'];
+    const sobrenomes = ['Silva','Santos','Oliveira','Souza','Lima','Pereira','Costa','Ferreira','Alves','Rodrigues'];
+    const depts = ['Logística','Administrativo','Comercial','RH','Financeiro'];
+    const cargos = ['Assistente','Analista','Auxiliar','Operador','Técnico'];
+    const n = nomes[index % nomes.length];
+    const s = sobrenomes[(index + 3) % sobrenomes.length];
+    const s2 = sobrenomes[(index + 7) % sobrenomes.length];
+    const pad = String(index + 1).padStart(2, '0');
+    return {
+        nome_completo: `${n} ${s} ${s2}`,
+        cpf: `000.000.${pad.padStart(3,'0')}-${pad}`,
+        rg: `0000000${pad}`,
+        data_nascimento: '1990-01-01',
+        email: `teste${index + 1}@homologacao.com`,
+        email_corporativo: `colaborador${index + 1}@americarental.com.br`,
+        telefone: `(11) 9${pad}000-000${pad.slice(-1)}`,
+        departamento: depts[index % depts.length],
+        cargo: cargos[index % cargos.length],
+        status: 'Ativo',
+        data_admissao: '2024-01-01',
+        tipo_contrato: 'CLT',
+        endereco: `Rua Fictícia, ${index + 1} - São Paulo/SP`,
+        nome_mae: 'Maria de Teste',
+        nome_pai: 'José de Teste',
+        estado_civil: 'Solteiro',
+        nacionalidade: 'Brasileiro',
+        sexo: index % 2 === 0 ? 'M' : 'F',
+    };
+}
+
+// ── [DEV] Anonimizar todos (exceto Teste de Sistema da Silva) ─────────────
+window.devAnonimizarTodosColaboradores = async function() {
+    if (!window._IS_DEV_HOMOLOG) return;
+    const protegido = 'teste de sistema da silva';
+    const paraAnonimizar = _todosColaboradores.filter(c =>
+        (c.nome_completo || '').trim().toLowerCase() !== protegido
+    );
+    if (paraAnonimizar.length === 0) { alert('Nenhum colaborador para anonimizar.'); return; }
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:16px;padding:2rem 2.5rem;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;">
+            <div style="width:56px;height:56px;background:#fef3c7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.6rem;"><i class="ph ph-shuffle" style="color:#d97706;"></i></div>
+            <h3 style="margin:0 0 0.4rem;font-size:1.1rem;color:#0f172a;">Substituir dados por fictícios?</h3>
+            <p style="margin:0 0 1.25rem;color:#64748b;font-size:0.85rem;">
+                Os dados de <strong>${paraAnonimizar.length} colaboradores</strong> serão substituídos por informações fictícias para testes.<br>
+                <span style="color:#059669;font-weight:600;">"Teste de Sistema da Silva" será mantido intacto.</span>
+            </p>
+            <div id="dev-anon-progress" style="display:none;margin-bottom:1rem;">
+                <div style="background:#f1f5f9;border-radius:8px;height:8px;overflow:hidden;">
+                    <div id="dev-anon-bar" style="height:100%;background:#d97706;width:0%;transition:width 0.2s;"></div>
+                </div>
+                <p id="dev-anon-txt" style="font-size:0.8rem;color:#64748b;margin-top:6px;">Aguarde...</p>
+            </div>
+            <div id="dev-anon-btns" style="display:flex;gap:0.75rem;justify-content:center;">
+                <button id="dev-anon-cancel" style="padding:0.55rem 1.25rem;border:1px solid #cbd5e1;background:#fff;border-radius:8px;cursor:pointer;font-weight:600;color:#64748b;">Cancelar</button>
+                <button id="dev-anon-confirm" style="padding:0.55rem 1.25rem;background:#d97706;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-shuffle"></i> Sim, substituir ${paraAnonimizar.length}
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('dev-anon-cancel').onclick = () => overlay.remove();
+    document.getElementById('dev-anon-confirm').onclick = async () => {
+        document.getElementById('dev-anon-btns').style.display = 'none';
+        document.getElementById('dev-anon-progress').style.display = 'block';
+        let processados = 0;
+        for (let i = 0; i < paraAnonimizar.length; i++) {
+            const colab = paraAnonimizar[i];
+            try {
+                await fetch(`${API_URL}/colaboradores/${colab.id}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(_devDadosFicticios(i))
+                });
+            } catch(e) {}
+            processados++;
+            const pct = Math.round((processados / paraAnonimizar.length) * 100);
+            document.getElementById('dev-anon-bar').style.width = pct + '%';
+            document.getElementById('dev-anon-txt').textContent = `Processando... ${processados} de ${paraAnonimizar.length}`;
+        }
+        overlay.remove();
+        loadColaboradores();
+    };
+}
+// ── fim [DEV] ──────────────────────────────────────────────────────────────
+
 
 window.resetFormColaborador = function () {
     const form = document.getElementById('form-colaborador');
@@ -4271,6 +4427,9 @@ window.openProntuario = async function (id, nome, cargo, cpf, sexo = '', admissa
 
     const cargoEl = document.getElementById('prontuario-cargo-info');
     if (cargoEl) cargoEl.textContent = `${viewedColaborador.cargo || cargo || 'Sem Cargo'} | CPF: ${viewedColaborador.cpf || cpf || ''}`;
+    
+    const rgEl = document.getElementById('prontuario-rg-info');
+    if (rgEl) rgEl.textContent = `${viewedColaborador.rg_tipo || 'RG'}: ${viewedColaborador.rg || 'Não informado'}`;
 
     // Status Badge
     const statusDisplay = document.getElementById('prontuario-status-display');
@@ -5497,7 +5656,6 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     }
 
     let atestadoInfoHtml = '';
-    let atestadoContabHtml = '';
     if (isSaved) {
         if (existingDoc.atestado_tipo) {
             if (existingDoc.atestado_tipo === 'dias') {
@@ -5512,19 +5670,19 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                 atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${existingDoc.atestado_inicio} às ${existingDoc.atestado_fim}</span> `;
             }
         }
+    }
 
-        if (existingDoc.atestado_contab_enviado_em) {
-            let sd = existingDoc.atestado_contab_enviado_em;
-            if (!sd.includes('T')) sd = sd.replace(' ', 'T');
-            if (!sd.endsWith('Z')) sd += 'Z';
-            const contabDateObj = new Date(sd);
-            const dd = String(contabDateObj.getDate()).padStart(2, '0');
-            const mm = String(contabDateObj.getMonth() + 1).padStart(2, '0');
-            const yyyy = contabDateObj.getFullYear();
-            const h = String(contabDateObj.getHours()).padStart(2, '0');
-            const min = String(contabDateObj.getMinutes()).padStart(2, '0');
-            atestadoContabHtml = ` <br><span style="color:#2f9e44; font-weight:600; font-size:0.75rem;"><i class="ph ph-check-circle"></i> Enviado p/ Contab: ${dd}/${mm}/${yyyy} - ${h}h${min}m</span> `;
-        }
+    let atestadoContabHtml = '';    if (isSaved && (existingDoc.enviado_contabilidade_em || existingDoc.atestado_contab_enviado_em)) {
+        let sd = existingDoc.enviado_contabilidade_em || existingDoc.atestado_contab_enviado_em;
+        if (!sd.includes('T')) sd = sd.replace(' ', 'T');
+        if (!sd.endsWith('Z')) sd += 'Z';
+        const contabDateObj = new Date(sd);
+        const dd = String(contabDateObj.getDate()).padStart(2, '0');
+        const mm = String(contabDateObj.getMonth() + 1).padStart(2, '0');
+        const yyyy = contabDateObj.getFullYear();
+        const h = String(contabDateObj.getHours()).padStart(2, '0');
+        const min = String(contabDateObj.getMinutes()).padStart(2, '0');
+        atestadoContabHtml = ` <br><span style="color:#2f9e44; font-weight:600; font-size:0.75rem;"><i class="ph ph-check-circle"></i> Enviado p/ Contab: ${dd}/${mm}/${yyyy} - ${h}h${min}m</span> `;
     }
 
     const subInfoLine = (vencInfoHtml || enviadoHtml || atestadoInfoHtml || atestadoContabHtml)
@@ -5666,7 +5824,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                 <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; justify-content: flex-end; flex: 1;">
                     ${vencimentoInputHtml}
 
-                    ${isSaved ? `
+                    ${(isSaved && !(tabId === 'Advertências' && ['Assinado', 'Testemunhas'].includes(stMain) && (docType && (docType.toLowerCase().includes('suspens') || docType.toLowerCase().includes('advert'))))) ? `
                         <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
                     ` : ''}
 
@@ -5697,15 +5855,17 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
                     ` : ''}
 
-                    ${(tabId === 'Advertências' && isSaved && ['Assinado', 'Testemunhas', 'Aguardando', 'Pendente'].includes(stMain) && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
-                    <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end; width:100%; border-top: 1px dashed #e2e8f0; padding-top: 0.5rem;">
+                    ${(tabId === 'Advertências' && isSaved && ['Assinado', 'Testemunhas'].includes(stMain) && (docType && (docType.toLowerCase().includes('suspens') || docType.toLowerCase().includes('advert')))) ? `
+                    <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end;">
+                        <input type="text" id="susp-contab-email-${existingDoc.id}"
+                               value="vanessa.santana@grupowp.com.br; vanessa.caroline@grupowp.com.br"
+                               style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; min-width:340px; max-width:420px;">
                         <div style="display:flex; gap:0.5rem; align-items:center; justify-content:flex-end; width:100%;">
-                            <input type="email" id="susp-contab-email-${existingDoc.id}"
-                                   value="thais.ricci@americarental.com.br"
-                                   style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; max-width:250px;">
+                            <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 36px;"><i class="ph ph-eye"></i></button>
+                            ${!isAssinado ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height:36px;"><i class="ph ph-trash"></i></button>` : ''}
                             <button type="button"
                                     onclick="window.enviarSuspensaoContabilidade(${existingDoc.id}, 'susp-contab-email-${existingDoc.id}', this)"
-                                    style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; max-width:250px;">
+                                    style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; min-width:230px; max-width:250px;">
                                 <i class="ph ph-buildings"></i> Enviar para Contabilidade
                             </button>
                         </div>
@@ -5779,11 +5939,17 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <input type="text" id="contab-email-${existingDoc.id}"
                                value="vanessa.santana@grupowp.com.br; vanessa.caroline@grupowp.com.br"
                                style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; min-width:340px; max-width:420px;">
-                        <button type="button"
-                                onclick="window.enviarAtestadoContabilidade(${existingDoc.id}, 'contab-email-${existingDoc.id}', this)"
-                                style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
-                            <i class="ph ph-buildings"></i> Enviar para Contabilidade
-                        </button>
+                        <div style="display:flex; gap:0.5rem; align-items:center; justify-content:flex-end; width:100%;">
+                            <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height:36px;">
+                                <i class="ph ph-eye"></i>
+                            </button>
+                            ${!isAssinado ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height:36px;"><i class="ph ph-trash"></i></button>` : ''}
+                            <button type="button"
+                                    onclick="window.enviarAtestadoContabilidade(${existingDoc.id}, 'contab-email-${existingDoc.id}', this)"
+                                    style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; min-width:230px; max-width:250px;">
+                                <i class="ph ph-buildings"></i> Enviar para Contabilidade
+                            </button>
+                        </div>
                     </div>` : ''}
 
                     ${(tabId === 'Faculdade' && isSaved && docType === 'Boleto') ? `
@@ -7497,6 +7663,22 @@ window.mascaraCPF = function (el) {
     }
 };
 
+// RG Masking
+window.mascaraRG = function (el) {
+    let raw = el.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    
+    if (raw.length <= 9) {
+        let v = raw;
+        if (v.length > 2) v = v.substring(0, 2) + '.' + v.substring(2);
+        if (v.length > 6) v = v.substring(0, 6) + '.' + v.substring(6);
+        if (v.length > 10) v = v.substring(0, 10) + '-' + v.substring(10);
+        el.value = v;
+    } else {
+        // Para RGs maiores que 9 dígitos, permite formato livre mantendo a pontuação original digitada
+        el.value = el.value.toUpperCase().replace(/[^A-Z0-9.-]/g, "").substring(0, 20);
+    }
+};
+
 window.toggleTipoDocumento = function () {
     const sel = document.getElementById('colab-rg-tipo');
     const rgInput = document.getElementById('colab-rg');
@@ -7521,30 +7703,7 @@ window.toggleTipoDocumento = function () {
     }
 };
 
-window.mascaraRG = function (el) {
-    let v = el.value.toUpperCase().replace(/[^0-9X]/g, '');
-    // Keep numbers, allow X only at end
-    let numbers = v.replace(/X/g, '');
-    if (v.endsWith('X')) {
-        v = numbers + 'X';
-    } else {
-        v = numbers;
-    }
-    if (v.length > 10) v = v.substring(0, 10);
-    // Format: 00.000.000-0 or 00.000.000-X
-    if (!v.endsWith('X')) {
-        v = v.replace(/(\d{2})(\d)/, '$1.$2');
-        v = v.replace(/(\d{3})(\d)/, '$1.$2');
-        v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-    } else {
-        const nums = v.slice(0, -1);
-        let fmted = nums;
-        fmted = fmted.replace(/(\d{2})(\d)/, '$1.$2');
-        fmted = fmted.replace(/(\d{3})(\d)/, '$1.$2');
-        v = fmted.length >= 7 ? fmted + '-X' : fmted + 'X';
-    }
-    el.value = v;
-};
+
 
 
 window.mascaraPIS = function (el) {
@@ -13101,6 +13260,8 @@ async function checkUserNotificacoes() {
                     bg = '#dcfce7'; color = '#059669'; icon = 'ph-warning'; titulo = 'Novo Sinistro (Logística)'; navTarget = 'colaboradores';
                 } else if (notif.tipo === 'estoque_minimo') {
                     bg = '#fff5e6'; color = '#e67700'; icon = 'ph-package'; titulo = 'Estoque Mínimo'; navTarget = 'estoque';
+                } else if (notif.tipo === 'novo_colaborador_equipe') {
+                    bg = '#fdf2f8'; color = '#ec4899'; icon = 'ph-user-plus'; titulo = 'Novo Colaborador para Distribuição'; navTarget = 'logistica-equipes';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -13186,6 +13347,14 @@ async function checkUserNotificacoes() {
                         <div style="color:#94a3b8;font-size:0.75rem;">
                             Preenchido por: ${respNome}
                         </div>
+                    `;
+                } else if (notif.tipo === 'novo_colaborador_equipe') {
+                    const colabNome = dados.nome || 'Colaborador';
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#64748b;font-size:0.85rem;">O colaborador <b style="color:${color}">${colabNome}</b> é um novo colaborador para distribuição de equipe.</div>
                     `;
                 } else {
                     contentHTML = `
@@ -13558,24 +13727,184 @@ window.salvarAssinaturasTestemunhas = async function () {
 let ctxColaborador = {};
 let currentDocIdForColab = null;
 
+// ─── SELFIE EPI ─────────────────────────────────────────────────────────────
+let _epiSelfieStream = null;
+let _epiSelfieBase64 = null;
+let _epiSelfieTimestamp = null;
+
+window._fecharModalAssinaturaColab = function () {
+    document.getElementById('modal-assinatura-colaborador').style.display = 'none';
+    _epiPararCamera();
+};
+
+function _epiPararCamera() {
+    if (_epiSelfieStream) {
+        _epiSelfieStream.getTracks().forEach(t => t.stop());
+        _epiSelfieStream = null;
+    }
+    const video = document.getElementById('epi-selfie-video');
+    if (video) { video.srcObject = null; }
+}
+
+async function _epiIniciarCamera() {
+    const statusEl = document.getElementById('epi-selfie-status');
+    try {
+        // Preferir câmera frontal (user-facing)
+        _epiSelfieStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+            audio: false
+        });
+        const video = document.getElementById('epi-selfie-video');
+        video.srcObject = _epiSelfieStream;
+        video.style.display = 'block';
+        document.getElementById('epi-selfie-canvas').style.display = 'none';
+        document.getElementById('btn-epi-tirar-foto').style.display = 'flex';
+        document.getElementById('btn-epi-refazer-foto').style.display = 'none';
+        document.getElementById('btn-epi-confirmar-foto').style.display = 'none';
+        if (statusEl) statusEl.textContent = 'Câmera pronta. Posicione seu rosto.';
+    } catch (err) {
+        console.error('[EPI Selfie] Câmera:', err);
+        if (statusEl) statusEl.innerHTML = '<span style="color:#dc2626;"><i class="ph ph-warning"></i> Não foi possível acessar a câmera. Verifique as permissões do navegador.</span>';
+        document.getElementById('btn-epi-tirar-foto').style.display = 'none';
+    }
+}
+
+window._epiTirarFoto = function () {
+    const video = document.getElementById('epi-selfie-video');
+    const canvas = document.getElementById('epi-selfie-canvas');
+    if (!video || !_epiSelfieStream) return;
+
+    // Captura o frame do vídeo no canvas — espelhado para ficar natural
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+
+    // Espelha horizontalmente (pois o vídeo está flipado via CSS; queremos salvar sem flip)
+    ctx.save();
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    // Timestamp e info de quem fez a entrega
+    _epiSelfieTimestamp = new Date();
+    const dtStr = _epiSelfieTimestamp.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const entregadorNome = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.nome || currentUser.username || 'Usuário') : 'Usuário';
+    const colabNome = (typeof viewedColaborador !== 'undefined' && viewedColaborador) ? (viewedColaborador.nome_completo || '') : '';
+
+    // Desenhar overlay de texto na foto salva
+    const overlayH = 56;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0, canvas.height - overlayH, canvas.width, overlayH);
+
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 13px Arial';
+    ctx.fillText('Entregue por: ' + entregadorNome, 8, canvas.height - overlayH + 16);
+
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '12px Arial';
+    ctx.fillText('Colaborador: ' + colabNome, 8, canvas.height - overlayH + 32);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px Arial';
+    ctx.fillText(dtStr, 8, canvas.height - overlayH + 48);
+
+    _epiSelfieBase64 = canvas.toDataURL('image/jpeg', 0.88);
+
+    // Mostrar canvas com foto, esconder vídeo
+    video.style.display = 'none';
+    canvas.style.display = 'block';
+
+    document.getElementById('btn-epi-tirar-foto').style.display = 'none';
+    document.getElementById('btn-epi-refazer-foto').style.display = 'flex';
+    document.getElementById('btn-epi-confirmar-foto').style.display = 'flex';
+
+    const statusEl = document.getElementById('epi-selfie-status');
+    if (statusEl) statusEl.innerHTML = '<span style="color:#16a34a;"><i class="ph ph-check-circle"></i> Foto tirada! Confirme ou refaça.</span>';
+};
+
+window._epiRefazerFoto = function () {
+    _epiSelfieBase64 = null;
+    _epiSelfieTimestamp = null;
+    const video = document.getElementById('epi-selfie-video');
+    const canvas = document.getElementById('epi-selfie-canvas');
+    video.style.display = 'block';
+    canvas.style.display = 'none';
+    document.getElementById('btn-epi-tirar-foto').style.display = 'flex';
+    document.getElementById('btn-epi-refazer-foto').style.display = 'none';
+    document.getElementById('btn-epi-confirmar-foto').style.display = 'none';
+    const statusEl = document.getElementById('epi-selfie-status');
+    if (statusEl) statusEl.textContent = 'Câmera pronta. Posicione seu rosto.';
+};
+
+window._epiConfirmarFotoIrParaAssinatura = function () {
+    if (!_epiSelfieBase64) return;
+
+    // Para a câmera
+    _epiPararCamera();
+
+    // Copia selfie para o thumb no passo 2
+    const srcCanvas = document.getElementById('epi-selfie-canvas');
+    const thumb = document.getElementById('epi-selfie-thumb');
+    if (srcCanvas && thumb) {
+        const thumbCtx = thumb.getContext('2d');
+        thumb.width = srcCanvas.width;
+        thumb.height = srcCanvas.height;
+        thumbCtx.drawImage(srcCanvas, 0, 0);
+    }
+
+    const dtStr = _epiSelfieTimestamp
+        ? _epiSelfieTimestamp.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+        : '';
+    const thumbDt = document.getElementById('epi-selfie-thumb-dt');
+    if (thumbDt) thumbDt.textContent = dtStr;
+
+    // Transição para o passo 2
+    document.getElementById('epiov-step-selfie').style.display = 'none';
+    const assinaturaArea = document.getElementById('area-assinatura-colaborador');
+    assinaturaArea.style.display = 'flex';
+    setTimeout(() => { setupHighDpiCanvas('canvas-colaborador', ctxColaborador, 'ctx1'); }, 100);
+};
+
 window.abrirModalAssinaturaColaborador = async function (docId) {
     currentDocIdForColab = docId;
-    const doc = currentDocs.find(d => d.id === docId);
+    _epiSelfieBase64 = null;
+    _epiSelfieTimestamp = null;
 
     const modal = document.getElementById('modal-assinatura-colaborador');
-    const formArea = document.getElementById('area-assinatura-colaborador');
-    formArea.style.display = 'none';
+    document.getElementById('area-assinatura-colaborador').style.display = 'none';
+    document.getElementById('epiov-step-selfie').style.display = 'none';
     modal.style.display = 'block';
 
     document.getElementById('nome-assinatura-colab').innerText = viewedColaborador.nome_completo || 'Colaborador';
 
-    const pdfUrl = `${API_URL}/documentos/view/${docId}?token=${currentToken}`;
+    // Preencher overlay info
+    const entregadorNome = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.nome || currentUser.username || 'Usuário') : 'Usuário';
+    const colabNome = viewedColaborador.nome_completo || '';
+    const el = document.getElementById('epi-selfie-info-entregador');
+    if (el) el.textContent = 'Entregue por: ' + entregadorNome;
+    const el2 = document.getElementById('epi-selfie-info-colab');
+    if (el2) el2.textContent = 'Colaborador: ' + colabNome;
 
+    // Atualizar timestamp no overlay em tempo real
+    const dtEl = document.getElementById('epi-selfie-info-dt');
+    if (dtEl) {
+        const _tick = () => { dtEl.textContent = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }); };
+        _tick();
+        clearInterval(window._epiSelfieClock);
+        window._epiSelfieClock = setInterval(() => {
+            if (!document.getElementById('epiov-step-selfie') || document.getElementById('epiov-step-selfie').style.display === 'none') {
+                clearInterval(window._epiSelfieClock);
+            } else { _tick(); }
+        }, 1000);
+    }
+
+    const pdfUrl = `${API_URL}/documentos/view/${docId}?token=${currentToken}`;
     renderPdfToContainer(pdfUrl, 'pdf-viewer-colaborador', () => {
-        formArea.style.display = 'block';
-        setTimeout(() => {
-            setupHighDpiCanvas('canvas-colaborador', ctxColaborador, 'ctx1');
-        }, 100);
+        // Após PDF carregado, iniciar câmera e mostrar passo 1
+        const selfieArea = document.getElementById('epiov-step-selfie');
+        selfieArea.style.display = 'flex';
+        _epiIniciarCamera();
     });
 };
 
@@ -13587,6 +13916,9 @@ window.limparCanvasColaborador = function () {
 };
 
 window.salvarAssinaturaColaborador = async function () {
+    if (!_epiSelfieBase64) {
+        alert('É necessário tirar a selfie antes de assinar.'); return;
+    }
     if (isCanvasBlank('canvas-colaborador')) {
         alert('A assinatura do colaborador é obrigatória.'); return;
     }
@@ -13664,6 +13996,25 @@ window.salvarAssinaturaColaborador = async function () {
         if (doc.year) formData.append('year', doc.year);
         if (doc.month) formData.append('month', doc.month);
 
+        // Salva selfie no banco antes de fechar
+        if (_epiSelfieBase64) {
+            try {
+                const entregadorNome = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.nome || currentUser.username || '') : '';
+                await fetch(`${API_URL}/epi-selfie`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        colaborador_id: viewedColaborador.id,
+                        selfie_base64: _epiSelfieBase64,
+                        registrado_por: entregadorNome,
+                        timestamp: _epiSelfieTimestamp ? _epiSelfieTimestamp.toISOString() : new Date().toISOString()
+                    })
+                });
+            } catch (selfieErr) {
+                console.error('[EPI Selfie] Erro ao salvar selfie:', selfieErr);
+            }
+        }
+
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando Documento...';
         const resUpload = await fetch(`${API_URL}/documentos`, {
             method: 'POST',
@@ -13677,6 +14028,7 @@ window.salvarAssinaturaColaborador = async function () {
         }
 
         alert('Assinatura do colaborador coletada!');
+        _epiPararCamera();
         document.getElementById('modal-assinatura-colaborador').style.display = 'none';
 
         await loadDocumentosList();
@@ -13827,12 +14179,33 @@ async function renderFichaEpiTab(container) {
     const SETORES_ADMIN = ['Comercial', 'Financeiro', 'Logística', 'Logistica', 'Administrativo', 'RH'];
     const isSetorAdmin = SETORES_ADMIN.includes(dept) || SETORES_ADMIN.includes(cargo);
 
-    // Procura template por departamento ou por cargo (e.g. Motorista)
-    let templateDoColab = templates.find(t => (t.departamentos || []).includes(dept) || (t.departamentos || []).includes(cargo)) ||
-        templates.find(t => t.grupo === dept || t.grupo === cargo) ||
-        // Fallback: se for setor admin, usa o template de categoria Administrativo
-        (isSetorAdmin ? templates.find(t => t.categoria === 'Administrativo') : null) ||
-        templates[0];
+    // Procura template por pontuação: cargo tem prioridade sobre departamento para evitar matches incorretos
+    const scoreTemplate = (t, deptStr, cargoStr) => {
+        const list = (t.departamentos || []).map(d => d.trim().toLowerCase());
+        const cLow = (cargoStr || '').trim().toLowerCase();
+        const dLow = (deptStr || '').trim().toLowerCase();
+        const gLow = (t.grupo || '').trim().toLowerCase();
+        let score = 0;
+        if (cLow && list.includes(cLow)) score = Math.max(score, 100);
+        if (cLow && gLow === cLow) score = Math.max(score, 90);
+        if (cLow && list.some(l => l.length > 3 && cLow.includes(l))) score = Math.max(score, 70);
+        if (cLow && gLow.length > 3 && cLow.includes(gLow)) score = Math.max(score, 60);
+        if (dLow && list.includes(dLow)) score = Math.max(score, 50);
+        if (dLow && gLow === dLow) score = Math.max(score, 40);
+        if (dLow && list.some(l => l.length > 3 && dLow.includes(l))) score = Math.max(score, 20);
+        if (dLow && gLow.length > 3 && dLow.includes(gLow)) score = Math.max(score, 10);
+        return score;
+    };
+    let templateDoColab = null;
+    let bestScore = 0;
+    templates.forEach(t => {
+        const s = scoreTemplate(t, dept, cargo);
+        if (s > bestScore) { bestScore = s; templateDoColab = t; }
+    });
+    // Fallback: se for setor admin e nenhum match forte, usa template de categoria Administrativo
+    if (!templateDoColab || bestScore < 40) {
+        if (isSetorAdmin) templateDoColab = templates.find(t => t.categoria === 'Administrativo') || templateDoColab;
+    }
 
     let btnDesabilitado = false;
     if (fichaAtiva && templateDoColab) {
@@ -13880,17 +14253,107 @@ async function renderFichaEpiTab(container) {
                     <td style="padding:0.55rem 0.85rem;font-size:0.8rem;color:#64748b;">${e.grupo || '—'}</td>
                     <td style="padding:0.55rem 0.85rem;font-size:0.8rem;color:#64748b;">${e.registrado_por || '—'}</td>
                     <td style="padding:0.35rem 0.6rem;text-align:center;">
-                        <button
-                            onclick="window._excluirEpiEntrega(${e.id}, '${(e.epi_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', this, ${e.ficha_id})"
-                            title="Excluir este EPI da ficha"
-                            style="background:none;border:1.5px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.78rem;display:inline-flex;align-items:center;gap:3px;transition:all .15s;"
-                            onmouseover="this.style.background='#fef2f2'"
-                            onmouseout="this.style.background='none'">
-                            <i class="ph ph-trash" style="font-size:0.85rem;"></i>
-                        </button>
+                        <div style="display:inline-flex;align-items:center;gap:4px;">
+                            <button
+                                onclick="window._verSelfieEpiEntrega(${colabId}, '${(e.data_entrega||'').replace(/'/g,String.fromCharCode(92,39))}')"
+                                title="Ver selfie desta entrega"
+                                style="background:none;border:1.5px solid #93c5fd;color:#2563eb;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.78rem;display:inline-flex;align-items:center;gap:3px;transition:all .15s;"
+                                onmouseover="this.style.background='#eff6ff'"
+                                onmouseout="this.style.background='none'">
+                                <i class="ph ph-eye" style="font-size:0.85rem;"></i>
+                            </button>
+
+                        </div>
                     </td>
                 </tr>`;
+
         }).join('');
+
+        // ── Função: ver selfie de entrega de EPI ──────────────────────────────
+        window._verSelfieEpiEntrega = async function(colaboradorId, dataEntrega) {
+            const old = document.getElementById('epi-selfie-lightbox');
+            if (old) old.remove();
+
+            // Modal de loading
+            const lb = document.createElement('div');
+            lb.id = 'epi-selfie-lightbox';
+            lb.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;padding:1rem;';
+            lb.innerHTML = `<div style="background:#1e293b;border-radius:16px;padding:2rem;min-width:280px;text-align:center;color:#e2e8f0;">
+                <div style="font-size:2rem;display:block;margin-bottom:0.5rem;">⏳</div>
+                <p style="margin:0;font-size:0.9rem;">Buscando selfie...</p></div>`;
+            document.body.appendChild(lb);
+            lb.addEventListener('click', (ev) => { if (ev.target === lb) lb.remove(); });
+
+            try {
+                const resp = await fetch(`${API_URL}/epi-selfie/${colaboradorId}`, {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                if (!resp.ok) throw new Error('Erro ' + resp.status);
+                const selfies = await resp.json();
+
+                if (!selfies || selfies.length === 0) {
+                    lb.innerHTML = `<div style="background:#1e293b;border-radius:16px;padding:2rem;min-width:280px;max-width:480px;text-align:center;color:#e2e8f0;position:relative;">
+                        <button onclick="document.getElementById('epi-selfie-lightbox').remove()" style="position:absolute;top:12px;right:14px;background:rgba(255,255,255,0.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1.1rem;">&times;</button>
+                        <div style="font-size:3rem;margin-bottom:0.75rem;">📷</div>
+                        <p style="font-weight:700;margin:0 0 4px;">Nenhuma selfie encontrada</p>
+                        <p style="font-size:0.8rem;color:#94a3b8;margin:0;">Esta entrega não possui selfie registrada.<br>As selfies são salvas nas entregas a partir de agora.</p>
+                    </div>`;
+                    return;
+                }
+
+                // Selfie mais próxima da data de entrega (DD/MM/YYYY)
+                let selfieAlvo = selfies[0];
+                if (dataEntrega) {
+                    const partes = dataEntrega.split('/');
+                    if (partes.length === 3) {
+                        const dataRef = new Date(+partes[2], +partes[1] - 1, +partes[0]);
+                        let menorDiff = Infinity;
+                        selfies.forEach(s => {
+                            const ts = new Date(s.timestamp || s.criado_em);
+                            const diff = Math.abs(ts - dataRef);
+                            if (diff < menorDiff) { menorDiff = diff; selfieAlvo = s; }
+                        });
+                    }
+                }
+
+                const tsFormatado = selfieAlvo.timestamp
+                    ? new Date(selfieAlvo.timestamp).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
+                    : (selfieAlvo.criado_em ? new Date(selfieAlvo.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '');
+
+                lb.innerHTML = `
+                <div style="background:#0f172a;border-radius:16px;overflow:hidden;max-width:560px;width:100%;position:relative;box-shadow:0 25px 60px rgba(0,0,0,0.7);">
+                    <div style="background:#1e3a5f;padding:0.85rem 1.25rem;display:flex;align-items:center;justify-content:space-between;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <i class="ph ph-camera" style="color:#93c5fd;font-size:1.25rem;"></i>
+                            <div>
+                                <div style="color:#f1f5f9;font-weight:700;font-size:0.92rem;">Selfie da Entrega de EPI</div>
+                                <div style="color:#93c5fd;font-size:0.75rem;">Entrega em ${dataEntrega || '—'}</div>
+                            </div>
+                        </div>
+                        <button onclick="document.getElementById('epi-selfie-lightbox').remove()"
+                                style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">&times;</button>
+                    </div>
+                    <img src="${selfieAlvo.selfie_base64}" alt="Selfie EPI" style="width:100%;display:block;max-height:420px;object-fit:contain;background:#000;">
+                    <div style="padding:0.75rem 1.25rem;background:#1e293b;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+                        <div style="font-size:0.78rem;color:#94a3b8;">
+                            <span style="color:#fbbf24;font-weight:600;">Registrado por:</span> ${selfieAlvo.registrado_por || '—'}
+                        </div>
+                        <div style="font-size:0.73rem;color:#64748b;">${tsFormatado}</div>
+                    </div>
+                    ${selfies.length > 1 ? `<div style="padding:0.4rem 1.25rem;background:#1e293b;border-top:1px solid #334155;font-size:0.72rem;color:#64748b;text-align:center;">
+                        ${selfies.length} selfies registradas no total para este colaborador
+                    </div>` : ''}
+                </div>`;
+
+            } catch (err) {
+                lb.innerHTML = `<div style="background:#1e293b;border-radius:16px;padding:2rem;min-width:280px;max-width:480px;text-align:center;color:#e2e8f0;position:relative;">
+                    <button onclick="document.getElementById('epi-selfie-lightbox').remove()" style="position:absolute;top:12px;right:14px;background:rgba(255,255,255,0.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1.1rem;">&times;</button>
+                    <div style="font-size:3rem;margin-bottom:0.75rem;">⚠️</div>
+                    <p style="font-weight:700;margin:0 0 4px;">Erro ao buscar selfie</p>
+                    <p style="font-size:0.8rem;color:#94a3b8;margin:0;">${err.message}</p>
+                </div>`;
+            }
+        };
 
         tabelaHtml = `
         <div style="margin-top:2rem;">
@@ -13967,6 +14430,7 @@ async function renderFichaEpiTab(container) {
                 <button onclick="window.previewFichaEpi(${f.id})" class="btn btn-secondary btn-sm" style="height:32px;display:flex;align-items:center;gap:4px;">
                     <i class="ph ph-eye"></i>
                 </button>
+
             </div>
             `).join('')}
         </div>
@@ -13976,6 +14440,30 @@ async function renderFichaEpiTab(container) {
 
     window._epiProntuarioData = { fichas, templates, fichaAtiva, colabId, templateDoColab, todasEntregas };
 }
+
+// ============================================================
+// EXCLUIR FICHA DE EPI
+// ============================================================
+
+window.excluirFichaEpi = async function (fichaId, grupo) {
+    if (!confirm(`Tem certeza que deseja excluir a Ficha: ${grupo}?\n\nEsta ação também removerá todos os registros de entrega vinculados a esta ficha e não pode ser desfeita.`)) return;
+
+    try {
+        const resp = await fetch(`/api/epi-fichas/${fichaId}`, {
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Erro ao excluir ficha.');
+        showToast('Ficha excluída com sucesso!', 'success');
+        // Recarregar a aba de EPI
+        if (typeof window.renderEpiProntuario === 'function') {
+            await window.renderEpiProntuario();
+        }
+    } catch (e) {
+        alert('Erro: ' + e.message);
+    }
+};
 
 // ============================================================
 // FLUXO DE ASSINATURA DE ENTREGA DE EPI
@@ -14053,26 +14541,34 @@ window.abrirAssinaturaEpi = async function (fichaId) {
                     <p style="margin:0;color:#93c5fd;font-size:0.8rem;">${nomeColab} &mdash; ${ficha.grupo}</p>
                 </div>
             </div>
-            <button onclick="document.getElementById('epi-assinatura-overlay').remove()"
+            <button onclick="window._fecharOverlayEpi()"
                     style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">&times;</button>
         </div>
-        <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:0.6rem 2rem;display:flex;align-items:center;gap:1rem;flex-shrink:0;">
-            <div id="step-ind-1" style="display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:700;color:#1e3a5f;">
-                <span style="background:#1e3a5f;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;">1</span>
-                Selecionar EPIs
+        <!-- Step indicators: 4 passos -->
+        <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:0.6rem 1.5rem;display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+            <div id="step-ind-1" style="display:flex;align-items:center;gap:5px;font-size:0.82rem;font-weight:700;color:#1e3a5f;white-space:nowrap;">
+                <span id="step-badge-1" style="background:#1e3a5f;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">1</span>
+                Selecionar
             </div>
             <div style="flex:1;height:2px;background:#e2e8f0;"></div>
-            <div id="step-ind-2" style="display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:700;color:#94a3b8;">
-                <span id="step-badge-2" style="background:#cbd5e1;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;">2</span>
+            <div id="step-ind-selfie" style="display:flex;align-items:center;gap:5px;font-size:0.82rem;font-weight:700;color:#94a3b8;white-space:nowrap;">
+                <span id="step-badge-selfie" style="background:#cbd5e1;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">📷</span>
+                Selfie
+            </div>
+            <div style="flex:1;height:2px;background:#e2e8f0;"></div>
+            <div id="step-ind-2" style="display:flex;align-items:center;gap:5px;font-size:0.82rem;font-weight:700;color:#94a3b8;white-space:nowrap;">
+                <span id="step-badge-2" style="background:#cbd5e1;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">3</span>
                 Assinar
             </div>
             <div style="flex:1;height:2px;background:#e2e8f0;"></div>
-            <div id="step-ind-3" style="display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:700;color:#94a3b8;">
-                <span id="step-badge-3" style="background:#cbd5e1;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;">3</span>
+            <div id="step-ind-3" style="display:flex;align-items:center;gap:5px;font-size:0.82rem;font-weight:700;color:#94a3b8;white-space:nowrap;">
+                <span id="step-badge-3" style="background:#cbd5e1;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">4</span>
                 Confirmar
             </div>
         </div>
         <div id="epi-assin-body" style="flex:1;overflow-y:auto;padding:1.5rem 2rem;">
+
+            <!-- PASSO 1: Selecionar EPIs -->
             <div id="epi-step-1">
                 <div style="display:flex;align-items:flex-end;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap;">
                     <div>
@@ -14094,12 +14590,62 @@ window.abrirAssinaturaEpi = async function (fichaId) {
                 <div id="epi-lista-botoes" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;"></div>
                 <p id="epi-select-warn" style="color:#dc2626;font-size:0.85rem;margin:0.75rem 0 0;display:none;">&#9888; Defina quantidade &gt; 0 em pelo menos um EPI.</p>
             </div>
+
+            <!-- PASSO SELFIE -->
+            <div id="epiov-step-selfie" style="display:none;max-width:520px;margin:0 auto;">
+                <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#eff6ff;border-radius:10px;border-left:4px solid #2563eb;margin-bottom:1.25rem;">
+                    <i class="ph ph-camera" style="font-size:1.5rem;color:#2563eb;"></i>
+                    <div>
+                        <div style="font-weight:700;font-size:0.95rem;color:#1e40af;">Passo 2 de 4 &mdash; Selfie do Colaborador</div>
+                        <div style="font-size:0.8rem;color:#3b82f6;">Posicione o rosto do colaborador e clique em &quot;Tirar Foto&quot;</div>
+                    </div>
+                </div>
+
+                <div style="position:relative;border-radius:12px;overflow:hidden;background:#0f172a;aspect-ratio:4/3;">
+                    <video id="epi-assin-selfie-video" autoplay playsinline muted
+                           style="width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1);"></video>
+                    <canvas id="epi-assin-selfie-canvas"
+                            style="display:none;width:100%;height:100%;object-fit:cover;"></canvas>
+                    <div style="position:absolute;bottom:0;left:0;right:0;padding:8px 10px;background:linear-gradient(transparent,rgba(0,0,0,0.8));pointer-events:none;">
+                        <div id="epi-assin-selfie-info1" style="font-size:0.72rem;color:#fbbf24;font-weight:600;margin-bottom:2px;"></div>
+                        <div id="epi-assin-selfie-info2" style="font-size:0.7rem;color:#e2e8f0;"></div>
+                        <div id="epi-assin-selfie-dt" style="font-size:0.65rem;color:#94a3b8;"></div>
+                    </div>
+                </div>
+
+                <div id="epi-assin-selfie-status" style="font-size:0.8rem;color:#6b7280;text-align:center;margin:0.6rem 0;"></div>
+
+                <div style="display:flex;flex-direction:column;gap:0.6rem;margin-top:0.5rem;">
+                    <button id="btn-epi-assin-tirar" type="button" onclick="window._epiAssinTirarFoto()"
+                            style="padding:0.75rem;background:#2563eb;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                        <i class="ph ph-camera"></i> Tirar Foto
+                    </button>
+                    <button id="btn-epi-assin-refazer" type="button" onclick="window._epiAssinRefazerFoto()"
+                            style="padding:0.65rem;background:#f1f5f9;color:#374151;border:1px solid #e2e8f0;border-radius:10px;font-weight:600;font-size:0.85rem;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;">
+                        <i class="ph ph-arrow-counter-clockwise"></i> Refazer Foto
+                    </button>
+                    <button id="btn-epi-assin-confirmar" type="button" onclick="window._epiAssinConfirmarFoto()"
+                            style="padding:0.75rem;background:#16a34a;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 6px -1px rgba(22,163,74,0.3);">
+                        <i class="ph ph-check-circle"></i> Confirmar e Assinar
+                    </button>
+                </div>
+            </div>
+
+            <!-- PASSO 2: Assinatura (agora passo 3) -->
             <div id="epi-step-2" style="display:none; grid-template-columns: 1fr 1fr; gap: 2rem;">
-                <!-- Esquerda: EPIs e Termo -->
+                <!-- Esquerda: EPIs, selfie thumb e Termo -->
                 <div style="display:flex;flex-direction:column;min-width:0;">
-                    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem;">
+                    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:0.85rem 1rem;margin-bottom:0.75rem;">
                         <p style="font-size:0.85rem;font-weight:700;color:#166534;margin:0 0 6px;">EPIs para entrega em <strong id="epi-data-display"></strong>:</p>
                         <ul id="epi-lista-selecionada" style="margin:0;padding-left:1.25rem;font-size:0.85rem;color:#15803d;column-count:1;"></ul>
+                    </div>
+                    <!-- Selfie thumbnail -->
+                    <div id="epi-assin-selfie-thumb-box" style="display:none;border-radius:8px;border:2px solid #bbf7d0;background:#f0fdf4;padding:8px;display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+                        <canvas id="epi-assin-selfie-thumb" style="width:64px;height:48px;border-radius:6px;flex-shrink:0;"></canvas>
+                        <div style="font-size:0.78rem;color:#166534;">
+                            <div style="font-weight:700;"><i class="ph ph-shield-check"></i> Selfie registrada</div>
+                            <div id="epi-assin-selfie-thumb-dt" style="color:#4ade80;font-size:0.7rem;"></div>
+                        </div>
                     </div>
                     <p style="font-size:0.85rem;font-weight:700;color:#374151;margin:0 0 6px;">Termo de Responsabilidade:</p>
                     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.9rem;font-size:0.82rem;color:#374151;overflow-y:auto;line-height:1.6;white-space:pre-wrap;flex:1;">${termo}</div>
@@ -14117,6 +14663,8 @@ window.abrirAssinaturaEpi = async function (fichaId) {
                     <p id="epi-assin-warn" style="color:#dc2626;font-size:0.82rem;margin:0.5rem 0 0;display:none;">A assinatura &eacute; obrigat&oacute;ria.</p>
                 </div>
             </div>
+
+            <!-- PASSO 3: Sucesso -->
             <div id="epi-step-3" style="display:none;text-align:center;padding:4rem 1rem;">
                 <i class="ph ph-check-circle" style="font-size:5rem;color:#16a34a;display:block;margin-bottom:1rem;"></i>
                 <p style="font-weight:700;font-size:1.2rem;color:#15803d;margin:0 0 6px;">Entrega registrada com sucesso!</p>
@@ -14124,7 +14672,7 @@ window.abrirAssinaturaEpi = async function (fichaId) {
             </div>
         </div>
         <div id="epi-assin-footer" style="border-top:1px solid #e2e8f0;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;flex-shrink:0;">
-            <button id="btn-assin-back" onclick="window._assinStep(1)"
+            <button id="btn-assin-back" onclick="window._assinBackStep()"
                     style="display:none;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.65rem 1.5rem;font-weight:600;font-size:0.9rem;cursor:pointer;color:#475569;">
                 <i class="ph ph-arrow-left"></i> Voltar
             </button>
@@ -14143,12 +14691,184 @@ window.abrirAssinaturaEpi = async function (fichaId) {
     window._assinColabId = colabId;
     window._assinEpisDisponiveis = epis;
     window._assinQtds = {};
+    window._assinSelfieBase64 = null;
+    window._assinSelfieTs = null;
+    window._assinSelfieStream = null;
+
+    // Fechar overlay parando câmera
+    window._fecharOverlayEpi = function() {
+        if (window._assinSelfieStream) {
+            window._assinSelfieStream.getTracks().forEach(t => t.stop());
+            window._assinSelfieStream = null;
+        }
+        const ov = document.getElementById('epi-assinatura-overlay');
+        if (ov) ov.remove();
+    };
+
+    // Inicia câmera do passo selfie
+    window._epiAssinIniciarCamera = async function() {
+        const statusEl = document.getElementById('epi-assin-selfie-status');
+        try {
+            window._assinSelfieStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+                audio: false
+            });
+            const video = document.getElementById('epi-assin-selfie-video');
+            if (video) { video.srcObject = window._assinSelfieStream; video.style.display = 'block'; }
+            document.getElementById('epi-assin-selfie-canvas').style.display = 'none';
+            document.getElementById('btn-epi-assin-tirar').style.display = 'flex';
+            document.getElementById('btn-epi-assin-refazer').style.display = 'none';
+            document.getElementById('btn-epi-assin-confirmar').style.display = 'none';
+            if (statusEl) statusEl.textContent = 'Câmera pronta. Posicione o rosto do colaborador.';
+        } catch(err) {
+            console.error('[EPI Selfie]', err);
+            if (statusEl) statusEl.innerHTML = '<span style="color:#dc2626;"><i class="ph ph-warning"></i> Câmera não acessível. Verifique as permissões.</span>';
+            document.getElementById('btn-epi-assin-tirar').style.display = 'none';
+        }
+    };
+
+    window._epiAssinTirarFoto = function() {
+        const video = document.getElementById('epi-assin-selfie-video');
+        const canvas = document.getElementById('epi-assin-selfie-canvas');
+        if (!video || !window._assinSelfieStream) return;
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext('2d');
+        ctx.save(); ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        window._assinSelfieTs = new Date();
+        const dtStr = window._assinSelfieTs.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+        const entregadorNome = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.nome || currentUser.username || 'Usuário') : 'Usuário';
+        // overlay de texto na foto
+        const overlayH = 56;
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        ctx.fillRect(0, canvas.height - overlayH, canvas.width, overlayH);
+        ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 13px Arial';
+        ctx.fillText('Entregue por: ' + entregadorNome, 8, canvas.height - overlayH + 16);
+        ctx.fillStyle = '#e2e8f0'; ctx.font = '12px Arial';
+        ctx.fillText('Colaborador: ' + nomeColab, 8, canvas.height - overlayH + 32);
+        ctx.fillStyle = '#94a3b8'; ctx.font = '11px Arial';
+        ctx.fillText(dtStr, 8, canvas.height - overlayH + 48);
+        window._assinSelfieBase64 = canvas.toDataURL('image/jpeg', 0.88);
+        video.style.display = 'none';
+        canvas.style.display = 'block';
+        document.getElementById('btn-epi-assin-tirar').style.display = 'none';
+        document.getElementById('btn-epi-assin-refazer').style.display = 'flex';
+        document.getElementById('btn-epi-assin-confirmar').style.display = 'flex';
+        const statusEl = document.getElementById('epi-assin-selfie-status');
+        if (statusEl) statusEl.innerHTML = '<span style="color:#16a34a;"><i class="ph ph-check-circle"></i> Foto tirada! Confirme ou refaça.</span>';
+    };
+
+    window._epiAssinRefazerFoto = function() {
+        window._assinSelfieBase64 = null; window._assinSelfieTs = null;
+        const video = document.getElementById('epi-assin-selfie-video');
+        const canvas = document.getElementById('epi-assin-selfie-canvas');
+        video.style.display = 'block'; canvas.style.display = 'none';
+        document.getElementById('btn-epi-assin-tirar').style.display = 'flex';
+        document.getElementById('btn-epi-assin-refazer').style.display = 'none';
+        document.getElementById('btn-epi-assin-confirmar').style.display = 'none';
+        const statusEl = document.getElementById('epi-assin-selfie-status');
+        if (statusEl) statusEl.textContent = 'Câmera pronta. Posicione o rosto do colaborador.';
+    };
+
+    window._epiAssinConfirmarFoto = function() {
+        if (!window._assinSelfieBase64) return;
+        // Para câmera
+        if (window._assinSelfieStream) { window._assinSelfieStream.getTracks().forEach(t => t.stop()); window._assinSelfieStream = null; }
+        // Thumb no passo de assinatura
+        const srcC = document.getElementById('epi-assin-selfie-canvas');
+        const thumb = document.getElementById('epi-assin-selfie-thumb');
+        if (srcC && thumb) {
+            const tctx = thumb.getContext('2d'); thumb.width = srcC.width; thumb.height = srcC.height;
+            tctx.drawImage(srcC, 0, 0);
+        }
+        const thumbBox = document.getElementById('epi-assin-selfie-thumb-box');
+        if (thumbBox) thumbBox.style.display = 'flex';
+        const thumbDt = document.getElementById('epi-assin-selfie-thumb-dt');
+        if (thumbDt && window._assinSelfieTs) {
+            thumbDt.textContent = window._assinSelfieTs.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        }
+        // Ir para assinatura
+        window._assinGoToStep2();
+    };
+
+    // Navegar para o passo de assinatura (step 2)
+    window._assinGoToStep2 = function() {
+        document.getElementById('epiov-step-selfie').style.display = 'none';
+        const s2 = document.getElementById('epi-step-2');
+        s2.style.display = 'grid';
+        window._assinCurrentStep = 2;
+        // Atualiza badges
+        ['1','selfie','2','3'].forEach((s, i) => {
+            const badge = document.getElementById('step-badge-' + s);
+            const ind = document.getElementById('step-ind-' + s);
+            if (!badge || !ind) return;
+            const done = i < 2; const active = i === 2;
+            badge.style.background = done ? '#16a34a' : active ? '#1e3a5f' : '#cbd5e1';
+            badge.innerHTML = done ? '✓' : (s === 'selfie' ? '📷' : (i + 1));
+            ind.style.color = (done || active) ? (done ? '#16a34a' : '#1e3a5f') : '#94a3b8';
+        });
+        const btnBack = document.getElementById('btn-assin-back');
+        if (btnBack) btnBack.style.display = 'flex';
+        const btnNext = document.getElementById('btn-assin-next');
+        if (btnNext) { btnNext.style.display = 'flex'; btnNext.innerHTML = 'Confirmar Entrega <i class="ph ph-check"></i>'; }
+        setTimeout(() => { window._initSignatureCanvas(); }, 100);
+    };
+
+    // Voltar do step selfie ou assinatura
+    window._assinBackStep = function() {
+        if (window._assinCurrentStep === 'selfie') {
+            if (window._assinSelfieStream) { window._assinSelfieStream.getTracks().forEach(t => t.stop()); window._assinSelfieStream = null; }
+            window._assinStep(1);
+        } else if (window._assinCurrentStep === 2) {
+            // voltar para selfie
+            document.getElementById('epi-step-2').style.display = 'none';
+            const selfieDiv = document.getElementById('epiov-step-selfie');
+            selfieDiv.style.display = 'block';
+            window._assinCurrentStep = 'selfie';
+            ['1','selfie','2','3'].forEach((s, i) => {
+                const badge = document.getElementById('step-badge-' + s);
+                const ind = document.getElementById('step-ind-' + s);
+                if (!badge || !ind) return;
+                const done = i < 1; const active = i === 1;
+                badge.style.background = done ? '#16a34a' : active ? '#1e3a5f' : '#cbd5e1';
+                badge.innerHTML = done ? '✓' : (s === 'selfie' ? '📷' : (active ? '📷' : (i + 1)));
+                ind.style.color = (done || active) ? (done ? '#16a34a' : '#1e3a5f') : '#94a3b8';
+            });
+            const btnBack = document.getElementById('btn-assin-back');
+            if (btnBack) btnBack.style.display = 'flex';
+            const btnNext = document.getElementById('btn-assin-next');
+            if (btnNext) { btnNext.style.display = 'none'; }
+            // Reiniciar câmera se necessário
+            if (!window._assinSelfieBase64) { window._epiAssinIniciarCamera(); }
+        } else {
+            window._assinStep(1);
+        }
+    };
+
     setTimeout(() => {
         window._initSignatureCanvas();
         const today = new Date();
         const di = document.getElementById('epi-data-entrega');
         if (di) { di.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'); }
         window._renderEpiGrid('');
+        // Preencher infos do overlay da selfie
+        const entregadorNome = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.nome || currentUser.username || 'Usuário') : 'Usuário';
+        const el1 = document.getElementById('epi-assin-selfie-info1');
+        if (el1) el1.textContent = 'Entregue por: ' + entregadorNome;
+        const el2 = document.getElementById('epi-assin-selfie-info2');
+        if (el2) el2.textContent = 'Colaborador: ' + nomeColab;
+        // Clock no overlay
+        const dtEl = document.getElementById('epi-assin-selfie-dt');
+        if (dtEl) {
+            const tick = () => { dtEl.textContent = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' }); };
+            tick(); clearInterval(window._epiAssinClock);
+            window._epiAssinClock = setInterval(() => {
+                const sv = document.getElementById('epiov-step-selfie');
+                if (!sv || sv.style.display === 'none') { clearInterval(window._epiAssinClock); } else { tick(); }
+            }, 1000);
+        }
     }, 100);
 };
 
@@ -14406,25 +15126,42 @@ window._renderItensLista = function () { };
 
 window._syncEpiSelection = function () { };
 
-// Navega para step
+// Navega para step (numéricos: 1 e 3; selfie tem controle próprio)
 window._assinStep = function (n) {
+    // Esconde tudo
     [1, 2, 3].forEach(s => {
         const el = document.getElementById(`epi-step-${s}`);
-        if (el) {
-            if (s === n) el.style.display = (s === 2) ? 'grid' : 'block';
-            else el.style.display = 'none';
-        }
+        if (el) el.style.display = 'none';
     });
+    const selfieDiv = document.getElementById('epiov-step-selfie');
+    if (selfieDiv) selfieDiv.style.display = 'none';
+
+    if (n === 1) {
+        const el = document.getElementById('epi-step-1');
+        if (el) el.style.display = 'block';
+        const btnBack = document.getElementById('btn-assin-back');
+        if (btnBack) btnBack.style.display = 'none';
+        const btnNext = document.getElementById('btn-assin-next');
+        if (btnNext) { btnNext.style.display = 'flex'; btnNext.innerHTML = 'Próximo <i class="ph ph-arrow-right"></i>'; }
+    } else if (n === 3) {
+        const el = document.getElementById('epi-step-3');
+        if (el) el.style.display = 'block';
+        const footer = document.getElementById('epi-assin-footer');
+        if (footer) footer.style.display = 'none';
+    }
     window._assinCurrentStep = n;
 
     // Atualiza indicadores de step
-    [1, 2, 3].forEach(s => {
+    const stepOrder = [1, 'selfie', 2, 3];
+    const nIdx = stepOrder.indexOf(n);
+    stepOrder.forEach((s, i) => {
         const badge = document.getElementById(`step-badge-${s}`);
         const ind = document.getElementById(`step-ind-${s}`);
         if (!badge || !ind) return;
-        const done = s < n;
-        const active = s === n;
+        const done = i < nIdx;
+        const active = i === nIdx;
         badge.style.background = done ? '#16a34a' : active ? '#1e3a5f' : '#cbd5e1';
+        if (done) badge.innerHTML = '✓';
         if (ind) ind.style.color = active ? '#1e3a5f' : done ? '#15803d' : '#94a3b8';
     });
 
@@ -14466,11 +15203,35 @@ window._assinNextStep = async function () {
             if (warn) warn.style.display = '';
             return;
         }
-        window._assinStep(2);
+        // Ir para selfie
+        const selfieDiv = document.getElementById('epiov-step-selfie');
+        if (selfieDiv) selfieDiv.style.display = 'block';
+        document.getElementById('epi-step-1').style.display = 'none';
+        window._assinCurrentStep = 'selfie';
+        // Atualiza badges
+        const stepOrder2 = [1, 'selfie', 2, 3];
+        stepOrder2.forEach((s, i) => {
+            const badge = document.getElementById('step-badge-' + s);
+            const ind = document.getElementById('step-ind-' + s);
+            if (!badge || !ind) return;
+            const done = i < 1; const active = i === 1;
+            badge.style.background = done ? '#16a34a' : active ? '#1e3a5f' : '#cbd5e1';
+            if (done) badge.innerHTML = '✓';
+            ind.style.color = active ? '#1e3a5f' : done ? '#16a34a' : '#94a3b8';
+        });
+        const btnBack = document.getElementById('btn-assin-back');
+        if (btnBack) btnBack.style.display = 'flex';
+        const btnNext = document.getElementById('btn-assin-next');
+        if (btnNext) btnNext.style.display = 'none'; // selfie usa botões próprios
+        window._epiAssinIniciarCamera();
         return;
     }
 
     if (step === 2) {
+        // Valida selfie obrigatória
+        if (!window._assinSelfieBase64) {
+            alert('É necessário tirar a selfie antes de assinar.'); return;
+        }
         // Valida assinatura
         if (!window._assinaturaTemConteudo()) {
             const warn = document.getElementById('epi-assin-warn');
@@ -14491,6 +15252,23 @@ window._assinNextStep = async function () {
             // Timeout de 30s para evitar que o botão fique preso em "Salvando..."
             const saveController = new AbortController();
             const saveTimeout = setTimeout(() => saveController.abort(), 30000);
+
+            // Salvar selfie antes do registro principal
+            if (window._assinSelfieBase64) {
+                try {
+                    const entregadorNome2 = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.nome || currentUser.username || '') : '';
+                    await fetch(`${API_URL}/epi-selfie`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            colaborador_id: window._assinColabId,
+                            selfie_base64: window._assinSelfieBase64,
+                            registrado_por: entregadorNome2,
+                            timestamp: window._assinSelfieTs ? window._assinSelfieTs.toISOString() : new Date().toISOString()
+                        })
+                    });
+                } catch(selfieErr) { console.error('[EPI Selfie]', selfieErr); }
+            }
 
             const resp = await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`, {
                 method: 'POST',
@@ -17490,26 +18268,8 @@ window.gerarFichaSantander = async function () {
     // Salário formatado
     const salario = colab.salario ? parseFloat(colab.salario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—';
 
-    // Endereço e Cidade extraídos corretamente do endereço do Colaborador (agora separado por vírgula e traço)
-    let enderecoPuro = fmt(colab.endereco_completo);
-    let numero = '—', complemento = '—', bairro = '—', cidade = '—', estado = '—', cep = '—';
-    if (colab.endereco_completo) {
-        // Separação típica: "Rua X, 123, Bairro, Cidade - SP, CEP"
-        const parts = colab.endereco_completo.split(',');
-        enderecoPuro = parts[0] ? parts[0].trim() : '—';
-        if (parts.length > 1) {
-            const part2 = parts[1].trim();
-            numero = part2.split(' ')[0] || part2;
-            if (part2.includes(' ')) complemento = part2.substring(numero.length).trim();
-        }
-        if (parts.length > 2) bairro = parts[2].trim();
-        if (parts.length > 3) {
-            const cidadeEst = parts[3].trim().split('-');
-            if (cidadeEst.length === 2) { cidade = cidadeEst[0].trim(); estado = cidadeEst[1].trim(); }
-            else { cidade = parts[3].trim(); }
-        }
-        if (colab.cep) cep = colab.cep;
-    }
+    // Endereço completo (usado em um único campo)
+    const enderecoPuro = fmt(colab.endereco);
 
     // Data admissão formatada
     let admissaoFmt = '—';
@@ -17528,25 +18288,24 @@ window.gerarFichaSantander = async function () {
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #000; background: #fff; padding: 20px; }
   .page { max-width: 750px; margin: 0 auto; }
-  .logo-area { text-align: center; margin-bottom: 16px; }
-  .logo-area { text-align: center; }
-  .logo-area img { width: 100%; max-height: 100px; object-fit: contain; object-position: center; }
-  h1.titulo { text-align: center; font-size: 13pt; font-weight: 900; background: #e8e8e8; border: 1.5px solid #ccc; padding: 8px 0; margin: 14px 0 20px 0; letter-spacing: 1px; }
-  .colab-label { font-size: 10pt; font-weight: 900; margin: 10px 0 4px; }
-  .colab-nome { font-size: 14pt; font-weight: 900; margin-bottom: 18px; }
-  p.body-text { font-size: 9.5pt; margin-bottom: 10px; text-align: justify; line-height: 1.5; }
-  ul.docs { font-size: 9.5pt; margin: 4px 0 14px 20px; line-height: 1.7; }
-  .data-box { border: 1.5px solid #555; margin: 18px 0; }
-  .data-box-title { background: #d0d0d0; font-weight: 900; font-size: 10pt; padding: 5px 10px; border-bottom: 1.5px solid #555; }
-  .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 10px 12px; }
-  .data-line { font-size: 9pt; margin: 2px 0; }
+  .logo-area { text-align: center; margin-bottom: 5px; }
+  .logo-area img { width: 100%; max-height: 55px; object-fit: contain; object-position: center; }
+  h1.titulo { text-align: center; font-size: 12pt; font-weight: 900; background: #e8e8e8; border: 1.5px solid #ccc; padding: 4px 0; margin: 5px 0 10px 0; letter-spacing: 1px; }
+  .colab-label { font-size: 10pt; font-weight: 900; margin: 4px 0 2px; }
+  .colab-nome { font-size: 13pt; font-weight: 900; margin-bottom: 5px; }
+  p.body-text { font-size: 9pt; margin-bottom: 5px; text-align: justify; line-height: 1.25; }
+  ul.docs { font-size: 9pt; margin: 2px 0 5px 20px; line-height: 1.25; }
+  .data-box { border: 1.5px solid #555; margin: 5px 0; }
+  .data-box-title { background: #d0d0d0; font-weight: 900; font-size: 10pt; padding: 4px 8px; border-bottom: 1.5px solid #555; }
+  .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 6px 8px; }
+  .data-line { font-size: 9pt; margin: 1px 0; }
   .data-line b { font-weight: 700; }
-  .assinaturas { display: flex; justify-content: space-between; margin-top: 50px; align-items: flex-end; }
+  .assinaturas { display: flex; justify-content: space-between; margin-top: 15px; align-items: flex-end; }
   .assin-block { text-align: center; width: 45%; }
-  .assin-line { border-top: 1px solid #000; padding-top: 6px; margin-top: 55px; font-size: 9pt; }
+  .assin-line { border-top: 1px solid #000; padding-top: 4px; margin-top: 25px; font-size: 9pt; }
   .assin-label { font-size: 9pt; color: #333; margin-top: 3px; }
   @media print {
-    body { padding: 8px; }
+    body { padding: 0; }
     .no-print { display: none !important; }
   }
 </style>
@@ -17566,7 +18325,7 @@ window.gerarFichaSantander = async function () {
   <p class="body-text">Prezado (a)</p>
   <p class="body-text">Escolhemos o Santander como nosso parceiro para o processamento do pagamento do seu salário.</p>
   <p class="body-text">Conforme determinam as Resoluções nº 3.402 e 3.424/06, do Conselho Monetário Nacional, seu salário será creditado em uma conta de registro, denominada 'conta salário', que não é movimentável por cheque, não admite créditos de outras naturezas que não salariais e possui serviços limitados.</p>
-  <p class="body-text">Você também poderá aproveitar as vantagens de ter uma <b>CONTA CORRENTE</b> e transferir automaticamente o seu salário, possibilitando assim fazer uso de diversos outros serviços e condições diferenciadas oferecidas pelo Santander, que acreditamos que tenham um valor diferenciado para você. Para conhecer as vantagens de uma conta corrente compareça a uma agência até a data da sua admissão e apresente o original e uma cópia simples (frente e verso) dos documentos abaixo indicados:</p>
+  <p class="body-text">Você também poderá aproveitar as vantagens de ter uma <b>CONTA SALÁRIO</b> e transferir automaticamente o seu salário, possibilitando assim fazer uso de diversos outros serviços e condições diferenciadas oferecidas pelo Santander, que acreditamos que tenham um valor diferenciado para você. Para conhecer as vantagens de uma conta salário compareça a uma agência até a data da sua admissão e apresente o original e uma cópia simples (frente e verso) dos documentos abaixo indicados:</p>
 
   <ul class="docs">
     <li>Esta carta;</li>
@@ -17584,13 +18343,21 @@ window.gerarFichaSantander = async function () {
     <div class="data-grid">
       <div class="data-line">Declaramos que o Sr (a) <b>${fmt(colab.nome_completo)}</b></div>
       <div class="data-line">CPF: <b>${fmt(colab.cpf)}</b>&nbsp;&nbsp;&nbsp;Admissão: <b>${admissaoFmt}</b></div>
-      <div class="data-line">Endereço: <b>${enderecoPuro}</b></div>
-      <div class="data-line">Nº <b>${numero}</b>&nbsp;&nbsp;Complemento: <b>${complemento}</b></div>
-      <div class="data-line">Bairro: <b>${bairro}</b></div>
-      <div class="data-line">Cidade: <b>${cidade}</b>&nbsp;&nbsp;&nbsp;Estado: <b>${estado}</b>&nbsp;&nbsp;&nbsp;CEP: <b>${cep}</b></div>
+      <div class="data-line" style="grid-column: 1 / -1;">Endereço: <b>${enderecoPuro}</b></div>
       <div class="data-line">Cargo: <b>${fmt(colab.cargo)}</b></div>
       <div class="data-line">Salário Mensal: <b>${salario}</b></div>
     </div>
+  </div>
+
+  <div style="font-size: 9pt; margin-top: 10px; line-height: 1.3;">
+    Responsável de RH: Juliene de Camargo Corrêa<br>
+    Telefone: - (11) 99025-2820 ou (11) 2499-3353<br>
+    EMPRESA: America Rental Equipamentos LTDA<br>
+    CNPJ: 03.434.448/0001-01
+  </div>
+
+  <div style="font-size: 9pt; margin-top: 15px;">
+    Guarulhos, ${hoje.getDate()} de ${mesExtenso} de ${anoStr}.
   </div>
 
   <!-- Assinaturas -->
@@ -17604,6 +18371,31 @@ window.gerarFichaSantander = async function () {
     <!-- Bloco colaborador -->
     <div class="assin-block">
       <div class="assin-line">${fmt(colab.nome_completo)}</div>
+    </div>
+  </div>
+
+  <!-- Anexo 3 (Rodapé e Quadro) -->
+  <div style="font-size: 7.5pt; margin-top: 10px; text-align: justify; line-height: 1.2;">
+    *Exceto nos casos de pedidos de reposição formulados pelo cliente decorrentes de perda, roubo, danificação ou outros motivos não imputáveis ao Banco. ** Serviços gratuitos: duas consultas ao saldo de sua conta, dois extratos dos últimos 30 dias, um DOC/TED pelo valor total do crédito e cinco saques (por evento de crédito). A utilização acima desses limites ou de quaisquer outros serviços estará sujeita à cobrança de tarifas.
+  </div>
+
+  <div style="border: 2px solid #000; margin-top: 10px; page-break-inside: avoid;">
+    <div style="background: #ccc; font-weight: bold; font-size: 9pt; padding: 4px 8px; border-bottom: 2px solid #000;">
+      Para uso exclusivo do Banco Santander:
+    </div>
+    <div style="padding: 6px 8px; font-size: 9pt; line-height: 2;">
+      <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+        <span style="white-space: nowrap;">Nome e Número da Agência: Guarulhos</span>
+        <span style="border-bottom: 1px solid #000; flex-grow: 1; margin-left: 10px;"></span>
+      </div>
+      <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+        <span style="white-space: nowrap;">Número da Conta:</span>
+        <span style="border-bottom: 1px solid #000; flex-grow: 1; margin-left: 10px;"></span>
+      </div>
+      <div style="display: flex; align-items: flex-end;">
+        <span style="white-space: nowrap;">Responsável pelo atendimento:</span>
+        <span style="border-bottom: 1px solid #000; flex-grow: 1; margin-left: 10px;"></span>
+      </div>
     </div>
   </div>
 

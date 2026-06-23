@@ -591,22 +591,57 @@ async function pipelineExportarExcel(registrosOverride) {
         const produtosArr    = parseArr(r.produtos);
         const diasArr        = parseArr(r.dias_semana);
 
-        // Ícones das habilidades (PIPELINE_EQ_ICONS)
-        const icHab = habilidadesArr
-            .map(h => PIPELINE_EQ_ICONS[(h || '').trim().toUpperCase()] || '')
-            .filter(Boolean).join('');
-
-        // Ícones das variáveis que têm ícone cadastrado (PIPELINE_VARS_CORES)
+        // Ícones das variáveis (PIPELINE_VARS_CORES) — vêm primeiro
         const icVar = variaveisArr.map(v => {
             const vUp = (v || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            // 1. Busca pelo nome normalizado (sem acentos) em PIPELINE_VARS_CORES
             for (const [key, style] of Object.entries(PIPELINE_VARS_CORES)) {
-                if (vUp.includes(key)) return style.icon;
+                const keyNorm = key.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                if (vUp.includes(keyNorm)) return style.icon;
+            }
+            // 2. Fallback: extrai o primeiro emoji do texto da variável e usa diretamente
+            const emojiMatch = (v || '').trim().match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})/u);
+            if (emojiMatch) return emojiMatch[0];
+            return '';
+        }).filter(Boolean);
+
+        // Ícones das habilidades (PIPELINE_VARS_CORES, igual ao card) — vêm depois das variáveis
+        const isVacTs = ts.includes('vac');
+        const icHab = habilidadesArr.map(h => {
+            const hUp = (h || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            for (const [key, style] of Object.entries(PIPELINE_VARS_CORES)) {
+                const keyNorm = key.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                if (hUp.includes(keyNorm)) {
+                    if (key === 'VAC' && !isVacTs) return ''; // 🏗️ só para serviço VAC
+                    return style.icon;
+                }
             }
             return '';
-        }).filter(Boolean).join('');
+        }).filter(Boolean);
 
-        const iconesTitulo = [icHab, icVar].filter(Boolean).join('');
-        const titulo = (iconesTitulo ? iconesTitulo + ' ' : '') + (r.cliente || '').trim();
+        // Ícones de produto (ENTREGA) ou ⭕ (RETIRADA) — vêm por último, após var e hab
+        const icProdOuRetir = [];
+        if (ts.includes('retirada')) {
+            icProdOuRetir.push('⭕');
+        } else if (ts.includes('entrega') && produtosArr.length) {
+            const prodSet = new Set();
+            produtosArr.forEach(p => {
+                const desc = (p.desc || '').trim().toUpperCase();
+                const descNorm = desc.replace(/ EVENTO$/, ' OBRA');
+                const ic = PIPELINE_EQ_ICONS[desc] || PIPELINE_EQ_ICONS[descNorm];
+                if (ic) prodSet.add(ic);
+            });
+            prodSet.forEach(ic => icProdOuRetir.push(ic));
+        }
+
+        // Monta prefixo do título: icVar + icHab + icProdOuRetir (sem duplicatas globais)
+        const todosIconesTitulo = [...new Set([...icVar, ...icHab, ...icProdOuRetir])];
+        const iconesTitulo = todosIconesTitulo.join(' ');
+
+        let nomeLimpo = (r.cliente || '').trim();
+        nomeLimpo = nomeLimpo.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/gu, '').trim();
+        nomeLimpo = nomeLimpo.replace(/^[\ud83c\udf00-\ud83e\uddff\u2600-\u27bf\u{1F000}-\u{1FFFF}\u2b00-\u2bff\uFE0F\s]+/gu, '').trim();
+        const titulo = (iconesTitulo ? iconesTitulo + ' ' : '') + nomeLimpo;
 
         // --- INÍCIO: Cálculo Dinâmico de Cargas e Tempo de Serviço ---
         let totalCargaVeiculo = 0;
@@ -747,21 +782,43 @@ async function pipelineExportarExcel(registrosOverride) {
         let obsStr = stripClientPrefix(r.observacoes, r.cliente);
         let obsIntStr = stripClientPrefix(r.observacoes_internas, r.cliente);
         
+        const icVarStr = icVar.join(''); // icVar é array, converter para string
         let obsComIcone = '';
         let combinacaoObs = [obsStr].filter(Boolean).join(' | ');
 
-        if (combinacaoObs || icVar) {
+        if (combinacaoObs || icVarStr) {
             // Adiciona todos os ícones de variáveis (icVar) na frente
-            obsComIcone = (icVar ? icVar + ' ' : '') + combinacaoObs;
+            obsComIcone = (icVarStr ? icVarStr + ' ' : '') + combinacaoObs;
         }
 
-        // Linha 3: NOME DO SERVIÇO — sem ícone para Entrega e Manutenção Recorrente
-        const isEntrega = ts.includes('entrega');
+        // Linha 3: NOME DO SERVIÇO
+        // Retirada → sempre ⭕
+        // Entrega  → ícones dos produtos selecionados (igual ao card do cliente)
+        // Outros   → ícone genérico via pipelineGetIconServico
+        // Manutenção recorrente → sem ícone
         const isManutRecorr = (ts.includes('manut') || ts.includes('manutenção')) && !ts.includes('avulsa');
+        const isRetiradaExp = ts.includes('retirada');
+        const isEntregaExp  = ts.includes('entrega');
         let iconeServico = '';
-        if (!isEntrega && !isManutRecorr) {
-            iconeServico = pipelineGetIconServico(r.tipo_servico);
+
+        if (!isManutRecorr) {
+            if (isRetiradaExp) {
+                iconeServico = '⭕';
+            } else if (isEntregaExp && produtosArr.length) {
+                // Coleta ícones únicos dos produtos (preserva ordem, sem duplicatas)
+                const iconesProdSet = new Set();
+                produtosArr.forEach(p => {
+                    const desc = (p.desc || '').trim().toUpperCase();
+                    const descNorm = desc.replace(/ EVENTO$/, ' OBRA');
+                    const ic = PIPELINE_EQ_ICONS[desc] || PIPELINE_EQ_ICONS[descNorm];
+                    if (ic) iconesProdSet.add(ic);
+                });
+                iconeServico = [...iconesProdSet].join(' ');
+            } else {
+                iconeServico = pipelineGetIconServico(r.tipo_servico);
+            }
         }
+
         const nomeServico = ((iconeServico ? iconeServico + ' ' : '') + (r.tipo_servico || '').trim().toUpperCase());
 
         // Linha 4: PRODUTOS — "QTD NOME" (sem ícone do produto, a pedido do usuário)
@@ -798,7 +855,7 @@ async function pipelineExportarExcel(registrosOverride) {
         const habilidades = Array.isArray(r.habilidades) ? r.habilidades.join(', ') : (r.habilidades || '');
 
         const rowData = [
-            (icVar ? icVar + ' ' : '') + obsIntStr, // A Obs Internas (com ícones tbm e sem nome do cliente)
+            (icVarStr ? icVarStr + ' ' : '') + obsIntStr, // A Obs Internas (com ícones tbm e sem nome do cliente)
             titulo,                  // B Titulo
             endereco,                // C Endereço completo
             valTanque,               // D Carga (Tanque)

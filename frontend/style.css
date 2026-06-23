@@ -327,7 +327,71 @@ body {
 }
 .dept-submenu .nav-item.active i { color: var(--dept-color, var(--primary-color)); }
 
+/* ── Grupo aninhado no submenu (ex: Rota Redonda) ─────────────── */
+.nav-group { display: flex; flex-direction: column; }
+
+/* Botão de label / toggle */
+.nav-group-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.7rem 1.25rem;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--text-main);
+    user-select: none;
+    background: transparent;
+    width: 100%;
+    border: none;
+    border-left: 3px solid transparent;
+    text-align: left;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.nav-group-label:hover { 
+    background: var(--bg-main); 
+    color: var(--dept-color, var(--primary-color));
+}
+.nav-group-label i { font-size: 1.05rem; color: #94a3b8; transition: var(--transition); }
+.nav-group-label i.nav-group-chevron { font-size: 0.85rem; }
+.nav-group-label:hover i { color: var(--dept-color, var(--primary-color)); }
+
+/* Seta do acordeão */
+.nav-group-chevron {
+    font-size: 0.75rem;
+    transition: transform 0.22s ease;
+    opacity: 0.6;
+    flex-shrink: 0;
+}
+.nav-group.open .nav-group-chevron {
+    transform: rotate(90deg);
+    opacity: 1;
+}
+
+/* Itens: recolhidos por padrão */
+.nav-group-items {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.28s ease, opacity 0.2s ease;
+    opacity: 0;
+}
+/* Abertos quando .open */
+.nav-group.open .nav-group-items {
+    max-height: 200px;
+    opacity: 1;
+}
+
+/* Item sub-indentado */
+.dept-submenu .nav-item.nav-item-sub {
+    padding-left: 2.1rem;
+    font-size: 0.84rem;
+    border-left: 3px solid transparent;
+}
+
 /* Keep old sidebar references inert */
+
 .sidebar { display: none; }
 .sidebar-header {
     height: var(--topbar-height);

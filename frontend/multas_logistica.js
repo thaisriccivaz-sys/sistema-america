@@ -229,6 +229,8 @@ function renderMultasLogistica(container) {
                     style="flex:1; min-width:140px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">
                 <input id="mf-ait" type="text" placeholder="🔍 Nº AIT" oninput="filtrarMultasLogistica()"
                     style="flex:1; min-width:130px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">
+                <input id="mf-placa" type="text" placeholder="🔍 Placa" oninput="filtrarMultasLogistica()"
+                    style="flex:1; min-width:100px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">
                 <input id="mf-de" type="date" title="Período de" oninput="filtrarMultasLogistica()"
                     style="flex:1; min-width:140px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">
                 <input id="mf-ate" type="date" title="Período até" oninput="filtrarMultasLogistica()"
@@ -243,14 +245,6 @@ function renderMultasLogistica(container) {
                     </div>
                 </div>
 
-                <div class="custom-multi-select" style="position:relative; flex:1; min-width:180px;">
-                    <div class="select-box" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='block' ? 'none' : 'block'" style="padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; background:#fff; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
-                        <span id="lbl-status-monaco" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Todos Status Mônaco</span>
-                        <i class="ph ph-caret-down"></i>
-                    </div>
-                    <div class="options-container" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #cbd5e1; border-radius:6px; margin-top:4px; z-index:10; box-shadow:0 4px 6px rgba(0,0,0,0.1); max-height:200px; overflow-y:auto; padding:0.5rem;">
-                        ${[...new Set(multasLogistica.map(m => m.status_monaco).filter(Boolean))].sort().map(s => `<label style="display:flex; align-items:center; gap:6px; font-size:0.82rem; padding:4px 0; cursor:pointer;"><input type="checkbox" value="${s}" class="chk-status-monaco" onchange="window.atualizarLabelStatusMonaco(); filtrarMultasLogistica();"> ${s}</label>`).join('')}
-                    </div>
                 </div>
                 <button onclick="limparFiltrosMultas()" title="Limpar filtros"
                     style="padding:0.45rem 0.8rem; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; color:#475569; white-space:nowrap;">&#x2715; Limpar</button>
@@ -295,19 +289,19 @@ function renderMultasLogistica(container) {
 function _aplicarFiltrosMultas(lista) {
     const motorista = (document.getElementById('mf-motorista')?.value || '').toLowerCase().trim();
     const ait       = (document.getElementById('mf-ait')?.value || '').toLowerCase().trim();
+    const placa     = (document.getElementById('mf-placa')?.value || '').toLowerCase().trim();
     const de        = document.getElementById('mf-de')?.value || '';
     const ate       = document.getElementById('mf-ate')?.value || '';
     
     const chksStatusRH = Array.from(document.querySelectorAll('.chk-status-rh:checked')).map(c => c.value);
-    const chksStatusMonaco = Array.from(document.querySelectorAll('.chk-status-monaco:checked')).map(c => c.value);
 
     return lista.filter(m => {
         if (motorista && !(m.motorista_nome || '').toLowerCase().includes(motorista)) return false;
         if (ait && !(m.numero_ait || '').toLowerCase().includes(ait)) return false;
+        if (placa && !(m.placa || '').toLowerCase().includes(placa)) return false;
         if (de && m.data_infracao && m.data_infracao < de) return false;
         if (ate && m.data_infracao && m.data_infracao > ate) return false;
         if (chksStatusRH.length > 0 && !chksStatusRH.includes(m.status)) return false;
-        if (chksStatusMonaco.length > 0 && !chksStatusMonaco.includes(m.status_monaco)) return false;
         return true;
     });
 }
@@ -319,19 +313,40 @@ function filtrarMultasLogistica() {
 
     const listaFiltrada = _aplicarFiltrosMultas(multasLogistica);
 
-    // Colunas de data: comparar como timestamp para ordenar do mais novo para o mais antigo
+    // Colunas de data pura: comparar como timestamp
     const DATE_COLS = ['data_infracao', 'data_limite', 'criado_em', 'atualizado_em', 'updated_at'];
+
+    // Helper de parse de data (ISO ou DD/MM/YYYY)
+    const parseDate = v => {
+        if (!v) return 0;
+        const m = String(v).match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+        if (m) return new Date(`${m[3]}-${m[2]}-${m[1]}T12:00:00`).getTime();
+        return new Date(v).getTime() || 0;
+    };
+
     listaFiltrada.sort((a, b) => {
         const isDate = DATE_COLS.includes(_multasSortCol);
         let va, vb;
+
+        // Status Mônaco: ordenar pela DATA de atualização (a data exibida abaixo do badge),
+        // usando o texto do status só como desempate secundário
+        if (_multasSortCol === 'status_monaco') {
+            const da = parseDate(a.updated_at || a.atualizado_em || '');
+            const db = parseDate(b.updated_at || b.atualizado_em || '');
+            // Registros sem data ficam por último
+            if (!da && db) return 1;
+            if (da && !db) return -1;
+            if (da < db) return _multasSortDir === 'asc' ? -1 : 1;
+            if (da > db) return _multasSortDir === 'asc' ? 1 : -1;
+            // Mesmo data: desempata pelo texto do status
+            const sa = (a.status_monaco || '').toLowerCase();
+            const sb = (b.status_monaco || '').toLowerCase();
+            if (sa < sb) return -1;
+            if (sa > sb) return 1;
+            return 0;
+        }
+
         if (isDate) {
-            const parseDate = v => {
-                if (!v) return 0;
-                // Tenta DD/MM/YYYY
-                const m = String(v).match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-                if (m) return new Date(`${m[3]}-${m[2]}-${m[1]}T12:00:00`).getTime();
-                return new Date(v).getTime() || 0;
-            };
             va = parseDate(a[_multasSortCol]);
             vb = parseDate(b[_multasSortCol]);
             if (va < vb) return _multasSortDir === 'asc' ? -1 : 1;
@@ -357,12 +372,11 @@ function filtrarMultasLogistica() {
 }
 
 function limparFiltrosMultas() {
-    ['mf-motorista','mf-ait','mf-de','mf-ate'].forEach(id => {
+    ['mf-motorista','mf-ait','mf-placa','mf-de','mf-ate'].forEach(id => {
         const el = document.getElementById(id); if (el) el.value = '';
     });
-    document.querySelectorAll('.chk-status-rh, .chk-status-monaco').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.chk-status-rh').forEach(cb => cb.checked = false);
     if(window.atualizarLabelStatusRH) window.atualizarLabelStatusRH();
-    if(window.atualizarLabelStatusMonaco) window.atualizarLabelStatusMonaco();
     filtrarMultasLogistica();
 }
 
@@ -374,13 +388,21 @@ window.atualizarLabelStatusRH = function() {
     else lbl.textContent = `${chks.length} selecionados (RH)`;
 };
 
-window.atualizarLabelStatusMonaco = function() {
-    const chks = Array.from(document.querySelectorAll('.chk-status-monaco:checked')).map(c => c.value);
-    const lbl = document.getElementById('lbl-status-monaco');
-    if (chks.length === 0) lbl.textContent = 'Todos Status Mônaco';
-    else if (chks.length === 1) lbl.textContent = chks[0];
-    else lbl.textContent = `${chks.length} selecionados (Mônaco)`;
-};
+function _buildOptionsMotoristas(motorista_id_atual) {
+    let opts = `<option value="">-- Selecione o Motorista (Deixe em branco se não souber) --</option>`;
+    let lista = (colaboradoresMultas || []).filter(c => c.status !== 'Desligado' || c.id == motorista_id_atual);
+    lista.sort((a, b) => {
+        const na = (a.nome_completo || a.nome || '').toLowerCase();
+        const nb = (b.nome_completo || b.nome || '').toLowerCase();
+        return na.localeCompare(nb);
+    });
+    lista.forEach(c => {
+        const nome = c.nome_completo || c.nome || 'Sem nome';
+        const sel = motorista_id_atual == c.id ? 'selected' : '';
+        opts += `<option value="${c.id}" ${sel}>${nome}</option>`;
+    });
+    return opts;
+}
 
 function abrirModalNovaMulta() {
     document.getElementById('modal-nova-multa')?.remove();
@@ -473,9 +495,7 @@ function abrirModalNovaMulta() {
                             <div style="flex:2; min-width:200px;">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Motorista</label>
                                 <select id="nm-motorista" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                                    <option value="">-- Selecione o Motorista (Deixe em branco se não souber) --</option>
-                                    <option value="-1">Ex Colaborador</option>
-                                    ${(window.colaboradoresMultas || []).map(c => `<option value="${c.id}">${c.nome_completo || c.nome}</option>`).join('')}
+                                    ${_buildOptionsMotoristas(null)}
                                 </select>
                             </div>
                         </div>
@@ -746,15 +766,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
     modal.id = 'modal-gerenciar-multa';
     modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:9999; padding:1rem;';
 
-    let optionsMotoristas = `<option value="">-- Selecione o Motorista --</option>`;
-    const selEx = (multa.motorista_id == -1) ? 'selected' : '';
-    optionsMotoristas += `<option value="-1" ${selEx}>Ex Colaborador</option>`;
-    
-    colaboradoresMultas.forEach(c => {
-        const nome = c.nome_completo || c.nome || 'Sem nome';
-        const sel = multa.motorista_id === c.id ? 'selected' : '';
-        optionsMotoristas += `<option value="${c.id}" ${sel}>${nome}</option>`;
-    });
+    let optionsMotoristas = _buildOptionsMotoristas(multa.motorista_id);
 
     const statusOpts = ['Conferência', 'Conferido', 'Indicado', 'Multa NIC', 'Não Se Aplica', 'Antiga'];
     let optionsStatus = '';
@@ -768,20 +780,27 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
     const cpf = multa.motorista_cpf || motoristaColab?.cpf || '';
     const habilitacao = multa.motorista_habilitacao || motoristaColab?.cnh_numero || '';
     const endereco = motoristaColab?.endereco || '';
-    const endEsc = endereco.replace(/'/g, "'");
-    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    const endEsc = endereco.replace(/'/g, "\\'");
+    const emailHtml = `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
+        <span style="font-size:0.8rem; color:#374151;"><b>E-mail:</b> <code>operacao@americarental.com.br</code></span>
+        <button type="button" onclick="navigator.clipboard.writeText('operacao@americarental.com.br'); mostrarToastSucesso('E-mail copiado!'); event.stopPropagation();" title="Copiar E-mail" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
+    </div>`;
 
-    // Bloco info motorista
-    const motoristaInfoHtml = motoristaColab ? `
-        <div id="gm-info-motorista" style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:0.85rem 1rem; margin-bottom:1rem; display:flex; flex-direction:column; gap:0.35rem;">
+    let motoristaInfoInner = '';
+    if (motoristaColab) {
+        motoristaInfoInner = `
             <div style="display:flex; align-items:center; gap:6px;">
                 <i class="ph ph-user" style="color:#166534;"></i>
                 <span style="font-size:0.88rem; color:#166534; font-weight:700;">${motoristaColab.nome_completo || motoristaColab.nome}</span>
-                <button type="button" onclick="navigator.clipboard.writeText('${(motoristaColab.nome_completo || motoristaColab.nome)}'); mostrarToastSucesso('Nome copiado!'); event.stopPropagation();" title="Copiar Nome" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
+                <button type="button" onclick="navigator.clipboard.writeText('${(motoristaColab.nome_completo || motoristaColab.nome).replace(/'/g, "\\'")}'); mostrarToastSucesso('Nome copiado!'); event.stopPropagation();" title="Copiar Nome" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
             </div>
             ${cpf ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
                 <span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code id="gm-cpf-val">${cpf}</code></span>
                 <button type="button" onclick="navigator.clipboard.writeText('${cpf}'); mostrarToastSucesso('CPF copiado!'); event.stopPropagation();" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
+            </div>` : ''}
+            ${motoristaColab?.rg ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
+                <span style="font-size:0.8rem; color:#374151;"><b>RG:</b> <code id="gm-rg-val">${motoristaColab.rg}</code></span>
+                <button type="button" onclick="navigator.clipboard.writeText('${motoristaColab.rg}'); mostrarToastSucesso('RG copiado!'); event.stopPropagation();" title="Copiar RG" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
             </div>` : ''}
             ${habilitacao ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
                 <span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code id="gm-hab-val">${habilitacao}</code></span>
@@ -789,10 +808,18 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                 ${multa.motorista_id ? `<button type="button" onclick="baixarCNHMotorista(${multa.motorista_id}); event.stopPropagation();" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:2px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button>` : ''}
             </div>` : '${multa.motorista_id ? `<div style="padding-left:1.2rem;"><button type="button" onclick="baixarCNHMotorista(${multa.motorista_id}); event.stopPropagation();" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:2px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button></div>` : ""}'}
             ${endEsc ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
-                <span style="font-size:0.8rem; color:#374151;"><b>Endereço:</b> <code id="gm-end-val">${endEsc}</code></span>
+                <span style="font-size:0.8rem; color:#374151;"><b>Endereço:</b> <code id="gm-end-val">${endereco}</code></span>
                 <button type="button" onclick="navigator.clipboard.writeText('${endEsc}'); mostrarToastSucesso('Endereço copiado!'); event.stopPropagation();" title="Copiar Endereço" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
             </div>` : ''}
-        </div>` : '';
+            ${emailHtml}
+        `;
+    }
+
+    const motoristaInfoHtml = `
+        <div id="gm-info-motorista" style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:0.85rem 1rem; margin-bottom:1rem; display:${motoristaColab ? 'flex' : 'none'}; flex-direction:column; gap:0.35rem;">
+            ${motoristaInfoInner}
+        </div>
+    `;
 
     // Documentos extras já salvos
     let docsExtras = [];
@@ -1055,8 +1082,8 @@ function atualizarInfoMotoristaModal(sel) {
     bloco.style.display = 'flex';
     bloco.style.flexDirection = 'column';
     bloco.style.gap = '0.35rem';
-    const endColab = (c.endereco || '').replace(/'/g, "'");
-    const nomeColab = (c.nome_completo || c.nome || '').replace(/'/g, "'");
+    const endColab = (c.endereco || '').replace(/'/g, "\\'");
+    const nomeColab = (c.nome_completo || c.nome || '').replace(/'/g, "\\'");
     bloco.innerHTML = `
         <div style="display:flex; align-items:center; gap:6px;">
             <i class="ph ph-user" style="color:#166534;"></i>
@@ -1067,6 +1094,10 @@ function atualizarInfoMotoristaModal(sel) {
             <span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code>${c.cpf}</code></span>
             <button type="button" onclick="navigator.clipboard.writeText('${c.cpf}'); mostrarToastSucesso('CPF copiado!'); event.stopPropagation();" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
         </div>` : ''}
+        ${c.rg ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
+            <span style="font-size:0.8rem; color:#374151;"><b>RG:</b> <code>${c.rg}</code></span>
+            <button type="button" onclick="navigator.clipboard.writeText('${c.rg}'); mostrarToastSucesso('RG copiado!'); event.stopPropagation();" title="Copiar RG" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
+        </div>` : ''}
         ${c.cnh_numero ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
             <span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code>${c.cnh_numero}</code></span>
             <button type="button" onclick="navigator.clipboard.writeText('${c.cnh_numero}'); mostrarToastSucesso('CNH copiada!'); event.stopPropagation();" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
@@ -1076,6 +1107,10 @@ function atualizarInfoMotoristaModal(sel) {
             <span style="font-size:0.8rem; color:#374151;"><b>Endereço:</b> <code>${c.endereco}</code></span>
             <button type="button" onclick="navigator.clipboard.writeText('${endColab}'); mostrarToastSucesso('Endereço copiado!'); event.stopPropagation();" title="Copiar Endereço" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
         </div>` : ''}
+        <div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
+            <span style="font-size:0.8rem; color:#374151;"><b>E-mail:</b> <code>operacao@americarental.com.br</code></span>
+            <button type="button" onclick="navigator.clipboard.writeText('operacao@americarental.com.br'); mostrarToastSucesso('E-mail copiado!'); event.stopPropagation();" title="Copiar E-mail" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
+        </div>
     `;
 }
 

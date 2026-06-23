@@ -42,7 +42,9 @@ const RR_EQ = {
 
 const RR_VAR_ICONS = {
     'LEVAR CARRINHO':          '🛒',
+    '🛒':                      '🛒',
     'NOTURNO':                 '🌘',
+    '🌘':                      '🌘',
     'INFORMACOES IMPORTANTES': '🚨',
     'INFORMAÇÕES IMPORTANTES': '🚨',
     '🚨':                      '🚨',
@@ -70,10 +72,13 @@ const RR_VAR_ICONS = {
 
 function _rrObsIcon(t) {
     const up = (t || '').toUpperCase();
+    const icons = [];
     for (const [k, ic] of Object.entries(RR_VAR_ICONS)) {
-        if (up.includes(k)) return ic;
+        if (up.includes(k) && !icons.includes(ic)) {
+            icons.push(ic);
+        }
     }
-    return '';
+    return icons.join('');
 }
 
 function _rrEquip(codigo) {
@@ -185,29 +190,45 @@ function _rrTipoObraEvento(lista) {
 function _rrMontarColB(v) {
     const lines = [];
 
-    // 1. OBS + Ícone de informações importantes
+    // 1. OBS + Ícone de informações importantes (sem duplicatas)
+    const obsLinhasSet = new Set();
     const obsLinhas = [];
     v.os.forEach(os => {
-        // Determina ícone: checa tanto obs quanto notas_raw (habilidades/variáveis)
-        const textoParaIcone = [os.obs, os.notas_raw].filter(Boolean).join(' ');
+        // Determina ícone: checa cliente, obs, notas_raw, e habilidades
+        let habs = Array.isArray(os.habilidades) ? os.habilidades.join(' ') : (os.habilidades || '');
+        const textoParaIcone = [os.cliente, os.obs, os.notas_raw, habs].filter(Boolean).join(' ');
         let icon = _rrObsIcon(textoParaIcone);
 
-        // Se tem ícone de informações importantes, mostra o cliente MESMO SEM obs
         const temInfoImportante = textoParaIcone.toUpperCase().includes('INFORMA') && textoParaIcone.toUpperCase().includes('IMPORTANTE');
-        if (!os.obs && !temInfoImportante) return;
+        
+        // Garante que a sirene esteja presente se a tag explícita existir
+        if (temInfoImportante && !icon.includes('🚨')) {
+            icon = '🚨' + icon;
+        }
 
-        let nome = (os.cliente || '').trim();
-        // Remove emojis do nome do cliente
-        nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🔸]+/gu, '').trim();
-        nome = nome.substring(0, 25).trim();
+        if (!os.obs && !icon) return;
 
-        let obsLimpa = (os.obs || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🛒]+/gu, '').trim().toUpperCase();
+        let nomeOriginal = (os.cliente || '').trim();
+        let nome = nomeOriginal;
+        // Remove emojis do nome do cliente (inclui ⭕ U+2B55 explicitamente e todos os da Rota Redonda)
+        nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/gu, '').trim();
+        nome = nome.replace(/^[\ud83c\udf00-\ud83e\uddff\u2600-\u27bf\u{1F000}-\u{1FFFF}\u2b00-\u2bff\uFE0F\s]+/gu, '').trim();
+        
+        // Limita o nome do cliente a 20 caracteres
+        if (nome.length > 20) {
+            nome = nome.substring(0, 20).trim();
+        }
+
+        let obsLimpa = (os.obs || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/gu, '').trim().toUpperCase();
 
         if (obsLimpa) {
-            obsLinhas.push(`${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`);
-        } else if (temInfoImportante) {
-            // Só tem a marcação de informações importantes, sem obs de texto
-            obsLinhas.push(`🚨 ${nome}`);
+            const linhaObs = `${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`;
+            if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
+        } else if (icon) {
+            // Mostra a tag principal da variável se a pessoa clicou no botão e não escreveu nada
+            const fallbackTxt = icon.includes('🚨') ? 'AVISO IMPORTANTE!' : 'VERIFICAR DETALHES!';
+            const linhaObs = `${icon} ${nome}: ${fallbackTxt}`;
+            if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
         }
     });
     if (obsLinhas.length) { lines.push(...obsLinhas); lines.push(''); }
@@ -216,7 +237,7 @@ function _rrMontarColB(v) {
     const entregas = v.os.filter(o => o.tipo === 'ENTREGA');
     if (entregas.length) {
         const ag = _rrAgruparProdutos(entregas);
-        lines.push(`ENTREGA ${_rrTipoObraEvento(entregas)}:`);
+        lines.push('ENTREGA:');
         for (const [nome, { qtd, icon }] of Object.entries(ag))
             lines.push(`   ${icon}${qtd} ${nome}`);
         lines.push('');
@@ -226,25 +247,19 @@ function _rrMontarColB(v) {
     const retiradas = v.os.filter(o => o.tipo === 'RETIRADA');
     if (retiradas.length) {
         const ag = _rrAgruparProdutos(retiradas);
-        lines.push(`⭕ RETIRADA ${_rrTipoObraEvento(retiradas)}:`);
+        lines.push('⭕ RETIRADA:');
         for (const [nome, { qtd, icon }] of Object.entries(ag))
             lines.push(`   ${qtd} ${nome}`);
         lines.push('');
     }
 
-        // 4. OUTROS E AVULSA
+    // 4. AVULSA
     const avulsas = v.os.filter(o => o.tipo === 'AVULSA');
     if (avulsas.length) {
         const ag = _rrAgruparProdutos(avulsas);
-        lines.push('❗ MANUTENCAO AVULSA ' + _rrTipoObraEvento(avulsas) + ':');
+        lines.push('❗ MANUTENÇÃO AVULSA:');
         for (const [nome, { qtd, icon }] of Object.entries(ag))
             lines.push('   ' + qtd + ' × ' + nome);
-        lines.push('');
-    }
-
-    const outros = v.os.filter(o => o.tipo === 'OUTROS');
-    if (outros.length) {
-        outros.forEach(o => lines.push(o.servico.toUpperCase()));
         lines.push('');
     }
 
@@ -252,13 +267,20 @@ function _rrMontarColB(v) {
     const manut = v.os.filter(o => o.tipo === 'MANUTENCAO');
     if (manut.length) {
         const ag = _rrAgruparProdutos(manut);
-        lines.push(`MANUTENCAO ${_rrTipoObraEvento(manut)}:`);
+        lines.push('MANUTENÇÃO:');
         for (const [nome, { qtd, icon }] of Object.entries(ag))
             lines.push(`   ${qtd} × ${nome}`);
         lines.push('');
     }
 
-    // 6. COMPRAS (sem produto / sem capacidade)
+    // 6. OUTROS
+    const outros = v.os.filter(o => o.tipo === 'OUTROS');
+    if (outros.length) {
+        outros.forEach(o => lines.push(o.servico.toUpperCase()));
+        lines.push('');
+    }
+
+    // 7. COMPRAS
     const compras = v.os.filter(o => o.tipo === 'COMPRAS');
     if (compras.length) {
         lines.push('💳Compras América:');
@@ -269,22 +291,27 @@ function _rrMontarColB(v) {
         lines.push('');
     }
 
-    // 6. MOTORISTA / AJUDANTE
-    if (v.motorista) lines.push(`Motorista: ${v.motorista}`);
-    if (v.ajudante)  lines.push(`Ajudante: ${v.ajudante}`);
-
     return lines.join('\n');
 }
 
 // ── Estado global ──────────────────────────────────────────────
-let _rrVeiculos        = [];
-let _rrCurrentId       = null;
-let _rrHistoricoList   = [];
+let _rrVeiculos      = [];
+let _rrCurrentId     = null;
+let _rrHistoricoList = [];
+let _rrSearchTerm = '';
+let _rrDate = null;
+let _rrColabDisponiveisObs = {};
+let _rrPeriodoSelecionado = 'todos'; // todos, diurno, noturno
 window._rrOriginalFileBase64 = null;
 window._rrOriginalFileName   = null;
 window._rrDefaultNomeResumo  = '';
-window._rrColabFotoMap       = {};
-window._rrColabNomes         = [];
+
+window._rrChangePeriodo = function(val) {
+    window._rrPeriodoSelecionado = val;
+    window._rrRenderColabDisponiveis();
+};
+window._rrColabFotoMap = {};
+window._rrColabNomes   = [];
 
 // ── Token helper ───────────────────────────────────────────────
 function _rrAuthHeaders() {
@@ -397,6 +424,8 @@ window.rrCarregarHistorico = async function(id) {
         if (btnSalvar) btnSalvar.style.display = 'none';
         if (btnExportar) btnExportar.style.display = 'none';
         if (btnOrig)     btnOrig.style.display = 'none';
+        const btnExcluir = document.getElementById('rr-btn-excluir');
+        if (btnExcluir) btnExcluir.style.display = 'none';
         return;
     }
 
@@ -432,6 +461,9 @@ window.rrCarregarHistorico = async function(id) {
         if (btnSalvar) btnSalvar.style.display = 'flex';
         if (btnExportar) btnExportar.style.display = 'flex';
         if (btnOrig) btnOrig.style.display = window._rrOriginalFileBase64 ? 'flex' : 'none';
+        
+        const btnExcluir = document.getElementById('rr-btn-excluir');
+        if (btnExcluir) btnExcluir.style.display = 'flex';
 
         // Re-consulta disponibilidade em background se tiver data detectada
         if (dataHistorico) {
@@ -773,10 +805,13 @@ function _rrRenderCorpo() {
         const nLines = (colB.match(/\n/g) || []).length + 2;
         const h      = Math.max(120, nLines * 20);
         
-        // Helper de avatar (foto ou inicial)
-        const _avatar = (foto, nome) => foto
-            ? `<img src="${foto}" title="${nome||''}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.6);">`
-            : `<div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:#fff;border:1px dashed rgba(255,255,255,0.5);">${(nome&&nome.trim()) ? nome.trim()[0].toUpperCase() : '+'}</div>`;
+        // Helper de avatar (foto ou inicial) — cor diferente para motorista e ajudante
+        const _avatarMot = (foto, nome) => foto
+            ? `<img src="${foto}" title="${nome||''}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:3px solid #1d4ed8;box-shadow:0 0 0 1px #93c5fd;">`
+            : `<div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:#fff;border:3px solid #1d4ed8;">${(nome&&nome.trim()) ? nome.trim()[0].toUpperCase() : '+'}</div>`;
+        const _avatarAju = (foto, nome) => foto
+            ? `<img src="${foto}" title="${nome||''}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:3px solid #d97706;box-shadow:0 0 0 1px #fcd34d;">`
+            : `<div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:#fff;border:3px solid #d97706;">${(nome&&nome.trim()) ? nome.trim()[0].toUpperCase() : '+'}</div>`;
 
         // Helper de input editável inline (sempre visível, inclusive se vazio) com datalist
         const _inp = (campo, val, placeholder) =>
@@ -788,10 +823,10 @@ function _rrRenderCorpo() {
                 title="Editar ${placeholder}">`;
 
         const fotosMot = `<div style="display:flex;align-items:center;gap:6px;" title="Motorista">
-            <span id="rr-avatar-mot-${i}">${_avatar(v._fotoMotorista, v.motorista)}</span>
+            <span id="rr-avatar-mot-${i}">${_avatarMot(v._fotoMotorista, v.motorista)}</span>
             ${_inp('motorista', v.motorista, 'Motorista...')}</div>`;
         const fotosAju = `<div style="display:flex;align-items:center;gap:6px;" title="Ajudante">
-            <span id="rr-avatar-aju-${i}">${_avatar(v._fotoAjudante, v.ajudante)}</span>
+            <span id="rr-avatar-aju-${i}">${_avatarAju(v._fotoAjudante, v.ajudante)}</span>
             ${_inp('ajudante', v.ajudante, 'Ajudante...')}</div>`;
         const fotosDiv = `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">${fotosMot}${fotosAju}</div>`;
 
@@ -916,17 +951,277 @@ function _rrRenderCorpo() {
                     >${v.obsAlteracoes || ''}</textarea>
                 </div>
             </div>
+        </div>
         `;
     }).join('');
+
+    // Append painel de colaboradores disponíveis
+    _rrRenderColabDisponiveis();
 }
 
-// ── Atualiza veiculo/motorista/ajudante diretamente na estrutura de dados ──────
+// ══════════════════════════════════════════════════════════════
+//  PAINEL: COLABORADORES DISPONÍVEIS NO DIA
+// ══════════════════════════════════════════════════════════════
+window._rrColabDisponiveisObs = window._rrColabDisponiveisObs || {}; // id -> { obs, obsAlt }
+
+async function _rrRenderColabDisponiveis() {
+    const corpo = document.getElementById('rr-corpo');
+    if (!corpo) return;
+
+    // Insere container placeholder se não existir
+    let painel = document.getElementById('rr-colab-disp-painel');
+    if (!painel) {
+        painel = document.createElement('div');
+        painel.id = 'rr-colab-disp-painel';
+        corpo.appendChild(painel);
+    }
+    painel.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:16px 0 8px;"
+        ><i class="ph ph-users" style="font-size:1.4rem;color:#2d9e5f;"></i
+        ><span style="font-size:1rem;font-weight:700;color:#1e293b;">Colaboradores Disponíveis para Trabalho hoje</span
+        ><span id="rr-colab-disp-loading" style="font-size:0.8rem;color:#94a3b8;margin-left:6px;">carregando...</span></div>`;
+
+    // Dados da rota para cruzar nomes na rota
+    const dataRota = window._rrDataRotaAtual || new Date().toISOString().split('T')[0];
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    const headers = { 'Authorization': 'Bearer ' + token };
+
+    let colabs = [];
+    try {
+        const res = await fetch(`/api/equipes/colaboradores-disponiveis?data=${dataRota}`, { headers });
+        if (res.ok) colabs = await res.json();
+    } catch(e) {
+        console.error('[RR] Erro ao carregar colaboradores disponíveis:', e);
+    }
+
+    // Função para checar se está de folga no dia
+    function _rrIsFolga(c, dataStr) {
+        const hoje = new Date(dataStr + 'T00:00:00');
+        const ds = hoje.getDay();
+        const escalaTipo = (c.escala_tipo || '').trim();
+        if (!escalaTipo || escalaTipo === 'null') return ds === 0 || ds === 6;
+        if (escalaTipo === 'padrao_seis_dias' || escalaTipo === 'padrao_sab_4h') return ds === 0;
+        if (escalaTipo === 'padrao_sab_alternado') {
+            if (ds === 0) return true;
+            if (ds === 6) {
+                if (!c.escala_ciclo_inicio) return false;
+                const MS_SEMANA = 7 * 24 * 60 * 60 * 1000;
+                const refSab = new Date(c.escala_ciclo_inicio + 'T00:00:00');
+                while (refSab.getDay() !== 6) refSab.setDate(refSab.getDate() + 1);
+                const semanas = Math.round((hoje - refSab) / MS_SEMANA);
+                return ((semanas % 2) + 2) % 2 !== 0;
+            }
+            return false;
+        }
+        if (escalaTipo === 'escala_duas_folgas') {
+            let folgas = [];
+            try { folgas = JSON.parse(c.escala_folgas || '[]'); } catch(e) {}
+            const DIAS_NOME = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+            const diasFolgaFixos = folgas.map(f => DIAS_NOME.indexOf(f)).filter(n => n >= 0);
+            if (diasFolgaFixos.includes(ds)) return true;
+            if (ds === 0) {
+                if (!c.escala_ciclo_inicio) return false;
+                const MS_SEMANA = 7 * 24 * 60 * 60 * 1000;
+                const refDom = new Date(c.escala_ciclo_inicio + 'T00:00:00');
+                while (refDom.getDay() !== 0) refDom.setDate(refDom.getDate() + 1);
+                const semanas = Math.round((hoje - refDom) / MS_SEMANA);
+                return ((semanas % 3) + 3) % 3 === 2;
+            }
+            return false;
+        }
+        if (escalaTipo === 'escala_12x36') {
+            if (!c.escala_ciclo_inicio) return false;
+            const MS_DIA = 24 * 60 * 60 * 1000;
+            const ref = new Date(c.escala_ciclo_inicio + 'T00:00:00');
+            const diasDif = Math.round((hoje - ref) / MS_DIA);
+            return Math.abs(diasDif) % 2 !== 0;
+        }
+        if (escalaTipo === 'padrao_seg_sexta') return ds === 0 || ds === 6;
+        return ds === 0 || ds === 6;
+    }
+
+    function _rrIsFeriasAfastado(c, dataStr) {
+        const st = (c.colab_status || '').toLowerCase();
+        if (st.includes('afastado')) return 'afastado';
+        if (st.includes('falta')) return 'falta';
+        if (c.ferias_programadas_inicio && c.ferias_programadas_fim) {
+            const parse = d => { if (!d) return null; if (d.includes('/')) { const p = d.split('/'); return new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`); } return new Date(d + 'T00:00:00'); };
+            const ini = parse(c.ferias_programadas_inicio), fim = parse(c.ferias_programadas_fim);
+            const ref = new Date(dataStr + 'T00:00:00');
+            if (ini && fim && ref >= ini && ref <= fim) return 'ferias';
+        }
+        return null;
+    }
+
+    // Nomes que estão na rota
+    const nomesNaRota = new Set();
+    (_rrVeiculos || []).forEach(v => {
+        if (v.motorista && v.motorista.trim()) nomesNaRota.add(v.motorista.trim().toLowerCase());
+        if (v.ajudante && v.ajudante.trim()) nomesNaRota.add(v.ajudante.trim().toLowerCase());
+    });
+
+    // Filtrar: remover folga, férias, afastados e intermitentes
+    let disponiveis = colabs.filter(c => {
+        if ((c.tipo_contrato || '').toLowerCase().includes('intermitente')) return false;
+        const indisponivel = _rrIsFeriasAfastado(c, dataRota);
+        if (indisponivel) return false;
+        if (_rrIsFolga(c, dataRota)) return false;
+        return true;
+    });
+
+    // Filtro por Período
+    if (window._rrPeriodoSelecionado && window._rrPeriodoSelecionado !== 'todos') {
+        disponiveis = disponiveis.filter(c => {
+            let isNoturno = false;
+            const eqNome = (c.equipe_nome || '').toLowerCase();
+            if (eqNome.includes('noturn')) {
+                isNoturno = true;
+            } else if (eqNome.includes('lider') || eqNome.includes('líder')) {
+                // Checa lideranca
+                const entrada = c.horario_entrada || '';
+                if (entrada >= '17:00' || entrada >= '18:00' || entrada >= '19:00' || entrada >= '20:00') {
+                    isNoturno = true;
+                }
+                const nomeLower = (c.nome_completo || '').toLowerCase();
+                if (nomeLower.includes('vitor leandro')) {
+                    isNoturno = true; // explicitly noturno according to user
+                } else if (nomeLower.includes('vivian') || nomeLower.includes('eduardo') || nomeLower.includes('joaquim')) {
+                    isNoturno = false;
+                }
+            }
+            if (window._rrPeriodoSelecionado === 'noturno') {
+                return isNoturno;
+            } else if (window._rrPeriodoSelecionado === 'diurno') {
+                return !isNoturno;
+            }
+            return true;
+        });
+    }
+
+    // Separar em rota vs sem atribuição
+    const naRota = disponiveis.filter(c => nomesNaRota.has((c.nome_completo || '').toLowerCase().trim()));
+    const semAtribuicao = disponiveis.filter(c => !nomesNaRota.has((c.nome_completo || '').toLowerCase().trim()));
+
+    const fotoUrl = c => c.foto_path ? `/api/colaboradores/foto/${c.id}` : null;
+    const avatarHtml = c => {
+        const f = fotoUrl(c);
+        const iniciais = (c.nome_completo || '?').split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase();
+        const bg = ['#6366f1','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'][c.id % 6];
+        return f
+            ? `<img src="${f}" alt="${c.nome_completo}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div style="width:52px;height:52px;border-radius:50%;background:${bg};display:none;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:#fff;flex-shrink:0;">${iniciais}</div>`
+            : `<div style="width:52px;height:52px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:#fff;flex-shrink:0;">${iniciais}</div>`;
+    };
+
+    const cardRota = c => {
+        const cargo = (c.cargo || c.funcao || '').replace(/Motorista/i,'Mot.').replace(/Ajudante/i,'Aj.');
+        return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 8px;background:#f0fdf4;border-radius:10px;border:1.5px solid #bbf7d0;min-width:90px;max-width:110px;text-align:center;">
+            <div style="display:flex;justify-content:center;">${avatarHtml(c)}</div>
+            <div style="font-size:0.72rem;font-weight:700;color:#15803d;line-height:1.2;">${(c.nome_completo||'').split(' ').slice(0,2).join(' ')}</div>
+            ${cargo ? `<div style="font-size:0.65rem;color:#6b7280;background:#d1fae5;padding:2px 6px;border-radius:4px;">${cargo}</div>` : ''}
+            <div style="font-size:0.62rem;color:#22c55e;font-weight:600;"><i class="ph ph-check-circle"></i> Na Rota</div>
+        </div>`;
+    };
+
+    const cardSemAtribuicao = c => {
+        const savedObs = (window._rrColabDisponiveisObs[c.id] || {});
+        const cargo = (c.cargo || '').replace(/Motorista/i,'Mot.').replace(/Ajudante/i,'Aj.');
+        return `<div style="display:flex;flex-direction:column;gap:8px;padding:12px;background:#fff;border-radius:10px;border:1.5px solid #e2e8f0;min-width:200px;max-width:240px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="flex-shrink:0;display:flex;">${avatarHtml(c)}</div>
+                <div>
+                    <div style="font-size:0.8rem;font-weight:700;color:#1e293b;line-height:1.3;">${c.nome_completo||''}</div>
+                    ${cargo ? `<div style="font-size:0.68rem;color:#6b7280;margin-top:2px;">${cargo}</div>` : ''}
+                    <div style="font-size:0.65rem;color:#f59e0b;font-weight:600;margin-top:2px;"><i class="ph ph-warning"></i> Sem atribuição</div>
+                </div>
+            </div>
+            <div>
+                <div style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">Obs. Roteirizador</div>
+                <textarea rows="2" data-colab-id="${c.id}" data-colab-field="obs"
+                    placeholder="Observação para este colaborador..."
+                    style="width:100%;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;font-size:0.75rem;color:#1e293b;resize:vertical;outline:none;box-sizing:border-box;background:#fefce8;"
+                    onfocus="this.style.borderColor='#ca8a04'"
+                    onblur="this.style.borderColor='#e2e8f0'; window._rrSalvarColabObs(${c.id},'obs',this.value)"
+                >${savedObs.obs || ''}</textarea>
+            </div>
+            <div>
+                <div style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">Obs. Alterações</div>
+                <textarea rows="2" data-colab-id="${c.id}" data-colab-field="obsAlt"
+                    placeholder="Obs. de alterações..."
+                    style="width:100%;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;font-size:0.75rem;color:#1e293b;resize:vertical;outline:none;box-sizing:border-box;background:#f8fafc;"
+                    onfocus="this.style.borderColor='#3b82f6'"
+                    onblur="this.style.borderColor='#e2e8f0'; window._rrSalvarColabObs(${c.id},'obsAlt',this.value)"
+                >${savedObs.obsAlt || ''}</textarea>
+            </div>
+        </div>`;
+    };
+
+    const dataLabel = new Date(dataRota + 'T12:00:00').toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long'});
+    const totalDisp = disponiveis.length;
+    const totalFora = semAtribuicao.length;
+
+    painel.innerHTML = `
+    <div style="margin-top:24px;border-radius:14px;overflow:hidden;border:1.5px solid #e2e8f0;background:#fff;">
+        <div style="background:linear-gradient(135deg,#2d9e5f 0%,#1a7a48 100%);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <i class="ph ph-users" style="font-size:1.5rem;color:rgba(255,255,255,0.9);"></i>
+                <div>
+                    <div style="color:#fff;font-weight:800;font-size:1rem;">Colaboradores Disponíveis para Trabalho</div>
+                    <div style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:2px;"><i class="ph ph-calendar"></i> ${dataLabel}</div>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <div style="color:rgba(255,255,255,0.95);font-size:0.8rem;font-weight:600;display:flex;gap:16px;margin-right:12px;">
+                    <label style="cursor:pointer;display:flex;align-items:center;gap:4px;" title="Mostrar todos">
+                        <input type="radio" name="rr_periodo" value="todos" ${window._rrPeriodoSelecionado==='todos'?'checked':''} onchange="window._rrChangePeriodo(this.value)"> Todos
+                    </label>
+                    <label style="cursor:pointer;display:flex;align-items:center;gap:4px;" title="Diurnos">
+                        <input type="radio" name="rr_periodo" value="diurno" ${window._rrPeriodoSelecionado==='diurno'?'checked':''} onchange="window._rrChangePeriodo(this.value)"> Diurno
+                    </label>
+                    <label style="cursor:pointer;display:flex;align-items:center;gap:4px;" title="Noturnos">
+                        <input type="radio" name="rr_periodo" value="noturno" ${window._rrPeriodoSelecionado==='noturno'?'checked':''} onchange="window._rrChangePeriodo(this.value)"> Noturno
+                    </label>
+                </div>
+                <div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:6px 14px;text-align:center;">
+                    <div style="color:#fff;font-size:1.2rem;font-weight:800;">${totalDisp}</div>
+                    <div style="color:rgba(255,255,255,0.75);font-size:0.7rem;">disponíveis</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:6px 14px;text-align:center;">
+                    <div style="color:#fff;font-size:1.2rem;font-weight:800;">${naRota.length}</div>
+                    <div style="color:rgba(255,255,255,0.75);font-size:0.7rem;">na rota</div>
+                </div>
+                <div style="background:rgba(255,165,0,0.3);border-radius:8px;padding:6px 14px;text-align:center;">
+                    <div style="color:#fde047;font-size:1.2rem;font-weight:800;">${totalFora}</div>
+                    <div style="color:rgba(255,255,255,0.75);font-size:0.7rem;">sem atribuição</div>
+                </div>
+            </div>
+        </div>
+
+        ${semAtribuicao.length ? `
+        <div style="padding:16px 20px;">
+            <div style="font-size:0.7rem;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+                <i class="ph ph-warning-circle"></i> Sem Atribuição — Aguardam Designação (${semAtribuicao.length})
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;">${semAtribuicao.map(cardSemAtribuicao).join('')}</div>
+        </div>` : `
+        <div style="padding:20px;text-align:center;color:#22c55e;font-size:0.9rem;">
+            <i class="ph ph-check-circle" style="font-size:1.5rem;"></i>
+            <p>Todos os colaboradores disponíveis hoje estão com atribuição na rota! 🎉</p>
+        </div>`}
+    </div>`;
+}
+
+window._rrSalvarColabObs = function(colabId, field, value) {
+    if (!window._rrColabDisponiveisObs[colabId]) window._rrColabDisponiveisObs[colabId] = {};
+    window._rrColabDisponiveisObs[colabId][field] = value;
+};
+
 window._rrAtualizarVeiculo = function(idx, campo, valor) {
     if (!_rrVeiculos[idx]) return;
     _rrVeiculos[idx][campo] = valor;
 
     if (campo === 'motorista' || campo === 'ajudante') {
         const fotoKey = campo === 'motorista' ? '_fotoMotorista' : '_fotoAjudante';
+        const ringColor = campo === 'motorista' ? '#1d4ed8' : '#d97706';
+        const ringGlow  = campo === 'motorista' ? '#93c5fd' : '#fcd34d';
         const spanId  = campo === 'motorista' ? `rr-avatar-mot-${idx}` : `rr-avatar-aju-${idx}`;
         const nomeLower = (valor || '').trim().toLowerCase();
         
@@ -1100,6 +1395,28 @@ window.rrExportarExcel = async function() {
     await _rrGerarExcel();
 };
 
+window.rrExcluirResumo = async function() {
+    if (!_rrCurrentId) return;
+    if (!confirm('Tem certeza que deseja excluir permanentemente este resumo da rota?')) return;
+    try {
+        const res = await fetch(`/api/logistica/resumo-rota/${_rrCurrentId}`, {
+            method: 'DELETE',
+            headers: _rrAuthHeaders()
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('Resumo excluído com sucesso!', 'success');
+            window.rrLimparResumo();
+            window.rrListarHistorico();
+        } else {
+            showToast(data.error || 'Erro ao excluir.', 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('Erro de conexão ao excluir.', 'error');
+    }
+};
+
 window.rrSalvarResumo = async function() {
     // Captura snapshot antes de ler os textareas (para detectar mudanças)
     if (!_rrVeiculos.length) {
@@ -1199,6 +1516,337 @@ window.rrSalvarResumo = async function() {
     await _rrGerarExcel();
 };
 
+// ══════════════════════════════════════════════════════════════
+//  GERAR IMAGENS PNG DA ROTA  (1080 × 1920)
+// ══════════════════════════════════════════════════════════════
+async function _rrGerarImagensRota() {
+    const W = 1080, H = 1920;
+    const PAD = 28;
+    const HDR_H = 96;          // altura do cabeçalho de página
+    const V_HDR_H = 54;        // altura do header do card de veículo
+    const CREW_R = 38;         // raio da foto circular
+    const CREW_ROW_H = 90;     // altura por tripulante
+    const LEFT_W = 270;        // largura da coluna esquerda (equipe)
+    const RIGHT_X = PAD + LEFT_W + 16;
+    const RIGHT_W = W - RIGHT_X - PAD;
+    const SRV_LH = 30;         // line-height dos serviços
+    const BODY_PAD_V = 18;     // padding vertical interno do card
+    const CREW_H = BODY_PAD_V + CREW_ROW_H * 2 + 8 + BODY_PAD_V;
+    const CARD_GAP = 10;
+
+    // ── Pre-carregar fotos via fetch + auth ─────────────────────
+    const cache = {};
+    const toLoad = new Set();
+    _rrVeiculos.forEach(v => {
+        if (v._fotoMotorista) toLoad.add(v._fotoMotorista);
+        if (v._fotoAjudante)  toLoad.add(v._fotoAjudante);
+    });
+    await Promise.allSettled([...toLoad].map(async url => {
+        try {
+            const r = await fetch(url, { headers: _rrAuthHeaders() });
+            if (!r.ok) throw 0;
+            const b = await r.blob();
+            const bu = URL.createObjectURL(b);
+            await new Promise((ok, fail) => {
+                const im = new Image();
+                im.onload = () => { cache[url] = im; URL.revokeObjectURL(bu); ok(); };
+                im.onerror = () => { cache[url] = null; ok(); };
+                im.src = bu;
+            });
+        } catch { cache[url] = null; }
+    }));
+
+    function lineStyle(line) {
+        const u = line.toUpperCase().trim();
+        // Apenas títulos de seção (terminam com ':') recebem cor especial
+        if (u.endsWith(':')) {
+            if (u.includes('RETIRADA'))
+                return { color: '#b91c1c', bold: true };   // vermelho
+            if (u.includes('ENTREGA'))
+                return { color: '#1e40af', bold: true };   // azul
+            if (u.includes('MANUTENCAO') || u.includes('MANUTEN\u00c7\u00c3O') || u.includes('MANUTEN\u00c7\u00c3O'))
+                return { color: '#78350f', bold: true };   // marrom
+        }
+        return { color: '#1e293b', bold: false };
+    }
+
+    // Quebra de texto em múltiplas linhas para evitar compressão
+    function wrapText(ctx, text, maxW) {
+        if (ctx.measureText(text).width <= maxW) return [text];
+        const words = text.split(' ');
+        const lines = [];
+        let cur = '';
+        for (const word of words) {
+            const test = cur ? cur + ' ' + word : word;
+            if (ctx.measureText(test).width > maxW && cur) {
+                lines.push(cur);
+                cur = word;
+            } else {
+                cur = test;
+            }
+        }
+        if (cur) lines.push(cur);
+        return lines.length ? lines : [text];
+    }
+
+    // ── Estimativa de altura do card ─────────────────────────────
+    function cardH(v) {
+        const colB = v.colBEditado || _rrMontarColB(v);
+        let sh = BODY_PAD_V;
+        colB.split('\n').forEach(l => { sh += l.trim() ? SRV_LH + 3 : 8; });
+        sh += BODY_PAD_V;
+        return V_HDR_H + 1 + Math.max(CREW_H, sh) + 2 + CARD_GAP;
+    }
+
+    // ── Paginação ─────────────────────────────────────────────────
+    const AVAIL = H - HDR_H - PAD;
+    const pages = [[]];
+    let used = 0;
+    for (const v of _rrVeiculos) {
+        const h = cardH(v);
+        if (used + h > AVAIL && pages[pages.length - 1].length > 0) {
+            pages.push([]);
+            used = 0;
+        }
+        pages[pages.length - 1].push(v);
+        used += h;
+    }
+
+    // ── Helpers de desenho ────────────────────────────────────────
+    function roundRect(ctx, x, y, w, h, r, fill) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.arcTo(x + w, y, x + w, y + r, r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+        ctx.lineTo(x + r, y + h);
+        ctx.arcTo(x, y + h, x, y + h - r, r);
+        ctx.lineTo(x, y + r);
+        ctx.arcTo(x, y, x + r, y, r);
+        ctx.closePath();
+        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    }
+
+    function drawPhoto(ctx, img, cx, cy, r, initials, ring) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        // NÃO chamar closePath() para arco completo — evita linha diagonal na foto
+        if (img) {
+            ctx.clip();
+            ctx.drawImage(img, cx - r, cy - r, r * 2, r * 2);
+        } else {
+            ctx.fillStyle = ring || '#16a34a';
+            ctx.fill();
+            ctx.clip();
+            ctx.fillStyle = '#fff';
+            ctx.font = `bold ${Math.floor(r * 0.74)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(initials || '?').substring(0, 2).toUpperCase(), cx, cy + 1);
+        }
+        ctx.restore();
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + 2.5, 0, Math.PI * 2);
+        ctx.strokeStyle = ring || '#16a34a';
+        ctx.lineWidth = 3.5;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // ── Renderizar páginas ────────────────────────────────────────
+    const canvases = [];
+
+    for (let pi = 0; pi < pages.length; pi++) {
+        const cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        const ctx = cv.getContext('2d');
+
+        // Fundo da página
+        ctx.fillStyle = '#f1f5f9';
+        ctx.fillRect(0, 0, W, H);
+
+        // Cabeçalho verde
+        const hg = ctx.createLinearGradient(0, 0, 0, HDR_H);
+        hg.addColorStop(0, '#155d38');
+        hg.addColorStop(1, '#2d9e5f');
+        ctx.fillStyle = hg;
+        ctx.fillRect(0, 0, W, HDR_H);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 40px Arial';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('AMÉRICA RENTAL', PAD + 6, HDR_H * 0.37);
+
+        const ds = window._rrDataRotaAtual
+            ? new Date(window._rrDataRotaAtual + 'T12:00:00').toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long', year:'numeric'})
+            : new Date().toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
+        ctx.font = '22px Arial';
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.fillText('Resumo de Rota — ' + ds.charAt(0).toUpperCase() + ds.slice(1), PAD + 6, HDR_H * 0.7);
+
+        ctx.font = 'bold 22px Arial';
+        ctx.fillStyle = 'rgba(255,255,255,0.65)';
+        ctx.textAlign = 'right';
+        ctx.fillText(`${pi + 1} / ${pages.length}`, W - PAD, HDR_H * 0.5);
+
+        // Veículos
+        let cy = HDR_H + PAD;
+
+        for (const v of pages[pi]) {
+            const colB = v.colBEditado || _rrMontarColB(v);
+            const lines = colB.split('\n');
+
+            let sh = BODY_PAD_V;
+            lines.forEach(l => { sh += l.trim() ? SRV_LH + 3 : 8; });
+            sh += BODY_PAD_V;
+            const bodyH = Math.max(CREW_H, sh);
+            const totalH = V_HDR_H + 1 + bodyH;
+
+            // Sombra suave + fundo branco do card
+            ctx.shadowColor = 'rgba(0,0,0,0.09)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 3;
+            roundRect(ctx, PAD, cy, W - PAD * 2, totalH, 10, '#ffffff');
+            ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+            // Borda do card
+            ctx.save();
+            roundRect(ctx, PAD, cy, W - PAD * 2, totalH, 10);
+            ctx.strokeStyle = '#dde3ea';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.restore();
+
+            // Header do veículo (cinza)
+            ctx.fillStyle = '#e8edf2';
+            roundRect(ctx, PAD, cy, W - PAD * 2, V_HDR_H, 10, '#e8edf2');
+            ctx.fillStyle = '#e8edf2';
+            ctx.fillRect(PAD, cy + 10, W - PAD * 2, V_HDR_H - 10);
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = 'bold 26px Arial';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🚚  ' + (v.veiculo || ''), PAD + 18, cy + V_HDR_H / 2);
+
+            // Linha divisória após header do veículo
+            ctx.fillStyle = '#cdd5df';
+            ctx.fillRect(PAD, cy + V_HDR_H, W - PAD * 2, 1);
+
+            const bodyY = cy + V_HDR_H + 1;
+
+            // Divisor vertical esquerda|direita
+            ctx.fillStyle = '#e9eef3';
+            ctx.fillRect(PAD + LEFT_W, bodyY, 1, bodyH);
+
+            // ── Esquerda: Equipe ──
+            let crY = bodyY + BODY_PAD_V;
+
+            const drawMember = (nome, cargo, fotoUrl, ring) => {
+                const photoX = PAD + CREW_R + 12;
+                const photoY = crY + CREW_R + 4;
+                const img = fotoUrl ? (cache[fotoUrl] || null) : null;
+                const ini = (nome || '?').split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
+                drawPhoto(ctx, img, photoX, photoY, CREW_R, ini, ring);
+
+                const tx = PAD + CREW_R * 2 + 22;
+                const tw = LEFT_W - CREW_R * 2 - 30;
+
+                ctx.fillStyle = '#0f172a';
+                ctx.font = 'bold 21px Arial';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                let displayNome = (nome || '—').replace(/\s+/g, ' ').trim();
+                if (ctx.measureText(displayNome).width > tw) {
+                    const parts = displayNome.split(' ');
+                    displayNome = parts.slice(0, 2).join(' ');
+                    if (ctx.measureText(displayNome).width > tw) displayNome = parts[0];
+                }
+                ctx.fillText(displayNome, tx, crY + 10);
+
+                ctx.fillStyle = '#64748b';
+                ctx.font = '18px Arial';
+                ctx.fillText(cargo || '', tx, crY + 37);
+                crY += CREW_ROW_H;
+            };
+
+            drawMember(v.motorista, 'Motorista', v._fotoMotorista, '#1d4ed8');
+
+            // Separador entre motorista e ajudante — desenhado ENTRE as duas fotos
+            // crY após motor = bodyY + BODY_PAD_V + CREW_ROW_H
+            // motor foto bottom = crY - CREW_ROW_H + CREW_R*2 + 4  
+            // aju foto top    = crY + 4
+            // meio da lacuna = crY - (CREW_ROW_H - CREW_R*2 - 4) / 2 = crY - 3
+            ctx.strokeStyle = '#e9eef3';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(PAD + 10, crY - 4);
+            ctx.lineTo(PAD + LEFT_W - 8, crY - 4);
+            ctx.stroke();
+
+            drawMember(v.ajudante, 'Ajudante Geral', v._fotoAjudante, '#d97706'); // amarelo
+
+            // ── Direita: Serviços (word-wrap, sem compressão) ──
+            let sy = bodyY + BODY_PAD_V;
+            for (const line of lines) {
+                if (!line.trim()) { sy += 8; continue; }
+                const { color, bold } = lineStyle(line);
+                const isIndent = /^\s{2,}/.test(line);
+                const dx = isIndent ? 18 : 0;
+                const fs = bold ? 21 : 20;
+                ctx.fillStyle = color;
+                ctx.font = `${bold ? 'bold ' : ''}${fs}px Arial`;
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                // Quebra em múltiplas linhas se necessário
+                const wrapped = wrapText(ctx, line.trim(), RIGHT_W - dx - 8);
+                const isObsLine = !line.trim().endsWith(':') && line.includes(':') && !bold;
+                
+                for (let j = 0; j < wrapped.length; j++) {
+                    const wl = wrapped[j];
+                    if (j === 0 && isObsLine) {
+                        const idx = wl.indexOf(':');
+                        if (idx !== -1) {
+                            const p1 = wl.substring(0, idx + 1);
+                            const p2 = wl.substring(idx + 1);
+                            ctx.font = `bold ${fs}px Arial`;
+                            ctx.fillText(p1, RIGHT_X + dx, sy);
+                            const w1 = ctx.measureText(p1).width;
+                            ctx.font = `${fs}px Arial`;
+                            ctx.fillText(p2, RIGHT_X + dx + w1, sy);
+                        } else {
+                            ctx.fillText(wl, RIGHT_X + dx, sy);
+                        }
+                    } else {
+                        ctx.font = `${bold ? 'bold ' : ''}${fs}px Arial`;
+                        ctx.fillText(wl, RIGHT_X + dx, sy);
+                    }
+                    sy += SRV_LH + 3;
+                    if (sy > bodyY + bodyH - 10) break;
+                }
+                if (sy > bodyY + bodyH - 10) break;
+            }
+
+            cy += totalH + CARD_GAP;
+        }
+
+        // Rodapé
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '19px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('América Rental Equipamentos — Logística', W / 2, H - 20);
+
+        canvases.push(cv);
+    }
+
+    return canvases;
+}
+
 // ── Gera e baixa o arquivo Excel ──────────────
 async function _rrGerarExcel() {
     const wb = new ExcelJS.Workbook();
@@ -1239,7 +1887,15 @@ async function _rrGerarExcel() {
     const veiculosOrdenados = [..._rrVeiculos].sort((a, b) => (a.veiculo || '').localeCompare(b.veiculo || '', 'pt-BR', { sensitivity: 'base' }));
 
     veiculosOrdenados.forEach((v, i) => {
-        const colB = v.colBEditado || _rrMontarColB(v);
+        let colB = v.colBEditado || _rrMontarColB(v);
+        
+        let equipeText = [];
+        if (v.motorista && v.motorista.trim()) equipeText.push(`MOTORISTA: ${v.motorista.trim().toUpperCase()}`);
+        if (v.ajudante && v.ajudante.trim()) equipeText.push(`AJUDANTE: ${v.ajudante.trim().toUpperCase()}`);
+        if (equipeText.length > 0) {
+            colB = colB + '\n\n' + equipeText.join('\n');
+        }
+
         const nLines = (colB.match(/\n/g) || []).length + 1;
         const rowH   = Math.max(20, nLines * 14);
         const zebra  = i % 2 === 0 ? lightGreen : null;
@@ -1299,10 +1955,48 @@ async function _rrGerarExcel() {
     }
 
     const buf  = await wb.xlsx.writeBuffer();
-    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
-    saveAs(blob, `Resumo_Rota_${hoje}.xlsx`);
-    showToast('✅ Planilha exportada e salva no histórico!', 'success');
+    const nomeBase = `Resumo_Rota_${hoje}`;
+
+    // ── Gerar imagens ─────────────────────────────────────────────
+    showToast('⏳ Gerando imagens da rota...', 'info');
+    let canvases = [];
+    try { canvases = await _rrGerarImagensRota() || []; }
+    catch (e) { console.error('[RR] Erro ao gerar imagens:', e); }
+
+    // ── Empacotar tudo em ZIP ────────────────────────────────────
+    try {
+        const zip = new JSZip();
+
+        // Excel na raiz do ZIP
+        zip.file(`${nomeBase}.xlsx`, buf);
+
+        // Imagens em pasta Imagens/
+        if (canvases.length > 0) {
+            const imgFolder = zip.folder('Imagens');
+            await Promise.all(canvases.map((cv, i) =>
+                new Promise(res => cv.toBlob(b => {
+                    if (b) imgFolder.file(`img_${String(i + 1).padStart(2, '0')}.png`, b);
+                    res();
+                }, 'image/png'))
+            ));
+        }
+
+        const zipBlob = await zip.generateAsync({
+            type: 'blob',
+            compression: 'DEFLATE',
+            compressionOptions: { level: 4 },
+        });
+
+        saveAs(zipBlob, `${nomeBase}.zip`);
+        showToast(`✅ ZIP gerado: planilha + ${canvases.length} imagem(ns)!`, 'success');
+    } catch (err) {
+        console.error('[RR] Erro ao gerar ZIP:', err);
+        // Fallback: baixa só o Excel
+        const excelBlob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveAs(excelBlob, `${nomeBase}.xlsx`);
+        showToast('⚠️ Erro no ZIP. Planilha baixada individualmente: ' + (err.message || err), 'warning');
+    }
 }
 
 

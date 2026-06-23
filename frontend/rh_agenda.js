@@ -382,9 +382,9 @@
             <div class="ag-header">
                 <div class="ag-header-left">
                     <button class="ag-nav-btn" onclick="rhAgendaNav(-1)"><i class="ph ph-caret-left"></i></button>
-                    <h2 class="ag-titulo">${titulo}</h2>
                     <button class="ag-nav-btn" onclick="rhAgendaNav(1)"><i class="ph ph-caret-right"></i></button>
                     <button class="ag-nav-btn ag-hoje-btn" onclick="rhAgendaIrHoje()"><i class="ph ph-calendar-blank"></i> Hoje</button>
+                    <h2 class="ag-titulo">${titulo}</h2>
                 </div>
                 <div class="ag-header-right">
                     <button class="ag-nav-btn ${agendaFilterTipo === 'escala' ? 'ag-escala-active' : ''}" onclick="rhAgendaSetFilter('${agendaFilterTipo === 'escala' ? '' : 'escala'}')" style="${agendaFilterTipo === 'escala' ? 'background:#1a7a46;color:#fff;border-color:#1a7a46;' : 'color:#1a7a46;border-color:#1a7a46;font-weight:600;'}"><i class="ph ph-users"></i> Controle de Escala</button>
