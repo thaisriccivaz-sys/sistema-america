@@ -58,16 +58,20 @@ function isAitAntiga(ait) {
 // Nota: conversão PDF→imagem via Puppeteer desabilitada (OOM em 512MB).
 // PDFs são exibidos via <embed> no documento HTML.
 
-// --- CONFIGURAÃ‡ÃƒO SMTP (Preencher com dados reais para o e-mail funcionar) ---
+// --- CONFIGURAÇÃO SMTP (credenciais via variáveis de ambiente do Render) ---
+// PRODUÇÃO:    SMTP_USER=americasistema48@gmail.com  | SMTP_PASS=<senha_producao>
+// HOMOLOGAÇÃO: SMTP_USER=sistemaamericarental@gmail.com | SMTP_PASS=<senha_homolog>
+// NUNCA colocar senhas diretamente aqui no código.
 const SMTP_CONFIG = {
     host: "smtp.gmail.com",
     port: 465,
-    secure: true, // Gmail em 465 requer SSL direto
+    secure: true,
     auth: {
-        user: "americasistema48@gmail.com",
-        pass: "aigusxmgantdtxpd"
+        user: process.env.SMTP_USER || "",
+        pass: process.env.SMTP_PASS || ""
     }
 };
+
 
 // ── Transporter global + helper anti-spam ──────────────────────────────────────────
 // Injeta headers que reduzem chance de cair em spam em todos os envios.
