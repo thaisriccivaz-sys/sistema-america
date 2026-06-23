@@ -1066,11 +1066,9 @@ function setupNavigation() {
     }
 
     // ── [DEV] Botão Limpar Todos os Colaboradores ──────────────────────────
-    // Visível SOMENTE no ambiente de homologação do desenvolvedor
-    const DEV_HOST = 'sistema-america-36v6.onrender.com';
+    // Visível SOMENTE no ambiente de homologação (controlado via script inline no HTML)
     const btnDevReset = document.getElementById('btn-dev-reset-colabs');
-    if (btnDevReset && window.location.hostname === DEV_HOST) {
-        btnDevReset.style.display = 'inline-flex';
+    if (btnDevReset) {
         btnDevReset.addEventListener('click', () => {
             // Modal de confirmação
             const overlay = document.createElement('div');
@@ -1095,9 +1093,9 @@ function setupNavigation() {
             document.getElementById('dev-reset-confirm').onclick = async () => {
                 const confirmBtn = document.getElementById('dev-reset-confirm');
                 confirmBtn.disabled = true;
-                confirmBtn.innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;"></i> Aguarde...';
+                confirmBtn.innerHTML = '<i class="ph ph-spinner"></i> Aguarde...';
                 try {
-                    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+                    const token = localStorage.getItem('erp_token') || sessionStorage.getItem('erp_token');
                     const resp = await fetch('/api/maintenance/reset', {
                         method: 'POST',
                         headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
@@ -1105,7 +1103,7 @@ function setupNavigation() {
                     const data = await resp.json();
                     if (resp.ok && data.sucesso) {
                         overlay.remove();
-                        if (typeof renderColaboradores === 'function') renderColaboradores();
+                        if (typeof renderColaboradores === 'function') renderColaboradores([]);
                         else window.location.reload();
                     } else {
                         alert('Erro: ' + (data.error || 'Falha ao resetar'));

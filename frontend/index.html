@@ -797,10 +797,11 @@
                         <h2 style="font-size:1.5rem; font-weight:600; margin:0;">Colaboradores</h2>
                         <div style="display:flex; gap:0.5rem; align-items:center;">
                             <button class="btn btn-danger" id="btn-dev-reset-colabs"
-                                    style="display:none; gap:6px; align-items:center;"
+                                    style="display:inline-flex; gap:6px; align-items:center;"
                                     title="[DEV] Excluir todos os colaboradores">
                                 <i class="ph ph-trash"></i> Limpar Todos
                             </button>
+                            <script>if(!['sistema-america-36v6.onrender.com'].includes(location.hostname)){document.getElementById('btn-dev-reset-colabs').style.display='none';}</script>
                             <button class="btn btn-primary" id="btn-novo-colab"><i class="ph ph-plus"></i> Novo
                                 Colaborador</button>
                         </div>
