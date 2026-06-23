@@ -3121,11 +3121,12 @@
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Categoria <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Qtd. Atual <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Min/Máx <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
+                                        <th><i class="ph ph-map-pin" style="color:#1d4ed8;"></i> Endereços</th>
                                         <th style="text-align: right;">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-estoque">
-                                    <tr><td colspan="6" style="text-align:center;color:#64748b;">Carregando...</td></tr>
+                                    <tr><td colspan="7" style="text-align:center;color:#64748b;">Carregando...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3143,10 +3144,11 @@
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Qtd. <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Usuário <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Motivo <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
+                                        <th><i class="ph ph-map-pin" style="color:#1d4ed8;"></i> Endereço</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-estoque-historico">
-                                    <tr><td colspan="6" style="text-align:center;color:#64748b;">Carregando histórico...</td></tr>
+                                    <tr><td colspan="7" style="text-align:center;color:#64748b;">Carregando histórico...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3204,7 +3206,7 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem;">
                                         <div>
                                             <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Qtd. Atual</label>
                                             <input type="number" id="estoque-qtd" class="form-control" min="0" value="0">
@@ -3217,6 +3219,16 @@
                                             <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Máxima</label>
                                             <input type="number" id="estoque-max" class="form-control" min="0" value="0">
                                         </div>
+                                    </div>
+                                    <div style="margin-bottom:1.5rem;">
+                                        <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;"><i class="ph ph-map-pin" style="color:#1d4ed8;"></i> Endereço de Estoque</label>
+                                        <div style="display:flex;gap:8px;align-items:center;">
+                                            <select id="estoque-endereco-select" class="form-control" style="flex:1;">
+                                                <option value="">— Nenhum —</option>
+                                            </select>
+                                            <button type="button" onclick="window.abrirModalNovoEndereco()" title="Criar novo endereço" style="background:#1d4ed8;color:#fff;border:none;border-radius:8px;width:36px;height:36px;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-plus"></i></button>
+                                        </div>
+                                        <span style="font-size:0.78rem;color:#94a3b8;display:block;margin-top:3px;">Opcional. Define onde este item será armazenado.</span>
                                     </div>
                                 </div>
                             </div>

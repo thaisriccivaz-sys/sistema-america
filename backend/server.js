@@ -9386,7 +9386,7 @@ app.get('/api/epi-selfie/:colaborador_id', authenticateToken, (req, res) => {
 // POST: registrar entrega assinada de EPIs
 app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
     const fichaId = req.params.id;
-    const { colaborador_id, epis_entregues, assinatura_base64, data_entrega, epis_para_devolver } = req.body;
+    const { colaborador_id, epis_entregues, assinatura_base64, data_entrega, epis_para_devolver, endereco_por_epi } = req.body;
     if (!epis_entregues || !assinatura_base64) return res.status(400).json({ error: 'Dados incompletos.' });
     const registrado_por = req.user ? (req.user.nome || req.user.username || '') : '';
 
@@ -9429,22 +9429,41 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                         epiContagem[key].count++;
                     });
 
-                    // Função central para processar a baixa de um item com quantidade total
-                function processarBaixaEstoque(item, count) {
+                    // Função central para processar a baixa de um item com quantidade total e endereço opcional
+                function processarBaixaEstoque(item, count, enderecoId, enderecoNome) {
                     if (!item || item.quantidade_atual < count) {
                         console.warn(`[ESTOQUE] Item "${item ? item.nome : '?'}" com estoque insuficiente para baixa de ${count}.`);
                         count = item ? Math.max(0, item.quantidade_atual) : 0;
                         if (count === 0) return;
                     }
                     const newQtd = item.quantidade_atual - count;
-                    // UPDATE atômico: só reduz se ainda tiver quantidade suficiente
+                    // UPDATE atômico no total
                     db.run("UPDATE estoque SET quantidade_atual = quantidade_atual - ? WHERE id = ? AND quantidade_atual >= ?", [count, item.id, count], (errUpd) => {
                         if (!errUpd) {
-                            console.log(`[ESTOQUE] Baixa de ${count}x "${item.nome}" efetuada. Novo saldo: ${newQtd}.`);
-                            // Grava Histórico de Saída (um registro com a quantidade total)
+                            console.log(`[ESTOQUE] Baixa de ${count}x "${item.nome}" efetuada (endereço: ${enderecoNome || 'Geral'}). Novo saldo: ${newQtd}.`);
+                            // Se tem endereço, debita do saldo por endereço
+                            if (enderecoId) {
+                                db.run(
+                                    'UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?',
+                                    [count, item.id, enderecoId],
+                                    (errSaldo) => { if (errSaldo) console.error('[ESTOQUE] Erro ao debitar saldo por endereço:', errSaldo.message); }
+                                );
+                            } else {
+                                // Sem endereço específico: debita do 'Geral'
+                                db.get("SELECT id FROM estoque_enderecos WHERE nome = 'Geral'", [], (errG, rowG) => {
+                                    if (!errG && rowG) {
+                                        db.run(
+                                            'UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?',
+                                            [count, item.id, rowG.id],
+                                            () => {}
+                                        );
+                                    }
+                                });
+                            }
+                            // Grava Histórico de Saída
                             db.run(
-                                'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo) VALUES (?, ?, ?, ?, ?)',
-                                [item.id, count, 'Saída', registrado_por || 'Sistema', 'Baixa Prontuário Colaborador'],
+                                'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                [item.id, count, 'Saída', registrado_por || 'Sistema', 'Baixa Prontuário Colaborador', enderecoId || null, enderecoNome || null],
                                 () => {}
                             );
                         } else {
@@ -9654,7 +9673,21 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
 
                         if (match) {
                             console.log(`[ESTOQUE] Match encontrado: "${match.nome}"`);
-                            processarBaixaEstoque(match, count);
+                            // Resolver endereço selecionado para este EPI
+                            const epiKeyNorm = (original || '').trim().toUpperCase();
+                            let eEnderecoId = null;
+                            let eEnderecoNome = null;
+                            if (endereco_por_epi && typeof endereco_por_epi === 'object') {
+                                // Tenta match exato, depois case-insensitive
+                                const keys = Object.keys(endereco_por_epi);
+                                const foundKey = keys.find(k => k.trim().toUpperCase() === epiKeyNorm) || keys.find(k => epiKeyNorm.includes(k.trim().toUpperCase()));
+                                if (foundKey) {
+                                    const endInfo = endereco_por_epi[foundKey];
+                                    eEnderecoId = endInfo && endInfo.id ? endInfo.id : (typeof endInfo === 'number' ? endInfo : null);
+                                    eEnderecoNome = endInfo && endInfo.nome ? endInfo.nome : null;
+                                }
+                            }
+                            processarBaixaEstoque(match, count, eEnderecoId, eEnderecoNome);
                         } else {
                             console.warn(`[ESTOQUE] Item "${originalNome}" não encontrado no estoque após tentativas.`);
                         }
@@ -16970,6 +17003,51 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque_historico (
     data_hora   DATETIME DEFAULT CURRENT_TIMESTAMP
 )`, (err) => { if (err && !err.message.includes('already exists')) console.error('[ESTOQUE] Erro ao criar tabela historico:', err.message); });
 
+// Migrations: adicionar colunas de endereço ao histórico se não existirem
+db.run("ALTER TABLE estoque_historico ADD COLUMN endereco_id INTEGER", () => {});
+db.run("ALTER TABLE estoque_historico ADD COLUMN endereco_nome TEXT", () => {});
+
+// Tabela global de endereços de estoque
+db.run(`CREATE TABLE IF NOT EXISTS estoque_enderecos (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome      TEXT NOT NULL UNIQUE,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => {
+    if (err && !err.message.includes('already exists')) console.error('[ESTOQUE] Erro ao criar tabela enderecos:', err.message);
+    // Seed: criar endereço 'Geral' se não existir
+    db.run("INSERT OR IGNORE INTO estoque_enderecos (nome) VALUES ('Geral')", () => {});
+});
+
+// Tabela de saldo por produto × endereço
+db.run(`CREATE TABLE IF NOT EXISTS estoque_saldo_por_endereco (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    estoque_id  INTEGER NOT NULL,
+    endereco_id INTEGER NOT NULL,
+    quantidade  INTEGER DEFAULT 0,
+    UNIQUE(estoque_id, endereco_id)
+)`, (err) => {
+    if (err && !err.message.includes('already exists')) console.error('[ESTOQUE] Erro ao criar tabela saldo_por_endereco:', err.message);
+    // Migration: migrar quantidades existentes para o endereço 'Geral' se ainda não feito
+    db.get("SELECT id FROM estoque_enderecos WHERE nome = 'Geral'", [], (errG, rowG) => {
+        if (errG || !rowG) return;
+        const geralId = rowG.id;
+        db.get('SELECT COUNT(*) as total FROM estoque_saldo_por_endereco', [], (errC, rowC) => {
+            if (errC || (rowC && rowC.total > 0)) return; // já migrado
+            db.all('SELECT id, quantidade_atual FROM estoque WHERE quantidade_atual > 0', [], (errE, rows) => {
+                if (errE || !rows || rows.length === 0) return;
+                rows.forEach(item => {
+                    db.run(
+                        'INSERT OR IGNORE INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade) VALUES (?, ?, ?)',
+                        [item.id, geralId, item.quantidade_atual],
+                        (errI) => { if (errI) console.error('[ESTOQUE] Erro na migration saldo:', errI.message); }
+                    );
+                });
+                console.log(`[ESTOQUE] Migration: ${rows.length} itens migrados para endereço 'Geral'.`);
+            });
+        });
+    });
+});
+
 // Tabela de empréstimos de EPI (equipamentos que devem ser devolvidos)
 db.run(`CREATE TABLE IF NOT EXISTS epi_emprestimos (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -17275,6 +17353,159 @@ app.delete('/api/estoque/:id', authenticateToken, (req, res) => {
             });
         });
     });
+});
+
+// ── Endereços de Estoque (CRUD) ────────────────────────────────────────────────
+
+// Listar todos os endereços globais
+app.get('/api/estoque-enderecos', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM estoque_enderecos ORDER BY nome ASC', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// Criar novo endereço global
+app.post('/api/estoque-enderecos', authenticateToken, (req, res) => {
+    const { nome } = req.body;
+    if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome obrigatório.' });
+    db.run('INSERT INTO estoque_enderecos (nome) VALUES (?)', [nome.trim()], function(err) {
+        if (err) {
+            if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'Endereço já existe.' });
+            return res.status(500).json({ error: err.message });
+        }
+        res.json({ id: this.lastID, nome: nome.trim() });
+    });
+});
+
+// Excluir endereço global (não pode excluir 'Geral')
+app.delete('/api/estoque-enderecos/:id', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Endereço não encontrado.' });
+        if (row.nome === 'Geral') return res.status(400).json({ error: 'O endereço "Geral" não pode ser excluído.' });
+        db.run('DELETE FROM estoque_enderecos WHERE id = ?', [id], (errD) => {
+            if (errD) return res.status(500).json({ error: errD.message });
+            // Limpar saldos zerados vinculados
+            db.run('DELETE FROM estoque_saldo_por_endereco WHERE endereco_id = ?', [id], () => {});
+            res.json({ success: true });
+        });
+    });
+});
+
+// Obter saldo por endereço de um produto
+app.get('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    db.all(
+        `SELECT s.*, e.nome as endereco_nome
+         FROM estoque_saldo_por_endereco s
+         JOIN estoque_enderecos e ON s.endereco_id = e.id
+         WHERE s.estoque_id = ?
+         ORDER BY e.nome ASC`,
+        [id], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows || []);
+        }
+    );
+});
+
+// Adicionar/Atualizar saldo num endereço específico (entrada de estoque por endereço)
+app.post('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { endereco_id, quantidade, motivo } = req.body;
+    const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
+    if (!endereco_id || quantidade === undefined || quantidade === null) {
+        return res.status(400).json({ error: 'endereco_id e quantidade são obrigatórios.' });
+    }
+    const qtd = parseInt(quantidade) || 0;
+
+    // Upsert no saldo por endereço
+    db.run(
+        `INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade)
+         VALUES (?, ?, ?)
+         ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET quantidade = quantidade + ?`,
+        [id, endereco_id, qtd, qtd],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+
+            // Atualiza o total geral do produto
+            db.run('UPDATE estoque SET quantidade_atual = quantidade_atual + ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?', [qtd, id], (errU) => {
+                if (errU) return res.status(500).json({ error: errU.message });
+
+                // Grava histórico
+                db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [endereco_id], (errE, rowE) => {
+                    const endNome = rowE ? rowE.nome : null;
+                    db.run(
+                        'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        [id, qtd, 'Entrada', usuario, motivo || 'Entrada por Endereço', endereco_id, endNome],
+                        () => {}
+                    );
+                    res.json({ success: true });
+                });
+            });
+        }
+    );
+});
+
+// Baixa manual de estoque por endereço
+app.post('/api/estoque/:id/baixa', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { endereco_id, quantidade, motivo } = req.body;
+    const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
+    if (!quantidade || quantidade <= 0) return res.status(400).json({ error: 'Quantidade inválida.' });
+    const qtd = parseInt(quantidade);
+
+    db.get('SELECT * FROM estoque WHERE id = ?', [id], (err, item) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!item) return res.status(404).json({ error: 'Item não encontrado.' });
+        if (item.quantidade_atual < qtd) return res.status(400).json({ error: 'Estoque insuficiente.' });
+
+        db.run('UPDATE estoque SET quantidade_atual = quantidade_atual - ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?', [qtd, id], (errU) => {
+            if (errU) return res.status(500).json({ error: errU.message });
+
+            // Debita do endereço se informado
+            if (endereco_id) {
+                db.run(
+                    'UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?',
+                    [qtd, id, endereco_id], () => {}
+                );
+            }
+
+            // Grava histórico
+            db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [endereco_id || null], (errE, rowE) => {
+                const endNome = rowE ? rowE.nome : null;
+                db.run(
+                    'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    [id, qtd, 'Saída', usuario, motivo || 'Baixa Manual', endereco_id || null, endNome],
+                    () => {}
+                );
+            });
+
+            res.json({ success: true });
+        });
+    });
+});
+
+// Obter todos os saldos por endereço (para todos os itens de uma vez — usado na listagem geral)
+app.get('/api/estoque-saldos', authenticateToken, (req, res) => {
+    db.all(
+        `SELECT s.estoque_id, s.quantidade, e.id as endereco_id, e.nome as endereco_nome
+         FROM estoque_saldo_por_endereco s
+         JOIN estoque_enderecos e ON s.endereco_id = e.id
+         WHERE s.quantidade > 0
+         ORDER BY e.nome ASC`,
+        [], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            // Agrupar por estoque_id
+            const map = {};
+            (rows || []).forEach(r => {
+                if (!map[r.estoque_id]) map[r.estoque_id] = [];
+                map[r.estoque_id].push({ endereco_id: r.endereco_id, nome: r.endereco_nome, quantidade: r.quantidade });
+            });
+            res.json(map);
+        }
+    );
 });
 
 
