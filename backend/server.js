@@ -9475,7 +9475,27 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                             const msg = `ESTOQUE BAIXO: O item "${item.nome}" (${item.departamento}) atingiu o estoque mínimo. Quantidade Atual: ${newQtd}.`;
                             const dadosStr = JSON.stringify({ item_id: item.id, nome: item.nome, quantidade_atual: newQtd, quantidade_minima: item.quantidade_minima });
 
-                            db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'estoque_minimo'", [], (errC, rowsC) => {
+                            // Buscar tipo de notificação dos endereços onde o item tem saldo
+        db.all(
+            `SELECT DISTINCT ee.tipo_notificacao FROM estoque_saldo_por_endereco s
+             JOIN estoque_enderecos ee ON s.endereco_id = ee.id
+             WHERE s.estoque_id = ? AND s.quantidade > 0 AND ee.tipo_notificacao != '' AND ee.tipo_notificacao IS NOT NULL`,
+            [id], (errT, tiposRows) => {
+                const tiposSet = new Set((tiposRows || []).map(r => r.tipo_notificacao));
+                const tiposNotif = tiposSet.size > 0 ? Array.from(tiposSet) : ['compra']; // fallback: compra
+                tiposNotif.forEach(tipoNotif => {
+                    const dbTipo = tipoNotif === 'reposicao' ? 'estoque_reposicao' : 'estoque_minimo';
+                    db.all(`SELECT usuario_id FROM config_notificacoes WHERE tipo = '${dbTipo}'`, [], (errCR, rowsCR) => {
+                        if (!errCR && rowsCR && rowsCR.length > 0) {
+                            rowsCR.forEach(c => {
+                                db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, dbTipo, msg, dadosStr]);
+                            });
+                        }
+                    });
+                });
+            }
+        );
+        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'estoque_minimo'", [], (errC, rowsC) => {
                                 if (!errC && rowsC && rowsC.length > 0) {
                                     rowsC.forEach(c => {
                                         db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'estoque_minimo', msg, dadosStr]);
@@ -17016,6 +17036,7 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque_enderecos (
     if (err && !err.message.includes('already exists')) console.error('[ESTOQUE] Erro ao criar tabela enderecos:', err.message);
     // Seed: criar endereço 'Geral' se não existir
     db.run("INSERT OR IGNORE INTO estoque_enderecos (nome) VALUES ('Geral')", () => {});
+    db.run("ALTER TABLE estoque_enderecos ADD COLUMN tipo_notificacao TEXT DEFAULT ''", () => {});
 });
 
 // Tabela de saldo por produto × endereço
@@ -17231,18 +17252,18 @@ app.post('/api/estoque', authenticateToken, async (req, res) => {
 
 // Editar Item e Atualizar Quantidades
 app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
+    let oldRow;
     try {
         const id = req.params.id;
         const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64 } = req.body;
         const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
         // Obter dados antigos
-        const oldRow = await new Promise((resolve, reject) => {
+        oldRow = await new Promise((resolve, reject) => {
             db.get('SELECT * FROM estoque WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row));
         });
         if (!oldRow) return res.status(404).json({ error: 'Item não encontrado' });
 
-        // Upload da foto para R2 se chegou foto nova
         let foto_url = oldRow.foto_url || null;
         let foto_b64_salvar = oldRow.foto_base64 || null;
         if (foto_base64 && foto_base64.startsWith('data:')) {
@@ -17367,14 +17388,34 @@ app.get('/api/estoque-enderecos', authenticateToken, (req, res) => {
 
 // Criar novo endereço global
 app.post('/api/estoque-enderecos', authenticateToken, (req, res) => {
-    const { nome } = req.body;
+    const { nome, tipo_notificacao } = req.body;
     if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome obrigatório.' });
-    db.run('INSERT INTO estoque_enderecos (nome) VALUES (?)', [nome.trim()], function(err) {
+    db.run('INSERT INTO estoque_enderecos (nome, tipo_notificacao) VALUES (?, ?)', [nome.trim(), tipo_notificacao || ''], function(err) {
         if (err) {
             if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'Endereço já existe.' });
             return res.status(500).json({ error: err.message });
         }
-        res.json({ id: this.lastID, nome: nome.trim() });
+        res.json({ id: this.lastID, nome: nome.trim(), tipo_notificacao: tipo_notificacao || '' });
+    });
+});
+
+// Editar endereço global (nome + tipo_notificacao)
+app.put('/api/estoque-enderecos/:id', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { nome, tipo_notificacao } = req.body;
+    if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome obrigatório.' });
+    db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Endereço não encontrado.' });
+        const novoNome = (row.nome === 'Geral' && nome.trim() !== 'Geral') ? 'Geral' : nome.trim();
+        db.run(
+            "UPDATE estoque_enderecos SET nome = ?, tipo_notificacao = ? WHERE id = ?",
+            [novoNome, tipo_notificacao || '', id],
+            (errU) => {
+                if (errU) return res.status(500).json({ error: errU.message });
+                res.json({ success: true, id: parseInt(id), nome: novoNome, tipo_notificacao: tipo_notificacao || '' });
+            }
+        );
     });
 });
 
@@ -17483,6 +17524,60 @@ app.post('/api/estoque/:id/baixa', authenticateToken, (req, res) => {
             });
 
             res.json({ success: true });
+        });
+    });
+});
+
+// Transferência de estoque entre endereços
+app.post('/api/estoque/:id/transferir', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { origem_id, destino_id, quantidade, motivo } = req.body;
+    const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
+    const qtd = parseInt(quantidade);
+    if (!origem_id || !destino_id || !qtd || qtd <= 0) {
+        return res.status(400).json({ error: 'origem_id, destino_id e quantidade são obrigatórios.' });
+    }
+    if (origem_id === destino_id) {
+        return res.status(400).json({ error: 'Origem e destino não podem ser iguais.' });
+    }
+    db.get('SELECT * FROM estoque WHERE id = ?', [id], (err, item) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!item) return res.status(404).json({ error: 'Item não encontrado.' });
+
+        db.get('SELECT quantidade FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id = ?', [id, origem_id], (errO, saldoRow) => {
+            if (errO) return res.status(500).json({ error: errO.message });
+            const saldoOrigem = saldoRow ? saldoRow.quantidade : 0;
+            if (saldoOrigem < qtd) return res.status(400).json({ error: `Saldo insuficiente no endereço de origem (disponível: ${saldoOrigem}).` });
+
+            // Debitar da origem
+            db.run(
+                'UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?',
+                [qtd, id, origem_id], (errD) => {
+                    if (errD) return res.status(500).json({ error: errD.message });
+                    // Creditar no destino
+                    db.run(
+                        `INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade)
+                         VALUES (?, ?, ?)
+                         ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET quantidade = quantidade + ?`,
+                        [id, destino_id, qtd, qtd], (errC) => {
+                            if (errC) return res.status(500).json({ error: errC.message });
+                            // Registrar no histórico (origem: saída, destino: entrada)
+                            db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [origem_id], (errN1, rowN1) => {
+                                db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [destino_id], (errN2, rowN2) => {
+                                    const nomeOrigem = rowN1 ? rowN1.nome : String(origem_id);
+                                    const nomeDestino = rowN2 ? rowN2.nome : String(destino_id);
+                                    const mot = motivo || `Transferência de ${nomeOrigem} → ${nomeDestino}`;
+                                    db.run(
+                                        'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                        [id, qtd, 'Transferência', usuario, mot, destino_id, nomeDestino], () => {}
+                                    );
+                                    res.json({ success: true, de: nomeOrigem, para: nomeDestino, quantidade: qtd });
+                                });
+                            });
+                        }
+                    );
+                }
+            );
         });
     });
 });

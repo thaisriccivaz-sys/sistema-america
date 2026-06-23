@@ -12,7 +12,8 @@ const TIPOS_NOTIFICACAO = [
     { id: 'novo_sinistro', nome: 'Novo Sinistro Registrado', icone: 'ph-warning' },
     { id: 'nova_multa_prontuario', nome: 'Nova Multa no Prontuário', icone: 'ph-traffic-cone' },
     { id: 'nova_multa_monaco', nome: 'Nova Multa Integrada Mônaco', icone: 'ph-police-car' },
-    { id: 'estoque_minimo', nome: 'Notificação Estoque Mínimo', icone: 'ph-package' },
+    { id: 'estoque_minimo', nome: 'Estoque mínimo para compra', icone: 'ph-shopping-cart-simple', descricao: 'Notificado quando um item em endereço do tipo "Pedido de Compra" atinge o estoque mínimo.' },
+    { id: 'estoque_reposicao', nome: 'Mínimo para reposição de estoque', icone: 'ph-arrows-left-right', descricao: 'Notificado quando um item em endereço do tipo "Pedido de Reposição" atinge o estoque mínimo.' },
     { id: 'novo_colaborador_equipe', nome: 'Equipe para distribuição', icone: 'ph-users-three' },
     { id: 'nova_ocorrencia', nome: 'Nova Ocorrência no Prontuário', icone: 'ph-warning' }
 ];
@@ -57,15 +58,22 @@ async function initNotificacoesView() {
         let html = '';
         TIPOS_NOTIFICACAO.forEach(tipo => {
             const selectedUsers = configByTipo[tipo.id] || [];
-            
+            const isEstoqueCompra = tipo.id === 'estoque_minimo';
+            const isEstoqueRepos  = tipo.id === 'estoque_reposicao';
+            const iconBg    = isEstoqueCompra ? '#fff3e6' : isEstoqueRepos ? '#f0fdf4' : '#fff5f5';
+            const iconColor = isEstoqueCompra ? '#e67700' : isEstoqueRepos ? '#16a34a' : '#d9480f';
+
             html += `
-                <div class="config-notificacao-item" style="border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; display: flex; flex-direction: column;">
+                <div class="config-notificacao-item" style="border: 1px solid ${isEstoqueCompra ? '#fed7aa' : isEstoqueRepos ? '#bbf7d0' : '#e2e8f0'}; border-radius: 8px; background: #fff; display: flex; flex-direction: column;">
                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; cursor: pointer; user-select: none;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('.arrow').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(0deg)' : 'rotate(180deg)'">
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div style="width: 32px; height: 32px; border-radius: 6px; background: #fff5f5; color: #d9480f; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <div style="width: 32px; height: 32px; border-radius: 6px; background: ${iconBg}; color: ${iconColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                                 <i class="ph ${tipo.icone}" style="font-size: 1.2rem;"></i>
                             </div>
-                            <h3 style="margin: 0; font-size: 1rem; color: #334155; line-height: 1.2;">${tipo.nome}</h3>
+                            <div>
+                                <h3 style="margin: 0; font-size: 1rem; color: #334155; line-height: 1.2;">${tipo.nome}</h3>
+                                ${tipo.descricao ? `<p style="margin:2px 0 0;font-size:0.76rem;color:#94a3b8;line-height:1.3;">${tipo.descricao}</p>` : ''}
+                            </div>
                         </div>
                         <i class="ph ph-caret-down arrow" style="color: #94a3b8; transition: transform 0.2s;"></i>
                     </div>
