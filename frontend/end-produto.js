@@ -105,6 +105,8 @@ window.abrirModalEditarEndProduto = async function(endJson) {
         });
         if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erro'); }
         Swal.fire({ icon: 'success', title: 'Endereço atualizado!', timer: 1400, showConfirmButton: false });
+        window._estoqueEnderecos = []; // clear cache
+        if (typeof window.renderEstoqueTable === 'function') window.renderEstoqueTable();
         window.renderEndProdutoTable();
     } catch(e) { Swal.fire('Erro', e.message, 'error'); }
 };
@@ -116,6 +118,8 @@ window.excluirEndProduto = async function(id) {
     try {
         const r = await fetch(API_URL + '/estoque-enderecos/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
         if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Erro'); }
+        window._estoqueEnderecos = []; // clear cache
+        if (typeof window.renderEstoqueTable === 'function') window.renderEstoqueTable();
         window.renderEndProdutoTable();
     } catch(e) { Swal.fire('Erro', e.message, 'error'); }
 };

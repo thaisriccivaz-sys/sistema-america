@@ -17454,7 +17454,47 @@ app.get('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
 });
 
 // Adicionar/Atualizar saldo num endereço específico (entrada de estoque por endereço)
-app.post('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
+
+// Sincronizar saldos de endereços de um produto (substitui os existentes pelos novos)
+app.post('/api/estoque/:id/sync-enderecos', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const enderecos = req.body.enderecos || []; // Array de { endereco_id, quantidade, quantidade_minima, quantidade_maxima }
+    
+    db.serialize(() => {
+        const enderecoIds = enderecos.map(e => e.endereco_id);
+        const placeholders = enderecoIds.map(() => '?').join(',');
+        
+        // Delete all addresses for this product that are not in the new list
+        const deleteQuery = enderecoIds.length > 0 
+            ? `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id NOT IN (${placeholders})`
+            : `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ?`;
+        
+        const deleteParams = enderecoIds.length > 0 ? [id, ...enderecoIds] : [id];
+        
+        db.run(deleteQuery, deleteParams, (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            // Now upsert the provided ones
+            const stmt = db.prepare(`
+                INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET
+                    quantidade = EXCLUDED.quantidade,
+                    quantidade_minima = EXCLUDED.quantidade_minima,
+                    quantidade_maxima = EXCLUDED.quantidade_maxima
+            `);
+            
+            enderecos.forEach(e => {
+                stmt.run([id, e.endereco_id, parseInt(e.quantidade) || 0, parseInt(e.quantidade_minima) || 0, parseInt(e.quantidade_maxima) || 0]);
+            });
+            
+            stmt.finalize();
+            
+            res.json({ success: true });
+        });
+    });
+});
+\napp.post('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { endereco_id, quantidade, quantidade_minima, quantidade_maxima, motivo } = req.body;
     const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';

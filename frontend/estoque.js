@@ -247,6 +247,13 @@ window._renderLinhasEndereco = function() {
         return;
     }
     if (vazio) vazio.style.display = 'none';
+    
+    const btnTransferir = document.getElementById('btn-transferir-modal');
+    if (btnTransferir) {
+        const validos = linhas.filter(l => l.endereco_id);
+        btnTransferir.style.display = validos.length > 1 ? 'flex' : 'none';
+    }
+
     lista.innerHTML = linhas.map((linha, idx) => {
         const opcoesEnd = window._estoqueEnderecos.map(e =>
             '<option value="' + e.id + '"' + (e.id === linha.endereco_id ? ' selected' : '') + '>' + e.nome + '</option>'
@@ -410,23 +417,21 @@ window.salvarEstoque = async function(e) {
         const result = await res.json();
         const prodId = id ? parseInt(id) : result.id;
 
-        // Sincronizar apenas os endereços que foram preenchidos
-        // Produtos sem endereço mantêm a quantidade como está no banco
-        for (const linha of linhasValidas) {
-            try {
-                await fetch(API_URL + "/estoque/" + prodId + "/saldo-enderecos", {
-                    method: "POST",
-                    headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
-                    body: JSON.stringify({ 
-                        endereco_id:       linha.endereco_id, 
-                        quantidade:        linha.quantidade,
-                        quantidade_minima: linha.quantidade_minima || 0,
-                        quantidade_maxima: linha.quantidade_maxima || 0,
-                        motivo: id ? "Ajuste manual" : "Saldo inicial" 
-                    })
-                });
-            } catch(es) { console.warn("[ESTOQUE] saldo endereco:", es.message); }
-        }
+        // Sincronizar endereços com o novo endpoint que apaga os removidos
+        try {
+            await fetch(API_URL + "/estoque/" + prodId + "/sync-enderecos", {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    enderecos: linhasValidas.map(l => ({
+                        endereco_id:       l.endereco_id,
+                        quantidade:        l.quantidade,
+                        quantidade_minima: l.quantidade_minima || 0,
+                        quantidade_maxima: l.quantidade_maxima || 0
+                    }))
+                })
+            });
+        } catch(es) { console.warn("[ESTOQUE] erro ao sincronizar enderecos:", es.message); }
 
         Swal.fire({ icon: "success", title: "Sucesso", text: "Item salvo com sucesso", timer: 1500, showConfirmButton: false });
         window.fecharModalEstoque();
@@ -615,5 +620,53 @@ window.renderEstoqueHistorico = async function() {
         });
     } catch(err) {
         table.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ef4444;">Erro ao carregar histórico: ' + err.message + '</td></tr>';
+    }
+};
+\n
+window._transferirLocal = async function() {
+    const validos = window._enderecoLinhas.filter(l => l.endereco_id);
+    if (validos.length < 2) return;
+
+    const options = validos.map(l => {
+        const end = window._estoqueEnderecos.find(e => e.id == l.endereco_id);
+        return '<option value="' + l.endereco_id + '">' + (end ? end.nome : 'Endereço ' + l.endereco_id) + ' (Qtd Atual: ' + (l.quantidade||0) + ')</option>';
+    }).join('');
+
+    const { value: vals, isConfirmed } = await Swal.fire({
+        title: '<i class="ph ph-arrows-left-right" style="color:#a16207"></i> Transferir entre Endereços',
+        html: '<div style="text-align:left;">' +
+              '<p style="font-size:0.85rem;color:#64748b;margin-top:0;">Esta transferência será efetivada quando você salvar o item.</p>' +
+              '<label style="font-size:0.85rem;font-weight:600;">Origem (Retirar de) *</label>' +
+              '<select id="swal-loc-origem" class="swal2-input" style="width:100%;margin:5px 0 15px;font-size:0.9rem;"><option value="">Selecione...</option>' + options + '</select>' +
+              '<label style="font-size:0.85rem;font-weight:600;">Destino (Enviar para) *</label>' +
+              '<select id="swal-loc-destino" class="swal2-input" style="width:100%;margin:5px 0 15px;font-size:0.9rem;"><option value="">Selecione...</option>' + options + '</select>' +
+              '<label style="font-size:0.85rem;font-weight:600;">Quantidade *</label>' +
+              '<input type="number" id="swal-loc-qtd" min="1" value="1" class="swal2-input" style="width:100%;margin:5px 0 0;">' +
+              '</div>',
+        showCancelButton: true,
+        confirmButtonText: 'Aplicar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#e67700',
+        preConfirm: () => {
+            const origem = document.getElementById('swal-loc-origem').value;
+            const destino = document.getElementById('swal-loc-destino').value;
+            const qtd = parseInt(document.getElementById('swal-loc-qtd').value);
+            if (!origem || !destino) { Swal.showValidationMessage('Selecione origem e destino'); return false; }
+            if (origem === destino) { Swal.showValidationMessage('Origem e destino não podem ser o mesmo'); return false; }
+            if (!qtd || qtd <= 0) { Swal.showValidationMessage('Quantidade inválida'); return false; }
+            
+            const linhaOrigem = window._enderecoLinhas.find(l => l.endereco_id == origem);
+            if ((linhaOrigem.quantidade||0) < qtd) { Swal.showValidationMessage('Saldo insuficiente na origem. Saldo atual: ' + (linhaOrigem.quantidade||0)); return false; }
+            
+            return { origem, destino, qtd };
+        }
+    });
+
+    if (isConfirmed && vals) {
+        const o = window._enderecoLinhas.find(l => l.endereco_id == vals.origem);
+        const d = window._enderecoLinhas.find(l => l.endereco_id == vals.destino);
+        o.quantidade = (o.quantidade || 0) - vals.qtd;
+        d.quantidade = (d.quantidade || 0) + vals.qtd;
+        window._renderLinhasEndereco();
     }
 };
