@@ -116,8 +116,10 @@ window.renderEstoqueTable = async function() {
                     const hasMin = s.quantidade_minima > 0;
                     const hasMax = s.quantidade_maxima > 0;
                     if (hasMin || hasMax) {
-                        minMaxCell = (hasMin ? '<span style="color:#64748b;font-size:0.8rem;margin-right:4px;">min ' + s.quantidade_minima + '</span>' : '') +
-                                     (hasMax ? '<span style="color:#64748b;font-size:0.8rem;">max ' + s.quantidade_maxima + '</span>' : '');
+                        let parts = [];
+                        if (hasMin) parts.push('<span style="color:#64748b;font-size:0.8rem;">min ' + s.quantidade_minima + '</span>');
+                        if (hasMax) parts.push('<span style="color:#64748b;font-size:0.8rem;">max ' + s.quantidade_maxima + '</span>');
+                        minMaxCell = parts.join('<span style="color:#cbd5e1;margin:0 6px;">|</span>');
                     } else {
                         minMaxCell = '<span style="color:#94a3b8;font-size:0.78rem;">—</span>';
                     }
