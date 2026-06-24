@@ -17048,6 +17048,9 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque_saldo_por_endereco (
     UNIQUE(estoque_id, endereco_id)
 )`, (err) => {
     if (err && !err.message.includes('already exists')) console.error('[ESTOQUE] Erro ao criar tabela saldo_por_endereco:', err.message);
+    // Migration: adicionar colunas min/max por endereço se não existirem
+    db.run("ALTER TABLE estoque_saldo_por_endereco ADD COLUMN quantidade_minima INTEGER DEFAULT 0", () => {});
+    db.run("ALTER TABLE estoque_saldo_por_endereco ADD COLUMN quantidade_maxima INTEGER DEFAULT 0", () => {});
     // Migration: migrar quantidades existentes para o endereço 'Geral' se ainda não feito
     db.get("SELECT id FROM estoque_enderecos WHERE nome = 'Geral'", [], (errG, rowG) => {
         if (errG || !rowG) return;
@@ -17453,39 +17456,52 @@ app.get('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
 // Adicionar/Atualizar saldo num endereço específico (entrada de estoque por endereço)
 app.post('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
     const { id } = req.params;
-    const { endereco_id, quantidade, motivo } = req.body;
+    const { endereco_id, quantidade, quantidade_minima, quantidade_maxima, motivo } = req.body;
     const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
     if (!endereco_id || quantidade === undefined || quantidade === null) {
         return res.status(400).json({ error: 'endereco_id e quantidade são obrigatórios.' });
     }
-    const qtd = parseInt(quantidade) || 0;
+    const qtd  = parseInt(quantidade)        || 0;
+    const qmin = parseInt(quantidade_minima) || 0;
+    const qmax = parseInt(quantidade_maxima) || 0;
 
-    // Upsert no saldo por endereço
-    db.run(
-        `INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade)
-         VALUES (?, ?, ?)
-         ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET quantidade = quantidade + ?`,
-        [id, endereco_id, qtd, qtd],
-        (err) => {
-            if (err) return res.status(500).json({ error: err.message });
+    // Primeiro busca o saldo atual para calcular a diferença no total
+    db.get('SELECT quantidade FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id = ?', [id, endereco_id], (errS, saldoAtual) => {
+        const qtdAnterior = saldoAtual ? (saldoAtual.quantidade || 0) : 0;
+        const diff = qtd - qtdAnterior; // diferença para atualizar o total do produto
 
-            // Atualiza o total geral do produto
-            db.run('UPDATE estoque SET quantidade_atual = quantidade_atual + ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?', [qtd, id], (errU) => {
-                if (errU) return res.status(500).json({ error: errU.message });
+        // Upsert no saldo por endereço — SET absoluto (não soma)
+        db.run(
+            `INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET
+                 quantidade = ?,
+                 quantidade_minima = ?,
+                 quantidade_maxima = ?`,
+            [id, endereco_id, qtd, qmin, qmax, qtd, qmin, qmax],
+            (err) => {
+                if (err) return res.status(500).json({ error: err.message });
 
-                // Grava histórico
-                db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [endereco_id], (errE, rowE) => {
-                    const endNome = rowE ? rowE.nome : null;
-                    db.run(
-                        'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                        [id, qtd, 'Entrada', usuario, motivo || 'Entrada por Endereço', endereco_id, endNome],
-                        () => {}
-                    );
+                // Atualiza o total geral do produto pela diferença
+                db.run('UPDATE estoque SET quantidade_atual = MAX(0, quantidade_atual + ?), atualizado_em = CURRENT_TIMESTAMP WHERE id = ?', [diff, id], (errU) => {
+                    if (errU) return res.status(500).json({ error: errU.message });
+
+                    // Grava histórico apenas se houve alteração de quantidade
+                    if (diff !== 0) {
+                        db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [endereco_id], (errE, rowE) => {
+                            const endNome = rowE ? rowE.nome : null;
+                            db.run(
+                                'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                [id, Math.abs(diff), diff > 0 ? 'Entrada' : 'Saida', usuario, motivo || 'Ajuste por endereço', endereco_id, endNome],
+                                () => {}
+                            );
+                        });
+                    }
                     res.json({ success: true });
                 });
-            });
-        }
-    );
+            }
+        );
+    });
 });
 
 // Baixa manual de estoque por endereço
