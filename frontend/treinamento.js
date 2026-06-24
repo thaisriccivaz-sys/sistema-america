@@ -163,14 +163,23 @@
             const r = await api('/departamentos');
             if (!r.ok) return;
             const deptos = await r.json();
-            let options = '<option value="Todos">Todos os Departamentos</option>';
+            let html = `
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;font-size:0.95rem;">
+                    <input type="checkbox" value="Todos" class="depto-checkbox"> Todos os Departamentos
+                </label>
+            `;
             deptos.forEach(d => {
-                options += `<option value="${d.nome}">${d.nome}</option>`;
+                html += `
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;font-size:0.95rem;">
+                        <input type="checkbox" value="${d.nome}" class="depto-checkbox"> ${d.nome}
+                    </label>
+                `;
             });
-            select.innerHTML = options;
+            select.innerHTML = html;
             const selArray = (typeof selecionado === 'string' ? selecionado : 'Todos').split(',').map(s => s.trim());
-            Array.from(select.options).forEach(opt => {
-                opt.selected = selArray.includes(opt.value);
+            const checkboxes = select.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = selArray.includes(cb.value);
             });
         } catch(e) {}
     }
@@ -184,10 +193,9 @@
         if (event) event.preventDefault();
         const nome = (el('novo-treinamento-nome') || {}).value?.trim();
         const desc = (el('novo-treinamento-desc') || {}).value?.trim();
-        const deptSelect = el('novo-treinamento-departamento');
-        const departamento = deptSelect && deptSelect.selectedOptions.length > 0 
-            ? Array.from(deptSelect.selectedOptions).map(o => o.value).join(', ') 
-            : 'Todos';
+        const container = el('novo-treinamento-departamento');
+        const checked = container ? Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value) : [];
+        const departamento = checked.length > 0 ? checked.join(', ') : 'Todos';
         if (!nome) { alert('Informe o nome do treinamento.'); return; }
 
         const btn = el('form-novo-treinamento')?.querySelector('[type=submit]');
@@ -480,9 +488,8 @@
         const nome = (el('editar-treinamento-nome') || {}).value?.trim();
         const desc = (el('editar-treinamento-desc') || {}).value?.trim();
         const deptSelect = el('editar-treinamento-departamento');
-        const departamento = deptSelect && deptSelect.selectedOptions.length > 0 
-            ? Array.from(deptSelect.selectedOptions).map(o => o.value).join(', ') 
-            : 'Todos';
+        const checked = deptSelect ? Array.from(deptSelect.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value) : [];
+        const departamento = checked.length > 0 ? checked.join(', ') : 'Todos';
         if (!nome) { alert('Informe o nome do treinamento.'); return; }
 
         const btn = el('btn-salvar-edicao-treinamento');

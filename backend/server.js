@@ -17950,9 +17950,15 @@ db.run(`CREATE TABLE IF NOT EXISTS treinamentos (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   nome        TEXT NOT NULL,
   descricao   TEXT DEFAULT '',
+  departamento TEXT DEFAULT 'Todos',
   criado_em   DATETIME DEFAULT CURRENT_TIMESTAMP,
   criado_por  TEXT DEFAULT ''
 )`);
+db.run("ALTER TABLE treinamentos ADD COLUMN departamento TEXT DEFAULT 'Todos'", (err) => {
+  if (err && !err.message.includes("duplicate column name")) {
+    console.error("Migração (treinamentos.departamento):", err.message);
+  }
+});
 
 db.run(`CREATE TABLE IF NOT EXISTS treinamento_anexos (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
