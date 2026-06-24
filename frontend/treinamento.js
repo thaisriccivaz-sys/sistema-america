@@ -127,6 +127,12 @@
                         onmouseover="this.style.background='#0891b2'" onmouseout="this.style.background='#0e7490'">
                         <i class="ph ph-folder-open"></i> Abrir
                     </button>
+                    <button onclick="window.abrirModalEditarTreinamento(${t.id})"
+                        style="background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:4px;transition:all .15s;"
+                        onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'"
+                        title="Editar nome e descrição">
+                        <i class="ph ph-pencil-simple"></i>
+                    </button>
                     <button onclick="window.excluirTreinamento(${t.id},'${nomeSafe}')"
                         style="background:none;border:1.5px solid #fca5a5;color:#dc2626;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;"
                         onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='none'">
@@ -420,6 +426,72 @@
         if (bar)  bar.style.width = '0%';
         if (txt)  txt.textContent = '';
     }
+
+    // ── EDITAR TREINAMENTO ────────────────────────────────────────────────────
+    window.abrirModalEditarTreinamento = function (id) {
+        const t = _cache.find(x => x.id === id);
+        if (!t) return;
+
+        el('editar-treinamento-id').value   = t.id;
+        el('editar-treinamento-nome').value = t.nome || '';
+        el('editar-treinamento-desc').value = t.descricao || '';
+
+        const m = el('modal-editar-treinamento');
+        if (m) m.style.display = 'flex';
+        setTimeout(() => { const n = el('editar-treinamento-nome'); if (n) n.focus(); }, 80);
+    };
+
+    window.fecharModalEditarTreinamento = function () {
+        const m = el('modal-editar-treinamento');
+        if (m) m.style.display = 'none';
+    };
+
+    window.salvarEdicaoTreinamento = async function (event) {
+        if (event) event.preventDefault();
+        const id   = parseInt(el('editar-treinamento-id').value, 10);
+        const nome = (el('editar-treinamento-nome') || {}).value?.trim();
+        const desc = (el('editar-treinamento-desc') || {}).value?.trim();
+        if (!nome) { alert('Informe o nome do treinamento.'); return; }
+
+        const btn = el('btn-salvar-edicao-treinamento');
+        if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+
+        try {
+            const r = await api('/treinamentos/' + id, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome, descricao: desc || '' })
+            });
+            if (!r.ok) {
+                const e = await r.json().catch(() => ({}));
+                throw new Error(e.error || 'Erro ao salvar');
+            }
+
+            // Atualiza o cache local
+            const idx = _cache.findIndex(x => x.id === id);
+            if (idx !== -1) {
+                _cache[idx].nome     = nome;
+                _cache[idx].descricao = desc || '';
+            }
+
+            // Se o modal de detalhe estiver aberto para este treinamento, atualiza o header
+            if (_treinAtual && _treinAtual.id === id) {
+                _treinAtual.nome      = nome;
+                _treinAtual.descricao = desc || '';
+                const elNome = el('detalhe-treinamento-nome');
+                const elDesc = el('detalhe-treinamento-desc');
+                if (elNome) elNome.textContent = nome;
+                if (elDesc) elDesc.textContent = desc || '';
+            }
+
+            window.fecharModalEditarTreinamento();
+            await window.renderTreinamentosTable();
+        } catch (e) {
+            alert('Erro: ' + e.message);
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = 'Salvar Altera\u00e7\u00f5es'; }
+        }
+    };
 
     // ── EXCLUIR TREINAMENTO ───────────────────────────────────────────────────
     window.excluirTreinamento = async function (id, nome) {
