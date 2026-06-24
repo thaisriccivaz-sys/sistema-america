@@ -17182,17 +17182,6 @@ app.get('/api/trigger-rescue', (req, res) => {
             db.all("SELECT id, quantidade_atual, quantidade_minima, quantidade_maxima FROM estoque", (err, produtos) => {
                 if (err) return res.status(500).send("Err 3: " + err.message);
                 
-                const stmtInsert = db.prepare(`
-                    INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima)
-                    VALUES (?, ?, ?, ?, ?)
-                `);
-                
-                const stmtUpdateGeral = db.prepare(`
-                    UPDATE estoque_saldo_por_endereco 
-                    SET quantidade_minima = ?, quantidade_maxima = ?
-                    WHERE estoque_id = ? AND endereco_id = ?
-                `);
-
                 db.serialize(() => {
                     db.run("BEGIN TRANSACTION");
                     let processados = 0;
@@ -17214,27 +17203,32 @@ app.get('/api/trigger-rescue', (req, res) => {
                             const origMax = p.quantidade_maxima || 0;
                             const origQtd = p.quantidade_atual || 0;
 
+                            const checkDone = () => {
+                                processados++;
+                                if (processados === produtos.length) {
+                                    db.run("COMMIT", () => {
+                                        res.send("Migration finished successfully.");
+                                    });
+                                }
+                            };
+
                             if (!saldos || saldos.length === 0) {
-                                stmtInsert.run([p.id, geralId, origQtd, origMin, origMax]);
+                                db.run(`INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima) VALUES (?, ?, ?, ?, ?)`, 
+                                    [p.id, geralId, origQtd, origMin, origMax], checkDone);
                             } else {
                                 let hasAnyMinMax = saldos.some(s => s.quantidade_minima > 0 || s.quantidade_maxima > 0);
                                 if (!hasAnyMinMax && (origMin > 0 || origMax > 0)) {
                                     let saldoGeral = saldos.find(s => s.endereco_id === geralId);
                                     if (saldoGeral) {
-                                        stmtUpdateGeral.run([origMin, origMax, p.id, geralId]);
+                                        db.run(`UPDATE estoque_saldo_por_endereco SET quantidade_minima = ?, quantidade_maxima = ? WHERE estoque_id = ? AND endereco_id = ?`,
+                                            [origMin, origMax, p.id, geralId], checkDone);
                                     } else {
-                                        stmtInsert.run([p.id, geralId, 0, origMin, origMax]);
+                                        db.run(`INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima) VALUES (?, ?, ?, ?, ?)`,
+                                            [p.id, geralId, 0, origMin, origMax], checkDone);
                                     }
+                                } else {
+                                    checkDone();
                                 }
-                            }
-                            
-                            processados++;
-                            if (processados === produtos.length) {
-                                stmtInsert.finalize();
-                                stmtUpdateGeral.finalize();
-                                db.run("COMMIT", () => {
-                                    res.send("Migration finished successfully.");
-                                });
                             }
                         });
                     });
