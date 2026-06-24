@@ -2633,6 +2633,8 @@ app.get('/api/equipes/colaboradores-sem-equipe', authenticateToken, (req, res) =
         WHERE LOWER(c.status) NOT LIKE '%desligado%' AND LOWER(c.status) NOT LIKE '%iniciado%'
         AND c.id NOT IN (SELECT colaborador_id FROM equipes_membros)
         AND (d.tipo = 'Operacional' OR (d.id IS NULL AND c.departamento IN ('EXTERNO', 'PÁTIO', 'MOTORISTA FREE')))
+        AND (c.departamento IS NULL OR LOWER(c.departamento) NOT LIKE '%manuten%')
+        AND (c.cargo IS NULL OR LOWER(c.cargo) NOT LIKE '%manuten%')
         GROUP BY c.id
         ORDER BY c.nome_completo ASC`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -17391,48 +17393,49 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
                 () => {}
             );
         }
+
+        // Lógica de Notificação de Estoque Mínimo
+        try {
+            if (quantidade_atual <= quantidade_minima && oldRow.quantidade_atual > oldRow.quantidade_minima) {
+                const msg = `ESTOQUE BAIXO: O item "${nome}" (${departamento}) atingiu o estoque mínimo. Quantidade Atual: ${quantidade_atual}.`;
+                const dadosStr = JSON.stringify({ item_id: id, nome, quantidade_atual, quantidade_minima });
+                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'estoque_minimo'", [], (errC, rowsC) => {
+                    if (!errC && rowsC && rowsC.length > 0) {
+                        rowsC.forEach(c => {
+                            db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'estoque_minimo', msg, dadosStr]);
+                        });
+                        // E-mail de estoque mínimo (ajuste manual)
+                        sendEmailParaNotificados('estoque_minimo', {
+                            subject: `📦 Estoque Mínimo Atingido – ${nome}`,
+                            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                </div>
+                                <div style="padding:24px;">
+                                    <h2 style="color:#e67700;text-align:center;margin-top:0;">📦 Estoque Mínimo Atingido</h2>
+                                    <p>Um item do estoque atingiu a quantidade mínima após ajuste manual:</p>
+                                    <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
+                                        <p style="margin:4px 0;"><strong>Item:</strong> ${nome}</p>
+                                        <p style="margin:4px 0;"><strong>Departamento:</strong> ${departamento}</p>
+                                        <p style="margin:4px 0;"><strong>Quantidade Atual:</strong> ${quantidade_atual}</p>
+                                        <p style="margin:4px 0;"><strong>Quantidade Mínima:</strong> ${quantidade_minima}</p>
+                                    </div>
+                                    <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para reabastecer o estoque.</i></p>
+                                </div>
+                            </div>`
+                        });
+                    }
+                });
+            }
+        } catch(eNotif) {
+            console.error('[ESTOQUE PUT] Erro na notificacao:', eNotif.message);
+        }
+
         res.json({ success: true });
         
     } catch (e) {
         console.error('[ESTOQUE PUT] Erro:', e.message);
         if (!res.headersSent) res.status(500).json({ error: e.message });
-    }
-
-    // Lógica de Notificação de Estoque Mínimo (fora do try/catch para não bloquear resposta, precisa usar try/catch isolado para variaveis)
-    try {
-        if (quantidade_atual <= quantidade_minima && oldRow.quantidade_atual > oldRow.quantidade_minima) {
-            const msg = `ESTOQUE BAIXO: O item "${nome}" (${departamento}) atingiu o estoque mínimo. Quantidade Atual: ${quantidade_atual}.`;
-            const dadosStr = JSON.stringify({ item_id: id, nome, quantidade_atual, quantidade_minima });
-            db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'estoque_minimo'", [], (errC, rowsC) => {
-                if (!errC && rowsC && rowsC.length > 0) {
-                    rowsC.forEach(c => {
-                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'estoque_minimo', msg, dadosStr]);
-                    });
-                    // E-mail de estoque mínimo (ajuste manual)
-                    sendEmailParaNotificados('estoque_minimo', {
-                        subject: `📦 Estoque Mínimo Atingido – ${nome}`,
-                        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
-                            <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                                <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
-                            </div>
-                            <div style="padding:24px;">
-                                <h2 style="color:#e67700;text-align:center;margin-top:0;">📦 Estoque Mínimo Atingido</h2>
-                                <p>Um item do estoque atingiu a quantidade mínima após ajuste manual:</p>
-                                <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
-                                    <p style="margin:4px 0;"><strong>Item:</strong> ${nome}</p>
-                                    <p style="margin:4px 0;"><strong>Departamento:</strong> ${departamento}</p>
-                                    <p style="margin:4px 0;"><strong>Quantidade Atual:</strong> ${quantidade_atual}</p>
-                                    <p style="margin:4px 0;"><strong>Quantidade Mínima:</strong> ${quantidade_minima}</p>
-                                </div>
-                                <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para reabastecer o estoque.</i></p>
-                            </div>
-                        </div>`
-                    });
-                }
-            });
-        }
-    } catch(eNotif) {
-        console.error('[ESTOQUE PUT] Erro na notificacao:', eNotif.message);
     }
 });
 
