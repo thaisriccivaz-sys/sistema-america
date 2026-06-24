@@ -14301,7 +14301,7 @@ async function renderFichaEpiTab(container) {
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Erro ao excluir EPI');
-                window.openColaboradorProntuario(colabId, 'epi'); // recarrega a aba
+                window.renderTabContent('Ficha de EPI', 'Ficha de EPI', true); // recarrega a aba
             } catch(e) { alert(e.message); }
         };
 
