@@ -17160,6 +17160,16 @@ app.post('/api/estoque/testar-email', authenticateToken, async (req, res) => {
     }
 });
 
+app.get('/api/trigger-rescue', (req, res) => {
+    try {
+        delete require.cache[require.resolve('../rescue_estoque.js')];
+        require('../rescue_estoque.js');
+        res.send("Rescue triggered successfully.");
+    } catch (e) {
+        res.status(500).send("Error triggering rescue: " + e.message);
+    }
+});
+
 app.get('/api/estoque', authenticateToken, (req, res) => {
 
     let sql = 'SELECT * FROM estoque WHERE 1=1';
