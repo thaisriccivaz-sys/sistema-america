@@ -618,6 +618,11 @@ window.carregarPermissoesOnline = async function () {
                 headerObj.style.cssText = 'display: none !important;';
             }
         });
+        
+        // Aplica permissões no Prontuário Digital
+        if (window.aplicarPermissoesProntuario) {
+            window.aplicarPermissoesProntuario();
+        }
 
         // Sempre garantimos que o ícone de SAIR apareça então não há risco.
 
@@ -4480,14 +4485,21 @@ window.openProntuario = async function (id, nome, cargo, cpf, sexo = '', admissa
     }
 
     document.querySelectorAll('#tabs-list li').forEach(t => t.classList.remove('active'));
-    const firstTab = document.querySelector('#tabs-list li[data-tab="00.CheckList"]');
-    if (firstTab) firstTab.classList.add('active');
 
     // Exibir aba Cônjuge apenas para Casado ou União Estável
     const tabConjuge = document.getElementById('tab-conjuge');
     if (tabConjuge) {
         tabConjuge.style.display = 'none'; // Aba de Cônjuge extinta nativamente (migrado para Passo 4)
     }
+
+    // Aplica permissões de abas do prontuário e seleciona a primeira aba permitida
+    let firstAllowed = null;
+    if (window.aplicarPermissoesProntuario) {
+        firstAllowed = window.aplicarPermissoesProntuario();
+    }
+    const defaultTab = document.querySelector('#tabs-list li[data-tab="00.CheckList"]');
+    const tabToActivate = (defaultTab && !defaultTab.classList.contains('perm-hidden')) ? defaultTab : firstAllowed;
+    if (tabToActivate) tabToActivate.classList.add('active');
 
     const _nomePront = viewedColaborador ? (viewedColaborador.nome_completo || viewedColaborador.nome || nome) : nome;
     const _idPront = viewedColaborador ? (viewedColaborador.id || id) : id;
@@ -15947,12 +15959,70 @@ window.toggleSidebar = function () {
 // ==========================================
 // PRONTUÁRIO TABS SEARCH FILTER
 // ==========================================
+const PRONTUARIO_TAB_PERMISSIONS = {
+    '00.CheckList': 'prontuario-checklist',
+    '01_FICHA_CADASTRAL': 'prontuario-ficha',
+    'Pagamentos': 'prontuario-pagamentos',
+    'ASO': 'prontuario-aso',
+    'Ficha de EPI': 'prontuario-epi',
+    'Atestados': 'prontuario-atestados',
+    'Contratos': 'prontuario-contratos',
+    'Avaliação': 'prontuario-avaliacao',
+    'Advertências': 'prontuario-ocorrencias',
+    'Faculdade': 'prontuario-faculdade',
+    'Certificados': 'prontuario-certificados',
+    'Dependentes': 'prontuario-dependentes',
+    'Multas': 'prontuario-multas',
+    'Sinistros': 'prontuario-sinistros'
+};
+
+window.aplicarPermissoesProntuario = function() {
+    const perms = window.activeUserPerms || {};
+    let firstAllowedTab = null;
+    const isDiretoria = currentUser && (currentUser.role === 'Diretoria' || currentUser.role === 'Administrador' || currentUser.departamento === 'Diretoria');
+
+    document.querySelectorAll('#tabs-list li').forEach(li => {
+        const tabId = li.getAttribute('data-tab');
+        if (!tabId) return;
+
+        const permKey = PRONTUARIO_TAB_PERMISSIONS[tabId];
+        
+        // Itens ocultos por padrão
+        const originallyHidden = li.id === 'tab-conjuge' || ['Fotos', 'NRs', 'Terapia', 'Treinamento'].includes(tabId);
+        
+        if (permKey) {
+            // Check permission
+            const allowed = perms[permKey] === true || isDiretoria;
+            if (!allowed) {
+                li.style.setProperty('display', 'none', 'important');
+                li.classList.add('perm-hidden');
+            } else {
+                li.style.display = originallyHidden ? 'none' : '';
+                li.classList.remove('perm-hidden');
+                if (!firstAllowedTab && !originallyHidden) firstAllowedTab = li;
+            }
+        } else {
+            // Tabs sem mapeamento de permissão específico mantemos a visibilidade padrão
+            li.style.display = originallyHidden ? 'none' : '';
+            li.classList.remove('perm-hidden');
+            if (!firstAllowedTab && !originallyHidden) firstAllowedTab = li;
+        }
+    });
+
+    return firstAllowedTab;
+};
+
 window.filterTabsList = function (q) {
     q = (q || '').toLowerCase().trim();
     document.querySelectorAll('#tabs-list li').forEach(li => {
+        if (li.classList.contains('perm-hidden')) {
+            li.style.setProperty('display', 'none', 'important');
+            return;
+        }
+
         const text = li.textContent.trim().toLowerCase();
         // Never hide the hidden ones (Boletim, Conjuge) unless they match
-        const originallyHidden = li.id === 'tab-conjuge' || false /* Boletim de ocorrencia removido */;
+        const originallyHidden = li.id === 'tab-conjuge' || ['Fotos', 'NRs', 'Terapia', 'Treinamento'].includes(li.getAttribute('data-tab'));
         if (!q) {
             li.style.display = originallyHidden ? 'none' : '';
         } else {
