@@ -3225,26 +3225,14 @@
                                         <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Nome do Item *</label>
                                         <input type="text" id="estoque-nome" required class="form-control" style="width: 100%; min-width: 300px;" placeholder="Ex: Capacete">
                                     </div>
-                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
-                                        <div>
-                                            <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Departamento *</label>
-                                            <select id="estoque-dept" required class="form-control">
-                                                <option value="RH">RH</option>
-                                                <option value="Administrativo">Administrativo</option>
-                                                <option value="Logística">Logística</option>
-                                                <option value="Financeiro">Financeiro</option>
-                                                <option value="Comercial">Comercial</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Categoria *</label>
-                                            <select id="estoque-cat" required class="form-control">
-                                                <option value="EPI">EPI</option>
-                                                <option value="Uniforme">Uniforme</option>
-                                                <option value="Itens de Escritório">Itens de Escritório</option>
-                                                <option value="Outros">Outros</option>
-                                            </select>
-                                        </div>
+                                    <div style="margin-bottom:1rem;">
+                                        <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Categoria *</label>
+                                        <select id="estoque-cat" required class="form-control" style="width: 100%;">
+                                            <option value="EPI">EPI</option>
+                                            <option value="Uniforme">Uniforme</option>
+                                            <option value="Itens de Escritório">Itens de Escritório</option>
+                                            <option value="Outros">Outros</option>
+                                        </select>
                                     </div>
                                     <!-- Campos globais de Qtd/Mín/Máx removidos — controle é por endereço -->
                                     <input type="hidden" id="estoque-qtd" value="0">

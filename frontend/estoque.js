@@ -380,7 +380,6 @@ window.editarEstoque = async function(item) {
     await _carregarEnderecos();
     document.getElementById("estoque-id").value   = item.id;
     document.getElementById("estoque-nome").value = item.nome;
-    document.getElementById("estoque-dept").value = item.departamento;
     document.getElementById("estoque-cat").value  = item.categoria;
     document.getElementById("estoque-qtd").value  = item.quantidade_atual;
     document.getElementById("estoque-min").value  = item.quantidade_minima;
@@ -439,7 +438,7 @@ window.salvarEstoque = async function(e) {
 
     const payload = {
         nome:              document.getElementById("estoque-nome").value,
-        departamento:      document.getElementById("estoque-dept").value,
+        departamento:      '',
         categoria:         document.getElementById("estoque-cat").value,
         quantidade_atual:  qtdAtual,
         quantidade_minima: parseInt(document.getElementById("estoque-min").value) || 0,
