@@ -9,7 +9,6 @@ const sharp = require('sharp');
 const nodemailer = require('nodemailer');
 const pdfParse = require('pdf-parse');
 const cron = require('node-cron');
-const cloudinary = require('cloudinary').v2;
 const rateLimit = require('express-rate-limit');
 // ─── MULTAS ANTIGAS: AITs já tratados e encerrados ──────────────────────────
 // Quando o sistema detectar qualquer um desses AITs (criação manual ou webhook
