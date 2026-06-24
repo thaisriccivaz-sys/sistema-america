@@ -167,14 +167,11 @@
             outros.length  ? `<span style="background:#f1f5f9;color:#475569;border-radius:999px;padding:2px 9px;font-size:0.7rem;font-weight:600;">📎 ${outros.length}</span>` : '',
         ].filter(Boolean).join(' ');
 
-        // Capa — prioridade: capa_url dedicada > primeira imagem dos anexos > ícone por tipo
+        // Capa — SOMENTE via campo "Anexar Capa" dedicado → ícone por tipo como fallback
         let capa;
         if (t.capa_url) {
             capa = `<div style="width:56px;height:56px;border-radius:10px;overflow:hidden;flex-shrink:0;border:1px solid #e2e8f0;">
                 <img src="${t.capa_url}" style="width:100%;height:100%;object-fit:cover;" loading="lazy"></div>`;
-        } else if (imgs.length) {
-            capa = `<div style="width:56px;height:56px;border-radius:10px;overflow:hidden;flex-shrink:0;border:1px solid #e2e8f0;">
-                <img src="${imgs[0].url_cloudinary}" style="width:100%;height:100%;object-fit:cover;" loading="lazy"></div>`;
         } else if (videos.length) {
             capa = `<div style="width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,#0e7490,#0891b2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                 <i class="ph ph-film-slate" style="color:#fff;font-size:1.5rem;"></i></div>`;
