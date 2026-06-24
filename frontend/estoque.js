@@ -81,7 +81,7 @@ window.renderEstoqueTable = async function() {
 
             // ── Botões de ação (apenas na primeira linha do produto) ──
             const acoesBtns =
-                '<button class="btn btn-sm" onclick="window.abrirModalBaixaEstoque(window._estoqueCache[' + item.id + '])" title="Baixa Manual" style="background:#fff3e6;color:#e67700;border:1px solid #fed7aa;padding:4px 8px;border-radius:4px;margin-right:2px;"><i class="ph ph-arrow-down"></i></button>' +
+                '<button class="btn btn-sm" onclick="window.abrirModalBaixaEstoque(window._estoqueCache[' + item.id + '])" title="Baixa Manual" style="background:#fff3e6;color:#e67700;border:1px solid #fed7aa;padding:4px 8px;border-radius:4px;margin-right:2px;"><i class="ph ph-minus"></i></button>' +
                 '<button class="btn btn-sm" onclick="window.ajustarEstoqueRapido(' + item.id + ',' + item.quantidade_atual + ',1)" title="Entrada Rápida" style="background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;padding:4px 8px;border-radius:4px;"><i class="ph ph-plus"></i></button>' +
                 '<button class="btn btn-sm btn-secondary" onclick="window.editarEstoque(window._estoqueCache[' + item.id + '])" title="Editar" style="margin-left:4px;"><i class="ph ph-pencil-simple"></i></button>' +
                 '<button class="btn btn-sm" onclick="window.excluirEstoque(' + item.id + ')" style="background:#fee2e2;color:#ef4444;border:none;margin-left:4px;"><i class="ph ph-trash"></i></button>';
@@ -116,8 +116,8 @@ window.renderEstoqueTable = async function() {
                     const hasMin = s.quantidade_minima > 0;
                     const hasMax = s.quantidade_maxima > 0;
                     if (hasMin || hasMax) {
-                        minMaxCell = (hasMin ? '<span style="background:#fef9c3;color:#854d0e;border:1px solid #fde68a;border-radius:4px;padding:1px 6px;font-size:0.75rem;font-weight:600;margin-right:3px;">min ' + s.quantidade_minima + '</span>' : '') +
-                                     (hasMax ? '<span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:4px;padding:1px 6px;font-size:0.75rem;font-weight:600;">max ' + s.quantidade_maxima + '</span>' : '');
+                        minMaxCell = (hasMin ? '<span style="color:#64748b;font-size:0.8rem;margin-right:4px;">min ' + s.quantidade_minima + '</span>' : '') +
+                                     (hasMax ? '<span style="color:#64748b;font-size:0.8rem;">max ' + s.quantidade_maxima + '</span>' : '');
                     } else {
                         minMaxCell = '<span style="color:#94a3b8;font-size:0.78rem;">—</span>';
                     }
@@ -129,7 +129,7 @@ window.renderEstoqueTable = async function() {
                     endCell = '<span style="color:#94a3b8;font-size:0.78rem;font-style:italic;">Sem endereço</span>';
                 } else {
                     endCell = '<span style="display:inline-flex;align-items:center;gap:4px;background:' + (lowEnd ? '#fef2f2' : '#eff6ff') + ';color:' + (lowEnd ? '#ef4444' : '#1d4ed8') + ';border:1px solid ' + (lowEnd ? '#fca5a5' : '#bfdbfe') + ';border-radius:6px;padding:3px 10px;font-size:0.8rem;font-weight:600;">' +
-                        '<i class="ph ph-map-pin" style="font-size:0.8rem;"></i>' + s.nome +
+                        s.nome +
                         (lowEnd ? ' <i class="ph ph-warning" style="color:#ef4444;font-size:0.78rem;"></i>' : '') +
                         '</span>';
                 }
@@ -138,29 +138,36 @@ window.renderEstoqueTable = async function() {
                 const borderTop = primeiraLinha ? '' : 'border-top:1px dashed #e2e8f0;';
                 const bgRow = lowEnd ? 'background:#fff5f5;' : (isLow && primeiraLinha ? 'background:#fff5f5;' : '');
 
-                rows += '<tr style="border-left:' + rowBorderLeft + ';' + bgRow + borderTop + '">' +
-                    // Nome + foto: apenas primeira linha; demais = célula vazia com rowspan visual
-                    '<td style="vertical-align:middle;' + (primeiraLinha ? 'font-weight:500;' : 'border-top:none;') + '">' +
-                        (primeiraLinha
-                            ? '<div style="display:flex;align-items:center;gap:12px;">' + fotoHtml + '<div>' + warnIcon + item.nome + '</div></div>'
-                            : '') +
-                    '</td>' +
+                const rowSpanAttr = linhasEndereco.length > 1 && primeiraLinha ? ' rowspan="' + linhasEndereco.length + '"' : '';
 
-                    // Categoria: apenas primeira linha
-                    '<td style="vertical-align:middle;">' +
-                        (primeiraLinha ? item.categoria : '') +
-                    '</td>' +
-                    // Qtd. Atual: por endereço
-                    '<td style="vertical-align:middle;">' + qtdCell + '</td>' +
-                    // Min/Máx: por endereço
-                    '<td style="vertical-align:middle;">' + minMaxCell + '</td>' +
-                    // Endereço: por endereço
-                    '<td style="vertical-align:middle;">' + endCell + '</td>' +
-                    // Ações: apenas primeira linha
-                    '<td style="text-align:right;white-space:nowrap;vertical-align:middle;">' +
-                        (primeiraLinha ? acoesBtns : '') +
-                    '</td>' +
-                '</tr>';
+                rows += '<tr style="border-left:' + rowBorderLeft + ';' + bgRow + borderTop + '">';
+                
+                // Nome + foto
+                if (primeiraLinha) {
+                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;font-weight:500;' + (linhasEndereco.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                                '<div style="display:flex;align-items:center;gap:12px;">' + fotoHtml + '<div>' + warnIcon + item.nome + '</div></div>' +
+                            '</td>';
+                            
+                    // Categoria
+                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;' + (linhasEndereco.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                                item.categoria +
+                            '</td>';
+                }
+                
+                // Qtd. Atual
+                rows += '<td style="vertical-align:middle;">' + qtdCell + '</td>';
+                // Min/Máx
+                rows += '<td style="vertical-align:middle;">' + minMaxCell + '</td>';
+                // Endereço
+                rows += '<td style="vertical-align:middle;">' + endCell + '</td>';
+                
+                // Ações
+                if (primeiraLinha) {
+                    rows += '<td' + rowSpanAttr + ' style="text-align:right;white-space:nowrap;vertical-align:middle;' + (linhasEndereco.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                                acoesBtns +
+                            '</td>';
+                }
+                rows += '</tr>';
             });
         });
 
