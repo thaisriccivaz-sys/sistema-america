@@ -277,7 +277,7 @@ window._renderLinhasEndereco = function() {
     const btnTransferir = document.getElementById('btn-transferir-modal');
     if (btnTransferir) {
         const validos = linhas.filter(l => l.endereco_id);
-        btnTransferir.style.display = validos.length > 1 ? 'flex' : 'none';
+        btnTransferir.style.display = 'none'; // validos.length > 1 ? 'flex' : 'none';
     }
 
     lista.innerHTML = linhas.map((linha, idx) => {
@@ -696,3 +696,159 @@ window._transferirLocal = async function() {
         window._renderLinhasEndereco();
     }
 };
+
+// ── Modais Globais de Entrada e Saída ─────────────────────────────────────────
+window.abrirModalGlobalMovimentacao = async function(tipo) {
+    const isEntrada = tipo === 'entrada';
+    const titulo = isEntrada ? '<i class="ph ph-arrow-down-left" style="color:#16a34a"></i> Entrada de Produtos' : '<i class="ph ph-arrow-up-right" style="color:#ef4444"></i> Saída de Produtos';
+    const corBtn = isEntrada ? '#16a34a' : '#ef4444';
+    const token = window.currentToken || localStorage.getItem("erp_token") || localStorage.getItem("token");
+
+    Swal.fire({
+        title: 'Carregando produtos...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    let produtos = [];
+    try {
+        const r = await fetch(API_URL + "/estoque", { headers: { "Authorization": "Bearer " + token } });
+        if (r.ok) produtos = await r.json();
+        if (!window._estoqueEnderecos || window._estoqueEnderecos.length === 0) {
+            await _carregarEnderecos();
+        }
+    } catch(e) {
+        return Swal.fire('Erro', 'Falha ao carregar produtos', 'error');
+    }
+
+    if (produtos.length === 0) {
+        return Swal.fire('Atenção', 'Nenhum produto cadastrado no estoque.', 'warning');
+    }
+
+    // Ordenar alfabeticamente
+    produtos.sort((a,b) => a.nome.localeCompare(b.nome));
+
+    const optsProdutos = produtos.map(p => `<option value="${p.id}">${p.nome} (Total: ${p.quantidade_atual})</option>`).join('');
+
+    let html = `<div style="text-align:left;">
+        <div style="margin-bottom:12px;">
+            <label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:4px;">Produto *</label>
+            <select id="swal-global-produto" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
+                <option value="">Selecione o produto</option>
+                ${optsProdutos}
+            </select>
+        </div>
+        <div style="margin-bottom:12px;">
+            <label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:4px;">Endereço *</label>
+            <select id="swal-global-endereco" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;" disabled>
+                <option value="">Selecione um produto primeiro</option>
+            </select>
+            <small id="swal-global-endereco-hint" style="color:#64748b;font-size:0.75rem;display:none;">Carregando endereços...</small>
+        </div>
+        <div>
+            <label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:4px;">Quantidade *</label>
+            <input type="number" id="swal-global-qtd" min="1" value="1" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.95rem;">
+        </div>`;
+    
+    if (!isEntrada) {
+        html += `<div style="margin-top:12px;">
+            <label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:4px;">Motivo *</label>
+            <input type="text" id="swal-global-motivo" placeholder="Motivo da saída..." style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
+        </div>`;
+    }
+
+    html += `</div>`;
+
+    const { value: vals, isConfirmed } = await Swal.fire({
+        title: `<b>${titulo}</b>`,
+        html: html,
+        showCancelButton: true,
+        confirmButtonText: 'Confirmar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: corBtn,
+        didOpen: () => {
+            const selProd = document.getElementById('swal-global-produto');
+            const selEnd = document.getElementById('swal-global-endereco');
+            const hint = document.getElementById('swal-global-endereco-hint');
+            
+            selProd.addEventListener('change', async (e) => {
+                const pId = e.target.value;
+                selEnd.innerHTML = '<option value="">Selecione o endereço</option>';
+                if (!pId) {
+                    selEnd.disabled = true;
+                    return;
+                }
+                
+                selEnd.disabled = true;
+                hint.style.display = 'block';
+
+                try {
+                    const rs = await fetch(API_URL + "/estoque/" + pId + "/saldo-enderecos", { headers: { "Authorization": "Bearer " + token } });
+                    let saldos = [];
+                    if (rs.ok) saldos = await rs.json();
+                    
+                    hint.style.display = 'none';
+                    selEnd.disabled = false;
+                    
+                    let optionsHTML = '<option value="">Selecione o endereço</option>';
+                    if (isEntrada) {
+                        const ends = window._estoqueEnderecos;
+                        optionsHTML += ends.map(end => {
+                            const foundSaldo = saldos.find(s => String(s.endereco_id) === String(end.id));
+                            const qty = foundSaldo ? foundSaldo.quantidade : 0;
+                            return `<option value="${end.id}">${end.nome} (Atual: ${qty})</option>`;
+                        }).join('');
+                    } else {
+                        const avail = saldos.filter(s => s.quantidade > 0);
+                        if (avail.length === 0) {
+                            optionsHTML = '<option value="">(Sem saldo em nenhum endereço)</option>';
+                            selEnd.disabled = true;
+                        } else {
+                            optionsHTML += avail.map(s => `<option value="${s.endereco_id}">${s.endereco_nome} (Atual: ${s.quantidade})</option>`).join('');
+                        }
+                    }
+                    selEnd.innerHTML = optionsHTML;
+                } catch(err) {
+                    hint.style.display = 'none';
+                }
+            });
+        },
+        preConfirm: () => {
+            const pId = document.getElementById('swal-global-produto').value;
+            const endId = document.getElementById('swal-global-endereco').value;
+            const qtd = parseInt(document.getElementById('swal-global-qtd').value);
+            let motivo = '';
+            if (!isEntrada) {
+                motivo = document.getElementById('swal-global-motivo').value.trim();
+                if (!motivo) { Swal.showValidationMessage('Motivo é obrigatório para saída'); return false; }
+            }
+            if (!pId) { Swal.showValidationMessage('Selecione o produto'); return false; }
+            if (!endId) { Swal.showValidationMessage('Selecione o endereço'); return false; }
+            if (!qtd || qtd <= 0) { Swal.showValidationMessage('Quantidade inválida'); return false; }
+            
+            return { pId, endId, qtd, motivo };
+        }
+    });
+
+    if (isConfirmed && vals) {
+        try {
+            const body = { 
+                quantidade: isEntrada ? vals.qtd : -vals.qtd, 
+                endereco_id: parseInt(vals.endId)
+            };
+            if (!isEntrada) body.motivo = vals.motivo;
+            else body.motivo = 'Entrada de produtos';
+
+            const r = await fetch(API_URL + "/estoque/" + vals.pId + "/movimentar", {
+                method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (!r.ok) { const err = await r.json(); throw new Error(err.error || 'Erro ao processar movimentação'); }
+            Swal.fire({ icon: 'success', title: 'Movimentação registrada!', timer: 1500, showConfirmButton: false });
+            window.renderEstoqueTable();
+        } catch(e) { Swal.fire('Erro', e.message, 'error'); }
+    }
+};
+
+window.abrirModalGlobalEntrada = () => window.abrirModalGlobalMovimentacao('entrada');
+window.abrirModalGlobalSaida = () => window.abrirModalGlobalMovimentacao('saida');

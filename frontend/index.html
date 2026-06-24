@@ -3066,9 +3066,17 @@
                                 <p style="margin:4px 0 0; color:#64748b; font-size:0.9rem;">Gerencie os itens de estoque, como EPIs e uniformes.</p>
                             </div>
                         </div>
-                        <button class="btn btn-primary" onclick="window.abrirModalEstoque()" style="background:#e67700; border-color:#e67700;">
-                            <i class="ph ph-plus-circle"></i> Adicionar Item
-                        </button>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+                            <button class="btn btn-primary" onclick="window.abrirModalEstoque()" style="background:#e67700; border-color:#e67700;">
+                                <i class="ph ph-plus-circle"></i> Adicionar Item
+                            </button>
+                            <button class="btn btn-primary" onclick="window.abrirModalGlobalEntrada()" style="background:#16a34a; border-color:#16a34a;">
+                                <i class="ph ph-arrow-down-left"></i> Entrada de produtos
+                            </button>
+                            <button class="btn btn-primary" onclick="window.abrirModalGlobalSaida()" style="background:#ef4444; border-color:#ef4444;">
+                                <i class="ph ph-arrow-up-right"></i> Saída de produtos
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Abas do Estoque -->
