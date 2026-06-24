@@ -517,7 +517,7 @@ const FUNC_STYLE = {
   lider:        { bg: '#fef3c7', color: '#92400e', label: 'Líder' },
 };
 
-const STATUS_COR = { ativo: '#22c55e', folga: '#94a3b8', ferias: '#8b5cf6', afastado: '#8b5cf6', experiencia: '#22c55e' };
+const STATUS_COR = { ativo: '#22c55e', folga: '#94a3b8', ferias: '#8b5cf6', afastado: '#f59e0b', experiencia: '#22c55e' };
 
 function _renderCard(m) {
   const fs = FUNC_STYLE[m.funcao] || FUNC_STYLE.ajudante;
@@ -542,7 +542,9 @@ function _renderCard(m) {
   }
 
   if (st === 'férias') st = 'ferias';
-  const isLaranja = st === 'afastado' || st === 'ferias' || st === 'férias';
+  const isAfastado = st === 'afastado';
+  const isFerias = st === 'ferias' || st === 'férias';
+  const isLaranja = isAfastado || isFerias; // Mantemos o nome para a lógica de experiencia abaixo
   const nomeRaw = m.nome_completo || m.nome || '?';
   // Experiencia: admitido ha menos de 90 dias OU tipo_contrato contem "experi"
   const isContratoExp = (m.tipo_contrato || '').toLowerCase().includes('experi');
@@ -565,7 +567,10 @@ function _renderCard(m) {
   if (isHojeFolga) {
       borderStyle = 'border-color:#cbd5e1;background:#f3f4f6;border-style:dashed;opacity:0.8;';
       avatarBorder = 'border-color:#94a3b8;border-width:2px;filter:grayscale(100%);';
-  } else if (isLaranja) {
+  } else if (isAfastado) {
+      borderStyle = 'border-color:#f59e0b;background:#fffbeb;';
+      avatarBorder = 'border-color:#d97706;border-width:2px;';
+  } else if (isFerias) {
       borderStyle = 'border-color:#a855f7;background:#faf5ff;';
       avatarBorder = 'border-color:#9333ea;border-width:2px;';
   } else if (emExp) {

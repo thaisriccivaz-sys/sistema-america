@@ -12238,7 +12238,7 @@ async function verificarFeriasEquipes() {
         for (const m of emEquipe) {
             let taDeFerias = false;
             const st = (m.status || '').toLowerCase();
-            if (st === 'férias' || st === 'ferias' || st === 'afastado') taDeFerias = true;
+            if (st === 'férias' || st === 'ferias') taDeFerias = true;
             
             if (!taDeFerias && m.ferias_programadas_inicio && m.ferias_programadas_fim) {
                 const ini = parseDataLocal(m.ferias_programadas_inicio);
