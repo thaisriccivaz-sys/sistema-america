@@ -106,12 +106,11 @@
                             name="busca_colaborador_rnd"
                             type="text"
                             placeholder="Digite o nome do colaborador..."
-                            autocomplete="new-password"
-                            data-lpignore="true"
-                            data-form-type="other"
+                            autocomplete="off"
+                            readonly
+                            onfocus="this.removeAttribute('readonly'); this.style.borderColor='#2563eb';"
                             style="width:100%;padding:0.75rem 1rem 0.75rem 2.5rem;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.95rem;outline:none;transition:border-color 0.2s;box-sizing:border-box;font-family:inherit;"
                             oninput="window._lepiOnBusca(this.value)"
-                            onfocus="this.style.borderColor='#2563eb'"
                             onblur="this.style.borderColor='#e2e8f0'"
                         />
                     </div>
