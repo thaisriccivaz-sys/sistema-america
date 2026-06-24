@@ -43,6 +43,7 @@ let _propostasEditandoId = null;
 let _currentPropostaTab = 'lista'; // 'lista', 'form' ou 'cadastro-cliente'
 let _clienteEditandoId = null;
 let _clienteContatos = [];
+let _clientesCache = [];
 
 /* ── Inicialização ──────────────────────────────────────────────────── */
 async function inicializarPropostas() {
@@ -923,39 +924,34 @@ function _renderCadastroClienteInt() {
                                 </div>
                             </div>
 
-                            <!-- Linha 2: IM, RG, Nasc, Grupo, Centralizador -->
-                            <div style="display:grid; grid-template-columns:1.2fr 1fr 1fr 1.5fr 1.3fr; gap:0.75rem;">
+                            <!-- Linha 2: IM, Grupo, Centralizador -->
+                            <div style="display:grid; grid-template-columns:1.2fr 1.5fr 2.3fr; gap:0.75rem;">
                                 <div>
                                     <label class="prop-lbl">Inscrição Municipal</label>
                                     <input type="text" id="cli-im" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                                 </div>
                                 <div>
-                                    <label class="prop-lbl">RG</label>
-                                    <input type="text" id="cli-rg" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                </div>
-                                <div>
-                                    <label class="prop-lbl">Data Nascimento</label>
-                                    <input type="date" id="cli-data-nascimento" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                </div>
-                                <div>
                                     <label class="prop-lbl">Grupo de Clientes</label>
                                     <select id="cli-grupo" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                        <option value="Não Pertence">Não Pertence</option>
-                                        <option value="Fidelidade">Fidelidade</option>
-                                        <option value="VIP">VIP</option>
-                                        <option value="Corporativo">Corporativo</option>
+                                        <option value="">-- Selecione --</option>
+                                        <option value="1 - Diamante">1 - Diamante</option>
+                                        <option value="2 - Ouro">2 - Ouro</option>
+                                        <option value="3 - Prata">3 - Prata</option>
+                                        <option value="4 - Bronze">4 - Bronze</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label class="prop-lbl">Cliente Centralizador</label>
-                                    <input type="text" id="cli-centralizador" placeholder="0" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                    <select id="cli-centralizador" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                        <option value="">-- Selecione --</option>
+                                    </select>
                                 </div>
                             </div>
 
                             <!-- Linha 3: Razão Social -->
                             <div>
                                 <label class="prop-lbl">Nome / Razão Social *</label>
-                                <input type="text" id="cli-razao-social" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                <input type="text" id="cli-razao-social" oninput="atualizarClienteCentralizadorOptions()" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
 
                             <!-- Linha 4: Nome Fantasia -->
@@ -1206,6 +1202,63 @@ function _renderCadastroClienteInt() {
     _renderTabelaContatos();
 }
 
+window.atualizarClienteCentralizadorOptions = async function(selectedValue = null) {
+    const razaoSocialInput = document.getElementById('cli-razao-social');
+    const selectCentralizador = document.getElementById('cli-centralizador');
+    if (!selectCentralizador) return;
+
+    // Se a lista de clientes no cache estiver vazia, vamos buscar uma vez
+    if (!_clientesCache || _clientesCache.length === 0) {
+        try {
+            _clientesCache = await apiGet('/api/clientes') || [];
+        } catch (e) {
+            console.error('Erro ao carregar clientes para centralizador:', e);
+            _clientesCache = [];
+        }
+    }
+
+    const currentVal = razaoSocialInput ? razaoSocialInput.value.trim() : '';
+    
+    // Extrai a primeira palavra com mais de 2 caracteres
+    const words = currentVal.split(/\s+/).filter(w => w.length > 2);
+    const filterWord = words.length > 0 ? words[0] : '';
+
+    // Filtra os clientes
+    let filtered = [];
+    if (filterWord) {
+        // Função para remover acentos para comparação mais robusta
+        const cleanStr = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        const searchVal = cleanStr(filterWord);
+        
+        filtered = _clientesCache.filter(c => {
+            const nameClean = cleanStr(c.nome_razao_social || '');
+            return nameClean.includes(searchVal);
+        });
+    }
+
+    // Se o selectedValue foi passado e não está na lista filtrada, vamos adicioná-lo
+    // para não perder a seleção salva na renderização
+    if (selectedValue) {
+        const alreadyInList = filtered.some(c => String(c.codigo) === String(selectedValue) || String(c.nome_razao_social) === String(selectedValue));
+        if (!alreadyInList) {
+            const found = _clientesCache.find(c => String(c.codigo) === String(selectedValue) || String(c.nome_razao_social) === String(selectedValue));
+            if (found) {
+                filtered.unshift(found);
+            }
+        }
+    }
+
+    // Monta as opções do select
+    let optionsHtml = '<option value="">-- Selecione --</option>';
+    filtered.forEach(c => {
+        // Marcamos como selecionado se coincide com selectedValue (código ou razão)
+        const isSelected = selectedValue && (String(c.codigo) === String(selectedValue) || String(c.nome_razao_social) === String(selectedValue)) ? 'selected' : '';
+        optionsHtml += `<option value="${c.codigo}" ${isSelected}>${c.codigo} - ${c.nome_razao_social}</option>`;
+    });
+
+    selectCentralizador.innerHTML = optionsHtml;
+};
+
 window.toggleAccordion = function(id) {
     const el = document.getElementById(id);
     const arrow = document.getElementById(id + '-arrow');
@@ -1234,28 +1287,77 @@ window.buscarCNPJ = async function() {
     btn.disabled = true;
 
     try {
-        const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
-        if (!res.ok) throw new Error('CNPJ não encontrado ou erro na busca.');
-        const data = await res.json();
-        
-        document.getElementById('cli-razao-social').value = data.razao_social || '';
-        document.getElementById('cli-nome-fantasia').value = data.nome_fantasia || '';
-        document.getElementById('cli-cep').value = data.cep || '';
-        document.getElementById('cli-endereco').value = (data.logradouro || '') + (data.numero ? ', ' + data.numero : '');
-        document.getElementById('cli-bairro').value = data.bairro || '';
-        document.getElementById('cli-uf').value = data.uf || '';
-        document.getElementById('cli-municipio').value = data.municipio || '';
-        document.getElementById('cli-pais').value = 'BRASIL';
-        if (data.ddd_telefone_1) {
-            document.getElementById('cli-telefone').value = `(${data.ddd_telefone_1.substring(0,2)}) ${data.ddd_telefone_1.substring(2)}`;
+        const result = await apiGet(`/api/consulta-cnpj/${cnpj}`);
+        if (!result || !result.data) {
+            throw new Error('Retorno inválido do servidor.');
         }
-        
+
+        const data = result.data;
+        const source = result.source;
+
+        if (source === 'cnpjws') {
+            document.getElementById('cli-razao-social').value = data.razao_social || '';
+            document.getElementById('cli-nome-fantasia').value = data.estabelecimento?.nome_fantasia || '';
+            document.getElementById('cli-cep').value = data.estabelecimento?.cep || '';
+            
+            // Endereço
+            const logradouro = data.estabelecimento?.logradouro || '';
+            const tipoLogradouro = data.estabelecimento?.tipo_logradouro || '';
+            const numero = data.estabelecimento?.numero || '';
+            const compl = data.estabelecimento?.complemento || '';
+            
+            document.getElementById('cli-endereco').value = `${tipoLogradouro} ${logradouro}`.trim() + (numero ? ', ' + numero : '');
+            document.getElementById('cli-complemento').value = compl;
+            document.getElementById('cli-bairro').value = data.estabelecimento?.bairro || '';
+            document.getElementById('cli-uf').value = data.estabelecimento?.estado?.sigla || '';
+            document.getElementById('cli-municipio').value = data.estabelecimento?.cidade?.nome || '';
+            document.getElementById('cli-pais').value = 'BRASIL';
+            
+            // Telefone
+            if (data.estabelecimento?.ddd1 && data.estabelecimento?.telefone1) {
+                document.getElementById('cli-telefone').value = `(${data.estabelecimento.ddd1}) ${data.estabelecimento.telefone1}`;
+            }
+
+            // Inscrição Estadual
+            let ie = 'ISENTO';
+            const ieList = data.estabelecimento?.inscricoes_estaduais;
+            if (Array.isArray(ieList) && ieList.length > 0) {
+                const activeIe = ieList.find(x => x.ativo);
+                if (activeIe) {
+                    ie = activeIe.inscricao_estadual;
+                } else {
+                    ie = ieList[0].inscricao_estadual;
+                }
+            }
+            document.getElementById('cli-ie').value = ie;
+
+        } else {
+            // Source: brasilapi
+            document.getElementById('cli-razao-social').value = data.razao_social || '';
+            document.getElementById('cli-nome-fantasia').value = data.nome_fantasia || '';
+            document.getElementById('cli-cep').value = data.cep || '';
+            document.getElementById('cli-endereco').value = (data.logradouro || '') + (data.numero ? ', ' + data.numero : '');
+            document.getElementById('cli-bairro').value = data.bairro || '';
+            document.getElementById('cli-uf').value = data.uf || '';
+            document.getElementById('cli-municipio').value = data.municipio || '';
+            document.getElementById('cli-pais').value = 'BRASIL';
+            
+            if (data.ddd_telefone_1) {
+                document.getElementById('cli-telefone').value = `(${data.ddd_telefone_1.substring(0,2)}) ${data.ddd_telefone_1.substring(2)}`;
+            }
+            document.getElementById('cli-ie').value = 'ISENTO';
+        }
+
+        // Atualizar as opções do centralizador dinamicamente!
+        await atualizarClienteCentralizadorOptions();
+
         if (typeof mostrarToastSucesso === 'function') {
-            mostrarToastSucesso('Dados do CNPJ importados com sucesso!');
+            const extra = source === 'cnpjws' ? '' : ' (Inscrição Estadual indisponível no fallback)';
+            mostrarToastSucesso('Dados do CNPJ importados com sucesso!' + extra);
         }
     } catch(e) {
         console.error(e);
-        alert('Erro ao buscar CNPJ: ' + e.message);
+        alert('Erro ao buscar CNPJ: ' + (e.message || 'Erro desconhecido.'));
     } finally {
         btn.innerHTML = origText;
         btn.disabled = false;
@@ -1362,11 +1464,9 @@ window.carregarClienteParaEdicao = async function(id) {
         document.getElementById('cli-cpf-cnpj').value = c.cpf_cnpj || '';
         document.getElementById('cli-ie').value = c.inscricao_estadual || '';
         document.getElementById('cli-im').value = c.inscricao_municipal || '';
-        document.getElementById('cli-rg').value = c.rg || '';
-        document.getElementById('cli-data-nascimento').value = c.data_nascimento || '';
-        document.getElementById('cli-grupo').value = c.grupo_clientes || 'Não Pertence';
-        document.getElementById('cli-centralizador').value = c.cliente_centralizador || '';
         document.getElementById('cli-razao-social').value = c.nome_razao_social || '';
+        document.getElementById('cli-grupo').value = c.grupo_clientes || '';
+        await atualizarClienteCentralizadorOptions(c.cliente_centralizador || '');
         document.getElementById('cli-nome-fantasia').value = c.nome_fantasia || '';
         document.getElementById('cli-cep').value = c.cep || '';
         document.getElementById('cli-endereco').value = c.endereco || '';
@@ -1439,6 +1539,12 @@ window.limparFormCliente = function() {
     if (iss) iss.value = '';
     const cnae = document.getElementById('cli-f-cnae');
     if (cnae) cnae.value = '';
+
+    // Resetar centralizador
+    const selectCentralizador = document.getElementById('cli-centralizador');
+    if (selectCentralizador) {
+        selectCentralizador.innerHTML = '<option value="">-- Selecione --</option>';
+    }
 
     _renderTabelaContatos();
 };
@@ -1641,8 +1747,8 @@ window.salvarCliente = async function() {
         cpf_cnpj: cpfCnpj,
         inscricao_estadual: document.getElementById('cli-ie')?.value || '',
         inscricao_municipal: document.getElementById('cli-im')?.value || '',
-        rg: document.getElementById('cli-rg')?.value || '',
-        data_nascimento: document.getElementById('cli-data-nascimento')?.value || '',
+        rg: '',
+        data_nascimento: '',
         grupo_clientes: document.getElementById('cli-grupo')?.value || '',
         cliente_centralizador: document.getElementById('cli-centralizador')?.value || '',
         nome_razao_social: razaoSocial,
@@ -1680,6 +1786,7 @@ window.salvarCliente = async function() {
         }
 
         if (res && res.success) {
+            _clientesCache = []; // Limpar cache para atualizar centralizadores
             if (!_clienteEditandoId && res.id) {
                 _clienteEditandoId = res.id;
                 document.getElementById('cli-codigo').value = res.codigo || '';
@@ -1708,6 +1815,7 @@ window.excluirCliente = async function() {
     try {
         const res = await apiDelete(`/api/clientes/${_clienteEditandoId}`);
         if (res && res.success) {
+            _clientesCache = []; // Limpar cache
             limparFormCliente();
             if (typeof mostrarToastSucesso === 'function') {
                 mostrarToastSucesso('Cliente excluído com sucesso.');

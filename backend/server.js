@@ -19689,6 +19689,40 @@ app.delete('/api/clientes/:id', authenticateToken, (req, res) => {
   });
 });
 
+// GET /api/consulta-cnpj/:cnpj - Proxy para consulta de CNPJ com IE (cnpj.ws e fallback BrasilAPI)
+app.get('/api/consulta-cnpj/:cnpj', authenticateToken, async (req, res) => {
+  const cnpj = req.params.cnpj.replace(/\D/g, '');
+  if (cnpj.length !== 14) {
+    return res.status(400).json({ error: 'CNPJ inválido. Deve conter 14 dígitos.' });
+  }
+
+  try {
+    // 1. Tentar cnpj.ws para obter Inscrição Estadual
+    const response = await fetch(`https://publica.cnpj.ws/cnpj/${cnpj}`);
+    if (response.ok) {
+      const data = await response.json();
+      return res.json({ source: 'cnpjws', data });
+    }
+
+    console.warn(`[CNPJ] Erro na API cnpj.ws (Status ${response.status}). Tentando fallback BrasilAPI...`);
+  } catch (err) {
+    console.error('[CNPJ] Falha ao conectar em cnpj.ws:', err.message);
+  }
+
+  // 2. Fallback para BrasilAPI
+  try {
+    const fallbackResponse = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+    if (fallbackResponse.ok) {
+      const data = await fallbackResponse.json();
+      return res.json({ source: 'brasilapi', data });
+    }
+    return res.status(fallbackResponse.status).json({ error: 'CNPJ não encontrado nas bases públicas de consulta.' });
+  } catch (err) {
+    console.error('[CNPJ] Falha ao conectar em BrasilAPI:', err.message);
+    return res.status(500).json({ error: 'Erro ao consultar APIs de CNPJ.' });
+  }
+});
+
 console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
 console.log('[CLIENTES] Módulo de cadastro de clientes carregado.');
 
