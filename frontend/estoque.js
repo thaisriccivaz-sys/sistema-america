@@ -619,7 +619,7 @@ window.renderEstoqueHistorico = async function() {
         table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#ef4444;">Erro ao carregar histórico: ' + err.message + '</td></tr>';
     }
 };
-\n
+
 window._transferirLocal = async function() {
     const validos = window._enderecoLinhas.filter(l => l.endereco_id);
     if (validos.length < 2) return;
