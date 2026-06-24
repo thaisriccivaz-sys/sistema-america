@@ -5841,7 +5841,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                                         db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'nova_ocorrencia'", [], (errN, rowsN) => {
                                             if (!errN && rowsN && rowsN.length > 0) {
                                                 const msg = `Uma nova ocorrência foi registrada no prontuário do colaborador: ${colab.nome_completo}`;
-                                                const dadosStr = JSON.stringify({ colaborador_id, document_id: newDocId });
+                                                const dadosStr = JSON.stringify({ colaborador_id, document_id: newDocId, tipo_ocorrencia: _tipoSimples, colaborador_nome: colab.nome_completo });
                                                 rowsN.forEach(c => {
                                                     db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", 
                                                         [c.usuario_id, 'nova_ocorrencia', msg, dadosStr]);
@@ -18001,26 +18001,26 @@ app.get('/api/treinamentos', authenticateToken, (req, res) => {
 
 // ── POST /api/treinamentos — Cria treinamento ─────────────────────────────────
 app.post('/api/treinamentos', authenticateToken, (req, res) => {
-  const { nome, descricao } = req.body || {};
+  const { nome, descricao, departamento } = req.body || {};
   if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
   const criado_por = req.user?.nome || req.user?.email || '';
   db.run(
-    `INSERT INTO treinamentos (nome, descricao, criado_por) VALUES (?, ?, ?)`,
-    [nome.trim(), (descricao || '').trim(), criado_por],
+    `INSERT INTO treinamentos (nome, descricao, criado_por, departamento) VALUES (?, ?, ?, ?)`,
+    [nome.trim(), (descricao || '').trim(), criado_por, (departamento || 'Todos').trim()],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
-      res.status(201).json({ id: this.lastID, nome: nome.trim(), descricao: descricao || '', anexos: [] });
+      res.status(201).json({ id: this.lastID, nome: nome.trim(), descricao: descricao || '', departamento: (departamento || 'Todos').trim(), anexos: [] });
     }
   );
 });
 
 // ── PUT /api/treinamentos/:id — Atualiza treinamento ─────────────────────────
 app.put('/api/treinamentos/:id', authenticateToken, (req, res) => {
-  const { nome, descricao } = req.body || {};
+  const { nome, descricao, departamento } = req.body || {};
   if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
   db.run(
-    `UPDATE treinamentos SET nome = ?, descricao = ? WHERE id = ?`,
-    [nome.trim(), (descricao || '').trim(), req.params.id],
+    `UPDATE treinamentos SET nome = ?, descricao = ?, departamento = ? WHERE id = ?`,
+    [nome.trim(), (descricao || '').trim(), (departamento || 'Todos').trim(), req.params.id],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Treinamento não encontrado.' });

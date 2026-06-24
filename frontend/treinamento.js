@@ -112,7 +112,10 @@
                 <div style="display:flex;align-items:center;gap:0.9rem;">
                     ${capa}
                     <div style="min-width:0;">
-                        <div style="font-weight:600;color:#0f172a;font-size:0.93rem;">${t.nome}</div>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="font-weight:600;color:#0f172a;font-size:0.93rem;">${t.nome}</span>
+                            <span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:600;">${t.departamento || 'Todos'}</span>
+                        </div>
                         ${desc}
                         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">${pills || '<span style="color:#94a3b8;font-size:0.72rem;">Sem arquivos</span>'}</div>
                     </div>
@@ -149,8 +152,25 @@
         if (f) f.reset();
         const m = el('modal-novo-treinamento');
         if (m) { m.style.display = 'flex'; }
+        _carregarDepartamentosSelect('novo-treinamento-departamento', 'Todos');
         setTimeout(() => { const n = el('novo-treinamento-nome'); if (n) n.focus(); }, 80);
     };
+
+    async function _carregarDepartamentosSelect(selectId, selecionado = 'Todos') {
+        const select = el(selectId);
+        if (!select) return;
+        try {
+            const r = await api('/departamentos');
+            if (!r.ok) return;
+            const deptos = await r.json();
+            let options = '<option value="Todos">Todos os Departamentos</option>';
+            deptos.forEach(d => {
+                options += `<option value="${d.nome}">${d.nome}</option>`;
+            });
+            select.innerHTML = options;
+            select.value = selecionado;
+        } catch(e) {}
+    }
 
     window.fecharModalNovoTreinamento = function () {
         const m = el('modal-novo-treinamento');
@@ -161,6 +181,7 @@
         if (event) event.preventDefault();
         const nome = (el('novo-treinamento-nome') || {}).value?.trim();
         const desc = (el('novo-treinamento-desc') || {}).value?.trim();
+        const departamento = (el('novo-treinamento-departamento') || {}).value || 'Todos';
         if (!nome) { alert('Informe o nome do treinamento.'); return; }
 
         const btn = el('form-novo-treinamento')?.querySelector('[type=submit]');
@@ -170,7 +191,7 @@
             const r = await api('/treinamentos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, descricao: desc || '' })
+                body: JSON.stringify({ nome, descricao: desc || '', departamento })
             });
             if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'Erro ao criar'); }
             window.fecharModalNovoTreinamento();
@@ -435,6 +456,7 @@
         el('editar-treinamento-id').value   = t.id;
         el('editar-treinamento-nome').value = t.nome || '';
         el('editar-treinamento-desc').value = t.descricao || '';
+        _carregarDepartamentosSelect('editar-treinamento-departamento', t.departamento || 'Todos');
 
         const m = el('modal-editar-treinamento');
         if (m) m.style.display = 'flex';
@@ -451,6 +473,7 @@
         const id   = parseInt(el('editar-treinamento-id').value, 10);
         const nome = (el('editar-treinamento-nome') || {}).value?.trim();
         const desc = (el('editar-treinamento-desc') || {}).value?.trim();
+        const departamento = (el('editar-treinamento-departamento') || {}).value || 'Todos';
         if (!nome) { alert('Informe o nome do treinamento.'); return; }
 
         const btn = el('btn-salvar-edicao-treinamento');
@@ -460,7 +483,7 @@
             const r = await api('/treinamentos/' + id, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, descricao: desc || '' })
+                body: JSON.stringify({ nome, descricao: desc || '', departamento })
             });
             if (!r.ok) {
                 const e = await r.json().catch(() => ({}));
@@ -472,12 +495,14 @@
             if (idx !== -1) {
                 _cache[idx].nome     = nome;
                 _cache[idx].descricao = desc || '';
+                _cache[idx].departamento = departamento;
             }
 
             // Se o modal de detalhe estiver aberto para este treinamento, atualiza o header
             if (_treinAtual && _treinAtual.id === id) {
                 _treinAtual.nome      = nome;
                 _treinAtual.descricao = desc || '';
+                _treinAtual.departamento = departamento;
                 const elNome = el('detalhe-treinamento-nome');
                 const elDesc = el('detalhe-treinamento-desc');
                 if (elNome) elNome.textContent = nome;
