@@ -229,21 +229,6 @@ window.abrirModalBaixaEstoque = async function(item) {
 // ── HELPERS DE ENDEREÇOS NO MODAL ─────────────────────────────────────────────
 window._enderecoLinhas = [];
 
-window._calcularSomaEnderecos = function() {
-    const soma = (window._enderecoLinhas || []).reduce((acc, l) => acc + (parseInt(l.quantidade) || 0), 0);
-    const qtdEl = document.getElementById('estoque-qtd');
-    if (qtdEl) {
-        const temLinhas = window._enderecoLinhas.length > 0;
-        qtdEl.value = soma;
-        qtdEl.readOnly = temLinhas;
-        qtdEl.style.background = temLinhas ? '#f8fafc' : '';
-        qtdEl.style.cursor = temLinhas ? 'not-allowed' : '';
-        qtdEl.style.color = temLinhas ? '#64748b' : '';
-        const badge = document.getElementById('estoque-qtd-badge');
-        if (badge) badge.textContent = temLinhas ? '(soma dos endereços)' : '';
-    }
-};
-
 window._renderLinhasEndereco = function() {
     const lista = document.getElementById('estoque-enderecos-lista');
     const vazio = document.getElementById('estoque-enderecos-vazio');
@@ -252,7 +237,7 @@ window._renderLinhasEndereco = function() {
     if (!linhas.length) {
         lista.innerHTML = '';
         if (vazio) vazio.style.display = 'block';
-        window._calcularSomaEnderecos();
+        
         return;
     }
     if (vazio) vazio.style.display = 'none';
@@ -278,7 +263,7 @@ window._renderLinhasEndereco = function() {
                 '<div>' +
                     '<label style="display:block;font-size:0.72rem;font-weight:600;color:#475569;margin-bottom:2px;">Qtd. Atual</label>' +
                     '<input type="number" min="0" value="' + (linha.quantidade || 0) + '" placeholder="0" ' +
-                        'oninput="window._enderecoLinhas[' + idx + '].quantidade = parseInt(this.value) || 0; window._calcularSomaEnderecos();" ' +
+                        'oninput="window._enderecoLinhas[' + idx + '].quantidade = parseInt(this.value) || 0; " ' +
                         'style="width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.85rem;text-align:center;box-sizing:border-box;">' +
                 '</div>' +
                 '<div>' +
@@ -296,7 +281,7 @@ window._renderLinhasEndereco = function() {
             '</div>' +
         '</div>';
     }).join('');
-    window._calcularSomaEnderecos();
+    
 };
 
 window._adicionarLinhaEndereco = function() {
@@ -324,6 +309,8 @@ window.abrirModalEstoque = async function() {
     window._renderLinhasEndereco();
     document.getElementById("modal-estoque-title").innerHTML = '<i class="ph ph-package"></i> Adicionar Item de Estoque';
     document.getElementById("modal-estoque").style.display = "flex";
+    // Foco no campo nome
+    setTimeout(() => { const n = document.getElementById("estoque-nome"); if(n) n.focus(); }, 200);
 };
 
 window.fecharModalEstoque = function() {
@@ -359,13 +346,14 @@ window.editarEstoque = async function(item) {
         if (r.ok) {
             const saldos = await r.json();
             window._enderecoLinhas = saldos.map(s => ({
-                    endereco_id:      s.endereco_id,
-                    quantidade:       s.quantidade,
-                    quantidade_minima: s.quantidade_minima || 0,
-                    quantidade_maxima: s.quantidade_maxima || 0
-                }));
+                endereco_id:       s.endereco_id,
+                quantidade:        s.quantidade,
+                quantidade_minima: s.quantidade_minima || 0,
+                quantidade_maxima: s.quantidade_maxima || 0
+            }));
         }
     } catch(e) { console.warn("[editarEstoque] erro ao carregar saldos:", e.message); }
+    // Produto sem endereço: deixar lista vazia com opção de adicionar (não pré-preencher)
     window._renderLinhasEndereco();
     document.getElementById("modal-estoque-title").innerHTML = '<i class="ph ph-pencil-simple"></i> Editar Item de Estoque';
     document.getElementById("modal-estoque").style.display = "flex";
@@ -375,13 +363,22 @@ window.editarEstoque = async function(item) {
 window.salvarEstoque = async function(e) {
     e.preventDefault();
     const id = document.getElementById("estoque-id").value;
-    const linhasValidas = (window._enderecoLinhas || []).filter(l => l.endereco_id && l.quantidade > 0);
-    
-    // Qtd. Atual = soma dos endereços SE houver, senão usa o campo (mantém quantidade já cadastrada)
+    const linhasValidas = (window._enderecoLinhas || []).filter(l => l.endereco_id);
+
+    // NOVO produto: obrigatório ter pelo menos 1 endereço selecionado
+    if (!id && linhasValidas.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Endereço obrigatório',
+            text: 'Adicione e selecione pelo menos um endereço para o produto.',
+            confirmButtonColor: '#e67700'
+        });
+        return;
+    }
+
+    // Qtd. Atual = soma das quantidades por endereço (ou 0 se sem endereço cadastrado)
     const somaEnderecos = linhasValidas.reduce((acc, l) => acc + (parseInt(l.quantidade) || 0), 0);
-    const qtdAtual = linhasValidas.length > 0 
-        ? somaEnderecos 
-        : (parseInt(document.getElementById("estoque-qtd").value) || 0);
+    const qtdAtual = somaEnderecos;
 
     const payload = {
         nome:              document.getElementById("estoque-nome").value,
