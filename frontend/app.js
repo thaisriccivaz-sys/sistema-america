@@ -464,6 +464,7 @@ const BREADCRUMB_MAP = {
     'chaves': { path: 'Chaves', code: 'RHAD04' },
     'geradores': { path: 'Geradores', code: 'RHDOC01' },
     'admissao': { path: 'Admissão', code: 'RHAD05' },
+    'treinamento-materiais': { path: 'Treinamentos - Materiais', code: 'TREIN01' },
     'ficha-epi': { path: 'Ficha EPI', code: 'RHEPI01' },
     'avaliacoes': { path: 'Avaliações', code: 'RHAV01' },
     'gerenciar-avaliacoes': { path: 'Diretoria → Gerenciar Avaliações', code: 'DIRAVAL' },
@@ -739,7 +740,10 @@ const TAB_META = {
     'admin-em-breve': { color: '#e67700', icon: 'ph-gear', title: 'Administrativo' },
     'licencas': { color: '#e67700', icon: 'ph-certificate', title: 'Licenças' },
     'estoque': { color: '#e67700', icon: 'ph-package', title: 'Estoque' },
+    // Treinamento - Azul Turquesa
+    'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais' },
 };
+
 
 function getTabMeta(target) {
     return TAB_META[target] || { color: '#64748b', icon: 'ph-browsers', title: target };
@@ -984,8 +988,11 @@ function navigateTo(target) {
         if (typeof window.initLicencas === 'function') setTimeout(() => window.initLicencas(), 80);
     } else if (target === 'config-sigor') {
         if (typeof window.initConfigSigor === 'function') setTimeout(() => window.initConfigSigor(), 80);
+    } else if (target === 'treinamento-materiais') {
+        if (typeof window.renderTreinamentosTable === 'function') setTimeout(() => window.renderTreinamentosTable(), 80);
     }
 }
+
 
 // Abre uma aba de CADASTRO de colaborador, nomeada com o colaborador.
 // Se já existir aba para esse colaborador, apenas ativa. Novo colaborador usa tabId 'form-colaborador-novo'.
