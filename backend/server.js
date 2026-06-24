@@ -18363,15 +18363,29 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
           }
         );
       } else {
-        // Insere novo registro
+        // Insere novo registro — usuario_id=0 é placeholder para registros via fluxo colaborador
         db.run(
-          `INSERT INTO treinamento_presenca
-             (treinamento_id, colaborador_id, assinatura_base64, selfie_base64, data_conclusao)
-           VALUES (?, ?, ?, ?, ?)`,
+          `INSERT OR IGNORE INTO treinamento_presenca
+             (treinamento_id, colaborador_id, usuario_id, assinatura_base64, selfie_base64, data_conclusao)
+           VALUES (?, ?, 0, ?, ?, ?)`,
           [treinamento_id, colaborador_id, assinatura_base64 || '', selfie_base64 || '', now],
           function(err2) {
             if (err2) return res.status(500).json({ error: err2.message });
-            res.json({ ok: true, id: this.lastID, data_conclusao: now });
+            // Se INSERT IGNORE não inseriu (pois usuario_id=0 + treinamento_id já existia), faz UPDATE
+            if (this.changes === 0) {
+              db.run(
+                `UPDATE treinamento_presenca
+                 SET assinatura_base64 = ?, selfie_base64 = ?, data_conclusao = ?
+                 WHERE treinamento_id = ? AND colaborador_id = ?`,
+                [assinatura_base64 || '', selfie_base64 || '', now, treinamento_id, colaborador_id],
+                function(err3) {
+                  if (err3) return res.status(500).json({ error: err3.message });
+                  res.json({ ok: true, updated: true, data_conclusao: now });
+                }
+              );
+            } else {
+              res.json({ ok: true, id: this.lastID, data_conclusao: now });
+            }
           }
         );
       }
