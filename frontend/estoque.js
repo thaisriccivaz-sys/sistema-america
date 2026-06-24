@@ -730,6 +730,11 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
     try {
         const r = await fetch(API_URL + "/estoque", { headers: { "Authorization": "Bearer " + token } });
         if (r.ok) produtos = await r.json();
+        
+        if (!isEntrada) {
+            produtos = produtos.filter(p => p.categoria !== 'EPI' && p.categoria !== 'Uniforme');
+        }
+
         if (!window._estoqueEnderecos || window._estoqueEnderecos.length === 0) {
             await _carregarEnderecos();
         }
@@ -738,7 +743,8 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
     }
 
     if (produtos.length === 0) {
-        return Swal.fire('Atenção', 'Nenhum produto cadastrado no estoque.', 'warning');
+        const msg = !isEntrada ? 'Nenhum produto disponível para saída direta. (Itens de EPI e Uniforme devem ter saída pela Ficha de EPI)' : 'Nenhum produto cadastrado no estoque.';
+        return Swal.fire('Atenção', msg, 'warning');
     }
 
     // Ordenar alfabeticamente
