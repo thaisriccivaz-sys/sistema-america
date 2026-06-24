@@ -6002,7 +6002,9 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         // Painel expansível de anexos abaixo do card
         const anexoPanel = document.createElement('div');
         anexoPanel.id = `ocorr-anexo-panel-${docId}`;
-        anexoPanel.style.cssText = 'border-top:1px dashed #e2e8f0; margin-top:0.5rem; overflow:hidden; max-height:0; transition:max-height 0.35s ease, padding 0.2s; padding:0 1rem;';
+        anexoPanel.style.cssText = 'flex-basis:100%; border-top:1px dashed #e2e8f0; margin-top:0.5rem; overflow:hidden; max-height:0; transition:max-height 0.35s ease, padding 0.2s; padding:0 1rem;';
+
+        div.style.flexWrap = 'wrap'; // Garante que o painel quebre para a linha de baixo
 
         anexoPanel.innerHTML = `
             <div style="display:flex; align-items:center; justify-content:space-between; margin-top:0.5rem; margin-bottom:0.5rem;">
