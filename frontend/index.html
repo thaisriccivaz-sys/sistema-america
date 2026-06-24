@@ -3092,7 +3092,7 @@
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Buscar por nome</label>
                                 <input type="search" id="filtro-estoque-nome" class="form-control" placeholder="Buscar..." oninput="window.renderEstoqueTable()" autocomplete="new-password" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')">
                             </div>
-                            <div style="flex: 1; min-width: 200px;">
+                            <div style="flex: 1; min-width: 200px; display: none;">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Departamento</label>
                                 <select id="filtro-estoque-dept" class="form-control" onchange="window.renderEstoqueTable()">
                                     <option value="">Todos</option>
@@ -3101,6 +3101,12 @@
                                     <option value="Logística">Logística</option>
                                     <option value="Financeiro">Financeiro</option>
                                     <option value="Comercial">Comercial</option>
+                                </select>
+                            </div>
+                            <div style="flex: 1; min-width: 200px;">
+                                <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Endereço</label>
+                                <select id="filtro-estoque-endereco" class="form-control" onchange="window.renderEstoqueTable()">
+                                    <option value="">Todos</option>
                                 </select>
                             </div>
                             <div style="flex: 1; min-width: 200px;">

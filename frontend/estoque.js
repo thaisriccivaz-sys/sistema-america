@@ -38,7 +38,25 @@ window.renderEstoqueTable = async function() {
         const saldosMap = r2.ok ? await r2.json() : {};
 
         if (window._estoqueEnderecos.length === 0) await _carregarEnderecos();
+
+        const endSelect = document.getElementById("filtro-estoque-endereco");
+        if (endSelect && endSelect.options.length <= 1 && window._estoqueEnderecos.length > 0) {
+            window._estoqueEnderecos.forEach(end => {
+                const opt = document.createElement('option');
+                opt.value = end.id;
+                opt.textContent = end.nome;
+                endSelect.appendChild(opt);
+            });
+        }
+        const enderecoFiltro = endSelect ? endSelect.value : "";
+
         if (nome) data = data.filter(i => i.nome.toLowerCase().includes(nome));
+        if (enderecoFiltro) {
+            data = data.filter(i => {
+                const saldos = saldosMap[i.id] || [];
+                return saldos.some(s => String(s.endereco_id) === String(enderecoFiltro));
+            });
+        }
         if (status === "minimo") data = data.filter(i => {
             const saldos = saldosMap[i.id] || [];
             if (saldos.length > 0) return saldos.some(s => s.quantidade <= i.quantidade_minima);
