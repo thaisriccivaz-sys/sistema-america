@@ -58,98 +58,113 @@ window.renderEstoqueTable = async function() {
             const saldos = saldosMap[item.id] || [];
             const multiEnd = saldos.length > 1;
 
-            // ── Verificar se está no mínimo (usa min/max por endereço quando disponível) ──
+            // ── Verificar se está no mínimo (usa min/max por endereço) ──
             let isLow = false;
             if (saldos.length > 0) {
-                // Prioridade: min/max do próprio endereço; fallback para min global do produto
                 isLow = saldos.some(s => {
-                    const minRef = (s.quantidade_minima !== undefined && s.quantidade_minima !== null && s.quantidade_minima > 0)
-                        ? s.quantidade_minima
-                        : item.quantidade_minima;
+                    const minRef = (s.quantidade_minima > 0) ? s.quantidade_minima : item.quantidade_minima;
                     return minRef > 0 && s.quantidade <= minRef;
                 });
             } else {
                 isLow = item.quantidade_minima > 0 && item.quantidade_atual <= item.quantidade_minima;
             }
 
+            const rowBorderLeft = isLow ? '3px solid #ef4444' : '3px solid transparent';
+
             // ── Foto ──
             const fotoSrc = item.foto_url || item.foto_base64 || "";
             const fotoHtml = fotoSrc
-                ? '<img src="' + fotoSrc + '" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">'
-                : '<div style="width:40px;height:40px;border-radius:8px;background:#f1f5f9;border:1px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-image" style="color:#94a3b8;font-size:1.2rem;"></i></div>';
+                ? '<img src="' + fotoSrc + '" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid #e2e8f0;">'
+                : '<div style="width:40px;height:40px;border-radius:8px;background:#f1f5f9;border:1px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;"><i class="ph ph-image" style="color:#94a3b8;font-size:1.2rem;"></i></div>';
 
             const warnIcon = isLow ? '<i class="ph ph-warning-circle" style="color:#ef4444;margin-right:4px;" title="Estoque Mínimo"></i>' : "";
 
-            // ── Coluna Quantidade ──
-            let qtdHtml;
-            if (multiEnd) {
-                qtdHtml = '<span style="color:#94a3b8;font-style:italic;">—</span>';
-            } else {
-                const qtd = saldos.length === 1 ? saldos[0].quantidade : item.quantidade_atual;
-                qtdHtml = '<span style="font-weight:bold;color:' + (isLow ? '#ef4444' : '#10b981') + ';">' + qtd + '</span>';
-            }
+            // ── Botões de ação (apenas na primeira linha do produto) ──
+            const acoesBtns =
+                '<button class="btn btn-sm" onclick="window.abrirModalBaixaEstoque(window._estoqueCache[' + item.id + '])" title="Baixa Manual" style="background:#fff3e6;color:#e67700;border:1px solid #fed7aa;padding:4px 8px;border-radius:4px;margin-right:2px;"><i class="ph ph-arrow-down"></i></button>' +
+                '<button class="btn btn-sm" onclick="window.ajustarEstoqueRapido(' + item.id + ',' + item.quantidade_atual + ',1)" title="Entrada Rápida" style="background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;padding:4px 8px;border-radius:4px;"><i class="ph ph-plus"></i></button>' +
+                '<button class="btn btn-sm btn-secondary" onclick="window.editarEstoque(window._estoqueCache[' + item.id + '])" title="Editar" style="margin-left:4px;"><i class="ph ph-pencil-simple"></i></button>' +
+                '<button class="btn btn-sm" onclick="window.excluirEstoque(' + item.id + ')" style="background:#fee2e2;color:#ef4444;border:none;margin-left:4px;"><i class="ph ph-trash"></i></button>';
 
-            // ── Coluna Endereços ──
-            let endHtml;
-            if (multiEnd) {
-                endHtml = '<div style="display:flex;align-items:center;gap:6px;">' +
-                    '<span style="color:#94a3b8;font-style:italic;font-size:0.78rem;">—</span>' +
-                    '<button onclick="window._toggleExpandEstoque(' + item.id + ')" id="btn-expand-' + item.id + '" ' +
-                    'style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:2px 8px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-size:0.75rem;color:#475569;" title="Ver endereços">' +
-                    '<i class="ph ph-caret-down" id="icon-expand-' + item.id + '" style="transition:transform 0.2s;"></i> detalhes</button>' +
-                    '</div>';
-            } else if (saldos.length === 1) {
-                const s = saldos[0];
-                const badgeColor = (s.quantidade <= item.quantidade_minima && item.quantidade_minima > 0) ? '#fef2f2' : '#eff6ff';
-                const txtColor   = (s.quantidade <= item.quantidade_minima && item.quantidade_minima > 0) ? '#ef4444' : '#1d4ed8';
-                const brdColor   = (s.quantidade <= item.quantidade_minima && item.quantidade_minima > 0) ? '#fca5a5' : '#bfdbfe';
-                endHtml = '<span style="display:inline-flex;align-items:center;gap:3px;background:' + badgeColor + ';color:' + txtColor + ';border:1px solid ' + brdColor + ';border-radius:20px;padding:2px 8px;font-size:0.72rem;font-weight:600;white-space:nowrap;">' +
-                    '<i class="ph ph-map-pin" style="font-size:0.75rem;"></i>' + s.nome +
-                    '<span style="background:' + txtColor + ';color:#fff;border-radius:10px;padding:0 5px;font-size:0.7rem;">' + s.quantidade + '</span></span>';
-            } else {
-                endHtml = '<span style="color:#94a3b8;font-size:0.78rem;font-style:italic;">Sem endereço</span>';
-            }
+            // ── Gerar linhas: uma por endereço (ou uma única se sem endereço) ──
+            const linhasEndereco = saldos.length > 0 ? saldos : [null];
 
-            const rowBg = isLow ? 'background:#fff5f5;border-left:3px solid #ef4444;' : '';
+            linhasEndereco.forEach(function(s, idx) {
+                const primeiraLinha = idx === 0;
+                const ultimaLinha  = idx === linhasEndereco.length - 1;
 
-            // ── Linha principal ──
-            rows += '<tr id="row-' + item.id + '" style="' + rowBg + '">' +
-                '<td style="font-weight:500;display:flex;align-items:center;gap:12px;">' + fotoHtml + '<div>' + warnIcon + item.nome + '</div></td>' +
-                '<td><span class="badge" style="background:#f1f5f9;color:#475569;">' + item.departamento + '</span></td>' +
-                '<td>' + item.categoria + '</td>' +
-                '<td>' + qtdHtml + '</td>' +
-                '<td style="color:#64748b;font-size:0.85rem;">Min: ' + item.quantidade_minima + ' | Max: ' + item.quantidade_maxima + '</td>' +
-                '<td style="max-width:240px;">' + endHtml + '</td>' +
-                '<td style="text-align:right;white-space:nowrap;">' +
-                    '<button class="btn btn-sm" onclick="window.abrirModalBaixaEstoque(window._estoqueCache[' + item.id + '])" title="Baixa Manual" style="background:#fff3e6;color:#e67700;border:1px solid #fed7aa;padding:4px 8px;border-radius:4px;margin-right:2px;"><i class="ph ph-arrow-down"></i></button>' +
-                    '<button class="btn btn-sm" onclick="window.ajustarEstoqueRapido(' + item.id + ',' + item.quantidade_atual + ',1)" title="Entrada Rápida" style="background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;padding:4px 8px;border-radius:4px;"><i class="ph ph-plus"></i></button>' +
-                    '<button class="btn btn-sm btn-secondary" onclick="window.editarEstoque(window._estoqueCache[' + item.id + '])" title="Editar" style="margin-left:4px;"><i class="ph ph-pencil-simple"></i></button>' +
-                    '<button class="btn btn-sm" onclick="window.excluirEstoque(' + item.id + ')" style="background:#fee2e2;color:#ef4444;border:none;margin-left:4px;"><i class="ph ph-trash"></i></button>' +
-                '</td></tr>';
+                // Cor/estado deste endereço
+                let lowEnd = false;
+                if (s) {
+                    const minRef = (s.quantidade_minima > 0) ? s.quantidade_minima : item.quantidade_minima;
+                    lowEnd = minRef > 0 && s.quantidade <= minRef;
+                }
 
-            // ── Sub-linha expandida (multi-endereço) ──
-            if (multiEnd) {
-                rows += '<tr id="expand-' + item.id + '" style="display:none;background:#f8fafc;">' +
-                    '<td colspan="7" style="padding:0;">' +
-                    '<div style="padding:10px 20px 14px 72px;">' +
-                    '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
-                saldos.forEach(s => {
-                    const minRef = (s.quantidade_minima !== undefined && s.quantidade_minima !== null && s.quantidade_minima > 0)
-                        ? s.quantidade_minima : item.quantidade_minima;
-                    const low = minRef > 0 && s.quantidade <= minRef;
-                    const minText = (s.quantidade_minima > 0) ? ' min:' + s.quantidade_minima : '';
-                    const maxText = (s.quantidade_maxima > 0) ? ' max:' + s.quantidade_maxima : '';
-                    rows += '<div style="display:inline-flex;align-items:center;gap:5px;background:' + (low ? '#fef2f2' : '#eff6ff') + ';border:1.5px solid ' + (low ? '#fca5a5' : '#bfdbfe') + ';border-radius:10px;padding:5px 12px;">' +
-                        '<i class="ph ph-map-pin" style="color:' + (low ? '#ef4444' : '#1d4ed8') + ';font-size:0.8rem;"></i>' +
-                        '<span style="font-size:0.8rem;font-weight:700;color:' + (low ? '#ef4444' : '#1e40af') + ';">' + s.nome + '</span>' +
-                        '<span style="background:' + (low ? '#ef4444' : '#1d4ed8') + ';color:#fff;border-radius:8px;padding:0 8px;font-size:0.78rem;font-weight:700;">' + s.quantidade + '</span>' +
-                        (minText ? '<span style="font-size:0.7rem;color:#f59e0b;font-weight:600;">' + minText + '</span>' : '') +
-                        (maxText ? '<span style="font-size:0.7rem;color:#10b981;font-weight:600;">' + maxText + '</span>' : '') +
-                        (low ? '<i class="ph ph-warning" style="color:#ef4444;font-size:0.8rem;" title="Abaixo do mínimo deste endereço"></i>' : '') +
-                        '</div>';
-                });
-                rows += '</div></div></td></tr>';
-            }
+                // Qtd. Atual deste endereço
+                let qtdCell;
+                if (!s) {
+                    qtdCell = '<span style="color:#94a3b8;font-style:italic;">—</span>';
+                } else {
+                    qtdCell = '<span style="font-weight:700;font-size:1rem;color:' + (lowEnd ? '#ef4444' : '#10b981') + ';">' + s.quantidade + '</span>';
+                }
+
+                // Min/Máx deste endereço
+                let minMaxCell;
+                if (!s) {
+                    minMaxCell = '<span style="color:#94a3b8;font-size:0.8rem;">—</span>';
+                } else {
+                    const hasMin = s.quantidade_minima > 0;
+                    const hasMax = s.quantidade_maxima > 0;
+                    if (hasMin || hasMax) {
+                        minMaxCell = (hasMin ? '<span style="background:#fef9c3;color:#854d0e;border:1px solid #fde68a;border-radius:4px;padding:1px 6px;font-size:0.75rem;font-weight:600;margin-right:3px;">min ' + s.quantidade_minima + '</span>' : '') +
+                                     (hasMax ? '<span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:4px;padding:1px 6px;font-size:0.75rem;font-weight:600;">max ' + s.quantidade_maxima + '</span>' : '');
+                    } else {
+                        minMaxCell = '<span style="color:#94a3b8;font-size:0.78rem;">—</span>';
+                    }
+                }
+
+                // Endereço badge
+                let endCell;
+                if (!s) {
+                    endCell = '<span style="color:#94a3b8;font-size:0.78rem;font-style:italic;">Sem endereço</span>';
+                } else {
+                    endCell = '<span style="display:inline-flex;align-items:center;gap:4px;background:' + (lowEnd ? '#fef2f2' : '#eff6ff') + ';color:' + (lowEnd ? '#ef4444' : '#1d4ed8') + ';border:1px solid ' + (lowEnd ? '#fca5a5' : '#bfdbfe') + ';border-radius:6px;padding:3px 10px;font-size:0.8rem;font-weight:600;">' +
+                        '<i class="ph ph-map-pin" style="font-size:0.8rem;"></i>' + s.nome +
+                        (lowEnd ? ' <i class="ph ph-warning" style="color:#ef4444;font-size:0.78rem;"></i>' : '') +
+                        '</span>';
+                }
+
+                // Separador entre linhas do mesmo produto
+                const borderTop = primeiraLinha ? '' : 'border-top:1px dashed #e2e8f0;';
+                const bgRow = lowEnd ? 'background:#fff5f5;' : (isLow && primeiraLinha ? 'background:#fff5f5;' : '');
+
+                rows += '<tr style="border-left:' + rowBorderLeft + ';' + bgRow + borderTop + '">' +
+                    // Nome + foto: apenas primeira linha; demais = célula vazia com rowspan visual
+                    '<td style="vertical-align:middle;' + (primeiraLinha ? 'font-weight:500;' : 'border-top:none;') + '">' +
+                        (primeiraLinha
+                            ? '<div style="display:flex;align-items:center;gap:12px;">' + fotoHtml + '<div>' + warnIcon + item.nome + '</div></div>'
+                            : '') +
+                    '</td>' +
+                    // Depto: apenas primeira linha
+                    '<td style="vertical-align:middle;">' +
+                        (primeiraLinha ? '<span class="badge" style="background:#f1f5f9;color:#475569;">' + item.departamento + '</span>' : '') +
+                    '</td>' +
+                    // Categoria: apenas primeira linha
+                    '<td style="vertical-align:middle;">' +
+                        (primeiraLinha ? item.categoria : '') +
+                    '</td>' +
+                    // Qtd. Atual: por endereço
+                    '<td style="vertical-align:middle;">' + qtdCell + '</td>' +
+                    // Min/Máx: por endereço
+                    '<td style="vertical-align:middle;">' + minMaxCell + '</td>' +
+                    // Endereço: por endereço
+                    '<td style="vertical-align:middle;">' + endCell + '</td>' +
+                    // Ações: apenas primeira linha
+                    '<td style="text-align:right;white-space:nowrap;vertical-align:middle;">' +
+                        (primeiraLinha ? acoesBtns : '') +
+                    '</td>' +
+                '</tr>';
+            });
         });
 
         table.innerHTML = rows;
@@ -159,15 +174,6 @@ window.renderEstoqueTable = async function() {
     }
 };
 
-// Toggle expand/collapse
-window._toggleExpandEstoque = function(itemId) {
-    const expandRow = document.getElementById('expand-' + itemId);
-    const icon = document.getElementById('icon-expand-' + itemId);
-    if (!expandRow) return;
-    const isOpen = expandRow.style.display !== 'none';
-    expandRow.style.display = isOpen ? 'none' : 'table-row';
-    if (icon) icon.style.transform = isOpen ? '' : 'rotate(180deg)';
-};
 
 // ── Modal: Baixa Manual por Endereco ─────────────────────────────────────────
 window.abrirModalBaixaEstoque = async function(item) {
