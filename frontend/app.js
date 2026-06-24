@@ -5984,6 +5984,64 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     `;
 
     div.innerHTML = infoHtml + actionsHtml;
+
+    // ─── PAINEL DE ANEXOS para Advertências ───────────────────────────────────
+    if (tabId === 'Advertências' && isSaved) {
+        const docId = existingDoc.id;
+
+        // Painel expansível de anexos abaixo do card
+        const anexoPanel = document.createElement('div');
+        anexoPanel.id = `ocorr-anexo-panel-${docId}`;
+        anexoPanel.style.cssText = 'border-top:1px dashed #e2e8f0; margin-top:0; overflow:hidden; max-height:0; transition:max-height 0.35s ease, padding 0.2s; padding:0 1rem;';
+
+        // Botão "📎 Anexos" + setinha — inserido dentro do card existente
+        const toggleBar = document.createElement('div');
+        toggleBar.id = `ocorr-toggle-${docId}`;
+        toggleBar.style.cssText = 'display:flex; align-items:center; gap:0.5rem; padding:0.45rem 1rem 0.45rem; border-top:1px solid #f1f5f9; cursor:pointer; user-select:none;';
+        toggleBar.innerHTML = `
+            <span id="ocorr-arrow-${docId}" style="color:#64748b; font-size:0.8rem; transition:transform 0.25s; display:inline-block;">▶</span>
+            <i class="ph ph-paperclip" style="color:#64748b; font-size:0.95rem;"></i>
+            <span style="font-size:0.78rem; font-weight:600; color:#64748b;" id="ocorr-label-${docId}">Anexos</span>
+            <label onclick="event.stopPropagation();" style="margin-left:auto; display:inline-flex; align-items:center; gap:5px; cursor:pointer; background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px; padding:3px 10px; font-size:0.75rem; font-weight:600; color:#0369a1; white-space:nowrap;">
+                <i class="ph ph-upload-simple" style="font-size:0.9rem;"></i> Anexar arquivo
+                <input type="file" accept="image/*,.pdf,.doc,.docx" multiple style="display:none;"
+                    onchange="window.uploadOcorrenciaAnexo(${docId}, this)">
+            </label>
+        `;
+
+        // Galeria de miniaturas
+        const galeriaDiv = document.createElement('div');
+        galeriaDiv.id = `ocorr-galeria-${docId}`;
+        galeriaDiv.style.cssText = 'display:flex; flex-wrap:wrap; gap:0.75rem; padding:0.75rem 0;';
+        galeriaDiv.innerHTML = '<span style="color:#94a3b8; font-size:0.8rem; font-style:italic;">Carregando anexos...</span>';
+
+        anexoPanel.appendChild(galeriaDiv);
+        div.appendChild(toggleBar);
+        div.appendChild(anexoPanel);
+
+        // Toggle expande/recolhe
+        let _loaded = false;
+        toggleBar.addEventListener('click', () => {
+            const panel = document.getElementById(`ocorr-anexo-panel-${docId}`);
+            const arrow  = document.getElementById(`ocorr-arrow-${docId}`);
+            const isOpen = panel.style.maxHeight !== '0px' && panel.style.maxHeight !== '';
+            if (isOpen) {
+                panel.style.maxHeight = '0';
+                panel.style.padding = '0 1rem';
+                arrow.style.transform = 'rotate(0deg)';
+            } else {
+                panel.style.maxHeight = '600px';
+                panel.style.padding = '0.5rem 1rem';
+                arrow.style.transform = 'rotate(90deg)';
+                if (!_loaded) {
+                    _loaded = true;
+                    window.carregarOcorrenciaAnexos(docId);
+                }
+            }
+        });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     return div;
 }
 
@@ -19683,4 +19741,157 @@ window.destacarCamposVazios = function () {
     }
 };
 
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ANEXOS DE OCORRÊNCIAS (Advertências)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Carrega a lista de anexos de uma ocorrência e renderiza as miniaturas.
+ */
+window.carregarOcorrenciaAnexos = async function(docId) {
+    const galeria = document.getElementById(`ocorr-galeria-${docId}`);
+    if (!galeria) return;
+    galeria.innerHTML = '<span style="color:#94a3b8; font-size:0.8rem; font-style:italic;">Carregando anexos...</span>';
+    try {
+        const token = localStorage.getItem('token') || '';
+        const resp = await fetch(`${window.API_URL}/api/ocorrencias/${docId}/anexos`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!resp.ok) throw new Error('Erro ao buscar anexos');
+        const anexos = await resp.json();
+        window._renderizarAnexosGaleria(docId, anexos);
+    } catch(e) {
+        galeria.innerHTML = '<span style="color:#ef4444; font-size:0.8rem;">Não foi possível carregar os anexos.</span>';
+    }
+};
+
+/**
+ * Faz upload de arquivos selecionados para a ocorrência.
+ */
+window.uploadOcorrenciaAnexo = async function(docId, inputEl) {
+    const files = Array.from(inputEl.files);
+    if (!files.length) return;
+
+    // Abre o painel se não estiver aberto
+    const panel = document.getElementById(`ocorr-anexo-panel-${docId}`);
+    const arrow  = document.getElementById(`ocorr-arrow-${docId}`);
+    if (panel && (!panel.style.maxHeight || panel.style.maxHeight === '0px')) {
+        panel.style.maxHeight = '600px';
+        panel.style.padding = '0.5rem 1rem';
+        if (arrow) arrow.style.transform = 'rotate(90deg)';
+    }
+
+    for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('docId', docId);
+        try {
+            const token = localStorage.getItem('token') || '';
+            const resp = await fetch(`${window.API_URL}/api/ocorrencias/${docId}/anexos`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+            if (!resp.ok) throw new Error('Falha no upload');
+        } catch(e) {
+            showToast(`Erro ao enviar ${file.name}: ${e.message}`, 'danger');
+        }
+    }
+    inputEl.value = '';
+    await window.carregarOcorrenciaAnexos(docId);
+    showToast('Anexo(s) enviado(s) com sucesso!', 'success');
+};
+
+/**
+ * Exclui um anexo de uma ocorrência.
+ */
+window.excluirOcorrenciaAnexo = async function(docId, anexoId) {
+    if (!confirm('Deseja excluir este anexo?')) return;
+    try {
+        const token = localStorage.getItem('token') || '';
+        const resp = await fetch(`${window.API_URL}/api/ocorrencias/${docId}/anexos/${anexoId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!resp.ok) throw new Error('Erro ao excluir');
+        await window.carregarOcorrenciaAnexos(docId);
+        showToast('Anexo excluído.', 'success');
+    } catch(e) {
+        showToast('Erro ao excluir o anexo.', 'danger');
+    }
+};
+
+/**
+ * Renderiza as miniaturas dos anexos na galeria.
+ */
+window._renderizarAnexosGaleria = function(docId, anexos) {
+    const galeria = document.getElementById(`ocorr-galeria-${docId}`);
+    const label   = document.getElementById(`ocorr-label-${docId}`);
+    if (!galeria) return;
+
+    if (label) {
+        label.textContent = anexos.length > 0 ? `Anexos (${anexos.length})` : 'Anexos';
+    }
+
+    if (!anexos.length) {
+        galeria.innerHTML = '<span style="color:#94a3b8; font-size:0.8rem; font-style:italic;">Nenhum anexo. Clique em "Anexar arquivo" para adicionar.</span>';
+        return;
+    }
+
+    galeria.innerHTML = anexos.map(a => {
+        const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(a.nome || '') || (a.tipo && a.tipo.startsWith('image/'));
+        const isPdf   = /\.pdf$/i.test(a.nome || '') || a.tipo === 'application/pdf';
+        const url     = a.url;
+        const nome    = a.nome || 'Arquivo';
+
+        const thumbnail = isImage
+            ? `<img src="${url}" alt="${nome}" style="width:100%; height:100%; object-fit:cover; display:block;">`
+            : isPdf
+                ? `<div style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#fef2f2;">
+                     <i class="ph ph-file-pdf" style="font-size:2rem; color:#ef4444;"></i>
+                     <span style="font-size:0.62rem; color:#64748b; margin-top:4px; text-align:center; padding:0 4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:90px;">${nome}</span>
+                   </div>`
+                : `<div style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#f8fafc;">
+                     <i class="ph ph-file-doc" style="font-size:2rem; color:#0369a1;"></i>
+                     <span style="font-size:0.62rem; color:#64748b; margin-top:4px; text-align:center; padding:0 4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:90px;">${nome}</span>
+                   </div>`;
+
+        return `
+            <div style="position:relative; width:100px; height:100px; border-radius:8px; overflow:hidden; border:1.5px solid #e2e8f0; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.07); flex-shrink:0;"
+                 title="${nome}" onclick="window._abrirAnexoOcorrencia('${url}', '${nome}', ${isImage})">
+                ${thumbnail}
+                <button onclick="event.stopPropagation(); window.excluirOcorrenciaAnexo(${docId}, ${a.id})"
+                        style="position:absolute; top:3px; right:3px; background:rgba(239,68,68,0.85); color:#fff; border:none; border-radius:4px; width:20px; height:20px; font-size:0.7rem; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1;"
+                        title="Excluir anexo">✕</button>
+            </div>`;
+    }).join('');
+};
+
+/**
+ * Abre o visualizador de anexo (modal inline para imagens, nova aba para outros).
+ */
+window._abrirAnexoOcorrencia = function(url, nome, isImage) {
+    if (!isImage) {
+        window.open(url, '_blank');
+        return;
+    }
+    // Modal de imagem
+    let modal = document.getElementById('ocorr-img-modal');
+    if (modal) modal.remove();
+
+    modal = document.createElement('div');
+    modal.id = 'ocorr-img-modal';
+    modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,.82); z-index:99999; display:flex; align-items:center; justify-content:center;';
+    modal.innerHTML = `
+        <div style="position:relative; max-width:90vw; max-height:90vh;">
+            <img src="${url}" alt="${nome}" style="max-width:90vw; max-height:85vh; border-radius:10px; box-shadow:0 8px 40px rgba(0,0,0,.5);">
+            <button onclick="document.getElementById('ocorr-img-modal').remove()"
+                    style="position:absolute; top:-14px; right:-14px; background:#ef4444; color:#fff; border:none; border-radius:50%; width:30px; height:30px; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.3);">✕</button>
+            <a href="${url}" target="_blank"
+               style="position:absolute; bottom:-32px; left:50%; transform:translateX(-50%); color:#fff; font-size:0.8rem; text-decoration:underline; white-space:nowrap;">${nome}</a>
+        </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+};
 

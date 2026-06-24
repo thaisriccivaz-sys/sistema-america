@@ -19868,3 +19868,144 @@ try { require('../rescue_estoque.js'); } catch(e) { console.error('Rescue script
 // Upload de arquivos via Cloudinary (resource_type: auto → suporta vídeo, PDF, imagem, etc.)
 // ══════════════════════════════════════════════════════════════════════════════
 
+// ══════════════════════════════════════════════════════════════════════════════
+// MÓDULO: ANEXOS DE OCORRÊNCIAS (Advertências)
+// Tabela: ocorrencia_anexos
+// Referencia a tabela `documentos` (que armazena os docs de advertência/ocorrência)
+// Upload via Cloudinary (resource_type: auto)
+// ══════════════════════════════════════════════════════════════════════════════
+
+db.run(`CREATE TABLE IF NOT EXISTS ocorrencia_anexos (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  documento_id    INTEGER NOT NULL,
+  nome            TEXT NOT NULL,
+  tipo            TEXT DEFAULT '',
+  tamanho_bytes   INTEGER DEFAULT 0,
+  url             TEXT NOT NULL,
+  public_id       TEXT DEFAULT '',
+  enviado_em      DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
+// Multer para ocorrências (disk → Cloudinary → unlink)
+const multerOcorr = require('multer')({
+  storage: require('multer').diskStorage({
+    destination: (req, file, cb) => cb(null, require('os').tmpdir()),
+    filename: (req, file, cb) => {
+      const ext = require('path').extname(file.originalname) || '';
+      cb(null, 'ocorr_' + Date.now() + '_' + Math.random().toString(36).slice(2) + ext);
+    }
+  }),
+  limits: { fileSize: 100 * 1024 * 1024 } // 100 MB
+});
+
+// Helper: corrige encoding do nome do arquivo (Latin-1 → UTF-8)
+function _fixOcorrFileName(nome) {
+  try { return Buffer.from(nome, 'latin1').toString('utf8'); } catch (e) { return nome; }
+}
+
+// ── Helper: extrai public_id de URL Cloudinary (se ainda não existe) ──────────
+function _extrairPublicIdOcorr(url) {
+  if (!url) return '';
+  try {
+    const m = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[a-z0-9]+)?$/i);
+    return m ? m[1] : '';
+  } catch (_) { return ''; }
+}
+
+// ── GET /api/ocorrencias/:id/anexos — Lista anexos de uma ocorrência ──────────
+app.get('/api/ocorrencias/:id/anexos', authenticateToken, (req, res) => {
+  db.all(
+    `SELECT id, documento_id, nome, tipo, tamanho_bytes, url, public_id, enviado_em
+     FROM ocorrencia_anexos
+     WHERE documento_id = ?
+     ORDER BY enviado_em DESC`,
+    [req.params.id],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows || []);
+    }
+  );
+});
+
+// ── POST /api/ocorrencias/:id/anexos — Upload de arquivo para ocorrência ──────
+app.post('/api/ocorrencias/:id/anexos', authenticateToken, multerOcorr.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+
+  const docId    = req.params.id;
+  const nomeOrig = _fixOcorrFileName(req.file.originalname || 'arquivo');
+  const mime     = req.file.mimetype || '';
+  const tamanho  = req.file.size || 0;
+  const tmpPath  = req.file.path;
+
+  try {
+    // Upload para Cloudinary — resource_type: 'auto' detecta PDF, imagem, etc.
+    const result = await cloudinary.uploader.upload(tmpPath, {
+      resource_type: 'auto',
+      folder: 'ocorrencias',
+      use_filename: false,
+      unique_filename: true
+    });
+
+    // Limpar arquivo temporário
+    try { require('fs').unlinkSync(tmpPath); } catch (_) {}
+
+    const urlCloud = result.secure_url;
+    const publicId = result.public_id;
+
+    db.run(
+      `INSERT INTO ocorrencia_anexos (documento_id, nome, tipo, tamanho_bytes, url, public_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [docId, nomeOrig, mime, tamanho, urlCloud, publicId],
+      function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({
+          id:           this.lastID,
+          documento_id: docId,
+          nome:         nomeOrig,
+          tipo:         mime,
+          tamanho_bytes: tamanho,
+          url:          urlCloud,
+          public_id:    publicId
+        });
+      }
+    );
+  } catch (e) {
+    try { require('fs').unlinkSync(tmpPath); } catch (_) {}
+    console.error('[OCORR-ANEXO] Erro no upload:', e);
+    res.status(500).json({ error: e.message || 'Erro no upload' });
+  }
+});
+
+// ── DELETE /api/ocorrencias/:id/anexos/:anexoId — Remove anexo ───────────────
+app.delete('/api/ocorrencias/:id/anexos/:anexoId', authenticateToken, async (req, res) => {
+  try {
+    const anexo = await new Promise((resolve, reject) =>
+      db.get(
+        `SELECT * FROM ocorrencia_anexos WHERE id = ? AND documento_id = ?`,
+        [req.params.anexoId, req.params.id],
+        (e, r) => e ? reject(e) : resolve(r)
+      )
+    );
+    if (!anexo) return res.status(404).json({ error: 'Anexo não encontrado.' });
+
+    // Deletar do Cloudinary
+    const pid = anexo.public_id || _extrairPublicIdOcorr(anexo.url);
+    if (pid) {
+      await cloudinary.uploader.destroy(pid, { resource_type: 'auto' }).catch(() =>
+        cloudinary.uploader.destroy(pid, { resource_type: 'image' }).catch(() => {})
+      );
+    }
+
+    await new Promise((resolve, reject) =>
+      db.run(`DELETE FROM ocorrencia_anexos WHERE id = ?`, [req.params.anexoId],
+        e => e ? reject(e) : resolve())
+    );
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message || String(e) });
+  }
+});
+
+console.log('[OCORR-ANEXO] Módulo de anexos de ocorrências carregado.');
+
