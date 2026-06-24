@@ -18038,16 +18038,14 @@ app.delete('/api/treinamentos/:id', authenticateToken, async (req, res) => {
         [req.params.id], (e, r) => e ? reject(e) : resolve(r || []))
     );
 
-    // Deletar do Cloudinary em paralelo (ignorar erros individuais)
-    await Promise.allSettled(anexos.map(a => {
-      if (!a.public_id && !a.url_cloudinary) return Promise.resolve();
-      const pid = a.public_id || _extrairPublicId(a.url_cloudinary);
-      if (!pid) return Promise.resolve();
-      // Tenta deletar como 'auto' (Cloudinary detecta o tipo)
-      return cloudinary.uploader.destroy(pid, { resource_type: 'auto' }).catch(() =>
-        cloudinary.uploader.destroy(pid, { resource_type: 'video' }).catch(() =>
-          cloudinary.uploader.destroy(pid, { resource_type: 'image' }).catch(() => {})));
-    }));
+    // Deletar do R2 em paralelo (ignorar erros individuais)
+    if (r2 && r2.isReady()) {
+      await Promise.allSettled(anexos.map(a => {
+        const pid = a.public_id;
+        if (!pid) return Promise.resolve();
+        return r2.deleteFromR2(pid);
+      }));
+    }
 
     // Deletar registros do banco (ON DELETE CASCADE cuida dos anexos)
     await new Promise((resolve, reject) =>
@@ -18097,19 +18095,20 @@ app.post('/api/treinamentos/:id/anexos', authenticateToken, multerTrein.single('
       return res.status(404).json({ error: 'Treinamento não encontrado.' });
     }
 
-    // Upload para o Cloudinary com resource_type: 'auto' (detecta vídeo, imagem, PDF…)
-    const result = await cloudinary.uploader.upload(tmpPath, {
-      resource_type: 'auto',
-      folder:        'treinamentos',
-      use_filename:  false,
-      unique_filename: true
-    });
+    if (!r2 || !r2.isReady()) {
+      try { fs.unlinkSync(tmpPath); } catch (_) {}
+      return res.status(500).json({ error: 'R2 Storage não configurado.' });
+    }
+
+    // Upload para o R2
+    const fileExt = nomeOrig.split('.').pop() || 'bin';
+    const r2Key = `treinamentos/${treinId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    
+    const urlCloud = await r2.uploadToR2(r2Key, tmpPath, mime);
+    const publicId = r2Key;
 
     // Limpar arquivo temporário
     try { fs.unlinkSync(tmpPath); } catch (_) {}
-
-    const urlCloud = result.secure_url;
-    const publicId = result.public_id;
 
     // Salvar no banco
     db.run(
@@ -18145,12 +18144,10 @@ app.delete('/api/treinamentos/:id/anexos/:anexoId', authenticateToken, async (re
     );
     if (!anexo) return res.status(404).json({ error: 'Anexo não encontrado.' });
 
-    // Deletar do Cloudinary
-    const pid = anexo.public_id || _extrairPublicId(anexo.url_cloudinary);
-    if (pid) {
-      await cloudinary.uploader.destroy(pid, { resource_type: 'auto' }).catch(() =>
-        cloudinary.uploader.destroy(pid, { resource_type: 'video' }).catch(() =>
-          cloudinary.uploader.destroy(pid, { resource_type: 'image' }).catch(() => {})));
+    // Deletar do R2
+    const pid = anexo.public_id;
+    if (pid && r2 && r2.isReady()) {
+      await r2.deleteFromR2(pid);
     }
 
     await new Promise((resolve, reject) =>
@@ -19937,19 +19934,18 @@ app.post('/api/ocorrencias/:id/anexos', authenticateToken, multerOcorr.single('f
   const tmpPath  = req.file.path;
 
   try {
-    // Upload para Cloudinary — resource_type: 'auto' detecta PDF, imagem, etc.
-    const result = await cloudinary.uploader.upload(tmpPath, {
-      resource_type: 'auto',
-      folder: 'ocorrencias',
-      use_filename: false,
-      unique_filename: true
-    });
+    if (!r2 || !r2.isReady()) {
+      try { require('fs').unlinkSync(tmpPath); } catch (_) {}
+      return res.status(500).json({ error: 'R2 Storage não configurado.' });
+    }
+
+    const fileExt = nomeOrig.split('.').pop() || 'bin';
+    const r2Key = `ocorrencias/${docId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const urlCloud = await r2.uploadToR2(r2Key, tmpPath, mime);
+    const publicId = r2Key;
 
     // Limpar arquivo temporário
     try { require('fs').unlinkSync(tmpPath); } catch (_) {}
-
-    const urlCloud = result.secure_url;
-    const publicId = result.public_id;
 
     db.run(
       `INSERT INTO ocorrencia_anexos (documento_id, nome, tipo, tamanho_bytes, url, public_id)
@@ -19987,12 +19983,10 @@ app.delete('/api/ocorrencias/:id/anexos/:anexoId', authenticateToken, async (req
     );
     if (!anexo) return res.status(404).json({ error: 'Anexo não encontrado.' });
 
-    // Deletar do Cloudinary
-    const pid = anexo.public_id || _extrairPublicIdOcorr(anexo.url);
-    if (pid) {
-      await cloudinary.uploader.destroy(pid, { resource_type: 'auto' }).catch(() =>
-        cloudinary.uploader.destroy(pid, { resource_type: 'image' }).catch(() => {})
-      );
+    // Deletar do R2
+    const pid = anexo.public_id;
+    if (pid && r2 && r2.isReady()) {
+      await r2.deleteFromR2(pid);
     }
 
     await new Promise((resolve, reject) =>
