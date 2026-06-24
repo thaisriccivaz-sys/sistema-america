@@ -749,6 +749,7 @@ const TAB_META = {
     'estoque': { color: '#e67700', icon: 'ph-package', title: 'Estoque' },
     // Treinamento - Azul Turquesa
     'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais' },
+    'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presenças' },
 };
 
 
@@ -997,6 +998,8 @@ function navigateTo(target) {
         if (typeof window.initConfigSigor === 'function') setTimeout(() => window.initConfigSigor(), 80);
     } else if (target === 'treinamento-materiais') {
         if (typeof window.renderTreinamentosTable === 'function') setTimeout(() => window.renderTreinamentosTable(), 80);
+    } else if (target === 'treinamento-presenca') {
+        if (typeof window.initPresencaTreinamento === 'function') setTimeout(() => window.initPresencaTreinamento(), 80);
     }
 }
 
