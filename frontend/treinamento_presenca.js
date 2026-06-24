@@ -41,7 +41,7 @@
         </div>`;
 
         try {
-            const r = await api('/api/treinamento-presenca/colaboradores');
+            const r = await api('/treinamento-presenca/colaboradores');
             if (!r.ok) throw new Error('Erro ao carregar');
             _dados = await r.json();
         } catch (e) {
@@ -506,7 +506,7 @@
         const { colaborador: c, treinamento: t } = _assinTreinamento;
 
         try {
-            const r = await api('/api/treinamento-presenca/assinar', {
+            const r = await api('/treinamento-presenca/assinar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
