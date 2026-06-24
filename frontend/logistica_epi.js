@@ -99,21 +99,25 @@
                     <label style="display:block;font-size:0.82rem;font-weight:700;color:#475569;margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em;">
                         <i class="ph ph-magnifying-glass" style="margin-right:5px;"></i>Buscar Colaborador
                     </label>
-                    <div style="position:relative;">
-                        <i class="ph ph-user" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1.1rem;pointer-events:none;"></i>
-                        <input
-                            id="lepi-busca"
-                            name="busca_colaborador_rnd"
-                            type="text"
-                            placeholder="Digite o nome do colaborador..."
-                            autocomplete="off"
-                            readonly
-                            onfocus="this.removeAttribute('readonly'); this.style.borderColor='#2563eb';"
-                            style="width:100%;padding:0.75rem 1rem 0.75rem 2.5rem;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.95rem;outline:none;transition:border-color 0.2s;box-sizing:border-box;font-family:inherit;"
-                            oninput="window._lepiOnBusca(this.value)"
-                            onblur="this.style.borderColor='#e2e8f0'"
-                        />
-                    </div>
+                    <form autocomplete="off" onsubmit="return false;" style="margin:0;padding:0;">
+                        <input type="text" style="opacity:0; position:absolute; left:-9999px;" name="fakeusernameremembered" autocomplete="username" tabindex="-1">
+                        <input type="password" style="opacity:0; position:absolute; left:-9999px;" name="fakepasswordremembered" autocomplete="current-password" tabindex="-1">
+                        <div style="position:relative;">
+                            <i class="ph ph-user" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1.1rem;pointer-events:none;"></i>
+                            <input
+                                id="lepi-busca"
+                                name="busca_colaborador_rnd"
+                                type="search"
+                                placeholder="Digite o nome do colaborador..."
+                                autocomplete="off"
+                                readonly
+                                onfocus="this.removeAttribute('readonly'); this.style.borderColor='#2563eb';"
+                                style="width:100%;padding:0.75rem 1rem 0.75rem 2.5rem;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.95rem;outline:none;transition:border-color 0.2s;box-sizing:border-box;font-family:inherit;"
+                                oninput="window._lepiOnBusca(this.value)"
+                                onblur="this.style.borderColor='#e2e8f0'"
+                            />
+                        </div>
+                    </form>
                 </div>
 
                 <!-- Resultados -->
@@ -148,10 +152,14 @@
             _lepiTemplates = await _apiGet('/epi-templates') || [];
         }
 
-        // Foco automático na busca
+        // Foco automático na busca com limpeza de autofill
         setTimeout(() => {
             const inp = document.getElementById('lepi-busca');
-            if (inp) inp.focus();
+            if (inp) {
+                inp.value = ''; // Limpa antes do foco
+                inp.focus();
+                setTimeout(() => { inp.value = ''; }, 50); // Limpa logo após o foco (quando o Chrome costuma injetar)
+            }
         }, 150);
     };
 
