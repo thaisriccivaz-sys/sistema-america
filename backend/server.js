@@ -17162,9 +17162,85 @@ app.post('/api/estoque/testar-email', authenticateToken, async (req, res) => {
 
 app.get('/api/trigger-rescue', (req, res) => {
     try {
-        delete require.cache[require.resolve('../rescue_estoque.js')];
-        require('../rescue_estoque.js');
-        res.send("Rescue triggered successfully.");
+        db.get("SELECT id FROM estoque_enderecos WHERE nome = 'Geral'", (err, row) => {
+            if (err) return res.status(500).send("Err 1: " + err.message);
+            
+            let geralId;
+            if (row) {
+                geralId = row.id;
+                runMigration(geralId);
+            } else {
+                db.run("INSERT INTO estoque_enderecos (nome) VALUES ('Geral')", function(errI) {
+                    if (errI) return res.status(500).send("Err 2: " + errI.message);
+                    geralId = this.lastID;
+                    runMigration(geralId);
+                });
+            }
+        });
+
+        function runMigration(geralId) {
+            db.all("SELECT id, quantidade_atual, quantidade_minima, quantidade_maxima FROM estoque", (err, produtos) => {
+                if (err) return res.status(500).send("Err 3: " + err.message);
+                
+                const stmtInsert = db.prepare(`
+                    INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima)
+                    VALUES (?, ?, ?, ?, ?)
+                `);
+                
+                const stmtUpdateGeral = db.prepare(`
+                    UPDATE estoque_saldo_por_endereco 
+                    SET quantidade_minima = ?, quantidade_maxima = ?
+                    WHERE estoque_id = ? AND endereco_id = ?
+                `);
+
+                db.serialize(() => {
+                    db.run("BEGIN TRANSACTION");
+                    let processados = 0;
+                    
+                    if (produtos.length === 0) {
+                        db.run("COMMIT");
+                        return res.send("No products to migrate.");
+                    }
+
+                    produtos.forEach(p => {
+                        db.all("SELECT * FROM estoque_saldo_por_endereco WHERE estoque_id = ?", [p.id], (err2, saldos) => {
+                            if (err2) {
+                                console.error("Err 4: " + err2.message);
+                                processados++;
+                                return;
+                            }
+                            
+                            const origMin = p.quantidade_minima || 0;
+                            const origMax = p.quantidade_maxima || 0;
+                            const origQtd = p.quantidade_atual || 0;
+
+                            if (!saldos || saldos.length === 0) {
+                                stmtInsert.run([p.id, geralId, origQtd, origMin, origMax]);
+                            } else {
+                                let hasAnyMinMax = saldos.some(s => s.quantidade_minima > 0 || s.quantidade_maxima > 0);
+                                if (!hasAnyMinMax && (origMin > 0 || origMax > 0)) {
+                                    let saldoGeral = saldos.find(s => s.endereco_id === geralId);
+                                    if (saldoGeral) {
+                                        stmtUpdateGeral.run([origMin, origMax, p.id, geralId]);
+                                    } else {
+                                        stmtInsert.run([p.id, geralId, 0, origMin, origMax]);
+                                    }
+                                }
+                            }
+                            
+                            processados++;
+                            if (processados === produtos.length) {
+                                stmtInsert.finalize();
+                                stmtUpdateGeral.finalize();
+                                db.run("COMMIT", () => {
+                                    res.send("Migration finished successfully.");
+                                });
+                            }
+                        });
+                    });
+                });
+            });
+        }
     } catch (e) {
         res.status(500).send("Error triggering rescue: " + e.message);
     }
