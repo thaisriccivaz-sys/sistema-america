@@ -17,7 +17,7 @@ window.renderEstoqueTable = async function() {
     const table = document.getElementById("table-estoque");
     if (!table) return;
     try {
-        table.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;">Carregando...</td></tr>';
+        table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Carregando...</td></tr>';
         const dept   = document.getElementById("filtro-estoque-dept").value;
         const cat    = document.getElementById("filtro-estoque-cat").value;
         const statusEl = document.getElementById("filtro-estoque-status");
@@ -46,7 +46,7 @@ window.renderEstoqueTable = async function() {
         });
 
         if (data.length === 0) {
-            table.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;">Nenhum item encontrado.</td></tr>';
+            table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Nenhum item encontrado.</td></tr>';
             return;
         }
 
@@ -145,10 +145,7 @@ window.renderEstoqueTable = async function() {
                             ? '<div style="display:flex;align-items:center;gap:12px;">' + fotoHtml + '<div>' + warnIcon + item.nome + '</div></div>'
                             : '') +
                     '</td>' +
-                    // Depto: apenas primeira linha
-                    '<td style="vertical-align:middle;">' +
-                        (primeiraLinha ? '<span class="badge" style="background:#f1f5f9;color:#475569;">' + item.departamento + '</span>' : '') +
-                    '</td>' +
+
                     // Categoria: apenas primeira linha
                     '<td style="vertical-align:middle;">' +
                         (primeiraLinha ? item.categoria : '') +
@@ -170,7 +167,7 @@ window.renderEstoqueTable = async function() {
         table.innerHTML = rows;
     } catch (e) {
         console.error(e);
-        table.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ef4444;">' + e.message + '</td></tr>';
+        table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#ef4444;">' + e.message + '</td></tr>';
     }
 };
 
@@ -587,13 +584,13 @@ window.renderEstoqueHistorico = async function() {
     const table = document.getElementById("table-estoque-historico");
     if (!table) return;
     try {
-        table.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;">Carregando histórico...</td></tr>';
+        table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Carregando histórico...</td></tr>';
         const token = window.currentToken || localStorage.getItem("erp_token") || localStorage.getItem("token");
         const r = await fetch(API_URL + "/estoque/historico", { headers: { "Authorization": "Bearer " + token } });
         if (!r.ok) throw new Error("Erro ao buscar histórico");
         const data = await r.json();
         if (data.length === 0) {
-            table.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;">Nenhuma movimentação registrada.</td></tr>';
+            table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Nenhuma movimentação registrada.</td></tr>';
             return;
         }
         table.innerHTML = "";
@@ -619,7 +616,7 @@ window.renderEstoqueHistorico = async function() {
             table.appendChild(tr);
         });
     } catch(err) {
-        table.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ef4444;">Erro ao carregar histórico: ' + err.message + '</td></tr>';
+        table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#ef4444;">Erro ao carregar histórico: ' + err.message + '</td></tr>';
     }
 };
 \n

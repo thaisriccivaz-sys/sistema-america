@@ -17458,13 +17458,12 @@ app.get('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
 // Sincronizar saldos de endereços de um produto (substitui os existentes pelos novos)
 app.post('/api/estoque/:id/sync-enderecos', authenticateToken, (req, res) => {
     const { id } = req.params;
-    const enderecos = req.body.enderecos || []; // Array de { endereco_id, quantidade, quantidade_minima, quantidade_maxima }
+    const enderecos = req.body.enderecos || [];
     
     db.serialize(() => {
         const enderecoIds = enderecos.map(e => e.endereco_id);
         const placeholders = enderecoIds.map(() => '?').join(',');
         
-        // Delete all addresses for this product that are not in the new list
         const deleteQuery = enderecoIds.length > 0 
             ? `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id NOT IN (${placeholders})`
             : `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ?`;
@@ -17474,7 +17473,6 @@ app.post('/api/estoque/:id/sync-enderecos', authenticateToken, (req, res) => {
         db.run(deleteQuery, deleteParams, (err) => {
             if (err) return res.status(500).json({ error: err.message });
             
-            // Now upsert the provided ones
             const stmt = db.prepare(`
                 INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima)
                 VALUES (?, ?, ?, ?, ?)
@@ -17489,12 +17487,12 @@ app.post('/api/estoque/:id/sync-enderecos', authenticateToken, (req, res) => {
             });
             
             stmt.finalize();
-            
             res.json({ success: true });
         });
     });
 });
-\napp.post('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
+
+app.post('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { endereco_id, quantidade, quantidade_minima, quantidade_maxima, motivo } = req.body;
     const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
