@@ -14274,12 +14274,36 @@ async function renderFichaEpiTab(container) {
                                 onmouseout="this.style.background='none'">
                                 <i class="ph ph-eye" style="font-size:0.85rem;"></i>
                             </button>
-
+                            <button
+                                onclick="window._excluirEpiEntrega(${e.id}, '${(e.epi_nome||'').replace(/'/g,String.fromCharCode(92,39))}', ${colabId})"
+                                title="Excluir este EPI da entrega"
+                                style="background:none;border:1.5px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.78rem;display:inline-flex;align-items:center;gap:3px;transition:all .15s;"
+                                onmouseover="this.style.background='#fef2f2'"
+                                onmouseout="this.style.background='none'">
+                                <i class="ph ph-trash" style="font-size:0.85rem;"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>`;
 
         }).join('');
+
+        // ── Função: excluir EPI de uma entrega ────────────────────────────────
+        window._excluirEpiEntrega = async function(entregaId, epiNome, colabId) {
+            if (!confirm(`ATENÇÃO: Deseja excluir permanentemente o EPI "${epiNome}" desta entrega?`)) return;
+            const senha = prompt('Digite a senha de exclusão de EPI:');
+            if (!senha) return;
+            try {
+                const res = await fetch(`${API_URL}/epi-entregas/${entregaId}/epi`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ epi_nome: epiNome, senha })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Erro ao excluir EPI');
+                window.openColaboradorProntuario(colabId, 'epi'); // recarrega a aba
+            } catch(e) { alert(e.message); }
+        };
 
         // ── Função: ver selfie de entrega de EPI ──────────────────────────────
         window._verSelfieEpiEntrega = async function(colaboradorId, dataEntrega) {
