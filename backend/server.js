@@ -17969,6 +17969,11 @@ db.run("ALTER TABLE treinamentos ADD COLUMN capa_url TEXT DEFAULT ''", (err) => 
     console.error("Migração (treinamentos.capa_url):", err.message);
   }
 });
+db.run("ALTER TABLE treinamentos ADD COLUMN validade_dias INTEGER DEFAULT 0", (err) => {
+  if (err && !err.message.includes("duplicate column name")) {
+    console.error("Migração (treinamentos.validade_dias):", err.message);
+  }
+});
 
 db.run(`CREATE TABLE IF NOT EXISTS treinamento_presenca (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -18259,8 +18264,8 @@ function _extrairPublicId(url) {
 console.log('[TREINAMENTO] Módulo de treinamentos carregado.');
 
 // ── MIGRAÇÃO: colunas de assinatura/selfie na tabela treinamento_presenca ────
-['assinatura_base64', 'selfie_base64', 'data_conclusao', 'colaborador_id'].forEach(col => {
-  const type = col === 'colaborador_id' ? 'INTEGER' : 'TEXT DEFAULT \'\'';
+['assinatura_base64', 'selfie_base64', 'data_conclusao', 'colaborador_id', 'instrutor_nome'].forEach(col => {
+  const type = col === 'colaborador_id' ? 'INTEGER' : "TEXT DEFAULT ''";
   db.run(`ALTER TABLE treinamento_presenca ADD COLUMN ${col} ${type}`, err => {
     if (err && !err.message.includes('duplicate column name')) {
       console.error(`[PRESENÇA] Migração (${col}):`, err.message);
@@ -18279,7 +18284,7 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
     ORDER BY nome_completo ASC
   `;
   const sqlTrein = `
-    SELECT id, nome, descricao, departamento, capa_url
+    SELECT id, nome, descricao, departamento, capa_url, validade_dias
     FROM treinamentos
     ORDER BY nome ASC
   `;
@@ -18296,6 +18301,8 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
       db.all(sqlPresencas, [], (err3, presencas) => {
         if (err3) return res.status(500).json({ error: err3.message });
 
+        const agora = new Date();
+
         const resultado = colabs.map(c => {
           // Treinamentos aplicáveis: departamento 'Todos' ou contém o depto do colaborador
           const aplicaveis = treinamentos.filter(t => {
@@ -18306,13 +18313,28 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
 
           const treinamentosComStatus = aplicaveis.map(t => {
             const presenca = presencas.find(p => p.colaborador_id === c.id && p.treinamento_id === t.id);
+            const dataConclusao = presenca ? (presenca.data_conclusao || presenca.data_presenca) : null;
+
+            // Verificar se treinamento está vencido (validade_dias > 0)
+            let vencido = false;
+            if (presenca && dataConclusao && t.validade_dias > 0) {
+              const dtConclusao = new Date(dataConclusao);
+              const diasDesde = (agora - dtConclusao) / (1000 * 60 * 60 * 24);
+              if (diasDesde > t.validade_dias) vencido = true;
+            }
+
+            // Se vencido, tratar como não concluído
+            const concluido = !!presenca && !vencido;
+
             return {
               id: t.id,
               nome: t.nome,
               descricao: t.descricao,
               capa_url: t.capa_url,
-              concluido: !!presenca,
-              data_conclusao: presenca ? (presenca.data_conclusao || presenca.data_presenca) : null
+              validade_dias: t.validade_dias || 0,
+              concluido,
+              vencido,
+              data_conclusao: dataConclusao
             };
           });
 
@@ -18333,17 +18355,50 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
   });
 });
 
+// ── GET /api/treinamento-presenca/historico/:colaboradorId ─────────────────────
+// Retorna histórico completo de presenças de um colaborador (incluindo vencidos)
+app.get('/api/treinamento-presenca/historico/:colaboradorId', authenticateToken, (req, res) => {
+  const { colaboradorId } = req.params;
+  db.all(
+    `SELECT tp.id, tp.treinamento_id, tp.data_conclusao, tp.data_presenca,
+            tp.assinatura_base64, tp.selfie_base64, tp.instrutor_nome,
+            t.nome AS treinamento_nome, t.capa_url, t.validade_dias
+     FROM treinamento_presenca tp
+     JOIN treinamentos t ON t.id = tp.treinamento_id
+     WHERE tp.colaborador_id = ?
+     ORDER BY COALESCE(tp.data_conclusao, tp.data_presenca) DESC`,
+    [colaboradorId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      const agora = new Date();
+      const resultado = (rows || []).map(r => {
+        const dataConclusao = r.data_conclusao || r.data_presenca;
+        let vencido = false;
+        if (dataConclusao && r.validade_dias > 0) {
+          const diasDesde = (agora - new Date(dataConclusao)) / (1000 * 60 * 60 * 24);
+          if (diasDesde > r.validade_dias) vencido = true;
+        }
+        return { ...r, data_conclusao: dataConclusao, vencido };
+      });
+      res.json(resultado);
+    }
+  );
+});
+
 // ── POST /api/treinamento-presenca/assinar ────────────────────────────────────
 // Registra presença com assinatura digital e selfie
 app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
-  const { colaborador_id, treinamento_id, assinatura_base64, selfie_base64 } = req.body;
+  const { colaborador_id, treinamento_id, assinatura_base64, selfie_base64, instrutor_nome } = req.body;
   if (!colaborador_id || !treinamento_id) {
     return res.status(400).json({ error: 'colaborador_id e treinamento_id são obrigatórios' });
   }
 
   const now = new Date().toISOString();
+  const instrutorNome = instrutor_nome || req.user?.username || req.user?.nome || '';
+  // Usar o id do usuario logado como usuario_id para satisfazer a constraint NOT NULL
+  const usuarioId = req.user?.id || 0;
 
-  // Primeiro verifica se já existe registro para esse par
+  // Primeiro verifica se já existe registro para esse par (colaborador + treinamento)
   db.get(
     `SELECT id FROM treinamento_presenca WHERE treinamento_id = ? AND colaborador_id = ?`,
     [treinamento_id, colaborador_id],
@@ -18354,30 +18409,29 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
         // Atualiza registro existente
         db.run(
           `UPDATE treinamento_presenca
-           SET assinatura_base64 = ?, selfie_base64 = ?, data_conclusao = ?
+           SET assinatura_base64 = ?, selfie_base64 = ?, data_conclusao = ?, instrutor_nome = ?
            WHERE treinamento_id = ? AND colaborador_id = ?`,
-          [assinatura_base64 || '', selfie_base64 || '', now, treinamento_id, colaborador_id],
+          [assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, treinamento_id, colaborador_id],
           function(err2) {
             if (err2) return res.status(500).json({ error: err2.message });
             res.json({ ok: true, updated: true, data_conclusao: now });
           }
         );
       } else {
-        // Insere novo registro — usuario_id=0 é placeholder para registros via fluxo colaborador
+        // Insere novo registro usando usuario_id do usuário logado (satisfaz NOT NULL)
         db.run(
-          `INSERT OR IGNORE INTO treinamento_presenca
-             (treinamento_id, colaborador_id, usuario_id, assinatura_base64, selfie_base64, data_conclusao)
-           VALUES (?, ?, 0, ?, ?, ?)`,
-          [treinamento_id, colaborador_id, assinatura_base64 || '', selfie_base64 || '', now],
+          `INSERT INTO treinamento_presenca
+             (treinamento_id, colaborador_id, usuario_id, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [treinamento_id, colaborador_id, usuarioId, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome],
           function(err2) {
-            if (err2) return res.status(500).json({ error: err2.message });
-            // Se INSERT IGNORE não inseriu (pois usuario_id=0 + treinamento_id já existia), faz UPDATE
-            if (this.changes === 0) {
+            if (err2) {
+              // Fallback: se falhou (pode ser UNIQUE constraint), faz UPDATE
               db.run(
                 `UPDATE treinamento_presenca
-                 SET assinatura_base64 = ?, selfie_base64 = ?, data_conclusao = ?
+                 SET assinatura_base64 = ?, selfie_base64 = ?, data_conclusao = ?, instrutor_nome = ?
                  WHERE treinamento_id = ? AND colaborador_id = ?`,
-                [assinatura_base64 || '', selfie_base64 || '', now, treinamento_id, colaborador_id],
+                [assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, treinamento_id, colaborador_id],
                 function(err3) {
                   if (err3) return res.status(500).json({ error: err3.message });
                   res.json({ ok: true, updated: true, data_conclusao: now });
@@ -18389,6 +18443,21 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
           }
         );
       }
+    }
+  );
+});
+
+// ── GET /api/treinamento-presenca/registro/:colaboradorId/:treinamentoId ───────
+// Busca registro completo (assinatura + selfie) para exibição pós-assinatura
+app.get('/api/treinamento-presenca/registro/:colaboradorId/:treinamentoId', authenticateToken, (req, res) => {
+  db.get(
+    `SELECT id, data_conclusao, data_presenca, assinatura_base64, selfie_base64, instrutor_nome
+     FROM treinamento_presenca
+     WHERE colaborador_id = ? AND treinamento_id = ?`,
+    [req.params.colaboradorId, req.params.treinamentoId],
+    (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(row || null);
     }
   );
 });
