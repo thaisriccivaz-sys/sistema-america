@@ -44,6 +44,26 @@ window.renderEstoqueTable = async function() {
             if (saldos.length > 0) return saldos.some(s => s.quantidade <= i.quantidade_minima);
             return i.quantidade_atual <= i.quantidade_minima;
         });
+        
+        const tipoEl = document.getElementById("filtro-estoque-tipo");
+        const tipoFilter = tipoEl ? tipoEl.value : "";
+        if (tipoFilter) {
+            data = data.filter(i => {
+                const saldos = saldosMap[i.id] || [];
+                if (tipoFilter === "sem_tipo") {
+                    if (saldos.length === 0) return true;
+                    return saldos.every(s => {
+                        const endObj = window._estoqueEnderecos.find(e => String(e.id) === String(s.endereco_id));
+                        return !endObj || !endObj.tipo_notificacao;
+                    });
+                } else {
+                    return saldos.some(s => {
+                        const endObj = window._estoqueEnderecos.find(e => String(e.id) === String(s.endereco_id));
+                        return endObj && endObj.tipo_notificacao === tipoFilter;
+                    });
+                }
+            });
+        }
 
         if (data.length === 0) {
             table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Nenhum item encontrado.</td></tr>';
@@ -138,7 +158,7 @@ window.renderEstoqueTable = async function() {
 
                 // Separador entre linhas do mesmo produto
                 const borderTop = primeiraLinha ? '' : 'border-top:1px dashed #e2e8f0;';
-                const bgRow = lowEnd ? 'background:#fff5f5;' : (isLow && primeiraLinha ? 'background:#fff5f5;' : '');
+                const bgRow = lowEnd ? 'background:#fff5f5;' : '';
 
                 const rowSpanAttr = linhasEndereco.length > 1 && primeiraLinha ? ' rowspan="' + linhasEndereco.length + '"' : '';
 

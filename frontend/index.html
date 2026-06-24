@@ -3112,6 +3112,15 @@
                                     <option value="minimo">Estoque Mínimo</option>
                                 </select>
                             </div>
+                            <div style="flex: 1; min-width: 200px;">
+                                <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Tipo</label>
+                                <select id="filtro-estoque-tipo" class="form-control" onchange="window.renderEstoqueTable()">
+                                    <option value="">Todos</option>
+                                    <option value="sem_tipo">Sem tipo</option>
+                                    <option value="compra">Pedido de Compra</option>
+                                    <option value="reposicao">Pedido de Reposição</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="table-responsive">

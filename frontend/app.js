@@ -15207,6 +15207,107 @@ window._assinNextStep = async function () {
             if (warn) warn.style.display = '';
             return;
         }
+
+        const btnNext = document.getElementById('btn-assin-next');
+        if (btnNext) btnNext.innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;"></i> Aguarde...';
+
+        try {
+            const respEnd = await fetch(`${API_URL}/estoque/enderecos-disponiveis-epi`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ epis: window._assinItens, colaborador_id: window._assinColabId })
+            });
+            let depts = [];
+            try {
+                const rDepts = await fetch(`${API_URL}/departamentos`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+                if (rDepts.ok) depts = await rDepts.json();
+            } catch(e) {}
+            
+            let userDeptId = null;
+            if (typeof currentUser !== 'undefined' && currentUser && currentUser.departamento) {
+                const found = depts.find(d => d.nome.toLowerCase() === currentUser.departamento.toLowerCase());
+                if (found) userDeptId = found.id;
+            }
+
+            if (respEnd.ok) {
+                const dispData = await respEnd.json();
+                const perguntas = [];
+                window._enderecoPorEpi = {};
+
+                const episUnicos = [...new Set(window._assinItens)];
+                
+                for (const nomeOriginal of episUnicos) {
+                    const info = dispData[nomeOriginal];
+                    if (!info || !info.enderecos || info.enderecos.length === 0) continue;
+                    
+                    const ends = info.enderecos;
+                    let autoSelect = null;
+                    
+                    if (ends.length === 1) {
+                        autoSelect = ends[0];
+                    } else if (ends.length === 2 && userDeptId) {
+                        const matchesDept = ends.filter(e => {
+                            if (!e.departamentos_vinculados) return false;
+                            try {
+                                const arr = typeof e.departamentos_vinculados === 'string' ? JSON.parse(e.departamentos_vinculados) : e.departamentos_vinculados;
+                                return arr.includes(String(userDeptId)) || arr.includes(userDeptId);
+                            } catch(err) { return false; }
+                        });
+                        if (matchesDept.length === 1) {
+                            autoSelect = matchesDept[0];
+                        }
+                    }
+
+                    if (autoSelect) {
+                        window._enderecoPorEpi[nomeOriginal] = { id: autoSelect.id, nome: autoSelect.nome };
+                    } else {
+                        perguntas.push({ nomeEpi: nomeOriginal, ends });
+                    }
+                }
+
+                if (perguntas.length > 0) {
+                    let html = '<div style="text-align:left;font-size:0.9rem;">';
+                    html += '<p style="margin-top:0;">Onde você está retirando os seguintes itens?</p>';
+                    perguntas.forEach((p, idx) => {
+                        html += `<div style="margin-bottom:12px;">
+                            <label style="font-weight:bold;">${p.nomeEpi}</label>
+                            <select id="swal-epi-end-${idx}" class="swal2-select" style="display:flex;width:100%;margin:4px 0;">`;
+                        p.ends.forEach(e => {
+                            html += `<option value="${e.id}">${e.nome} (Saldo: ${e.quantidade})</option>`;
+                        });
+                        html += `</select></div>`;
+                    });
+                    html += '</div>';
+
+                    const swalRes = await Swal.fire({
+                        title: 'Seleção de Endereço',
+                        html,
+                        showCancelButton: true,
+                        confirmButtonText: 'Confirmar',
+                        cancelButtonText: 'Cancelar',
+                        preConfirm: () => {
+                            const resMap = {};
+                            perguntas.forEach((p, idx) => {
+                                const sel = document.getElementById(`swal-epi-end-${idx}`);
+                                const opt = sel.options[sel.selectedIndex];
+                                resMap[p.nomeEpi] = { id: parseInt(opt.value), nome: opt.text.split(' (')[0] };
+                            });
+                            return resMap;
+                        }
+                    });
+
+                    if (!swalRes.isConfirmed) {
+                        if (btnNext) btnNext.innerHTML = 'Assinar e Concluir <i class="ph ph-arrow-right"></i>';
+                        return; // Cancelled
+                    }
+                    Object.assign(window._enderecoPorEpi, swalRes.value);
+                }
+            }
+        } catch(e) {
+            console.error('Erro ao buscar endereços:', e);
+        }
+
+        if (btnNext) btnNext.innerHTML = 'Assinar e Concluir <i class="ph ph-arrow-right"></i>';
         // Ir para selfie
         const selfieDiv = document.getElementById('epiov-step-selfie');
         if (selfieDiv) selfieDiv.style.display = 'block';
@@ -15283,7 +15384,8 @@ window._assinNextStep = async function () {
                     epis_entregues: window._buildItensFromQtds ? window._buildItensFromQtds() : (window._assinItens || []),
                     assinatura_base64: assinaturaBase64,
                     data_entrega: (() => { const i = document.getElementById('epi-data-entrega'); if (!i || !i.value) return ''; const p = i.value.split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : i.value; })(),
-                    epis_para_devolver: Object.entries(window._assinEmprestimos || {}).filter(([,v]) => v).map(([nome, data_devolucao_prevista]) => ({ nome, data_devolucao_prevista }))
+                    epis_para_devolver: Object.entries(window._assinEmprestimos || {}).filter(([,v]) => v).map(([nome, data_devolucao_prevista]) => ({ nome, data_devolucao_prevista })),
+                    endereco_por_epi: window._enderecoPorEpi || {}
                 })
             });
             clearTimeout(saveTimeout);

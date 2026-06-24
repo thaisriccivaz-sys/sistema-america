@@ -37,9 +37,16 @@ window.renderEndProdutoTable = async function() {
 };
 
 window.abrirModalEndProduto = async function() {
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    let departamentos = [];
+    try {
+        const rDepts = await fetch(API_URL + '/departamentos', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (rDepts.ok) departamentos = await rDepts.json();
+    } catch(e) {}
+
     const { value: vals, isConfirmed } = await Swal.fire({
         title: '<b><i class="ph ph-map-pin" style="color:#1d4ed8"></i> Novo Endereço</b>',
-        html: _htmlFormEndProduto(null),
+        html: _htmlFormEndProduto(null, departamentos),
         showCancelButton: true,
         confirmButtonText: 'Criar Endereço',
         cancelButtonText: 'Cancelar',
@@ -48,8 +55,10 @@ window.abrirModalEndProduto = async function() {
         preConfirm: () => {
             const nome = document.getElementById('swal-end-nome').value.trim();
             const tipo = document.getElementById('swal-end-tipo').value;
+            const deptsSelect = document.getElementById('swal-end-depts');
+            const departamentos_vinculados = Array.from(deptsSelect.selectedOptions).map(opt => opt.value);
             if (!nome) { Swal.showValidationMessage('Informe o nome do endereço'); return false; }
-            return { nome, tipo_notificacao: tipo };
+            return { nome, tipo_notificacao: tipo, departamentos_vinculados };
         }
     });
     if (!isConfirmed || !vals) return;
@@ -61,13 +70,13 @@ window.abrirModalEndProduto = async function() {
             body: JSON.stringify(vals)
         });
         if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erro'); }
-        // Salvar tipo_notificacao no PUT logo após criar (POST não suporta tipo ainda)
+        // Salvar tipo_notificacao e departamentos no PUT logo após criar (POST não suporta tipo ainda)
         const novo = await res.json();
-        if (vals.tipo_notificacao) {
+        if (vals.tipo_notificacao || vals.departamentos_vinculados) {
             await fetch(API_URL + '/estoque-enderecos/' + novo.id, {
                 method: 'PUT',
                 headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome: vals.nome, tipo_notificacao: vals.tipo_notificacao })
+                body: JSON.stringify({ nome: vals.nome, tipo_notificacao: vals.tipo_notificacao, departamentos_vinculados: vals.departamentos_vinculados })
             });
         }
         Swal.fire({ icon: 'success', title: 'Endereço criado!', timer: 1400, showConfirmButton: false });
@@ -80,9 +89,16 @@ window.abrirModalEndProduto = async function() {
 
 window.abrirModalEditarEndProduto = async function(endJson) {
     const end = typeof endJson === 'string' ? JSON.parse(endJson) : endJson;
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    let departamentos = [];
+    try {
+        const rDepts = await fetch(API_URL + '/departamentos', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (rDepts.ok) departamentos = await rDepts.json();
+    } catch(e) {}
+
     const { value: vals, isConfirmed } = await Swal.fire({
         title: '<b><i class="ph ph-pencil-simple" style="color:#1d4ed8"></i> Editar Endereço</b>',
-        html: _htmlFormEndProduto(end),
+        html: _htmlFormEndProduto(end, departamentos),
         showCancelButton: true,
         confirmButtonText: 'Salvar',
         cancelButtonText: 'Cancelar',
@@ -91,12 +107,13 @@ window.abrirModalEditarEndProduto = async function(endJson) {
         preConfirm: () => {
             const nome = document.getElementById('swal-end-nome').value.trim();
             const tipo = document.getElementById('swal-end-tipo').value;
+            const deptsSelect = document.getElementById('swal-end-depts');
+            const departamentos_vinculados = Array.from(deptsSelect.selectedOptions).map(opt => opt.value);
             if (!nome) { Swal.showValidationMessage('Informe o nome do endereço'); return false; }
-            return { nome, tipo_notificacao: tipo };
+            return { nome, tipo_notificacao: tipo, departamentos_vinculados };
         }
     });
     if (!isConfirmed || !vals) return;
-    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     try {
         const res = await fetch(API_URL + '/estoque-enderecos/' + end.id, {
             method: 'PUT',
@@ -124,13 +141,34 @@ window.excluirEndProduto = async function(id) {
     } catch(e) { Swal.fire('Erro', e.message, 'error'); }
 };
 
-function _htmlFormEndProduto(end) {
+function _htmlFormEndProduto(end, departamentos) {
     const nome = end ? end.nome : '';
     const tipo = end ? (end.tipo_notificacao || '') : '';
+    
+    let deptsVinculados = [];
+    if (end && end.departamentos_vinculados) {
+        try {
+            deptsVinculados = typeof end.departamentos_vinculados === 'string' ? JSON.parse(end.departamentos_vinculados) : end.departamentos_vinculados;
+        } catch(e) {}
+    }
+
+    let optionsDepts = '';
+    (departamentos || []).forEach(d => {
+        const isSelected = deptsVinculados.includes(String(d.id)) || deptsVinculados.includes(d.id);
+        optionsDepts += '<option value="' + d.id + '"' + (isSelected ? ' selected' : '') + '>' + d.nome + '</option>';
+    });
+
     return '<div style="text-align:left;margin-top:8px;">' +
         '<div style="margin-bottom:14px;">' +
             '<label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:5px;">Nome do Endereço *</label>' +
             '<input id="swal-end-nome" class="swal2-input" style="width:100%;margin:0;box-sizing:border-box;" placeholder="Ex: Depósito Central, Prateleira A3..." value="' + nome + '">' +
+        '</div>' +
+        '<div style="margin-bottom:14px;">' +
+            '<label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:5px;">Departamentos Vinculados</label>' +
+            '<select id="swal-end-depts" multiple style="width:100%;height:100px;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;">' +
+                optionsDepts +
+            '</select>' +
+            '<p style="font-size:0.75rem;color:#64748b;margin-top:4px;">Segure Ctrl (ou Cmd) para selecionar mais de um departamento.</p>' +
         '</div>' +
         '<div>' +
             '<label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:5px;"><i class="ph ph-bell-ringing" style="color:#e67700;"></i> Tipo de Notificação ao atingir estoque mínimo</label>' +

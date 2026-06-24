@@ -17037,6 +17037,7 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque_enderecos (
     // Seed: criar endereço 'Geral' se não existir
     db.run("INSERT OR IGNORE INTO estoque_enderecos (nome) VALUES ('Geral')", () => {});
     db.run("ALTER TABLE estoque_enderecos ADD COLUMN tipo_notificacao TEXT DEFAULT ''", () => {});
+    db.run("ALTER TABLE estoque_enderecos ADD COLUMN departamentos_vinculados TEXT DEFAULT '[]'", () => {});
 });
 
 // Tabela de saldo por produto × endereço
@@ -17471,32 +17472,34 @@ app.get('/api/estoque-enderecos', authenticateToken, (req, res) => {
 
 // Criar novo endereço global
 app.post('/api/estoque-enderecos', authenticateToken, (req, res) => {
-    const { nome, tipo_notificacao } = req.body;
+    const { nome, tipo_notificacao, departamentos_vinculados } = req.body;
     if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome obrigatório.' });
-    db.run('INSERT INTO estoque_enderecos (nome, tipo_notificacao) VALUES (?, ?)', [nome.trim(), tipo_notificacao || ''], function(err) {
+    const deptsJson = JSON.stringify(departamentos_vinculados || []);
+    db.run('INSERT INTO estoque_enderecos (nome, tipo_notificacao, departamentos_vinculados) VALUES (?, ?, ?)', [nome.trim(), tipo_notificacao || '', deptsJson], function(err) {
         if (err) {
             if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'Endereço já existe.' });
             return res.status(500).json({ error: err.message });
         }
-        res.json({ id: this.lastID, nome: nome.trim(), tipo_notificacao: tipo_notificacao || '' });
+        res.json({ id: this.lastID, nome: nome.trim(), tipo_notificacao: tipo_notificacao || '', departamentos_vinculados: deptsJson });
     });
 });
 
 // Editar endereço global (nome + tipo_notificacao)
 app.put('/api/estoque-enderecos/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
-    const { nome, tipo_notificacao } = req.body;
+    const { nome, tipo_notificacao, departamentos_vinculados } = req.body;
     if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome obrigatório.' });
     db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'Endereço não encontrado.' });
         const novoNome = nome.trim();
+        const deptsJson = JSON.stringify(departamentos_vinculados || []);
         db.run(
-            "UPDATE estoque_enderecos SET nome = ?, tipo_notificacao = ? WHERE id = ?",
-            [novoNome, tipo_notificacao || '', id],
+            "UPDATE estoque_enderecos SET nome = ?, tipo_notificacao = ?, departamentos_vinculados = ? WHERE id = ?",
+            [novoNome, tipo_notificacao || '', deptsJson, id],
             (errU) => {
                 if (errU) return res.status(500).json({ error: errU.message });
-                res.json({ success: true, id: parseInt(id), nome: novoNome, tipo_notificacao: tipo_notificacao || '' });
+                res.json({ success: true, id: parseInt(id), nome: novoNome, tipo_notificacao: tipo_notificacao || '', departamentos_vinculados: deptsJson });
             }
         );
     });
@@ -17738,6 +17741,100 @@ app.get('/api/estoque-saldos', authenticateToken, (req, res) => {
             res.json(map);
         }
     );
+});
+app.post('/api/estoque/enderecos-disponiveis-epi', authenticateToken, (req, res) => {
+    const { epis, colaborador_id } = req.body;
+    if (!epis || !Array.isArray(epis)) return res.status(400).json({ error: 'Lista de EPIs inválida.' });
+
+    db.get("SELECT sexo FROM colaboradores WHERE id = ?", [colaborador_id], (errC, rowC) => {
+        const colabSexo = (rowC && rowC.sexo) ? rowC.sexo.trim().toLowerCase() : '';
+        const isFeminino = colabSexo === 'feminino';
+        const isMasculino = colabSexo === 'masculino';
+
+        db.all("SELECT * FROM estoque", [], (errEstoque, todosItens) => {
+            if (errEstoque || !todosItens) return res.status(500).json({ error: 'Erro ao buscar estoque' });
+
+            const resultados = {};
+            const promessasSaldos = [];
+
+            // Remover duplicados da lista
+            const episUnicos = [...new Set(epis)];
+
+            episUnicos.forEach(originalNome => {
+                const nomeNormalizado = (originalNome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                let match = todosItens.find(i => (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() === nomeNormalizado);
+                
+                if (!match) {
+                    const STOP_WORDS = new Set(['DE','DO','DA','DOS','DAS','E','A','O','OS','AS','EM','NO','NA','NOS','NAS','UM','UMA','POR']);
+                    let colabFeminino = isFeminino; let colabMasculino = isMasculino;
+                    let isFemininoExplicit = nomeNormalizado.includes('FEMININA') || nomeNormalizado.includes('FEMININO');
+                    let isMasculinoExplicit = nomeNormalizado.includes('MASCULINA') || nomeNormalizado.includes('MASCULINO');
+                    if (isFemininoExplicit || isMasculinoExplicit) { colabFeminino = isFemininoExplicit; colabMasculino = isMasculinoExplicit; }
+                    
+                    const tokensEpi = nomeNormalizado.split(/[\s\-\.\/,;]+/).filter(t => t.length > 0 && !['FEMININA','FEMININO','MASCULINA','MASCULINO'].includes(t));
+                    const lastToken = tokensEpi.length > 0 ? tokensEpi[tokensEpi.length - 1] : '';
+                    const isSize = /^(P|M|G|GG|XG|EG|EXG|XGG|\d{2})$/.test(lastToken);
+                    
+                    let bestScore = -9999; let bestItem = null;
+                    todosItens.forEach(item => {
+                        const itemNomeNorm = (item.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                        const tokensItem = itemNomeNorm.split(/[\s\-\.\/,;]+/).filter(t => t.length > 0);
+                        let score = 0;
+                        const baseTokensEpi = isSize ? tokensEpi.slice(0, -1) : tokensEpi;
+                        let validBaseTokens = baseTokensEpi.filter(t => t.length >= 3 && !STOP_WORDS.has(t) && !/^\d+$/.test(t) && !/^\d+\.\d+$/.test(t) && t !== 'CA');
+                        if (validBaseTokens.length === 0) validBaseTokens = baseTokensEpi.filter(t => t.length >= 2 && !STOP_WORDS.has(t));
+                        
+                        let matchedBaseCount = 0;
+                        validBaseTokens.forEach(t => { if (tokensItem.includes(t)) matchedBaseCount++; });
+                        if (matchedBaseCount > 0 && matchedBaseCount === validBaseTokens.length) score += 200;
+                        else score += matchedBaseCount * 10;
+                        
+                        if (matchedBaseCount < validBaseTokens.length - 1) return;
+                        if (itemNomeNorm.includes(nomeNormalizado)) score += 50;
+                        
+                        const hasFeminina = itemNomeNorm.includes('FEMININ'); const hasMasculina = itemNomeNorm.includes('MASCULIN');
+                        if (colabFeminino) { if (hasFeminina) score += 150; else if (hasMasculina) score -= 150; }
+                        else if (colabMasculino) { if (hasMasculina) score += 150; else if (hasFeminina) score -= 150; }
+                        
+                        if (isSize) {
+                            if (tokensItem.includes(lastToken)) score += 100;
+                            else if (tokensItem.some(t => /^(P|M|G|GG|XG|EG|EXG|XGG|\d{2})$/.test(t) && t !== lastToken)) score -= 100;
+                        }
+                        
+                        if (score > bestScore) { bestScore = score; bestItem = item; }
+                    });
+                    if (bestItem && bestScore >= 50) match = bestItem;
+                }
+
+                if (match) {
+                    const p = new Promise(resolve => {
+                        db.all(
+                            `SELECT e.id, e.nome, e.departamentos_vinculados, s.quantidade 
+                             FROM estoque_saldo_por_endereco s 
+                             JOIN estoque_enderecos e ON s.endereco_id = e.id 
+                             WHERE s.estoque_id = ? AND s.quantidade > 0`,
+                            [match.id],
+                            (errS, rowsS) => {
+                                resultados[originalNome] = {
+                                    matchId: match.id,
+                                    matchNome: match.nome,
+                                    enderecos: rowsS || []
+                                };
+                                resolve();
+                            }
+                        );
+                    });
+                    promessasSaldos.push(p);
+                } else {
+                    resultados[originalNome] = null;
+                }
+            });
+
+            Promise.all(promessasSaldos).then(() => {
+                res.json(resultados);
+            });
+        });
+    });
 });
 
 
