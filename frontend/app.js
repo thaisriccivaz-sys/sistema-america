@@ -19760,7 +19760,7 @@ window.carregarOcorrenciaAnexos = async function(docId) {
     if (!galeria) return;
     galeria.innerHTML = '<span style="color:#94a3b8; font-size:0.8rem; font-style:italic;">Carregando anexos...</span>';
     try {
-        const token = localStorage.getItem('token') || '';
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
         const resp = await fetch(`${window.API_URL}/ocorrencias/${docId}/anexos`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -19793,7 +19793,7 @@ window.uploadOcorrenciaAnexo = async function(docId, inputEl) {
         formData.append('file', file);
         formData.append('docId', docId);
         try {
-            const token = localStorage.getItem('token') || '';
+            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
             const resp = await fetch(`${window.API_URL}/ocorrencias/${docId}/anexos`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
@@ -19815,7 +19815,7 @@ window.uploadOcorrenciaAnexo = async function(docId, inputEl) {
 window.excluirOcorrenciaAnexo = async function(docId, anexoId) {
     if (!confirm('Deseja excluir este anexo?')) return;
     try {
-        const token = localStorage.getItem('token') || '';
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
         const resp = await fetch(`${window.API_URL}/ocorrencias/${docId}/anexos/${anexoId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
