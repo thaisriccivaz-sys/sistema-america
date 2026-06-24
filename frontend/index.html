@@ -270,6 +270,9 @@
                     <a href="#" class="nav-item" data-target="treinamento-materiais"
                         onclick="navigateTo('treinamento-materiais'); return false;"><i class="ph ph-books"></i>
                         Materiais</a>
+                    <a href="#" class="nav-item" data-target="treinamento-presenca"
+                        onclick="navigateTo('treinamento-presenca'); return false;"><i class="ph ph-check-square"></i>
+                        Presenças</a>
                 </div>
             </div>
 
@@ -5446,10 +5449,26 @@
                         <textarea id="editar-treinamento-desc" class="form-control" rows="5" placeholder="Descreva brevemente o conteúdo, objetivos e público-alvo do treinamento..."
                             style="width:100%;box-sizing:border-box;border-radius:8px;resize:vertical;font-size:0.93rem;padding:10px 14px;border:1.5px solid #cbd5e1;min-height:120px;"></textarea>
                     </div>
+                    <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Imagem de Capa</label>
+                        <div id="editar-capa-preview-wrap" style="display:none;margin-bottom:8px;">
+                            <div style="position:relative;display:inline-block;width:100%;">
+                                <img id="editar-capa-preview" src="" alt="Capa" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;border:1.5px solid #cbd5e1;display:block;">
+                                <button type="button" onclick="window._editarCapaRemover()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);border:none;color:#fff;border-radius:50%;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.85rem;" title="Remover capa">&times;</button>
+                            </div>
+                        </div>
+                        <label for="editar-treinamento-capa" style="display:flex;align-items:center;gap:8px;cursor:pointer;border:2px dashed #cbd5e1;border-radius:10px;padding:14px 16px;color:#64748b;font-size:0.88rem;transition:border-color .2s;" onmouseover="this.style.borderColor='#1d4ed8'" onmouseout="this.style.borderColor='#cbd5e1'">
+                            <i class="ph ph-image" style="font-size:1.5rem;color:#1d4ed8;"></i>
+                            <span id="editar-capa-label">Clique para alterar a imagem de capa...</span>
+                        </label>
+                        <input type="file" id="editar-treinamento-capa" accept="image/*" style="display:none;" onchange="window._editarCapaPreview(this)">
+                        <input type="hidden" id="editar-treinamento-capa-url">
+                    </div>
                     <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:1.5rem;">
                         <button type="button" class="btn btn-secondary" onclick="window.fecharModalEditarTreinamento()">Cancelar</button>
                         <button type="submit" class="btn btn-primary" id="btn-salvar-edicao-treinamento" style="background:#1d4ed8;border-color:#1d4ed8;padding:8px 20px;">Salvar Alterações</button>
                     </div>
+
                 </form>
             </div>
         </div>
@@ -5474,6 +5493,110 @@
     </script>
     <script src="end-produto.js"></script>
     <script src="treinamento.js"></script>
+    <script src="treinamento_presenca.js"></script>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- TELA: TREINAMENTO / PRESENÇAS                                  -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <section id="view-treinamento-presenca" class="content-view">
+        <!-- Cabeçalho -->
+        <div class="page-header flex-between" style="position:sticky;top:60px;z-index:20;background:var(--bg-main);padding:1rem 0;margin-top:-1.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border-color);">
+            <div style="display:flex;align-items:center;gap:1.5rem;">
+                <div style="width:70px;height:70px;border-radius:50%;border:2px dashed #0e7490;display:flex;align-items:center;justify-content:center;background:#cffafe;color:#0e7490;font-size:2rem;">
+                    <i class="ph ph-check-square"></i>
+                </div>
+                <div>
+                    <h1 style="margin:0;font-size:1.85rem;font-weight:700;color:#334155;">Lista de Presenças</h1>
+                    <p style="margin:4px 0 0;color:#64748b;font-size:0.88rem;">Registre e gerencie a presença dos colaboradores nos treinamentos.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:1.5rem;align-items:flex-end;">
+            <div style="flex:1;min-width:200px;">
+                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Treinamento</label>
+                <select id="presenca-filtro-treinamento" class="form-control" style="width:100%;" onchange="window.renderPresencaView()">
+                    <option value="">-- Selecione um treinamento --</option>
+                </select>
+            </div>
+            <div style="min-width:160px;">
+                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Buscar colaborador</label>
+                <input type="search" id="presenca-filtro-busca" class="form-control" style="width:100%;" placeholder="Nome do colaborador..." oninput="window.renderPresencaTabela()" autocomplete="off">
+            </div>
+            <button onclick="window.abrirModalAdicionarPresenca()" style="background:#0e7490;color:#fff;border:none;border-radius:8px;padding:9px 18px;cursor:pointer;font-size:0.88rem;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;height:38px;">
+                <i class="ph ph-plus-circle"></i> Adicionar Presença
+            </button>
+            <button onclick="window.gerarListaPresencaPDF()" id="btn-gerar-pdf-presenca" style="background:#fff;color:#475569;border:1.5px solid #cbd5e1;border-radius:8px;padding:9px 14px;cursor:pointer;font-size:0.88rem;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;height:38px;" title="Gerar PDF da lista de presença">
+                <i class="ph ph-printer"></i> Imprimir Lista
+            </button>
+        </div>
+
+        <!-- Card tabela -->
+        <div style="background:#fff;border-radius:14px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+            <div style="background:linear-gradient(135deg,#0e7490,#06b6d4);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:#fff;font-weight:700;font-size:1rem;display:flex;align-items:center;gap:8px;">
+                    <i class="ph ph-check-square"></i> Presenças Registradas
+                </span>
+                <span id="presenca-count-badge" style="background:rgba(255,255,255,0.2);color:#fff;border-radius:20px;padding:2px 12px;font-size:0.82rem;font-weight:600;">0 registros</span>
+            </div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f8fafc;">
+                            <th style="padding:12px 16px;text-align:left;font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Colaborador</th>
+                            <th style="padding:12px 16px;text-align:left;font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Cargo</th>
+                            <th style="padding:12px 16px;text-align:left;font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Instrutor</th>
+                            <th style="padding:12px 16px;text-align:left;font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Data/Hora</th>
+                            <th style="padding:12px 16px;text-align:right;font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="presenca-tbody">
+                        <tr><td colspan="5" style="text-align:center;padding:3rem;color:#94a3b8;">
+                            <i class="ph ph-check-square" style="font-size:2.5rem;display:block;margin-bottom:0.5rem;"></i>
+                            Selecione um treinamento para ver as presenças.
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- MODAL: ADICIONAR PRESENÇA -->
+    <div id="modal-adicionar-presenca" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9100;align-items:center;justify-content:center;padding:1rem;">
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;">
+            <div style="background:linear-gradient(135deg,#0e7490,#06b6d4);padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:#fff;font-weight:700;font-size:1.1rem;display:flex;align-items:center;gap:8px;">
+                    <i class="ph ph-check-square"></i> Registrar Presença
+                </span>
+                <button onclick="window.fecharModalAdicionarPresenca()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;">&times;</button>
+            </div>
+            <div style="padding:1.5rem;">
+                <div style="margin-bottom:1rem;">
+                    <label style="font-weight:600;font-size:0.9rem;color:#374151;display:block;margin-bottom:6px;">Treinamento</label>
+                    <select id="modal-presenca-treinamento" class="form-control" style="width:100%;">
+                        <option value="">-- Selecione --</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="font-weight:600;font-size:0.9rem;color:#374151;display:block;margin-bottom:6px;">Colaborador *</label>
+                    <select id="modal-presenca-colaborador" class="form-control" style="width:100%;">
+                        <option value="">-- Selecione --</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:1.5rem;">
+                    <label style="font-weight:600;font-size:0.9rem;color:#374151;display:block;margin-bottom:6px;">Instrutor (opcional)</label>
+                    <input type="text" id="modal-presenca-instrutor" class="form-control" style="width:100%;" placeholder="Nome do instrutor...">
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="window.fecharModalAdicionarPresenca()">Cancelar</button>
+                    <button type="button" id="btn-salvar-presenca" onclick="window.salvarPresenca()" style="background:#0e7490;border-color:#0e7490;color:#fff;border-radius:8px;padding:8px 20px;border:none;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                        <i class="ph ph-floppy-disk"></i> Registrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ══════════════════════════════════════════════════════════════ -->
     <!-- TELA: TREINAMENTO / MATERIAIS                                  -->
@@ -5507,6 +5630,20 @@
                     <div class="mb-3">
                         <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Descrição</label>
                         <textarea id="novo-treinamento-desc" class="form-control" rows="5" placeholder="Descreva brevemente o conteudo, objetivos e publico-alvo do treinamento..." style="width:100%;box-sizing:border-box;border-radius:8px;resize:vertical;font-size:0.93rem;padding:10px 14px;border:1.5px solid #cbd5e1;min-height:110px;"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Imagem de Capa</label>
+                        <div id="novo-capa-preview-wrap" style="display:none;margin-bottom:8px;">
+                            <div style="position:relative;display:inline-block;">
+                                <img id="novo-capa-preview" src="" alt="Capa" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;border:1.5px solid #cbd5e1;display:block;">
+                                <button type="button" onclick="window._novoCapaRemover()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);border:none;color:#fff;border-radius:50%;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.85rem;" title="Remover capa">&times;</button>
+                            </div>
+                        </div>
+                        <label for="novo-treinamento-capa" style="display:flex;align-items:center;gap:8px;cursor:pointer;border:2px dashed #cbd5e1;border-radius:10px;padding:14px 16px;color:#64748b;font-size:0.88rem;transition:border-color .2s;" onmouseover="this.style.borderColor='#0e7490'" onmouseout="this.style.borderColor='#cbd5e1'">
+                            <i class="ph ph-image" style="font-size:1.5rem;color:#0e7490;"></i>
+                            <span id="novo-capa-label">Clique para selecionar uma imagem de capa...</span>
+                        </label>
+                        <input type="file" id="novo-treinamento-capa" accept="image/*" style="display:none;" onchange="window._novoCapaPreview(this)">
                     </div>
                     <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:1.5rem;">
                         <button type="button" class="btn btn-secondary" onclick="window.fecharModalNovoTreinamento()">Cancelar</button>

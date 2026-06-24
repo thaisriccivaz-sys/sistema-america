@@ -17964,6 +17964,20 @@ db.run("ALTER TABLE treinamentos ADD COLUMN departamento TEXT DEFAULT 'Todos'", 
     console.error("Migração (treinamentos.departamento):", err.message);
   }
 });
+db.run("ALTER TABLE treinamentos ADD COLUMN capa_url TEXT DEFAULT ''", (err) => {
+  if (err && !err.message.includes("duplicate column name")) {
+    console.error("Migração (treinamentos.capa_url):", err.message);
+  }
+});
+
+db.run(`CREATE TABLE IF NOT EXISTS treinamento_presenca (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  treinamento_id INTEGER NOT NULL REFERENCES treinamentos(id) ON DELETE CASCADE,
+  usuario_id     INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  instrutor_id   INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+  data_presenca  DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(treinamento_id, usuario_id)
+)`);
 
 db.run(`CREATE TABLE IF NOT EXISTS treinamento_anexos (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -18022,26 +18036,26 @@ app.get('/api/treinamentos', authenticateToken, (req, res) => {
 
 // ── POST /api/treinamentos — Cria treinamento ─────────────────────────────────
 app.post('/api/treinamentos', authenticateToken, (req, res) => {
-  const { nome, descricao, departamento } = req.body || {};
+  const { nome, descricao, departamento, capa_url } = req.body || {};
   if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
   const criado_por = req.user?.nome || req.user?.email || '';
   db.run(
-    `INSERT INTO treinamentos (nome, descricao, criado_por, departamento) VALUES (?, ?, ?, ?)`,
-    [nome.trim(), (descricao || '').trim(), criado_por, (departamento || 'Todos').trim()],
+    `INSERT INTO treinamentos (nome, descricao, criado_por, departamento, capa_url) VALUES (?, ?, ?, ?, ?)`,
+    [nome.trim(), (descricao || '').trim(), criado_por, (departamento || 'Todos').trim(), (capa_url || '').trim()],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
-      res.status(201).json({ id: this.lastID, nome: nome.trim(), descricao: descricao || '', departamento: (departamento || 'Todos').trim(), anexos: [] });
+      res.status(201).json({ id: this.lastID, nome: nome.trim(), descricao: descricao || '', departamento: (departamento || 'Todos').trim(), capa_url: (capa_url || '').trim(), anexos: [] });
     }
   );
 });
 
 // ── PUT /api/treinamentos/:id — Atualiza treinamento ─────────────────────────
 app.put('/api/treinamentos/:id', authenticateToken, (req, res) => {
-  const { nome, descricao, departamento } = req.body || {};
+  const { nome, descricao, departamento, capa_url } = req.body || {};
   if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
   db.run(
-    `UPDATE treinamentos SET nome = ?, descricao = ?, departamento = ? WHERE id = ?`,
-    [nome.trim(), (descricao || '').trim(), (departamento || 'Todos').trim(), req.params.id],
+    `UPDATE treinamentos SET nome = ?, descricao = ?, departamento = ?, capa_url = ? WHERE id = ?`,
+    [nome.trim(), (descricao || '').trim(), (departamento || 'Todos').trim(), (capa_url !== undefined ? capa_url : ''), req.params.id],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Treinamento não encontrado.' });
@@ -18180,6 +18194,55 @@ app.delete('/api/treinamentos/:id/anexos/:anexoId', authenticateToken, async (re
   } catch (e) {
     res.status(500).json({ error: e.message || String(e) });
   }
+});
+
+// ── GET /api/treinamentos/:id/presencas — Lista presenças ─────────────────────
+app.get('/api/treinamentos/:id/presencas', authenticateToken, (req, res) => {
+  const sql = `
+    SELECT tp.id, tp.treinamento_id, tp.usuario_id, tp.instrutor_id, tp.data_presenca,
+           u.nome as usuario_nome, u.departamento as usuario_departamento
+    FROM treinamento_presenca tp
+    JOIN usuarios u ON tp.usuario_id = u.id
+    WHERE tp.treinamento_id = ?
+    ORDER BY u.nome ASC
+  `;
+  db.all(sql, [req.params.id], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// ── POST /api/treinamentos/:id/presencas — Adiciona presença ──────────────────
+app.post('/api/treinamentos/:id/presencas', authenticateToken, (req, res) => {
+  const { usuario_id } = req.body;
+  const instrutor_id = req.user.id;
+  if (!usuario_id) return res.status(400).json({ error: 'usuario_id é obrigatório' });
+
+  db.run(
+    `INSERT INTO treinamento_presenca (treinamento_id, usuario_id, instrutor_id) VALUES (?, ?, ?)`,
+    [req.params.id, usuario_id, instrutor_id],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE constraint failed')) {
+          return res.status(400).json({ error: 'Usuário já tem presença marcada neste treinamento.' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ id: this.lastID, treinamento_id: req.params.id, usuario_id, instrutor_id });
+    }
+  );
+});
+
+// ── DELETE /api/treinamentos/:id/presencas/:usuarioId — Remove presença ───────
+app.delete('/api/treinamentos/:id/presencas/:usuarioId', authenticateToken, (req, res) => {
+  db.run(
+    `DELETE FROM treinamento_presenca WHERE treinamento_id = ? AND usuario_id = ?`,
+    [req.params.id, req.params.usuarioId],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ ok: true, changes: this.changes });
+    }
+  );
 });
 
 // ── Helper: extrai public_id de URL Cloudinary ────────────────────────────────

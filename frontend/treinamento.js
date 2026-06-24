@@ -9,6 +9,8 @@
     let _treinAtual = null;           // treinamento aberto no modal de detalhe
     let _tabAtual = 'todos';          // aba ativa no modal de detalhe
     let _anexosCache = [];            // anexos do treinamento aberto
+    let _novoCapaFile = null;         // File selecionado para capa (novo treinamento)
+    let _editarCapaFile = null;       // File selecionado para capa (editar treinamento)
 
     // ── Helpers ──────────────────────────────────────────────────────────────
     function tok() {
@@ -41,7 +43,83 @@
 
     function el(id) { return document.getElementById(id); }
 
-    // ── RENDER LISTA (tabela principal) ──────────────────────────────────────
+    // ── CAPA: Preview ao selecionar imagem ───────────────────────────────────
+    window._novoCapaPreview = function (input) {
+        const file = input.files[0];
+        if (!file) return;
+        _novoCapaFile = file;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = el('novo-capa-preview');
+            const wrap = el('novo-capa-preview-wrap');
+            const lbl  = el('novo-capa-label');
+            if (img)  img.src = e.target.result;
+            if (wrap) wrap.style.display = 'block';
+            if (lbl)  lbl.textContent = file.name;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    window._novoCapaRemover = function () {
+        _novoCapaFile = null;
+        const inp  = el('novo-treinamento-capa');
+        const img  = el('novo-capa-preview');
+        const wrap = el('novo-capa-preview-wrap');
+        const lbl  = el('novo-capa-label');
+        if (inp)  inp.value = '';
+        if (img)  img.src = '';
+        if (wrap) wrap.style.display = 'none';
+        if (lbl)  lbl.textContent = 'Clique para selecionar uma imagem de capa...';
+    };
+
+    window._editarCapaPreview = function (input) {
+        const file = input.files[0];
+        if (!file) return;
+        _editarCapaFile = file;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img  = el('editar-capa-preview');
+            const wrap = el('editar-capa-preview-wrap');
+            const lbl  = el('editar-capa-label');
+            if (img)  img.src = e.target.result;
+            if (wrap) wrap.style.display = 'block';
+            if (lbl)  lbl.textContent = file.name;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    window._editarCapaRemover = function () {
+        _editarCapaFile = null;
+        const inp     = el('editar-treinamento-capa');
+        const urlInp  = el('editar-treinamento-capa-url');
+        const img     = el('editar-capa-preview');
+        const wrap    = el('editar-capa-preview-wrap');
+        const lbl     = el('editar-capa-label');
+        if (inp)    inp.value  = '';
+        if (urlInp) urlInp.value = '';
+        if (img)    img.src = '';
+        if (wrap)   wrap.style.display = 'none';
+        if (lbl)    lbl.textContent = 'Clique para alterar a imagem de capa...';
+    };
+
+    // ── CAPA: Upload para Cloudinary via endpoint de anexo ────────────────────
+    // Sobe a imagem como "anexo" e retorna a URL, depois remove do BD
+    // (é uma estratégia temporária usando o endpoint existente)
+    // Melhor: usamos um endpoint dedicado POST /api/treinamentos/:id/capa
+    // Mas como não temos esse endpoint, vamos fazer upload via multipart
+    // direto para o mesmo Cloudinary usando o endpoint de upload geral de imagens
+    async function _uploadCapa(treinId, file) {
+        const form = new FormData();
+        form.append('arquivo', file);
+        const r = await api('/treinamentos/' + treinId + '/anexos', { method: 'POST', body: form });
+        if (!r.ok) {
+            const e = await r.json().catch(() => ({}));
+            throw new Error(e.error || 'Erro ao fazer upload da capa');
+        }
+        const data = await r.json();
+        // Retorna a URL do Cloudinary e o ID do anexo criado
+        return { url: data.url_cloudinary || data.url || '', anexoId: data.id };
+    }
     window.renderTreinamentosTable = async function () {
         const tbody = el('treinamentos-tbody');
         const badge = el('treinamento-count-badge');
@@ -89,10 +167,12 @@
             outros.length  ? `<span style="background:#f1f5f9;color:#475569;border-radius:999px;padding:2px 9px;font-size:0.7rem;font-weight:600;">📎 ${outros.length}</span>` : '',
         ].filter(Boolean).join(' ');
 
-        // Capa
-        let capa = `<div style="width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,#0e7490,#06b6d4);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <i class="ph ph-graduation-cap" style="color:#fff;font-size:1.5rem;"></i></div>`;
-        if (imgs.length) {
+        // Capa — prioridade: capa_url dedicada > primeira imagem dos anexos > ícone por tipo
+        let capa;
+        if (t.capa_url) {
+            capa = `<div style="width:56px;height:56px;border-radius:10px;overflow:hidden;flex-shrink:0;border:1px solid #e2e8f0;">
+                <img src="${t.capa_url}" style="width:100%;height:100%;object-fit:cover;" loading="lazy"></div>`;
+        } else if (imgs.length) {
             capa = `<div style="width:56px;height:56px;border-radius:10px;overflow:hidden;flex-shrink:0;border:1px solid #e2e8f0;">
                 <img src="${imgs[0].url_cloudinary}" style="width:100%;height:100%;object-fit:cover;" loading="lazy"></div>`;
         } else if (videos.length) {
@@ -101,6 +181,9 @@
         } else if (pdfs.length) {
             capa = `<div style="width:56px;height:56px;border-radius:10px;background:#fff7f0;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid #fed7aa;">
                 <i class="ph ph-file-pdf" style="color:#c2410c;font-size:1.5rem;"></i></div>`;
+        } else {
+            capa = `<div style="width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,#0e7490,#06b6d4);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="ph ph-graduation-cap" style="color:#fff;font-size:1.5rem;"></i></div>`;
         }
 
         const data = t.criado_em ? new Date(t.criado_em).toLocaleDateString('pt-BR') : '—';
@@ -153,6 +236,7 @@
         const m = el('modal-novo-treinamento');
         if (m) { m.style.display = 'flex'; }
         _carregarDepartamentosSelect('novo-treinamento-departamento', 'Todos');
+        window._novoCapaRemover(); // limpa capa anterior
         setTimeout(() => { const n = el('novo-treinamento-nome'); if (n) n.focus(); }, 80);
     };
 
@@ -187,6 +271,7 @@
     window.fecharModalNovoTreinamento = function () {
         const m = el('modal-novo-treinamento');
         if (m) m.style.display = 'none';
+        window._novoCapaRemover();
     };
 
     window.salvarNovoTreinamento = async function (event) {
@@ -202,12 +287,32 @@
         if (btn) { btn.disabled = true; btn.textContent = 'Criando...'; }
 
         try {
+            // 1. Cria o treinamento
             const r = await api('/treinamentos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ nome, descricao: desc || '', departamento })
             });
             if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'Erro ao criar'); }
+            const novoTrein = await r.json();
+
+            // 2. Se tem imagem de capa, faz upload e atualiza
+            if (_novoCapaFile && novoTrein.id) {
+                if (btn) btn.textContent = 'Enviando capa...';
+                try {
+                    const { url } = await _uploadCapa(novoTrein.id, _novoCapaFile);
+                    if (url) {
+                        await api('/treinamentos/' + novoTrein.id, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ nome, descricao: desc || '', departamento, capa_url: url })
+                        });
+                    }
+                } catch (capaErr) {
+                    console.warn('[TREINAMENTO] Erro ao enviar capa:', capaErr.message);
+                }
+            }
+
             window.fecharModalNovoTreinamento();
             await window.renderTreinamentosTable();
         } catch (e) {
@@ -472,6 +577,25 @@
         el('editar-treinamento-desc').value = t.descricao || '';
         _carregarDepartamentosSelect('editar-treinamento-departamento', t.departamento || 'Todos');
 
+        // Carrega capa existente
+        _editarCapaFile = null;
+        const urlInp = el('editar-treinamento-capa-url');
+        const img    = el('editar-capa-preview');
+        const wrap   = el('editar-capa-preview-wrap');
+        const lbl    = el('editar-capa-label');
+        const inp    = el('editar-treinamento-capa');
+        if (inp) inp.value = '';
+        if (urlInp) urlInp.value = t.capa_url || '';
+        if (t.capa_url) {
+            if (img)  img.src = t.capa_url;
+            if (wrap) wrap.style.display = 'block';
+            if (lbl)  lbl.textContent = 'Capa atual (clique para trocar)';
+        } else {
+            if (img)  img.src = '';
+            if (wrap) wrap.style.display = 'none';
+            if (lbl)  lbl.textContent = 'Clique para alterar a imagem de capa...';
+        }
+
         const m = el('modal-editar-treinamento');
         if (m) m.style.display = 'flex';
         setTimeout(() => { const n = el('editar-treinamento-nome'); if (n) n.focus(); }, 80);
@@ -480,6 +604,7 @@
     window.fecharModalEditarTreinamento = function () {
         const m = el('modal-editar-treinamento');
         if (m) m.style.display = 'none';
+        _editarCapaFile = null;
     };
 
     window.salvarEdicaoTreinamento = async function (event) {
@@ -496,10 +621,24 @@
         if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
 
         try {
+            // Determina a capa_url final
+            let capa_url = (el('editar-treinamento-capa-url') || {}).value || '';
+
+            // Se selecionou um novo arquivo de capa, faz upload primeiro
+            if (_editarCapaFile) {
+                if (btn) btn.textContent = 'Enviando capa...';
+                try {
+                    const { url } = await _uploadCapa(id, _editarCapaFile);
+                    if (url) capa_url = url;
+                } catch (capaErr) {
+                    console.warn('[TREINAMENTO] Erro ao enviar capa:', capaErr.message);
+                }
+            }
+
             const r = await api('/treinamentos/' + id, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, descricao: desc || '', departamento })
+                body: JSON.stringify({ nome, descricao: desc || '', departamento, capa_url })
             });
             if (!r.ok) {
                 const e = await r.json().catch(() => ({}));
@@ -509,9 +648,10 @@
             // Atualiza o cache local
             const idx = _cache.findIndex(x => x.id === id);
             if (idx !== -1) {
-                _cache[idx].nome     = nome;
-                _cache[idx].descricao = desc || '';
+                _cache[idx].nome        = nome;
+                _cache[idx].descricao   = desc || '';
                 _cache[idx].departamento = departamento;
+                _cache[idx].capa_url    = capa_url;
             }
 
             // Se o modal de detalhe estiver aberto para este treinamento, atualiza o header
