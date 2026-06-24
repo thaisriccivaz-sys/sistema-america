@@ -19761,7 +19761,7 @@ window.carregarOcorrenciaAnexos = async function(docId) {
     galeria.innerHTML = '<span style="color:#94a3b8; font-size:0.8rem; font-style:italic;">Carregando anexos...</span>';
     try {
         const token = localStorage.getItem('token') || '';
-        const resp = await fetch(`${window.API_URL}/api/ocorrencias/${docId}/anexos`, {
+        const resp = await fetch(`${window.API_URL}/ocorrencias/${docId}/anexos`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!resp.ok) throw new Error('Erro ao buscar anexos');
@@ -19794,7 +19794,7 @@ window.uploadOcorrenciaAnexo = async function(docId, inputEl) {
         formData.append('docId', docId);
         try {
             const token = localStorage.getItem('token') || '';
-            const resp = await fetch(`${window.API_URL}/api/ocorrencias/${docId}/anexos`, {
+            const resp = await fetch(`${window.API_URL}/ocorrencias/${docId}/anexos`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
                 body: formData
@@ -19816,7 +19816,7 @@ window.excluirOcorrenciaAnexo = async function(docId, anexoId) {
     if (!confirm('Deseja excluir este anexo?')) return;
     try {
         const token = localStorage.getItem('token') || '';
-        const resp = await fetch(`${window.API_URL}/api/ocorrencias/${docId}/anexos/${anexoId}`, {
+        const resp = await fetch(`${window.API_URL}/ocorrencias/${docId}/anexos/${anexoId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
