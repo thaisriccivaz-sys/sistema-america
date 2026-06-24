@@ -892,6 +892,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 if (!cols.includes('departamento'))       db.run("ALTER TABLE usuarios ADD COLUMN departamento TEXT DEFAULT 'RH'");
                 if (!cols.includes('grupo_permissao_id')) db.run("ALTER TABLE usuarios ADD COLUMN grupo_permissao_id INTEGER");
                 if (!cols.includes('ativo'))              db.run("ALTER TABLE usuarios ADD COLUMN ativo INTEGER DEFAULT 1");
+                if (!cols.includes('estoque_enderecos_permitidos')) db.run("ALTER TABLE usuarios ADD COLUMN estoque_enderecos_permitidos TEXT");
             });
 
             // Tabela de Grupos de Permissão

@@ -8,7 +8,13 @@ async function _carregarEnderecos() {
     try {
         const token = window.currentToken || localStorage.getItem("erp_token") || localStorage.getItem("token");
         const res = await fetch(API_URL + "/estoque-enderecos", { headers: { "Authorization": "Bearer " + token } });
-        if (res.ok) window._estoqueEnderecos = await res.json();
+        if (res.ok) {
+            let todos = await res.json();
+            if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
+                todos = todos.filter(end => window.activeUserPerms['estoque-endereco:' + end.id]);
+            }
+            window._estoqueEnderecos = todos;
+        }
     } catch (e) { console.warn("[ESTOQUE] Erro ao carregar enderecos:", e.message); }
 }
 
@@ -57,6 +63,19 @@ window.renderEstoqueTable = async function() {
                 return saldos.some(s => String(s.endereco_id) === String(enderecoFiltro));
             });
         }
+
+        // Filtra por permissões de endereço
+        if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
+            data = data.filter(item => {
+                const saldos = saldosMap[item.id] || [];
+                if (saldos.length > 0) {
+                    const saldosPermitidos = saldos.filter(s => window.activeUserPerms['estoque-endereco:' + s.endereco_id]);
+                    if (saldosPermitidos.length === 0) return false; // Hide completely Se não tiver nenhum endereço permitido
+                }
+                return true;
+            });
+        }
+
         if (status === "minimo") data = data.filter(i => {
             const saldos = saldosMap[i.id] || [];
             if (saldos.length > 0) return saldos.some(s => s.quantidade <= i.quantidade_minima);
@@ -93,7 +112,10 @@ window.renderEstoqueTable = async function() {
 
         let rows = '';
         data.forEach(item => {
-            const saldos = saldosMap[item.id] || [];
+            let saldos = saldosMap[item.id] || [];
+            if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
+                saldos = saldos.filter(s => window.activeUserPerms['estoque-endereco:' + s.endereco_id]);
+            }
             const multiEnd = saldos.length > 1;
 
             // ── Verificar se está no mínimo (usa min/max por endereço) ──
@@ -226,7 +248,12 @@ window.abrirModalBaixaEstoque = async function(item) {
     let saldos = [];
     try {
         const r = await fetch(API_URL + "/estoque/" + item.id + "/saldo-enderecos", { headers: { "Authorization": "Bearer " + token } });
-        if (r.ok) saldos = await r.json();
+        if (r.ok) {
+            saldos = await r.json();
+            if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
+                saldos = saldos.filter(s => window._estoqueEnderecos.some(e => String(e.id) === String(s.endereco_id)));
+            }
+        }
     } catch(e) {}
 
     const semEndereco = saldos.length === 0;
@@ -394,6 +421,7 @@ window.editarEstoque = async function(item) {
 
     // Carregar endereços já vinculados
     window._enderecoLinhas = [];
+    window._hiddenEnderecoLinhas = [];
     try {
         const token = window.currentToken || localStorage.getItem("erp_token") || localStorage.getItem("token");
         const r = await fetch(API_URL + "/estoque/" + item.id + "/saldo-enderecos", {
@@ -401,7 +429,17 @@ window.editarEstoque = async function(item) {
         });
         if (r.ok) {
             const saldos = await r.json();
-            window._enderecoLinhas = saldos.map(s => ({
+            let saldosPermitidos = saldos;
+            if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
+                saldosPermitidos = saldos.filter(s => window._estoqueEnderecos.some(e => String(e.id) === String(s.endereco_id)));
+                window._hiddenEnderecoLinhas = saldos.filter(s => !window._estoqueEnderecos.some(e => String(e.id) === String(s.endereco_id))).map(s => ({
+                    endereco_id:       s.endereco_id,
+                    quantidade:        s.quantidade,
+                    quantidade_minima: s.quantidade_minima || 0,
+                    quantidade_maxima: s.quantidade_maxima || 0
+                }));
+            }
+            window._enderecoLinhas = saldosPermitidos.map(s => ({
                 endereco_id:       s.endereco_id,
                 quantidade:        s.quantidade,
                 quantidade_minima: s.quantidade_minima || 0,
@@ -419,7 +457,10 @@ window.editarEstoque = async function(item) {
 window.salvarEstoque = async function(e) {
     e.preventDefault();
     const id = document.getElementById("estoque-id").value;
-    const linhasValidas = (window._enderecoLinhas || []).filter(l => l.endereco_id);
+    let linhasValidas = (window._enderecoLinhas || []).filter(l => l.endereco_id);
+    if (window._hiddenEnderecoLinhas && window._hiddenEnderecoLinhas.length > 0) {
+        linhasValidas = linhasValidas.concat(window._hiddenEnderecoLinhas);
+    }
 
     // NOVO produto: obrigatório ter pelo menos 1 endereço selecionado
     if (!id && linhasValidas.length === 0) {
@@ -821,9 +862,11 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
                             return `<option value="${end.id}">${end.nome} (Atual: ${qty})</option>`;
                         }).join('');
                     } else {
-                        const avail = saldos.filter(s => s.quantidade > 0);
+                        let avail = saldos.filter(s => s.quantidade > 0);
+                        // Filtra para garantir que o usuário só pode dar saída de endereços que ele tem acesso
+                        avail = avail.filter(s => window._estoqueEnderecos.some(e => String(e.id) === String(s.endereco_id)));
                         if (avail.length === 0) {
-                            optionsHTML = '<option value="">(Sem saldo em nenhum endereço)</option>';
+                            optionsHTML = '<option value="">(Sem saldo em nenhum endereço permitido)</option>';
                             selEnd.disabled = true;
                         } else {
                             optionsHTML += avail.map(s => `<option value="${s.endereco_id}">${s.endereco_nome} (Atual: ${s.quantidade})</option>`).join('');

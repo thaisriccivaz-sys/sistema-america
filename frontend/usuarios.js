@@ -76,6 +76,34 @@ let _permissoesAtivas = {}; // { pagina_id: { visualizar, alterar, incluir, excl
 // ── CARREGAMENTO INICIAL ──────────────────────────────────────
 
 window.initUsuariosPermissoes = async function() {
+    try {
+        const reqEnd = await fetch(API_URL + '/estoque-enderecos', { headers: { Authorization: `Bearer ${currentToken}` }});
+        if (reqEnd.ok) {
+            const enderecos = await reqEnd.json();
+            
+            // Adicionar em TELAS_SISTEMA
+            enderecos.forEach(end => {
+                const idTela = 'estoque-endereco:' + end.id;
+                if (!TELAS_SISTEMA.find(t => t.pagina_id === idTela)) {
+                    TELAS_SISTEMA.push({ modulo: 'Administrativo', pagina_id: idTela, pagina_nome: end.nome, icone: 'ph-map-pin' });
+                }
+            });
+
+            // Adicionar em MENU_HIERARQUIA
+            const modAdmin = MENU_HIERARQUIA.find(m => m.modulo === 'Administrativo');
+            if (modAdmin) {
+                let grupoEnd = modAdmin.grupos.find(g => g.titulo === 'Controle de Estoque (Endereços)');
+                if (!grupoEnd) {
+                    grupoEnd = { titulo: 'Controle de Estoque (Endereços)', expandable: true, telas: [] };
+                    modAdmin.grupos.push(grupoEnd);
+                }
+                grupoEnd.telas = enderecos.map(e => 'estoque-endereco:' + e.id);
+            }
+        }
+    } catch(e) {
+        console.warn('[PERMISSOES] Erro ao carregar enderecos do estoque:', e);
+    }
+
     await Promise.all([carregarUsuariosLista(), carregarGruposLista()]);
 };
 

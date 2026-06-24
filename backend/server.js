@@ -9990,12 +9990,13 @@ app.get('/api/usuarios', authenticateToken, (req, res) => {
 });
 
 app.post('/api/usuarios', authenticateToken, (req, res) => {
-    const { username, password, nome, email, departamento, grupo_permissao_id, role } = req.body;
+    const { username, password, nome, email, departamento, grupo_permissao_id, role, estoque_enderecos_permitidos } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Username e senha são obrigatórios' });
     const hash = bcrypt.hashSync(password, 10);
+    const endPermitidos = estoque_enderecos_permitidos ? JSON.stringify(estoque_enderecos_permitidos) : null;
     db.run(
-        'INSERT INTO usuarios (username, password_hash, nome, email, departamento, grupo_permissao_id, role, ativo) VALUES (?,?,?,?,?,?,?,1)',
-        [username, hash, nome || username, email || null, departamento || 'RH', grupo_permissao_id || null, role || 'Operacional'],
+        'INSERT INTO usuarios (username, password_hash, nome, email, departamento, grupo_permissao_id, role, ativo, estoque_enderecos_permitidos) VALUES (?,?,?,?,?,?,?,1,?)',
+        [username, hash, nome || username, email || null, departamento || 'RH', grupo_permissao_id || null, role || 'Operacional', endPermitidos],
         function (err) {
             if (err) {
                 const msg = err.message.includes('UNIQUE') ? 'Este username já está cadastrado.' : err.message;
@@ -10007,7 +10008,7 @@ app.post('/api/usuarios', authenticateToken, (req, res) => {
 });
 
 app.put('/api/usuarios/:id', authenticateToken, (req, res) => {
-    const { nome, email, departamento, grupo_permissao_id, role, ativo, password } = req.body;
+    const { nome, email, departamento, grupo_permissao_id, role, ativo, password, estoque_enderecos_permitidos } = req.body;
     const updates = [];
     const values = [];
     if (nome !== undefined) { updates.push('nome = ?'); values.push(nome); }
@@ -10016,6 +10017,10 @@ app.put('/api/usuarios/:id', authenticateToken, (req, res) => {
     if (grupo_permissao_id !== undefined) { updates.push('grupo_permissao_id = ?'); values.push(grupo_permissao_id); }
     if (role !== undefined) { updates.push('role = ?'); values.push(role); }
     if (ativo !== undefined) { updates.push('ativo = ?'); values.push(ativo); }
+    if (estoque_enderecos_permitidos !== undefined) {
+        updates.push('estoque_enderecos_permitidos = ?');
+        values.push(estoque_enderecos_permitidos ? JSON.stringify(estoque_enderecos_permitidos) : null);
+    }
     if (password) { updates.push('password_hash = ?'); values.push(bcrypt.hashSync(password, 10)); }
     if (updates.length === 0) return res.json({ message: 'Nenhuma alteração' });
     values.push(req.params.id);
