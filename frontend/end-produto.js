@@ -7,9 +7,15 @@ window.renderEndProdutoTable = async function() {
     try {
         tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#64748b;">Carregando...</td></tr>';
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const r = await fetch(API_URL + '/estoque-enderecos', { headers: { 'Authorization': 'Bearer ' + token } });
+        const [r, rDepts] = await Promise.all([
+            fetch(API_URL + '/estoque-enderecos', { headers: { 'Authorization': 'Bearer ' + token } }),
+            fetch(API_URL + '/departamentos', { headers: { 'Authorization': 'Bearer ' + token } })
+        ]);
         if (!r.ok) throw new Error('Erro ao buscar endereços');
         const data = await r.json();
+        let departamentos = [];
+        if (rDepts.ok) departamentos = await rDepts.json();
+
         if (!data.length) {
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#64748b;">Nenhum endereço cadastrado.</td></tr>';
             return;
@@ -20,10 +26,25 @@ window.renderEndProdutoTable = async function() {
                 : end.tipo_notificacao === 'reposicao'
                 ? '<span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-arrows-left-right"></i> Pedido de Reposição</span>'
                 : '<span style="background:#f1f5f9;color:#94a3b8;border-radius:20px;padding:2px 10px;font-size:0.75rem;">Sem notificação</span>';
+            
+            let deptNames = '—';
+            if (end.departamentos_vinculados) {
+                try {
+                    let vinculados = typeof end.departamentos_vinculados === 'string' ? JSON.parse(end.departamentos_vinculados) : end.departamentos_vinculados;
+                    if (Array.isArray(vinculados) && vinculados.length > 0) {
+                        const nomes = vinculados.map(v => {
+                            const d = departamentos.find(x => String(x.id) === String(v));
+                            return d ? d.nome : v;
+                        });
+                        deptNames = nomes.join(', ');
+                    }
+                } catch(e) {}
+            }
+
             return '<tr>' +
                 '<td style="font-weight:600;display:flex;align-items:center;gap:8px;"><i class="ph ph-map-pin" style="color:#1d4ed8;"></i>' + end.nome + '</td>' +
                 '<td>' + tipoBadge + '</td>' +
-                '<td style="color:#64748b;font-size:0.83rem;">' + (end.criado_em ? new Date(end.criado_em).toLocaleDateString('pt-BR') : '—') + '</td>' +
+                '<td style="color:#64748b;font-size:0.83rem;">' + deptNames + '</td>' +
                 '<td style="text-align:right;white-space:nowrap;">' +
                     '<button class="btn btn-sm btn-secondary" onclick="window.abrirModalEditarEndProduto(' + JSON.stringify(JSON.stringify(end)).replace(/"/g,'&quot;') + ')" style="margin-right:4px;"><i class="ph ph-pencil-simple"></i></button>' +
                     '<button class="btn btn-sm" onclick="window.excluirEndProduto(' + end.id + ')" style="background:#fee2e2;color:#ef4444;border:none;"><i class="ph ph-trash"></i></button>' +
@@ -55,8 +76,8 @@ window.abrirModalEndProduto = async function() {
         preConfirm: () => {
             const nome = document.getElementById('swal-end-nome').value.trim();
             const tipo = document.getElementById('swal-end-tipo').value;
-            const deptsSelect = document.getElementById('swal-end-depts');
-            const departamentos_vinculados = Array.from(deptsSelect.selectedOptions).map(opt => opt.value);
+            const checkboxes = document.querySelectorAll('input[name="swal-end-depts-chk"]:checked');
+            const departamentos_vinculados = Array.from(checkboxes).map(chk => chk.value);
             if (!nome) { Swal.showValidationMessage('Informe o nome do endereço'); return false; }
             return { nome, tipo_notificacao: tipo, departamentos_vinculados };
         }
@@ -106,8 +127,8 @@ window.abrirModalEditarEndProduto = async function(endJson) {
         preConfirm: () => {
             const nome = document.getElementById('swal-end-nome').value.trim();
             const tipo = document.getElementById('swal-end-tipo').value;
-            const deptsSelect = document.getElementById('swal-end-depts');
-            const departamentos_vinculados = Array.from(deptsSelect.selectedOptions).map(opt => opt.value);
+            const checkboxes = document.querySelectorAll('input[name="swal-end-depts-chk"]:checked');
+            const departamentos_vinculados = Array.from(checkboxes).map(chk => chk.value);
             if (!nome) { Swal.showValidationMessage('Informe o nome do endereço'); return false; }
             return { nome, tipo_notificacao: tipo, departamentos_vinculados };
         }
@@ -151,11 +172,15 @@ function _htmlFormEndProduto(end, departamentos) {
         } catch(e) {}
     }
 
-    let optionsDepts = '';
+    let optionsDepts = '<div style="max-height:120px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; padding:8px; background:#f8fafc; margin-top:4px;">';
     (departamentos || []).forEach(d => {
         const isSelected = deptsVinculados.includes(String(d.id)) || deptsVinculados.includes(d.id);
-        optionsDepts += '<option value="' + d.id + '"' + (isSelected ? ' selected' : '') + '>' + d.nome + '</option>';
+        optionsDepts += '<label style="display:flex; align-items:center; gap:8px; margin-bottom:6px; cursor:pointer; font-size:0.85rem; color:#334155;">' +
+                        '<input type="checkbox" name="swal-end-depts-chk" value="' + d.id + '"' + (isSelected ? ' checked' : '') + ' style="cursor:pointer; width:16px; height:16px;">' +
+                        d.nome + '</label>';
     });
+    if (!departamentos || departamentos.length === 0) optionsDepts += '<span style="color:#94a3b8;font-size:0.8rem;">Nenhum departamento cadastrado.</span>';
+    optionsDepts += '</div>';
 
     return '<div style="text-align:left;margin-top:8px;">' +
         '<div style="margin-bottom:14px;">' +
@@ -164,10 +189,7 @@ function _htmlFormEndProduto(end, departamentos) {
         '</div>' +
         '<div style="margin-bottom:14px;">' +
             '<label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:5px;">Departamentos Vinculados</label>' +
-            '<select id="swal-end-depts" multiple style="width:100%;height:100px;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;">' +
-                optionsDepts +
-            '</select>' +
-            '<p style="font-size:0.75rem;color:#64748b;margin-top:4px;">Segure Ctrl (ou Cmd) para selecionar mais de um departamento.</p>' +
+            optionsDepts +
         '</div>' +
         '<div>' +
             '<label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:5px;"><i class="ph ph-bell-ringing" style="color:#e67700;"></i> Tipo de Notificação ao atingir estoque mínimo</label>' +
