@@ -13351,6 +13351,8 @@ async function checkUserNotificacoes() {
                     bg = '#fff5e6'; color = '#e67700'; icon = 'ph-package'; titulo = 'Estoque Mínimo'; navTarget = 'estoque';
                 } else if (notif.tipo === 'novo_colaborador_equipe') {
                     bg = '#fdf2f8'; color = '#ec4899'; icon = 'ph-user-plus'; titulo = 'Novo Colaborador para Distribuição'; navTarget = 'logistica-equipes';
+                } else if (notif.tipo === 'nova_ocorrencia') {
+                    bg = '#fdf2f8'; color = '#d63384'; icon = 'ph-warning-octagon'; titulo = 'Notificação de RH'; navTarget = 'colaboradores';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -13445,6 +13447,17 @@ async function checkUserNotificacoes() {
                         </div>
                         <div style="color:#64748b;font-size:0.85rem;">O colaborador <b style="color:${color}">${colabNome}</b> é um novo colaborador para distribuição de equipe.</div>
                     `;
+                } else if (notif.tipo === 'nova_ocorrencia') {
+                    const tipoOcorr = dados.tipo_ocorrencia || 'Ocorrência';
+                    const colabNome = dados.colaborador_nome || 'Colaborador';
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.35rem;color:${color};margin-bottom:8px;line-height:1.2;">
+                            ${tipoOcorr}
+                        </div>
+                        <div style="color:#0f172a;font-weight:600;font-size:1rem;margin-bottom:4px;">
+                            ${colabNome}
+                        </div>
+                    `;
                 } else {
                     contentHTML = `
                         <div style="font-weight:700;font-size:0.9rem;color:#0f172a;margin-bottom:4px;">
@@ -13458,6 +13471,8 @@ async function checkUserNotificacoes() {
                 let btnOnClick = `window.markUserNotifLida('${notif.id}'); navigateTo('${navTarget}'); this.closest('[data-notif-id]').remove();`;
                 if (notif.tipo === 'novo_sinistro' && dados.colaborador_id) {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Sinistros');`;
+                } else if (notif.tipo === 'nova_ocorrencia' && dados.colaborador_id) {
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Advertências');`;
                 }
 
                 popup.innerHTML = `
@@ -13482,7 +13497,7 @@ async function checkUserNotificacoes() {
                 `;
                 popup.setAttribute('data-notif-id', notif.id);
                 document.body.appendChild(popup);
-                if (notif.tipo !== 'novo_sinistro') {
+                if (notif.tipo !== 'novo_sinistro' && notif.tipo !== 'nova_ocorrencia') {
                     setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
                 }
             } catch (parseErr) { }
