@@ -15324,10 +15324,10 @@ window._assinNextStep = async function () {
             if (done) badge.innerHTML = '✓';
             ind.style.color = active ? '#1e3a5f' : done ? '#16a34a' : '#94a3b8';
         });
-        const btnBack = document.getElementById('btn-assin-back');
-        if (btnBack) btnBack.style.display = 'flex';
-        const btnNext = document.getElementById('btn-assin-next');
-        if (btnNext) btnNext.style.display = 'none'; // selfie usa botões próprios
+        const backBtn = document.getElementById('btn-assin-back');
+        if (backBtn) backBtn.style.display = 'flex';
+        const nextBtn = document.getElementById('btn-assin-next');
+        if (nextBtn) nextBtn.style.display = 'none'; // selfie usa botões próprios
         window._epiAssinIniciarCamera();
         return;
     }

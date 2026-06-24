@@ -62,7 +62,6 @@ window.abrirModalEndProduto = async function() {
         }
     });
     if (!isConfirmed || !vals) return;
-    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     try {
         const res = await fetch(API_URL + '/estoque-enderecos', {
             method: 'POST',
