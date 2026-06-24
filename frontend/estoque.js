@@ -636,11 +636,10 @@ window.renderEstoqueHistorico = async function() {
                 : '<span style="color:#94a3b8;font-size:0.8rem;">—</span>';
             tr.innerHTML =
                 '<td><div style="font-weight:500;">' + dt.toLocaleDateString("pt-BR") + '</div><div style="font-size:0.8em;color:#64748b;">' + dt.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) + '</div></td>' +
-                '<td><div style="font-weight:600;color:#1e293b;">' + h.estoque_nome + '</div><div style="font-size:0.8em;color:#64748b;">' + h.estoque_departamento + '</div></td>' +
+                '<td><div style="font-weight:600;color:#1e293b;">' + h.estoque_nome + '</div><div style="margin-top:2px;">' + endHtml + '</div></td>' +
                 '<td><span style="background:' + tipoBg + ';color:' + tipoColor + ';padding:2px 8px;border-radius:12px;font-size:0.8em;font-weight:600;">' + h.tipo + '</span></td>' +
                 '<td style="font-weight:700;color:' + tipoColor + '">' + sinal + h.quantidade + '</td>' +
-                '<td>' + (h.usuario || "-") + '</td>' +
-                '<td>' + endHtml + '</td>';
+                '<td>' + (h.usuario || "-") + '</td>';
             table.appendChild(tr);
         });
     } catch(err) {

@@ -103,9 +103,12 @@
                         <i class="ph ph-user" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1.1rem;pointer-events:none;"></i>
                         <input
                             id="lepi-busca"
+                            name="busca_colaborador_rnd"
                             type="text"
                             placeholder="Digite o nome do colaborador..."
-                            autocomplete="off"
+                            autocomplete="new-password"
+                            data-lpignore="true"
+                            data-form-type="other"
                             style="width:100%;padding:0.75rem 1rem 0.75rem 2.5rem;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.95rem;outline:none;transition:border-color 0.2s;box-sizing:border-box;font-family:inherit;"
                             oninput="window._lepiOnBusca(this.value)"
                             onfocus="this.style.borderColor='#2563eb'"
