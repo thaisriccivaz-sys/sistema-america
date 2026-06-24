@@ -518,6 +518,7 @@ const BREADCRUMB_MAP = {
     'logistica-itinerantes': { path: 'Clientes Itinerantes', code: 'LOG009' },
     'rh-agenda': { path: 'Agenda RH', code: 'RH020' },
     'logistica-agenda': { path: 'Agenda Logística', code: 'LOG011' },
+    'logistica-epi': { path: 'Entrega de EPI', code: 'LOG012' },
     // Comercial
     'comercial-credenciamento': { path: 'Solicitar Credencial', code: 'COM001' },
     'comercial-proposta': { path: 'Proposta', code: 'COM002' },
@@ -658,7 +659,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -726,6 +727,7 @@ const TAB_META = {
     'logistica-senhas': { color: '#2d9e5f', icon: 'ph-lock-key', title: 'Cofre de Senhas' },
     'logistica-itinerantes': { color: '#2d9e5f', icon: 'ph-map-pin-line', title: 'Clientes Itinerantes' },
     'logistica-agenda': { color: '#2d9e5f', icon: 'ph-calendar-check', title: 'Agenda' },
+    'logistica-epi': { color: '#2d9e5f', icon: 'ph-shield-check', title: 'Entrega de EPI' },
     'rh-agenda': { color: '#f503c5', icon: 'ph-calendar-check', title: 'Agenda RH' },
     // Financeiro - Azul
     'financeiro-em-breve': { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
@@ -972,6 +974,8 @@ function navigateTo(target) {
         if (typeof window.renderPagamentosMassa === 'function') setTimeout(() => window.renderPagamentosMassa(), 80);
     } else if (target === 'logistica-agenda') {
         if (typeof window.renderAgendaLogistica === 'function') setTimeout(() => window.renderAgendaLogistica(), 80);
+    } else if (target === 'logistica-epi') {
+        if (typeof window.renderLogisticaEpi === 'function') setTimeout(() => window.renderLogisticaEpi(), 80);
     } else if (target === 'comercial-credenciamento') {
         if (typeof window.carregarHistoricoComCred === 'function') setTimeout(() => window.carregarHistoricoComCred(), 80);
     } else if (target === 'comercial-proposta') {
@@ -14236,6 +14240,14 @@ async function renderFichaEpiTab(container) {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     let tabelaHtml = '';
     if (todasEntregas && todasEntregas.length > 0) {
+        todasEntregas.sort((a, b) => {
+            const dA = parseDateEntrega(a.data_entrega);
+            const dB = parseDateEntrega(b.data_entrega);
+            if (!dA && !dB) return 0;
+            if (!dA) return 1;
+            if (!dB) return -1;
+            return dB.getTime() - dA.getTime();
+        });
         const linhas = todasEntregas.map(e => {
             const dataObj = parseDateEntrega(e.data_entrega);
             const diasAtras = dataObj ? Math.floor((hoje - dataObj) / (1000 * 60 * 60 * 24)) : null;
@@ -15203,6 +15215,107 @@ window._assinNextStep = async function () {
             if (warn) warn.style.display = '';
             return;
         }
+
+        const btnNext = document.getElementById('btn-assin-next');
+        if (btnNext) btnNext.innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;"></i> Aguarde...';
+
+        try {
+            const respEnd = await fetch(`${API_URL}/estoque/enderecos-disponiveis-epi`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ epis: window._assinItens, colaborador_id: window._assinColabId })
+            });
+            let depts = [];
+            try {
+                const rDepts = await fetch(`${API_URL}/departamentos`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+                if (rDepts.ok) depts = await rDepts.json();
+            } catch(e) {}
+            
+            let userDeptId = null;
+            if (typeof currentUser !== 'undefined' && currentUser && currentUser.departamento) {
+                const found = depts.find(d => d.nome.toLowerCase() === currentUser.departamento.toLowerCase());
+                if (found) userDeptId = found.id;
+            }
+
+            if (respEnd.ok) {
+                const dispData = await respEnd.json();
+                const perguntas = [];
+                window._enderecoPorEpi = {};
+
+                const episUnicos = [...new Set(window._assinItens)];
+                
+                for (const nomeOriginal of episUnicos) {
+                    const info = dispData[nomeOriginal];
+                    if (!info || !info.enderecos || info.enderecos.length === 0) continue;
+                    
+                    const ends = info.enderecos;
+                    let autoSelect = null;
+                    
+                    if (ends.length === 1) {
+                        autoSelect = ends[0];
+                    } else if (ends.length === 2 && userDeptId) {
+                        const matchesDept = ends.filter(e => {
+                            if (!e.departamentos_vinculados) return false;
+                            try {
+                                const arr = typeof e.departamentos_vinculados === 'string' ? JSON.parse(e.departamentos_vinculados) : e.departamentos_vinculados;
+                                return arr.includes(String(userDeptId)) || arr.includes(userDeptId);
+                            } catch(err) { return false; }
+                        });
+                        if (matchesDept.length === 1) {
+                            autoSelect = matchesDept[0];
+                        }
+                    }
+
+                    if (autoSelect) {
+                        window._enderecoPorEpi[nomeOriginal] = { id: autoSelect.id, nome: autoSelect.nome };
+                    } else {
+                        perguntas.push({ nomeEpi: nomeOriginal, ends });
+                    }
+                }
+
+                if (perguntas.length > 0) {
+                    let html = '<div style="text-align:left;font-size:0.9rem;">';
+                    html += '<p style="margin-top:0;">Onde você está retirando os seguintes itens?</p>';
+                    perguntas.forEach((p, idx) => {
+                        html += `<div style="margin-bottom:12px;">
+                            <label style="font-weight:bold;">${p.nomeEpi}</label>
+                            <select id="swal-epi-end-${idx}" class="swal2-select" style="display:flex;width:100%;margin:4px 0;">`;
+                        p.ends.forEach(e => {
+                            html += `<option value="${e.id}">${e.nome} (Saldo: ${e.quantidade})</option>`;
+                        });
+                        html += `</select></div>`;
+                    });
+                    html += '</div>';
+
+                    const swalRes = await Swal.fire({
+                        title: 'Seleção de Endereço',
+                        html,
+                        showCancelButton: true,
+                        confirmButtonText: 'Confirmar',
+                        cancelButtonText: 'Cancelar',
+                        preConfirm: () => {
+                            const resMap = {};
+                            perguntas.forEach((p, idx) => {
+                                const sel = document.getElementById(`swal-epi-end-${idx}`);
+                                const opt = sel.options[sel.selectedIndex];
+                                resMap[p.nomeEpi] = { id: parseInt(opt.value), nome: opt.text.split(' (')[0] };
+                            });
+                            return resMap;
+                        }
+                    });
+
+                    if (!swalRes.isConfirmed) {
+                        if (btnNext) btnNext.innerHTML = 'Assinar e Concluir <i class="ph ph-arrow-right"></i>';
+                        return; // Cancelled
+                    }
+                    Object.assign(window._enderecoPorEpi, swalRes.value);
+                }
+            }
+        } catch(e) {
+            console.error('Erro ao buscar endereços:', e);
+        }
+
+        if (btnNext) btnNext.innerHTML = 'Assinar e Concluir <i class="ph ph-arrow-right"></i>';
         // Ir para selfie
         const selfieDiv = document.getElementById('epiov-step-selfie');
         if (selfieDiv) selfieDiv.style.display = 'block';
@@ -15219,10 +15332,10 @@ window._assinNextStep = async function () {
             if (done) badge.innerHTML = '✓';
             ind.style.color = active ? '#1e3a5f' : done ? '#16a34a' : '#94a3b8';
         });
-        const btnBack = document.getElementById('btn-assin-back');
-        if (btnBack) btnBack.style.display = 'flex';
-        const btnNext = document.getElementById('btn-assin-next');
-        if (btnNext) btnNext.style.display = 'none'; // selfie usa botões próprios
+        const backBtn = document.getElementById('btn-assin-back');
+        if (backBtn) backBtn.style.display = 'flex';
+        const nextBtn = document.getElementById('btn-assin-next');
+        if (nextBtn) nextBtn.style.display = 'none'; // selfie usa botões próprios
         window._epiAssinIniciarCamera();
         return;
     }
@@ -15279,7 +15392,8 @@ window._assinNextStep = async function () {
                     epis_entregues: window._buildItensFromQtds ? window._buildItensFromQtds() : (window._assinItens || []),
                     assinatura_base64: assinaturaBase64,
                     data_entrega: (() => { const i = document.getElementById('epi-data-entrega'); if (!i || !i.value) return ''; const p = i.value.split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : i.value; })(),
-                    epis_para_devolver: Object.entries(window._assinEmprestimos || {}).filter(([,v]) => v).map(([nome, data_devolucao_prevista]) => ({ nome, data_devolucao_prevista }))
+                    epis_para_devolver: Object.entries(window._assinEmprestimos || {}).filter(([,v]) => v).map(([nome, data_devolucao_prevista]) => ({ nome, data_devolucao_prevista })),
+                    endereco_por_epi: window._enderecoPorEpi || {}
                 })
             });
             clearTimeout(saveTimeout);

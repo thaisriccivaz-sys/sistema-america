@@ -26,9 +26,10 @@
     <script src="mtr.js" defer></script>
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js" defer></script>
-    <script src="estoque.js" defer></script>
+    <script src="estoque.js?v=202606240055" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=1780956700456" defer></script>
+    <style>.swal2-container { z-index: 99999 !important; }</style>
 </head>
 
 <body>
@@ -177,6 +178,9 @@
                     <a href="#" class="nav-item" data-target="logistica-agenda"
                         onclick="navigateTo('logistica-agenda'); return false;"><i class="ph ph-calendar-check"></i>
                         Agenda</a>
+                    <a href="#" class="nav-item" data-target="logistica-epi"
+                        onclick="navigateTo('logistica-epi'); return false;"><i class="ph ph-shield-check"></i>
+                        Entrega de EPI</a>
                     <a href="#" class="nav-item" data-target="logistica-multas"
                         onclick="navigateTo('logistica-multas'); return false;"><i class="ph ph-receipt"></i> Multas</a>
                     <a href="#" class="nav-item" data-target="logistica-equipes"
@@ -278,6 +282,7 @@
                         Departamentos</a>
                     <a href="#" class="nav-item" data-target="notificacoes"><i class="ph ph-bell-ringing"></i>
                         Notificações</a>
+                    <a href="#" class="nav-item" data-target="end-produto" onclick="navigateTo('end-produto'); return false;"><i class="ph ph-map-pin"></i> End. Prod.</a>
                     <a href="#" class="nav-item" data-target="geradores"><i class="ph ph-file-text"></i> Geradores</a>
                     <a href="#" class="nav-item" data-target="logistica-multas-monaco" onclick="navigateTo('logistica-multas-monaco'); return false;"><i class="ph ph-police-car"></i> Multas M&ocirc;naco</a>
                     <a href="#" class="nav-item" data-target="ficha-epi"><i class="ph ph-shield-check"></i> Ficha EPI</a>
@@ -359,6 +364,11 @@
 
                 <section id="view-logistica-agenda" class="content-view" style="padding:0; background:#f0f4f8;">
                     <div id="logistica-agenda-container"></div>
+                </section>
+
+                <!-- VIEW: ENTREGA EPI - LOGISTICA -->
+                <section id="view-logistica-epi" class="content-view" style="padding:0; background:#f0f4f8;">
+                    <div id="logistica-epi-container"></div>
                 </section>
 
                 <!-- VIEW: SINISTROS LOGÍSTICA -->
@@ -3056,9 +3066,17 @@
                                 <p style="margin:4px 0 0; color:#64748b; font-size:0.9rem;">Gerencie os itens de estoque, como EPIs e uniformes.</p>
                             </div>
                         </div>
-                        <button class="btn btn-primary" onclick="window.abrirModalEstoque()" style="background:#e67700; border-color:#e67700;">
-                            <i class="ph ph-plus-circle"></i> Adicionar Item
-                        </button>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+                            <button class="btn btn-primary" onclick="window.abrirModalEstoque()" style="background:#e67700; border-color:#e67700;">
+                                <i class="ph ph-plus-circle"></i> Adicionar Item
+                            </button>
+                            <button class="btn btn-primary" onclick="window.abrirModalGlobalEntrada()" style="background:#16a34a; border-color:#16a34a;">
+                                <i class="ph ph-arrow-down-left"></i> Entrada de produtos
+                            </button>
+                            <button class="btn btn-primary" onclick="window.abrirModalGlobalSaida()" style="background:#ef4444; border-color:#ef4444;">
+                                <i class="ph ph-arrow-up-right"></i> Saída de produtos
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Abas do Estoque -->
@@ -3102,18 +3120,28 @@
                                     <option value="minimo">Estoque Mínimo</option>
                                 </select>
                             </div>
+                            <div style="flex: 1; min-width: 200px;">
+                                <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Tipo</label>
+                                <select id="filtro-estoque-tipo" class="form-control" onchange="window.renderEstoqueTable()">
+                                    <option value="">Todos</option>
+                                    <option value="sem_tipo">Sem tipo</option>
+                                    <option value="compra">Pedido de Compra</option>
+                                    <option value="reposicao">Pedido de Reposição</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="table-responsive">
                             <table class="table">
                                 <thead>
-                                    <tr>
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Nome <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Departamento <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Categoria <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Qtd. Atual <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Min/Máx <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
-                                        <th style="text-align: right;">Ações</th>
+                                    <tr style="font-size:0.78rem;">
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Nome <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
+                                        
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Catg. <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Qt. Atual <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Min/Máx <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
+                                        <th style="white-space:nowrap;"><i class="ph ph-map-pin" style="color:#1d4ed8;"></i> Endereços <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
+                                        <th style="text-align:right;white-space:nowrap;">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-estoque">
@@ -3134,11 +3162,10 @@
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Tipo <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Qtd. <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Usuário <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Motivo <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-estoque-historico">
-                                    <tr><td colspan="6" style="text-align:center;color:#64748b;">Carregando histórico...</td></tr>
+                                    <tr><td colspan="5" style="text-align:center;color:#64748b;">Carregando histórico...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3154,26 +3181,26 @@
                         </div>
                         <form id="form-estoque" onsubmit="window.salvarEstoque(event)">
                             <input type="hidden" id="estoque-id">
-                            
-                            <div style="display: flex; gap: 2rem;">
+
+                            <div style="display:flex;gap:2rem;">
                                 <!-- Coluna da Foto -->
-                                <div style="width: 150px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
-                                    <div style="width: 150px; height: 150px; border-radius: 8px; border: 2px dashed #cbd5e1; display: flex; align-items: center; justify-content: center; background: #f8fafc; overflow: hidden; position: relative;">
-                                        <img id="estoque-foto-preview" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
-                                        <i id="estoque-foto-icon" class="ph ph-camera" style="font-size: 2.5rem; color: #94a3b8;"></i>
+                                <div style="width:150px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:1rem;">
+                                    <div style="width:150px;height:150px;border-radius:8px;border:2px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;background:#f8fafc;overflow:hidden;position:relative;">
+                                        <img id="estoque-foto-preview" src="" style="width:100%;height:100%;object-fit:cover;display:none;">
+                                        <i id="estoque-foto-icon" class="ph ph-camera" style="font-size:2.5rem;color:#94a3b8;"></i>
                                     </div>
-                                    <label class="btn btn-sm" style="background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; cursor: pointer; width: 100%; text-align: center;">
+                                    <label class="btn btn-sm" style="background:#f1f5f9;border:1px solid #cbd5e1;color:#475569;cursor:pointer;width:100%;text-align:center;">
                                         <i class="ph ph-upload-simple"></i> Escolher Foto
-                                        <input type="file" id="estoque-foto" accept="image/*" style="display: none;" onchange="window.previewEstoqueFoto(event)">
+                                        <input type="file" id="estoque-foto" accept="image/*" style="display:none;" onchange="window.previewEstoqueFoto(event)">
                                     </label>
                                     <input type="hidden" id="estoque-foto-base64">
                                 </div>
-                                
+
                                 <!-- Coluna dos Dados -->
-                                <div style="flex: 1;">
+                                <div style="flex:1;">
                                     <div style="margin-bottom:1rem;">
                                         <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Nome do Item *</label>
-                                        <input type="text" id="estoque-nome" required class="form-control" placeholder="Ex: Capacete">
+                                        <input type="text" id="estoque-nome" required class="form-control" style="width: 100%; min-width: 300px;" placeholder="Ex: Capacete">
                                     </div>
                                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
                                         <div>
@@ -3196,32 +3223,86 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
-                                        <div>
-                                            <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Qtd. Atual</label>
-                                            <input type="number" id="estoque-qtd" class="form-control" min="0" value="0">
-                                        </div>
-                                        <div>
-                                            <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Mínima</label>
-                                            <input type="number" id="estoque-min" class="form-control" min="0" value="0">
-                                        </div>
-                                        <div>
-                                            <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Máxima</label>
-                                            <input type="number" id="estoque-max" class="form-control" min="0" value="0">
-                                        </div>
+                                    <!-- Campos globais de Qtd/Mín/Máx removidos — controle é por endereço -->
+                                    <input type="hidden" id="estoque-qtd" value="0">
+                                    <input type="hidden" id="estoque-min" value="0">
+                                    <input type="hidden" id="estoque-max" value="0">
+                                </div><!-- fim coluna dados -->
+                            </div><!-- fim flex foto+dados -->
+
+                            <!-- SEÇÃO: ENDEREÇOS DO PRODUTO -->
+                            <div style="margin-top:1.5rem;border-top:1px solid #e2e8f0;padding-top:1.2rem;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+                                    <label style="font-weight:700;font-size:0.88rem;color:#334155;display:flex;align-items:center;gap:6px;">
+                                        <i class="ph ph-map-pin" style="color:#1d4ed8;"></i> Endereços do Produto
+                                    </label>
+                                    <div style="display:flex; gap:8px;">
+                                        <button type="button" id="btn-transferir-modal" onclick="window._transferirLocal()" style="display:none; background:#fefce8;color:#a16207;border:1px solid #fef08a;border-radius:6px;padding:4px 12px;font-size:0.8rem;font-weight:600;cursor:pointer;align-items:center;gap:4px;">
+                                            <i class="ph ph-arrows-left-right"></i> Transferir
+                                        </button>
+                                        <button type="button" onclick="window._adicionarLinhaEndereco()" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:4px 12px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                                            <i class="ph ph-plus"></i> Adicionar Endereço
+                                        </button>
                                     </div>
                                 </div>
+                                <div id="estoque-enderecos-lista" style="display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto;">
+                                    <!-- linhas adicionadas dinamicamente -->
+                                </div>
+                                <p id="estoque-enderecos-vazio" style="font-size:0.8rem;color:#94a3b8;font-style:italic;margin:6px 0 0;">Nenhum endereço vinculado. Use o botão acima para adicionar. Para novos produtos, pelo menos 1 endereço é obrigatório.</p>
                             </div>
-                            
-                            <div style="display:flex;justify-content:flex-end;gap:1rem; margin-top: 1rem;">
+
+                            <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:1rem;">
                                 <button type="button" class="btn btn-secondary" onclick="window.fecharModalEstoque()">Cancelar</button>
-                                <button type="submit" id="btn-salvar-estoque" class="btn btn-primary" style="background:#e67700; border-color:#e67700;">Salvar Item</button>
+                                <button type="submit" id="btn-salvar-estoque" class="btn btn-primary" style="background:#e67700;border-color:#e67700;">Salvar Item</button>
                             </div>
                         </form>
                     </div>
                 </div>
 
-                <!-- VIEW: LICENÇAS -->
+                <!-- VIEW: ENDEREÇOS DE PRODUTO -->
+                <section id="view-end-produto" class="content-view">
+                    <div class="page-header flex-between" style="position:sticky;top:60px;z-index:20;background:var(--bg-main);padding:1rem 0;margin-top:-1.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border-color);">
+                        <div style="display:flex;align-items:center;gap:1.5rem;">
+                            <div style="width:70px;height:70px;border-radius:50%;border:2px dashed #1d4ed8;display:flex;align-items:center;justify-content:center;background:#eff6ff;color:#1d4ed8;font-size:2rem;">
+                                <i class="ph ph-map-pin"></i>
+                            </div>
+                            <div>
+                                <h1 style="margin:0;font-size:1.75rem;font-weight:700;color:#334155;">Endereços de Produto</h1>
+                                <p style="margin:4px 0 0;color:#64748b;font-size:0.88rem;">Gerencie os locais de armazenamento e defina o tipo de notificação para cada endereço.</p>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="window.abrirModalEndProduto()" style="background:#1d4ed8;border-color:#1d4ed8;display:flex;align-items:center;gap:6px;">
+                            <i class="ph ph-plus-circle"></i> Novo Endereço
+                        </button>
+                    </div>
+
+                    <div class="card" style="border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
+                        <!-- Legenda de tipos -->
+                        <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:14px 20px;display:flex;gap:20px;flex-wrap:wrap;font-size:0.83rem;">
+                            <span style="color:#64748b;font-weight:600;">Tipos de notificação ao atingir estoque mínimo:</span>
+                            <span style="display:inline-flex;align-items:center;gap:5px;background:#fff3e6;color:#e67700;border:1px solid #fed7aa;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:600;"><i class="ph ph-shopping-cart-simple"></i> Pedido de Compra</span>
+                            <span style="display:inline-flex;align-items:center;gap:5px;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:600;"><i class="ph ph-arrows-left-right"></i> Pedido de Reposição</span>
+                            <span style="display:inline-flex;align-items:center;gap:5px;background:#f1f5f9;color:#94a3b8;border-radius:20px;padding:2px 10px;font-size:0.75rem;">Sem notificação</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr style="font-size:0.82rem;">
+                                        <th>Endereço</th>
+                                        <th>Tipo de Notificação</th>
+                                        <th>Departamentos Vinculados</th>
+                                        <th style="text-align:right;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-end-produto">
+                                    <tr><td colspan="4" style="text-align:center;color:#64748b;">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                                <!-- VIEW: LICENÇAS -->
                 <section id="view-licencas" class="content-view">
                     <div class="page-header flex-between"
                         style="position:sticky; top:60px; z-index:20; background:var(--bg-main); padding:1.25rem 0; margin-top:-1.5rem; margin-bottom:2rem; border-bottom:1px solid var(--border-color);">
@@ -5137,7 +5218,7 @@
     <script src="gerenciar_avaliacoes.js?v=1778869020176"></script>
     <script src="epi.js?v=1778869020178"></script>
     <script src="sinistros.js?v=1778869020176"></script>
-    <script src="usuarios.js?v=1778869020176"></script>
+    <script src="usuarios.js?v=202606240055"></script>
     <script src="integracao.js"></script>
     <script src="dissidio.js?v=1778869020176"></script>
     <script src="ferias.js?v=1778869020176"></script>
@@ -5269,6 +5350,7 @@
         }
     </style>
     <script src="logistica_agenda.js?v=1778869020176"></script>
+    <script src="logistica_epi.js?v=202606240125"></script>
     <script src="config-sigor.js"></script>
     <script src="/frota_manutencao.js?v=1778890494626"></script>
     <script src="/sort_table.js?v=1"></script>
@@ -5284,6 +5366,7 @@
         /* O auto-collapse (mouseleave e click fora) foi removido a pedido.
            O acordeão só fechará se o usuário clicar nele novamente. */
     </script>
+    <script src="end-produto.js"></script>
 </body>
 
 </html>
