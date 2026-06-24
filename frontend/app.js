@@ -14240,6 +14240,14 @@ async function renderFichaEpiTab(container) {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     let tabelaHtml = '';
     if (todasEntregas && todasEntregas.length > 0) {
+        todasEntregas.sort((a, b) => {
+            const dA = parseDateEntrega(a.data_entrega);
+            const dB = parseDateEntrega(b.data_entrega);
+            if (!dA && !dB) return 0;
+            if (!dA) return 1;
+            if (!dB) return -1;
+            return dB.getTime() - dA.getTime();
+        });
         const linhas = todasEntregas.map(e => {
             const dataObj = parseDateEntrega(e.data_entrega);
             const diasAtras = dataObj ? Math.floor((hoje - dataObj) / (1000 * 60 * 60 * 24)) : null;
