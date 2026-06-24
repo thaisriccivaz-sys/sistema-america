@@ -638,6 +638,7 @@ window._transferirLocal = async function() {
     }).join('');
 
     const { value: vals, isConfirmed } = await Swal.fire({
+        target: document.getElementById('modal-estoque') || document.body,
         title: '<i class="ph ph-arrows-left-right" style="color:#a16207"></i> Transferir entre Endereços',
         html: '<div style="text-align:left;">' +
               '<p style="font-size:0.85rem;color:#64748b;margin-top:0;">Esta transferência será efetivada quando você salvar o item.</p>' +
