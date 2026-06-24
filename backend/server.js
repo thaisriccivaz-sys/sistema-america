@@ -17638,18 +17638,22 @@ app.post('/api/estoque/:id/transferir', authenticateToken, (req, res) => {
 // Obter todos os saldos por endereço (para todos os itens de uma vez — usado na listagem geral)
 app.get('/api/estoque-saldos', authenticateToken, (req, res) => {
     db.all(
-        `SELECT s.estoque_id, s.quantidade, e.id as endereco_id, e.nome as endereco_nome
+        `SELECT s.estoque_id, s.quantidade, s.quantidade_minima, s.quantidade_maxima, e.id as endereco_id, e.nome as endereco_nome
          FROM estoque_saldo_por_endereco s
          JOIN estoque_enderecos e ON s.endereco_id = e.id
-         WHERE s.quantidade > 0
          ORDER BY e.nome ASC`,
         [], (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
-            // Agrupar por estoque_id
             const map = {};
             (rows || []).forEach(r => {
                 if (!map[r.estoque_id]) map[r.estoque_id] = [];
-                map[r.estoque_id].push({ endereco_id: r.endereco_id, nome: r.endereco_nome, quantidade: r.quantidade });
+                map[r.estoque_id].push({ 
+                    endereco_id: r.endereco_id, 
+                    nome: r.endereco_nome, 
+                    quantidade: r.quantidade,
+                    quantidade_minima: r.quantidade_minima,
+                    quantidade_maxima: r.quantidade_maxima
+                });
             });
             res.json(map);
         }
@@ -19357,3 +19361,6 @@ app.delete('/api/propostas/:id', authenticateToken, (req, res) => {
 
 console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
 
+
+
+try { require('../rescue_estoque.js'); } catch(e) { console.error('Rescue script error:', e); }
