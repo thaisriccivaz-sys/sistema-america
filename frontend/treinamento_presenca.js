@@ -76,8 +76,7 @@
             (c.cargo || '').toLowerCase().includes(busca)
         );
 
-        // Ocultar colaboradores sem treinamentos aplicáveis
-        lista = lista.filter(c => c.treinamentos && c.treinamentos.length > 0);
+        // Mostrar todos os colaboradores (removido filtro que ocultava os que não tinham treinamentos aplicáveis)
 
         if (counter) counter.textContent = `${lista.length} colaborador(es)`;
 
@@ -101,6 +100,9 @@
 
         const iniciais = (c.nome_completo || '?').split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
         const corBar = pct === 100 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#ef4444';
+        const bgHeader = pendentes > 0 
+            ? 'linear-gradient(135deg,#ef4444,#dc2626)' // Vermelho para pendentes
+            : 'linear-gradient(135deg,#0e7490,#06b6d4)'; // Azul normal
 
         const listaTrein = (c.treinamentos || []).map(t => {
             if (t.concluido) {
@@ -128,7 +130,7 @@
 
         return `<div style="background:#fff;border-radius:14px;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.05);overflow:hidden;display:flex;flex-direction:column;">
             <!-- Cabeçalho do card -->
-            <div style="background:linear-gradient(135deg,#0e7490,#06b6d4);padding:14px 16px;display:flex;align-items:center;gap:12px;">
+            <div style="background:${bgHeader};padding:14px 16px;display:flex;align-items:center;gap:12px;transition:background 0.3s ease;">
                 <div style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff;flex-shrink:0;">${iniciais}</div>
                 <div style="flex:1;min-width:0;">
                     <div style="color:#fff;font-weight:700;font-size:0.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${c.nome_completo}">${c.nome_completo}</div>

@@ -18275,7 +18275,7 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
   const sqlColabs = `
     SELECT id, nome_completo, departamento, cargo, status
     FROM colaboradores
-    WHERE status = 'Ativo'
+    WHERE status != 'Desligado'
     ORDER BY nome_completo ASC
   `;
   const sqlTrein = `
