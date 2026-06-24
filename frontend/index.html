@@ -4568,15 +4568,15 @@
     <!-- TELA: TREINAMENTO / PRESEN�AS                                  -->
     <!-- -------------------------------------------------------------- -->
     <section id="view-treinamento-presenca" class="content-view">
-        <!-- Cabe�alho -->
+        <!-- Cabeçalho -->
         <div class="page-header flex-between" style="position:sticky;top:60px;z-index:20;background:var(--bg-main);padding:1rem 0;margin-top:-1.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border-color);">
             <div style="display:flex;align-items:center;gap:1.5rem;">
                 <div style="width:70px;height:70px;border-radius:50%;border:2px dashed #0e7490;display:flex;align-items:center;justify-content:center;background:#cffafe;color:#0e7490;font-size:2rem;">
                     <i class="ph ph-check-square"></i>
                 </div>
                 <div>
-                    <h1 style="margin:0;font-size:1.85rem;font-weight:700;color:#334155;">Controle de Presen�as</h1>
-                    <p style="margin:4px 0 0;color:#64748b;font-size:0.88rem;">Visualize e registre a conclus�o de treinamentos por colaborador.</p>
+                    <h1 style="margin:0;font-size:1.85rem;font-weight:700;color:#334155;">Controle de Presenças</h1>
+                    <p style="margin:4px 0 0;color:#64748b;font-size:0.88rem;">Visualize e registre a conclusão de treinamentos por colaborador.</p>
                 </div>
             </div>
             <button onclick="window.initPresencaTreinamento()" style="background:#fff;color:#0e7490;border:1.5px solid #0e7490;border-radius:8px;padding:9px 16px;cursor:pointer;font-size:0.85rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
@@ -4597,14 +4597,14 @@
                 <input type="search" id="pres-filtro-busca" class="form-control" style="width:100%;" placeholder="Nome ou cargo..." oninput="window.filtrarPresencaBusca(this.value)" autocomplete="off">
             </div>
             <div style="display:flex;align-items:flex-end;">
-                <span id="pres-counter" style="font-size:0.82rem;color:#64748b;background:#f1f5f9;border-radius:20px;padding:6px 14px;font-weight:600;">�</span>
+                <span id="pres-counter" style="font-size:0.82rem;color:#64748b;background:#f1f5f9;border-radius:20px;padding:6px 14px;font-weight:600;">—</span>
             </div>
         </div>
 
-        <!-- Legenda r�pida -->
+        <!-- Legenda rápida -->
         <div style="display:flex;gap:16px;margin-bottom:1.2rem;flex-wrap:wrap;">
-            <span style="font-size:0.78rem;color:#10b981;display:flex;align-items:center;gap:4px;font-weight:600;"><i class="ph ph-check-circle"></i> Conclu�do</span>
-            <span style="font-size:0.78rem;color:#f59e0b;display:flex;align-items:center;gap:4px;font-weight:600;"><i class="ph ph-clock"></i> Pendente � clique em "Assinar"</span>
+            <span style="font-size:0.78rem;color:#10b981;display:flex;align-items:center;gap:4px;font-weight:600;"><i class="ph ph-check-circle"></i> Concluído</span>
+            <span style="font-size:0.78rem;color:#f59e0b;display:flex;align-items:center;gap:4px;font-weight:600;"><i class="ph ph-clock"></i> Pendente — clique em "Assinar"</span>
         </div>
 
         <!-- Grid de cards -->
