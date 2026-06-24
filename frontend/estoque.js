@@ -620,7 +620,6 @@ window.renderEstoqueHistorico = async function() {
                 '<td><span style="background:' + tipoBg + ';color:' + tipoColor + ';padding:2px 8px;border-radius:12px;font-size:0.8em;font-weight:600;">' + h.tipo + '</span></td>' +
                 '<td style="font-weight:700;color:' + tipoColor + '">' + sinal + h.quantidade + '</td>' +
                 '<td>' + (h.usuario || "-") + '</td>' +
-                '<td style="color:#475569;font-size:0.9em;max-width:180px;">' + (h.motivo || "-") + '</td>' +
                 '<td>' + endHtml + '</td>';
             table.appendChild(tr);
         });
