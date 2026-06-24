@@ -17667,6 +17667,76 @@ app.post('/api/estoque/:id/baixa', authenticateToken, (req, res) => {
     });
 });
 
+// ── Movimentar estoque (Entrada ou Saída) ────────────────────────────────────
+// Chamado pelo frontend (estoque.js) nos botões "Entrada de produtos" e "Saída de produtos"
+// Recebe: { quantidade: Number (+ = entrada, - = saída), endereco_id?: Number, motivo?: String }
+app.post('/api/estoque/:id/movimentar', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { quantidade, endereco_id, motivo } = req.body;
+    const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
+
+    const qtdRaw = parseInt(quantidade);
+    if (isNaN(qtdRaw) || qtdRaw === 0) {
+        return res.status(400).json({ error: 'Quantidade inválida. Informe um número diferente de zero.' });
+    }
+
+    const isEntrada = qtdRaw > 0;
+    const qtdAbs    = Math.abs(qtdRaw);
+    const tipo      = isEntrada ? 'Entrada' : 'Saída';
+    const motivoFinal = motivo || (isEntrada ? 'Entrada de produtos' : 'Saída de produtos');
+
+    db.get('SELECT * FROM estoque WHERE id = ?', [id], (err, item) => {
+        if (err)   return res.status(500).json({ error: err.message });
+        if (!item) return res.status(404).json({ error: 'Item de estoque não encontrado.' });
+
+        // Validação de saldo apenas para saídas
+        if (!isEntrada && item.quantidade_atual < qtdAbs) {
+            return res.status(400).json({ error: `Estoque insuficiente. Disponível: ${item.quantidade_atual} unid.` });
+        }
+
+        const novaQtd = isEntrada
+            ? item.quantidade_atual + qtdAbs
+            : item.quantidade_atual - qtdAbs;
+
+        db.run(
+            'UPDATE estoque SET quantidade_atual = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
+            [novaQtd, id],
+            (errU) => {
+                if (errU) return res.status(500).json({ error: errU.message });
+
+                // Atualizar saldo por endereço se informado
+                if (endereco_id) {
+                    if (isEntrada) {
+                        db.run(
+                            `INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade)
+                             VALUES (?, ?, ?)
+                             ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET quantidade = quantidade + ?`,
+                            [id, endereco_id, qtdAbs, qtdAbs], () => {}
+                        );
+                    } else {
+                        db.run(
+                            'UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?',
+                            [qtdAbs, id, endereco_id], () => {}
+                        );
+                    }
+                }
+
+                // Registrar no histórico
+                db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [endereco_id || null], (errE, rowE) => {
+                    const endNome = rowE ? rowE.nome : null;
+                    db.run(
+                        'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        [id, qtdAbs, tipo, usuario, motivoFinal, endereco_id || null, endNome],
+                        () => {}
+                    );
+                });
+
+                res.json({ success: true, quantidade_atual: novaQtd, tipo });
+            }
+        );
+    });
+});
+
 // Transferência de estoque entre endereços
 app.post('/api/estoque/:id/transferir', authenticateToken, (req, res) => {
     const { id } = req.params;
