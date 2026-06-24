@@ -19543,4 +19543,254 @@ console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
 
 
 
+
 try { require('../rescue_estoque.js'); } catch(e) { console.error('Rescue script error:', e); }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MÓDULO: TREINAMENTO / MATERIAIS
+// Tabelas: treinamentos, treinamento_anexos
+// Upload de arquivos via Cloudinary (resource_type: auto → suporta vídeo, PDF, imagem, etc.)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Criação das tabelas ───────────────────────────────────────────────────────
+db.run(`CREATE TABLE IF NOT EXISTS treinamentos (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome        TEXT NOT NULL,
+  descricao   TEXT DEFAULT '',
+  criado_em   DATETIME DEFAULT CURRENT_TIMESTAMP,
+  criado_por  TEXT DEFAULT ''
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS treinamento_anexos (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  treinamento_id   INTEGER NOT NULL REFERENCES treinamentos(id) ON DELETE CASCADE,
+  nome_arquivo     TEXT NOT NULL,
+  tipo_mime        TEXT DEFAULT '',
+  tamanho_bytes    INTEGER DEFAULT 0,
+  url_cloudinary   TEXT NOT NULL,
+  public_id        TEXT DEFAULT '',
+  enviado_em       DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
+// ── Multer (disk storage → Cloudinary → unlinkSync) ──────────────────────────
+const multerTrein = require('multer')({
+  storage: require('multer').diskStorage({
+    destination: (req, file, cb) => cb(null, require('os').tmpdir()),
+    filename:    (req, file, cb) => {
+      const ext = require('path').extname(file.originalname) || '';
+      cb(null, 'trein_' + Date.now() + '_' + Math.random().toString(36).slice(2) + ext);
+    }
+  }),
+  limits: { fileSize: 500 * 1024 * 1024 } // 500 MB
+});
+
+// Helper para decodificar nome do arquivo (multer / browser podem enviar Latin-1)
+function _fixFileName(nome) {
+  try { return Buffer.from(nome, 'latin1').toString('utf8'); } catch (e) { return nome; }
+}
+
+// ── GET /api/treinamentos — Lista todos com count de anexos ──────────────────
+app.get('/api/treinamentos', authenticateToken, (req, res) => {
+  const sql = `
+    SELECT t.*,
+      (SELECT json_group_array(json_object(
+          'id',             a.id,
+          'nome_arquivo',   a.nome_arquivo,
+          'tipo_mime',      a.tipo_mime,
+          'url_cloudinary', a.url_cloudinary,
+          'enviado_em',     a.enviado_em
+        ))
+       FROM treinamento_anexos a WHERE a.treinamento_id = t.id
+      ) AS _anexos_json
+    FROM treinamentos t
+    ORDER BY t.criado_em DESC`;
+
+  db.all(sql, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    const lista = (rows || []).map(r => {
+      let anexos = [];
+      try { anexos = JSON.parse(r._anexos_json || '[]'); } catch (_) {}
+      return { ...r, _anexos_json: undefined, anexos };
+    });
+    res.json(lista);
+  });
+});
+
+// ── POST /api/treinamentos — Cria treinamento ─────────────────────────────────
+app.post('/api/treinamentos', authenticateToken, (req, res) => {
+  const { nome, descricao } = req.body || {};
+  if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
+  const criado_por = req.user?.nome || req.user?.email || '';
+  db.run(
+    `INSERT INTO treinamentos (nome, descricao, criado_por) VALUES (?, ?, ?)`,
+    [nome.trim(), (descricao || '').trim(), criado_por],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.status(201).json({ id: this.lastID, nome: nome.trim(), descricao: descricao || '', anexos: [] });
+    }
+  );
+});
+
+// ── PUT /api/treinamentos/:id — Atualiza treinamento ─────────────────────────
+app.put('/api/treinamentos/:id', authenticateToken, (req, res) => {
+  const { nome, descricao } = req.body || {};
+  if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
+  db.run(
+    `UPDATE treinamentos SET nome = ?, descricao = ? WHERE id = ?`,
+    [nome.trim(), (descricao || '').trim(), req.params.id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Treinamento não encontrado.' });
+      res.json({ ok: true });
+    }
+  );
+});
+
+// ── DELETE /api/treinamentos/:id — Remove treinamento + anexos Cloudinary ────
+app.delete('/api/treinamentos/:id', authenticateToken, async (req, res) => {
+  try {
+    // Buscar public_ids dos anexos para deletar do Cloudinary
+    const anexos = await new Promise((resolve, reject) =>
+      db.all(`SELECT public_id, url_cloudinary FROM treinamento_anexos WHERE treinamento_id = ?`,
+        [req.params.id], (e, r) => e ? reject(e) : resolve(r || []))
+    );
+
+    // Deletar do Cloudinary em paralelo (ignorar erros individuais)
+    await Promise.allSettled(anexos.map(a => {
+      if (!a.public_id && !a.url_cloudinary) return Promise.resolve();
+      const pid = a.public_id || _extrairPublicId(a.url_cloudinary);
+      if (!pid) return Promise.resolve();
+      // Tenta deletar como 'auto' (Cloudinary detecta o tipo)
+      return cloudinary.uploader.destroy(pid, { resource_type: 'auto' }).catch(() =>
+        cloudinary.uploader.destroy(pid, { resource_type: 'video' }).catch(() =>
+          cloudinary.uploader.destroy(pid, { resource_type: 'image' }).catch(() => {})));
+    }));
+
+    // Deletar registros do banco (ON DELETE CASCADE cuida dos anexos)
+    await new Promise((resolve, reject) =>
+      db.run(`DELETE FROM treinamentos WHERE id = ?`, [req.params.id], function (e) {
+        if (e) return reject(e);
+        if (this.changes === 0) return reject({ status: 404, message: 'Treinamento não encontrado.' });
+        resolve();
+      })
+    );
+
+    res.json({ ok: true });
+  } catch (e) {
+    const status = e.status || 500;
+    res.status(status).json({ error: e.message || String(e) });
+  }
+});
+
+// ── GET /api/treinamentos/:id/anexos — Lista anexos ──────────────────────────
+app.get('/api/treinamentos/:id/anexos', authenticateToken, (req, res) => {
+  db.all(
+    `SELECT * FROM treinamento_anexos WHERE treinamento_id = ? ORDER BY enviado_em DESC`,
+    [req.params.id],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows || []);
+    }
+  );
+});
+
+// ── POST /api/treinamentos/:id/anexos — Upload de arquivo ────────────────────
+app.post('/api/treinamentos/:id/anexos', authenticateToken, multerTrein.single('arquivo'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+
+  const treinId   = req.params.id;
+  const nomeOrig  = _fixFileName(req.file.originalname || 'arquivo');
+  const mime      = req.file.mimetype || '';
+  const tamanho   = req.file.size || 0;
+  const tmpPath   = req.file.path;
+
+  try {
+    // Verificar se o treinamento existe
+    const trein = await new Promise((resolve, reject) =>
+      db.get(`SELECT id FROM treinamentos WHERE id = ?`, [treinId], (e, r) => e ? reject(e) : resolve(r))
+    );
+    if (!trein) {
+      try { fs.unlinkSync(tmpPath); } catch (_) {}
+      return res.status(404).json({ error: 'Treinamento não encontrado.' });
+    }
+
+    // Upload para o Cloudinary com resource_type: 'auto' (detecta vídeo, imagem, PDF…)
+    const result = await cloudinary.uploader.upload(tmpPath, {
+      resource_type: 'auto',
+      folder:        'treinamentos',
+      use_filename:  false,
+      unique_filename: true
+    });
+
+    // Limpar arquivo temporário
+    try { fs.unlinkSync(tmpPath); } catch (_) {}
+
+    const urlCloud = result.secure_url;
+    const publicId = result.public_id;
+
+    // Salvar no banco
+    db.run(
+      `INSERT INTO treinamento_anexos (treinamento_id, nome_arquivo, tipo_mime, tamanho_bytes, url_cloudinary, public_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [treinId, nomeOrig, mime, tamanho, urlCloud, publicId],
+      function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({
+          id: this.lastID,
+          treinamento_id: treinId,
+          nome_arquivo:   nomeOrig,
+          tipo_mime:      mime,
+          tamanho_bytes:  tamanho,
+          url_cloudinary: urlCloud,
+          public_id:      publicId
+        });
+      }
+    );
+  } catch (e) {
+    try { fs.unlinkSync(tmpPath); } catch (_) {}
+    console.error('[TREINAMENTO] Erro no upload:', e);
+    res.status(500).json({ error: e.message || 'Erro no upload' });
+  }
+});
+
+// ── DELETE /api/treinamentos/:id/anexos/:anexoId — Remove anexo ──────────────
+app.delete('/api/treinamentos/:id/anexos/:anexoId', authenticateToken, async (req, res) => {
+  try {
+    const anexo = await new Promise((resolve, reject) =>
+      db.get(`SELECT * FROM treinamento_anexos WHERE id = ? AND treinamento_id = ?`,
+        [req.params.anexoId, req.params.id], (e, r) => e ? reject(e) : resolve(r))
+    );
+    if (!anexo) return res.status(404).json({ error: 'Anexo não encontrado.' });
+
+    // Deletar do Cloudinary
+    const pid = anexo.public_id || _extrairPublicId(anexo.url_cloudinary);
+    if (pid) {
+      await cloudinary.uploader.destroy(pid, { resource_type: 'auto' }).catch(() =>
+        cloudinary.uploader.destroy(pid, { resource_type: 'video' }).catch(() =>
+          cloudinary.uploader.destroy(pid, { resource_type: 'image' }).catch(() => {})));
+    }
+
+    await new Promise((resolve, reject) =>
+      db.run(`DELETE FROM treinamento_anexos WHERE id = ?`, [req.params.anexoId],
+        e => e ? reject(e) : resolve())
+    );
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message || String(e) });
+  }
+});
+
+// ── Helper: extrai public_id de URL Cloudinary ────────────────────────────────
+function _extrairPublicId(url) {
+  if (!url) return '';
+  try {
+    // Ex: https://res.cloudinary.com/xxx/video/upload/v123/treinamentos/abc.mp4
+    //     → public_id = treinamentos/abc
+    const m = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[a-z0-9]+)?$/i);
+    return m ? m[1] : '';
+  } catch (_) { return ''; }
+}
+
+console.log('[TREINAMENTO] Módulo de treinamentos carregado.');
+
