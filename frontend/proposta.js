@@ -53,7 +53,7 @@ async function inicializarPropostas() {
 
 async function carregarPropostas() {
     try {
-        const data = await apiGet('/api/propostas');
+        const data = await apiGet('/propostas');
         _propostasData = Array.isArray(data) ? data : [];
     } catch (e) {
         console.error('[PROPOSTAS] Erro ao carregar:', e);
@@ -640,9 +640,9 @@ async function salvarProposta() {
     try {
         let resp;
         if (_propostasEditandoId) {
-            resp = await apiPut(`/api/propostas/${_propostasEditandoId}`, payload);
+            resp = await apiPut(`/propostas/${_propostasEditandoId}`, payload);
         } else {
-            resp = await apiPost('/api/propostas', payload);
+            resp = await apiPost('/propostas', payload);
         }
 
         if (resp && (resp.success || resp.id)) {
@@ -665,7 +665,7 @@ async function salvarProposta() {
 async function excluirProposta(id) {
     if (!confirm('Tem certeza que deseja excluir esta proposta? Esta ação não pode ser desfeita.')) return;
     try {
-        const resp = await apiDelete(`/api/propostas/${id}`);
+        const resp = await apiDelete(`/propostas/${id}`);
         if (resp && resp.success) {
             fecharFormProposta();
             await carregarPropostas();
@@ -1210,7 +1210,7 @@ window.atualizarClienteCentralizadorOptions = async function(selectedValue = nul
     // Se a lista de clientes no cache estiver vazia, vamos buscar uma vez
     if (!_clientesCache || _clientesCache.length === 0) {
         try {
-            _clientesCache = await apiGet('/api/clientes') || [];
+            _clientesCache = await apiGet('/clientes') || [];
         } catch (e) {
             console.error('Erro ao carregar clientes para centralizador:', e);
             _clientesCache = [];
@@ -1287,7 +1287,7 @@ window.buscarCNPJ = async function() {
     btn.disabled = true;
 
     try {
-        const result = await apiGet(`/api/consulta-cnpj/${cnpj}`);
+        const result = await apiGet(`/consulta-cnpj/${cnpj}`);
         if (!result || !result.data) {
             throw new Error('Retorno inválido do servidor.');
         }
@@ -1405,7 +1405,7 @@ window.abrirWhatsApp = function() {
 
 window.abrirModalPesquisaCliente = async function() {
     try {
-        const clientes = await apiGet('/api/clientes');
+        const clientes = await apiGet('/clientes');
         if (!clientes || clientes.length === 0) {
             Swal.fire('Aviso', 'Nenhum cliente cadastrado ainda.', 'info');
             return;
@@ -1454,7 +1454,7 @@ window.abrirModalPesquisaCliente = async function() {
 
 window.carregarClienteParaEdicao = async function(id) {
     try {
-        const c = await apiGet(`/api/clientes/${id}`);
+        const c = await apiGet(`/clientes/${id}`);
         if (!c) throw new Error('Cliente não encontrado.');
 
         _clienteEditandoId = c.id;
@@ -1780,9 +1780,9 @@ window.salvarCliente = async function() {
     try {
         let res;
         if (_clienteEditandoId) {
-            res = await apiPut(`/api/clientes/${_clienteEditandoId}`, payload);
+            res = await apiPut(`/clientes/${_clienteEditandoId}`, payload);
         } else {
-            res = await apiPost('/api/clientes', payload);
+            res = await apiPost('/clientes', payload);
         }
 
         if (res && res.success) {
@@ -1813,7 +1813,7 @@ window.excluirCliente = async function() {
     }
     
     try {
-        const res = await apiDelete(`/api/clientes/${_clienteEditandoId}`);
+        const res = await apiDelete(`/clientes/${_clienteEditandoId}`);
         if (res && res.success) {
             _clientesCache = []; // Limpar cache
             limparFormCliente();
