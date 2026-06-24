@@ -19536,7 +19536,161 @@ app.delete('/api/propostas/:id', authenticateToken, (req, res) => {
   });
 });
 
+// ══════════════════════════════════════════════════════════════════════
+// MÓDULO: CADASTRO DE CLIENTES
+// ══════════════════════════════════════════════════════════════════════
+
+db.run(`CREATE TABLE IF NOT EXISTS clientes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  codigo INTEGER UNIQUE,
+  data_cadastro TEXT,
+  inativo INTEGER DEFAULT 0,
+  cpf_cnpj TEXT UNIQUE,
+  inscricao_estadual TEXT,
+  inscricao_municipal TEXT,
+  rg TEXT,
+  data_nascimento TEXT,
+  grupo_clientes TEXT,
+  cliente_centralizador TEXT,
+  nome_razao_social TEXT,
+  nome_fantasia TEXT,
+  cep TEXT,
+  endereco TEXT,
+  numero TEXT,
+  complemento TEXT,
+  bairro TEXT,
+  uf TEXT,
+  municipio TEXT,
+  pais TEXT,
+  telefone TEXT,
+  ramal TEXT,
+  telefone_2 TEXT,
+  ramal_2 TEXT,
+  fax TEXT,
+  website TEXT,
+  celular_ddi TEXT,
+  celular TEXT,
+  parametros TEXT,
+  fiscal TEXT,
+  contatos TEXT,
+  validacao_dados TEXT,
+  anexo_arquivos TEXT,
+  criado_por TEXT,
+  criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+  atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+)`, (err) => {
+  if (err) console.error('[CLIENTES] Erro ao criar tabela:', err.message);
+  else console.log('[CLIENTES] Tabela clientes OK.');
+});
+
+// Gerar código sequencial único para cliente
+function gerarCodigoCliente(cb) {
+  db.get(`SELECT MAX(codigo) as max_seq FROM clientes`, [], (err, row) => {
+    const seq = (row && row.max_seq ? row.max_seq : 6000) + 1;
+    cb(seq);
+  });
+}
+
+// GET /api/clientes - Listar todos os clientes
+app.get('/api/clientes', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM clientes ORDER BY criado_em DESC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// GET /api/clientes/:id - Buscar cliente por ID ou Código
+app.get('/api/clientes/:id', authenticateToken, (req, res) => {
+  db.get('SELECT * FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Cliente não encontrado' });
+    res.json(row);
+  });
+});
+
+// POST /api/clientes - Criar novo cliente
+app.post('/api/clientes', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  const insertClient = (codigo) => {
+    db.run(`INSERT INTO clientes (
+      codigo, data_cadastro, inativo, cpf_cnpj, inscricao_estadual, inscricao_municipal,
+      rg, data_nascimento, grupo_clientes, cliente_centralizador, nome_razao_social,
+      nome_fantasia, cep, endereco, numero, complemento, bairro, uf, municipio,
+      pais, telefone, ramal, telefone_2, ramal_2, fax, website, celular_ddi,
+      celular, parametros, fiscal, contatos, validacao_dados, anexo_arquivos,
+      criado_por, criado_em, atualizado_em
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [
+      codigo, d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
+      d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
+      d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
+      d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.celular_ddi,
+      d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
+      d.criado_por, agora, agora
+    ], function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE constraint failed: clientes.cpf_cnpj')) {
+          return res.status(400).json({ error: 'Já existe um cliente cadastrado com este CPF/CNPJ.' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ success: true, id: this.lastID, codigo });
+    });
+  };
+
+  if (d.codigo) {
+    insertClient(d.codigo);
+  } else {
+    gerarCodigoCliente((codigo) => {
+      insertClient(codigo);
+    });
+  }
+});
+
+// PUT /api/clientes/:id - Atualizar cliente
+app.put('/api/clientes/:id', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  db.run(`UPDATE clientes SET
+    data_cadastro=?, inativo=?, cpf_cnpj=?, inscricao_estadual=?, inscricao_municipal=?,
+    rg=?, data_nascimento=?, grupo_clientes=?, cliente_centralizador=?, nome_razao_social=?,
+    nome_fantasia=?, cep=?, endereco=?, numero=?, complemento=?, bairro=?, uf=?, municipio=?,
+    pais=?, telefone=?, ramal=?, telefone_2=?, ramal_2=?, fax=?, website=?, celular_ddi=?,
+    celular=?, parametros=?, fiscal=?, contatos=?, validacao_dados=?, anexo_arquivos=?,
+    atualizado_em=?
+    WHERE id=? OR codigo=?`,
+  [
+    d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
+    d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
+    d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
+    d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.celular_ddi,
+    d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
+    agora, req.params.id, req.params.id
+  ], function(err) {
+    if (err) {
+      if (err.message.includes('UNIQUE constraint failed: clientes.cpf_cnpj')) {
+        return res.status(400).json({ error: 'Já existe outro cliente cadastrado com este CPF/CNPJ.' });
+      }
+      return res.status(500).json({ error: err.message });
+    }
+    if (this.changes === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
+    res.json({ success: true });
+  });
+});
+
+// DELETE /api/clientes/:id - Excluir cliente
+app.delete('/api/clientes/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
+    res.json({ success: true });
+  });
+});
+
 console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
+console.log('[CLIENTES] Módulo de cadastro de clientes carregado.');
 
 
 

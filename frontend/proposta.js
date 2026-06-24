@@ -40,7 +40,9 @@ const PROP_STATUS_CORES = {
 
 let _propostasData = [];
 let _propostasEditandoId = null;
-let _currentPropostaTab = 'lista'; // 'lista' ou 'form'
+let _currentPropostaTab = 'lista'; // 'lista', 'form' ou 'cadastro-cliente'
+let _clienteEditandoId = null;
+let _clienteContatos = [];
 
 /* ── Inicialização ──────────────────────────────────────────────────── */
 async function inicializarPropostas() {
@@ -87,6 +89,9 @@ function renderTelaPropostas() {
                 </button>
                 <button id="tab-prop-form" onclick="switchPropostaTab('form')" style="background:none; border:none; border-bottom:2px solid ${_currentPropostaTab === 'form' ? '#7048e8' : 'transparent'}; color:${_currentPropostaTab === 'form' ? '#7048e8' : '#64748b'}; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem; outline:none; transition:all 0.2s;">
                     <i class="ph ph-pencil-simple"></i> <span id="tab-prop-form-text">${_propostasEditandoId ? 'Editar Proposta' : 'Nova Proposta'}</span>
+                </button>
+                <button id="tab-prop-cadastro-cliente" onclick="switchPropostaTab('cadastro-cliente')" style="background:none; border:none; border-bottom:2px solid ${_currentPropostaTab === 'cadastro-cliente' ? '#7048e8' : 'transparent'}; color:${_currentPropostaTab === 'cadastro-cliente' ? '#7048e8' : '#64748b'}; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem; outline:none; transition:all 0.2s;">
+                    <i class="ph ph-user"></i> Cadastro de Cliente
                 </button>
             </div>
 
@@ -162,6 +167,9 @@ function renderTelaPropostas() {
             <!-- VIEW: FORMULÁRIO -->
             <div id="prop-view-form" style="display:${_currentPropostaTab === 'form' ? 'block' : 'none'};"></div>
 
+            <!-- VIEW: CADASTRO CLIENTE -->
+            <div id="prop-view-cadastro-cliente" style="display:${_currentPropostaTab === 'cadastro-cliente' ? 'block' : 'none'};"></div>
+
         </div>
     `;
 
@@ -175,32 +183,35 @@ window.switchPropostaTab = function(tab) {
     
     const viewLista = document.getElementById('prop-view-lista');
     const viewForm = document.getElementById('prop-view-form');
+    const viewCadastroCliente = document.getElementById('prop-view-cadastro-cliente');
     const tabLista = document.getElementById('tab-prop-lista');
     const tabForm = document.getElementById('tab-prop-form');
+    const tabCadastroCliente = document.getElementById('tab-prop-cadastro-cliente');
 
-    if (viewLista && viewForm && tabLista && tabForm) {
+    if (viewLista && viewForm && viewCadastroCliente && tabLista && tabForm && tabCadastroCliente) {
         if (tab === 'form' && viewForm.innerHTML.trim() === '') {
             _renderFormPropostaInt();
         }
+        if (tab === 'cadastro-cliente' && viewCadastroCliente.innerHTML.trim() === '') {
+            _renderCadastroClienteInt();
+        }
 
-        if (tab === 'lista') {
-            viewLista.style.display = 'block';
-            viewForm.style.display = 'none';
-            tabLista.style.borderBottom = '2px solid #7048e8';
-            tabLista.style.color = '#7048e8';
-            tabForm.style.borderBottom = '2px solid transparent';
-            tabForm.style.color = '#64748b';
-        } else {
-            viewLista.style.display = 'none';
-            viewForm.style.display = 'block';
-            tabLista.style.borderBottom = '2px solid transparent';
-            tabLista.style.color = '#64748b';
-            tabForm.style.borderBottom = '2px solid #7048e8';
-            tabForm.style.color = '#7048e8';
+        viewLista.style.display = tab === 'lista' ? 'block' : 'none';
+        viewForm.style.display = tab === 'form' ? 'block' : 'none';
+        viewCadastroCliente.style.display = tab === 'cadastro-cliente' ? 'block' : 'none';
 
+        tabLista.style.borderBottom = tab === 'lista' ? '2px solid #7048e8' : 'transparent';
+        tabLista.style.color = tab === 'lista' ? '#7048e8' : '#64748b';
+
+        tabForm.style.borderBottom = tab === 'form' ? '2px solid #7048e8' : 'transparent';
+        tabForm.style.color = tab === 'form' ? '#7048e8' : '#64748b';
+        if (tab === 'form') {
             const span = document.getElementById('tab-prop-form-text');
             if (span) span.innerText = _propostasEditandoId ? 'Editar Proposta' : 'Nova Proposta';
         }
+
+        tabCadastroCliente.style.borderBottom = tab === 'cadastro-cliente' ? '2px solid #7048e8' : 'transparent';
+        tabCadastroCliente.style.color = tab === 'cadastro-cliente' ? '#7048e8' : '#64748b';
     } else {
         renderTelaPropostas();
     }
@@ -830,4 +841,909 @@ window.imprimirProposta       = imprimirProposta;
 window.calcularDiasContrato   = calcularDiasContrato;
 window.calcularDescontoReais  = calcularDescontoReais;
 
+// ══════════════════════════════════════════════════════════════════════
+// CADASTRO DE CLIENTES: RENDER & EVENT HANDLERS
+// ══════════════════════════════════════════════════════════════════════
+
+function _renderCadastroClienteInt() {
+    const container = document.getElementById('prop-view-cadastro-cliente');
+    if (!container) return;
+    
+    const hoje = new Date().toISOString().split('T')[0];
+    
+    container.innerHTML = `
+        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:hidden; margin:auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif;">
+            
+            <!-- Barra de Ferramentas (Toolbar Azul/Roxa da imagem) -->
+            <div style="background:#3b5bdb; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">
+                <button onclick="recarregarCliente()" style="background:#4c6ef5;color:white;border:none;padding:0.5rem 1rem;border-radius:5px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;transition:background 0.2s;" onmouseover="this.style.background='#3b5bdb'" onmouseout="this.style.background='#4c6ef5'">
+                    <i class="ph ph-arrows-counter-clockwise"></i> Recarregar
+                </button>
+                <button onclick="salvarCliente()" style="background:#4c6ef5;color:white;border:none;padding:0.5rem 1rem;border-radius:5px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;transition:background 0.2s;" onmouseover="this.style.background='#3b5bdb'" onmouseout="this.style.background='#4c6ef5'">
+                    <i class="ph ph-check-square-offset"></i> Processar
+                </button>
+                <button onclick="excluirCliente()" style="background:#4c6ef5;color:white;border:none;padding:0.5rem 1rem;border-radius:5px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;transition:background 0.2s;" onmouseover="this.style.background='#3b5bdb'" onmouseout="this.style.background='#4c6ef5'">
+                    <i class="ph ph-trash"></i> Excluir
+                </button>
+                <button onclick="verificarCliente()" style="background:#4c6ef5;color:white;border:none;padding:0.5rem 1rem;border-radius:5px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;transition:background 0.2s;" onmouseover="this.style.background='#3b5bdb'" onmouseout="this.style.background='#4c6ef5'">
+                    <i class="ph ph-shield-check"></i> Verificar
+                </button>
+            </div>
+
+            <!-- Corpo da Tela -->
+            <div style="padding:1.5rem; overflow-y:auto; max-height:80vh;">
+                
+                <!-- Cabeçalho Roxo da Tela -->
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#7048e8; padding:0.6rem 1.2rem; border-radius:8px 8px 0 0; color:white; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+                    <div style="font-weight:bold; font-size:1.05rem; display:flex; align-items:center; gap:0.5rem;">
+                        <i class="ph ph-user-focus"></i> Cadastro de Cliente
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.8rem; font-size:0.85rem;">
+                        <span style="background:rgba(255,255,255,0.2); padding:0.35rem 0.75rem; border-radius:5px; font-weight:600;">
+                            Pesquise pelo CNPJ para completar o cadastro.
+                        </span>
+                        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600;">
+                            <input type="checkbox" id="cli-inativo" style="accent-color:#7048e8;"> Inativo?
+                        </label>
+                    </div>
+                </div>
+
+                <form id="form-cadastro-cliente" onsubmit="return false;" style="margin-bottom:1.5rem;">
+                    
+                    <!-- Grid Principal: Campos e Foto -->
+                    <div style="display:flex; gap:1.5rem; flex-wrap:wrap;">
+                        
+                        <!-- Coluna dos Campos (Esquerda) -->
+                        <div style="flex:1; min-width:300px; display:grid; gap:0.85rem;">
+                            
+                            <!-- Linha 1: Código, Data Cadastro, CPF/CNPJ, IE -->
+                            <div style="display:grid; grid-template-columns:1.2fr 1fr 1.5fr 1.5fr; gap:0.75rem;">
+                                <div>
+                                    <label class="prop-lbl">Código</label>
+                                    <div style="display:flex; gap:3px;">
+                                        <input type="text" id="cli-codigo" readonly placeholder="Auto" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;background:#f1f5f9;color:#64748b;box-sizing:border-box;">
+                                        <button onclick="abrirModalPesquisaCliente()" title="Buscar Cliente" style="background:#82c91e;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
+                                        <button onclick="limparFormCliente()" title="Limpar/Novo" style="background:#495057;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-arrows-counter-clockwise"></i></button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="prop-lbl">Data de Cadastro</label>
+                                    <input type="date" id="cli-data-cadastro" value="${hoje}" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label class="prop-lbl">CPF / CNPJ *</label>
+                                    <div style="display:flex; gap:3px;">
+                                        <input type="text" id="cli-cpf-cnpj" placeholder="Apenas números" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                        <button onclick="buscarCNPJ()" id="btn-busca-cnpj" title="Buscar CNPJ" style="background:#82c91e;color:white;border:none;padding:0.45rem 0.6rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:bold;gap:3px;"><i class="ph ph-magnifying-glass"></i></button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="prop-lbl">Inscrição Estadual</label>
+                                    <input type="text" id="cli-ie" placeholder="ISENTO" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                </div>
+                            </div>
+
+                            <!-- Linha 2: IM, RG, Nasc, Grupo, Centralizador -->
+                            <div style="display:grid; grid-template-columns:1.2fr 1fr 1fr 1.5fr 1.3fr; gap:0.75rem;">
+                                <div>
+                                    <label class="prop-lbl">Inscrição Municipal</label>
+                                    <input type="text" id="cli-im" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label class="prop-lbl">RG</label>
+                                    <input type="text" id="cli-rg" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label class="prop-lbl">Data Nascimento</label>
+                                    <input type="date" id="cli-data-nascimento" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label class="prop-lbl">Grupo de Clientes</label>
+                                    <select id="cli-grupo" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                        <option value="Não Pertence">Não Pertence</option>
+                                        <option value="Fidelidade">Fidelidade</option>
+                                        <option value="VIP">VIP</option>
+                                        <option value="Corporativo">Corporativo</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="prop-lbl">Cliente Centralizador</label>
+                                    <input type="text" id="cli-centralizador" placeholder="0" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                </div>
+                            </div>
+
+                            <!-- Linha 3: Razão Social -->
+                            <div>
+                                <label class="prop-lbl">Nome / Razão Social *</label>
+                                <input type="text" id="cli-razao-social" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                            </div>
+
+                            <!-- Linha 4: Nome Fantasia -->
+                            <div>
+                                <label class="prop-lbl">Nome Fantasia</label>
+                                <input type="text" id="cli-nome-fantasia" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                            </div>
+                        </div>
+
+                        <!-- Foto/Avatar (Direita) -->
+                        <div style="flex:0 0 160px; display:flex; flex-direction:column; align-items:center; justify-content:center; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; padding:1rem; box-sizing:border-box;">
+                            <div style="width:100px; height:100px; border-radius:50%; background:#e2e8f0; display:flex; align-items:center; justify-content:center; margin-bottom:0.75rem; border:2px solid #cbd5e1; overflow:hidden;">
+                                <i class="ph ph-user" style="font-size:3rem; color:#94a3b8;"></i>
+                            </div>
+                            <button onclick="alert('Funcionalidade de foto em desenvolvimento')" style="background:#495057;color:white;border:none;padding:0.4rem 0.8rem;border-radius:4px;font-size:0.75rem;font-weight:600;cursor:pointer;">
+                                Alterar Foto
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Endereço -->
+                    <div style="display:grid; grid-template-columns:1.2fr 3fr 1fr 1.5fr; gap:0.75rem; margin-top:0.85rem;">
+                        <div>
+                            <label class="prop-lbl">CEP</label>
+                            <div style="display:flex; gap:3px;">
+                                <input type="text" id="cli-cep" placeholder="00000-000" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                <button onclick="buscarCEP()" title="Buscar CEP" style="background:#82c91e;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Endereço</label>
+                            <input type="text" id="cli-endereco" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Número</label>
+                            <input type="text" id="cli-numero" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Complemento</label>
+                            <input type="text" id="cli-complemento" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+                    </div>
+
+                    <!-- Bairro/Cidade -->
+                    <div style="display:grid; grid-template-columns:2fr 1fr 2fr 1fr; gap:0.75rem; margin-top:0.85rem;">
+                        <div>
+                            <label class="prop-lbl">Bairro</label>
+                            <input type="text" id="cli-bairro" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">UF</label>
+                            <select id="cli-uf" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                <option value="">--</option>
+                                ${['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
+                                    .map(uf => `<option value="${uf}">${uf}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Município</label>
+                            <input type="text" id="cli-municipio" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">País</label>
+                            <input type="text" id="cli-pais" value="BRASIL" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+                    </div>
+
+                    <!-- Contatos / Tel -->
+                    <div style="display:grid; grid-template-columns:1.5fr 0.8fr 1.5fr 0.8fr 1fr 1.5fr; gap:0.75rem; margin-top:0.85rem;">
+                        <div>
+                            <label class="prop-lbl">Telefone</label>
+                            <input type="text" id="cli-telefone" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Ramal</label>
+                            <input type="text" id="cli-ramal" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Telefone 2</label>
+                            <input type="text" id="cli-telefone2" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Ramal</label>
+                            <input type="text" id="cli-ramal2" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Fax</label>
+                            <input type="text" id="cli-fax" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Website</label>
+                            <input type="text" id="cli-website" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+                    </div>
+
+                    <!-- Celular e WhatsApp -->
+                    <div style="display:grid; grid-template-columns:1.5fr 2fr auto 1.5fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
+                        <div>
+                            <label class="prop-lbl">DDI do Celular</label>
+                            <select id="cli-celular-ddi" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                <option value="+55 (BRASIL)">+55 (BRASIL)</option>
+                                <option value="+1 (EUA)">+1 (EUA)</option>
+                                <option value="+351 (PORTUGAL)">+351 (PORTUGAL)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Celular</label>
+                            <input type="text" id="cli-celular" placeholder="(XX)XXXXX-XXXX" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <button onclick="abrirWhatsApp()" style="background:#25d366;color:white;border:none;padding:0.5rem;border-radius:4px;cursor:pointer;font-size:1.15rem;display:flex;align-items:center;justify-content:center;height:34px;width:38px;"><i class="ph ph-whatsapp-logo"></i></button>
+                        </div>
+                        <div>
+                            <button onclick="alert('Abrindo CRM...')" style="background:#3b5bdb;color:white;border:none;padding:0.45rem 1rem;border-radius:4px;font-weight:600;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:5px;height:34px;justify-content:center;"><i class="ph ph-briefcase"></i> Abrir no CRM</button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- ACORDEÕES EXPANSÍVEIS -->
+                <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1.5rem;">
+                    
+                    <!-- Parâmetros -->
+                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                        <div onclick="toggleAccordion('acc-parametros')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                            <span>▶ Parâmetros <i class="ph ph-gear-six"></i></span>
+                            <span id="acc-parametros-arrow" style="transition:transform 0.2s;">▶</span>
+                        </div>
+                        <div id="acc-parametros" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                                <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="cli-p-limite"> Bloquear faturamento por limite de crédito</label>
+                                <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="cli-p-retencao"> Exigir retenção de impostos em notas fiscais</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fiscal -->
+                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                        <div onclick="toggleAccordion('acc-fiscal')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                            <span>▶ Fiscal <i class="ph ph-wrench"></i></span>
+                            <span id="acc-fiscal-arrow" style="transition:transform 0.2s;">▶</span>
+                        </div>
+                        <div id="acc-fiscal" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem;">
+                                <div>
+                                    <label class="prop-lbl">Enquadramento Tributário</label>
+                                    <select id="cli-f-tributario" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;">
+                                        <option value="Simples Nacional">Simples Nacional</option>
+                                        <option value="Lucro Presumido">Lucro Presumido</option>
+                                        <option value="Lucro Real">Lucro Real</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="prop-lbl">Regime Especial ISS</label>
+                                    <input type="text" id="cli-f-iss" placeholder="Ex: Nenhum" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;">
+                                </div>
+                                <div>
+                                    <label class="prop-lbl">CNAE Principal</label>
+                                    <input type="text" id="cli-f-cnae" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contatos (Expandido por padrão) -->
+                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                        <div onclick="toggleAccordion('acc-contatos')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                            <span>▼ Contatos <i class="ph ph-users-three"></i></span>
+                            <span id="acc-contatos-arrow" style="transform:rotate(90deg); transition:transform 0.2s;">▶</span>
+                        </div>
+                        <div id="acc-contatos" style="display:block; padding:1.2rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                            
+                            <!-- Controles de e-mail e botão novo contato -->
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+                                <div style="display:flex; align-items:center; gap:8px; font-weight:600;">
+                                    <span>Dados para Envio de E-Mail Cobranças: Enviar com</span>
+                                    <input type="number" id="cli-email-cob-antecedencia" value="5" style="width:45px; text-align:center; padding:3px; border:1px solid #cbd5e1; border-radius:4px;">
+                                    <span>dias de antecedência e</span>
+                                    <input type="number" id="cli-email-cob-posterior" value="5" style="width:45px; text-align:center; padding:3px; border:1px solid #cbd5e1; border-radius:4px;">
+                                    <span>dias posterior ao Vencimento</span>
+                                </div>
+                                <button onclick="abrirModalNovoContato()" style="background:#007bff; color:white; border:none; padding:0.45rem 1rem; border-radius:4px; font-weight:bold; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                                    <i class="ph ph-plus-bold"></i> Novo Contato
+                                </button>
+                            </div>
+
+                            <!-- Tabela de contatos cadastrados -->
+                            <div style="background:#fff; border-radius:8px; border:1px solid #e2e8f0; overflow-x:auto;">
+                                <table style="width:100%; border-collapse:collapse; font-size:0.8rem; min-width:1200px;">
+                                    <thead>
+                                        <tr style="background:#007bff; color:white; text-align:left;">
+                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Identificação</th>
+                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Nome</th>
+                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Departamento</th>
+                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Celular</th>
+                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Telefone/Ramal</th>
+                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">E-mail</th>
+                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Dono</th>
+                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Cargo</th>
+                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Situação</th>
+                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Recebe E-mail de NFe - XML e Danfe</th>
+                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Recebe E-mail de Cobrança e Boleto</th>
+                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Recebe E-mail de Situação de OS</th>
+                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Recebe E-mail de Situação de Contrato</th>
+                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Origem</th>
+                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Inativo</th>
+                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600; text-align:center;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cli-contatos-tbody">
+                                        <!-- Populado dinamicamente -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Validação de Dados (DataValid) -->
+                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                        <div onclick="toggleAccordion('acc-validacao')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                            <span>▶ Validação de Dados (DataValid) <i class="ph ph-check-circle"></i></span>
+                            <span id="acc-validacao-arrow" style="transition:transform 0.2s;">▶</span>
+                        </div>
+                        <div id="acc-validacao" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                            <div style="color:#155724; background-color:#d4edda; border:1px solid #c3e6cb; padding:0.75rem 1.25rem; border-radius:4px; font-weight:600; display:flex; align-items:center; gap:5px;">
+                                <i class="ph ph-check-circle-bold" style="font-size:1.2rem;"></i> Todos os dados cadastrais estão de acordo com a Receita Federal e Sintegra.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Anexo de Arquivos -->
+                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                        <div onclick="toggleAccordion('acc-anexos')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                            <span>▶ Anexo de Arquivos <i class="ph ph-file-arrow-up"></i></span>
+                            <span id="acc-anexos-arrow" style="transition:transform 0.2s;">▶</span>
+                        </div>
+                        <div id="acc-anexos" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                            <input type="file" id="cli-anexo-file" style="margin-bottom:0.5rem; display:block;">
+                            <span style="color:#64748b; font-size:0.75rem;">(Formatos permitidos: PDF, PNG, JPG até 5MB)</span>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    `;
+
+    _renderTabelaContatos();
+}
+
+window.toggleAccordion = function(id) {
+    const el = document.getElementById(id);
+    const arrow = document.getElementById(id + '-arrow');
+    if (el) {
+        if (el.style.display === 'none') {
+            el.style.display = 'block';
+            if (arrow) arrow.innerText = '▼';
+        } else {
+            el.style.display = 'none';
+            if (arrow) arrow.innerText = '▶';
+        }
+    }
+};
+
+window.buscarCNPJ = async function() {
+    const cnpjRaw = document.getElementById('cli-cpf-cnpj')?.value || '';
+    const cnpj = cnpjRaw.replace(/\D/g, '');
+    if (cnpj.length !== 14) {
+        alert('Por favor, informe um CNPJ válido com 14 dígitos para buscar.');
+        return;
+    }
+    
+    const btn = document.getElementById('btn-busca-cnpj');
+    const origText = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+        if (!res.ok) throw new Error('CNPJ não encontrado ou erro na busca.');
+        const data = await res.json();
+        
+        document.getElementById('cli-razao-social').value = data.razao_social || '';
+        document.getElementById('cli-nome-fantasia').value = data.nome_fantasia || '';
+        document.getElementById('cli-cep').value = data.cep || '';
+        document.getElementById('cli-endereco').value = (data.logradouro || '') + (data.numero ? ', ' + data.numero : '');
+        document.getElementById('cli-bairro').value = data.bairro || '';
+        document.getElementById('cli-uf').value = data.uf || '';
+        document.getElementById('cli-municipio').value = data.municipio || '';
+        document.getElementById('cli-pais').value = 'BRASIL';
+        if (data.ddd_telefone_1) {
+            document.getElementById('cli-telefone').value = `(${data.ddd_telefone_1.substring(0,2)}) ${data.ddd_telefone_1.substring(2)}`;
+        }
+        
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Dados do CNPJ importados com sucesso!');
+        }
+    } catch(e) {
+        console.error(e);
+        alert('Erro ao buscar CNPJ: ' + e.message);
+    } finally {
+        btn.innerHTML = origText;
+        btn.disabled = false;
+    }
+};
+
+window.buscarCEP = async function() {
+    const cepRaw = document.getElementById('cli-cep')?.value || '';
+    const cep = cepRaw.replace(/\D/g, '');
+    if (cep.length !== 8) {
+        alert('Por favor, informe um CEP válido com 8 dígitos.');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        if (!res.ok) throw new Error('CEP não encontrado.');
+        const data = await res.json();
+        if (data.erro) throw new Error('CEP inexistente.');
+        
+        document.getElementById('cli-endereco').value = data.logradouro || '';
+        document.getElementById('cli-bairro').value = data.bairro || '';
+        document.getElementById('cli-uf').value = data.uf || '';
+        document.getElementById('cli-municipio').value = data.localidade || '';
+        document.getElementById('cli-pais').value = 'BRASIL';
+        
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Endereço importado com sucesso!');
+        }
+    } catch(e) {
+        console.error(e);
+        alert('Erro ao buscar CEP: ' + e.message);
+    }
+};
+
+window.abrirWhatsApp = function() {
+    const cel = document.getElementById('cli-celular')?.value || '';
+    const cleanCel = cel.replace(/\D/g, '');
+    if (!cleanCel) {
+        alert('Por favor, informe o celular primeiro.');
+        return;
+    }
+    window.open(`https://wa.me/55${cleanCel}`, '_blank');
+};
+
+window.abrirModalPesquisaCliente = async function() {
+    try {
+        const clientes = await apiGet('/api/clientes');
+        if (!clientes || clientes.length === 0) {
+            Swal.fire('Aviso', 'Nenhum cliente cadastrado ainda.', 'info');
+            return;
+        }
+
+        const rowsHtml = clientes.map(c => `
+            <tr onclick="selectClientePesquisa(${c.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo}</td>
+                <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social}</td>
+                <td style="padding:0.5rem; text-align:left;">${c.cpf_cnpj}</td>
+            </tr>
+        `).join('');
+
+        window.selectClientePesquisa = function(id) {
+            Swal.close();
+            carregarClienteParaEdicao(id);
+        };
+
+        Swal.fire({
+            title: 'Pesquisar Cliente',
+            html: `
+                <div style="max-height:400px; overflow-y:auto;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                        <thead>
+                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1;">
+                                <th style="padding:0.5rem; text-align:left;">Código</th>
+                                <th style="padding:0.5rem; text-align:left;">Nome / Razão Social</th>
+                                <th style="padding:0.5rem; text-align:left;">CPF / CNPJ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            `,
+            showConfirmButton: false,
+            showCancelButton: true,
+            cancelButtonText: 'Fechar'
+        });
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao carregar lista de clientes: ' + e.message);
+    }
+};
+
+window.carregarClienteParaEdicao = async function(id) {
+    try {
+        const c = await apiGet(`/api/clientes/${id}`);
+        if (!c) throw new Error('Cliente não encontrado.');
+
+        _clienteEditandoId = c.id;
+        document.getElementById('cli-codigo').value = c.codigo || '';
+        document.getElementById('cli-data-cadastro').value = c.data_cadastro || '';
+        document.getElementById('cli-inativo').checked = c.inativo === 1;
+        document.getElementById('cli-cpf-cnpj').value = c.cpf_cnpj || '';
+        document.getElementById('cli-ie').value = c.inscricao_estadual || '';
+        document.getElementById('cli-im').value = c.inscricao_municipal || '';
+        document.getElementById('cli-rg').value = c.rg || '';
+        document.getElementById('cli-data-nascimento').value = c.data_nascimento || '';
+        document.getElementById('cli-grupo').value = c.grupo_clientes || 'Não Pertence';
+        document.getElementById('cli-centralizador').value = c.cliente_centralizador || '';
+        document.getElementById('cli-razao-social').value = c.nome_razao_social || '';
+        document.getElementById('cli-nome-fantasia').value = c.nome_fantasia || '';
+        document.getElementById('cli-cep').value = c.cep || '';
+        document.getElementById('cli-endereco').value = c.endereco || '';
+        document.getElementById('cli-numero').value = c.numero || '';
+        document.getElementById('cli-complemento').value = c.complemento || '';
+        document.getElementById('cli-bairro').value = c.bairro || '';
+        document.getElementById('cli-uf').value = c.uf || '';
+        document.getElementById('cli-municipio').value = c.municipio || '';
+        document.getElementById('cli-pais').value = c.pais || 'BRASIL';
+        document.getElementById('cli-telefone').value = c.telefone || '';
+        document.getElementById('cli-ramal').value = c.ramal || '';
+        document.getElementById('cli-telefone2').value = c.telefone_2 || '';
+        document.getElementById('cli-ramal2').value = c.ramal_2 || '';
+        document.getElementById('cli-fax').value = c.fax || '';
+        document.getElementById('cli-website').value = c.website || '';
+        document.getElementById('cli-celular-ddi').value = c.celular_ddi || '+55 (BRASIL)';
+        document.getElementById('cli-celular').value = c.celular || '';
+
+        // Carregar contatos e acordeões
+        try {
+            _clienteContatos = JSON.parse(c.contatos || '[]');
+        } catch(e) {
+            _clienteContatos = [];
+        }
+        _renderTabelaContatos();
+
+        // Carregar outros campos JSON
+        try {
+            const p = JSON.parse(c.parametros || '{}');
+            document.getElementById('cli-p-limite').checked = !!p.limite;
+            document.getElementById('cli-p-retencao').checked = !!p.retencao;
+        } catch(e) {}
+
+        try {
+            const f = JSON.parse(c.fiscal || '{}');
+            document.getElementById('cli-f-tributario').value = f.enquadramento || 'Simples Nacional';
+            document.getElementById('cli-f-iss').value = f.regime_iss || '';
+            document.getElementById('cli-f-cnae').value = f.cnae || '';
+        } catch(e) {}
+
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso(`Cliente ${c.codigo} carregado com sucesso!`);
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao carregar dados do cliente: ' + e.message);
+    }
+};
+
+window.limparFormCliente = function() {
+    _clienteEditandoId = null;
+    _clienteContatos = [];
+    
+    const form = document.getElementById('form-cadastro-cliente');
+    if (form) form.reset();
+    
+    document.getElementById('cli-codigo').value = '';
+    document.getElementById('cli-inativo').checked = false;
+    
+    // Resetar checkboxes adicionais
+    const checkLimite = document.getElementById('cli-p-limite');
+    if (checkLimite) checkLimite.checked = false;
+    const checkRetencao = document.getElementById('cli-p-retencao');
+    if (checkRetencao) checkRetencao.checked = false;
+    
+    // Resetar campos fiscais
+    const tributario = document.getElementById('cli-f-tributario');
+    if (tributario) tributario.value = 'Simples Nacional';
+    const iss = document.getElementById('cli-f-iss');
+    if (iss) iss.value = '';
+    const cnae = document.getElementById('cli-f-cnae');
+    if (cnae) cnae.value = '';
+
+    _renderTabelaContatos();
+};
+
+window._renderTabelaContatos = function() {
+    const tbody = document.getElementById('cli-contatos-tbody');
+    if (!tbody) return;
+    
+    if (_clienteContatos.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="16" style="padding:1rem; text-align:center; color:#94a3b8;">
+                    Nenhum contato adicionado.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = _clienteContatos.map((c, idx) => `
+        <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+            <td style="padding:0.5rem; color:#475569;">${c.identificacao}</td>
+            <td style="padding:0.5rem; color:#1e293b; font-weight:600;">${c.nome}</td>
+            <td style="padding:0.5rem; color:#475569;">${c.departamento || '—'}</td>
+            <td style="padding:0.5rem; color:#475569;">${c.celular || '—'}</td>
+            <td style="padding:0.5rem; color:#475569;">${c.telefone_ramal || '—'}</td>
+            <td style="padding:0.5rem; color:#475569;">${c.email}</td>
+            <td style="padding:0.5rem; color:#475569;">${c.dono || '—'}</td>
+            <td style="padding:0.5rem; color:#475569;">${c.cargo || '—'}</td>
+            <td style="padding:0.5rem; color:#475569;">${c.situacao || '—'}</td>
+            <td style="padding:0.5rem; color:#475569;">${c.nfe || 'Não'}</td>
+            <td style="padding:0.5rem; color:#475569;">${c.cobranca || 'Não'}</td>
+            <td style="padding:0.5rem; color:#475569;">${c.os || 'Não'}</td>
+            <td style="padding:0.5rem; color:#475569;">${c.contrato || 'Não'}</td>
+            <td style="padding:0.5rem; color:#475569;">${c.origem || '—'}</td>
+            <td style="padding:0.5rem; color:#475569;">${c.inativo || 'Não'}</td>
+            <td style="padding:0.5rem; text-align:center;">
+                <button onclick="removerContato(${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:3px 6px; border-radius:4px; cursor:pointer;" title="Remover Contato"><i class="ph ph-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+};
+
+window.removerContato = function(idx) {
+    if (confirm('Deseja realmente remover este contato?')) {
+        _clienteContatos.splice(idx, 1);
+        _renderTabelaContatos();
+    }
+};
+
+window.abrirModalNovoContato = function() {
+    Swal.fire({
+        title: 'Novo Contato',
+        html: `
+            <div style="text-align:left; display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; font-size:0.85rem;">
+                <div>
+                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Identificação *</label>
+                    <input id="swal-contato-id" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;" placeholder="Ex: 14848">
+                </div>
+                <div>
+                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Nome *</label>
+                    <input id="swal-contato-nome" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;" placeholder="Nome Completo">
+                </div>
+                <div>
+                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Departamento</label>
+                    <input id="swal-contato-depto" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Celular</label>
+                    <input id="swal-contato-celular" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;" placeholder="(99) 99999-9999">
+                </div>
+                <div>
+                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Telefone/Ramal</label>
+                    <input id="swal-contato-tel" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-weight:bold;display:block;margin-bottom:3px;">E-mail *</label>
+                    <input id="swal-contato-email" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;" placeholder="email@dominio.com">
+                </div>
+                <div>
+                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Dono</label>
+                    <input id="swal-contato-dono" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Cargo</label>
+                    <input id="swal-contato-cargo" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Situação</label>
+                    <input id="swal-contato-situacao" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Recebe E-mail de NFe?</label>
+                    <select id="swal-contato-nfe" class="swal2-select" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
+                        <option value="Não">Não</option>
+                        <option value="Sim">Sim</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Recebe E-mail Cobrança/Boleto?</label>
+                    <select id="swal-contato-cobranca" class="swal2-select" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
+                        <option value="Não">Não</option>
+                        <option value="Sim">Sim</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Recebe E-mail Situação OS?</label>
+                    <select id="swal-contato-os" class="swal2-select" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
+                        <option value="Não">Não</option>
+                        <option value="Sim">Sim</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Recebe E-mail Contrato?</label>
+                    <select id="swal-contato-contrato" class="swal2-select" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
+                        <option value="Não">Não</option>
+                        <option value="Sim">Sim</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Origem</label>
+                    <input id="swal-contato-origem" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
+                </div>
+                <div style="grid-column:span 2;">
+                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Inativo?</label>
+                    <select id="swal-contato-inativo" class="swal2-select" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
+                        <option value="Não">Não</option>
+                        <option value="Sim">Sim</option>
+                    </select>
+                </div>
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Adicionar',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const idVal = document.getElementById('swal-contato-id').value;
+            const nomeVal = document.getElementById('swal-contato-nome').value;
+            const emailVal = document.getElementById('swal-contato-email').value;
+            
+            if (!idVal || !nomeVal || !emailVal) {
+                Swal.showValidationMessage('Identificação, Nome e E-mail são obrigatórios.');
+                return false;
+            }
+            return {
+                identificacao: idVal,
+                nome: nomeVal,
+                departamento: document.getElementById('swal-contato-depto').value,
+                celular: document.getElementById('swal-contato-celular').value,
+                telefone_ramal: document.getElementById('swal-contato-tel').value,
+                email: emailVal,
+                dono: document.getElementById('swal-contato-dono').value,
+                cargo: document.getElementById('swal-contato-cargo').value,
+                situacao: document.getElementById('swal-contato-situacao').value,
+                nfe: document.getElementById('swal-contato-nfe').value,
+                cobranca: document.getElementById('swal-contato-cobranca').value,
+                os: document.getElementById('swal-contato-os').value,
+                contrato: document.getElementById('swal-contato-contrato').value,
+                origem: document.getElementById('swal-contato-origem').value,
+                inativo: document.getElementById('swal-contato-inativo').value
+            };
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            _clienteContatos.push(result.value);
+            _renderTabelaContatos();
+        }
+    });
+};
+
+window.salvarCliente = async function() {
+    const cpfCnpj = document.getElementById('cli-cpf-cnpj')?.value || '';
+    const razaoSocial = document.getElementById('cli-razao-social')?.value || '';
+    
+    if (!cpfCnpj) {
+        alert('Por favor, informe o CPF / CNPJ.');
+        return;
+    }
+    if (!razaoSocial) {
+        alert('Por favor, informe a Razão Social.');
+        return;
+    }
+
+    const parametros = {
+        limite: document.getElementById('cli-p-limite')?.checked || false,
+        retencao: document.getElementById('cli-p-retencao')?.checked || false
+    };
+
+    const fiscal = {
+        enquadramento: document.getElementById('cli-f-tributario')?.value || 'Simples Nacional',
+        regime_iss: document.getElementById('cli-f-iss')?.value || '',
+        cnae: document.getElementById('cli-f-cnae')?.value || ''
+    };
+
+    const payload = {
+        codigo: document.getElementById('cli-codigo')?.value || null,
+        data_cadastro: document.getElementById('cli-data-cadastro')?.value || '',
+        inativo: document.getElementById('cli-inativo')?.checked ? 1 : 0,
+        cpf_cnpj: cpfCnpj,
+        inscricao_estadual: document.getElementById('cli-ie')?.value || '',
+        inscricao_municipal: document.getElementById('cli-im')?.value || '',
+        rg: document.getElementById('cli-rg')?.value || '',
+        data_nascimento: document.getElementById('cli-data-nascimento')?.value || '',
+        grupo_clientes: document.getElementById('cli-grupo')?.value || '',
+        cliente_centralizador: document.getElementById('cli-centralizador')?.value || '',
+        nome_razao_social: razaoSocial,
+        nome_fantasia: document.getElementById('cli-nome-fantasia')?.value || '',
+        cep: document.getElementById('cli-cep')?.value || '',
+        endereco: document.getElementById('cli-endereco')?.value || '',
+        numero: document.getElementById('cli-numero')?.value || '',
+        complemento: document.getElementById('cli-complemento')?.value || '',
+        bairro: document.getElementById('cli-bairro')?.value || '',
+        uf: document.getElementById('cli-uf')?.value || '',
+        municipio: document.getElementById('cli-municipio')?.value || '',
+        pais: document.getElementById('cli-pais')?.value || 'BRASIL',
+        telefone: document.getElementById('cli-telefone')?.value || '',
+        ramal: document.getElementById('cli-ramal')?.value || '',
+        telefone_2: document.getElementById('cli-telefone2')?.value || '',
+        ramal_2: document.getElementById('cli-ramal2')?.value || '',
+        fax: document.getElementById('cli-fax')?.value || '',
+        website: document.getElementById('cli-website')?.value || '',
+        celular_ddi: document.getElementById('cli-celular-ddi')?.value || '',
+        celular: document.getElementById('cli-celular')?.value || '',
+        parametros: JSON.stringify(parametros),
+        fiscal: JSON.stringify(fiscal),
+        contatos: JSON.stringify(_clienteContatos),
+        validacao_dados: '',
+        anexo_arquivos: '',
+        criado_por: window.currentUser?.nome || window.currentUser?.email || ''
+    };
+
+    try {
+        let res;
+        if (_clienteEditandoId) {
+            res = await apiPut(`/api/clientes/${_clienteEditandoId}`, payload);
+        } else {
+            res = await apiPost('/api/clientes', payload);
+        }
+
+        if (res && res.success) {
+            if (!_clienteEditandoId && res.id) {
+                _clienteEditandoId = res.id;
+                document.getElementById('cli-codigo').value = res.codigo || '';
+            }
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso(_clienteEditandoId ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
+            }
+        } else {
+            alert('Erro ao salvar cliente: ' + (res?.error || 'Erro desconhecido.'));
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Erro de comunicação com o servidor.');
+    }
+};
+
+window.excluirCliente = async function() {
+    if (!_clienteEditandoId) {
+        alert('Selecione um cliente cadastrado para poder excluir.');
+        return;
+    }
+    if (!confirm('Deseja realmente excluir este cliente permanentemente?')) {
+        return;
+    }
+    
+    try {
+        const res = await apiDelete(`/api/clientes/${_clienteEditandoId}`);
+        if (res && res.success) {
+            limparFormCliente();
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Cliente excluído com sucesso.');
+            }
+        } else {
+            alert('Erro ao excluir cliente: ' + (res?.error || 'Erro desconhecido.'));
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao comunicar com o servidor.');
+    }
+};
+
+window.recarregarCliente = function() {
+    if (_clienteEditandoId) {
+        carregarClienteParaEdicao(_clienteEditandoId);
+    } else {
+        limparFormCliente();
+    }
+};
+
+window.verificarCliente = function() {
+    const cpfCnpj = document.getElementById('cli-cpf-cnpj')?.value || '';
+    const razaoSocial = document.getElementById('cli-razao-social')?.value || '';
+    
+    if (!cpfCnpj) {
+        alert('Falta preencher: CPF / CNPJ.');
+        return;
+    }
+    if (!razaoSocial) {
+        alert('Falta preencher: Nome / Razão Social.');
+        return;
+    }
+    
+    alert('Campos validados com sucesso! Pronto para salvar.');
+};
+
 console.log('[PROPOSTAS] Módulo frontend carregado.');
+console.log('[CLIENTES] Módulo frontend de cadastro de clientes carregado.');
