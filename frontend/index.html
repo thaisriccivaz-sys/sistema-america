@@ -5516,7 +5516,13 @@
                     <h3 id="detalhe-treinamento-nome" style="margin:0;color:#fff;font-size:1.2rem;font-weight:700;"></h3>
                     <p id="detalhe-treinamento-desc" style="margin:4px 0 0;color:rgba(255,255,255,0.8);font-size:0.85rem;"></p>
                 </div>
-                <button onclick="window.fecharModalDetalheTreinamento()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;">&times;</button>
+                <div style="display:flex; gap: 12px; align-items: center;">
+                    <input type="file" id="treinamento-file-input" multiple style="display:none;" onchange="window.handleTreinamentoFileChange(event)">
+                    <button onclick="document.getElementById('treinamento-file-input').click()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;padding:6px 16px;border-radius:8px;font-weight:600;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                        <i class="ph ph-upload-simple"></i> Anexar arquivo
+                    </button>
+                    <button onclick="window.fecharModalDetalheTreinamento()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">&times;</button>
+                </div>
             </div>
 
             <!-- Tabs de tipo de arquivo -->
