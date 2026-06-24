@@ -17407,7 +17407,7 @@ app.put('/api/estoque-enderecos/:id', authenticateToken, (req, res) => {
     db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'Endereço não encontrado.' });
-        const novoNome = (row.nome === 'Geral' && nome.trim() !== 'Geral') ? 'Geral' : nome.trim();
+        const novoNome = nome.trim();
         db.run(
             "UPDATE estoque_enderecos SET nome = ?, tipo_notificacao = ? WHERE id = ?",
             [novoNome, tipo_notificacao || '', id],
@@ -17419,13 +17419,12 @@ app.put('/api/estoque-enderecos/:id', authenticateToken, (req, res) => {
     });
 });
 
-// Excluir endereço global (não pode excluir 'Geral')
+// Excluir endereço global
 app.delete('/api/estoque-enderecos/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'Endereço não encontrado.' });
-        if (row.nome === 'Geral') return res.status(400).json({ error: 'O endereço "Geral" não pode ser excluído.' });
         db.run('DELETE FROM estoque_enderecos WHERE id = ?', [id], (errD) => {
             if (errD) return res.status(500).json({ error: errD.message });
             // Limpar saldos zerados vinculados

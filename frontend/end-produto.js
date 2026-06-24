@@ -20,14 +20,13 @@ window.renderEndProdutoTable = async function() {
                 : end.tipo_notificacao === 'reposicao'
                 ? '<span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-arrows-left-right"></i> Pedido de Reposição</span>'
                 : '<span style="background:#f1f5f9;color:#94a3b8;border-radius:20px;padding:2px 10px;font-size:0.75rem;">Sem notificação</span>';
-            const isGeral = end.nome === 'Geral';
             return '<tr>' +
-                '<td style="font-weight:600;display:flex;align-items:center;gap:8px;"><i class="ph ph-map-pin" style="color:#1d4ed8;"></i>' + end.nome + (isGeral ? ' <span style="font-size:0.72rem;color:#94a3b8;">(padrão)</span>' : '') + '</td>' +
+                '<td style="font-weight:600;display:flex;align-items:center;gap:8px;"><i class="ph ph-map-pin" style="color:#1d4ed8;"></i>' + end.nome + '</td>' +
                 '<td>' + tipoBadge + '</td>' +
                 '<td style="color:#64748b;font-size:0.83rem;">' + (end.criado_em ? new Date(end.criado_em).toLocaleDateString('pt-BR') : '—') + '</td>' +
                 '<td style="text-align:right;white-space:nowrap;">' +
                     '<button class="btn btn-sm btn-secondary" onclick="window.abrirModalEditarEndProduto(' + JSON.stringify(JSON.stringify(end)).replace(/"/g,'&quot;') + ')" style="margin-right:4px;"><i class="ph ph-pencil-simple"></i></button>' +
-                    (!isGeral ? '<button class="btn btn-sm" onclick="window.excluirEndProduto(' + end.id + ')" style="background:#fee2e2;color:#ef4444;border:none;"><i class="ph ph-trash"></i></button>' : '') +
+                    '<button class="btn btn-sm" onclick="window.excluirEndProduto(' + end.id + ')" style="background:#fee2e2;color:#ef4444;border:none;"><i class="ph ph-trash"></i></button>' +
                 '</td>' +
             '</tr>';
         }).join('');
@@ -124,11 +123,10 @@ window.excluirEndProduto = async function(id) {
 function _htmlFormEndProduto(end) {
     const nome = end ? end.nome : '';
     const tipo = end ? (end.tipo_notificacao || '') : '';
-    const isGeral = end && end.nome === 'Geral';
     return '<div style="text-align:left;margin-top:8px;">' +
         '<div style="margin-bottom:14px;">' +
             '<label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:5px;">Nome do Endereço *</label>' +
-            '<input id="swal-end-nome" class="swal2-input" style="width:100%;margin:0;box-sizing:border-box;" placeholder="Ex: Depósito Central, Prateleira A3..." value="' + nome + '"' + (isGeral ? ' disabled title="O endereço Geral não pode ser renomeado"' : '') + '>' +
+            '<input id="swal-end-nome" class="swal2-input" style="width:100%;margin:0;box-sizing:border-box;" placeholder="Ex: Depósito Central, Prateleira A3..." value="' + nome + '">' +
         '</div>' +
         '<div>' +
             '<label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:5px;"><i class="ph ph-bell-ringing" style="color:#e67700;"></i> Tipo de Notificação ao atingir estoque mínimo</label>' +
