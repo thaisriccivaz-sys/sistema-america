@@ -5745,12 +5745,22 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         docIconColor = isSaved ? '#e8a000' : '#94a3b8'; // amarelo=salvo, cinza=pendente
     }
 
+    const toggleArrow = (tabId === 'Advertências' && isSaved) 
+        ? `<span id="ocorr-arrow-${existingDoc.id}" style="color:#64748b; font-size:0.95rem; transition:transform 0.25s; display:inline-flex; align-items:center; cursor:pointer; margin-right:6px;" title="Ver anexos">▶</span>` 
+        : '';
+
     let infoHtml = `
         <div class="doc-info ${isSaved ? 'has-file' : ''}">
-            <i class="ph ${isSaved ? docIconClass : 'ph-file-dashed'}" style="color:${isSaved ? docIconColor : ''}; font-size:1.3rem;"></i>
-            <div>
-                <h4>${docLabel}${docBadge ? '<br>' + docBadge : ''}</h4>
-                ${isSaved ? `<p style="margin:0; font-size:0.82rem; color:#475569;">${displayFileName}</p>${subInfoLine}` : '<p>Pendente</p>'}
+            <i class="ph ${isSaved ? docIconClass : 'ph-file-dashed'}" style="color:${isSaved ? docIconColor : ''}; font-size:1.3rem; margin-top:2px;"></i>
+            <div style="display: flex; flex-direction: column;">
+                <h4 style="display:flex; align-items:flex-start; margin:0;">
+                    ${toggleArrow}
+                    <div style="display:flex; flex-direction:column; line-height:1.2;">
+                        <span>${docLabel}</span>
+                        ${docBadge ? `<div>${docBadge}</div>` : ''}
+                    </div>
+                </h4>
+                ${isSaved ? `<p style="margin:2px 0 0; font-size:0.82rem; color:#475569;">${displayFileName}</p>${subInfoLine}` : '<p>Pendente</p>'}
             </div>
         </div>
     `;
@@ -5992,53 +6002,47 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         // Painel expansível de anexos abaixo do card
         const anexoPanel = document.createElement('div');
         anexoPanel.id = `ocorr-anexo-panel-${docId}`;
-        anexoPanel.style.cssText = 'border-top:1px dashed #e2e8f0; margin-top:0; overflow:hidden; max-height:0; transition:max-height 0.35s ease, padding 0.2s; padding:0 1rem;';
+        anexoPanel.style.cssText = 'border-top:1px dashed #e2e8f0; margin-top:0.5rem; overflow:hidden; max-height:0; transition:max-height 0.35s ease, padding 0.2s; padding:0 1rem;';
 
-        // Botão "📎 Anexos" + setinha — inserido dentro do card existente
-        const toggleBar = document.createElement('div');
-        toggleBar.id = `ocorr-toggle-${docId}`;
-        toggleBar.style.cssText = 'display:flex; align-items:center; gap:0.5rem; padding:0.45rem 1rem 0.45rem; border-top:1px solid #f1f5f9; cursor:pointer; user-select:none;';
-        toggleBar.innerHTML = `
-            <span id="ocorr-arrow-${docId}" style="color:#64748b; font-size:0.8rem; transition:transform 0.25s; display:inline-block;">▶</span>
-            <i class="ph ph-paperclip" style="color:#64748b; font-size:0.95rem;"></i>
-            <span style="font-size:0.78rem; font-weight:600; color:#64748b;" id="ocorr-label-${docId}">Anexos</span>
-            <label onclick="event.stopPropagation();" style="margin-left:auto; display:inline-flex; align-items:center; gap:5px; cursor:pointer; background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px; padding:3px 10px; font-size:0.75rem; font-weight:600; color:#0369a1; white-space:nowrap;">
-                <i class="ph ph-upload-simple" style="font-size:0.9rem;"></i> Anexar arquivo
-                <input type="file" accept="image/*,.pdf,.doc,.docx" multiple style="display:none;"
-                    onchange="window.uploadOcorrenciaAnexo(${docId}, this)">
-            </label>
+        anexoPanel.innerHTML = `
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:0.5rem; margin-bottom:0.5rem;">
+                <span id="ocorr-label-${docId}" style="font-size:0.78rem; font-weight:600; color:#64748b;"><i class="ph ph-paperclip"></i> Anexos da Ocorrência</span>
+                <label onclick="event.stopPropagation();" style="display:inline-flex; align-items:center; gap:5px; cursor:pointer; background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px; padding:4px 12px; font-size:0.75rem; font-weight:600; color:#0369a1; white-space:nowrap; margin:0; transition:background 0.2s;">
+                    <i class="ph ph-upload-simple" style="font-size:0.9rem;"></i> Anexar arquivo
+                    <input type="file" accept="image/*,.pdf,.doc,.docx" multiple style="display:none;"
+                        onchange="window.uploadOcorrenciaAnexo(${docId}, this)">
+                </label>
+            </div>
+            <div id="ocorr-galeria-${docId}" style="display:flex; flex-wrap:wrap; gap:0.75rem; padding:0.25rem 0 0.75rem 0;">
+                <span style="color:#94a3b8; font-size:0.8rem; font-style:italic;">Carregando anexos...</span>
+            </div>
         `;
 
-        // Galeria de miniaturas
-        const galeriaDiv = document.createElement('div');
-        galeriaDiv.id = `ocorr-galeria-${docId}`;
-        galeriaDiv.style.cssText = 'display:flex; flex-wrap:wrap; gap:0.75rem; padding:0.75rem 0;';
-        galeriaDiv.innerHTML = '<span style="color:#94a3b8; font-size:0.8rem; font-style:italic;">Carregando anexos...</span>';
-
-        anexoPanel.appendChild(galeriaDiv);
-        div.appendChild(toggleBar);
         div.appendChild(anexoPanel);
 
-        // Toggle expande/recolhe
-        let _loaded = false;
-        toggleBar.addEventListener('click', () => {
-            const panel = document.getElementById(`ocorr-anexo-panel-${docId}`);
-            const arrow  = document.getElementById(`ocorr-arrow-${docId}`);
-            const isOpen = panel.style.maxHeight !== '0px' && panel.style.maxHeight !== '';
-            if (isOpen) {
-                panel.style.maxHeight = '0';
-                panel.style.padding = '0 1rem';
-                arrow.style.transform = 'rotate(0deg)';
-            } else {
-                panel.style.maxHeight = '600px';
-                panel.style.padding = '0.5rem 1rem';
-                arrow.style.transform = 'rotate(90deg)';
-                if (!_loaded) {
-                    _loaded = true;
-                    window.carregarOcorrenciaAnexos(docId);
+        // Toggle expande/recolhe a partir da seta no título
+        const arrow = div.querySelector(`#ocorr-arrow-${docId}`);
+        if (arrow) {
+            let _loaded = false;
+            arrow.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const panel = document.getElementById(`ocorr-anexo-panel-${docId}`);
+                const isOpen = panel.style.maxHeight !== '0px' && panel.style.maxHeight !== '';
+                if (isOpen) {
+                    panel.style.maxHeight = '0';
+                    panel.style.padding = '0 1rem';
+                    arrow.style.transform = 'rotate(0deg)';
+                } else {
+                    panel.style.maxHeight = '800px';
+                    panel.style.padding = '0.5rem 1rem';
+                    arrow.style.transform = 'rotate(90deg)';
+                    if (!_loaded) {
+                        _loaded = true;
+                        window.carregarOcorrenciaAnexos(docId);
+                    }
                 }
-            }
-        });
+            });
+        }
     }
     // ─────────────────────────────────────────────────────────────────────────
 
