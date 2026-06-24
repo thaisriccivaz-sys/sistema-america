@@ -168,7 +168,10 @@
                 options += `<option value="${d.nome}">${d.nome}</option>`;
             });
             select.innerHTML = options;
-            select.value = selecionado;
+            const selArray = (typeof selecionado === 'string' ? selecionado : 'Todos').split(',').map(s => s.trim());
+            Array.from(select.options).forEach(opt => {
+                opt.selected = selArray.includes(opt.value);
+            });
         } catch(e) {}
     }
 
@@ -181,7 +184,10 @@
         if (event) event.preventDefault();
         const nome = (el('novo-treinamento-nome') || {}).value?.trim();
         const desc = (el('novo-treinamento-desc') || {}).value?.trim();
-        const departamento = (el('novo-treinamento-departamento') || {}).value || 'Todos';
+        const deptSelect = el('novo-treinamento-departamento');
+        const departamento = deptSelect && deptSelect.selectedOptions.length > 0 
+            ? Array.from(deptSelect.selectedOptions).map(o => o.value).join(', ') 
+            : 'Todos';
         if (!nome) { alert('Informe o nome do treinamento.'); return; }
 
         const btn = el('form-novo-treinamento')?.querySelector('[type=submit]');
@@ -473,7 +479,10 @@
         const id   = parseInt(el('editar-treinamento-id').value, 10);
         const nome = (el('editar-treinamento-nome') || {}).value?.trim();
         const desc = (el('editar-treinamento-desc') || {}).value?.trim();
-        const departamento = (el('editar-treinamento-departamento') || {}).value || 'Todos';
+        const deptSelect = el('editar-treinamento-departamento');
+        const departamento = deptSelect && deptSelect.selectedOptions.length > 0 
+            ? Array.from(deptSelect.selectedOptions).map(o => o.value).join(', ') 
+            : 'Todos';
         if (!nome) { alert('Informe o nome do treinamento.'); return; }
 
         const btn = el('btn-salvar-edicao-treinamento');
