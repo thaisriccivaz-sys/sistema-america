@@ -19583,12 +19583,106 @@ db.run(`CREATE TABLE IF NOT EXISTS clientes (
   else console.log('[CLIENTES] Tabela clientes OK.');
 });
 
+db.run(`CREATE TABLE IF NOT EXISTS contatos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  codigo INTEGER UNIQUE,
+  nome TEXT,
+  tipo TEXT,
+  representante TEXT,
+  departamento TEXT,
+  cargo TEXT,
+  origem TEXT,
+  influenciador TEXT,
+  classificacao TEXT,
+  data_nascimento TEXT,
+  ramo_atividade TEXT,
+  regiao TEXT,
+  sexo TEXT,
+  celular TEXT,
+  telefone TEXT,
+  ramal TEXT,
+  nextel TEXT,
+  email TEXT,
+  outra_comunicacao TEXT,
+  inativo INTEGER DEFAULT 0,
+  email_cobranca INTEGER DEFAULT 0,
+  email_nfe INTEGER DEFAULT 0,
+  email_os INTEGER DEFAULT 0,
+  email_contrato INTEGER DEFAULT 0,
+  cliente_id INTEGER,
+  criado_por TEXT,
+  criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+  atualizado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+  FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+)`, (err) => {
+  if (err) console.error('[CONTATOS] Erro ao criar tabela:', err.message);
+  else console.log('[CONTATOS] Tabela contatos OK.');
+});
+
 // Gerar código sequencial único para cliente
 function gerarCodigoCliente(cb) {
   db.get(`SELECT MAX(codigo) as max_seq FROM clientes`, [], (err, row) => {
     const seq = (row && row.max_seq ? row.max_seq : 6000) + 1;
     cb(seq);
   });
+}
+
+// Gerar código sequencial único para contato
+function gerarCodigoContato(cb) {
+  db.get(`SELECT MAX(codigo) as max_seq FROM contatos`, [], (err, row) => {
+    const seq = (row && row.max_seq ? row.max_seq : 14800) + 1;
+    cb(seq);
+  });
+}
+
+// Auxiliar para salvar ou atualizar empresa cliente a partir de contato
+function salvarOuAtualizarEmpresa(cliData, callback) {
+  if (!cliData || !cliData.cpf_cnpj) {
+    return callback(null, null);
+  }
+
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  db.get('SELECT id FROM clientes WHERE id = ? OR codigo = ? OR cpf_cnpj = ?', 
+    [cliData.id, cliData.codigo, cliData.cpf_cnpj], (err, row) => {
+      if (err) return callback(err);
+
+      if (row) {
+        const idExistente = row.id;
+        db.run(`UPDATE clientes SET
+          nome_razao_social=?, cpf_cnpj=?, cep=?, endereco=?, numero=?, bairro=?,
+          municipio=?, uf=?, telefone=?, ramal=?, fax=?, telefone_2=?, ramal_2=?, website=?,
+          atualizado_em=?
+          WHERE id=?`,
+        [
+          cliData.nome_razao_social, cliData.cpf_cnpj, cliData.cep, cliData.endereco,
+          cliData.numero, cliData.bairro, cliData.municipio, cliData.uf, cliData.telefone,
+          cliData.ramal, cliData.fax, cliData.telefone_2, cliData.ramal_2, cliData.website,
+          agora, idExistente
+        ], function(err2) {
+          if (err2) return callback(err2);
+          callback(null, idExistente);
+        });
+      } else {
+        gerarCodigoCliente((novoCodigo) => {
+          db.run(`INSERT INTO clientes (
+            codigo, data_cadastro, inativo, cpf_cnpj, nome_razao_social, cep, endereco,
+            numero, bairro, municipio, uf, telefone, ramal, fax, telefone_2, ramal_2, website,
+            criado_por, criado_em, atualizado_em
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          [
+            novoCodigo, agora.substring(0,10), 0, cliData.cpf_cnpj, cliData.nome_razao_social,
+            cliData.cep, cliData.endereco, cliData.numero, cliData.bairro, cliData.municipio,
+            cliData.uf, cliData.telefone, cliData.ramal, cliData.fax, cliData.telefone_2, cliData.ramal_2,
+            cliData.website, cliData.criado_por || '', agora, agora
+          ], function(err2) {
+            if (err2) return callback(err2);
+            callback(null, this.lastID);
+          });
+        });
+      }
+    }
+  );
 }
 
 // GET /api/clientes - Listar todos os clientes
@@ -19721,6 +19815,141 @@ app.get('/api/consulta-cnpj/:cnpj', authenticateToken, async (req, res) => {
     console.error('[CNPJ] Falha ao conectar em BrasilAPI:', err.message);
     return res.status(500).json({ error: 'Erro ao consultar APIs de CNPJ.' });
   }
+});
+
+// GET /api/contatos - Listar todos os contatos
+app.get('/api/contatos', authenticateToken, (req, res) => {
+  db.all(`
+    SELECT c.*, cli.nome_razao_social as cliente_nome, cli.codigo as cliente_codigo
+    FROM contatos c
+    LEFT JOIN clientes cli ON c.cliente_id = cli.id
+    ORDER BY c.criado_em DESC
+  `, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// GET /api/contatos/:id/navegar/:direcao - Navegar para anterior ou próximo contato
+app.get('/api/contatos/:id/navegar/:direcao', authenticateToken, (req, res) => {
+  const currentId = req.params.id;
+  const direcao = req.params.direcao; // 'proximo' ou 'anterior'
+  
+  db.get('SELECT codigo FROM contatos WHERE id = ? OR codigo = ?', [currentId, currentId], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Contato atual não encontrado' });
+    
+    const currentCode = row.codigo;
+    let query, params;
+    
+    if (direcao === 'proximo') {
+      query = 'SELECT id, codigo FROM contatos WHERE codigo > ? ORDER BY codigo ASC LIMIT 1';
+      params = [currentCode];
+    } else {
+      query = 'SELECT id, codigo FROM contatos WHERE codigo < ? ORDER BY codigo DESC LIMIT 1';
+      params = [currentCode];
+    }
+    
+    db.get(query, params, (err2, nextRow) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+      if (!nextRow) return res.json({ endOfList: true });
+      res.json(nextRow);
+    });
+  });
+});
+
+// GET /api/contatos/:id - Buscar contato por ID ou Código
+app.get('/api/contatos/:id', authenticateToken, (req, res) => {
+  db.get(`
+    SELECT c.*, cli.nome_razao_social as cliente_nome, cli.codigo as cliente_codigo,
+           cli.cpf_cnpj, cli.cep, cli.endereco, cli.numero, cli.bairro, cli.municipio as cliente_cidade,
+           cli.uf, cli.telefone as cliente_telefone, cli.ramal as cliente_ramal, cli.fax as cliente_fax,
+           cli.telefone_2 as cliente_telefone2, cli.ramal_2 as cliente_ramal2, cli.website as cliente_site
+    FROM contatos c
+    LEFT JOIN clientes cli ON c.cliente_id = cli.id
+    WHERE c.id = ? OR c.codigo = ?
+  `, [req.params.id, req.params.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Contato não encontrado' });
+    res.json(row);
+  });
+});
+
+// POST /api/contatos - Criar novo contato
+app.post('/api/contatos', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  salvarOuAtualizarEmpresa(d.empresa_cliente, (err, clienteId) => {
+    if (err) return res.status(500).json({ error: 'Erro ao salvar empresa cliente: ' + err.message });
+
+    const insertContato = (codigo) => {
+      db.run(`INSERT INTO contatos (
+        codigo, nome, tipo, representante, departamento, cargo, origem, influenciador,
+        classificacao, data_nascimento, ramo_atividade, regiao, sexo, celular, telefone,
+        ramal, nextel, email, outra_comunicacao, inativo, email_cobranca, email_nfe,
+        email_os, email_contrato, cliente_id, criado_por, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        codigo, d.nome, d.tipo, d.representante, d.departamento, d.cargo, d.origem, d.influenciador,
+        d.classificacao, d.data_nascimento, d.ramo_atividade, d.regiao, d.sexo, d.celular, d.telefone,
+        d.ramal, d.nextel, d.email, d.outra_comunicacao, d.inativo||0, d.email_cobranca||0, d.email_nfe||0,
+        d.email_os||0, d.email_contrato||0, clienteId, d.criado_por, agora, agora
+      ], function(err2) {
+        if (err2) {
+          if (err2.message.includes('UNIQUE constraint failed: contatos.codigo')) {
+             return res.status(400).json({ error: 'Código de contato duplicado.' });
+          }
+          return res.status(500).json({ error: err2.message });
+        }
+        res.json({ success: true, id: this.lastID, codigo, cliente_id: clienteId });
+      });
+    };
+
+    if (d.codigo) {
+      insertContato(d.codigo);
+    } else {
+      gerarCodigoContato((codigo) => {
+        insertContato(codigo);
+      });
+    }
+  });
+});
+
+// PUT /api/contatos/:id - Atualizar contato
+app.put('/api/contatos/:id', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  salvarOuAtualizarEmpresa(d.empresa_cliente, (err, clienteId) => {
+    if (err) return res.status(500).json({ error: 'Erro ao salvar empresa cliente: ' + err.message });
+
+    db.run(`UPDATE contatos SET
+      nome=?, tipo=?, representante=?, departamento=?, cargo=?, origem=?, influenciador=?,
+      classificacao=?, data_nascimento=?, ramo_atividade=?, regiao=?, sexo=?, celular=?, telefone=?,
+      ramal=?, nextel=?, email=?, outra_comunicacao=?, inativo=?, email_cobranca=?, email_nfe=?,
+      email_os=?, email_contrato=?, cliente_id=?, atualizado_em=?
+      WHERE id=? OR codigo=?`,
+    [
+      d.nome, d.tipo, d.representante, d.departamento, d.cargo, d.origem, d.influenciador,
+      d.classificacao, d.data_nascimento, d.ramo_atividade, d.regiao, d.sexo, d.celular, d.telefone,
+      d.ramal, d.nextel, d.email, d.outra_comunicacao, d.inativo||0, d.email_cobranca||0, d.email_nfe||0,
+      d.email_os||0, d.email_contrato||0, clienteId, agora, req.params.id, req.params.id
+    ], function(err2) {
+      if (err2) return res.status(500).json({ error: err2.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Contato não encontrado' });
+      res.json({ success: true, cliente_id: clienteId });
+    });
+  });
+});
+
+// DELETE /api/contatos/:id - Excluir contato
+app.delete('/api/contatos/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM contatos WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Contato não encontrado' });
+    res.json({ success: true });
+  });
 });
 
 console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');

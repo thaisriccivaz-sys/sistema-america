@@ -92,7 +92,7 @@ function renderTelaPropostas() {
                     <i class="ph ph-pencil-simple"></i> <span id="tab-prop-form-text">${_propostasEditandoId ? 'Editar Proposta' : 'Nova Proposta'}</span>
                 </button>
                 <button id="tab-prop-cadastro-cliente" onclick="switchPropostaTab('cadastro-cliente')" style="background:none; border:none; border-bottom:2px solid ${_currentPropostaTab === 'cadastro-cliente' ? '#7048e8' : 'transparent'}; color:${_currentPropostaTab === 'cadastro-cliente' ? '#7048e8' : '#64748b'}; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem; outline:none; transition:all 0.2s;">
-                    <i class="ph ph-user"></i> Cadastro de Cliente
+                    <i class="ph ph-users-three"></i> Cadastro de Contatos
                 </button>
             </div>
 
@@ -812,402 +812,546 @@ function _fmtData(s) {
     } catch (e) { return s; }
 }
 
-/* Injetar CSS das labels do formulário */
-(function injetarCssProposta() {
-    if (document.getElementById('style-proposta')) return;
-    const style = document.createElement('style');
-    style.id = 'style-proposta';
-    style.textContent = `
-        .prop-lbl {
-            display: block;
-            font-size: 0.76rem;
-            font-weight: 700;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            margin-bottom: 0.3rem;
-        }
-    `;
-    document.head.appendChild(style);
-})();
-
-/* ── Hook de inicialização ──────────────────────────────────────────── */
-window.inicializarPropostas   = inicializarPropostas;
-window.abrirFormProposta      = abrirFormProposta;
-window.salvarProposta         = salvarProposta;
-window.excluirProposta        = excluirProposta;
-window.filtrarPropostas       = filtrarPropostas;
-window.limparFiltrosPropostas = limparFiltrosPropostas;
-window.imprimirProposta       = imprimirProposta;
-window.calcularDiasContrato   = calcularDiasContrato;
-window.calcularDescontoReais  = calcularDescontoReais;
-
-// ══════════════════════════════════════════════════════════════════════
-// CADASTRO DE CLIENTES: RENDER & EVENT HANDLERS
-// ══════════════════════════════════════════════════════════════════════
+let _contatoEditandoId = null;
+let _empresaSelecionadaId = null;
+let _empresaSelecionadaCodigo = null;
 
 function _renderCadastroClienteInt() {
     const container = document.getElementById('prop-view-cadastro-cliente');
     if (!container) return;
     
-    const hoje = new Date().toISOString().split('T')[0];
-    
     container.innerHTML = `
-        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:hidden; margin:auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif;">
-            
-            <!-- Barra de Ferramentas (Toolbar Azul/Roxa da imagem) -->
-            <div style="background:#3b5bdb; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">
-                <button onclick="recarregarCliente()" style="background:#4c6ef5;color:white;border:none;padding:0.5rem 1rem;border-radius:5px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;transition:background 0.2s;" onmouseover="this.style.background='#3b5bdb'" onmouseout="this.style.background='#4c6ef5'">
+        <style>
+            .cc-container {
+                background: #fff;
+                width: 100%;
+                border-radius: 12px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+                overflow: hidden;
+                margin: auto;
+                border: 1px solid #e2e8f0;
+                font-family: 'Inter', sans-serif;
+            }
+            .cc-toolbar {
+                background: #f8fafc;
+                border-bottom: 1px solid #e2e8f0;
+                padding: 0.75rem 1.5rem;
+                display: flex;
+                gap: 0.75rem;
+                flex-wrap: wrap;
+                align-items: center;
+            }
+            .cc-toolbar-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                background: #fff;
+                border: 1px solid #cbd5e1;
+                color: #334155;
+                padding: 0.5rem 1.1rem;
+                border-radius: 6px;
+                font-weight: 600;
+                font-size: 0.85rem;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .cc-toolbar-btn:hover {
+                background: #f1f5f9;
+                border-color: #94a3b8;
+            }
+            .cc-toolbar-btn.primary {
+                background: #7048e8;
+                color: #fff;
+                border-color: #7048e8;
+            }
+            .cc-toolbar-btn.primary:hover {
+                background: #5f3dc4;
+            }
+            .cc-toolbar-btn.danger {
+                background: #ffe3e3;
+                color: #e03131;
+                border-color: #ffc9c9;
+            }
+            .cc-toolbar-btn.danger:hover {
+                background: #fa5252;
+                color: #fff;
+                border-color: #fa5252;
+            }
+            .cc-ribbon {
+                background: linear-gradient(135deg, #7048e8, #5f3dc4);
+                color: #fff;
+                padding: 0.75rem 1.5rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+            .cc-ribbon-title {
+                font-size: 1.1rem;
+                font-weight: 700;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .cc-ribbon-checkboxes {
+                display: flex;
+                gap: 1.25rem;
+                align-items: center;
+                font-size: 0.85rem;
+                font-weight: 600;
+                flex-wrap: wrap;
+            }
+            .cc-ribbon-checkboxes label {
+                display: flex;
+                align-items: center;
+                gap: 0.35rem;
+                cursor: pointer;
+            }
+            .cc-ribbon-checkboxes input[type="checkbox"] {
+                accent-color: #fff;
+                width: 1rem;
+                height: 1rem;
+                cursor: pointer;
+            }
+            .cc-form-body {
+                padding: 1.5rem;
+            }
+            .cc-section-title {
+                font-size: 0.9rem;
+                font-weight: 800;
+                color: #475569;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                border-bottom: 2px solid #e2e8f0;
+                padding-bottom: 0.4rem;
+                margin: 1.5rem 0 1rem 0;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .cc-section-title.first {
+                margin-top: 0;
+            }
+            .cc-grid {
+                display: grid;
+                gap: 0.75rem 1rem;
+            }
+            .cc-grid-contact-row1 {
+                grid-template-columns: 1.5fr 3.5fr 2fr 2fr;
+            }
+            .cc-grid-contact-row2 {
+                grid-template-columns: 1.5fr 1.5fr 1.5fr 1.2fr 1.2fr 1.5fr;
+            }
+            .cc-grid-contact-row3 {
+                grid-template-columns: 1.5fr 1.5fr 1.2fr 1.8fr 1.2fr 1.2fr;
+            }
+            .cc-grid-contact-row4 {
+                grid-template-columns: 1.5fr 0.8fr 4fr;
+            }
+            .cc-grid-company-row1 {
+                grid-template-columns: 4fr 2fr 1.5fr;
+            }
+            .cc-grid-company-row2 {
+                grid-template-columns: 3.5fr 1fr 2fr 2.5fr 1fr;
+            }
+            .cc-grid-company-row3 {
+                grid-template-columns: 1.5fr 0.8fr 1.5fr 1.5fr 0.8fr 2fr;
+            }
+            .cc-field {
+                display: flex;
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            .cc-field label {
+                font-size: 0.75rem;
+                font-weight: 700;
+                color: #64748b;
+                text-transform: uppercase;
+                letter-spacing: 0.02em;
+            }
+            .cc-input, .cc-select {
+                padding: 0.5rem 0.75rem;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                background: #fff;
+                color: #1e293b;
+                outline: none;
+                transition: all 0.2s;
+                box-sizing: border-box;
+                width: 100%;
+                height: 38px;
+            }
+            .cc-input:focus, .cc-select:focus {
+                border-color: #7048e8;
+                box-shadow: 0 0 0 3px rgba(112, 72, 232, 0.15);
+            }
+            .cc-input[readonly] {
+                background: #f1f5f9;
+                color: #64748b;
+                cursor: not-allowed;
+            }
+            .cc-input-group {
+                display: flex;
+                gap: 0.35rem;
+                width: 100%;
+            }
+            .cc-btn-addon {
+                background: #7048e8;
+                color: #fff;
+                border: none;
+                padding: 0.5rem 0.75rem;
+                border-radius: 6px;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 600;
+                transition: all 0.2s;
+                height: 38px;
+                box-sizing: border-box;
+            }
+            .cc-btn-addon:hover {
+                background: #5f3dc4;
+            }
+            .cc-btn-addon.secondary {
+                background: #475569;
+            }
+            .cc-btn-addon.secondary:hover {
+                background: #334155;
+            }
+            .cc-btn-addon.success {
+                background: #25d366;
+            }
+            .cc-btn-addon.success:hover {
+                background: #20ba5a;
+            }
+            @media (max-width: 992px) {
+                .cc-grid-contact-row1, .cc-grid-contact-row2, .cc-grid-contact-row3, .cc-grid-contact-row4,
+                .cc-grid-company-row1, .cc-grid-company-row2, .cc-grid-company-row3 {
+                    grid-template-columns: 1fr 1fr !important;
+                }
+            }
+            @media (max-width: 576px) {
+                .cc-grid-contact-row1, .cc-grid-contact-row2, .cc-grid-contact-row3, .cc-grid-contact-row4,
+                .cc-grid-company-row1, .cc-grid-company-row2, .cc-grid-company-row3 {
+                    grid-template-columns: 1fr !important;
+                }
+            }
+        </style>
+
+        <div class="cc-container">
+            <!-- Barra de Ferramentas -->
+            <div class="cc-toolbar">
+                <button onclick="recarregarContato()" class="cc-toolbar-btn">
                     <i class="ph ph-arrows-counter-clockwise"></i> Recarregar
                 </button>
-                <button onclick="salvarCliente()" style="background:#4c6ef5;color:white;border:none;padding:0.5rem 1rem;border-radius:5px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;transition:background 0.2s;" onmouseover="this.style.background='#3b5bdb'" onmouseout="this.style.background='#4c6ef5'">
+                <button onclick="limparFormContato()" class="cc-toolbar-btn">
+                    <i class="ph ph-plus"></i> Novo
+                </button>
+                <button onclick="salvarContato()" class="cc-toolbar-btn primary">
                     <i class="ph ph-check-square-offset"></i> Processar
                 </button>
-                <button onclick="excluirCliente()" style="background:#4c6ef5;color:white;border:none;padding:0.5rem 1rem;border-radius:5px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;transition:background 0.2s;" onmouseover="this.style.background='#3b5bdb'" onmouseout="this.style.background='#4c6ef5'">
+                <button onclick="excluirContato()" class="cc-toolbar-btn danger">
                     <i class="ph ph-trash"></i> Excluir
-                </button>
-                <button onclick="verificarCliente()" style="background:#4c6ef5;color:white;border:none;padding:0.5rem 1rem;border-radius:5px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;transition:background 0.2s;" onmouseover="this.style.background='#3b5bdb'" onmouseout="this.style.background='#4c6ef5'">
-                    <i class="ph ph-shield-check"></i> Verificar
                 </button>
             </div>
 
-            <!-- Corpo da Tela -->
-            <div style="padding:1.5rem; overflow-y:auto; max-height:80vh;">
-                
-                <!-- Cabeçalho Roxo da Tela -->
-                <div style="display:flex; justify-content:space-between; align-items:center; background:#7048e8; padding:0.6rem 1.2rem; border-radius:8px 8px 0 0; color:white; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
-                    <div style="font-weight:bold; font-size:1.05rem; display:flex; align-items:center; gap:0.5rem;">
-                        <i class="ph ph-user-focus"></i> Cadastro de Cliente
-                    </div>
-                    <div style="display:flex; align-items:center; gap:0.8rem; font-size:0.85rem;">
-                        <span style="background:rgba(255,255,255,0.2); padding:0.35rem 0.75rem; border-radius:5px; font-weight:600;">
-                            Pesquise pelo CNPJ para completar o cadastro.
-                        </span>
-                        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600;">
-                            <input type="checkbox" id="cli-inativo" style="accent-color:#7048e8;"> Inativo?
-                        </label>
-                    </div>
+            <!-- Cabeçalho Roxo da Tela -->
+            <div class="cc-ribbon">
+                <div class="cc-ribbon-title">
+                    <i class="ph ph-user-focus"></i> Cadastro de Contatos
                 </div>
+                <div class="cc-ribbon-checkboxes">
+                    <label>
+                        <input type="checkbox" id="con-email-nfe"> Envio NFe
+                    </label>
+                    <label>
+                        <input type="checkbox" id="con-email-cobranca"> Cobrança
+                    </label>
+                    <label>
+                        <input type="checkbox" id="con-email-os"> OS
+                    </label>
+                    <label>
+                        <input type="checkbox" id="con-email-contrato"> Contrato
+                    </label>
+                    <label>
+                        <input type="checkbox" id="con-inativo"> Inativo
+                    </label>
+                </div>
+            </div>
 
-                <form id="form-cadastro-cliente" onsubmit="return false;" style="margin-bottom:1.5rem;">
+            <!-- Formulário -->
+            <div class="cc-form-body">
+                <form id="form-cadastro-contatos" onsubmit="return false;">
                     
-                    <!-- Grid Principal: Campos e Foto -->
-                    <div style="display:flex; gap:1.5rem; flex-wrap:wrap;">
-                        
-                        <!-- Coluna dos Campos (Esquerda) -->
-                        <div style="flex:1; min-width:300px; display:grid; gap:0.85rem;">
-                            
-                            <!-- Linha 1: Código, Data Cadastro, CPF/CNPJ, IE -->
-                            <div style="display:grid; grid-template-columns:1.2fr 1fr 1.5fr 1.5fr; gap:0.75rem;">
-                                <div>
-                                    <label class="prop-lbl">Código</label>
-                                    <div style="display:flex; gap:3px;">
-                                        <input type="text" id="cli-codigo" readonly placeholder="Auto" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;background:#f1f5f9;color:#64748b;box-sizing:border-box;">
-                                        <button onclick="abrirModalPesquisaCliente()" title="Buscar Cliente" style="background:#82c91e;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
-                                        <button onclick="limparFormCliente()" title="Limpar/Novo" style="background:#495057;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-arrows-counter-clockwise"></i></button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="prop-lbl">Data de Cadastro</label>
-                                    <input type="date" id="cli-data-cadastro" value="${hoje}" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                </div>
-                                <div>
-                                    <label class="prop-lbl">CPF / CNPJ *</label>
-                                    <div style="display:flex; gap:3px;">
-                                        <input type="text" id="cli-cpf-cnpj" placeholder="Apenas números" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                        <button onclick="buscarCNPJ()" id="btn-busca-cnpj" title="Buscar CNPJ" style="background:#82c91e;color:white;border:none;padding:0.45rem 0.6rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:bold;gap:3px;"><i class="ph ph-magnifying-glass"></i></button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="prop-lbl">Inscrição Estadual</label>
-                                    <input type="text" id="cli-ie" placeholder="ISENTO" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                    <!-- SEÇÃO: DADOS DO CONTATO -->
+                    <div class="cc-section-title first">
+                        <i class="ph ph-identification-card"></i> Dados do Contato
+                    </div>
+
+                    <div class="cc-grid" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <!-- Linha 1: ID/Código, Nome, Celular, E-mail -->
+                        <div class="cc-grid cc-grid-contact-row1">
+                            <div class="cc-field">
+                                <label>Código</label>
+                                <div class="cc-input-group">
+                                    <button onclick="navegarContato('anterior')" class="cc-btn-addon secondary" title="Anterior"><i class="ph ph-caret-left"></i></button>
+                                    <input type="text" id="con-codigo" readonly placeholder="Auto" class="cc-input" style="text-align: center; font-weight: bold; color: #7048e8;">
+                                    <button onclick="navegarContato('proximo')" class="cc-btn-addon secondary" title="Próximo"><i class="ph ph-caret-right"></i></button>
+                                    <button onclick="abrirModalPesquisaContato()" class="cc-btn-addon" title="Buscar Contato"><i class="ph ph-magnifying-glass"></i></button>
                                 </div>
                             </div>
-
-                            <!-- Linha 2: IM, Grupo, Centralizador -->
-                            <div style="display:grid; grid-template-columns:1.2fr 1.5fr 2.3fr; gap:0.75rem;">
-                                <div>
-                                    <label class="prop-lbl">Inscrição Municipal</label>
-                                    <input type="text" id="cli-im" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                </div>
-                                <div>
-                                    <label class="prop-lbl">Grupo de Clientes</label>
-                                    <select id="cli-grupo" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                        <option value="">-- Selecione --</option>
-                                        <option value="1 - Diamante">1 - Diamante</option>
-                                        <option value="2 - Ouro">2 - Ouro</option>
-                                        <option value="3 - Prata">3 - Prata</option>
-                                        <option value="4 - Bronze">4 - Bronze</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="prop-lbl">Cliente Centralizador</label>
-                                    <select id="cli-centralizador" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                        <option value="">-- Selecione --</option>
-                                    </select>
+                            <div class="cc-field">
+                                <label>Nome *</label>
+                                <input type="text" id="con-nome" placeholder="Nome Completo" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Celular</label>
+                                <div class="cc-input-group">
+                                    <input type="text" id="con-celular" placeholder="(XX) XXXXX-XXXX" class="cc-input">
+                                    <button onclick="abrirWhatsApp()" class="cc-btn-addon success" title="WhatsApp"><i class="ph ph-whatsapp-logo" style="font-size: 1.2rem;"></i></button>
                                 </div>
                             </div>
-
-                            <!-- Linha 3: Razão Social -->
-                            <div>
-                                <label class="prop-lbl">Nome / Razão Social *</label>
-                                <input type="text" id="cli-razao-social" oninput="atualizarClienteCentralizadorOptions()" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                            </div>
-
-                            <!-- Linha 4: Nome Fantasia -->
-                            <div>
-                                <label class="prop-lbl">Nome Fantasia</label>
-                                <input type="text" id="cli-nome-fantasia" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                            <div class="cc-field">
+                                <label>E-mail *</label>
+                                <input type="email" id="con-email" placeholder="nome@empresa.com" class="cc-input">
                             </div>
                         </div>
 
-                        <!-- Foto/Avatar (Direita) -->
-                        <div style="flex:0 0 160px; display:flex; flex-direction:column; align-items:center; justify-content:center; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; padding:1rem; box-sizing:border-box;">
-                            <div style="width:100px; height:100px; border-radius:50%; background:#e2e8f0; display:flex; align-items:center; justify-content:center; margin-bottom:0.75rem; border:2px solid #cbd5e1; overflow:hidden;">
-                                <i class="ph ph-user" style="font-size:3rem; color:#94a3b8;"></i>
+                        <!-- Linha 2: Tipo, Representante, Cargo, Sexo, Nascimento, Departamento -->
+                        <div class="cc-grid cc-grid-contact-row2">
+                            <div class="cc-field">
+                                <label>Tipo</label>
+                                <select id="con-tipo" class="cc-select">
+                                    <option value="">-- Selecione --</option>
+                                    <option value="1 - Principal">1 - Principal</option>
+                                    <option value="2 - Financeiro">2 - Financeiro</option>
+                                    <option value="3 - Comercial">3 - Comercial</option>
+                                    <option value="4 - Técnico">4 - Técnico</option>
+                                    <option value="5 - Diretoria">5 - Diretoria</option>
+                                    <option value="6 - Outros">6 - Outros</option>
+                                </select>
                             </div>
-                            <button onclick="alert('Funcionalidade de foto em desenvolvimento')" style="background:#495057;color:white;border:none;padding:0.4rem 0.8rem;border-radius:4px;font-size:0.75rem;font-weight:600;cursor:pointer;">
-                                Alterar Foto
-                            </button>
+                            <div class="cc-field">
+                                <label>Representante</label>
+                                <input type="text" id="con-representante" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Cargo</label>
+                                <input type="text" id="con-cargo" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Sexo</label>
+                                <select id="con-sexo" class="cc-select">
+                                    <option value="">--</option>
+                                    <option value="M">Masculino</option>
+                                    <option value="F">Feminino</option>
+                                    <option value="O">Outro</option>
+                                </select>
+                            </div>
+                            <div class="cc-field">
+                                <label>Nascimento</label>
+                                <input type="date" id="con-nascimento" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Departamento</label>
+                                <input type="text" id="con-departamento" class="cc-input">
+                            </div>
+                        </div>
+
+                        <!-- Linha 3: Origem, Influenciador, Classificação, Ramo, Região, Nextel -->
+                        <div class="cc-grid cc-grid-contact-row3">
+                            <div class="cc-field">
+                                <label>Origem</label>
+                                <input type="text" id="con-origem" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Influenciador</label>
+                                <select id="con-influenciador" class="cc-select">
+                                    <option value="">-- Selecione --</option>
+                                    <option value="Sim">Sim</option>
+                                    <option value="Não">Não</option>
+                                </select>
+                            </div>
+                            <div class="cc-field">
+                                <label>Classificação</label>
+                                <select id="con-classificacao" class="cc-select">
+                                    <option value="">-- Selecione --</option>
+                                    <option value="1 - Diamante">1 - Diamante</option>
+                                    <option value="2 - Ouro">2 - Ouro</option>
+                                    <option value="3 - Prata">3 - Prata</option>
+                                    <option value="4 - Bronze">4 - Bronze</option>
+                                </select>
+                            </div>
+                            <div class="cc-field">
+                                <label>Ramo de Atividade</label>
+                                <input type="text" id="con-ramo-atividade" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Região</label>
+                                <input type="text" id="con-regiao" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Nextel</label>
+                                <input type="text" id="con-nextel" class="cc-input">
+                            </div>
+                        </div>
+
+                        <!-- Linha 4: Telefone, Ramal, Outra Comunicação -->
+                        <div class="cc-grid cc-grid-contact-row4">
+                            <div class="cc-field">
+                                <label>Telefone</label>
+                                <input type="text" id="con-telefone" placeholder="(XX) XXXX-XXXX" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Ramal</label>
+                                <input type="text" id="con-ramal" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Outras Comunicações</label>
+                                <input type="text" id="con-outra-comunicacao" class="cc-input">
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Endereço -->
-                    <div style="display:grid; grid-template-columns:1.2fr 3fr 1fr 1.5fr; gap:0.75rem; margin-top:0.85rem;">
-                        <div>
-                            <label class="prop-lbl">CEP</label>
-                            <div style="display:flex; gap:3px;">
-                                <input type="text" id="cli-cep" placeholder="00000-000" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                <button onclick="buscarCEP()" title="Buscar CEP" style="background:#82c91e;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
+                    <!-- SEÇÃO: EMPRESA CLIENTE -->
+                    <div class="cc-section-title">
+                        <i class="ph ph-buildings"></i> Empresa Cliente
+                    </div>
+
+                    <div class="cc-grid" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <!-- Linha 1: Cliente, CNPJ, CEP -->
+                        <div class="cc-grid cc-grid-company-row1">
+                            <div class="cc-field">
+                                <label>Cliente (Razão Social) *</label>
+                                <div class="cc-input-group">
+                                    <input type="text" id="emp-codigo" readonly placeholder="Cód" class="cc-input" style="width: 80px; font-weight: bold; text-align: center;">
+                                    <input type="text" id="emp-razao-social" placeholder="Razão Social da Empresa" class="cc-input" oninput="atualizarClienteCentralizadorOptions()">
+                                    <button onclick="abrirModalPesquisaEmpresa()" class="cc-btn-addon" title="Buscar Empresa"><i class="ph ph-magnifying-glass"></i></button>
+                                    <button onclick="limparEmpresaCliente()" class="cc-btn-addon secondary" title="Nova Empresa"><i class="ph ph-plus"></i></button>
+                                </div>
+                            </div>
+                            <div class="cc-field">
+                                <label>CNPJ *</label>
+                                <div class="cc-input-group">
+                                    <input type="text" id="emp-cnpj" placeholder="CNPJ da Empresa" class="cc-input">
+                                    <button onclick="buscarCNPJ()" id="btn-busca-cnpj" class="cc-btn-addon" title="Buscar CNPJ no WebService"><i class="ph ph-magnifying-glass"></i></button>
+                                </div>
+                            </div>
+                            <div class="cc-field">
+                                <label>CEP</label>
+                                <div class="cc-input-group">
+                                    <input type="text" id="emp-cep" placeholder="00000-000" class="cc-input">
+                                    <button onclick="buscarCEP()" class="cc-btn-addon" title="Buscar CEP"><i class="ph ph-magnifying-glass"></i></button>
+                                </div>
                             </div>
                         </div>
-                        <div>
-                            <label class="prop-lbl">Endereço</label>
-                            <input type="text" id="cli-endereco" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label class="prop-lbl">Número</label>
-                            <input type="text" id="cli-numero" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label class="prop-lbl">Complemento</label>
-                            <input type="text" id="cli-complemento" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                    </div>
 
-                    <!-- Bairro/Cidade -->
-                    <div style="display:grid; grid-template-columns:2fr 1fr 2fr 1fr; gap:0.75rem; margin-top:0.85rem;">
-                        <div>
-                            <label class="prop-lbl">Bairro</label>
-                            <input type="text" id="cli-bairro" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        <!-- Linha 2: Endereço, Número, Bairro, Cidade, UF -->
+                        <div class="cc-grid cc-grid-company-row2">
+                            <div class="cc-field">
+                                <label>Endereço</label>
+                                <input type="text" id="emp-endereco" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Número</label>
+                                <input type="text" id="emp-numero" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Bairro</label>
+                                <input type="text" id="emp-bairro" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Cidade</label>
+                                <input type="text" id="emp-cidade" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>UF</label>
+                                <select id="emp-uf" class="cc-select">
+                                    <option value="">--</option>
+                                    ${['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
+                                        .map(uf => `<option value="${uf}">${uf}</option>`).join('')}
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <label class="prop-lbl">UF</label>
-                            <select id="cli-uf" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                <option value="">--</option>
-                                ${['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
-                                    .map(uf => `<option value="${uf}">${uf}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="prop-lbl">Município</label>
-                            <input type="text" id="cli-municipio" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label class="prop-lbl">País</label>
-                            <input type="text" id="cli-pais" value="BRASIL" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                    </div>
 
-                    <!-- Contatos / Tel -->
-                    <div style="display:grid; grid-template-columns:1.5fr 0.8fr 1.5fr 0.8fr 1fr 1.5fr; gap:0.75rem; margin-top:0.85rem;">
-                        <div>
-                            <label class="prop-lbl">Telefone</label>
-                            <input type="text" id="cli-telefone" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        <!-- Linha de controle: Grupo de Clientes e Cliente Centralizador -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="cc-field">
+                                <label>Grupo de Clientes</label>
+                                <select id="emp-grupo" class="cc-select">
+                                    <option value="">-- Selecione --</option>
+                                    <option value="1 - Diamante">1 - Diamante</option>
+                                    <option value="2 - Ouro">2 - Ouro</option>
+                                    <option value="3 - Prata">3 - Prata</option>
+                                    <option value="4 - Bronze">4 - Bronze</option>
+                                </select>
+                            </div>
+                            <div class="cc-field">
+                                <label>Cliente Centralizador</label>
+                                <select id="emp-centralizador" class="cc-select">
+                                    <option value="">-- Selecione --</option>
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <label class="prop-lbl">Ramal</label>
-                            <input type="text" id="cli-ramal" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label class="prop-lbl">Telefone 2</label>
-                            <input type="text" id="cli-telefone2" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label class="prop-lbl">Ramal</label>
-                            <input type="text" id="cli-ramal2" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label class="prop-lbl">Fax</label>
-                            <input type="text" id="cli-fax" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label class="prop-lbl">Website</label>
-                            <input type="text" id="cli-website" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                    </div>
 
-                    <!-- Celular e WhatsApp -->
-                    <div style="display:grid; grid-template-columns:1.5fr 2fr auto 1.5fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
-                        <div>
-                            <label class="prop-lbl">DDI do Celular</label>
-                            <select id="cli-celular-ddi" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                <option value="+55 (BRASIL)">+55 (BRASIL)</option>
-                                <option value="+1 (EUA)">+1 (EUA)</option>
-                                <option value="+351 (PORTUGAL)">+351 (PORTUGAL)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="prop-lbl">Celular</label>
-                            <input type="text" id="cli-celular" placeholder="(XX)XXXXX-XXXX" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <button onclick="abrirWhatsApp()" style="background:#25d366;color:white;border:none;padding:0.5rem;border-radius:4px;cursor:pointer;font-size:1.15rem;display:flex;align-items:center;justify-content:center;height:34px;width:38px;"><i class="ph ph-whatsapp-logo"></i></button>
-                        </div>
-                        <div>
-                            <button onclick="alert('Abrindo CRM...')" style="background:#3b5bdb;color:white;border:none;padding:0.45rem 1rem;border-radius:4px;font-weight:600;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:5px;height:34px;justify-content:center;"><i class="ph ph-briefcase"></i> Abrir no CRM</button>
+                        <!-- Linha 3: Telefone, Ramal, Telefone 2, Ramal 2, Fax, Website -->
+                        <div class="cc-grid cc-grid-company-row3">
+                            <div class="cc-field">
+                                <label>Telefone</label>
+                                <input type="text" id="emp-telefone" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Ramal</label>
+                                <input type="text" id="emp-ramal" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Telefone 2</label>
+                                <input type="text" id="emp-telefone2" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Ramal 2</label>
+                                <input type="text" id="emp-ramal2" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Fax</label>
+                                <input type="text" id="emp-fax" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Website (Site)</label>
+                                <input type="text" id="emp-site" placeholder="www.empresa.com" class="cc-input">
+                            </div>
                         </div>
                     </div>
                 </form>
-
-                <!-- ACORDEÕES EXPANSÍVEIS -->
-                <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1.5rem;">
-                    
-                    <!-- Parâmetros -->
-                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
-                        <div onclick="toggleAccordion('acc-parametros')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
-                            <span>▶ Parâmetros <i class="ph ph-gear-six"></i></span>
-                            <span id="acc-parametros-arrow" style="transition:transform 0.2s;">▶</span>
-                        </div>
-                        <div id="acc-parametros" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
-                                <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="cli-p-limite"> Bloquear faturamento por limite de crédito</label>
-                                <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="cli-p-retencao"> Exigir retenção de impostos em notas fiscais</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Fiscal -->
-                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
-                        <div onclick="toggleAccordion('acc-fiscal')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
-                            <span>▶ Fiscal <i class="ph ph-wrench"></i></span>
-                            <span id="acc-fiscal-arrow" style="transition:transform 0.2s;">▶</span>
-                        </div>
-                        <div id="acc-fiscal" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
-                            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem;">
-                                <div>
-                                    <label class="prop-lbl">Enquadramento Tributário</label>
-                                    <select id="cli-f-tributario" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;">
-                                        <option value="Simples Nacional">Simples Nacional</option>
-                                        <option value="Lucro Presumido">Lucro Presumido</option>
-                                        <option value="Lucro Real">Lucro Real</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="prop-lbl">Regime Especial ISS</label>
-                                    <input type="text" id="cli-f-iss" placeholder="Ex: Nenhum" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;">
-                                </div>
-                                <div>
-                                    <label class="prop-lbl">CNAE Principal</label>
-                                    <input type="text" id="cli-f-cnae" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Contatos (Expandido por padrão) -->
-                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
-                        <div onclick="toggleAccordion('acc-contatos')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
-                            <span>▼ Contatos <i class="ph ph-users-three"></i></span>
-                            <span id="acc-contatos-arrow" style="transform:rotate(90deg); transition:transform 0.2s;">▶</span>
-                        </div>
-                        <div id="acc-contatos" style="display:block; padding:1.2rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
-                            
-                            <!-- Controles de e-mail e botão novo contato -->
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
-                                <div style="display:flex; align-items:center; gap:8px; font-weight:600;">
-                                    <span>Dados para Envio de E-Mail Cobranças: Enviar com</span>
-                                    <input type="number" id="cli-email-cob-antecedencia" value="5" style="width:45px; text-align:center; padding:3px; border:1px solid #cbd5e1; border-radius:4px;">
-                                    <span>dias de antecedência e</span>
-                                    <input type="number" id="cli-email-cob-posterior" value="5" style="width:45px; text-align:center; padding:3px; border:1px solid #cbd5e1; border-radius:4px;">
-                                    <span>dias posterior ao Vencimento</span>
-                                </div>
-                                <button onclick="abrirModalNovoContato()" style="background:#007bff; color:white; border:none; padding:0.45rem 1rem; border-radius:4px; font-weight:bold; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px;">
-                                    <i class="ph ph-plus-bold"></i> Novo Contato
-                                </button>
-                            </div>
-
-                            <!-- Tabela de contatos cadastrados -->
-                            <div style="background:#fff; border-radius:8px; border:1px solid #e2e8f0; overflow-x:auto;">
-                                <table style="width:100%; border-collapse:collapse; font-size:0.8rem; min-width:1200px;">
-                                    <thead>
-                                        <tr style="background:#007bff; color:white; text-align:left;">
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Identificação</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Nome</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Departamento</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Celular</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Telefone/Ramal</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">E-mail</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Dono</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Cargo</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Situação</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Recebe E-mail de NFe - XML e Danfe</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Recebe E-mail de Cobrança e Boleto</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Recebe E-mail de Situação de OS</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Recebe E-mail de Situação de Contrato</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Origem</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Inativo</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600; text-align:center;">Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="cli-contatos-tbody">
-                                        <!-- Populado dinamicamente -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Validação de Dados (DataValid) -->
-                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
-                        <div onclick="toggleAccordion('acc-validacao')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
-                            <span>▶ Validação de Dados (DataValid) <i class="ph ph-check-circle"></i></span>
-                            <span id="acc-validacao-arrow" style="transition:transform 0.2s;">▶</span>
-                        </div>
-                        <div id="acc-validacao" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
-                            <div style="color:#155724; background-color:#d4edda; border:1px solid #c3e6cb; padding:0.75rem 1.25rem; border-radius:4px; font-weight:600; display:flex; align-items:center; gap:5px;">
-                                <i class="ph ph-check-circle-bold" style="font-size:1.2rem;"></i> Todos os dados cadastrais estão de acordo com a Receita Federal e Sintegra.
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Anexo de Arquivos -->
-                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
-                        <div onclick="toggleAccordion('acc-anexos')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
-                            <span>▶ Anexo de Arquivos <i class="ph ph-file-arrow-up"></i></span>
-                            <span id="acc-anexos-arrow" style="transition:transform 0.2s;">▶</span>
-                        </div>
-                        <div id="acc-anexos" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
-                            <input type="file" id="cli-anexo-file" style="margin-bottom:0.5rem; display:block;">
-                            <span style="color:#64748b; font-size:0.75rem;">(Formatos permitidos: PDF, PNG, JPG até 5MB)</span>
-                        </div>
-                    </div>
-
-                </div>
-
             </div>
         </div>
     `;
 
-    _renderTabelaContatos();
+    // Hook para carregar o registro ativo ou o mais recente ao abrir a tela
+    if (!_contatoEditandoId) {
+        apiGet('/contatos').then(list => {
+            if (list && list.length > 0) {
+                carregarContatoParaEdicao(list[list.length - 1].id); // Carrega o mais recente
+            } else {
+                limparFormContato();
+            }
+        }).catch(e => {
+            console.error(e);
+            limparFormContato();
+        });
+    } else {
+        carregarContatoParaEdicao(_contatoEditandoId);
+    }
 }
 
 window.atualizarClienteCentralizadorOptions = async function(selectedValue = null) {
-    const razaoSocialInput = document.getElementById('cli-razao-social');
-    const selectCentralizador = document.getElementById('cli-centralizador');
+    const razaoSocialInput = document.getElementById('emp-razao-social');
+    const selectCentralizador = document.getElementById('emp-centralizador');
     if (!selectCentralizador) return;
 
-    // Se a lista de clientes no cache estiver vazia, vamos buscar uma vez
     if (!_clientesCache || _clientesCache.length === 0) {
         try {
             _clientesCache = await apiGet('/clientes') || [];
@@ -1218,15 +1362,11 @@ window.atualizarClienteCentralizadorOptions = async function(selectedValue = nul
     }
 
     const currentVal = razaoSocialInput ? razaoSocialInput.value.trim() : '';
-    
-    // Extrai a primeira palavra com mais de 2 caracteres
     const words = currentVal.split(/\s+/).filter(w => w.length > 2);
     const filterWord = words.length > 0 ? words[0] : '';
 
-    // Filtra os clientes
     let filtered = [];
     if (filterWord) {
-        // Função para remover acentos para comparação mais robusta
         const cleanStr = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
         const searchVal = cleanStr(filterWord);
         
@@ -1236,8 +1376,6 @@ window.atualizarClienteCentralizadorOptions = async function(selectedValue = nul
         });
     }
 
-    // Se o selectedValue foi passado e não está na lista filtrada, vamos adicioná-lo
-    // para não perder a seleção salva na renderização
     if (selectedValue) {
         const alreadyInList = filtered.some(c => String(c.codigo) === String(selectedValue) || String(c.nome_razao_social) === String(selectedValue));
         if (!alreadyInList) {
@@ -1248,10 +1386,8 @@ window.atualizarClienteCentralizadorOptions = async function(selectedValue = nul
         }
     }
 
-    // Monta as opções do select
     let optionsHtml = '<option value="">-- Selecione --</option>';
     filtered.forEach(c => {
-        // Marcamos como selecionado se coincide com selectedValue (código ou razão)
         const isSelected = selectedValue && (String(c.codigo) === String(selectedValue) || String(c.nome_razao_social) === String(selectedValue)) ? 'selected' : '';
         optionsHtml += `<option value="${c.codigo}" ${isSelected}>${c.codigo} - ${c.nome_razao_social}</option>`;
     });
@@ -1259,35 +1395,21 @@ window.atualizarClienteCentralizadorOptions = async function(selectedValue = nul
     selectCentralizador.innerHTML = optionsHtml;
 };
 
-window.toggleAccordion = function(id) {
-    const el = document.getElementById(id);
-    const arrow = document.getElementById(id + '-arrow');
-    if (el) {
-        if (el.style.display === 'none') {
-            el.style.display = 'block';
-            if (arrow) arrow.innerText = '▼';
-        } else {
-            el.style.display = 'none';
-            if (arrow) arrow.innerText = '▶';
-        }
-    }
-};
-
 window.buscarCNPJ = async function() {
-    const cnpjRaw = document.getElementById('cli-cpf-cnpj')?.value || '';
+    const cnpjRaw = document.getElementById('emp-cnpj')?.value || '';
     const cnpj = cnpjRaw.replace(/\D/g, '');
     if (cnpj.length !== 14) {
         alert('Por favor, informe um CNPJ válido com 14 dígitos para buscar.');
         return;
     }
-    
+
     const btn = document.getElementById('btn-busca-cnpj');
     const origText = btn.innerHTML;
     btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
     btn.disabled = true;
 
     try {
-        const result = await apiGet(`/consulta-cnpj/${cnpj}`);
+        const result = await apiGet('/consulta-cnpj/' + cnpj);
         if (!result || !result.data) {
             throw new Error('Retorno inválido do servidor.');
         }
@@ -1296,64 +1418,43 @@ window.buscarCNPJ = async function() {
         const source = result.source;
 
         if (source === 'cnpjws') {
-            document.getElementById('cli-razao-social').value = data.razao_social || '';
-            document.getElementById('cli-nome-fantasia').value = data.estabelecimento?.nome_fantasia || '';
-            document.getElementById('cli-cep').value = data.estabelecimento?.cep || '';
-            
+            document.getElementById('emp-razao-social').value = data.razao_social || '';
+            document.getElementById('emp-site').value = data.estabelecimento?.nome_fantasia || '';
+            document.getElementById('emp-cep').value = data.estabelecimento?.cep || '';
+
             // Endereço
             const logradouro = data.estabelecimento?.logradouro || '';
             const tipoLogradouro = data.estabelecimento?.tipo_logradouro || '';
             const numero = data.estabelecimento?.numero || '';
             const compl = data.estabelecimento?.complemento || '';
-            
-            document.getElementById('cli-endereco').value = `${tipoLogradouro} ${logradouro}`.trim() + (numero ? ', ' + numero : '');
-            document.getElementById('cli-complemento').value = compl;
-            document.getElementById('cli-bairro').value = data.estabelecimento?.bairro || '';
-            document.getElementById('cli-uf').value = data.estabelecimento?.estado?.sigla || '';
-            document.getElementById('cli-municipio').value = data.estabelecimento?.cidade?.nome || '';
-            document.getElementById('cli-pais').value = 'BRASIL';
-            
-            // Telefone
-            if (data.estabelecimento?.ddd1 && data.estabelecimento?.telefone1) {
-                document.getElementById('cli-telefone').value = `(${data.estabelecimento.ddd1}) ${data.estabelecimento.telefone1}`;
-            }
 
-            // Inscrição Estadual
-            let ie = 'ISENTO';
-            const ieList = data.estabelecimento?.inscricoes_estaduais;
-            if (Array.isArray(ieList) && ieList.length > 0) {
-                const activeIe = ieList.find(x => x.ativo);
-                if (activeIe) {
-                    ie = activeIe.inscricao_estadual;
-                } else {
-                    ie = ieList[0].inscricao_estadual;
-                }
+            document.getElementById('emp-endereco').value = `${tipoLogradouro} ${logradouro}`.trim() + (numero ? ', ' + numero : '');
+            document.getElementById('emp-bairro').value = data.estabelecimento?.bairro || '';
+            document.getElementById('emp-uf').value = data.estabelecimento?.estado?.sigla || '';
+            document.getElementById('emp-cidade').value = data.estabelecimento?.cidade?.nome || '';
+
+            if (data.estabelecimento?.ddd1 && data.estabelecimento?.telefone1) {
+                document.getElementById('emp-telefone').value = `(${data.estabelecimento.ddd1}) ${data.estabelecimento.telefone1}`;
             }
-            document.getElementById('cli-ie').value = ie;
 
         } else {
             // Source: brasilapi
-            document.getElementById('cli-razao-social').value = data.razao_social || '';
-            document.getElementById('cli-nome-fantasia').value = data.nome_fantasia || '';
-            document.getElementById('cli-cep').value = data.cep || '';
-            document.getElementById('cli-endereco').value = (data.logradouro || '') + (data.numero ? ', ' + data.numero : '');
-            document.getElementById('cli-bairro').value = data.bairro || '';
-            document.getElementById('cli-uf').value = data.uf || '';
-            document.getElementById('cli-municipio').value = data.municipio || '';
-            document.getElementById('cli-pais').value = 'BRASIL';
-            
+            document.getElementById('emp-razao-social').value = data.razao_social || '';
+            document.getElementById('emp-cep').value = data.cep || '';
+            document.getElementById('emp-endereco').value = (data.logradouro || '') + (data.numero ? ', ' + data.numero : '');
+            document.getElementById('emp-bairro').value = data.bairro || '';
+            document.getElementById('emp-uf').value = data.uf || '';
+            document.getElementById('emp-cidade').value = data.municipio || '';
+
             if (data.ddd_telefone_1) {
-                document.getElementById('cli-telefone').value = `(${data.ddd_telefone_1.substring(0,2)}) ${data.ddd_telefone_1.substring(2)}`;
+                document.getElementById('emp-telefone').value = `(${data.ddd_telefone_1.substring(0,2)}) ${data.ddd_telefone_1.substring(2)}`;
             }
-            document.getElementById('cli-ie').value = 'ISENTO';
         }
 
-        // Atualizar as opções do centralizador dinamicamente!
         await atualizarClienteCentralizadorOptions();
 
         if (typeof mostrarToastSucesso === 'function') {
-            const extra = source === 'cnpjws' ? '' : ' (Inscrição Estadual indisponível no fallback)';
-            mostrarToastSucesso('Dados do CNPJ importados com sucesso!' + extra);
+            mostrarToastSucesso('Dados do CNPJ importados com sucesso!');
         }
     } catch(e) {
         console.error(e);
@@ -1365,25 +1466,24 @@ window.buscarCNPJ = async function() {
 };
 
 window.buscarCEP = async function() {
-    const cepRaw = document.getElementById('cli-cep')?.value || '';
+    const cepRaw = document.getElementById('emp-cep')?.value || '';
     const cep = cepRaw.replace(/\D/g, '');
     if (cep.length !== 8) {
         alert('Por favor, informe um CEP válido com 8 dígitos.');
         return;
     }
-    
+
     try {
         const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
         if (!res.ok) throw new Error('CEP não encontrado.');
         const data = await res.json();
         if (data.erro) throw new Error('CEP inexistente.');
-        
-        document.getElementById('cli-endereco').value = data.logradouro || '';
-        document.getElementById('cli-bairro').value = data.bairro || '';
-        document.getElementById('cli-uf').value = data.uf || '';
-        document.getElementById('cli-municipio').value = data.localidade || '';
-        document.getElementById('cli-pais').value = 'BRASIL';
-        
+
+        document.getElementById('emp-endereco').value = data.logradouro || '';
+        document.getElementById('emp-bairro').value = data.bairro || '';
+        document.getElementById('emp-uf').value = data.uf || '';
+        document.getElementById('emp-cidade').value = data.localidade || '';
+
         if (typeof mostrarToastSucesso === 'function') {
             mostrarToastSucesso('Endereço importado com sucesso!');
         }
@@ -1394,46 +1494,60 @@ window.buscarCEP = async function() {
 };
 
 window.abrirWhatsApp = function() {
-    const cel = document.getElementById('cli-celular')?.value || '';
+    const cel = document.getElementById('con-celular')?.value || '';
     const cleanCel = cel.replace(/\D/g, '');
     if (!cleanCel) {
-        alert('Por favor, informe o celular primeiro.');
+        alert('Por favor, informe o celular do contato primeiro.');
         return;
     }
     window.open(`https://wa.me/55${cleanCel}`, '_blank');
 };
 
-window.abrirModalPesquisaCliente = async function() {
+window.abrirModalPesquisaContato = async function() {
     try {
-        const clientes = await apiGet('/clientes');
-        if (!clientes || clientes.length === 0) {
-            Swal.fire('Aviso', 'Nenhum cliente cadastrado ainda.', 'info');
+        const contatos = await apiGet('/contatos');
+        if (!contatos || contatos.length === 0) {
+            Swal.fire('Aviso', 'Nenhum contato cadastrado ainda.', 'info');
             return;
         }
 
-        const rowsHtml = clientes.map(c => `
-            <tr onclick="selectClientePesquisa(${c.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+        const rowsHtml = contatos.map(c => `
+            <tr onclick="selectContatoPesquisa(${c.id})" class="swal-contato-row" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                 <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo}</td>
-                <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social}</td>
-                <td style="padding:0.5rem; text-align:left;">${c.cpf_cnpj}</td>
+                <td style="padding:0.5rem; text-align:left;">${c.nome}</td>
+                <td style="padding:0.5rem; text-align:left;">${c.email}</td>
+                <td style="padding:0.5rem; text-align:left;">${c.celular || ''}</td>
+                <td style="padding:0.5rem; text-align:left;">${c.cliente_nome || ''}</td>
             </tr>
         `).join('');
 
-        window.selectClientePesquisa = function(id) {
+        window.selectContatoPesquisa = function(id) {
             Swal.close();
-            carregarClienteParaEdicao(id);
+            carregarContatoParaEdicao(id);
+        };
+
+        window.filtrarContatosTabela = function() {
+            const query = document.getElementById('swal-busca-contato').value.toLowerCase();
+            const rows = document.querySelectorAll('.swal-contato-row');
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
         };
 
         Swal.fire({
-            title: 'Pesquisar Cliente',
+            title: 'Pesquisar Contato',
             html: `
-                <div style="max-height:400px; overflow-y:auto;">
+                <input type="text" id="swal-busca-contato" oninput="filtrarContatosTabela()" placeholder="Digite para filtrar..." style="width:100%; padding:0.5rem; margin-bottom:1rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.875rem; box-sizing:border-box;">
+                <div style="max-height:300px; overflow-y:auto;">
                     <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
                         <thead>
                             <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1;">
                                 <th style="padding:0.5rem; text-align:left;">Código</th>
-                                <th style="padding:0.5rem; text-align:left;">Nome / Razão Social</th>
-                                <th style="padding:0.5rem; text-align:left;">CPF / CNPJ</th>
+                                <th style="padding:0.5rem; text-align:left;">Nome</th>
+                                <th style="padding:0.5rem; text-align:left;">E-mail</th>
+                                <th style="padding:0.5rem; text-align:left;">Celular</th>
+                                <th style="padding:0.5rem; text-align:left;">Empresa</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1448,380 +1562,392 @@ window.abrirModalPesquisaCliente = async function() {
         });
     } catch (e) {
         console.error(e);
-        alert('Erro ao carregar lista de clientes: ' + e.message);
+        alert('Erro ao carregar lista de contatos: ' + e.message);
     }
 };
 
-window.carregarClienteParaEdicao = async function(id) {
+window.abrirModalPesquisaEmpresa = async function() {
     try {
-        const c = await apiGet(`/clientes/${id}`);
-        if (!c) throw new Error('Cliente não encontrado.');
-
-        _clienteEditandoId = c.id;
-        document.getElementById('cli-codigo').value = c.codigo || '';
-        document.getElementById('cli-data-cadastro').value = c.data_cadastro || '';
-        document.getElementById('cli-inativo').checked = c.inativo === 1;
-        document.getElementById('cli-cpf-cnpj').value = c.cpf_cnpj || '';
-        document.getElementById('cli-ie').value = c.inscricao_estadual || '';
-        document.getElementById('cli-im').value = c.inscricao_municipal || '';
-        document.getElementById('cli-razao-social').value = c.nome_razao_social || '';
-        document.getElementById('cli-grupo').value = c.grupo_clientes || '';
-        await atualizarClienteCentralizadorOptions(c.cliente_centralizador || '');
-        document.getElementById('cli-nome-fantasia').value = c.nome_fantasia || '';
-        document.getElementById('cli-cep').value = c.cep || '';
-        document.getElementById('cli-endereco').value = c.endereco || '';
-        document.getElementById('cli-numero').value = c.numero || '';
-        document.getElementById('cli-complemento').value = c.complemento || '';
-        document.getElementById('cli-bairro').value = c.bairro || '';
-        document.getElementById('cli-uf').value = c.uf || '';
-        document.getElementById('cli-municipio').value = c.municipio || '';
-        document.getElementById('cli-pais').value = c.pais || 'BRASIL';
-        document.getElementById('cli-telefone').value = c.telefone || '';
-        document.getElementById('cli-ramal').value = c.ramal || '';
-        document.getElementById('cli-telefone2').value = c.telefone_2 || '';
-        document.getElementById('cli-ramal2').value = c.ramal_2 || '';
-        document.getElementById('cli-fax').value = c.fax || '';
-        document.getElementById('cli-website').value = c.website || '';
-        document.getElementById('cli-celular-ddi').value = c.celular_ddi || '+55 (BRASIL)';
-        document.getElementById('cli-celular').value = c.celular || '';
-
-        // Carregar contatos e acordeões
-        try {
-            _clienteContatos = JSON.parse(c.contatos || '[]');
-        } catch(e) {
-            _clienteContatos = [];
+        const empresas = await apiGet('/clientes');
+        if (!empresas || empresas.length === 0) {
+            Swal.fire('Aviso', 'Nenhuma empresa cadastrada ainda.', 'info');
+            return;
         }
-        _renderTabelaContatos();
 
-        // Carregar outros campos JSON
-        try {
-            const p = JSON.parse(c.parametros || '{}');
-            document.getElementById('cli-p-limite').checked = !!p.limite;
-            document.getElementById('cli-p-retencao').checked = !!p.retencao;
-        } catch(e) {}
+        const rowsHtml = empresas.map(c => `
+            <tr onclick="selectEmpresaPesquisa(${c.id})" class="swal-empresa-row" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo}</td>
+                <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social}</td>
+                <td style="padding:0.5rem; text-align:left;">${c.cpf_cnpj}</td>
+            </tr>
+        `).join('');
 
-        try {
-            const f = JSON.parse(c.fiscal || '{}');
-            document.getElementById('cli-f-tributario').value = f.enquadramento || 'Simples Nacional';
-            document.getElementById('cli-f-iss').value = f.regime_iss || '';
-            document.getElementById('cli-f-cnae').value = f.cnae || '';
-        } catch(e) {}
+        window.selectEmpresaPesquisa = function(id) {
+            Swal.close();
+            carregarEmpresaSelecionada(id);
+        };
+
+        window.filtrarEmpresasTabela = function() {
+            const query = document.getElementById('swal-busca-empresa').value.toLowerCase();
+            const rows = document.querySelectorAll('.swal-empresa-row');
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        };
+
+        Swal.fire({
+            title: 'Pesquisar Empresa Cliente',
+            html: `
+                <input type="text" id="swal-busca-empresa" oninput="filtrarEmpresasTabela()" placeholder="Digite para filtrar..." style="width:100%; padding:0.5rem; margin-bottom:1rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.875rem; box-sizing:border-box;">
+                <div style="max-height:300px; overflow-y:auto;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                        <thead>
+                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1;">
+                                <th style="padding:0.5rem; text-align:left;">Código</th>
+                                <th style="padding:0.5rem; text-align:left;">Razão Social</th>
+                                <th style="padding:0.5rem; text-align:left;">CNPJ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            `,
+            showConfirmButton: false,
+            showCancelButton: true,
+            cancelButtonText: 'Fechar'
+        });
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao carregar lista de empresas: ' + e.message);
+    }
+};
+
+window.carregarEmpresaSelecionada = async function(id) {
+    try {
+        const c = await apiGet('/clientes/' + id);
+        if (!c) throw new Error('Empresa não encontrada.');
+
+        _empresaSelecionadaId = c.id;
+        _empresaSelecionadaCodigo = c.codigo;
+
+        document.getElementById('emp-codigo').value = c.codigo || '';
+        document.getElementById('emp-razao-social').value = c.nome_razao_social || '';
+        document.getElementById('emp-cnpj').value = c.cpf_cnpj || '';
+        document.getElementById('emp-cep').value = c.cep || '';
+        document.getElementById('emp-endereco').value = c.endereco || '';
+        document.getElementById('emp-numero').value = c.numero || '';
+        document.getElementById('emp-bairro').value = c.bairro || '';
+        document.getElementById('emp-cidade').value = c.municipio || '';
+        document.getElementById('emp-uf').value = c.uf || '';
+        document.getElementById('emp-grupo').value = c.grupo_clientes || '';
+        await atualizarClienteCentralizadorOptions(c.cliente_centralizador || '');
+        document.getElementById('emp-telefone').value = c.telefone || '';
+        document.getElementById('emp-ramal').value = c.ramal || '';
+        document.getElementById('emp-telefone2').value = c.telefone_2 || '';
+        document.getElementById('emp-ramal2').value = c.ramal_2 || '';
+        document.getElementById('emp-fax').value = c.fax || '';
+        document.getElementById('emp-site').value = c.website || '';
 
         if (typeof mostrarToastSucesso === 'function') {
-            mostrarToastSucesso(`Cliente ${c.codigo} carregado com sucesso!`);
+            mostrarToastSucesso(`Empresa ${c.nome_razao_social} selecionada!`);
         }
     } catch (e) {
         console.error(e);
-        alert('Erro ao carregar dados do cliente: ' + e.message);
+        alert('Erro ao carregar empresa: ' + e.message);
     }
 };
 
-window.limparFormCliente = function() {
-    _clienteEditandoId = null;
-    _clienteContatos = [];
-    
-    const form = document.getElementById('form-cadastro-cliente');
-    if (form) form.reset();
-    
-    document.getElementById('cli-codigo').value = '';
-    document.getElementById('cli-inativo').checked = false;
-    
-    // Resetar checkboxes adicionais
-    const checkLimite = document.getElementById('cli-p-limite');
-    if (checkLimite) checkLimite.checked = false;
-    const checkRetencao = document.getElementById('cli-p-retencao');
-    if (checkRetencao) checkRetencao.checked = false;
-    
-    // Resetar campos fiscais
-    const tributario = document.getElementById('cli-f-tributario');
-    if (tributario) tributario.value = 'Simples Nacional';
-    const iss = document.getElementById('cli-f-iss');
-    if (iss) iss.value = '';
-    const cnae = document.getElementById('cli-f-cnae');
-    if (cnae) cnae.value = '';
+window.limparEmpresaCliente = function() {
+    _empresaSelecionadaId = null;
+    _empresaSelecionadaCodigo = null;
 
-    // Resetar centralizador
-    const selectCentralizador = document.getElementById('cli-centralizador');
+    document.getElementById('emp-codigo').value = '';
+    document.getElementById('emp-razao-social').value = '';
+    document.getElementById('emp-cnpj').value = '';
+    document.getElementById('emp-cep').value = '';
+    document.getElementById('emp-endereco').value = '';
+    document.getElementById('emp-numero').value = '';
+    document.getElementById('emp-bairro').value = '';
+    document.getElementById('emp-cidade').value = '';
+    document.getElementById('emp-uf').value = '';
+    document.getElementById('emp-grupo').value = '';
+    
+    const selectCentralizador = document.getElementById('emp-centralizador');
     if (selectCentralizador) {
         selectCentralizador.innerHTML = '<option value="">-- Selecione --</option>';
     }
 
-    _renderTabelaContatos();
-};
+    document.getElementById('emp-telefone').value = '';
+    document.getElementById('emp-ramal').value = '';
+    document.getElementById('emp-telefone2').value = '';
+    document.getElementById('emp-ramal2').value = '';
+    document.getElementById('emp-fax').value = '';
+    document.getElementById('emp-site').value = '';
 
-window._renderTabelaContatos = function() {
-    const tbody = document.getElementById('cli-contatos-tbody');
-    if (!tbody) return;
-    
-    if (_clienteContatos.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="16" style="padding:1rem; text-align:center; color:#94a3b8;">
-                    Nenhum contato adicionado.
-                </td>
-            </tr>
-        `;
-        return;
-    }
-    
-    tbody.innerHTML = _clienteContatos.map((c, idx) => `
-        <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-            <td style="padding:0.5rem; color:#475569;">${c.identificacao}</td>
-            <td style="padding:0.5rem; color:#1e293b; font-weight:600;">${c.nome}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.departamento || '—'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.celular || '—'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.telefone_ramal || '—'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.email}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.dono || '—'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.cargo || '—'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.situacao || '—'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.nfe || 'Não'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.cobranca || 'Não'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.os || 'Não'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.contrato || 'Não'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.origem || '—'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.inativo || 'Não'}</td>
-            <td style="padding:0.5rem; text-align:center;">
-                <button onclick="removerContato(${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:3px 6px; border-radius:4px; cursor:pointer;" title="Remover Contato"><i class="ph ph-trash"></i></button>
-            </td>
-        </tr>
-    `).join('');
-};
-
-window.removerContato = function(idx) {
-    if (confirm('Deseja realmente remover este contato?')) {
-        _clienteContatos.splice(idx, 1);
-        _renderTabelaContatos();
+    if (typeof mostrarToastSucesso === 'function') {
+        mostrarToastSucesso('Pronto para cadastrar nova empresa cliente.');
     }
 };
 
-window.abrirModalNovoContato = function() {
-    Swal.fire({
-        title: 'Novo Contato',
-        html: `
-            <div style="text-align:left; display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; font-size:0.85rem;">
-                <div>
-                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Identificação *</label>
-                    <input id="swal-contato-id" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;" placeholder="Ex: 14848">
-                </div>
-                <div>
-                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Nome *</label>
-                    <input id="swal-contato-nome" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;" placeholder="Nome Completo">
-                </div>
-                <div>
-                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Departamento</label>
-                    <input id="swal-contato-depto" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
-                </div>
-                <div>
-                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Celular</label>
-                    <input id="swal-contato-celular" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;" placeholder="(99) 99999-9999">
-                </div>
-                <div>
-                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Telefone/Ramal</label>
-                    <input id="swal-contato-tel" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
-                </div>
-                <div>
-                    <label style="font-weight:bold;display:block;margin-bottom:3px;">E-mail *</label>
-                    <input id="swal-contato-email" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;" placeholder="email@dominio.com">
-                </div>
-                <div>
-                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Dono</label>
-                    <input id="swal-contato-dono" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
-                </div>
-                <div>
-                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Cargo</label>
-                    <input id="swal-contato-cargo" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
-                </div>
-                <div>
-                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Situação</label>
-                    <input id="swal-contato-situacao" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
-                </div>
-                <div>
-                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Recebe E-mail de NFe?</label>
-                    <select id="swal-contato-nfe" class="swal2-select" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
-                        <option value="Não">Não</option>
-                        <option value="Sim">Sim</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Recebe E-mail Cobrança/Boleto?</label>
-                    <select id="swal-contato-cobranca" class="swal2-select" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
-                        <option value="Não">Não</option>
-                        <option value="Sim">Sim</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Recebe E-mail Situação OS?</label>
-                    <select id="swal-contato-os" class="swal2-select" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
-                        <option value="Não">Não</option>
-                        <option value="Sim">Sim</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Recebe E-mail Contrato?</label>
-                    <select id="swal-contato-contrato" class="swal2-select" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
-                        <option value="Não">Não</option>
-                        <option value="Sim">Sim</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Origem</label>
-                    <input id="swal-contato-origem" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
-                </div>
-                <div style="grid-column:span 2;">
-                    <label style="font-weight:bold;display:block;margin-bottom:3px;">Inativo?</label>
-                    <select id="swal-contato-inativo" class="swal2-select" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
-                        <option value="Não">Não</option>
-                        <option value="Sim">Sim</option>
-                    </select>
-                </div>
-            </div>
-        `,
-        focusConfirm: false,
-        showCancelButton: true,
-        confirmButtonText: 'Adicionar',
-        cancelButtonText: 'Cancelar',
-        preConfirm: () => {
-            const idVal = document.getElementById('swal-contato-id').value;
-            const nomeVal = document.getElementById('swal-contato-nome').value;
-            const emailVal = document.getElementById('swal-contato-email').value;
-            
-            if (!idVal || !nomeVal || !emailVal) {
-                Swal.showValidationMessage('Identificação, Nome e E-mail são obrigatórios.');
-                return false;
+window.carregarContatoParaEdicao = async function(id) {
+    try {
+        const c = await apiGet('/contatos/' + id);
+        if (!c) throw new Error('Contato não encontrado.');
+
+        _contatoEditandoId = c.id;
+        _empresaSelecionadaId = c.cliente_id || null;
+        _empresaSelecionadaCodigo = c.cliente_codigo || null;
+
+        // Populate Contact Fields
+        document.getElementById('con-codigo').value = c.codigo || '';
+        document.getElementById('con-nome').value = c.nome || '';
+        document.getElementById('con-celular').value = c.celular || '';
+        document.getElementById('con-email').value = c.email || '';
+        document.getElementById('con-tipo').value = c.tipo || '';
+        document.getElementById('con-representante').value = c.representante || '';
+        document.getElementById('con-cargo').value = c.cargo || '';
+        document.getElementById('con-sexo').value = c.sexo || '';
+        document.getElementById('con-nascimento').value = c.data_nascimento || '';
+        document.getElementById('con-departamento').value = c.departamento || '';
+        document.getElementById('con-origem').value = c.origem || '';
+        document.getElementById('con-influenciador').value = c.influenciador || '';
+        document.getElementById('con-classificacao').value = c.classificacao || '';
+        document.getElementById('con-ramo-atividade').value = c.ramo_atividade || '';
+        document.getElementById('con-regiao').value = c.regiao || '';
+        document.getElementById('con-telefone').value = c.telefone || '';
+        document.getElementById('con-ramal').value = c.ramal || '';
+        document.getElementById('con-nextel').value = c.nextel || '';
+        document.getElementById('con-outra-comunicacao').value = c.outra_comunicacao || '';
+
+        // Checkboxes at the top
+        document.getElementById('con-email-nfe').checked = c.email_nfe === 1;
+        document.getElementById('con-email-cobranca').checked = c.email_cobranca === 1;
+        document.getElementById('con-email-os').checked = c.email_os === 1;
+        document.getElementById('con-email-contrato').checked = c.email_contrato === 1;
+        document.getElementById('con-inativo').checked = c.inativo === 1;
+
+        // Populate Company Fields
+        document.getElementById('emp-codigo').value = c.cliente_codigo || '';
+        document.getElementById('emp-razao-social').value = c.cliente_nome || '';
+        document.getElementById('emp-cnpj').value = c.cpf_cnpj || '';
+        document.getElementById('emp-cep').value = c.cep || '';
+        document.getElementById('emp-endereco').value = c.endereco || '';
+        document.getElementById('emp-numero').value = c.numero || '';
+        document.getElementById('emp-bairro').value = c.bairro || '';
+        document.getElementById('emp-cidade').value = c.cliente_cidade || '';
+        document.getElementById('emp-uf').value = c.uf || '';
+        document.getElementById('emp-grupo').value = c.grupo_clientes || '';
+        await atualizarClienteCentralizadorOptions(c.cliente_centralizador || '');
+        document.getElementById('emp-telefone').value = c.cliente_telefone || '';
+        document.getElementById('emp-ramal').value = c.cliente_ramal || '';
+        document.getElementById('emp-telefone2').value = c.cliente_telefone2 || '';
+        document.getElementById('emp-ramal2').value = c.cliente_ramal2 || '';
+        document.getElementById('emp-fax').value = c.cliente_fax || '';
+        document.getElementById('emp-site').value = c.cliente_site || '';
+
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso(`Contato ${c.codigo} carregado com sucesso!`);
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao carregar contato: ' + e.message);
+    }
+};
+
+window.limparFormContato = function() {
+    _contatoEditandoId = null;
+    _empresaSelecionadaId = null;
+    _empresaSelecionadaCodigo = null;
+
+    // Clear checkboxes
+    document.getElementById('con-email-nfe').checked = false;
+    document.getElementById('con-email-cobranca').checked = false;
+    document.getElementById('con-email-os').checked = false;
+    document.getElementById('con-email-contrato').checked = false;
+    document.getElementById('con-inativo').checked = false;
+
+    // Clear Contact inputs
+    document.getElementById('con-codigo').value = 'Auto';
+    document.getElementById('con-nome').value = '';
+    document.getElementById('con-celular').value = '';
+    document.getElementById('con-email').value = '';
+    document.getElementById('con-tipo').value = '';
+    document.getElementById('con-representante').value = '';
+    document.getElementById('con-cargo').value = '';
+    document.getElementById('con-sexo').value = '';
+    document.getElementById('con-nascimento').value = '';
+    document.getElementById('con-departamento').value = '';
+    document.getElementById('con-origem').value = '';
+    document.getElementById('con-influenciador').value = '';
+    document.getElementById('con-classificacao').value = '';
+    document.getElementById('con-ramo-atividade').value = '';
+    document.getElementById('con-regiao').value = '';
+    document.getElementById('con-telefone').value = '';
+    document.getElementById('con-ramal').value = '';
+    document.getElementById('con-nextel').value = '';
+    document.getElementById('con-outra-comunicacao').value = '';
+
+    // Clear Company inputs
+    document.getElementById('emp-codigo').value = '';
+    document.getElementById('emp-razao-social').value = '';
+    document.getElementById('emp-cnpj').value = '';
+    document.getElementById('emp-cep').value = '';
+    document.getElementById('emp-endereco').value = '';
+    document.getElementById('emp-numero').value = '';
+    document.getElementById('emp-bairro').value = '';
+    document.getElementById('emp-cidade').value = '';
+    document.getElementById('emp-uf').value = '';
+    document.getElementById('emp-grupo').value = '';
+    
+    const selectCentralizador = document.getElementById('emp-centralizador');
+    if (selectCentralizador) {
+        selectCentralizador.innerHTML = '<option value="">-- Selecione --</option>';
+    }
+
+    document.getElementById('emp-telefone').value = '';
+    document.getElementById('emp-ramal').value = '';
+    document.getElementById('emp-telefone2').value = '';
+    document.getElementById('emp-ramal2').value = '';
+    document.getElementById('emp-fax').value = '';
+    document.getElementById('emp-site').value = '';
+};
+
+window.recarregarContato = function() {
+    if (_contatoEditandoId) {
+        carregarContatoParaEdicao(_contatoEditandoId);
+    } else {
+        limparFormContato();
+    }
+};
+
+window.navegarContato = async function(direcao) {
+    if (!_contatoEditandoId) {
+        try {
+            const contatos = await apiGet('/contatos');
+            if (contatos && contatos.length > 0) {
+                const c = direcao === 'proximo' ? contatos[contatos.length - 1] : contatos[0];
+                carregarContatoParaEdicao(c.id);
+            } else {
+                alert('Nenhum contato cadastrado no momento.');
             }
-            return {
-                identificacao: idVal,
-                nome: nomeVal,
-                departamento: document.getElementById('swal-contato-depto').value,
-                celular: document.getElementById('swal-contato-celular').value,
-                telefone_ramal: document.getElementById('swal-contato-tel').value,
-                email: emailVal,
-                dono: document.getElementById('swal-contato-dono').value,
-                cargo: document.getElementById('swal-contato-cargo').value,
-                situacao: document.getElementById('swal-contato-situacao').value,
-                nfe: document.getElementById('swal-contato-nfe').value,
-                cobranca: document.getElementById('swal-contato-cobranca').value,
-                os: document.getElementById('swal-contato-os').value,
-                contrato: document.getElementById('swal-contato-contrato').value,
-                origem: document.getElementById('swal-contato-origem').value,
-                inativo: document.getElementById('swal-contato-inativo').value
-            };
+        } catch (e) {
+            console.error(e);
         }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            _clienteContatos.push(result.value);
-            _renderTabelaContatos();
+        return;
+    }
+
+    try {
+        const res = await apiGet('/contatos/' + _contatoEditandoId + '/navegar/' + direcao);
+        if (res && res.endOfList) {
+            Swal.fire('Aviso', 'Fim da lista de contatos nesta direção.', 'info');
+            return;
         }
-    });
+        if (res && res.id) {
+            carregarContatoParaEdicao(res.id);
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao navegar contatos: ' + e.message);
+    }
 };
 
-window.salvarCliente = async function() {
-    const cpfCnpj = document.getElementById('cli-cpf-cnpj')?.value || '';
-    const razaoSocial = document.getElementById('cli-razao-social')?.value || '';
-    
-    if (!cpfCnpj) {
-        alert('Por favor, informe o CPF / CNPJ.');
+window.salvarContato = async function() {
+    const conNome = document.getElementById('con-nome')?.value || '';
+    const conEmail = document.getElementById('con-email')?.value || '';
+    const empCnpj = document.getElementById('emp-cnpj')?.value || '';
+    const empRazao = document.getElementById('emp-razao-social')?.value || '';
+
+    if (!conNome) {
+        alert('Por favor, preencha o Nome do Contato.');
         return;
     }
-    if (!razaoSocial) {
-        alert('Por favor, informe a Razão Social.');
+    if (!conEmail) {
+        alert('Por favor, preencha o E-mail do Contato.');
+        return;
+    }
+    if (!empCnpj) {
+        alert('Por favor, preencha o CNPJ da Empresa Cliente.');
+        return;
+    }
+    if (!empRazao) {
+        alert('Por favor, preencha a Razão Social da Empresa Cliente.');
         return;
     }
 
-    const parametros = {
-        limite: document.getElementById('cli-p-limite')?.checked || false,
-        retencao: document.getElementById('cli-p-retencao')?.checked || false
-    };
-
-    const fiscal = {
-        enquadramento: document.getElementById('cli-f-tributario')?.value || 'Simples Nacional',
-        regime_iss: document.getElementById('cli-f-iss')?.value || '',
-        cnae: document.getElementById('cli-f-cnae')?.value || ''
+    const empresa_cliente = {
+        id: _empresaSelecionadaId,
+        codigo: _empresaSelecionadaCodigo,
+        cpf_cnpj: empCnpj,
+        nome_razao_social: empRazao,
+        cep: document.getElementById('emp-cep')?.value || '',
+        endereco: document.getElementById('emp-endereco')?.value || '',
+        numero: document.getElementById('emp-numero')?.value || '',
+        bairro: document.getElementById('emp-bairro')?.value || '',
+        municipio: document.getElementById('emp-cidade')?.value || '',
+        uf: document.getElementById('emp-uf')?.value || '',
+        grupo_clientes: document.getElementById('emp-grupo')?.value || '',
+        cliente_centralizador: document.getElementById('emp-centralizador')?.value || '',
+        telefone: document.getElementById('emp-telefone')?.value || '',
+        ramal: document.getElementById('emp-ramal')?.value || '',
+        telefone_2: document.getElementById('emp-telefone2')?.value || '',
+        ramal_2: document.getElementById('emp-ramal2')?.value || '',
+        fax: document.getElementById('emp-fax')?.value || '',
+        website: document.getElementById('emp-site')?.value || '',
+        criado_por: window.currentUser?.nome || window.currentUser?.email || ''
     };
 
     const payload = {
-        codigo: document.getElementById('cli-codigo')?.value || null,
-        data_cadastro: document.getElementById('cli-data-cadastro')?.value || '',
-        inativo: document.getElementById('cli-inativo')?.checked ? 1 : 0,
-        cpf_cnpj: cpfCnpj,
-        inscricao_estadual: document.getElementById('cli-ie')?.value || '',
-        inscricao_municipal: document.getElementById('cli-im')?.value || '',
-        rg: '',
-        data_nascimento: '',
-        grupo_clientes: document.getElementById('cli-grupo')?.value || '',
-        cliente_centralizador: document.getElementById('cli-centralizador')?.value || '',
-        nome_razao_social: razaoSocial,
-        nome_fantasia: document.getElementById('cli-nome-fantasia')?.value || '',
-        cep: document.getElementById('cli-cep')?.value || '',
-        endereco: document.getElementById('cli-endereco')?.value || '',
-        numero: document.getElementById('cli-numero')?.value || '',
-        complemento: document.getElementById('cli-complemento')?.value || '',
-        bairro: document.getElementById('cli-bairro')?.value || '',
-        uf: document.getElementById('cli-uf')?.value || '',
-        municipio: document.getElementById('cli-municipio')?.value || '',
-        pais: document.getElementById('cli-pais')?.value || 'BRASIL',
-        telefone: document.getElementById('cli-telefone')?.value || '',
-        ramal: document.getElementById('cli-ramal')?.value || '',
-        telefone_2: document.getElementById('cli-telefone2')?.value || '',
-        ramal_2: document.getElementById('cli-ramal2')?.value || '',
-        fax: document.getElementById('cli-fax')?.value || '',
-        website: document.getElementById('cli-website')?.value || '',
-        celular_ddi: document.getElementById('cli-celular-ddi')?.value || '',
-        celular: document.getElementById('cli-celular')?.value || '',
-        parametros: JSON.stringify(parametros),
-        fiscal: JSON.stringify(fiscal),
-        contatos: JSON.stringify(_clienteContatos),
-        validacao_dados: '',
-        anexo_arquivos: '',
-        criado_por: window.currentUser?.nome || window.currentUser?.email || ''
+        codigo: _contatoEditandoId ? document.getElementById('con-codigo')?.value : null,
+        nome: conNome,
+        tipo: document.getElementById('con-tipo')?.value || '',
+        representante: document.getElementById('con-representante')?.value || '',
+        departamento: document.getElementById('con-departamento')?.value || '',
+        cargo: document.getElementById('con-cargo')?.value || '',
+        origem: document.getElementById('con-origem')?.value || '',
+        influenciador: document.getElementById('con-influenciador')?.value || '',
+        classificacao: document.getElementById('con-classificacao')?.value || '',
+        data_nascimento: document.getElementById('con-nascimento')?.value || '',
+        ramo_atividade: document.getElementById('con-ramo-atividade')?.value || '',
+        regiao: document.getElementById('con-regiao')?.value || '',
+        sexo: document.getElementById('con-sexo')?.value || '',
+        celular: document.getElementById('con-celular')?.value || '',
+        telefone: document.getElementById('con-telefone')?.value || '',
+        ramal: document.getElementById('con-ramal')?.value || '',
+        nextel: document.getElementById('con-nextel')?.value || '',
+        email: conEmail,
+        outra_comunicacao: document.getElementById('con-outra-comunicacao')?.value || '',
+        inativo: document.getElementById('con-inativo')?.checked ? 1 : 0,
+        email_cobranca: document.getElementById('con-email-cobranca')?.checked ? 1 : 0,
+        email_nfe: document.getElementById('con-email-nfe')?.checked ? 1 : 0,
+        email_os: document.getElementById('con-email-os')?.checked ? 1 : 0,
+        email_contrato: document.getElementById('con-email-contrato')?.checked ? 1 : 0,
+        criado_por: window.currentUser?.nome || window.currentUser?.email || '',
+        empresa_cliente: empresa_cliente
     };
 
     try {
         let res;
-        if (_clienteEditandoId) {
-            res = await apiPut(`/clientes/${_clienteEditandoId}`, payload);
+        if (_contatoEditandoId) {
+            res = await apiPut('/contatos/' + _contatoEditandoId, payload);
         } else {
-            res = await apiPost('/clientes', payload);
+            res = await apiPost('/contatos', payload);
         }
 
-        if (res && res.success) {
-            _clientesCache = []; // Limpar cache para atualizar centralizadores
-            if (!_clienteEditandoId && res.id) {
-                _clienteEditandoId = res.id;
-                document.getElementById('cli-codigo').value = res.codigo || '';
-            }
-            if (typeof mostrarToastSucesso === 'function') {
-                mostrarToastSucesso(_clienteEditandoId ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
-            }
-        } else {
-            alert('Erro ao salvar cliente: ' + (res?.error || 'Erro desconhecido.'));
-        }
-    } catch (e) {
-        console.error(e);
-        alert('Erro de comunicação com o servidor.');
-    }
-};
-
-window.excluirCliente = async function() {
-    if (!_clienteEditandoId) {
-        alert('Selecione um cliente cadastrado para poder excluir.');
-        return;
-    }
-    if (!confirm('Deseja realmente excluir este cliente permanentemente?')) {
-        return;
-    }
-    
-    try {
-        const res = await apiDelete(`/clientes/${_clienteEditandoId}`);
         if (res && res.success) {
             _clientesCache = []; // Limpar cache
-            limparFormCliente();
+            if (!_contatoEditandoId && res.id) {
+                _contatoEditandoId = res.id;
+            }
+            await carregarContatoParaEdicao(_contatoEditandoId);
+
             if (typeof mostrarToastSucesso === 'function') {
-                mostrarToastSucesso('Cliente excluído com sucesso.');
+                mostrarToastSucesso(_contatoEditandoId ? 'Contato atualizado com sucesso!' : 'Contato cadastrado com sucesso!');
             }
         } else {
-            alert('Erro ao excluir cliente: ' + (res?.error || 'Erro desconhecido.'));
+            alert('Erro ao salvar contato: ' + (res?.error || 'Erro desconhecido.'));
         }
     } catch (e) {
         console.error(e);
@@ -1829,29 +1955,31 @@ window.excluirCliente = async function() {
     }
 };
 
-window.recarregarCliente = function() {
-    if (_clienteEditandoId) {
-        carregarClienteParaEdicao(_clienteEditandoId);
-    } else {
-        limparFormCliente();
+window.excluirContato = async function() {
+    if (!_contatoEditandoId) {
+        alert('Selecione um contato cadastrado para poder excluir.');
+        return;
+    }
+    if (!confirm('Deseja realmente excluir este contato permanentemente?')) {
+        return;
+    }
+
+    try {
+        const res = await apiDelete('/contatos/' + _contatoEditandoId);
+        if (res && res.success) {
+            _clientesCache = []; // Limpar cache
+            limparFormContato();
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Contato excluído com sucesso.');
+            }
+        } else {
+            alert('Erro ao excluir contato: ' + (res?.error || 'Erro desconhecido.'));
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao comunicar com o servidor.');
     }
 };
 
-window.verificarCliente = function() {
-    const cpfCnpj = document.getElementById('cli-cpf-cnpj')?.value || '';
-    const razaoSocial = document.getElementById('cli-razao-social')?.value || '';
-    
-    if (!cpfCnpj) {
-        alert('Falta preencher: CPF / CNPJ.');
-        return;
-    }
-    if (!razaoSocial) {
-        alert('Falta preencher: Nome / Razão Social.');
-        return;
-    }
-    
-    alert('Campos validados com sucesso! Pronto para salvar.');
-};
-
-console.log('[PROPOSTAS] Módulo frontend carregado.');
-console.log('[CLIENTES] Módulo frontend de cadastro de clientes carregado.');
+console.log('[PROPOSTAS] Módulo frontend de proposta carregado.');
+console.log('[CONTATOS] Módulo frontend de cadastro de contatos carregado.');
