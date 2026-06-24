@@ -3224,7 +3224,23 @@
 
                                 </div>
                             </div>
-                            
+
+                            <!-- SEÇÃO: ENDEREÇOS DO PRODUTO -->
+                            <div style="margin-top:1.5rem;border-top:1px solid #e2e8f0;padding-top:1.2rem;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+                                    <label style="font-weight:700;font-size:0.88rem;color:#334155;display:flex;align-items:center;gap:6px;">
+                                        <i class="ph ph-map-pin" style="color:#1d4ed8;"></i> Endereços do Produto
+                                    </label>
+                                    <button type="button" onclick="window._adicionarLinhaEndereco()" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:4px 12px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                                        <i class="ph ph-plus"></i> Adicionar Endereço
+                                    </button>
+                                </div>
+                                <div id="estoque-enderecos-lista" style="display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto;">
+                                    <!-- linhas adicionadas dinamicamente -->
+                                </div>
+                                <p id="estoque-enderecos-vazio" style="font-size:0.8rem;color:#94a3b8;font-style:italic;margin:6px 0 0;">Nenhum endereço vinculado. Clique em &quot;Adicionar Endereço&quot; para vincular.</p>
+                            </div>
+
                             <div style="display:flex;justify-content:flex-end;gap:1rem; margin-top: 1rem;">
                                 <button type="button" class="btn btn-secondary" onclick="window.fecharModalEstoque()">Cancelar</button>
                                 <button type="submit" id="btn-salvar-estoque" class="btn btn-primary" style="background:#e67700; border-color:#e67700;">Salvar Item</button>

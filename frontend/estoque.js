@@ -188,7 +188,54 @@ window.abrirModalNovoEndereco = async function() {
     } catch(e) { Swal.fire("Erro", e.message, "error"); }
 };
 
-// Modal Abrir
+// ── HELPERS DE ENDEREÇOS NO MODAL ──────────────────────────────────────────
+
+// Estado temporário das linhas de endereço no modal
+window._enderecoLinhas = []; // [{endereco_id, quantidade}]
+
+window._renderLinhasEndereco = function() {
+    const lista = document.getElementById('estoque-enderecos-lista');
+    const vazio = document.getElementById('estoque-enderecos-vazio');
+    if (!lista) return;
+    const linhas = window._enderecoLinhas;
+    if (!linhas.length) {
+        lista.innerHTML = '';
+        if (vazio) vazio.style.display = 'block';
+        return;
+    }
+    if (vazio) vazio.style.display = 'none';
+    lista.innerHTML = linhas.map((linha, idx) => {
+        const opcoesEnd = window._estoqueEnderecos.map(e =>
+            '<option value="' + e.id + '"' + (e.id === linha.endereco_id ? ' selected' : '') + '>' + e.nome + '</option>'
+        ).join('');
+        return '<div style="display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;">' +
+            '<i class="ph ph-map-pin" style="color:#1d4ed8;flex-shrink:0;"></i>' +
+            '<select onchange="window._enderecoLinhas[' + idx + '].endereco_id = parseInt(this.value)" style="flex:1;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.85rem;background:#fff;">' +
+                '<option value="">-- Selecione o endereço --</option>' + opcoesEnd +
+            '</select>' +
+            '<input type="number" min="0" value="' + (linha.quantidade || 0) + '" placeholder="Qtd" ' +
+                'onchange="window._enderecoLinhas[' + idx + '].quantidade = parseInt(this.value) || 0" ' +
+                'style="width:80px;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.85rem;text-align:center;">' +
+            '<button type="button" onclick="window._removerLinhaEndereco(' + idx + ')" ' +
+                'style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;flex-shrink:0;">' +
+                '<i class="ph ph-trash"></i>' +
+            '</button>' +
+        '</div>';
+    }).join('');
+};
+
+window._adicionarLinhaEndereco = function() {
+    // Não adiciona duplicata do mesmo endereço já sem id
+    window._enderecoLinhas.push({ endereco_id: null, quantidade: 0 });
+    window._renderLinhasEndereco();
+};
+
+window._removerLinhaEndereco = function(idx) {
+    window._enderecoLinhas.splice(idx, 1);
+    window._renderLinhasEndereco();
+};
+
+// Modal Abrir (novo produto)
 window.abrirModalEstoque = async function() {
     await _carregarEnderecos();
     document.getElementById("form-estoque").reset();
@@ -199,7 +246,8 @@ window.abrirModalEstoque = async function() {
     document.getElementById("estoque-foto-preview").src = "";
     document.getElementById("estoque-foto-preview").style.display = "none";
     document.getElementById("estoque-foto-icon").style.display = "block";
-    _popularSelectEndereco();
+    window._enderecoLinhas = [];
+    window._renderLinhasEndereco();
     document.getElementById("modal-estoque-title").innerHTML = '<i class="ph ph-package"></i> Adicionar Item de Estoque';
     document.getElementById("modal-estoque").style.display = "flex";
 };
@@ -225,7 +273,19 @@ window.editarEstoque = async function(item) {
     document.getElementById("estoque-foto-preview").src = src;
     document.getElementById("estoque-foto-preview").style.display = src ? "block" : "none";
     document.getElementById("estoque-foto-icon").style.display   = src ? "none"  : "block";
-    _popularSelectEndereco();
+    // Carregar endereços já vinculados
+    window._enderecoLinhas = [];
+    try {
+        const token = window.currentToken || localStorage.getItem("erp_token") || localStorage.getItem("token");
+        const r = await fetch(API_URL + "/estoque/" + item.id + "/saldo-enderecos", {
+            headers: { "Authorization": "Bearer " + token }
+        });
+        if (r.ok) {
+            const saldos = await r.json();
+            window._enderecoLinhas = saldos.map(s => ({ endereco_id: s.endereco_id, quantidade: s.quantidade }));
+        }
+    } catch(e) { console.warn("[editarEstoque] erro ao carregar saldos:", e.message); }
+    window._renderLinhasEndereco();
     document.getElementById("modal-estoque-title").innerHTML = '<i class="ph ph-pencil-simple"></i> Editar Item de Estoque';
     document.getElementById("modal-estoque").style.display = "flex";
 };
@@ -234,8 +294,6 @@ window.editarEstoque = async function(item) {
 window.salvarEstoque = async function(e) {
     e.preventDefault();
     const id      = document.getElementById("estoque-id").value;
-    const endSel  = document.getElementById("estoque-endereco-select");
-    const endId   = endSel ? endSel.value : "";
     const qtdNova = parseInt(document.getElementById("estoque-qtd").value) || 0;
     const payload = {
         nome:              document.getElementById("estoque-nome").value,
@@ -259,15 +317,20 @@ window.salvarEstoque = async function(e) {
         });
         if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Erro ao salvar"); }
         const result = await res.json();
-        if (!id && endId && result.id && qtdNova > 0) {
+        const prodId = id ? parseInt(id) : result.id;
+
+        // Sincronizar endereços vinculados
+        const linhasValidas = (window._enderecoLinhas || []).filter(l => l.endereco_id && l.quantidade > 0);
+        for (const linha of linhasValidas) {
             try {
-                await fetch(API_URL + "/estoque/" + result.id + "/saldo-enderecos", {
+                await fetch(API_URL + "/estoque/" + prodId + "/saldo-enderecos", {
                     method: "POST",
                     headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
-                    body: JSON.stringify({ endereco_id: parseInt(endId), quantidade: qtdNova, motivo: "Saldo inicial" })
+                    body: JSON.stringify({ endereco_id: linha.endereco_id, quantidade: linha.quantidade, motivo: id ? "Ajuste manual" : "Saldo inicial" })
                 });
             } catch(es) { console.warn("[ESTOQUE] saldo endereco:", es.message); }
         }
+
         Swal.fire({ icon: "success", title: "Sucesso", text: "Item salvo com sucesso", timer: 1500, showConfirmButton: false });
         window.fecharModalEstoque();
         window.renderEstoqueTable();
