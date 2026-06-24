@@ -1,4 +1,6 @@
 const API_URL = '/api';
+window.API_URL = API_URL;
+
 
 
 
