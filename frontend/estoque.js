@@ -11,7 +11,10 @@ async function _carregarEnderecos() {
         if (res.ok) {
             let todos = await res.json();
             if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
-                todos = todos.filter(end => window.activeUserPerms['estoque-endereco:' + end.id]);
+                const hasAnyEndPerm = Object.keys(window.activeUserPerms).some(k => k.startsWith('estoque-endereco:') && window.activeUserPerms[k]);
+                if (hasAnyEndPerm) {
+                    todos = todos.filter(end => window.activeUserPerms['estoque-endereco:' + end.id]);
+                }
             }
             window._estoqueEnderecos = todos;
         }
@@ -66,14 +69,17 @@ window.renderEstoqueTable = async function() {
 
         // Filtra por permissões de endereço
         if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
-            data = data.filter(item => {
-                const saldos = saldosMap[item.id] || [];
-                if (saldos.length > 0) {
-                    const saldosPermitidos = saldos.filter(s => window.activeUserPerms['estoque-endereco:' + s.endereco_id]);
-                    if (saldosPermitidos.length === 0) return false; // Hide completely Se não tiver nenhum endereço permitido
-                }
-                return true;
-            });
+            const hasAnyEndPerm = Object.keys(window.activeUserPerms).some(k => k.startsWith('estoque-endereco:') && window.activeUserPerms[k]);
+            if (hasAnyEndPerm) {
+                data = data.filter(item => {
+                    const saldos = saldosMap[item.id] || [];
+                    if (saldos.length > 0) {
+                        const saldosPermitidos = saldos.filter(s => window.activeUserPerms['estoque-endereco:' + s.endereco_id]);
+                        if (saldosPermitidos.length === 0) return false; // Hide completely Se não tiver nenhum endereço permitido
+                    }
+                    return true;
+                });
+            }
         }
 
         if (status === "minimo") data = data.filter(i => {
@@ -114,7 +120,10 @@ window.renderEstoqueTable = async function() {
         data.forEach(item => {
             let saldos = saldosMap[item.id] || [];
             if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
-                saldos = saldos.filter(s => window.activeUserPerms['estoque-endereco:' + s.endereco_id]);
+                const hasAnyEndPerm = Object.keys(window.activeUserPerms).some(k => k.startsWith('estoque-endereco:') && window.activeUserPerms[k]);
+                if (hasAnyEndPerm) {
+                    saldos = saldos.filter(s => window.activeUserPerms['estoque-endereco:' + s.endereco_id]);
+                }
             }
             const multiEnd = saldos.length > 1;
 

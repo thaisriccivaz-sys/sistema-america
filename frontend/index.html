@@ -3107,11 +3107,11 @@
                         <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
                             <div style="flex: 1; min-width: 200px;">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Buscar por nome</label>
-                                <input type="search" id="filtro-estoque-nome" class="form-control" placeholder="Buscar..." oninput="window.renderEstoqueTable()" autocomplete="new-password" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')">
+                                <input type="search" id="filtro-estoque-nome" class="form-control" style="width: 100%;" placeholder="Buscar..." oninput="window.renderEstoqueTable()" autocomplete="new-password" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')">
                             </div>
                             <div style="flex: 1; min-width: 200px; display: none;">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Departamento</label>
-                                <select id="filtro-estoque-dept" class="form-control" onchange="window.renderEstoqueTable()">
+                                <select id="filtro-estoque-dept" class="form-control" style="width: 100%;" onchange="window.renderEstoqueTable()">
                                     <option value="">Todos</option>
                                     <option value="RH">RH</option>
                                     <option value="Administrativo">Administrativo</option>
@@ -3122,13 +3122,13 @@
                             </div>
                             <div style="flex: 1; min-width: 200px;">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Endereço</label>
-                                <select id="filtro-estoque-endereco" class="form-control" onchange="window.renderEstoqueTable()">
+                                <select id="filtro-estoque-endereco" class="form-control" style="width: 100%;" onchange="window.renderEstoqueTable()">
                                     <option value="">Todos</option>
                                 </select>
                             </div>
                             <div style="flex: 1; min-width: 200px;">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Categoria</label>
-                                <select id="filtro-estoque-cat" class="form-control" onchange="window.renderEstoqueTable()">
+                                <select id="filtro-estoque-cat" class="form-control" style="width: 100%;" onchange="window.renderEstoqueTable()">
                                     <option value="">Todas</option>
                                     <option value="EPI">EPI</option>
                                     <option value="Uniforme">Uniforme</option>
@@ -3138,14 +3138,14 @@
                             </div>
                             <div style="flex: 1; min-width: 200px;">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Status</label>
-                                <select id="filtro-estoque-status" class="form-control" onchange="window.renderEstoqueTable()">
+                                <select id="filtro-estoque-status" class="form-control" style="width: 100%;" onchange="window.renderEstoqueTable()">
                                     <option value="">Todos</option>
                                     <option value="minimo">Estoque Mínimo</option>
                                 </select>
                             </div>
                             <div style="flex: 1; min-width: 200px;">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Tipo</label>
-                                <select id="filtro-estoque-tipo" class="form-control" onchange="window.renderEstoqueTable()">
+                                <select id="filtro-estoque-tipo" class="form-control" style="width: 100%;" onchange="window.renderEstoqueTable()">
                                     <option value="">Todos</option>
                                     <option value="sem_tipo">Sem tipo</option>
                                     <option value="compra">Pedido de Compra</option>
