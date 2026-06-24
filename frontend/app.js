@@ -14274,10 +14274,11 @@ async function renderFichaEpiTab(container) {
                                 onmouseout="this.style.background='none'">
                                 <i class="ph ph-eye" style="font-size:0.85rem;"></i>
                             </button>
+                            <!-- Botão de excluir oculto temporariamente a pedido do usuário -->
                             <button
                                 onclick="window._excluirEpiEntrega(${e.id}, '${(e.epi_nome||'').replace(/'/g,String.fromCharCode(92,39))}', ${colabId})"
                                 title="Excluir este EPI da entrega"
-                                style="background:none;border:1.5px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.78rem;display:inline-flex;align-items:center;gap:3px;transition:all .15s;"
+                                style="display:none !important; background:none;border:1.5px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.78rem;align-items:center;gap:3px;transition:all .15s;"
                                 onmouseover="this.style.background='#fef2f2'"
                                 onmouseout="this.style.background='none'">
                                 <i class="ph ph-trash" style="font-size:0.85rem;"></i>
