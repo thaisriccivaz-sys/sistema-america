@@ -130,10 +130,6 @@
             <br>Carregando...</td></tr>`;
 
         try {
-            const r = await api('/treinamentos');
-            if (!r.ok) throw new Error('Erro ' + r.status);
-            let rawData = await r.json();
-            
             let tipoAtual = window._currentTreinamentoTipo || 'treinamento';
             
             // FORÇA o tipo baseado na aba ativa no DOM para evitar falhas de estado
@@ -148,6 +144,11 @@
                     window._currentTreinamentoTipo = 'treinamento';
                 }
             }
+
+            const r = await api('/treinamentos?tipo=' + tipoAtual);
+            if (!r.ok) throw new Error('Erro ' + r.status);
+            let rawData = await r.json();
+            
             _cache = rawData.filter(t => (t.tipo || 'treinamento') === tipoAtual);
 
             // Atualiza UI dinamicamente
