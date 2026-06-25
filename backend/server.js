@@ -18155,10 +18155,10 @@ app.post('/api/treinamentos/:id/enviar-pesquisa', authenticateToken, (req, res) 
 
       // Link para responder a pesquisa (público)
       const baseUrl = req.protocol + '://' + req.get('host');
-      const link = \`\${baseUrl}/pesquisa-treinamento.html?token=\${token}\`;
+      const link = `${baseUrl}/pesquisa-treinamento.html?token=${token}`;
 
       // Mensagem para o WhatsApp
-      const texto = \`Olá \${info.nome_completo.split(' ')[0]}, vi que você participou do treinamento de *\${info.trein_nome}*.\n\nPor favor, reserve 1 minuto para responder nossa pesquisa de avaliação clicando no link abaixo:\n\${link}\n\nSua opinião é muito importante para nós!\`;
+      const texto = `Olá ${info.nome_completo.split(' ')[0]}, vi que você participou do treinamento de *${info.trein_nome}*.\n\nPor favor, reserve 1 minuto para responder nossa pesquisa de avaliação clicando no link abaixo:\n${link}\n\nSua opinião é muito importante para nós!`;
 
       // Disparar WhatsApp (utilizando a API existente ou simulação do sistema)
       let phone = info.telefone ? info.telefone.replace(/\\D/g, '') : '';
