@@ -14101,12 +14101,19 @@ window.salvarAssinaturaColaborador = async function () {
             return fetch(off.toDataURL('image/png')).then(r => r.arrayBuffer());
         }
 
-        // --- COLABORADOR (Centro, ABAIXO das testemunhas) ---
+        // --- COLABORADOR ---
         // Testemunhas ocupam a faixa 160-260pt do rodapé.
         // Colaborador fica na faixa 30-130pt do rodapé, sem sobreposição.
-        const cImgH = 55;
-        const cWidth = 280;
-        const cX = (pgW - cWidth) / 2;
+        const isAdvertenciaOuSuspensao = (doc.document_type && (doc.document_type.includes('Advertência') || doc.document_type.includes('Suspensão'))) || doc.tab_name === 'Advertências';
+
+        let cImgH = 55;
+        let cWidth = 280;
+        let cX = (pgW - cWidth) / 2;
+
+        if (isAdvertenciaOuSuspensao && _epiSelfieBase64) {
+            cWidth = 240;
+            cX = 50; // Alinhado à esquerda
+        }
 
         const cCpfY   = 30;
         const cNameY  = cCpfY  + 14;
@@ -14126,6 +14133,29 @@ window.salvarAssinaturaColaborador = async function () {
         lastPage.drawLine({ start: { x: cX, y: cLineY }, end: { x: cX + cWidth, y: cLineY }, thickness: 1, color: PDFLib.rgb(0.2, 0.2, 0.2) });
         lastPage.drawText(viewedColaborador.nome_completo || 'Colaborador', { x: cX, y: cNameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
         lastPage.drawText(`CPF: ${viewedColaborador.cpf || 'N/D'}`, { x: cX, y: cCpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
+
+        // Selfie (à direita)
+        if (isAdvertenciaOuSuspensao && _epiSelfieBase64) {
+            try {
+                const base64Data = _epiSelfieBase64.split(',')[1];
+                const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+                let embeddedSelfie;
+                if (_epiSelfieBase64.includes('image/png')) {
+                    embeddedSelfie = await pdfDoc.embedPng(imageBytes);
+                } else {
+                    embeddedSelfie = await pdfDoc.embedJpg(imageBytes);
+                }
+                
+                const photoWidth = 140;
+                const photoHeight = 105; // 4:3 ratio
+                const photoX = pgW - 50 - photoWidth; // Alinhado à direita com a mesma margem de 50
+                const photoY = cCpfY; // Alinhado pelo rodapé da área
+                
+                lastPage.drawImage(embeddedSelfie, { x: photoX, y: photoY, width: photoWidth, height: photoHeight });
+            } catch(e) {
+                console.error("Erro ao embutir selfie no PDF:", e);
+            }
+        }
 
         const modifiedPdfBytes = await pdfDoc.save();
         const file = new File([modifiedPdfBytes], doc.file_name, { type: 'application/pdf' });
