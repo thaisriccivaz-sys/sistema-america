@@ -121,12 +121,18 @@
         const listaTrein = (c.treinamentos || []).map(t => {
             if (t.concluido) {
                 const valStr = t.validade_dias > 0 ? ` · Válido por ${t.validade_dias}d` : '';
+                const encodedId = `${c.id},${t.id}`;
                 return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
                     <i class="ph ph-check-circle" style="color:#10b981;font-size:1.1rem;flex-shrink:0;"></i>
                     <div style="flex:1;min-width:0;">
                         <div style="font-size:0.82rem;font-weight:600;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${t.nome}">${t.nome}</div>
                         <div style="font-size:0.72rem;color:#10b981;">Concluído em ${fmtData(t.data_conclusao)}${valStr}</div>
                     </div>
+                    <button onclick="window._verDocTreinamento(${c.id},${t.id},'${(c.nome_completo||'').replace(/'/g,"\\'")}')"
+                        title="Ver documento assinado"
+                        style="background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;flex-shrink:0;">
+                        <i class="ph ph-eye"></i>
+                    </button>
                 </div>`;
             } else if (t.vencido) {
                 return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
@@ -275,7 +281,29 @@
         }
     };
 
-    // ── Visualizar documento assinado (fullscreen) ────────────────────────────
+    // ── Buscar e exibir documento assinado de um treinamento específico ───────────
+    window._verDocTreinamento = async function (colaboradorId, treinamentoId, nomeColab) {
+        try {
+            const r = await api(`/treinamento-presenca/historico/${colaboradorId}`);
+            const historico = r.ok ? await r.json() : [];
+            const h = historico.find(x => x.treinamento_id === treinamentoId);
+            if (!h) { alert('Documento não encontrado.'); return; }
+            const dt = fmtData(h.data_conclusao);
+            window._verDocumentoAssinado(encodeURIComponent(JSON.stringify({
+                assinatura: h.assinatura_base64 || '',
+                selfie: h.selfie_base64 || '',
+                capa: h.capa_url || '',
+                nome: nomeColab || '',
+                treinamento: h.treinamento_nome || '',
+                data: dt,
+                instrutor: h.instrutor_nome || ''
+            })));
+        } catch (e) {
+            alert('Erro ao carregar documento: ' + e.message);
+        }
+    };
+
+    // ── Visualizar documento assinado (fullscreen split-screen) ────────────────
     window._verDocumentoAssinado = function (encodedData) {
         const data = JSON.parse(decodeURIComponent(encodedData));
         let fs = document.getElementById('fs-ver-documento');
@@ -284,51 +312,57 @@
             fs.id = 'fs-ver-documento';
             document.body.appendChild(fs);
         }
-        fs.style.cssText = 'position:fixed;inset:0;z-index:10001;background:#f1f5f9;display:flex;flex-direction:column;overflow:hidden;';
+        fs.style.cssText = 'position:fixed;inset:0;z-index:10001;background:#0f172a;display:flex;flex-direction:column;overflow:hidden;font-family:inherit;';
+
+        // Monta o painel esquerdo (capa) somente se tiver capa
+        const capaPanel = data.capa ? `
+            <div style="flex:1;min-width:0;background:#000;display:flex;align-items:center;justify-content:center;border-right:1px solid rgba(255,255,255,0.08);">
+                <img src="${data.capa}" style="width:100%;height:100%;object-fit:contain;display:block;" />
+            </div>` : '';
+
+        // Painel direito: dados + assinatura + selfie
+        const rightPanel = `
+            <div style="${data.capa ? 'width:340px;min-width:260px;max-width:40%;' : 'flex:1;max-width:600px;margin:0 auto;'}background:#f8fafc;display:flex;flex-direction:column;overflow-y:auto;">
+                <!-- Cabeçalho interno -->
+                <div style="background:linear-gradient(135deg,#0e7490,#06b6d4);padding:14px 16px;flex-shrink:0;">
+                    <p style="margin:0 0 2px;font-size:0.72rem;font-weight:700;color:rgba(255,255,255,0.7);letter-spacing:.06em;">DADOS DO REGISTRO</p>
+                    <p style="margin:0 0 2px;font-size:0.85rem;color:#fff;"><strong>${data.nome}</strong></p>
+                    <p style="margin:0 0 2px;font-size:0.8rem;color:rgba(255,255,255,0.85);">${data.treinamento}</p>
+                    <p style="margin:0 0 2px;font-size:0.75rem;color:rgba(255,255,255,0.75);"><i class="ph ph-calendar"></i> ${data.data}</p>
+                    ${data.instrutor ? `<p style="margin:0;font-size:0.75rem;color:rgba(255,255,255,0.75);"><i class="ph ph-chalkboard-teacher"></i> Instrutor: ${data.instrutor}</p>` : ''}
+                </div>
+                <!-- Conteúdo -->
+                <div style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;">
+                    ${data.assinatura ? `<div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+                        <p style="margin:0;background:#f1f5f9;padding:8px 12px;font-size:0.68rem;font-weight:700;color:#64748b;letter-spacing:.06em;">ASSINATURA DIGITAL</p>
+                        <img src="${data.assinatura}" style="width:100%;object-fit:contain;display:block;" />
+                    </div>` : '<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:16px 0;">Sem assinatura registrada</p>'}
+
+                    ${data.selfie ? `<div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+                        <p style="margin:0;background:#f1f5f9;padding:8px 12px;font-size:0.68rem;font-weight:700;color:#64748b;letter-spacing:.06em;">SELFIE DE CONFIRMAÇÃO</p>
+                        <img src="${data.selfie}" style="width:100%;object-fit:contain;display:block;" />
+                    </div>` : ''}
+                    <div style="height:4px;"></div>
+                </div>
+            </div>`;
 
         fs.innerHTML = `
-            <!-- Header -->
-            <div style="background:linear-gradient(135deg,#0e7490,#06b6d4);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-                <div>
-                    <h3 style="margin:0;color:#fff;font-size:1rem;font-weight:700;"><i class="ph ph-certificate"></i> Documento Assinado</h3>
-                    <p style="margin:3px 0 0;color:rgba(255,255,255,0.8);font-size:0.8rem;">${data.treinamento}</p>
+            <!-- Barra de título -->
+            <div style="background:#1e293b;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.08);">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <i class="ph ph-certificate" style="color:#06b6d4;font-size:1.1rem;"></i>
+                    <span style="color:#fff;font-size:0.9rem;font-weight:700;">Documento Assinado</span>
+                    <span style="color:rgba(255,255,255,0.5);font-size:0.8rem;">— ${data.treinamento}</span>
                 </div>
                 <button onclick="document.getElementById('fs-ver-documento').style.display='none'"
-                    style="background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:40px;height:40px;cursor:pointer;color:#fff;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">
+                    style="background:rgba(255,255,255,0.1);border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;color:#fff;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">
                     <i class="ph ph-x"></i>
                 </button>
             </div>
-            <!-- Conteúdo rolável -->
-            <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;max-width:680px;width:100%;margin:0 auto;">
-
-                <!-- Dados do registro -->
-                <div style="background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);border:1px solid #e2e8f0;">
-                    <p style="margin:0 0 6px;font-size:0.75rem;font-weight:700;color:#64748b;letter-spacing:.06em;">DADOS DO REGISTRO</p>
-                    <p style="margin:0 0 4px;font-size:0.88rem;"><strong>Colaborador:</strong> ${data.nome}</p>
-                    <p style="margin:0 0 4px;font-size:0.88rem;"><strong>Treinamento:</strong> ${data.treinamento}</p>
-                    <p style="margin:0 0 4px;font-size:0.88rem;"><strong>Data/Hora:</strong> ${data.data}</p>
-                    ${data.instrutor ? `<p style="margin:0;font-size:0.88rem;"><strong>Instrutor:</strong> ${data.instrutor}</p>` : ''}
-                </div>
-
-                <!-- Capa do treinamento (se houver) -->
-                ${data.capa ? `<div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);border:1px solid #e2e8f0;">
-                    <p style="margin:0;background:#f1f5f9;padding:10px 14px;font-size:0.72rem;font-weight:700;color:#64748b;letter-spacing:.06em;">MATERIAL DO TREINAMENTO</p>
-                    <img src="${data.capa}" style="width:100%;max-height:360px;object-fit:contain;display:block;background:#000;" />
-                </div>` : ''}
-
-                <!-- Assinatura -->
-                ${data.assinatura ? `<div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);border:1px solid #e2e8f0;">
-                    <p style="margin:0;background:#f1f5f9;padding:10px 14px;font-size:0.72rem;font-weight:700;color:#64748b;letter-spacing:.06em;">ASSINATURA DIGITAL</p>
-                    <img src="${data.assinatura}" style="width:100%;max-height:180px;object-fit:contain;padding:12px;display:block;" />
-                </div>` : ''}
-
-                <!-- Selfie -->
-                ${data.selfie ? `<div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);border:1px solid #e2e8f0;">
-                    <p style="margin:0;background:#f1f5f9;padding:10px 14px;font-size:0.72rem;font-weight:700;color:#64748b;letter-spacing:.06em;">SELFIE DE CONFIRMAÇÃO</p>
-                    <img src="${data.selfie}" style="width:100%;max-height:320px;object-fit:cover;display:block;" />
-                </div>` : ''}
-
-                <div style="height:8px;"></div>
+            <!-- Corpo split -->
+            <div style="flex:1;display:flex;overflow:hidden;">
+                ${capaPanel}
+                ${rightPanel}
             </div>`;
 
         fs.style.display = 'flex';
