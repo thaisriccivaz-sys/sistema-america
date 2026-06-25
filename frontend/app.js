@@ -602,6 +602,19 @@ window.carregarPermissoesOnline = async function () {
             }
         });
 
+        // Ocultar sub-grupos (nav-group) se não tiverem nenhum nav-item liberado
+        document.querySelectorAll('.nav-group').forEach(group => {
+            const navItems = Array.from(group.querySelectorAll('.nav-item[data-target]'));
+            if (navItems.length > 0) {
+                const isAnyVisible = navItems.some(i => mapPerms[i.getAttribute('data-target')] === true);
+                if (!isAnyVisible) {
+                    group.style.cssText = 'display: none !important;';
+                } else {
+                    group.style.display = '';
+                }
+            }
+        });
+
         // Agora vamos ocultar os "blocos grandes" (Departamentos) inteiros se não sobrar nenhum nav-item útil
         const deptSubmenus = document.querySelectorAll('.dept-submenu');
         deptSubmenus.forEach(submenu => {

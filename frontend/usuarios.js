@@ -56,6 +56,8 @@ const TELAS_SISTEMA = [
     // Módulo Treinamentos
     { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais', pagina_nome: 'Materiais', icone: 'ph-books' },
     { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca', pagina_nome: 'Presenças', icone: 'ph-check-square' },
+    { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais-terapia', pagina_nome: 'Conteúdos (Terapia)', icone: 'ph-books' },
+    { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca-terapia', pagina_nome: 'Listas (Terapia)', icone: 'ph-list-numbers' },
     // Módulo Diretoria / Sistema
     { modulo: 'Diretoria', pagina_id: 'usuarios-permissoes',   pagina_nome: 'Usuários e Permissões', icone: 'ph-users-three' },
     { modulo: 'Diretoria', pagina_id: 'cargos',                pagina_nome: 'Cargos', icone: 'ph-briefcase' },
@@ -592,7 +594,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Treinamentos', icone: 'ph-graduation-cap', cor: '#0e7490',
-        grupos: [{ titulo: 'Telas', telas: ['treinamento-materiais', 'treinamento-presenca'] }]
+        grupos: [{ titulo: 'Telas', telas: ['treinamento-materiais', 'treinamento-presenca', 'treinamento-materiais-terapia', 'treinamento-presenca-terapia'] }]
     },
     {
         modulo: 'Diretoria', icone: 'ph-crown', cor: '#c92a2a',
