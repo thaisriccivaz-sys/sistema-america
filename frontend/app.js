@@ -5018,6 +5018,11 @@ window.anexarAdvertenciaAoProntuario = async function () {
         formData.append('year', new Date().getFullYear().toString());
         formData.append('colaborador_nome', viewedColaborador.nome_completo || viewedColaborador.nome || '');
 
+        const secData = (typeof window.getDeviceSecurityData === 'function') ? await window.getDeviceSecurityData() : { gps_lat: '', gps_lon: '', dispositivo: navigator.userAgent };
+        formData.append('gps_lat', secData.gps_lat);
+        formData.append('gps_lon', secData.gps_lon);
+        formData.append('dispositivo', secData.dispositivo);
+
         const response = await fetch(`${API_URL}/documentos`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${currentToken}` },
