@@ -45,6 +45,11 @@ let _clienteEditandoId = null;
 let _clienteContatos = [];
 let _clientesCache = [];
 
+// Variáveis de estado para o cadastro de contatos
+let _contatoEditandoId = null;
+let _empresaSelecionadaId = null;
+let _empresaSelecionadaCodigo = null;
+
 /* ── Inicialização ──────────────────────────────────────────────────── */
 async function inicializarPropostas() {
     await carregarPropostas();
@@ -846,6 +851,29 @@ window.pesquisarContatoProposta = async function() {
             return true;
         });
 
+        // Buscar clientes para obter dados do cliente atual
+        const clientes = await apiGet('/clientes') || [];
+        const foundCli = clientes.find(c => c.nome_razao_social && c.nome_razao_social.toLowerCase() === clienteNome.toLowerCase());
+
+        const handleRedirecionamentoContato = () => {
+            _redirectAfterContactSave = true;
+            window.switchPropostaTab('cadastro-contatos');
+            window.limparFormContato();
+            setTimeout(async () => {
+                const nameInput = document.getElementById('con-nome');
+                if (nameInput) nameInput.value = query;
+                if (foundCli) {
+                    await window.carregarEmpresaSelecionada(foundCli.id);
+                } else {
+                    const empRazaoInput = document.getElementById('emp-razao-social');
+                    if (empRazaoInput) {
+                        empRazaoInput.value = clienteNome;
+                        empRazaoInput.dispatchEvent(new Event('input'));
+                    }
+                }
+            }, 300);
+        };
+
         if (filtrados.length >= 1) {
             const rowsHtml = filtrados.map(c => `
                 <tr onclick="window.selectContatoProposta('${c.nome.replace(/'/g, "\\'")}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
@@ -886,18 +914,7 @@ window.pesquisarContatoProposta = async function() {
                 cancelButtonColor: '#64748b'
             }).then((res) => {
                 if (res.isConfirmed) {
-                    _redirectAfterContactSave = true;
-                    window.switchPropostaTab('cadastro-contatos');
-                    window.limparFormContato();
-                    setTimeout(() => {
-                        const nameInput = document.getElementById('con-nome');
-                        if (nameInput) nameInput.value = query;
-                        const empRazaoInput = document.getElementById('emp-razao-social');
-                        if (empRazaoInput) {
-                            empRazaoInput.value = clienteNome;
-                            empRazaoInput.dispatchEvent(new Event('input'));
-                        }
-                    }, 300);
+                    handleRedirecionamentoContato();
                 }
             });
         } else {
@@ -914,18 +931,7 @@ window.pesquisarContatoProposta = async function() {
                 cancelButtonColor: '#64748b'
             }).then((res) => {
                 if (res.isConfirmed) {
-                    _redirectAfterContactSave = true;
-                    window.switchPropostaTab('cadastro-contatos');
-                    window.limparFormContato();
-                    setTimeout(() => {
-                        const nameInput = document.getElementById('con-nome');
-                        if (nameInput) nameInput.value = query;
-                        const empRazaoInput = document.getElementById('emp-razao-social');
-                        if (empRazaoInput) {
-                            empRazaoInput.value = clienteNome;
-                            empRazaoInput.dispatchEvent(new Event('input'));
-                        }
-                    }, 300);
+                    handleRedirecionamentoContato();
                 }
             });
         }
@@ -2701,7 +2707,7 @@ function _renderCadastroContatosInt() {
                     <i class="ph ph-plus"></i> Novo
                 </button>
                 <button onclick="salvarContato()" class="cc-toolbar-btn primary">
-                    <i class="ph ph-check-square-offset"></i> Processar
+                    <i class="ph ph-floppy-disk"></i> Salvar
                 </button>
                 <button onclick="excluirContato()" class="cc-toolbar-btn danger">
                     <i class="ph ph-trash"></i> Excluir
@@ -3527,9 +3533,40 @@ window.salvarContato = async function() {
         return;
     }
 
+    let resolvedId = _empresaSelecionadaId;
+    let resolvedCodigo = _empresaSelecionadaCodigo;
+
+    if (!resolvedId) {
+        try {
+            const clientes = await apiGet('/clientes') || [];
+            const cleanCnpj = empCnpj.replace(/\D/g, '');
+            const found = clientes.find(c => 
+                (c.cpf_cnpj && c.cpf_cnpj.replace(/\D/g, '') === cleanCnpj) || 
+                (c.nome_razao_social && c.nome_razao_social.toLowerCase() === empRazao.toLowerCase())
+            );
+            if (found) {
+                resolvedId = found.id;
+                resolvedCodigo = found.codigo;
+                _empresaSelecionadaId = found.id;
+                _empresaSelecionadaCodigo = found.codigo;
+                
+                const cnpjInput = document.getElementById('emp-cnpj');
+                if (cnpjInput && !cnpjInput.value) {
+                    cnpjInput.value = found.cpf_cnpj || '';
+                }
+                const codInput = document.getElementById('emp-codigo');
+                if (codInput) {
+                    codInput.value = found.codigo || '';
+                }
+            }
+        } catch(e) {
+            console.error('Erro ao auto-resolver cliente:', e);
+        }
+    }
+
     const empresa_cliente = {
-        id: _empresaSelecionadaId,
-        codigo: _empresaSelecionadaCodigo,
+        id: resolvedId,
+        codigo: resolvedCodigo,
         cpf_cnpj: empCnpj,
         nome_razao_social: empRazao,
         cep: document.getElementById('emp-cep')?.value || '',

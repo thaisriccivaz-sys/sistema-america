@@ -19892,33 +19892,61 @@ function gerarCodigoContato(cb) {
 
 // Auxiliar para salvar ou atualizar empresa cliente a partir de contato
 function salvarOuAtualizarEmpresa(cliData, callback) {
-  if (!cliData || !cliData.cpf_cnpj) {
+  if (!cliData) {
+    return callback(null, null);
+  }
+
+  const lookupId = cliData.id || null;
+  const lookupCodigo = cliData.codigo || null;
+  const cpfCnpj = cliData.cpf_cnpj || null;
+
+  if (!lookupId && !lookupCodigo && !cpfCnpj) {
     return callback(null, null);
   }
 
   const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
 
-  db.get('SELECT id FROM clientes WHERE id = ? OR codigo = ? OR cpf_cnpj = ?', 
-    [cliData.id, cliData.codigo, cliData.cpf_cnpj], (err, row) => {
+  db.get('SELECT * FROM clientes WHERE id = ? OR codigo = ? OR (cpf_cnpj = ? AND ? IS NOT NULL)', 
+    [lookupId, lookupCodigo, cpfCnpj, cpfCnpj], (err, row) => {
       if (err) return callback(err);
 
       if (row) {
         const idExistente = row.id;
+        
+        // Merge e preservação de campos para não apagar dados existentes no banco
+        const rSocial = cliData.nome_razao_social || row.nome_razao_social;
+        const cnpj = cliData.cpf_cnpj || row.cpf_cnpj;
+        const cep = cliData.cep || row.cep;
+        const endereco = cliData.endereco || row.endereco;
+        const numero = cliData.numero || row.numero;
+        const bairro = cliData.bairro || row.bairro;
+        const municipio = cliData.municipio || row.municipio;
+        const uf = cliData.uf || row.uf;
+        const tel = cliData.telefone || row.telefone;
+        const ramal = cliData.ramal || row.ramal;
+        const fax = cliData.fax || row.fax;
+        const tel2 = cliData.telefone_2 || row.telefone_2;
+        const ramal2 = cliData.ramal_2 || row.ramal_2;
+        const website = cliData.website || row.website;
+
         db.run(`UPDATE clientes SET
           nome_razao_social=?, cpf_cnpj=?, cep=?, endereco=?, numero=?, bairro=?,
           municipio=?, uf=?, telefone=?, ramal=?, fax=?, telefone_2=?, ramal_2=?, website=?,
           atualizado_em=?
           WHERE id=?`,
         [
-          cliData.nome_razao_social, cliData.cpf_cnpj, cliData.cep, cliData.endereco,
-          cliData.numero, cliData.bairro, cliData.municipio, cliData.uf, cliData.telefone,
-          cliData.ramal, cliData.fax, cliData.telefone_2, cliData.ramal_2, cliData.website,
+          rSocial, cnpj, cep, endereco, numero, bairro, municipio, uf, tel, ramal, fax, tel2, ramal2, website,
           agora, idExistente
         ], function(err2) {
           if (err2) return callback(err2);
           callback(null, idExistente);
         });
       } else {
+        // Se a empresa não existe no banco, CPF/CNPJ e Nome são obrigatórios para criá-la
+        if (!cpfCnpj || !cliData.nome_razao_social) {
+          return callback(new Error('CNPJ/CPF e Razão Social são obrigatórios para cadastrar um novo cliente.'));
+        }
+
         gerarCodigoCliente((novoCodigo) => {
           db.run(`INSERT INTO clientes (
             codigo, data_cadastro, inativo, cpf_cnpj, nome_razao_social, cep, endereco,
@@ -19926,10 +19954,10 @@ function salvarOuAtualizarEmpresa(cliData, callback) {
             criado_por, criado_em, atualizado_em
           ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
           [
-            novoCodigo, agora.substring(0,10), 0, cliData.cpf_cnpj, cliData.nome_razao_social,
-            cliData.cep, cliData.endereco, cliData.numero, cliData.bairro, cliData.municipio,
-            cliData.uf, cliData.telefone, cliData.ramal, cliData.fax, cliData.telefone_2, cliData.ramal_2,
-            cliData.website, cliData.criado_por || '', agora, agora
+            novoCodigo, agora.substring(0,10), 0, cpfCnpj, cliData.nome_razao_social,
+            cliData.cep || '', cliData.endereco || '', cliData.numero || '', cliData.bairro || '', cliData.municipio || '',
+            cliData.uf || '', cliData.telefone || '', cliData.ramal || '', cliData.fax || '', cliData.telefone_2 || '', cliData.ramal_2 || '',
+            cliData.website || '', cliData.criado_por || '', agora, agora
           ], function(err2) {
             if (err2) return callback(err2);
             callback(null, this.lastID);
