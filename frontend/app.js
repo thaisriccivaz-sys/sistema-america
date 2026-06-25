@@ -467,6 +467,7 @@ const BREADCRUMB_MAP = {
     'geradores': { path: 'Geradores', code: 'RHDOC01' },
     'admissao': { path: 'Admissão', code: 'RHAD05' },
     'treinamento-materiais': { path: 'Treinamentos - Materiais', code: 'TREIN01' },
+    'treinamento-presenca': { path: 'Treinamentos - Presença', code: 'TREIN02' },
     'ficha-epi': { path: 'Ficha EPI', code: 'RHEPI01' },
     'avaliacoes': { path: 'Avaliações', code: 'RHAV01' },
     'gerenciar-avaliacoes': { path: 'Diretoria → Gerenciar Avaliações', code: 'DIRAVAL' },
