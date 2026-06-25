@@ -125,7 +125,9 @@
                 const encodedId = `${c.id},${t.id}`;
                 
                 const btnPesquisa = t.respondido_em 
-                    ? `<button onclick="window.verResultadoPesquisaTreinamento(${t.id}, ${c.id})" title="Ver respostas da pesquisa" style="background:#f0fdf4;color:#166534;border:1.5px solid #bbf7d0;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:3px;width:100%;"><i class="ph ph-chart-bar"></i></button>`
+                    ? `<button onclick="window.verResultadoPesquisaTreinamento(${t.id}, ${c.id})" title="Ver respostas da pesquisa" style="background:#10b981;color:#fff;border:1.5px solid #059669;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:3px;width:100%;">
+                        <i class="ph ph-chart-bar"></i>
+                    </button>`
                     : `<button onclick="window.copiarLinkPesquisa(${t.id}, ${c.id}, this)" title="Copiar link da pesquisa" style="background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:3px;width:100%;"><i class="ph ph-link"></i></button>`;
 
                 return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
@@ -268,7 +270,7 @@
                       </button>
                       ${h.respondido_em 
                           ? `<button onclick="window.verResultadoPesquisaTreinamento(${h.treinamento_id}, ${colaboradorId})"
-                                style="background:#f0fdf4;color:#166534;border:1.5px solid #bbf7d0;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+                                style="background:#10b981;color:#fff;border:1.5px solid #059669;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
                                 <i class="ph ph-chart-bar"></i> Ver Respostas
                             </button>`
                           : `<button onclick="window.copiarLinkPesquisa(${h.treinamento_id}, ${colaboradorId}, this)"
@@ -1082,20 +1084,32 @@
             html += '<h3 style="margin-top:0;">Respostas da Pesquisa</h3>';
             try {
                 const respostasArray = JSON.parse(data.respostas_json);
+                const colorMap = {
+                    1: { bg: '#fee2e2', border: '#ef4444', color: '#b91c1c' },
+                    2: { bg: '#ffedd5', border: '#f97316', color: '#c2410c' },
+                    3: { bg: '#fef9c3', border: '#eab308', color: '#a16207' },
+                    4: { bg: '#ecfccb', border: '#84cc16', color: '#4d7c0f' },
+                    5: { bg: '#dcfce7', border: '#22c55e', color: '#15803d' }
+                };
+
                 for (const item of respostasArray) {
                     if (item.nota !== null) {
-                        html += `<div style="margin-bottom:12px;">
-                            <strong style="display:block;font-size:0.9rem;color:#334155;margin-bottom:4px;">${item.pergunta}</strong>
-                            <div style="color:#eab308;font-size:1.2rem;">`;
+                        html += `<div style="margin-bottom:20px; background:#f1f5f9; padding:15px; border-radius:8px; border:1px solid #e2e8f0;">
+                            <strong style="display:block;font-size:1rem;color:#334155;margin-bottom:12px;">${item.pergunta}</strong>
+                            <div style="display:flex; gap:8px;">`;
                         for(let i=1; i<=5; i++) {
-                            html += i <= item.nota ? '<i class="ph-fill ph-star"></i>' : '<i class="ph ph-star" style="color:#cbd5e1;"></i>';
+                            const isSelected = (i === item.nota);
+                            const st = isSelected 
+                                ? `background:${colorMap[i].bg}; border:2px solid ${colorMap[i].border}; color:${colorMap[i].color}; font-weight:bold;`
+                                : `background:#fff; border:1.5px solid #cbd5e1; color:#94a3b8;`;
+                            html += `<div style="flex:1; text-align:center; padding:10px 0; border-radius:6px; font-size:1rem; ${st}">${i}</div>`;
                         }
-                        html += ` <span style="color:#64748b;font-size:0.8rem;margin-left:4px;">(${item.nota}/5)</span></div>
+                        html += `</div>
                         </div>`;
                     } else if (item.texto !== undefined && item.texto !== null) {
-                        html += `<div style="margin-bottom:12px;">
-                            <strong style="display:block;font-size:0.9rem;color:#334155;margin-bottom:4px;">${item.pergunta}</strong>
-                            <div style="font-size:0.95rem;color:#475569;background:#f8fafc;padding:8px 12px;border-radius:6px;border:1px solid #e2e8f0;white-space:pre-wrap;">${item.texto}</div>
+                        html += `<div style="margin-bottom:20px; background:#f1f5f9; padding:15px; border-radius:8px; border:1px solid #e2e8f0;">
+                            <strong style="display:block;font-size:1rem;color:#334155;margin-bottom:8px;">${item.pergunta}</strong>
+                            <div style="font-size:0.95rem;color:#475569;background:#fff;padding:12px;border-radius:6px;border:1px solid #cbd5e1;white-space:pre-wrap;">${item.texto}</div>
                         </div>`;
                     }
                 }
@@ -1108,14 +1122,14 @@
             if (!modal) {
                 modal = document.createElement('div');
                 modal.id = 'modal-resultado-pesquisa-treinamento';
-                modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,0.6);';
+                modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8); padding: 20px; box-sizing: border-box;';
                 document.body.appendChild(modal);
             }
             
-            modal.innerHTML = `<div style="background:#fff;border-radius:12px;width:100%;max-width:500px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column;max-height:90vh;">
+            modal.innerHTML = `<div style="background:#fff;border-radius:12px;width:100%;height:100%;max-width:1200px;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);overflow:hidden;">
                 <div style="background:#f8fafc;padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
-                    <h3 style="margin:0;font-size:1.1rem;color:#1e293b;display:flex;align-items:center;gap:8px;"><i class="ph ph-chart-bar" style="color:#0ea5e9;"></i> Resultados da Pesquisa</h3>
-                    <button onclick="document.getElementById('modal-resultado-pesquisa-treinamento').style.display='none'" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#64748b;">&times;</button>
+                    <h3 style="margin:0;font-size:1.2rem;color:#1e293b;display:flex;align-items:center;gap:8px;"><i class="ph ph-chart-bar" style="color:#0ea5e9;"></i> Resultados da Pesquisa</h3>
+                    <button onclick="document.getElementById('modal-resultado-pesquisa-treinamento').style.display='none'" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#64748b;">&times;</button>
                 </div>
                 <div style="padding:20px;overflow-y:auto;">
                     ${html}
