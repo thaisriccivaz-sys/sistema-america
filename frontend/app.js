@@ -837,6 +837,12 @@ window.navigateToTab = function (tabId) {
         window.scrollTo({ top: window._pipelineScrollY, behavior: 'instant' });
     }
 
+    if (tab.target === 'treinamento-materiais-terapia' || tab.target === 'treinamento-presenca-terapia') {
+        window._currentTreinamentoTipo = 'terapia';
+    } else if (tab.target === 'treinamento-materiais' || tab.target === 'treinamento-presenca') {
+        window._currentTreinamentoTipo = 'treinamento';
+    }
+
     const actualTarget = tab.target.endsWith('-terapia') ? tab.target.replace('-terapia', '') : tab.target;
     const targetView = document.getElementById(`view-${actualTarget}`);
     if (targetView) targetView.classList.add('active');
@@ -844,6 +850,18 @@ window.navigateToTab = function (tabId) {
     if (targetNavObj) targetNavObj.classList.add('active');
     updateBreadcrumb(tab.target);
     // Module-specific render hooks
+    if (tab.target === 'treinamento-materiais' && typeof window.renderTreinamentosTable === 'function') {
+        setTimeout(() => window.renderTreinamentosTable(), 80);
+    }
+    if (tab.target === 'treinamento-presenca' && typeof window.initPresencaTreinamento === 'function') {
+        setTimeout(() => window.initPresencaTreinamento(), 80);
+    }
+    if (tab.target === 'treinamento-materiais-terapia' && typeof window.renderTreinamentosTable === 'function') {
+        setTimeout(() => window.renderTreinamentosTable(), 80);
+    }
+    if (tab.target === 'treinamento-presenca-terapia' && typeof window.initPresencaTreinamento === 'function') {
+        setTimeout(() => window.initPresencaTreinamento(), 80);
+    }
     if (tab.target === 'logistica-dashboard' && typeof window.renderLogisticaDashboard === 'function') {
         setTimeout(() => window.renderLogisticaDashboard(), 80);
     }
@@ -4600,6 +4618,23 @@ const FIXED_DOCS = {
     'Multas': ['Contrato de Responsabilidade com o Veículo']
 };
 
+window.getFixedDocsForTab = function(tabId) {
+    if (!FIXED_DOCS[tabId]) return null;
+    let list = [...FIXED_DOCS[tabId]];
+    if (tabId === 'Contratos' && typeof viewedColaborador !== 'undefined' && viewedColaborador) {
+        const isMotorista = (viewedColaborador.cargo || '').toUpperCase().includes('MOTORISTA') || (viewedColaborador.departamento || '').toUpperCase().includes('MOTORISTA');
+        const isAdministrativo = (viewedColaborador.tipo || viewedColaborador.departamento || '').toUpperCase().includes('ADMINISTRATIVO') || (viewedColaborador.cargo || '').toUpperCase().includes('ADMINISTRATIVO');
+        
+        if (isMotorista && !list.includes('Responsabilidade Veículo')) {
+            list.push('Responsabilidade Veículo');
+        }
+        if (isAdministrativo && !list.includes('Responsabilidade Equipamento')) {
+            list.push('Responsabilidade Equipamento');
+        }
+    }
+    return list;
+};
+
 function getFichaCadastralDocs() {
     const isMotorista = viewedColaborador && (viewedColaborador.cargo || '').toUpperCase().includes('MOTORISTA');
     const isMasc = viewedColaborador && viewedColaborador.sexo === 'Masculino';
@@ -5130,13 +5165,14 @@ window.renderTemporalAno = function (tabId) {
     const docsToUse = currentDocs.filter(d => d.tab_name === tabId && d.year == y);
 
     // Se for uma aba com documentos fixos, carregar slots fixos primeiro
-    if (FIXED_DOCS[tabId]) {
-        FIXED_DOCS[tabId].forEach(docType => {
+    const fixedDocsList = window.getFixedDocsForTab(tabId);
+    if (fixedDocsList) {
+        fixedDocsList.forEach(docType => {
             const existing = docsToUse.find(d => d.document_type === docType);
             container.appendChild(createDocSlot(tabId, docType, existing, `'${y}'`));
         });
         // Docs extras do mesmo ano
-        docsToUse.filter(d => !FIXED_DOCS[tabId].includes(d.document_type)).forEach(d => {
+        docsToUse.filter(d => !fixedDocsList.includes(d.document_type)).forEach(d => {
             container.appendChild(createDocSlot(tabId, d.document_type, d, `'${y}'`));
         });
     } else {
@@ -5412,7 +5448,8 @@ window.renderTabContent = function (tabId, tabTitle, preventScroll = false) {
         filteredDocs.forEach(d => {
             listContainer.appendChild(createDocSlot(tabId, d.document_type, d));
         });
-    } else if (FIXED_DOCS[tabId]) {
+    } else if (window.getFixedDocsForTab(tabId)) {
+        const fixedDocsList = window.getFixedDocsForTab(tabId);
         if (tabId === 'Multas') {
             // Renderiza aba completa de multas (para qualquer colaborador)
             if (typeof window.renderMultasMotoristaTab === 'function') {
@@ -5431,7 +5468,7 @@ window.renderTabContent = function (tabId, tabTitle, preventScroll = false) {
             }
             return;
         }
-        FIXED_DOCS[tabId].forEach(docType => {
+        fixedDocsList.forEach(docType => {
             if (!searchTerm || docType.toLowerCase().includes(searchTerm)) {
                 if (tabId === 'Contratos' && docType === 'Acordo de auxílio combustível') {
                     const meio = (viewedColaborador && viewedColaborador.meio_transporte) ? viewedColaborador.meio_transporte.toLowerCase() : '';
@@ -5455,7 +5492,7 @@ window.renderTabContent = function (tabId, tabTitle, preventScroll = false) {
                 listContainer.appendChild(createDocSlot(tabId, docType, existingDoc));
             }
         });
-        filteredDocs.filter(d => !FIXED_DOCS[tabId].includes(d.document_type)).forEach(d => {
+        filteredDocs.filter(d => !fixedDocsList.includes(d.document_type)).forEach(d => {
             listContainer.appendChild(createDocSlot(tabId, d.document_type, d));
         });
     } else {
