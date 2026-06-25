@@ -499,6 +499,7 @@ const BREADCRUMB_MAP = {
     'cargos': { path: 'Diretoria → Cargos', code: 'DIR004' },
     'form-usuario': { path: 'Diretoria → Usuários e Permissões → Cadastro', code: 'DIR002' },
     'certificado-digital': { path: 'Diretoria → Certificado Digital', code: 'DIR003' },
+    'auditoria': { path: 'Diretoria → Trilha de Auditoria', code: 'DIR006' },
     // Sub-telas (Prontuário Digital - abas)
     'tab:00. CheckList': { path: 'Colaboradores → Prontuário Digital → 00. CheckList', },
     'tab:01_FICHA_CADASTRAL': { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral', },
