@@ -368,38 +368,54 @@ function _renderFormPropostaInt() {
         <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:hidden; margin:auto; border: 1px solid #e2e8f0;">
 
             <!-- Toolbar -->
-            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:flex-start; align-items:center; flex-wrap:wrap; gap:1rem;">
+            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem;">
                 
-                <!-- Botões CRUD (Lado Esquerdo) -->
-                <div style="display:flex; gap:0.6rem;">
-                    <button onclick="limparFormPropostaNovo()" style="background:#475569; color:white; border:none; padding:0.5rem 1.1rem; border-radius:7px; cursor:pointer; font-weight:600; font-size:0.84rem; outline:none; box-shadow:none; transition:background 0.15s;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'" onfocus="this.blur()">
-                        Novo
-                    </button>
-                    <button onclick="salvarPropostaNova()" style="background:#16a34a; color:white; border:none; padding:0.5rem 1.1rem; border-radius:7px; cursor:pointer; font-weight:600; font-size:0.84rem; outline:none; box-shadow:none; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
-                        Salvar
-                    </button>
-                    ${!isNovo ? `
-                    <button onclick="estornarPropostaEdicao()" style="background:#ea580c; color:white; border:none; padding:0.5rem 1.1rem; border-radius:7px; cursor:pointer; font-weight:600; font-size:0.84rem; outline:none; box-shadow:none; transition:background 0.15s;" onmouseover="this.style.background='#c2410c'" onmouseout="this.style.background='#ea580c'" onfocus="this.blur()">
-                        Estornar a proposta
-                    </button>` : ''}
-                    <button onclick="fecharFormProposta()" style="background:#64748b; color:white; border:none; padding:0.5rem 1.1rem; border-radius:7px; cursor:pointer; font-weight:600; font-size:0.84rem; outline:none; box-shadow:none; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
-                        Cancelar
-                    </button>
+                <!-- Badge Lado Esquerdo -->
+                <div style="background:#2e58a6; color:white; padding:0.45rem 0.9rem; border-radius:6px; font-weight:700; font-size:0.86rem; display:flex; align-items:center; gap:0.4rem; font-family:'Inter', sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <i class="ph ph-presentation-chart" style="font-size:1.15rem;"></i>
+                    Proposta de Locação
                 </div>
 
-                <!-- Divisor Vertical -->
-                <div style="width:1px; height:24px; background:#cbd5e1;"></div>
+                <!-- Botões de Ação (Lado Direito) -->
+                <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                    <!-- Icon buttons -->
+                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para visualizar os dados do cliente.', 'warning')" : `verClienteProposta(${id})`}" title="Dados do Cliente" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                        <i class="ph ph-identification-card" style="font-size:1.15rem;"></i>
+                    </button>
+                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder abrir o WhatsApp.', 'warning')" : `abrirWhatsAppProposta(${id})`}" title="WhatsApp" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                        <i class="ph ph-whatsapp-logo" style="font-size:1.15rem;"></i>
+                    </button>
+                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder enviá-la por e-mail.', 'warning')" : `abrirPopupEmail(${id})`}" title="Enviar email" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                        <i class="ph ph-envelope-simple" style="font-size:1.15rem;"></i>
+                    </button>
+                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder imprimi-la.', 'warning')" : `imprimirProposta(${id})`}" title="Imprimir" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                        <i class="ph ph-printer" style="font-size:1.15rem;"></i>
+                    </button>
+                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder ver o histórico.', 'warning')" : `abrirLogsAlteracao(${id})`}" title="Histórico de Alterações" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                        <i class="ph ph-clock-counter-clockwise" style="font-size:1.15rem;"></i>
+                    </button>
+                    <button onclick="recarregarPropostaForm(${id || 'null'})" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                        <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
+                    </button>
 
-                <!-- Botões de Ação (Icon Buttons) -->
-                <div style="display:flex; gap:0.6rem; align-items:center;">
-                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder enviá-la por e-mail.', 'warning')" : `abrirPopupEmail(${id})`}" title="Enviar email" style="background:#7048e8; color:white; border:none; width:36px; height:36px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onfocus="this.style.outline='2px solid #9775fa'">
-                        <i class="ph ph-envelope-simple" style="font-size:1.25rem;"></i>
+                    <!-- Spacer -->
+                    <div style="width: 4px;"></div>
+
+                    <!-- Text Buttons -->
+                    <button onclick="limparFormPropostaNovo()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" onfocus="this.blur()">
+                        <i class="ph ph-file-text" style="font-size:1rem;"></i> Novo
                     </button>
-                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder imprimi-la.', 'warning')" : `imprimirProposta(${id})`}" title="Imprimir" style="background:#0ea5e9; color:white; border:none; width:36px; height:36px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onfocus="this.style.outline='2px solid #7dd3fc'">
-                        <i class="ph ph-printer" style="font-size:1.25rem;"></i>
+                    <button onclick="salvarPropostaNova()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
+                        <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
-                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder visualizar os logs de alteração.', 'warning')" : `abrirLogsAlteracao(${id})`}" title="Logs de Alteração" style="background:#475569; color:white; border:none; width:36px; height:36px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onfocus="this.style.outline='2px solid #94a3b8'">
-                        <i class="ph ph-list-checks" style="font-size:1.25rem;"></i>
+                    <button onclick="fecharFormProposta()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
+                        <i class="ph ph-prohibit" style="font-size:1rem;"></i> Cancelar
+                    </button>
+                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder excluí-la.', 'warning')" : `excluirProposta(${id})`}" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
+                        <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
+                    </button>
+                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
+                        <i class="ph ph-arrow-counter-clockwise" style="font-size:1rem;"></i> Estornar
                     </button>
                 </div>
             </div>
@@ -608,6 +624,87 @@ function _renderFormPropostaInt() {
             </div>
     `;
 }
+
+window.verClienteProposta = async function(id) {
+    const p = _propostasData.find(pr => pr.id === id);
+    if (!p || !p.cliente_nome) {
+        Swal.fire('Aviso', 'Nenhum cliente selecionado nesta proposta.', 'warning');
+        return;
+    }
+    try {
+        const clientes = await apiGet('/clientes');
+        const cliente = clientes.find(c => c.nome_razao_social.toLowerCase() === p.cliente_nome.toLowerCase());
+        if (cliente) {
+            Swal.fire({
+                title: `<div style="font-size:1.15rem; font-weight:700; color:#1e293b; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px;"><i class="ph ph-buildings"></i> Dados do Cliente</div>`,
+                html: `
+                    <div style="text-align:left; font-family:'Inter', sans-serif; font-size:0.85rem; display:flex; flex-direction:column; gap:0.5rem; line-height:1.4;">
+                        <p><b>Código:</b> ${cliente.codigo}</p>
+                        <p><b>Razão Social:</b> ${cliente.nome_razao_social}</p>
+                        <p><b>CPF/CNPJ:</b> ${cliente.cpf_cnpj || '—'}</p>
+                        <p><b>Telefone:</b> ${cliente.telefone || '—'}</p>
+                        <p><b>E-mail:</b> ${cliente.email || '—'}</p>
+                        <p><b>Endereço:</b> ${cliente.endereco || '—'}, ${cliente.numero || ''} - ${cliente.bairro || ''}</p>
+                        <p><b>Município:</b> ${cliente.municipio || '—'} / ${cliente.uf || ''}</p>
+                    </div>
+                `,
+                confirmButtonColor: '#3b82f6',
+                confirmButtonText: 'Fechar'
+            });
+        } else {
+            Swal.fire('Aviso', 'Cliente não encontrado no cadastro.', 'warning');
+        }
+    } catch(e) {
+        console.error(e);
+        Swal.fire('Erro', 'Não foi possível carregar os dados do cliente.', 'error');
+    }
+};
+
+window.abrirWhatsAppProposta = async function(id) {
+    const p = _propostasData.find(pr => pr.id === id);
+    if (!p || !p.contato_nome) {
+        Swal.fire('Aviso', 'Nenhum contato selecionado nesta proposta.', 'warning');
+        return;
+    }
+    try {
+        const contatos = await apiGet('/contatos');
+        const contato = contatos.find(c => c.nome.toLowerCase() === p.contato_nome.toLowerCase());
+        if (contato && contato.celular) {
+            const cleanCel = contato.celular.replace(/\D/g, '');
+            if (cleanCel) {
+                window.open(`https://wa.me/55${cleanCel}`, '_blank');
+                return;
+            }
+        }
+        Swal.fire('Aviso', 'Celular do contato não cadastrado ou inválido.', 'warning');
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Erro', 'Não foi possível buscar o contato.', 'error');
+    }
+};
+
+window.recarregarPropostaForm = async function(id) {
+    if (!id) {
+        _renderFormPropostaInt();
+        return;
+    }
+    Swal.fire({
+        title: 'Recarregando...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+    try {
+        await carregarPropostas();
+        Swal.close();
+        _renderFormPropostaInt();
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Dados da proposta atualizados!');
+        }
+    } catch(e) {
+        Swal.close();
+        console.error(e);
+    }
+};
 
 window.fecharFormProposta = function() {
     _propostasEditandoId = null;
