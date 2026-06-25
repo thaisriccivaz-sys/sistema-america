@@ -13717,6 +13717,10 @@ window.salvarAssinaturasTestemunhas = async function () {
         sigPage.drawText(data2[0], { x: t2X, y: t1NameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
         sigPage.drawText(`CPF: ${data2[1] || 'N/D'}`, { x: t2X, y: t1CpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
 
+        const dateStrTestemunhas = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        sigPage.drawText(`Assinado em: ${dateStrTestemunhas}`, { x: t1X, y: t1CpfY - 12, size: 8, color: PDFLib.rgb(0.35, 0.35, 0.35) });
+        sigPage.drawText(`Assinado em: ${dateStrTestemunhas}`, { x: t2X, y: t1CpfY - 12, size: 8, color: PDFLib.rgb(0.35, 0.35, 0.35) });
+
         const modifiedPdfBytes = await pdfDoc.save();
         const file = new File([modifiedPdfBytes], doc.file_name, { type: 'application/pdf' });
         const formData = new FormData();
@@ -14020,6 +14024,28 @@ window.salvarAssinaturaColaborador = async function () {
         lastPage.drawLine({ start: { x: cX, y: cLineY }, end: { x: cX + cWidth, y: cLineY }, thickness: 1, color: PDFLib.rgb(0.2, 0.2, 0.2) });
         lastPage.drawText(viewedColaborador.nome_completo || 'Colaborador', { x: cX, y: cNameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
         lastPage.drawText(`CPF: ${viewedColaborador.cpf || 'N/D'}`, { x: cX, y: cCpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
+
+        const dateStrColab = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        lastPage.drawText(`Assinado em: ${dateStrColab}`, { x: cX, y: cCpfY - 12, size: 8, color: PDFLib.rgb(0.35, 0.35, 0.35) });
+        
+        if (doc.created_at || doc.data_inclusao) {
+            const dtCriado = new Date(doc.created_at || doc.data_inclusao);
+            if (!isNaN(dtCriado)) {
+                const dateStrCriado = dtCriado.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                lastPage.drawText(`Incluído no sistema em: ${dateStrCriado}`, { x: cX, y: cCpfY - 24, size: 8, color: PDFLib.rgb(0.35, 0.35, 0.35) });
+            }
+        }
+
+        if (_epiSelfieBase64) {
+            try {
+                const selfieBase64Data = _epiSelfieBase64.split(',')[1];
+                const selfieBytes = Uint8Array.from(atob(selfieBase64Data), c => c.charCodeAt(0));
+                const selfieImage = await pdfDoc.embedJpg(selfieBytes);
+                const sImgW = 85;
+                const sImgH = 64;
+                lastPage.drawImage(selfieImage, { x: cX + cWidth + 10, y: cCpfY - 10, width: sImgW, height: sImgH });
+            } catch (e) { console.error('Erro ao add selfie no pdf', e); }
+        }
 
         const modifiedPdfBytes = await pdfDoc.save();
         const file = new File([modifiedPdfBytes], doc.file_name, { type: 'application/pdf' });

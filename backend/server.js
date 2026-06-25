@@ -9547,7 +9547,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                         }
 
                         // Alerta de estoque mínimo
-                        if (!errUpd && newQtd <= item.quantidade_minima && item.quantidade_atual > item.quantidade_minima) {
+                        if (!errUpd && newQtd < item.quantidade_minima && item.quantidade_atual >= item.quantidade_minima) {
                             const msg = `ESTOQUE BAIXO: O item "${item.nome}" (${item.departamento}) atingiu o estoque mínimo. Quantidade Atual: ${newQtd}.`;
                             const dadosStr = JSON.stringify({ item_id: item.id, nome: item.nome, quantidade_atual: newQtd, quantidade_minima: item.quantidade_minima });
 
@@ -17509,7 +17509,7 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
 
     // Lógica de Notificação de Estoque Mínimo (fora do try/catch para não bloquear resposta, precisa usar try/catch isolado para variaveis)
     try {
-        if (quantidade_atual <= quantidade_minima && oldRow.quantidade_atual > oldRow.quantidade_minima) {
+        if (quantidade_atual < quantidade_minima && oldRow.quantidade_atual >= oldRow.quantidade_minima) {
             const msg = `ESTOQUE BAIXO: O item "${nome}" (${departamento}) atingiu o estoque mínimo. Quantidade Atual: ${quantidade_atual}.`;
             const dadosStr = JSON.stringify({ item_id: id, nome, quantidade_atual, quantidade_minima });
             db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'estoque_minimo'", [], (errC, rowsC) => {
