@@ -356,6 +356,11 @@ function _renderFormPropostaInt() {
     const prop = id ? _propostasData.find(p => p.id === id) : null;
     const isNovo = !prop;
     const hoje = new Date().toISOString().split('T')[0];
+    const umaSemanaDepois = (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 7);
+        return d.toISOString().split('T')[0];
+    })();
     const titulo = isNovo ? '📄 Nova Proposta' : `✏️ Editar Proposta — ${prop.codigo}`;
 
     const container = document.getElementById('prop-view-form');
@@ -379,12 +384,6 @@ function _renderFormPropostaInt() {
                 <!-- Botões de Ação (Lado Direito) -->
                 <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
                     <!-- Icon buttons -->
-                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para visualizar os dados do cliente.', 'warning')" : `verClienteProposta(${id})`}" title="Dados do Cliente" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
-                        <i class="ph ph-identification-card" style="font-size:1.15rem;"></i>
-                    </button>
-                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder abrir o WhatsApp.', 'warning')" : `abrirWhatsAppProposta(${id})`}" title="WhatsApp" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
-                        <i class="ph ph-whatsapp-logo" style="font-size:1.15rem;"></i>
-                    </button>
                     <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder enviá-la por e-mail.', 'warning')" : `abrirPopupEmail(${id})`}" title="Enviar email" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                         <i class="ph ph-envelope-simple" style="font-size:1.15rem;"></i>
                     </button>
@@ -424,18 +423,12 @@ function _renderFormPropostaInt() {
             <div style="padding:1.5rem; overflow-y:auto; max-height:78vh;">
                 <form id="form-proposta" onsubmit="return false;">
 
-                    <!-- Linha 1: Código, Local, Tipo, Atendente -->
-                    <div style="display:grid; grid-template-columns:1fr 1.5fr 2fr 1.5fr; gap:1rem; margin-bottom:1rem;">
+                    <!-- Linha 1: Código, Tipo, Atendente -->
+                    <div style="display:grid; grid-template-columns:1fr 2fr 1.5fr; gap:1rem; margin-bottom:1rem;">
                         <div>
                             <label class="prop-lbl">Código</label>
                             <input type="text" id="prop-codigo" value="${v('codigo') || (isNovo ? 'Auto' : '')}" readonly
                                 style="width:100%;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label class="prop-lbl">Local *</label>
-                            <select id="prop-local" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
-                                ${PROP_LOCAIS.map(l => `<option value="${l}" ${v('local')===l?'selected':''}>${l}</option>`).join('')}
-                            </select>
                         </div>
                         <div>
                             <label class="prop-lbl">Tipo *</label>
@@ -446,8 +439,8 @@ function _renderFormPropostaInt() {
                         </div>
                         <div>
                             <label class="prop-lbl">Atendente</label>
-                            <input type="text" id="prop-atendente" value="${v('atendente')}"
-                                style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome do atendente">
+                            <input type="text" id="prop-atendente" value="${v('atendente') || window.currentUser?.nome || window.currentUser?.email || ''}" readonly
+                                style="width:100%;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                     </div>
 
@@ -459,8 +452,8 @@ function _renderFormPropostaInt() {
                                 style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div>
-                            <label class="prop-lbl">Previsão Fechamento</label>
-                            <input type="date" id="prop-previsao" value="${v('previsao_fechamento')}"
+                            <label class="prop-lbl">Previsão Fechamento *</label>
+                            <input type="date" id="prop-previsao" value="${v('previsao_fechamento') || (isNovo ? umaSemanaDepois : '')}"
                                 style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div>
@@ -486,13 +479,26 @@ function _renderFormPropostaInt() {
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
                             <div>
                                 <label class="prop-lbl">Cliente</label>
-                                <input type="text" id="prop-cliente" value="${v('cliente_nome')}"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome do cliente">
+                                <div style="display:flex; gap:0.4rem; align-items:center;">
+                                    <input type="text" id="prop-cliente" value="${v('cliente_nome')}"
+                                        style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome ou razão do cliente">
+                                    <button type="button" onclick="pesquisarClienteProposta()" title="Pesquisar Cliente" style="background:#16a34a; color:white; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                        <i class="ph ph-magnifying-glass" style="font-size:1.1rem;"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div>
                                 <label class="prop-lbl">Contato</label>
-                                <input type="text" id="prop-contato" value="${v('contato_nome')}"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome do contato">
+                                <div style="display:flex; gap:0.4rem; align-items:center;">
+                                    <input type="text" id="prop-contato" value="${v('contato_nome')}"
+                                        style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome do contato">
+                                    <button type="button" onclick="pesquisarContatoProposta()" title="Pesquisar Contato" style="background:#16a34a; color:white; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                        <i class="ph ph-magnifying-glass" style="font-size:1.1rem;"></i>
+                                    </button>
+                                    <button type="button" onclick="verDetalhesContatoProposta()" title="Ver Detalhes do Contato" style="background:#0ea5e9; color:white; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'">
+                                        <i class="ph ph-eye" style="font-size:1.1rem;"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -502,36 +508,27 @@ function _renderFormPropostaInt() {
                         <h4 style="margin:0 0 0.85rem; font-size:0.88rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-calendar-blank" style="color:#7048e8;"></i> Período e Condições
                         </h4>
-                        <div style="display:grid; grid-template-columns:1fr 1fr 0.7fr 0.7fr 0.7fr 1.5fr; gap:1rem; margin-bottom:0.85rem;">
+                        <div style="display:grid; grid-template-columns:1.2fr 1.2fr 0.8fr 1.8fr; gap:1rem; margin-bottom:0.85rem;">
                             <div>
                                 <label class="prop-lbl">Período Início *</label>
                                 <input type="date" id="prop-periodo-ini" value="${v('periodo_inicio')}"
-                                    onchange="calcularDiasContrato()"
+                                    onchange="calcularDiasContrato(); calcularFimContrato();"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                             <div>
-                                <label class="prop-lbl">Período Fim</label>
+                                <label class="prop-lbl">Até *</label>
                                 <input type="date" id="prop-periodo-fim" value="${v('periodo_fim')}"
                                     onchange="calcularDiasContrato()"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                             <div>
-                                <label class="prop-lbl">Hora Início</label>
-                                <input type="time" id="prop-hora-ini" value="${v('hora_inicio')||'00:00'}"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
-                            </div>
-                            <div>
-                                <label class="prop-lbl">Hora Fim</label>
-                                <input type="time" id="prop-hora-fim" value="${v('hora_fim')||'00:00'}"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
-                            </div>
-                            <div>
                                 <label class="prop-lbl">Dias Contrato</label>
                                 <input type="number" id="prop-dias" value="${vn('dias_contrato','0')}" min="0"
+                                    oninput="calcularFimContrato()"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                             <div>
-                                <label class="prop-lbl">Tabela de Preços</label>
+                                <label class="prop-lbl">Tabela de Preços *</label>
                                 <select id="prop-tabela" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                                     <option value="">-- Selecione --</option>
                                     ${PROP_TABELAS.map(t => `<option value="${t}" ${v('tabela_precos')===t?'selected':''}>${t}</option>`).join('')}
@@ -573,8 +570,8 @@ function _renderFormPropostaInt() {
                         <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr; gap:1rem;">
                             <div style="grid-column:span 2;">
                                 <label class="prop-lbl">Representante *</label>
-                                <input type="text" id="prop-representante" value="${v('representante')}"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome do representante">
+                                <input type="text" id="prop-representante" value="${v('representante') || window.currentUser?.nome || window.currentUser?.email || ''}" readonly
+                                    style="width:100%;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Transportadora</label>
@@ -713,15 +710,262 @@ window.fecharFormProposta = function() {
     window.switchPropostaTab('lista');
 };
 
+/* ── Redirecionamentos e Pesquisas de Clientes / Contatos na Proposta ── */
+let _redirectAfterClientSave = false;
+let _redirectAfterContactSave = false;
+
+window.pesquisarClienteProposta = async function() {
+    const query = document.getElementById('prop-cliente').value.trim();
+    if (!query) {
+        Swal.fire({
+            title: 'Cliente não informado',
+            text: 'Deseja abrir o formulário de Cadastro de Clientes?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sim, cadastrar',
+            cancelButtonText: 'Não',
+            confirmButtonColor: '#2e58a6',
+            cancelButtonColor: '#64748b'
+        }).then((res) => {
+            if (res.isConfirmed) {
+                _redirectAfterClientSave = true;
+                window.switchPropostaTab('cadastro-cliente');
+                window.limparFormCliente();
+            }
+        });
+        return;
+    }
+
+    try {
+        const clientes = await apiGet('/clientes');
+        const filtrados = clientes.filter(c => 
+            (c.nome_razao_social && c.nome_razao_social.toLowerCase().includes(query.toLowerCase())) ||
+            (c.codigo && c.codigo.toString() === query)
+        );
+
+        if (filtrados.length === 1) {
+            const selected = filtrados[0];
+            document.getElementById('prop-cliente').value = selected.nome_razao_social;
+            Swal.fire('Cliente Selecionado', `Cliente: ${selected.nome_razao_social}`, 'success');
+        } else if (filtrados.length > 1) {
+            const rowsHtml = filtrados.map(c => `
+                <tr onclick="window.selectClienteProposta('${c.nome_razao_social.replace(/'/g, "\\'")}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                    <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#2e58a6;">${c.codigo}</td>
+                    <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social}</td>
+                    <td style="padding:0.5rem; text-align:left;">${c.cpf_cnpj || '—'}</td>
+                </tr>
+            `).join('');
+
+            window.selectClienteProposta = function(nome) {
+                document.getElementById('prop-cliente').value = nome;
+                Swal.close();
+            };
+
+            Swal.fire({
+                title: 'Selecione o Cliente',
+                html: `
+                    <div style="max-height:300px; overflow-y:auto; width:100%;">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left; font-family:'Inter', sans-serif;">
+                            <thead>
+                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
+                                    <th style="padding:0.5rem;">Código</th>
+                                    <th style="padding:0.5rem;">Razão Social</th>
+                                    <th style="padding:0.5rem;">CPF / CNPJ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                `,
+                showConfirmButton: false,
+                showCancelButton: true,
+                cancelButtonText: 'Fechar',
+                cancelButtonColor: '#64748b'
+            });
+        } else {
+            Swal.fire({
+                title: 'Cliente não cadastrado',
+                text: `Nenhum cliente encontrado com "${query}". Deseja abrir o Cadastro de Clientes?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sim, cadastrar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#2e58a6',
+                cancelButtonColor: '#64748b'
+            }).then((res) => {
+                if (res.isConfirmed) {
+                    _redirectAfterClientSave = true;
+                    window.switchPropostaTab('cadastro-cliente');
+                    window.limparFormCliente();
+                    setTimeout(() => {
+                        const rSocialInput = document.getElementById('cli-razao-social');
+                        if (rSocialInput) rSocialInput.value = query;
+                    }, 300);
+                }
+            });
+        }
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Erro', 'Não foi possível buscar clientes.', 'error');
+    }
+};
+
+window.pesquisarContatoProposta = async function() {
+    const query = document.getElementById('prop-contato').value.trim();
+    if (!query) {
+        Swal.fire({
+            title: 'Contato não informado',
+            text: 'Deseja abrir o formulário de Cadastro de Contatos?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sim, cadastrar',
+            cancelButtonText: 'Não',
+            confirmButtonColor: '#2e58a6',
+            cancelButtonColor: '#64748b'
+        }).then((res) => {
+            if (res.isConfirmed) {
+                _redirectAfterContactSave = true;
+                window.switchPropostaTab('cadastro-contatos');
+                window.limparFormContato();
+            }
+        });
+        return;
+    }
+
+    try {
+        const contatos = await apiGet('/contatos');
+        const filtrados = contatos.filter(c => 
+            (c.nome && c.nome.toLowerCase().includes(query.toLowerCase())) ||
+            (c.codigo && c.codigo.toString() === query)
+        );
+
+        if (filtrados.length === 1) {
+            const selected = filtrados[0];
+            document.getElementById('prop-contato').value = selected.nome;
+            Swal.fire('Contato Selecionado', `Contato: ${selected.nome}`, 'success');
+        } else if (filtrados.length > 1) {
+            const rowsHtml = filtrados.map(c => `
+                <tr onclick="window.selectContatoProposta('${c.nome.replace(/'/g, "\\'")}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                    <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#2e58a6;">${c.codigo}</td>
+                    <td style="padding:0.5rem; text-align:left;">${c.nome}</td>
+                    <td style="padding:0.5rem; text-align:left;">${c.cargo || '—'}</td>
+                </tr>
+            `).join('');
+
+            window.selectContatoProposta = function(nome) {
+                document.getElementById('prop-contato').value = nome;
+                Swal.close();
+            };
+
+            Swal.fire({
+                title: 'Selecione o Contato',
+                html: `
+                    <div style="max-height:300px; overflow-y:auto; width:100%;">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left; font-family:'Inter', sans-serif;">
+                            <thead>
+                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
+                                    <th style="padding:0.5rem;">Código</th>
+                                    <th style="padding:0.5rem;">Nome</th>
+                                    <th style="padding:0.5rem;">Cargo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                `,
+                showConfirmButton: false,
+                showCancelButton: true,
+                cancelButtonText: 'Fechar',
+                cancelButtonColor: '#64748b'
+            });
+        } else {
+            Swal.fire({
+                title: 'Contato não cadastrado',
+                text: `Nenhum contato encontrado com "${query}". Deseja abrir o Cadastro de Contatos?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sim, cadastrar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#2e58a6',
+                cancelButtonColor: '#64748b'
+            }).then((res) => {
+                if (res.isConfirmed) {
+                    _redirectAfterContactSave = true;
+                    window.switchPropostaTab('cadastro-contatos');
+                    window.limparFormContato();
+                    setTimeout(() => {
+                        const nameInput = document.getElementById('con-nome');
+                        if (nameInput) nameInput.value = query;
+                    }, 300);
+                }
+            });
+        }
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Erro', 'Não foi possível buscar contatos.', 'error');
+    }
+};
+
+window.verDetalhesContatoProposta = async function() {
+    const nomeContato = document.getElementById('prop-contato').value.trim();
+    if (!nomeContato) {
+        Swal.fire('Aviso', 'Por favor, selecione ou digite o nome de um contato primeiro.', 'warning');
+        return;
+    }
+
+    try {
+        const contatos = await apiGet('/contatos');
+        const contato = contatos.find(c => c.nome.toLowerCase() === nomeContato.toLowerCase());
+        if (contato) {
+            Swal.fire({
+                title: `<div style="font-size:1.15rem; font-weight:700; color:#1e293b; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px;"><i class="ph ph-user"></i> Detalhes do Contato</div>`,
+                html: `
+                    <div style="text-align:left; font-family:'Inter', sans-serif; font-size:0.85rem; display:flex; flex-direction:column; gap:0.5rem; line-height:1.4;">
+                        <p><b>Código:</b> ${contato.codigo}</p>
+                        <p><b>Nome:</b> ${contato.nome}</p>
+                        <p><b>Tipo:</b> ${contato.tipo || '—'}</p>
+                        <p><b>Cargo:</b> ${contato.cargo || '—'}</p>
+                        <p><b>Departamento:</b> ${contato.departamento || '—'}</p>
+                        <p><b>E-mail:</b> ${contato.email || '—'}</p>
+                        <p><b>Celular:</b> ${contato.celular || '—'}</p>
+                        <p><b>Telefone:</b> ${contato.telefone || '—'} ${contato.ramal ? 'Ramal: ' + contato.ramal : ''}</p>
+                    </div>
+                `,
+                confirmButtonColor: '#3b82f6',
+                confirmButtonText: 'Fechar'
+            });
+        } else {
+            Swal.fire('Aviso', 'Contato não cadastrado ou não encontrado.', 'warning');
+        }
+    } catch(e) {
+        console.error(e);
+        Swal.fire('Erro', 'Não foi possível carregar os detalhes do contato.', 'error');
+    }
+};
+
 /* ── Cálculos auxiliares ────────────────────────────────────────────── */
-function calcularDiasContrato() {
+window.calcularDiasContrato = function() {
     const ini = document.getElementById('prop-periodo-ini')?.value;
     const fim = document.getElementById('prop-periodo-fim')?.value;
     const diasEl = document.getElementById('prop-dias');
     if (!ini || !fim || !diasEl) return;
-    const diff = Math.ceil((new Date(fim) - new Date(ini)) / (1000 * 60 * 60 * 24));
+    const diff = Math.ceil((new Date(fim + 'T12:00:00') - new Date(ini + 'T12:00:00')) / (1000 * 60 * 60 * 24));
     if (diff >= 0) diasEl.value = diff;
-}
+};
+
+window.calcularFimContrato = function() {
+    const ini = document.getElementById('prop-periodo-ini')?.value;
+    const dias = parseInt(document.getElementById('prop-dias')?.value || 0);
+    const fimEl = document.getElementById('prop-periodo-fim');
+    if (!ini || !fimEl || dias <= 0) return;
+    const date = new Date(ini + 'T12:00:00');
+    date.setDate(date.getDate() + dias);
+    fimEl.value = date.toISOString().split('T')[0];
+};
 
 function calcularDescontoReais() {
     const pct = parseFloat(document.getElementById('prop-desc-pct')?.value || 0);
@@ -751,7 +995,7 @@ window.salvarPropostaNova = async function() {
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
 
     const payload = {
-        local: obter('prop-local'),
+        local: obter('prop-local') || 'AMERICA RENTAL',
         tipo,
         atendente: obter('prop-atendente'),
         data_cadastro: dataCad,
@@ -815,7 +1059,7 @@ window.estornarPropostaEdicao = async function() {
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
 
     const payload = {
-        local: obter('prop-local'),
+        local: obter('prop-local') || 'AMERICA RENTAL',
         tipo,
         atendente: obter('prop-atendente'),
         data_cadastro: dataCad,
@@ -2113,6 +2357,12 @@ window.salvarCliente = async function() {
             if (typeof mostrarToastSucesso === 'function') {
                 mostrarToastSucesso(_clienteEditandoId ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
             }
+            if (_redirectAfterClientSave) {
+                _redirectAfterClientSave = false;
+                const propClienteInput = document.getElementById('prop-cliente');
+                if (propClienteInput) propClienteInput.value = razaoSocial;
+                window.switchPropostaTab('form');
+            }
         } else {
             alert('Erro ao salvar cliente: ' + (res?.error || 'Erro desconhecido.'));
         }
@@ -3308,6 +3558,13 @@ window.salvarContato = async function() {
 
             if (typeof mostrarToastSucesso === 'function') {
                 mostrarToastSucesso(_contatoEditandoId ? 'Contato atualizado com sucesso!' : 'Contato cadastrado com sucesso!');
+            }
+
+            if (_redirectAfterContactSave) {
+                _redirectAfterContactSave = false;
+                const propContatoInput = document.getElementById('prop-contato');
+                if (propContatoInput) propContatoInput.value = conNome;
+                window.switchPropostaTab('form');
             }
         } else {
             alert('Erro ao salvar contato: ' + (res?.error || 'Erro desconhecido.'));
