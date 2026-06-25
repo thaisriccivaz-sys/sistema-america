@@ -120,7 +120,7 @@
 
         const listaTrein = (c.treinamentos || []).map(t => {
             if (t.concluido) {
-                const valStr = t.validade_dias > 0 ? ` · Válido por ${t.validade_dias}d` : '';
+                const valStr = t.validade_dias > 0 ? ` · Válido por ${t.validade_dias} meses` : '';
                 const encodedId = `${c.id},${t.id}`;
                 return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
                     <i class="ph ph-check-circle" style="color:#10b981;font-size:1.1rem;flex-shrink:0;"></i>
@@ -247,7 +247,7 @@
                 const vencidoBadge = h.vencido
                     ? `<span style="background:#fef2f2;color:#ef4444;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:600;">VENCIDO</span>`
                     : `<span style="background:#f0fdf4;color:#10b981;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:600;">CONCLUÍDO</span>`;
-                const validStr = h.validade_dias > 0 ? `<span style="font-size:0.72rem;color:#64748b;"> · Validade: ${h.validade_dias} dias</span>` : '';
+                const validStr = h.validade_dias > 0 ? `<span style="font-size:0.72rem;color:#64748b;"> · Validade: ${h.validade_dias} meses</span>` : '';
                 const instrutor = h.instrutor_nome ? `<span style="font-size:0.72rem;color:#64748b;"> · Instrutor: ${h.instrutor_nome}</span>` : '';
 
                 const temDoc = h.assinatura_base64 || h.selfie_base64;
@@ -255,6 +255,14 @@
                     ? `<button onclick="window._verDocumentoAssinado('${encodeURIComponent(JSON.stringify({ assinatura: h.assinatura_base64, selfie: h.selfie_base64, capa: h.capa_url || '', nome: nome, treinamento: h.treinamento_nome, data: dt, instrutor: h.instrutor_nome || '' }))}')"
                         style="background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
                         <i class="ph ph-eye"></i> Ver documento
+                      </button>
+                      <button onclick="window.enviarPesquisaTreinamento(${h.treinamento_id}, ${colaboradorId}, this)"
+                        style="background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+                        <i class="ph ph-paper-plane-right"></i> Enviar Pesquisa
+                      </button>
+                      <button onclick="window.verResultadoPesquisaTreinamento(${h.treinamento_id}, ${colaboradorId})"
+                        style="background:#f0fdf4;color:#166534;border:1.5px solid #bbf7d0;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+                        <i class="ph ph-chart-bar"></i> Respostas
                       </button>`
                     : `<span style="font-size:0.75rem;color:#94a3b8;">Sem documento</span>`;
 
@@ -1014,5 +1022,90 @@
             }
         });
     }
+
+    // ── PESQUISA DE SATISFAÇÃO ────────────────────────────────────────────────
+    window.enviarPesquisaTreinamento = async function(treinId, colabId, btn) {
+        if (!confirm('Deseja enviar a pesquisa de satisfação para este colaborador (via WhatsApp)?')) return;
+        
+        const textOrig = btn.innerHTML;
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+        btn.disabled = true;
+
+        try {
+            const r = await api(`/treinamentos/${treinId}/enviar-pesquisa`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ colaborador_id: colabId })
+            });
+            if (!r.ok) {
+                const e = await r.json().catch(()=>({}));
+                throw new Error(e.error || 'Erro ao enviar pesquisa');
+            }
+            const res = await r.json();
+            alert(`Pesquisa enviada com sucesso!\n\nLink: ${res.link}`);
+            btn.innerHTML = '<i class="ph ph-check"></i> Enviado';
+        } catch (e) {
+            alert('Erro: ' + e.message);
+            btn.innerHTML = textOrig;
+            btn.disabled = false;
+        }
+    };
+
+    window.verResultadoPesquisaTreinamento = async function(treinId, colabId) {
+        try {
+            const r = await api(`/treinamentos/${treinId}/resultado-pesquisa/${colabId}`);
+            if (!r.ok) throw new Error('Erro ao buscar resultado');
+            const data = await r.json();
+            
+            if (data.status === 'não_enviado' || !data.respostas_json) {
+                alert('A pesquisa ainda não foi enviada ou o colaborador ainda não respondeu.');
+                return;
+            }
+
+            let html = '<div style="padding:1rem;font-family:sans-serif;">';
+            html += '<h3 style="margin-top:0;">Respostas da Pesquisa</h3>';
+            try {
+                const respostasArray = JSON.parse(data.respostas_json);
+                for (const item of respostasArray) {
+                    html += `<div style="margin-bottom:12px;">
+                        <strong style="display:block;font-size:0.9rem;color:#334155;margin-bottom:4px;">${item.pergunta}</strong>
+                        <div style="color:#eab308;font-size:1.2rem;">`;
+                    for(let i=1; i<=5; i++) {
+                        html += i <= item.nota ? '<i class="ph-fill ph-star"></i>' : '<i class="ph ph-star" style="color:#cbd5e1;"></i>';
+                    }
+                    html += ` <span style="color:#64748b;font-size:0.8rem;margin-left:4px;">(${item.nota}/5)</span></div>
+                    </div>`;
+                }
+            } catch(e) {
+                html += '<p>Erro ao ler respostas.</p>';
+            }
+            html += '</div>';
+
+            let modal = document.getElementById('modal-resultado-pesquisa-treinamento');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'modal-resultado-pesquisa-treinamento';
+                modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,0.6);';
+                document.body.appendChild(modal);
+            }
+            
+            modal.innerHTML = `<div style="background:#fff;border-radius:12px;width:100%;max-width:500px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column;max-height:90vh;">
+                <div style="background:#f8fafc;padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                    <h3 style="margin:0;font-size:1.1rem;color:#1e293b;display:flex;align-items:center;gap:8px;"><i class="ph ph-chart-bar" style="color:#0ea5e9;"></i> Resultados da Pesquisa</h3>
+                    <button onclick="document.getElementById('modal-resultado-pesquisa-treinamento').style.display='none'" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#64748b;">&times;</button>
+                </div>
+                <div style="padding:20px;overflow-y:auto;">
+                    ${html}
+                </div>
+                <div style="padding:16px 20px;border-top:1px solid #e2e8f0;background:#f8fafc;text-align:right;">
+                    <button onclick="document.getElementById('modal-resultado-pesquisa-treinamento').style.display='none'" style="background:#0ea5e9;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:600;cursor:pointer;">Fechar</button>
+                </div>
+            </div>`;
+            
+            modal.style.display = 'flex';
+        } catch(e) {
+            alert('Erro: ' + e.message);
+        }
+    };
 
 })();

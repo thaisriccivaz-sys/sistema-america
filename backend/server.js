@@ -17984,6 +17984,22 @@ db.run(`CREATE TABLE IF NOT EXISTS treinamento_presenca (
   UNIQUE(treinamento_id, usuario_id)
 )`);
 
+db.run(`CREATE TABLE IF NOT EXISTS treinamento_pesquisa_perguntas (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  treinamento_id INTEGER NOT NULL REFERENCES treinamentos(id) ON DELETE CASCADE,
+  pergunta       TEXT NOT NULL,
+  ordem          INTEGER DEFAULT 0
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS treinamento_pesquisa_respostas (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  treinamento_id INTEGER NOT NULL REFERENCES treinamentos(id) ON DELETE CASCADE,
+  colaborador_id INTEGER NOT NULL REFERENCES colaboradores(id) ON DELETE CASCADE,
+  token          TEXT UNIQUE NOT NULL,
+  respostas_json TEXT,
+  respondido_em  DATETIME
+)`);
+
 db.run(`CREATE TABLE IF NOT EXISTS treinamento_anexos (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
   treinamento_id   INTEGER NOT NULL REFERENCES treinamentos(id) ON DELETE CASCADE,
@@ -18041,30 +18057,164 @@ app.get('/api/treinamentos', authenticateToken, (req, res) => {
 
 // ── POST /api/treinamentos — Cria treinamento ─────────────────────────────────
 app.post('/api/treinamentos', authenticateToken, (req, res) => {
-  const { nome, descricao, departamento, capa_url } = req.body || {};
+  const { nome, descricao, departamento, capa_url, validade_dias, pesquisa_perguntas } = req.body || {};
   if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
   const criado_por = req.user?.nome || req.user?.email || '';
+  
   db.run(
-    `INSERT INTO treinamentos (nome, descricao, criado_por, departamento, capa_url) VALUES (?, ?, ?, ?, ?)`,
-    [nome.trim(), (descricao || '').trim(), criado_por, (departamento || 'Todos').trim(), (capa_url || '').trim()],
+    `INSERT INTO treinamentos (nome, descricao, criado_por, departamento, capa_url, validade_dias) VALUES (?, ?, ?, ?, ?, ?)`,
+    [nome.trim(), (descricao || '').trim(), criado_por, (departamento || 'Todos').trim(), (capa_url || '').trim(), parseInt(validade_dias) || 0],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
-      res.status(201).json({ id: this.lastID, nome: nome.trim(), descricao: descricao || '', departamento: (departamento || 'Todos').trim(), capa_url: (capa_url || '').trim(), anexos: [] });
+      const newId = this.lastID;
+      
+      // Salvar perguntas da pesquisa se existirem
+      if (pesquisa_perguntas && Array.isArray(pesquisa_perguntas) && pesquisa_perguntas.length > 0) {
+        const stmt = db.prepare(`INSERT INTO treinamento_pesquisa_perguntas (treinamento_id, pergunta, ordem) VALUES (?, ?, ?)`);
+        pesquisa_perguntas.forEach((p, idx) => {
+          if (p && p.trim()) {
+            stmt.run([newId, p.trim(), idx]);
+          }
+        });
+        stmt.finalize();
+      }
+      
+      res.status(201).json({ id: newId, nome: nome.trim(), descricao: descricao || '', departamento: (departamento || 'Todos').trim(), capa_url: (capa_url || '').trim(), validade_dias: parseInt(validade_dias) || 0, anexos: [] });
     }
   );
 });
-
 // ── PUT /api/treinamentos/:id — Atualiza treinamento ─────────────────────────
 app.put('/api/treinamentos/:id', authenticateToken, (req, res) => {
-  const { nome, descricao, departamento, capa_url } = req.body || {};
+  const { nome, descricao, departamento, capa_url, validade_dias } = req.body || {};
   if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
   db.run(
-    `UPDATE treinamentos SET nome = ?, descricao = ?, departamento = ?, capa_url = ? WHERE id = ?`,
-    [nome.trim(), (descricao || '').trim(), (departamento || 'Todos').trim(), (capa_url !== undefined ? capa_url : ''), req.params.id],
+    `UPDATE treinamentos SET nome = ?, descricao = ?, departamento = ?, capa_url = ?, validade_dias = ? WHERE id = ?`,
+    [nome.trim(), (descricao || '').trim(), (departamento || 'Todos').trim(), (capa_url !== undefined ? capa_url : ''), parseInt(validade_dias) || 0, req.params.id],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Treinamento não encontrado.' });
       res.json({ ok: true });
+    }
+  );
+});
+
+// ── GET /api/treinamentos/:id/pesquisa — Retorna perguntas da pesquisa ──────────
+app.get('/api/treinamentos/:id/pesquisa', authenticateToken, (req, res) => {
+  db.all(`SELECT * FROM treinamento_pesquisa_perguntas WHERE treinamento_id = ? ORDER BY ordem ASC`, [req.params.id], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// ── POST /api/treinamentos/:id/pesquisa — Salva perguntas da pesquisa ──────────
+app.post('/api/treinamentos/:id/pesquisa', authenticateToken, (req, res) => {
+  const perguntas = req.body.perguntas || [];
+  const treinId = req.params.id;
+
+  db.serialize(() => {
+    db.run(`BEGIN TRANSACTION`);
+    db.run(`DELETE FROM treinamento_pesquisa_perguntas WHERE treinamento_id = ?`, [treinId], function (err) {
+      if (err) {
+        db.run(`ROLLBACK`);
+        return res.status(500).json({ error: err.message });
+      }
+
+      const stmt = db.prepare(`INSERT INTO treinamento_pesquisa_perguntas (treinamento_id, pergunta, ordem) VALUES (?, ?, ?)`);
+      perguntas.forEach((p, idx) => {
+        if (p && p.trim()) {
+          stmt.run([treinId, p.trim(), idx]);
+        }
+      });
+      stmt.finalize((err) => {
+        if (err) {
+          db.run(`ROLLBACK`);
+          return res.status(500).json({ error: err.message });
+        }
+        db.run(`COMMIT`, () => res.json({ ok: true }));
+      });
+    });
+  });
+});
+
+// ── POST /api/treinamentos/:id/enviar-pesquisa — Envia link para o WhatsApp ────
+app.post('/api/treinamentos/:id/enviar-pesquisa', authenticateToken, (req, res) => {
+  const { colaborador_id } = req.body;
+  if (!colaborador_id) return res.status(400).json({ error: 'Colaborador não especificado.' });
+  const treinId = req.params.id;
+
+  // Gerar token único
+  const token = require('crypto').randomBytes(16).toString('hex');
+
+  // Buscar dados do treinamento e colaborador
+  db.get(`SELECT t.nome as trein_nome, c.nome_completo, c.telefone FROM treinamentos t, colaboradores c WHERE t.id = ? AND c.id = ?`, [treinId, colaborador_id], (err, info) => {
+    if (err || !info) return res.status(500).json({ error: err ? err.message : 'Dados não encontrados.' });
+
+    // Salvar no banco
+    db.run(`INSERT INTO treinamento_pesquisa_respostas (treinamento_id, colaborador_id, token) VALUES (?, ?, ?)`, [treinId, colaborador_id, token], function(err2) {
+      if (err2) return res.status(500).json({ error: err2.message });
+
+      // Link para responder a pesquisa (público)
+      const baseUrl = req.protocol + '://' + req.get('host');
+      const link = \`\${baseUrl}/pesquisa-treinamento.html?token=\${token}\`;
+
+      // Mensagem para o WhatsApp
+      const texto = \`Olá \${info.nome_completo.split(' ')[0]}, vi que você participou do treinamento de *\${info.trein_nome}*.\n\nPor favor, reserve 1 minuto para responder nossa pesquisa de avaliação clicando no link abaixo:\n\${link}\n\nSua opinião é muito importante para nós!\`;
+
+      // Disparar WhatsApp (utilizando a API existente ou simulação do sistema)
+      let phone = info.telefone ? info.telefone.replace(/\\D/g, '') : '';
+      if (phone && phone.length >= 10 && typeof enviarMensagemWhatsApp === 'function') {
+        if (!phone.startsWith('55')) phone = '55' + phone;
+        enviarMensagemWhatsApp(phone, texto).catch(e => console.error("Erro no envio WhatsApp:", e));
+      }
+
+      res.json({ ok: true, message: 'Pesquisa enviada.', link: link, texto_copia: texto });
+    });
+  });
+});
+
+// ── GET /api/treinamentos/:id/resultado-pesquisa/:colab_id — Retorna resposta do colaborador
+app.get('/api/treinamentos/:id/resultado-pesquisa/:colab_id', authenticateToken, (req, res) => {
+  db.get(`SELECT * FROM treinamento_pesquisa_respostas WHERE treinamento_id = ? AND colaborador_id = ? ORDER BY id DESC LIMIT 1`, [req.params.id, req.params.colab_id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(row || { status: 'não_enviado' });
+  });
+});
+
+// ── GET /api/public/pesquisa-treinamento/:token — Retorna dados da pesquisa (Público) ────
+app.get('/api/public/pesquisa-treinamento/:token', (req, res) => {
+  const token = req.params.token;
+  db.get(
+    `SELECT p.id as resposta_id, p.treinamento_id, p.colaborador_id, p.respondido_em, t.nome as treinamento_nome, c.nome_completo as colaborador_nome 
+     FROM treinamento_pesquisa_respostas p
+     JOIN treinamentos t ON p.treinamento_id = t.id
+     JOIN colaboradores c ON p.colaborador_id = c.id
+     WHERE p.token = ?`, 
+    [token], 
+    (err, info) => {
+      if (err) return res.status(500).json({ error: 'Erro no banco de dados.' });
+      if (!info) return res.status(404).json({ error: 'Pesquisa não encontrada ou token inválido.' });
+      
+      db.all(`SELECT id, pergunta, ordem FROM treinamento_pesquisa_perguntas WHERE treinamento_id = ? ORDER BY ordem ASC`, [info.treinamento_id], (err2, perguntas) => {
+        if (err2) return res.status(500).json({ error: 'Erro ao buscar perguntas.' });
+        res.json({ ...info, perguntas });
+      });
+  });
+});
+
+// ── POST /api/public/pesquisa-treinamento/:token — Salva respostas (Público) ────
+app.post('/api/public/pesquisa-treinamento/:token', (req, res) => {
+  const token = req.params.token;
+  const { respostas } = req.body; // array de objetos: { pergunta_id, nota }
+  
+  if (!respostas || !Array.isArray(respostas)) return res.status(400).json({ error: 'Respostas inválidas.' });
+  
+  db.run(
+    `UPDATE treinamento_pesquisa_respostas SET respostas_json = ?, respondido_em = CURRENT_TIMESTAMP WHERE token = ? AND respondido_em IS NULL`,
+    [JSON.stringify(respostas), token],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(400).json({ error: 'Pesquisa já respondida ou token inválido.' });
+      res.json({ ok: true, message: 'Pesquisa salva com sucesso!' });
     }
   );
 });
@@ -18319,8 +18469,9 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
             let vencido = false;
             if (presenca && dataConclusao && t.validade_dias > 0) {
               const dtConclusao = new Date(dataConclusao);
-              const diasDesde = (agora - dtConclusao) / (1000 * 60 * 60 * 24);
-              if (diasDesde > t.validade_dias) vencido = true;
+              const dtVencimento = new Date(dtConclusao);
+              dtVencimento.setMonth(dtVencimento.getMonth() + t.validade_dias);
+              if (agora > dtVencimento) vencido = true;
             }
 
             // Se vencido, tratar como não concluído
@@ -18375,8 +18526,10 @@ app.get('/api/treinamento-presenca/historico/:colaboradorId', authenticateToken,
         const dataConclusao = r.data_conclusao || r.data_presenca;
         let vencido = false;
         if (dataConclusao && r.validade_dias > 0) {
-          const diasDesde = (agora - new Date(dataConclusao)) / (1000 * 60 * 60 * 24);
-          if (diasDesde > r.validade_dias) vencido = true;
+          const dtConclusao = new Date(dataConclusao);
+          const dtVencimento = new Date(dtConclusao);
+          dtVencimento.setMonth(dtVencimento.getMonth() + r.validade_dias);
+          if (agora > dtVencimento) vencido = true;
         }
         return { ...r, data_conclusao: dataConclusao, vencido };
       });

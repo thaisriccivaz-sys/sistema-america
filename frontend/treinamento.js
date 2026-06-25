@@ -202,6 +202,11 @@
                 </div>
             </td>
             <td style="padding:0.85rem 1rem;color:#475569;font-size:0.85rem;white-space:nowrap;">${anexos.length} arquivo${anexos.length !== 1 ? 's' : ''}</td>
+            <td style="padding:0.85rem 1rem;color:#64748b;font-size:0.82rem;white-space:nowrap;">
+                ${t.validade_dias && t.validade_dias > 0
+                    ? `<span style="background:#fef3c7;color:#92400e;border-radius:8px;padding:3px 8px;font-size:0.78rem;font-weight:600;">⏰ ${t.validade_dias} meses</span>`
+                    : `<span style="background:#f1f5f9;color:#94a3b8;border-radius:8px;padding:3px 8px;font-size:0.78rem;">Sem validade</span>`}
+            </td>
             <td style="padding:0.85rem 1rem;color:#64748b;font-size:0.82rem;white-space:nowrap;">${data}</td>
             <td style="padding:0.85rem 1rem;text-align:right;">
                 <div style="display:flex;gap:6px;justify-content:flex-end;">
@@ -234,8 +239,115 @@
         if (m) { m.style.display = 'flex'; }
         _carregarDepartamentosSelect('novo-treinamento-departamento', 'Todos');
         window._novoCapaRemover(); // limpa capa anterior
+        
+        // Reset abas
+        window.mudarAbaNovoTreinamento('detalhes');
+        
+        // Limpar perguntas de pesquisa e adicionar as padrão
+        const lista = el('novo-pesquisa-perguntas-lista');
+        if (lista) {
+            lista.innerHTML = '';
+            // Perguntas padrão
+            const perguntasPadrao = [
+                "O conteúdo do treinamento foi claro e de fácil compreensão?",
+                "O instrutor demonstrou domínio sobre os temas abordados?",
+                "A duração do treinamento foi adequada para o conteúdo apresentado?",
+                "Os materiais de apoio (slides, apostilas, etc.) foram úteis?",
+                "O treinamento contribuiu para o seu desenvolvimento profissional?"
+            ];
+            perguntasPadrao.forEach((p, idx) => {
+                _adicionarInputPerguntaNovo(p, idx);
+            });
+        }
+
         setTimeout(() => { const n = el('novo-treinamento-nome'); if (n) n.focus(); }, 80);
     };
+
+    window.mudarAbaNovoTreinamento = function (aba) {
+        const btnDetalhes = el('btn-aba-novo-detalhes');
+        const btnPesquisa = el('btn-aba-novo-pesquisa');
+        const contentDetalhes = el('aba-novo-detalhes-content');
+        const contentPesquisa = el('aba-novo-pesquisa-content');
+
+        if (!btnDetalhes || !btnPesquisa || !contentDetalhes || !contentPesquisa) return;
+
+        if (aba === 'detalhes') {
+            btnDetalhes.style.color = '#0e7490';
+            btnDetalhes.style.borderBottom = '2px solid #0e7490';
+            btnPesquisa.style.color = '#64748b';
+            btnPesquisa.style.borderBottom = '2px solid transparent';
+            contentDetalhes.style.display = 'block';
+            contentPesquisa.style.display = 'none';
+        } else {
+            btnPesquisa.style.color = '#0e7490';
+            btnPesquisa.style.borderBottom = '2px solid #0e7490';
+            btnDetalhes.style.color = '#64748b';
+            btnDetalhes.style.borderBottom = '2px solid transparent';
+            contentPesquisa.style.display = 'block';
+            contentDetalhes.style.display = 'none';
+        }
+    };
+
+    function _adicionarInputPerguntaNovo(texto = '', idx = null) {
+        const lista = el('novo-pesquisa-perguntas-lista');
+        if (!lista) return;
+
+        if (idx === null) {
+            idx = lista.children.length;
+        }
+
+        const div = document.createElement('div');
+        div.style.display = 'flex';
+        div.style.gap = '10px';
+        div.style.alignItems = 'center';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control novo-pesquisa-input-pergunta';
+        input.placeholder = `Pergunta ${idx + 1}...`;
+        input.value = texto;
+        input.style.flex = '1';
+        input.style.padding = '10px 14px';
+        input.style.border = '1.5px solid #cbd5e1';
+        input.style.borderRadius = '8px';
+        input.style.fontSize = '0.93rem';
+
+        const btnRemove = document.createElement('button');
+        btnRemove.type = 'button';
+        btnRemove.innerHTML = '<i class="ph ph-trash"></i>';
+        btnRemove.style.background = '#fef2f2';
+        btnRemove.style.color = '#ef4444';
+        btnRemove.style.border = '1.5px solid #fca5a5';
+        btnRemove.style.borderRadius = '8px';
+        btnRemove.style.width = '42px';
+        btnRemove.style.height = '42px';
+        btnRemove.style.display = 'flex';
+        btnRemove.style.alignItems = 'center';
+        btnRemove.style.justifyContent = 'center';
+        btnRemove.style.cursor = 'pointer';
+        btnRemove.onclick = function () {
+            lista.removeChild(div);
+            _reordenarPlaceholdersNovo();
+        };
+
+        div.appendChild(input);
+        div.appendChild(btnRemove);
+        lista.appendChild(div);
+    }
+
+    function _reordenarPlaceholdersNovo() {
+        const lista = el('novo-pesquisa-perguntas-lista');
+        if (!lista) return;
+        const inputs = lista.querySelectorAll('.novo-pesquisa-input-pergunta');
+        inputs.forEach((inp, idx) => {
+            inp.placeholder = `Pergunta ${idx + 1}...`;
+        });
+    }
+
+    window.adicionarNovaPerguntaPesquisaNovo = function () {
+        _adicionarInputPerguntaNovo();
+    };
+
 
     async function _carregarDepartamentosSelect(selectId, selecionado = 'Todos') {
         const select = el(selectId);
@@ -278,17 +390,24 @@
         const container = el('novo-treinamento-departamento');
         const checked = container ? Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value) : [];
         const departamento = checked.length > 0 ? checked.join(', ') : 'Todos';
+        const validade_dias = parseInt((el('novo-treinamento-validade') || {}).value || '0', 10) || 0;
         if (!nome) { alert('Informe o nome do treinamento.'); return; }
 
         const btn = el('form-novo-treinamento')?.querySelector('[type=submit]');
         if (btn) { btn.disabled = true; btn.textContent = 'Criando...'; }
 
         try {
+            // Extrair perguntas da pesquisa
+            const inputsPesquisa = document.querySelectorAll('.novo-pesquisa-input-pergunta');
+            const pesquisa_perguntas = Array.from(inputsPesquisa)
+                .map(i => i.value.trim())
+                .filter(v => v !== '');
+
             // 1. Cria o treinamento
             const r = await api('/treinamentos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, descricao: desc || '', departamento })
+                body: JSON.stringify({ nome, descricao: desc || '', departamento, validade_dias, pesquisa_perguntas })
             });
             if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'Erro ao criar'); }
             const novoTrein = await r.json();
@@ -572,6 +691,7 @@
         el('editar-treinamento-id').value   = t.id;
         el('editar-treinamento-nome').value = t.nome || '';
         el('editar-treinamento-desc').value = t.descricao || '';
+        if (el('editar-treinamento-validade')) el('editar-treinamento-validade').value = t.validade_dias || 0;
         _carregarDepartamentosSelect('editar-treinamento-departamento', t.departamento || 'Todos');
 
         // Carrega capa existente
@@ -632,10 +752,12 @@
                 }
             }
 
+            const validade_dias = parseInt((el('editar-treinamento-validade') || {}).value || '0', 10) || 0;
+
             const r = await api('/treinamentos/' + id, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, descricao: desc || '', departamento, capa_url })
+                body: JSON.stringify({ nome, descricao: desc || '', departamento, capa_url, validade_dias })
             });
             if (!r.ok) {
                 const e = await r.json().catch(() => ({}));
@@ -664,6 +786,10 @@
 
             window.fecharModalEditarTreinamento();
             await window.renderTreinamentosTable();
+
+            // Salvar perguntas
+            await salvarPerguntasTreinamento(id);
+
         } catch (e) {
             alert('Erro: ' + e.message);
         } finally {
@@ -709,4 +835,86 @@
     }
 
     console.log('[TREINAMENTO] Módulo v2 carregado.');
+
+    // ── PESQUISA DE TREINAMENTO ───────────────────────────────────────────────
+    window.mudarAbaEditarTreinamento = function(aba) {
+        if (aba === 'detalhes') {
+            if(el('aba-detalhes-content')) el('aba-detalhes-content').style.display = 'block';
+            if(el('aba-pesquisa-content')) el('aba-pesquisa-content').style.display = 'none';
+            if(el('btn-aba-detalhes')) { el('btn-aba-detalhes').style.borderBottom = '2px solid #1d4ed8'; el('btn-aba-detalhes').style.color = '#1d4ed8'; }
+            if(el('btn-aba-pesquisa')) { el('btn-aba-pesquisa').style.borderBottom = 'none'; el('btn-aba-pesquisa').style.color = '#64748b'; }
+        } else {
+            if(el('aba-detalhes-content')) el('aba-detalhes-content').style.display = 'none';
+            if(el('aba-pesquisa-content')) el('aba-pesquisa-content').style.display = 'block';
+            if(el('btn-aba-pesquisa')) { el('btn-aba-pesquisa').style.borderBottom = '2px solid #1d4ed8'; el('btn-aba-pesquisa').style.color = '#1d4ed8'; }
+            if(el('btn-aba-detalhes')) { el('btn-aba-detalhes').style.borderBottom = 'none'; el('btn-aba-detalhes').style.color = '#64748b'; }
+            
+            const id = el('editar-treinamento-id') ? el('editar-treinamento-id').value : null;
+            if (id) window.carregarPerguntasTreinamento(id);
+        }
+    };
+
+    window.carregarPerguntasTreinamento = async function(id) {
+        const container = el('lista-perguntas-treinamento');
+        if (!container) return;
+        container.innerHTML = '<p>Carregando...</p>';
+        try {
+            const r = await api(`/treinamentos/${id}/pesquisa-perguntas`);
+            if (!r.ok) throw new Error('Erro ao carregar perguntas');
+            const perguntas = await r.json();
+            container.innerHTML = '';
+            if (perguntas.length === 0) {
+                // Perguntas default
+                window.adicionarPerguntaTreinamento("Como você avalia o conteúdo abordado?");
+                window.adicionarPerguntaTreinamento("Como você avalia o domínio do instrutor sobre o assunto?");
+                window.adicionarPerguntaTreinamento("A didática do instrutor ajudou no aprendizado?");
+                window.adicionarPerguntaTreinamento("A carga horária do treinamento foi adequada?");
+                window.adicionarPerguntaTreinamento("O treinamento aplicou conhecimentos úteis ao seu trabalho?");
+            } else {
+                perguntas.forEach(p => window.adicionarPerguntaTreinamento(p.pergunta));
+            }
+        } catch (e) {
+            container.innerHTML = `<p style="color:red;">${e.message}</p>`;
+        }
+    };
+
+    window.adicionarPerguntaTreinamento = function(texto = '') {
+        const container = el('lista-perguntas-treinamento');
+        if (!container) return;
+        const div = document.createElement('div');
+        div.style.display = 'flex';
+        div.style.gap = '8px';
+        div.style.alignItems = 'center';
+        div.innerHTML = `
+            <input type="text" class="form-control input-pergunta" value="${texto}" placeholder="Ex: Como você avalia o conteúdo?" style="flex:1;border-radius:8px;padding:8px 12px;border:1px solid #cbd5e1;">
+            <button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:#ef4444;cursor:pointer;" title="Remover pergunta"><i class="ph ph-trash"></i></button>
+        `;
+        container.appendChild(div);
+    };
+
+    window.salvarPerguntasTreinamento = async function(id) {
+        const container = el('lista-perguntas-treinamento');
+        if (!container) return;
+        const inputs = Array.from(container.querySelectorAll('.input-pergunta')).map(i => i.value.trim()).filter(v => v !== '');
+        
+        try {
+            await api(`/treinamentos/${id}/pesquisa`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ perguntas: inputs })
+            });
+        } catch (e) {
+            console.error('Erro ao salvar perguntas', e);
+        }
+    };
+
+    // Sobrescrever fecharModalEditarTreinamento para resetar a aba
+    const oldFechar = window.fecharModalEditarTreinamento;
+    window.fecharModalEditarTreinamento = function() {
+        if (oldFechar) oldFechar();
+        if (typeof window.mudarAbaEditarTreinamento === 'function') window.mudarAbaEditarTreinamento('detalhes');
+        const container = el('lista-perguntas-treinamento');
+        if (container) container.innerHTML = '';
+    };
+
 })();
