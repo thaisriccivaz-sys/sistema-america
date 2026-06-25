@@ -9974,6 +9974,7 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                 { nome: 'Termo de Confidencialidade', cond: true },
                 { nome: 'Solicitação de VT', cond: true },
                 { nome: 'Responsabilidade Veículo', cond: deNorm(deptNome).includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
+                { nome: 'Responsabilidade Equipamento', cond: deNorm(deptNome).includes('administrativo') || deNorm(c.cargo || '').includes('administrativo') || deNorm(c.tipo || '').includes('administrativo') },
             ];
             autoGeradores = LEGACY_MAP
                 .filter(m => m.cond)
@@ -11764,6 +11765,7 @@ window.initAdmissaoWorkflow = async function (colabId, step, silent) {
                     { nome: 'Termo de Confidencialidade', cond: true },
                     { nome: 'Solicitação de VT', cond: true },
                     { nome: 'Responsabilidade Veículo', cond: deNorm(deptNome).includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
+                    { nome: 'Responsabilidade Equipamento', cond: deNorm(deptNome).includes('administrativo') || deNorm(c.cargo || '').includes('administrativo') || deNorm(c.tipo || '').includes('administrativo') },
                 ];
                 autoGeradores = LEGACY_MAP.filter(m => m.cond).map(m => geradoresElegiveis.find(g => deNorm(g.nome) === deNorm(m.nome))).filter(Boolean);
             }

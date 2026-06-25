@@ -18053,7 +18053,7 @@ app.get('/api/treinamentos', authenticateToken, (req, res) => {
        FROM treinamento_anexos a WHERE a.treinamento_id = t.id
       ) AS _anexos_json
     FROM treinamentos t
-    WHERE t.tipo = ?
+    WHERE IFNULL(t.tipo, 'treinamento') = ?
     ORDER BY t.criado_em DESC`;
 
   db.all(sql, [tipo], (err, rows) => {
@@ -18534,7 +18534,7 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
     ORDER BY nome_completo ASC
   `;
   const sqlTrein = `
-    SELECT id, nome, descricao, departamento, capa_url, validade_dias, tipo
+    SELECT id, nome, descricao, departamento, capa_url, validade_dias, IFNULL(tipo, 'treinamento') AS tipo
     FROM treinamentos
     ORDER BY nome ASC
   `;
@@ -18584,6 +18584,7 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
               descricao: t.descricao,
               capa_url: t.capa_url,
               validade_dias: t.validade_dias || 0,
+              tipo: t.tipo || 'treinamento',
               concluido,
               vencido,
               data_conclusao: dataConclusao,
