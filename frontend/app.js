@@ -466,8 +466,10 @@ const BREADCRUMB_MAP = {
     'chaves': { path: 'Chaves', code: 'RHAD04' },
     'geradores': { path: 'Geradores', code: 'RHDOC01' },
     'admissao': { path: 'Admissão', code: 'RHAD05' },
-    'treinamento-materiais': { path: 'Treinamentos - Materiais', code: 'TREIN01' },
-    'treinamento-presenca': { path: 'Treinamentos - Presença', code: 'TREIN02' },
+    'treinamento-materiais': { path: 'Treinamentos → Materiais', code: 'TREIN01' },
+    'treinamento-presenca': { path: 'Treinamentos → Presenças', code: 'TREIN02' },
+    'treinamento-materiais-terapia': { path: 'Treinamentos → Terapia → Conteúdos', code: 'TER01' },
+    'treinamento-presenca-terapia': { path: 'Treinamentos → Terapia → Listas', code: 'TER02' },
     'ficha-epi': { path: 'Ficha EPI', code: 'RHEPI01' },
     'avaliacoes': { path: 'Avaliações', code: 'RHAV01' },
     'gerenciar-avaliacoes': { path: 'Diretoria → Gerenciar Avaliações', code: 'DIRAVAL' },
@@ -713,7 +715,10 @@ const TAB_META = {
     'recibos': { color: '#f503c5', icon: 'ph-receipt', title: 'Recibos' },
     'ferias': { color: '#f503c5', icon: 'ph-airplane-tilt', title: 'Férias' },
     'experiencia': { color: '#f503c5', icon: 'ph-user-check', title: 'Experiência' },
-    'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Treinamentos - Presença' },
+    'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais' },
+    'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presenças' },
+    'treinamento-materiais-terapia': { color: '#0e7490', icon: 'ph-books', title: 'Conteúdos' },
+    'treinamento-presenca-terapia': { color: '#0e7490', icon: 'ph-list-numbers', title: 'Listas' },
     // Diretoria - Laranja
     'usuarios-permissoes': { color: '#d9480f', icon: 'ph-users-three', title: 'Usuários e Permissões' },
     'cargos': { color: '#d9480f', icon: 'ph-briefcase', title: 'Cargos' },
@@ -819,7 +824,8 @@ window.navigateToTab = function (tabId) {
         window.scrollTo({ top: window._pipelineScrollY, behavior: 'instant' });
     }
 
-    const targetView = document.getElementById(`view-${tab.target}`);
+    const actualTarget = tab.target.endsWith('-terapia') ? tab.target.replace('-terapia', '') : tab.target;
+    const targetView = document.getElementById(`view-${actualTarget}`);
     if (targetView) targetView.classList.add('active');
     const targetNavObj = document.querySelector(`[data-target="${tab.target}"]`);
     if (targetNavObj) targetNavObj.classList.add('active');
@@ -915,7 +921,8 @@ function navigateTo(target) {
         window.scrollTo({ top: window._pipelineScrollY, behavior: 'instant' });
     }
 
-    const targetView = document.getElementById(`view-${target}`);
+    const actualTarget = target.endsWith('-terapia') ? target.replace('-terapia', '') : target;
+    const targetView = document.getElementById(`view-${actualTarget}`);
     if (targetView) targetView.classList.add('active');
 
     const targetNavObj = document.querySelector(`[data-target="${target}"]`);
@@ -13363,6 +13370,8 @@ async function checkUserNotificacoes() {
                     bg = '#fdf2f8'; color = '#d63384'; icon = 'ph-warning-octagon'; titulo = 'Notificação de RH'; navTarget = 'colaboradores';
                 } else if (notif.tipo === 'pesquisa_satisfacao_treinamento') {
                     bg = '#ecfeff'; color = '#0e7490'; icon = 'ph-star'; titulo = 'Pesquisa de Satisfação'; navTarget = 'treinamentos';
+                } else if (notif.tipo === 'nova_multa_prontuario' || notif.tipo === 'nova_multa_monaco') {
+                    bg = '#dcfce7'; color = '#16a34a'; icon = 'ph-traffic-cone'; titulo = 'Nova Multa'; navTarget = 'logistica';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -13478,21 +13487,28 @@ async function checkUserNotificacoes() {
                         <div style="color:#0f172a;font-weight:600;font-size:1rem;margin-bottom:4px;">${colabNome}</div>
                         <div style="color:#64748b;font-size:0.85rem;">Respondeu à pesquisa do treinamento: <b>${treinNome}</b></div>
                     `;
-                } else {
+                } else if (notif.tipo === 'nova_multa_prontuario' || notif.tipo === 'nova_multa_monaco') {
+                    const aitNum = dados.numero_ait || dados.ait || '';
+                    const placaStr = dados.placa || '';
+                    const prazoStr = dados.data_limite ? dados.data_limite.split('-').reverse().join('/') : (dados.prazo_indicacao ? dados.prazo_indicacao.split('-').reverse().join('/') : '');
+                    const motoristaNome = dados.motorista_nome || dados.colaborador_nome || '';
                     contentHTML = `
-                        <div style="font-weight:700;font-size:0.9rem;color:#0f172a;margin-bottom:4px;">
-                            <i class="ph ph-bell" style="color:${color};"></i> ${titulo}
+                        <div style="font-weight:800;font-size:1.25rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
                         </div>
-                        <div style="color:#64748b;font-size:0.8rem;line-height:1.4;">
-                            ${notif.mensagem}
-                        </div>
+                        ${aitNum ? `<div style="color:#0f172a;font-weight:700;font-size:1rem;margin-bottom:4px;">AIT: ${aitNum}${placaStr ? ' — ' + placaStr : ''}</div>` : ''}
+                        ${motoristaNome ? `<div style="color:#065f46;font-size:0.88rem;font-weight:600;margin-bottom:4px;"><i class="ph ph-user"></i> ${motoristaNome}</div>` : ''}
+                        ${prazoStr ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:4px 10px;font-size:0.85rem;font-weight:700;color:#854d0e;margin-top:4px;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-calendar-x"></i> Prazo indicação: ${prazoStr}</div>` : `<div style="color:#64748b;font-size:0.82rem;">${notif.mensagem}</div>`}
                     `;
-                }
+                } else {
                 let btnOnClick = `window.markUserNotifLida('${notif.id}'); navigateTo('${navTarget}'); this.closest('[data-notif-id]').remove();`;
                 if (notif.tipo === 'novo_sinistro' && dados.colaborador_id) {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Sinistros');`;
                 } else if (notif.tipo === 'nova_ocorrencia' && dados.colaborador_id) {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Advertências');`;
+                } else if ((notif.tipo === 'nova_multa_prontuario' || notif.tipo === 'nova_multa_monaco') && dados.colaborador_id) {
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Multas');`;
+                }
                 }
 
                 popup.innerHTML = `
@@ -13984,7 +14000,7 @@ window._epiConfirmarFotoIrParaAssinatura = function () {
     if (thumbDt) thumbDt.textContent = dtStr;
 
     // Transição para o passo 2
-    document.getElementById('epiov-step-selfie').style.display = 'none';
+    document.getElementById('epi-step-selfie').style.display = 'none';
     const assinaturaArea = document.getElementById('area-assinatura-colaborador');
     assinaturaArea.style.display = 'flex';
     setTimeout(() => { setupHighDpiCanvas('canvas-colaborador', ctxColaborador, 'ctx1'); }, 100);
@@ -13997,7 +14013,7 @@ window.abrirModalAssinaturaColaborador = async function (docId) {
 
     const modal = document.getElementById('modal-assinatura-colaborador');
     document.getElementById('area-assinatura-colaborador').style.display = 'none';
-    document.getElementById('epiov-step-selfie').style.display = 'none';
+    document.getElementById('epi-step-selfie').style.display = 'none';
     modal.style.display = 'block';
 
     document.getElementById('nome-assinatura-colab').innerText = viewedColaborador.nome_completo || 'Colaborador';
@@ -14017,7 +14033,7 @@ window.abrirModalAssinaturaColaborador = async function (docId) {
         _tick();
         clearInterval(window._epiSelfieClock);
         window._epiSelfieClock = setInterval(() => {
-            if (!document.getElementById('epiov-step-selfie') || document.getElementById('epiov-step-selfie').style.display === 'none') {
+            if (!document.getElementById('epi-step-selfie') || document.getElementById('epi-step-selfie').style.display === 'none') {
                 clearInterval(window._epiSelfieClock);
             } else { _tick(); }
         }, 1000);
@@ -14026,7 +14042,7 @@ window.abrirModalAssinaturaColaborador = async function (docId) {
     const pdfUrl = `${API_URL}/documentos/view/${docId}?token=${currentToken}`;
     renderPdfToContainer(pdfUrl, 'pdf-viewer-colaborador', () => {
         // Após PDF carregado, iniciar câmera e mostrar passo 1
-        const selfieArea = document.getElementById('epiov-step-selfie');
+        const selfieArea = document.getElementById('epi-step-selfie');
         selfieArea.style.display = 'flex';
         _epiIniciarCamera();
     });
