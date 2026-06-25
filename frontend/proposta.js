@@ -368,7 +368,7 @@ function _renderFormPropostaInt() {
         <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:hidden; margin:auto; border: 1px solid #e2e8f0;">
 
             <!-- Toolbar -->
-            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem;">
+            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:flex-start; align-items:center; flex-wrap:wrap; gap:1rem;">
                 
                 <!-- Botões CRUD (Lado Esquerdo) -->
                 <div style="display:flex; gap:0.6rem;">
@@ -387,18 +387,20 @@ function _renderFormPropostaInt() {
                     </button>
                 </div>
 
-                <!-- Botões de Ação (Lado Direito Superior, apenas se editando) -->
+                <!-- Divisor Vertical -->
+                <div style="width:1px; height:24px; background:#cbd5e1;"></div>
+
+                <!-- Botões de Ação (Icon Buttons) -->
                 <div style="display:flex; gap:0.6rem; align-items:center;">
-                    ${!isNovo ? `
-                    <button onclick="abrirPopupEmail(${id})" title="Enviar email" style="background:#7048e8; color:white; border:none; width:36px; height:36px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onfocus="this.style.outline='2px solid #9775fa'">
+                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder enviá-la por e-mail.', 'warning')" : `abrirPopupEmail(${id})`}" title="Enviar email" style="background:#7048e8; color:white; border:none; width:36px; height:36px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onfocus="this.style.outline='2px solid #9775fa'">
                         <i class="ph ph-envelope-simple" style="font-size:1.25rem;"></i>
                     </button>
-                    <button onclick="imprimirProposta(${id})" title="Imprimir" style="background:#0ea5e9; color:white; border:none; width:36px; height:36px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onfocus="this.style.outline='2px solid #7dd3fc'">
+                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder imprimi-la.', 'warning')" : `imprimirProposta(${id})`}" title="Imprimir" style="background:#0ea5e9; color:white; border:none; width:36px; height:36px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onfocus="this.style.outline='2px solid #7dd3fc'">
                         <i class="ph ph-printer" style="font-size:1.25rem;"></i>
                     </button>
-                    <button onclick="abrirLogsAlteracao(${id})" title="Logs de Alteração" style="background:#475569; color:white; border:none; width:36px; height:36px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onfocus="this.style.outline='2px solid #94a3b8'">
+                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder visualizar os logs de alteração.', 'warning')" : `abrirLogsAlteracao(${id})`}" title="Logs de Alteração" style="background:#475569; color:white; border:none; width:36px; height:36px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onfocus="this.style.outline='2px solid #94a3b8'">
                         <i class="ph ph-list-checks" style="font-size:1.25rem;"></i>
-                    </button>` : ''}
+                    </button>
                 </div>
             </div>
 
