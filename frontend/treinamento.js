@@ -286,13 +286,12 @@
                         title="Editar nome e descrição">
                         <i class="ph ph-pencil-simple"></i>
                     </button>
-                    <!-- botão excluir ocultado a pedido: 
                     <button onclick="window.excluirTreinamento(${t.id},'${nomeSafe}')"
                         style="background:none;border:1.5px solid #fca5a5;color:#dc2626;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;"
-                        onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='none'">
+                        onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='none'"
+                        title="Excluir de forma persistente">
                         <i class="ph ph-trash"></i>
                     </button>
-                    -->
                 </div>
             </td>
         </tr>`;
