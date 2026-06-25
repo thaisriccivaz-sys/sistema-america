@@ -13300,6 +13300,8 @@ async function checkUserNotificacoes() {
                     bg = '#fff5e6'; color = '#e67700'; icon = 'ph-package'; titulo = 'Estoque Mínimo'; navTarget = 'estoque';
                 } else if (notif.tipo === 'novo_colaborador_equipe') {
                     bg = '#fdf2f8'; color = '#ec4899'; icon = 'ph-user-plus'; titulo = 'Novo Colaborador para Distribuição'; navTarget = 'logistica-equipes';
+                } else if (notif.tipo === 'nova_ocorrencia') {
+                    bg = '#fdf2f8'; color = '#ec4899'; icon = 'ph-warning-octagon'; titulo = 'Ocorrência Registrada'; navTarget = 'dashboard';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
