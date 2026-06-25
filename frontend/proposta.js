@@ -743,11 +743,7 @@ window.pesquisarClienteProposta = async function() {
             (c.codigo && c.codigo.toString() === query)
         );
 
-        if (filtrados.length === 1) {
-            const selected = filtrados[0];
-            document.getElementById('prop-cliente').value = selected.nome_razao_social;
-            Swal.fire('Cliente Selecionado', `Cliente: ${selected.nome_razao_social}`, 'success');
-        } else if (filtrados.length > 1) {
+        if (filtrados.length >= 1) {
             const rowsHtml = filtrados.map(c => `
                 <tr onclick="window.selectClienteProposta('${c.nome_razao_social.replace(/'/g, "\\'")}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#2e58a6;">${c.codigo}</td>
@@ -779,10 +775,22 @@ window.pesquisarClienteProposta = async function() {
                         </table>
                     </div>
                 `,
-                showConfirmButton: false,
+                showConfirmButton: true,
+                confirmButtonText: '<i class="ph ph-plus-circle"></i> Cadastrar Novo',
+                confirmButtonColor: '#16a34a',
                 showCancelButton: true,
                 cancelButtonText: 'Fechar',
                 cancelButtonColor: '#64748b'
+            }).then((res) => {
+                if (res.isConfirmed) {
+                    _redirectAfterClientSave = true;
+                    window.switchPropostaTab('cadastro-cliente');
+                    window.limparFormCliente();
+                    setTimeout(() => {
+                        const rSocialInput = document.getElementById('cli-razao-social');
+                        if (rSocialInput) rSocialInput.value = query;
+                    }, 300);
+                }
             });
         } else {
             Swal.fire({
@@ -841,11 +849,7 @@ window.pesquisarContatoProposta = async function() {
             (c.codigo && c.codigo.toString() === query)
         );
 
-        if (filtrados.length === 1) {
-            const selected = filtrados[0];
-            document.getElementById('prop-contato').value = selected.nome;
-            Swal.fire('Contato Selecionado', `Contato: ${selected.nome}`, 'success');
-        } else if (filtrados.length > 1) {
+        if (filtrados.length >= 1) {
             const rowsHtml = filtrados.map(c => `
                 <tr onclick="window.selectContatoProposta('${c.nome.replace(/'/g, "\\'")}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#2e58a6;">${c.codigo}</td>
@@ -877,10 +881,22 @@ window.pesquisarContatoProposta = async function() {
                         </table>
                     </div>
                 `,
-                showConfirmButton: false,
+                showConfirmButton: true,
+                confirmButtonText: '<i class="ph ph-plus-circle"></i> Cadastrar Novo',
+                confirmButtonColor: '#16a34a',
                 showCancelButton: true,
                 cancelButtonText: 'Fechar',
                 cancelButtonColor: '#64748b'
+            }).then((res) => {
+                if (res.isConfirmed) {
+                    _redirectAfterContactSave = true;
+                    window.switchPropostaTab('cadastro-contatos');
+                    window.limparFormContato();
+                    setTimeout(() => {
+                        const nameInput = document.getElementById('con-nome');
+                        if (nameInput) nameInput.value = query;
+                    }, 300);
+                }
             });
         } else {
             Swal.fire({
