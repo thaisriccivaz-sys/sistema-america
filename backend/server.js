@@ -18196,6 +18196,16 @@ app.get('/api/public/pesquisa-treinamento/:token', (req, res) => {
       
       db.all(`SELECT id, pergunta, ordem FROM treinamento_pesquisa_perguntas WHERE treinamento_id = ? ORDER BY ordem ASC`, [info.treinamento_id], (err2, perguntas) => {
         if (err2) return res.status(500).json({ error: 'Erro ao buscar perguntas.' });
+        
+        if (!perguntas || perguntas.length === 0) {
+            // Fallback for old trainings that have no questions configured
+            perguntas = [
+                { id: 'default1', pergunta: 'O conteúdo do treinamento foi claro e bem estruturado?', ordem: 1 },
+                { id: 'default2', pergunta: 'O instrutor demonstrou domínio sobre o assunto?', ordem: 2 },
+                { id: 'default3', pergunta: 'Como você avalia este treinamento no geral?', ordem: 3 }
+            ];
+        }
+
         res.json({ ...info, perguntas });
       });
   });
@@ -18513,7 +18523,9 @@ app.get('/api/treinamento-presenca/historico/:colaboradorId', authenticateToken,
   db.all(
     `SELECT tp.id, tp.treinamento_id, tp.data_conclusao, tp.data_presenca,
             tp.assinatura_base64, tp.selfie_base64, tp.instrutor_nome,
-            t.nome AS treinamento_nome, t.capa_url, t.validade_dias
+            t.nome AS treinamento_nome, t.capa_url, t.validade_dias,
+            (SELECT respondido_em FROM treinamento_pesquisa_respostas pr WHERE pr.treinamento_id = tp.treinamento_id AND pr.colaborador_id = tp.colaborador_id ORDER BY pr.id DESC LIMIT 1) as respondido_em,
+            (SELECT token FROM treinamento_pesquisa_respostas pr WHERE pr.treinamento_id = tp.treinamento_id AND pr.colaborador_id = tp.colaborador_id ORDER BY pr.id DESC LIMIT 1) as pesquisa_token
      FROM treinamento_presenca tp
      JOIN treinamentos t ON t.id = tp.treinamento_id
      WHERE tp.colaborador_id = ?

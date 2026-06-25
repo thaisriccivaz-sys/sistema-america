@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pesquisa de Satisfação - Treinamento</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #334155; margin: 0; padding: 2rem; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); max-width: 600px; width: 100%; }
+        h1 { font-size: 1.5rem; color: #0f172a; margin-bottom: 0.5rem; }
+        p { color: #64748b; margin-bottom: 2rem; font-size: 0.95rem; }
+        .pergunta { margin-bottom: 1.5rem; }
+        .pergunta label { display: block; font-weight: 600; margin-bottom: 0.75rem; color: #1e293b; }
+        .stars { display: flex; gap: 0.5rem; flex-direction: row-reverse; justify-content: flex-end; }
+        .stars input { display: none; }
+        .stars label { font-size: 2rem; color: #cbd5e1; cursor: pointer; transition: color 0.2s; }
+        .stars input:checked ~ label, .stars label:hover, .stars label:hover ~ label { color: #eab308; }
+        .btn { background: #0e7490; color: #fff; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s; font-size: 1rem; }
+        .btn:hover { background: #0891b2; }
+        .success { text-align: center; display: none; }
+        .success i { font-size: 4rem; color: #22c55e; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+    <div class="container" id="survey-container">
+        <h1 id="treinamento-nome">Pesquisa de Satisfação</h1>
+        <p id="colaborador-nome">Carregando...</p>
+        
+        <form id="pesquisa-form" onsubmit="enviarPesquisa(event)">
+            <div id="perguntas-container"></div>
+            <button type="submit" class="btn" id="btn-submit">Enviar Respostas</button>
+        </form>
+    </div>
+
+    <div class="container success" id="success-container">
+        <i class="ph-fill ph-check-circle"></i>
+        <h1>Obrigado!</h1>
+        <p>Suas respostas foram enviadas com sucesso.</p>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        let perguntasList = [];
+
+        async function carregarPesquisa() {
+            if (!token) {
+                document.getElementById('survey-container').innerHTML = '<p style="color:red;text-align:center;">Token inválido ou não fornecido.</p>';
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/treinamentos/pesquisa-publica/${token}`);
+                if (!res.ok) throw new Error('Pesquisa não encontrada ou já respondida.');
+                
+                const data = await res.json();
+                document.getElementById('treinamento-nome').textContent = 'Treinamento: ' + data.treinamento.nome;
+                document.getElementById('colaborador-nome').textContent = 'Olá, ' + data.colaborador.nome;
+                
+                perguntasList = data.perguntas;
+                const container = document.getElementById('perguntas-container');
+                
+                if (perguntasList.length === 0) {
+                    container.innerHTML = '<p>Nenhuma pergunta configurada para este treinamento.</p>';
+                    document.getElementById('btn-submit').style.display = 'none';
+                    return;
+                }
+
+                container.innerHTML = perguntasList.map((p, i) => `
+                    <div class="pergunta">
+                        <label>${i + 1}. ${p.pergunta}</label>
+                        <div class="stars">
+                            <input type="radio" id="p${p.id}-5" name="p${p.id}" value="5" required>
+                            <label for="p${p.id}-5"><i class="ph-fill ph-star"></i></label>
+                            
+                            <input type="radio" id="p${p.id}-4" name="p${p.id}" value="4">
+                            <label for="p${p.id}-4"><i class="ph-fill ph-star"></i></label>
+                            
+                            <input type="radio" id="p${p.id}-3" name="p${p.id}" value="3">
+                            <label for="p${p.id}-3"><i class="ph-fill ph-star"></i></label>
+                            
+                            <input type="radio" id="p${p.id}-2" name="p${p.id}" value="2">
+                            <label for="p${p.id}-2"><i class="ph-fill ph-star"></i></label>
+                            
+                            <input type="radio" id="p${p.id}-1" name="p${p.id}" value="1">
+                            <label for="p${p.id}-1"><i class="ph-fill ph-star"></i></label>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (err) {
+                document.getElementById('survey-container').innerHTML = `<p style="color:red;text-align:center;">${err.message}</p>`;
+            }
+        }
+
+        async function enviarPesquisa(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit');
+            btn.textContent = 'Enviando...';
+            btn.disabled = true;
+
+            const form = document.getElementById('pesquisa-form');
+            const formData = new FormData(form);
+            const respostas = {};
+            
+            for (let [key, value] of formData.entries()) {
+                const perguntaId = key.substring(1);
+                const perguntaObj = perguntasList.find(p => p.id == perguntaId);
+                if (perguntaObj) {
+                    respostas[perguntaObj.pergunta] = parseInt(value);
+                }
+            }
+
+            try {
+                const res = await fetch(`/api/treinamentos/pesquisa-publica/${token}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ respostas })
+                });
+
+                if (!res.ok) throw new Error('Erro ao enviar respostas.');
+
+                document.getElementById('survey-container').style.display = 'none';
+                document.getElementById('success-container').style.display = 'block';
+            } catch (err) {
+                alert(err.message);
+                btn.textContent = 'Enviar Respostas';
+                btn.disabled = false;
+            }
+        }
+
+        carregarPesquisa();
+    </script>
+</body>
+</html>

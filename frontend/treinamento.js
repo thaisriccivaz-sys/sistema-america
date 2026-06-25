@@ -813,11 +813,11 @@
                 if (elDesc) elDesc.textContent = desc || '';
             }
 
-            window.fecharModalEditarTreinamento();
-            await window.renderTreinamentosTable();
-
             // Salvar perguntas
             await salvarPerguntasTreinamento(id);
+
+            window.fecharModalEditarTreinamento();
+            await window.renderTreinamentosTable();
 
         } catch (e) {
             alert('Erro: ' + e.message);

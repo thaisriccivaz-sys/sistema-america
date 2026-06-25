@@ -668,7 +668,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -683,7 +683,7 @@ function updateBreadcrumb(key) {
 
     // Assegurar que 'Diretoria' ou 'RH' não se duplique se colocarmos o ícone,
     // mas o usuário pediu "icones dos setores e o código" (talvez "nome"?). Vamos por o ícone:
-    bar.innerHTML = `${deptIconHTML}<span style="opacity:0.7;margin-right:4px;">Caminho:</span>` +
+    bar.innerHTML = `${deptIconHTML}` +
         parts.map((p, i) =>
             i < parts.length - 1
                 ? `<span style="opacity:0.75;">${p}</span><span style="margin:0 5px;opacity:0.5;">→</span>`
@@ -706,12 +706,14 @@ const TAB_META = {
     'geradores': { color: '#f503c5', icon: 'ph-file-text', title: 'Geradores' },
     'ficha-epi': { color: '#f503c5', icon: 'ph-shield-check', title: 'Ficha EPI' },
     'gerenciar-avaliacoes': { color: '#d9480f', icon: 'ph-clipboard-text', title: 'Avaliações' },
+    'rh-agenda': { color: '#f503c5', icon: 'ph-calendar-check', title: 'Agenda RH' },
     'assinaturas-digitais': { color: '#f503c5', icon: 'ph-signature', title: 'Assinaturas' },
     'pagamentos-massa': { color: '#f503c5', icon: 'ph-currency-dollar', title: 'Docs. em Massa' },
     'dissidio': { color: '#f503c5', icon: 'ph-trend-up', title: 'Dissídio' },
     'recibos': { color: '#f503c5', icon: 'ph-receipt', title: 'Recibos' },
     'ferias': { color: '#f503c5', icon: 'ph-airplane-tilt', title: 'Férias' },
     'experiencia': { color: '#f503c5', icon: 'ph-user-check', title: 'Experiência' },
+    'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Treinamentos - Presença' },
     // Diretoria - Laranja
     'usuarios-permissoes': { color: '#d9480f', icon: 'ph-users-three', title: 'Usuários e Permissões' },
     'cargos': { color: '#d9480f', icon: 'ph-briefcase', title: 'Cargos' },
@@ -15917,6 +15919,12 @@ window.renderBookmarks = function () {
         }
         if (key === 'recibos') {
             btnLabel = 'Recibos';
+        }
+        if (key === 'treinamento-materiais') {
+            btnLabel = 'Treinamentos (Mat)';
+        }
+        if (key === 'treinamento-presenca') {
+            btnLabel = 'Treinamentos (Pres)';
         }
 
         return `<button onclick="abrirAbaOuNavegar('${key}')" style="background:${btnColor}; color:white; border:none; border-radius:16px; padding:4px 12px; font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; box-shadow:0 2px 4px rgba(0,0,0,0.2); transition:transform 0.2s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">${btnLabel}</button>`;
