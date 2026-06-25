@@ -468,8 +468,8 @@ const BREADCRUMB_MAP = {
     'admissao': { path: 'Admissão', code: 'RHAD05' },
     'treinamento-materiais': { path: 'Treinamentos → Materiais', code: 'TREIN01' },
     'treinamento-presenca': { path: 'Treinamentos → Presenças', code: 'TREIN02' },
-    'treinamento-materiais-terapia': { path: 'Treinamentos → Terapia → Conteúdos', code: 'TER01' },
-    'treinamento-presenca-terapia': { path: 'Treinamentos → Terapia → Listas', code: 'TER02' },
+    'treinamento-materiais-terapia': { path: 'Treinamentos - Terapia - Conteúdo', code: 'TER01' },
+    'treinamento-presenca-terapia': { path: 'Treinamentos - Terapia - Listas', code: 'TER02' },
     'ficha-epi': { path: 'Ficha EPI', code: 'RHEPI01' },
     'avaliacoes': { path: 'Avaliações', code: 'RHAV01' },
     'gerenciar-avaliacoes': { path: 'Diretoria → Gerenciar Avaliações', code: 'DIRAVAL' },
@@ -670,7 +670,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -1009,6 +1009,10 @@ function navigateTo(target) {
     } else if (target === 'treinamento-materiais') {
         if (typeof window.renderTreinamentosTable === 'function') setTimeout(() => window.renderTreinamentosTable(), 80);
     } else if (target === 'treinamento-presenca') {
+        if (typeof window.initPresencaTreinamento === 'function') setTimeout(() => window.initPresencaTreinamento(), 80);
+    } else if (target === 'treinamento-materiais-terapia') {
+        if (typeof window.renderTreinamentosTable === 'function') setTimeout(() => window.renderTreinamentosTable(), 80);
+    } else if (target === 'treinamento-presenca-terapia') {
         if (typeof window.initPresencaTreinamento === 'function') setTimeout(() => window.initPresencaTreinamento(), 80);
     }
 }
@@ -15928,8 +15932,9 @@ window.renderBookmarks = function () {
         const obj = BREADCRUMB_MAP[key];
         if (!obj) return ''; // entrada não mapeada - ignorar com segurança
 
-        // Ignorar tabs ou caminhos com setas, a menos que seja usuarios-permissoes ou form-usuario
-        if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario') || key.startsWith('tab:')) return '';
+        // Ignorar tabs ou caminhos com setas, a menos que seja exceção explícita
+        const _bookmarkExceptions = ['usuarios-permissoes', 'form-usuario', 'treinamento-materiais', 'treinamento-presenca', 'treinamento-materiais-terapia', 'treinamento-presenca-terapia'];
+        if ((obj.path.includes('→') && !_bookmarkExceptions.includes(key)) || key.startsWith('tab:')) return '';
 
         // Detecta a cor certa com base no TAB_META
         const tabMeta = TAB_META[key];
@@ -15949,10 +15954,16 @@ window.renderBookmarks = function () {
             btnLabel = 'Recibos';
         }
         if (key === 'treinamento-materiais') {
-            btnLabel = 'Treinamentos (Mat)';
+            btnLabel = 'Materiais';
         }
         if (key === 'treinamento-presenca') {
-            btnLabel = 'Treinamentos (Pres)';
+            btnLabel = 'Presenças';
+        }
+        if (key === 'treinamento-materiais-terapia') {
+            btnLabel = 'Conteúdos';
+        }
+        if (key === 'treinamento-presenca-terapia') {
+            btnLabel = 'Listas';
         }
 
         return `<button onclick="abrirAbaOuNavegar('${key}')" style="background:${btnColor}; color:white; border:none; border-radius:16px; padding:4px 12px; font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; box-shadow:0 2px 4px rgba(0,0,0,0.2); transition:transform 0.2s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">${btnLabel}</button>`;
