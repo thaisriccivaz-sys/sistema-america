@@ -4991,7 +4991,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authen
 
             db.run(
                 `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                ['Sinistro Condutor', sinistroId, \`ID \${id}\`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura Condutor']
+                ['Sinistro Condutor', sinistroId, `ID ${id}`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura Condutor']
             );
         } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
 
@@ -9467,7 +9467,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
 
                 db.run(
                     `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    ['EPI', entregaId, \`ID \${colaborador_id}\`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, JSON.stringify(epis_entregues)]
+                    ['EPI', entregaId, `ID ${colaborador_id}`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, JSON.stringify(epis_entregues)]
                 );
             } catch (errAudit) {
                 console.error('[AUDITORIA EPI] Erro ao salvar log de assinatura:', errAudit);
@@ -11326,7 +11326,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authentic
 
                 db.run(
                     `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    ['Multa Testemunhas', multaId, \`Testemunhas da Multa \${multaId}\`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura em Tela']
+                    ['Multa Testemunhas', multaId, `Testemunhas da Multa ${multaId}`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura em Tela']
                 );
             } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
 
@@ -11388,7 +11388,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
 
             db.run(
                 `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                ['Multa Condutor', multaId, \`Condutor da Multa \${multaId}\`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura em Tela']
+                ['Multa Condutor', multaId, `Condutor da Multa ${multaId}`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura em Tela']
             );
         } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
         // Salvar PDF final no OneDrive (pasta unica por multa)
@@ -19650,8 +19650,8 @@ console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
 
 
 try { require('../rescue_estoque.js'); } catch(e) { console.error('Rescue script error:', e); }
- 
- 
+
+
 // ══════════════════════════════════════════════════════════════════════
 // MÓDULO: TREINAMENTOS PRESENCIAIS
 // ══════════════════════════════════════════════════════════════════════
