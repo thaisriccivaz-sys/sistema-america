@@ -1083,14 +1083,21 @@
             try {
                 const respostasArray = JSON.parse(data.respostas_json);
                 for (const item of respostasArray) {
-                    html += `<div style="margin-bottom:12px;">
-                        <strong style="display:block;font-size:0.9rem;color:#334155;margin-bottom:4px;">${item.pergunta}</strong>
-                        <div style="color:#eab308;font-size:1.2rem;">`;
-                    for(let i=1; i<=5; i++) {
-                        html += i <= item.nota ? '<i class="ph-fill ph-star"></i>' : '<i class="ph ph-star" style="color:#cbd5e1;"></i>';
+                    if (item.nota !== null) {
+                        html += `<div style="margin-bottom:12px;">
+                            <strong style="display:block;font-size:0.9rem;color:#334155;margin-bottom:4px;">${item.pergunta}</strong>
+                            <div style="color:#eab308;font-size:1.2rem;">`;
+                        for(let i=1; i<=5; i++) {
+                            html += i <= item.nota ? '<i class="ph-fill ph-star"></i>' : '<i class="ph ph-star" style="color:#cbd5e1;"></i>';
+                        }
+                        html += ` <span style="color:#64748b;font-size:0.8rem;margin-left:4px;">(${item.nota}/5)</span></div>
+                        </div>`;
+                    } else if (item.texto !== undefined && item.texto !== null) {
+                        html += `<div style="margin-bottom:12px;">
+                            <strong style="display:block;font-size:0.9rem;color:#334155;margin-bottom:4px;">${item.pergunta}</strong>
+                            <div style="font-size:0.95rem;color:#475569;background:#f8fafc;padding:8px 12px;border-radius:6px;border:1px solid #e2e8f0;white-space:pre-wrap;">${item.texto}</div>
+                        </div>`;
                     }
-                    html += ` <span style="color:#64748b;font-size:0.8rem;margin-left:4px;">(${item.nota}/5)</span></div>
-                    </div>`;
                 }
             } catch(e) {
                 html += '<p>Erro ao ler respostas.</p>';

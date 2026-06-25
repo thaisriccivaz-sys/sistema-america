@@ -297,15 +297,49 @@
         }
 
         const div = document.createElement('div');
+        div.className = 'novo-pesquisa-pergunta-item';
         div.style.display = 'flex';
         div.style.gap = '10px';
         div.style.alignItems = 'center';
+        div.style.background = '#f8fafc';
+        div.style.padding = '12px';
+        div.style.borderRadius = '8px';
+        div.style.border = '1px solid #e2e8f0';
+        div.style.marginBottom = '10px';
+        
+        const dragHandle = document.createElement('div');
+        dragHandle.innerHTML = '<i class="ph ph-dots-six-vertical"></i>';
+        dragHandle.style.color = '#94a3b8';
+        dragHandle.style.cursor = 'grab';
+
+        const inputsDiv = document.createElement('div');
+        inputsDiv.style.flex = '1';
+        inputsDiv.style.display = 'flex';
+        inputsDiv.style.gap = '10px';
+
+        const selectTipo = document.createElement('select');
+        selectTipo.className = 'form-control novo-pesquisa-input-tipo';
+        selectTipo.style.width = '140px';
+        selectTipo.style.padding = '10px';
+        selectTipo.style.border = '1.5px solid #cbd5e1';
+        selectTipo.style.borderRadius = '8px';
+        selectTipo.style.fontSize = '0.9rem';
+        selectTipo.innerHTML = `
+            <option value="escala">Escala 1 a 5</option>
+            <option value="texto">Texto Aberto</option>
+            <option value="titulo">Título/Seção</option>
+        `;
 
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'form-control novo-pesquisa-input-pergunta';
-        input.placeholder = `Pergunta ${idx + 1}...`;
-        input.value = texto;
+        input.placeholder = `Texto da pergunta ou título...`;
+        if (typeof texto === 'object' && texto !== null) {
+            input.value = texto.pergunta || '';
+            selectTipo.value = texto.tipo || 'escala';
+        } else {
+            input.value = texto || '';
+        }
         input.style.flex = '1';
         input.style.padding = '10px 14px';
         input.style.border = '1.5px solid #cbd5e1';
@@ -330,18 +364,17 @@
             _reordenarPlaceholdersNovo();
         };
 
-        div.appendChild(input);
+        inputsDiv.appendChild(selectTipo);
+        inputsDiv.appendChild(input);
+
+        div.appendChild(dragHandle);
+        div.appendChild(inputsDiv);
         div.appendChild(btnRemove);
         lista.appendChild(div);
     }
 
     function _reordenarPlaceholdersNovo() {
-        const lista = el('novo-pesquisa-perguntas-lista');
-        if (!lista) return;
-        const inputs = lista.querySelectorAll('.novo-pesquisa-input-pergunta');
-        inputs.forEach((inp, idx) => {
-            inp.placeholder = `Pergunta ${idx + 1}...`;
-        });
+        // Nenhuma ação necessária, placeholder agora é genérico
     }
 
     window.adicionarNovaPerguntaPesquisaNovo = function () {
@@ -427,10 +460,12 @@
 
         try {
             // Extrair perguntas da pesquisa
-            const inputsPesquisa = document.querySelectorAll('.novo-pesquisa-input-pergunta');
-            const pesquisa_perguntas = Array.from(inputsPesquisa)
-                .map(i => i.value.trim())
-                .filter(v => v !== '');
+            const itemsPesquisa = document.querySelectorAll('.novo-pesquisa-pergunta-item');
+            const pesquisa_perguntas = Array.from(itemsPesquisa).map(item => {
+                const pergunta = item.querySelector('.novo-pesquisa-input-pergunta').value.trim();
+                const tipo = item.querySelector('.novo-pesquisa-input-tipo') ? item.querySelector('.novo-pesquisa-input-tipo').value : 'escala';
+                return { pergunta, tipo, opcoes: null };
+            }).filter(p => p.pergunta !== '');
 
             // 1. Cria o treinamento
             const r = await api('/treinamentos', {
@@ -888,7 +923,7 @@
         if (!container) return;
         container.innerHTML = '<p>Carregando...</p>';
         try {
-            const r = await api(`/treinamentos/${id}/pesquisa-perguntas`);
+            const r = await api(`/treinamentos/${id}/pesquisa`);
             if (!r.ok) throw new Error('Erro ao carregar perguntas');
             const perguntas = await r.json();
             container.innerHTML = '';
@@ -900,7 +935,7 @@
                 window.adicionarPerguntaTreinamento("A carga horária do treinamento foi adequada?");
                 window.adicionarPerguntaTreinamento("O treinamento aplicou conhecimentos úteis ao seu trabalho?");
             } else {
-                perguntas.forEach(p => window.adicionarPerguntaTreinamento(p.pergunta));
+                perguntas.forEach(p => window.adicionarPerguntaTreinamento(p));
             }
         } catch (e) {
             container.innerHTML = `<p style="color:red;">${e.message}</p>`;
@@ -911,26 +946,82 @@
         const container = el('lista-perguntas-treinamento');
         if (!container) return;
         const div = document.createElement('div');
+        div.className = 'editar-pesquisa-pergunta-item';
         div.style.display = 'flex';
         div.style.gap = '8px';
         div.style.alignItems = 'center';
-        div.innerHTML = `
-            <input type="text" class="form-control input-pergunta" value="${texto}" placeholder="Ex: Como você avalia o conteúdo?" style="flex:1;border-radius:8px;padding:8px 12px;border:1px solid #cbd5e1;">
-            <button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:#ef4444;cursor:pointer;" title="Remover pergunta"><i class="ph ph-trash"></i></button>
+        div.style.background = '#f8fafc';
+        div.style.padding = '12px';
+        div.style.borderRadius = '8px';
+        div.style.border = '1px solid #e2e8f0';
+        div.style.marginBottom = '8px';
+
+        const selectTipo = document.createElement('select');
+        selectTipo.className = 'form-control editar-pesquisa-input-tipo';
+        selectTipo.style.width = '140px';
+        selectTipo.style.padding = '8px';
+        selectTipo.style.border = '1.5px solid #cbd5e1';
+        selectTipo.style.borderRadius = '8px';
+        selectTipo.style.fontSize = '0.9rem';
+        selectTipo.innerHTML = `
+            <option value="escala">Escala 1 a 5</option>
+            <option value="texto">Texto Aberto</option>
+            <option value="titulo">Título/Seção</option>
         `;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control input-pergunta';
+        input.placeholder = 'Texto da pergunta ou título...';
+        if (typeof texto === 'object' && texto !== null) {
+            input.value = texto.pergunta || '';
+            selectTipo.value = texto.tipo || 'escala';
+        } else {
+            input.value = texto || '';
+        }
+        input.style.flex = '1';
+        input.style.padding = '8px 12px';
+        input.style.border = '1.5px solid #cbd5e1';
+        input.style.borderRadius = '8px';
+
+        const btnRemove = document.createElement('button');
+        btnRemove.type = 'button';
+        btnRemove.innerHTML = '<i class="ph ph-trash"></i>';
+        btnRemove.style.background = '#fef2f2';
+        btnRemove.style.color = '#ef4444';
+        btnRemove.style.border = '1.5px solid #fca5a5';
+        btnRemove.style.borderRadius = '8px';
+        btnRemove.style.width = '38px';
+        btnRemove.style.height = '38px';
+        btnRemove.style.display = 'flex';
+        btnRemove.style.alignItems = 'center';
+        btnRemove.style.justifyContent = 'center';
+        btnRemove.style.cursor = 'pointer';
+        btnRemove.onclick = function () {
+            container.removeChild(div);
+        };
+
+        div.appendChild(selectTipo);
+        div.appendChild(input);
+        div.appendChild(btnRemove);
         container.appendChild(div);
     };
 
     window.salvarPerguntasTreinamento = async function(id) {
         const container = el('lista-perguntas-treinamento');
         if (!container) return;
-        const inputs = Array.from(container.querySelectorAll('.input-pergunta')).map(i => i.value.trim()).filter(v => v !== '');
+        const items = document.querySelectorAll('.editar-pesquisa-pergunta-item');
+        const perguntasArray = Array.from(items).map(item => {
+            const pergunta = item.querySelector('.input-pergunta').value.trim();
+            const tipo = item.querySelector('.editar-pesquisa-input-tipo').value;
+            return { pergunta, tipo, opcoes: null };
+        }).filter(p => p.pergunta !== '');
         
         try {
             await api(`/treinamentos/${id}/pesquisa`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ perguntas: inputs })
+                body: JSON.stringify({ perguntas: perguntasArray })
             });
         } catch (e) {
             console.error('Erro ao salvar perguntas', e);

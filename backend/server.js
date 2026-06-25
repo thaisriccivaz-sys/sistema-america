@@ -17988,8 +17988,13 @@ db.run(`CREATE TABLE IF NOT EXISTS treinamento_pesquisa_perguntas (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   treinamento_id INTEGER NOT NULL REFERENCES treinamentos(id) ON DELETE CASCADE,
   pergunta       TEXT NOT NULL,
+  tipo           TEXT DEFAULT 'escala',
+  opcoes         TEXT,
   ordem          INTEGER DEFAULT 0
-)`);
+)`, () => {
+  db.run("ALTER TABLE treinamento_pesquisa_perguntas ADD COLUMN tipo TEXT DEFAULT 'escala'", (err) => { });
+  db.run("ALTER TABLE treinamento_pesquisa_perguntas ADD COLUMN opcoes TEXT", (err) => { });
+});
 
 db.run(`CREATE TABLE IF NOT EXISTS treinamento_pesquisa_respostas (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -18070,10 +18075,15 @@ app.post('/api/treinamentos', authenticateToken, (req, res) => {
       
       // Salvar perguntas da pesquisa se existirem
       if (pesquisa_perguntas && Array.isArray(pesquisa_perguntas) && pesquisa_perguntas.length > 0) {
-        const stmt = db.prepare(`INSERT INTO treinamento_pesquisa_perguntas (treinamento_id, pergunta, ordem) VALUES (?, ?, ?)`);
+        const stmt = db.prepare(`INSERT INTO treinamento_pesquisa_perguntas (treinamento_id, pergunta, tipo, opcoes, ordem) VALUES (?, ?, ?, ?, ?)`);
         pesquisa_perguntas.forEach((p, idx) => {
-          if (p && p.trim()) {
-            stmt.run([newId, p.trim(), idx]);
+          if (typeof p === 'object' && p.pergunta && p.pergunta.trim()) {
+            const tipo = p.tipo || 'escala';
+            const opcoes = p.opcoes ? JSON.stringify(p.opcoes) : null;
+            stmt.run([newId, p.pergunta.trim(), tipo, opcoes, idx]);
+          } else if (typeof p === 'string' && p.trim()) {
+            // retro-compatibilidade
+            stmt.run([newId, p.trim(), 'escala', null, idx]);
           }
         });
         stmt.finalize();
@@ -18119,10 +18129,14 @@ app.post('/api/treinamentos/:id/pesquisa', authenticateToken, (req, res) => {
         return res.status(500).json({ error: err.message });
       }
 
-      const stmt = db.prepare(`INSERT INTO treinamento_pesquisa_perguntas (treinamento_id, pergunta, ordem) VALUES (?, ?, ?)`);
+      const stmt = db.prepare(`INSERT INTO treinamento_pesquisa_perguntas (treinamento_id, pergunta, tipo, opcoes, ordem) VALUES (?, ?, ?, ?, ?)`);
       perguntas.forEach((p, idx) => {
-        if (p && p.trim()) {
-          stmt.run([treinId, p.trim(), idx]);
+        if (typeof p === 'object' && p.pergunta && p.pergunta.trim()) {
+          const tipo = p.tipo || 'escala';
+          const opcoes = p.opcoes ? JSON.stringify(p.opcoes) : null;
+          stmt.run([treinId, p.pergunta.trim(), tipo, opcoes, idx]);
+        } else if (typeof p === 'string' && p.trim()) {
+          stmt.run([treinId, p.trim(), 'escala', null, idx]);
         }
       });
       stmt.finalize((err) => {
@@ -18194,7 +18208,7 @@ app.get('/api/public/pesquisa-treinamento/:token', (req, res) => {
       if (err) return res.status(500).json({ error: 'Erro no banco de dados.' });
       if (!info) return res.status(404).json({ error: 'Pesquisa não encontrada ou token inválido.' });
       
-      db.all(`SELECT id, pergunta, ordem FROM treinamento_pesquisa_perguntas WHERE treinamento_id = ? ORDER BY ordem ASC`, [info.treinamento_id], (err2, perguntas) => {
+      db.all(`SELECT id, pergunta, tipo, opcoes, ordem FROM treinamento_pesquisa_perguntas WHERE treinamento_id = ? ORDER BY ordem ASC`, [info.treinamento_id], (err2, perguntas) => {
         if (err2) return res.status(500).json({ error: 'Erro ao buscar perguntas.' });
         
         if (!perguntas || perguntas.length === 0) {

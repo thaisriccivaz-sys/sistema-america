@@ -109,15 +109,44 @@
             font-size: 1rem;
         }
 
-        .rating-option input[type="radio"]:checked + label {
-            background: #e0f2fe;
+        .rating-option input[type="radio"]:checked + label[data-val="1"] { background: #fee2e2; border-color: #ef4444; color: #b91c1c; }
+        .rating-option input[type="radio"]:checked + label[data-val="2"] { background: #ffedd5; border-color: #f97316; color: #c2410c; }
+        .rating-option input[type="radio"]:checked + label[data-val="3"] { background: #fef9c3; border-color: #eab308; color: #a16207; }
+        .rating-option input[type="radio"]:checked + label[data-val="4"] { background: #ecfccb; border-color: #84cc16; color: #4d7c0f; }
+        .rating-option input[type="radio"]:checked + label[data-val="5"] { background: #dcfce7; border-color: #22c55e; color: #15803d; }
+
+        .rating-option label[data-val="1"]:hover { border-color: #fca5a5; }
+        .rating-option label[data-val="2"]:hover { border-color: #fdba74; }
+        .rating-option label[data-val="3"]:hover { border-color: #fde047; }
+        .rating-option label[data-val="4"]:hover { border-color: #bef264; }
+        .rating-option label[data-val="5"]:hover { border-color: #86efac; }
+
+        .textarea-response {
+            width: 100%;
+            padding: 12px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            color: var(--text-main);
+            resize: vertical;
+            min-height: 100px;
+            box-sizing: border-box;
+        }
+        .textarea-response:focus {
+            outline: none;
             border-color: var(--primary);
-            color: var(--primary-hover);
+            box-shadow: 0 0 0 3px #e0f2fe;
         }
 
-        .rating-option label:hover {
-            background: #f8fafc;
-            border-color: #cbd5e1;
+        .question-title-section {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 8px;
         }
 
         .btn-submit {
@@ -226,15 +255,29 @@
                     <form id="form-pesquisa" onsubmit="enviarPesquisa(event)">
             `;
 
-            pesquisaData.perguntas.forEach((p, index) => {
+            let questionCounter = 1;
+            pesquisaData.perguntas.forEach((p) => {
+                if (p.tipo === 'titulo') {
+                    html += `<div class="question-title-section">${p.pergunta}</div>`;
+                    return;
+                }
+
                 html += `
                     <div class="question-card">
-                        <div class="question-title">${index + 1}. ${p.pergunta}</div>
+                        <div class="question-title">${questionCounter}. ${p.pergunta}</div>
+                `;
+
+                if (p.tipo === 'texto') {
+                    html += `
+                        <textarea class="textarea-response" name="pergunta_${p.id}" placeholder="Sua resposta..." required></textarea>
+                    </div>`;
+                } else {
+                    html += `
                         <div class="rating-group">
                             ${[1, 2, 3, 4, 5].map(nota => `
                                 <div class="rating-option">
                                     <input type="radio" id="p${p.id}_n${nota}" name="pergunta_${p.id}" value="${nota}" required>
-                                    <label for="p${p.id}_n${nota}">${nota}</label>
+                                    <label for="p${p.id}_n${nota}" data-val="${nota}">${nota}</label>
                                 </div>
                             `).join('')}
                         </div>
@@ -243,7 +286,9 @@
                             <span>Excelente</span>
                         </div>
                     </div>
-                `;
+                    `;
+                }
+                questionCounter++;
             });
 
             html += `
@@ -264,18 +309,39 @@
             const btn = document.getElementById('btn-submit');
             
             const respostas = [];
+            let valid = true;
+
             pesquisaData.perguntas.forEach(p => {
-                const checked = form.querySelector(`input[name="pergunta_${p.id}"]:checked`);
-                if (checked) {
-                    respostas.push({
-                        pergunta_id: p.id,
-                        pergunta: p.pergunta,
-                        nota: parseInt(checked.value, 10)
-                    });
+                if (p.tipo === 'titulo') return;
+
+                if (p.tipo === 'texto') {
+                    const el = form.querySelector(`textarea[name="pergunta_${p.id}"]`);
+                    if (el && el.value.trim() !== '') {
+                        respostas.push({
+                            pergunta_id: p.id,
+                            pergunta: p.pergunta,
+                            nota: null,
+                            texto: el.value.trim()
+                        });
+                    } else {
+                        valid = false;
+                    }
+                } else {
+                    const checked = form.querySelector(`input[name="pergunta_${p.id}"]:checked`);
+                    if (checked) {
+                        respostas.push({
+                            pergunta_id: p.id,
+                            pergunta: p.pergunta,
+                            nota: parseInt(checked.value, 10),
+                            texto: null
+                        });
+                    } else {
+                        valid = false;
+                    }
                 }
             });
 
-            if (respostas.length !== pesquisaData.perguntas.length) {
+            if (!valid) {
                 alert('Por favor, responda todas as perguntas.');
                 return;
             }
