@@ -134,7 +134,20 @@
             if (!r.ok) throw new Error('Erro ' + r.status);
             let rawData = await r.json();
             
-            const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
+            let tipoAtual = window._currentTreinamentoTipo || 'treinamento';
+            
+            // FORÇA o tipo baseado na aba ativa no DOM para evitar falhas de estado
+            const tabAtiva = document.querySelector('.app-top-tab.active');
+            if (tabAtiva) {
+                const onclickText = tabAtiva.getAttribute('onclick') || '';
+                if (onclickText.includes('treinamento-materiais-terapia')) {
+                    tipoAtual = 'terapia';
+                    window._currentTreinamentoTipo = 'terapia';
+                } else if (onclickText.includes('treinamento-materiais')) {
+                    tipoAtual = 'treinamento';
+                    window._currentTreinamentoTipo = 'treinamento';
+                }
+            }
             _cache = rawData.filter(t => (t.tipo || 'treinamento') === tipoAtual);
 
             // Atualiza UI dinamicamente

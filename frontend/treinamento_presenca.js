@@ -50,6 +50,34 @@
 
     // ── Carregar dados ────────────────────────────────────────────────────────
     async function carregarDados() {
+        let tipoAtual = window._currentTreinamentoTipo || 'treinamento';
+        
+        // FORÇA o tipo baseado na aba ativa no DOM para evitar falhas de estado
+        const tabAtiva = document.querySelector('.app-top-tab.active');
+        if (tabAtiva) {
+            const onclickText = tabAtiva.getAttribute('onclick') || '';
+            if (onclickText.includes('treinamento-presenca-terapia')) {
+                tipoAtual = 'terapia';
+                window._currentTreinamentoTipo = 'terapia';
+            } else if (onclickText.includes('treinamento-presenca')) {
+                tipoAtual = 'treinamento';
+                window._currentTreinamentoTipo = 'treinamento';
+            }
+        }
+
+        const view = document.getElementById('view-treinamento-presenca');
+        if (view) {
+            const h1 = view.querySelector('h1');
+            const p = view.querySelector('p');
+            if (tipoAtual === 'terapia') {
+                if (h1) h1.textContent = 'Terapia - Presença';
+                if (p) p.textContent = 'Visualize e registre a presença em terapias por colaborador.';
+            } else {
+                if (h1) h1.textContent = 'Treinamentos - Presença';
+                if (p) p.textContent = 'Visualize e registre a conclusão de treinamentos por colaborador.';
+            }
+        }
+
         const grid = document.getElementById('presenca-colaboradores-grid');
         if (grid) grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#94a3b8;">
             <i class="ph ph-spinner" style="font-size:2rem;animation:spin 1s linear infinite;display:block;margin-bottom:8px;"></i>
@@ -91,6 +119,18 @@
             (c.nome_completo || '').toLowerCase().includes(busca) ||
             (c.cargo || '').toLowerCase().includes(busca)
         );
+
+        const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
+        
+        lista = lista.map(c => {
+            const tr = (c.treinamentos || []).filter(t => (t.tipo || 'treinamento') === tipoAtual);
+            return {
+                ...c,
+                treinamentos: tr,
+                total: tr.length,
+                concluidos: tr.filter(x => x.concluido).length
+            };
+        }).filter(c => c.total > 0 || c.treinamentos.length > 0);
 
         if (counter) counter.textContent = `${lista.length} colaborador(es)`;
 
