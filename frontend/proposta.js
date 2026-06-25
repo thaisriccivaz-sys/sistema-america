@@ -368,20 +368,38 @@ function _renderFormPropostaInt() {
         <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:hidden; margin:auto; border: 1px solid #e2e8f0;">
 
             <!-- Toolbar -->
-            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; gap:0.6rem; flex-wrap:wrap;">
-                <button onclick="salvarProposta()" style="background:#16a34a;color:white;border:none;padding:0.5rem 1rem;border-radius:7px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;">
-                    <i class="ph ph-floppy-disk"></i> Salvar
-                </button>
-                <button onclick="fecharFormProposta()" style="background:#64748b;color:white;border:none;padding:0.5rem 1rem;border-radius:7px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;">
-                    <i class="ph ph-x"></i> Cancelar
-                </button>
-                ${!isNovo ? `
-                <button onclick="imprimirProposta(${id})" style="background:#0ea5e9;color:white;border:none;padding:0.5rem 1rem;border-radius:7px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;">
-                    <i class="ph ph-printer"></i> Imprimir
-                </button>
-                <button onclick="if(confirm('Excluir esta proposta?')) excluirProposta(${id})" style="background:#dc2626;color:white;border:none;padding:0.5rem 1rem;border-radius:7px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;">
-                    <i class="ph ph-trash"></i> Excluir
-                </button>` : ''}
+            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem;">
+                
+                <!-- Botões CRUD (Lado Esquerdo) -->
+                <div style="display:flex; gap:0.6rem;">
+                    <button onclick="limparFormPropostaNovo()" style="background:#475569; color:white; border:none; padding:0.5rem 1.1rem; border-radius:7px; cursor:pointer; font-weight:600; font-size:0.84rem; outline:none; box-shadow:none; transition:background 0.15s;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'" onfocus="this.blur()">
+                        Novo
+                    </button>
+                    <button onclick="salvarPropostaNova()" style="background:#16a34a; color:white; border:none; padding:0.5rem 1.1rem; border-radius:7px; cursor:pointer; font-weight:600; font-size:0.84rem; outline:none; box-shadow:none; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
+                        Salvar
+                    </button>
+                    ${!isNovo ? `
+                    <button onclick="estornarPropostaEdicao()" style="background:#ea580c; color:white; border:none; padding:0.5rem 1.1rem; border-radius:7px; cursor:pointer; font-weight:600; font-size:0.84rem; outline:none; box-shadow:none; transition:background 0.15s;" onmouseover="this.style.background='#c2410c'" onmouseout="this.style.background='#ea580c'" onfocus="this.blur()">
+                        Estornar a proposta
+                    </button>` : ''}
+                    <button onclick="fecharFormProposta()" style="background:#64748b; color:white; border:none; padding:0.5rem 1.1rem; border-radius:7px; cursor:pointer; font-weight:600; font-size:0.84rem; outline:none; box-shadow:none; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
+                        Cancelar
+                    </button>
+                </div>
+
+                <!-- Botões de Ação (Lado Direito Superior, apenas se editando) -->
+                <div style="display:flex; gap:0.6rem; align-items:center;">
+                    ${!isNovo ? `
+                    <button onclick="abrirPopupEmail(${id})" title="Enviar email" style="background:#7048e8; color:white; border:none; width:36px; height:36px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onfocus="this.style.outline='2px solid #9775fa'">
+                        <i class="ph ph-envelope-simple" style="font-size:1.25rem;"></i>
+                    </button>
+                    <button onclick="imprimirProposta(${id})" title="Imprimir" style="background:#0ea5e9; color:white; border:none; width:36px; height:36px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onfocus="this.style.outline='2px solid #7dd3fc'">
+                        <i class="ph ph-printer" style="font-size:1.25rem;"></i>
+                    </button>
+                    <button onclick="abrirLogsAlteracao(${id})" title="Logs de Alteração" style="background:#475569; color:white; border:none; width:36px; height:36px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onfocus="this.style.outline='2px solid #94a3b8'">
+                        <i class="ph ph-list-checks" style="font-size:1.25rem;"></i>
+                    </button>` : ''}
+                </div>
             </div>
 
             <!-- Corpo do formulário -->
@@ -613,8 +631,16 @@ function calcularDescontoReais() {
     if (rsEl && total > 0) rsEl.value = (total * pct / 100).toFixed(2);
 }
 
-/* ── Salvar proposta ────────────────────────────────────────────────── */
-async function salvarProposta() {
+/* ── Botões CRUD e Envio ─────────────────────────────────────────────── */
+window.limparFormPropostaNovo = function() {
+    _propostasEditandoId = null;
+    _renderFormPropostaInt();
+    if (typeof mostrarToastSucesso === 'function') {
+        mostrarToastSucesso('Campos limpos. Pronto para criar nova proposta.');
+    }
+};
+
+window.salvarPropostaNova = async function() {
     const obter = (id) => document.getElementById(id)?.value || '';
     const obterN = (id) => parseFloat(document.getElementById(id)?.value || 0);
 
@@ -657,19 +683,13 @@ async function salvarProposta() {
     };
 
     try {
-        let resp;
-        if (_propostasEditandoId) {
-            resp = await apiPut(`/propostas/${_propostasEditandoId}`, payload);
-        } else {
-            resp = await apiPost('/propostas', payload);
-        }
-
+        const resp = await apiPost('/propostas', payload);
         if (resp && (resp.success || resp.id)) {
             fecharFormProposta();
             await carregarPropostas();
             renderTelaPropostas();
             if (typeof mostrarToastSucesso === 'function') {
-                mostrarToastSucesso(_propostasEditandoId ? 'Proposta atualizada com sucesso!' : `Proposta ${resp.codigo} criada com sucesso!`);
+                mostrarToastSucesso(`Proposta ${resp.codigo} criada com contrato ${resp.contrato} com sucesso!`);
             }
         } else {
             alert('Erro ao salvar proposta: ' + (resp?.error || 'Erro desconhecido'));
@@ -678,7 +698,233 @@ async function salvarProposta() {
         console.error('[PROPOSTAS] Erro ao salvar:', e);
         alert('Erro ao comunicar com o servidor.');
     }
-}
+};
+
+window.estornarPropostaEdicao = async function() {
+    if (!_propostasEditandoId) {
+        alert('Nenhuma proposta para estornar.');
+        return;
+    }
+
+    const obter = (id) => document.getElementById(id)?.value || '';
+    const obterN = (id) => parseFloat(document.getElementById(id)?.value || 0);
+
+    const tipo = obter('prop-tipo');
+    const dataCad = obter('prop-data-cadastro');
+
+    if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
+    if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
+
+    const payload = {
+        local: obter('prop-local'),
+        tipo,
+        atendente: obter('prop-atendente'),
+        data_cadastro: dataCad,
+        previsao_fechamento: obter('prop-previsao'),
+        fase_negociacao: 'Aguardando Aprovação', // Estorna e libera para aprovação novamente
+        modelo_impressao: obter('prop-modelo'),
+        cliente_nome: obter('prop-cliente'),
+        contato_nome: obter('prop-contato'),
+        periodo_inicio: obter('prop-periodo-ini'),
+        periodo_fim: obter('prop-periodo-fim'),
+        hora_inicio: obter('prop-hora-ini') || '00:00',
+        hora_fim: obter('prop-hora-fim') || '00:00',
+        dias_contrato: parseInt(obter('prop-dias') || 0),
+        tabela_precos: obter('prop-tabela'),
+        endereco_instalacao: obter('prop-endereco'),
+        desconto_percent: obterN('prop-desc-pct'),
+        desconto_reais: obterN('prop-desc-rs'),
+        condicao_pagamento: obter('prop-cond-pag'),
+        representante: obter('prop-representante'),
+        transportadora: obter('prop-transportadora'),
+        tipo_frete: obter('prop-tipo-frete'),
+        valor_frete_ida: obterN('prop-frete-ida'),
+        valor_frete_volta: obterN('prop-frete-volta'),
+        observacoes: obter('prop-obs'),
+        valor_total: obterN('prop-valor-total'),
+        status: obter('prop-status'),
+        criado_por: window.currentUser?.nome || window.currentUser?.email || '',
+    };
+
+    try {
+        const resp = await apiPut(`/propostas/${_propostasEditandoId}`, payload);
+        if (resp && resp.success) {
+            fecharFormProposta();
+            await carregarPropostas();
+            renderTelaPropostas();
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Alterações salvas e proposta liberada para aprovação!');
+            }
+        } else {
+            alert('Erro ao salvar proposta: ' + (resp?.error || 'Erro desconhecido'));
+        }
+    } catch (e) {
+        console.error('[PROPOSTAS] Erro ao estornar:', e);
+        alert('Erro ao comunicar com o servidor.');
+    }
+};
+
+window.salvarProposta = function() {
+    // Mantido por compatibilidade
+    window.salvarPropostaNova();
+};
+
+window.abrirPopupEmail = function(id) {
+    const p = _propostasData.find(pr => pr.id === id);
+    if (!p) { alert('Proposta não encontrada.'); return; }
+
+    const tipoServico = p.tipo || 'Serviço';
+    const codigoProp = p.codigo || '';
+
+    const headerText = `Enviar Proposta de ${tipoServico} N° ${codigoProp} por email`;
+    const defaultSubject = `Proposta de ${tipoServico} - N° ${codigoProp}`;
+
+    Swal.fire({
+        title: `<div style="font-size:1.1rem; font-weight:700; color:#4c1d95; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px; width:100%;"><i class="ph ph-paper-plane-right"></i> ${headerText}</div>`,
+        html: `
+            <div style="text-align:left; display:flex; flex-direction:column; gap:0.75rem; font-family:'Inter', sans-serif; font-size:0.85rem; width:100%; box-sizing:border-box;">
+                <div>
+                    <label style="font-weight:700; color:#475569; display:block; margin-bottom:4px;">Assunto</label>
+                    <input type="text" id="email-assunto" value="${defaultSubject}" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-weight:700; color:#475569; display:block; margin-bottom:4px;">Destinatário(s) - Utilize; para separar destinatários.</label>
+                    <input type="text" id="email-destinatarios" placeholder="email1@empresa.com; email2@empresa.com" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-weight:700; color:#475569; display:block; margin-bottom:4px;">Corpo do email</label>
+                    <div style="border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; background: #fff; width:100%; box-sizing:border-box;">
+                        <!-- Barra de ferramentas do editor -->
+                        <div style="background: #f1f5f9; border-bottom: 1px solid #cbd5e1; padding: 0.35rem; display: flex; gap: 0.25rem; flex-wrap:wrap;">
+                            <button type="button" onclick="document.execCommand('bold', false, null)" style="background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0.25rem 0.5rem; cursor: pointer; font-weight: bold; font-size: 0.8rem;" title="Negrito">B</button>
+                            <button type="button" onclick="document.execCommand('italic', false, null)" style="background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0.25rem 0.5rem; cursor: pointer; font-style: italic; font-size: 0.8rem;" title="Itálico">I</button>
+                            <button type="button" onclick="document.execCommand('underline', false, null)" style="background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0.25rem 0.5rem; cursor: pointer; text-decoration: underline; font-size: 0.8rem;" title="Sublinhado">U</button>
+                            <button type="button" onclick="document.execCommand('insertUnorderedList', false, null)" style="background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0.25rem 0.5rem; cursor: pointer; font-size: 0.8rem;" title="Lista">• Lista</button>
+                            <button type="button" onclick="document.execCommand('insertOrderedList', false, null)" style="background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0.25rem 0.5rem; cursor: pointer; font-size: 0.8rem;" title="Numeração">1. Lista</button>
+                        </div>
+                        <!-- Area editavel -->
+                        <div id="email-corpo-editor" contenteditable="true" style="min-height: 120px; max-height: 220px; overflow-y: auto; padding: 0.55rem; font-size: 0.85rem; outline: none; box-sizing:border-box;">
+                            Olá,<br><br>Seguem em anexo os detalhes da proposta comercial em PDF.<br><br>Atenciosamente,<br>${p.atendente || 'America Rental'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: '<i class="ph ph-paper-plane-tilt"></i> Enviar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#7048e8',
+        cancelButtonColor: '#64748b',
+        focusConfirm: false,
+        preConfirm: () => {
+            const assunto = document.getElementById('email-assunto').value.trim();
+            const destinatarios = document.getElementById('email-destinatarios').value.trim();
+            const corpo = document.getElementById('email-corpo-editor').innerHTML;
+            
+            if (!destinatarios) {
+                Swal.showValidationMessage('Por favor, informe os destinatários.');
+                return false;
+            }
+            return { assunto, destinatarios, corpo };
+        }
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Enviando e-mail...',
+                html: 'Gerando PDF da proposta e transmitindo e-mail. Por favor, aguarde.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            try {
+                const resp = await apiPost(`/propostas/${id}/enviar-email`, result.value);
+                Swal.close();
+                if (resp && resp.success) {
+                    if (typeof mostrarToastSucesso === 'function') {
+                        mostrarToastSucesso('E-mail enviado com sucesso!');
+                    } else {
+                        Swal.fire('Sucesso', 'E-mail enviado com sucesso com PDF em anexo!', 'success');
+                    }
+                } else {
+                    Swal.fire('Erro', 'Falha ao enviar e-mail: ' + (resp?.error || 'Erro de rede'), 'error');
+                }
+            } catch (e) {
+                Swal.close();
+                console.error(e);
+                Swal.fire('Erro', 'Erro ao conectar com o servidor: ' + e.message, 'error');
+            }
+        }
+    });
+};
+
+window.abrirLogsAlteracao = async function(id) {
+    Swal.fire({
+        title: 'Carregando logs...',
+        html: '<i class="ph ph-spinner ph-spin" style="font-size:2rem; color:#7048e8;"></i>',
+        showConfirmButton: false,
+        allowOutsideClick: false
+    });
+
+    try {
+        const logs = await apiGet(`/propostas/${id}/logs`);
+        Swal.close();
+
+        if (!logs || logs.length === 0) {
+            Swal.fire({
+                title: 'Logs de Alteração',
+                text: 'Nenhuma alteração registrada para esta proposta até o momento.',
+                icon: 'info',
+                confirmButtonColor: '#7048e8'
+            });
+            return;
+        }
+
+        const rowsHtml = logs.map(log => {
+            const dataHora = new Date(log.data_hora).toLocaleString('pt-BR');
+            return `
+                <tr style="border-bottom:1px solid #f1f5f9; font-size:0.75rem;">
+                    <td style="padding:0.4rem; white-space:nowrap;">${dataHora}</td>
+                    <td style="padding:0.4rem; font-weight:600; color:#475569;">${log.usuario}</td>
+                    <td style="padding:0.4rem; font-weight:600; color:#7048e8;">${log.campo}</td>
+                    <td style="padding:0.4rem; color:#dc2626; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${log.conteudo_anterior||''}">${log.conteudo_anterior || '—'}</td>
+                    <td style="padding:0.4rem; color:#16a34a; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${log.conteudo_atual||''}">${log.conteudo_atual || '—'}</td>
+                </tr>
+            `;
+        }).join('');
+
+        Swal.fire({
+            title: '<div style="font-size:1.1rem; font-weight:700; color:#1e293b; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px; width:100%;"><i class="ph ph-list-checks"></i> Histórico de Alterações</div>',
+            html: `
+                <div style="max-height:350px; overflow-y:auto; width:100%; box-sizing:border-box;">
+                    <table style="width:100%; border-collapse:collapse; text-align:left; font-family:'Inter', sans-serif;">
+                        <thead>
+                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.75rem; font-weight:700;">
+                                <th style="padding:0.4rem;">Data/Hora</th>
+                                <th style="padding:0.4rem;">Usuário</th>
+                                <th style="padding:0.4rem;">Campo</th>
+                                <th style="padding:0.4rem;">Anterior</th>
+                                <th style="padding:0.4rem;">Atual</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            `,
+            width: '750px',
+            confirmButtonText: 'Fechar',
+            confirmButtonColor: '#7048e8'
+        });
+
+    } catch (e) {
+        Swal.close();
+        console.error(e);
+        Swal.fire('Erro', 'Erro ao carregar histórico: ' + e.message, 'error');
+    }
+};
 
 /* ── Excluir proposta ───────────────────────────────────────────────── */
 async function excluirProposta(id) {

@@ -19407,6 +19407,7 @@ app.get('/api/frota/force-seed', (req, res) => { const db = require('./database'
 db.run(`CREATE TABLE IF NOT EXISTS propostas (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   codigo TEXT UNIQUE,
+  contrato TEXT,
   local TEXT,
   tipo TEXT,
   atendente TEXT,
@@ -19439,7 +19440,15 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
   atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
 )`, (err) => {
   if (err) console.error('[PROPOSTAS] Erro ao criar tabela:', err.message);
-  else console.log('[PROPOSTAS] Tabela propostas OK.');
+  else {
+    console.log('[PROPOSTAS] Tabela propostas OK.');
+    // Garantir que a coluna contrato existe em bancos já criados
+    db.run("ALTER TABLE propostas ADD COLUMN contrato TEXT", (errAlter) => {
+      if (errAlter && !errAlter.message.includes('duplicate column name')) {
+        console.log('[PROPOSTAS] Alerta ao alterar tabela (pode já existir a coluna):', errAlter.message);
+      }
+    });
+  }
 });
 
 // Gerar código único para proposta
@@ -19448,6 +19457,15 @@ function gerarCodigoProposta(cb) {
   db.get(`SELECT MAX(CAST(SUBSTR(codigo, 6) AS INTEGER)) as max_seq FROM propostas WHERE codigo LIKE 'PR${ano}%'`, [], (err, row) => {
     const seq = (row && row.max_seq ? row.max_seq : 0) + 1;
     cb(`PR${ano}${String(seq).padStart(4, '0')}`);
+  });
+}
+
+// Gerar código único para contrato
+function gerarCodigoContrato(cb) {
+  const ano = new Date().getFullYear();
+  db.get(`SELECT MAX(CAST(SUBSTR(contrato, 7) AS INTEGER)) as max_seq FROM propostas WHERE contrato LIKE 'CT${ano}%'`, [], (err, row) => {
+    const seq = (row && row.max_seq ? row.max_seq : 0) + 1;
+    cb(`CT${ano}${String(seq).padStart(4, '0')}`);
   });
 }
 
@@ -19468,64 +19486,301 @@ app.get('/api/propostas/:id', authenticateToken, (req, res) => {
   });
 });
 
+// GET /api/propostas/:id/logs - Buscar histórico de alterações de uma proposta
+app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
+  db.all("SELECT * FROM auditoria WHERE programa = 'Proposta' AND registro_id = ? ORDER BY data_hora DESC", [req.params.id], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
 // POST /api/propostas - Criar nova proposta
 app.post('/api/propostas', authenticateToken, (req, res) => {
   const d = req.body;
   gerarCodigoProposta((codigo) => {
-    const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
-    db.run(`INSERT INTO propostas (
-      codigo, local, tipo, atendente, data_cadastro, previsao_fechamento,
-      fase_negociacao, modelo_impressao, cliente_nome, contato_nome,
-      periodo_inicio, periodo_fim, hora_inicio, hora_fim, dias_contrato,
-      tabela_precos, endereco_instalacao, desconto_percent, desconto_reais,
-      condicao_pagamento, representante, transportadora, tipo_frete,
-      valor_frete_ida, valor_frete_volta, observacoes, valor_total,
-      status, criado_por, criado_em, atualizado_em
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    gerarCodigoContrato((contrato) => {
+      const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+      db.run(`INSERT INTO propostas (
+        codigo, contrato, local, tipo, atendente, data_cadastro, previsao_fechamento,
+        fase_negociacao, modelo_impressao, cliente_nome, contato_nome,
+        periodo_inicio, periodo_fim, hora_inicio, hora_fim, dias_contrato,
+        tabela_precos, endereco_instalacao, desconto_percent, desconto_reais,
+        condicao_pagamento, representante, transportadora, tipo_frete,
+        valor_frete_ida, valor_frete_volta, observacoes, valor_total,
+        status, criado_por, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
+        d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
+        d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
+        d.dias_contrato||0, d.tabela_precos, d.endereco_instalacao,
+        d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
+        d.representante, d.transportadora, d.tipo_frete,
+        d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
+        d.valor_total||0, d.status||'Ativa', d.criado_por, agora, agora
+      ], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Log de criação
+        const usuarioLog = req.user?.username || req.user?.nome || d.criado_por || 'unknown';
+        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Criação', '', ?, ?)`,
+          [usuarioLog, `Proposta criada com contrato ${contrato}`, this.lastID]);
+
+        res.json({ success: true, id: this.lastID, codigo, contrato });
+      });
+    });
+  });
+});
+
+// PUT /api/propostas/:id - Atualizar proposta com log comparativo
+app.put('/api/propostas/:id', authenticateToken, (req, res) => {
+  const d = req.body;
+  const proposalId = req.params.id;
+  const usuarioLog = req.user?.username || req.user?.nome || d.criado_por || 'unknown';
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  db.get('SELECT * FROM propostas WHERE id = ?', [proposalId], (err, oldRow) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!oldRow) return res.status(404).json({ error: 'Proposta não encontrada' });
+
+    db.run(`UPDATE propostas SET
+      local=?, tipo=?, atendente=?, data_cadastro=?, previsao_fechamento=?,
+      fase_negociacao=?, modelo_impressao=?, cliente_nome=?, contato_nome=?,
+      periodo_inicio=?, periodo_fim=?, hora_inicio=?, hora_fim=?, dias_contrato=?,
+      tabela_precos=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
+      condicao_pagamento=?, representante=?, transportadora=?, tipo_frete=?,
+      valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
+      status=?, atualizado_em=?
+      WHERE id=?`,
     [
-      codigo, d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
+      d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
       d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
       d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
       d.dias_contrato||0, d.tabela_precos, d.endereco_instalacao,
       d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
       d.representante, d.transportadora, d.tipo_frete,
       d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
-      d.valor_total||0, d.status||'Ativa', d.criado_por, agora, agora
-    ], function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true, id: this.lastID, codigo });
+      d.valor_total||0, d.status||'Ativa', agora, proposalId
+    ], function(errUpdate) {
+      if (errUpdate) return res.status(500).json({ error: errUpdate.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Proposta não encontrada' });
+
+      // Auditoria: comparar campos alterados
+      const fieldsToCompare = [
+        { field: 'local', label: 'Local' },
+        { field: 'tipo', label: 'Tipo' },
+        { field: 'atendente', label: 'Atendente' },
+        { field: 'data_cadastro', label: 'Data Cadastro' },
+        { field: 'previsao_fechamento', label: 'Previsão Fechamento' },
+        { field: 'fase_negociacao', label: 'Fase de Negociação' },
+        { field: 'modelo_impressao', label: 'Modelo de Impressão' },
+        { field: 'cliente_nome', label: 'Cliente' },
+        { field: 'contato_nome', label: 'Contato' },
+        { field: 'periodo_inicio', label: 'Período Início' },
+        { field: 'periodo_fim', label: 'Período Fim' },
+        { field: 'hora_inicio', label: 'Hora Início' },
+        { field: 'hora_fim', label: 'Hora Fim' },
+        { field: 'dias_contrato', label: 'Dias Contrato' },
+        { field: 'tabela_precos', label: 'Tabela de Preços' },
+        { field: 'endereco_instalacao', label: 'Endereço de Instalação' },
+        { field: 'desconto_percent', label: 'Desconto (%)' },
+        { field: 'desconto_reais', label: 'Desconto (R$)' },
+        { field: 'condicao_pagamento', label: 'Condição de Pagamento' },
+        { field: 'representante', label: 'Representante' },
+        { field: 'transportadora', label: 'Transportadora' },
+        { field: 'tipo_frete', label: 'Tipo de Frete' },
+        { field: 'valor_frete_ida', label: 'Frete Ida' },
+        { field: 'valor_frete_volta', label: 'Frete Volta' },
+        { field: 'observacoes', label: 'Observações' },
+        { field: 'valor_total', label: 'Valor Total' },
+        { field: 'status', label: 'Status' }
+      ];
+
+      fieldsToCompare.forEach(item => {
+        let oldVal = oldRow[item.field] !== null && oldRow[item.field] !== undefined ? String(oldRow[item.field]) : '';
+        let newVal = d[item.field] !== null && d[item.field] !== undefined ? String(d[item.field]) : '';
+        
+        // Tratar padrões
+        if (item.field === 'hora_inicio' || item.field === 'hora_fim') {
+          if (!newVal) newVal = '00:00';
+        }
+        if (['dias_contrato', 'desconto_percent', 'desconto_reais', 'valor_frete_ida', 'valor_frete_volta', 'valor_total'].includes(item.field)) {
+          if (!newVal) newVal = '0';
+          if (!oldVal) oldVal = '0';
+          if (parseFloat(oldVal) === parseFloat(newVal)) return;
+        }
+
+        if (oldVal !== newVal) {
+          db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', ?, ?, ?, ?)`,
+            [usuarioLog, item.label, oldVal, newVal, proposalId]);
+        }
+      });
+
+      res.json({ success: true });
     });
   });
 });
 
-// PUT /api/propostas/:id - Atualizar proposta
-app.put('/api/propostas/:id', authenticateToken, (req, res) => {
-  const d = req.body;
-  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
-  db.run(`UPDATE propostas SET
-    local=?, tipo=?, atendente=?, data_cadastro=?, previsao_fechamento=?,
-    fase_negociacao=?, modelo_impressao=?, cliente_nome=?, contato_nome=?,
-    periodo_inicio=?, periodo_fim=?, hora_inicio=?, hora_fim=?, dias_contrato=?,
-    tabela_precos=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
-    condicao_pagamento=?, representante=?, transportadora=?, tipo_frete=?,
-    valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
-    status=?, atualizado_em=?
-    WHERE id=?`,
-  [
-    d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
-    d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
-    d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
-    d.dias_contrato||0, d.tabela_precos, d.endereco_instalacao,
-    d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
-    d.representante, d.transportadora, d.tipo_frete,
-    d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
-    d.valor_total||0, d.status||'Ativa', agora, req.params.id
-  ], function(err) {
+// POST /api/propostas/:id/enviar-email - Enviar PDF da proposta por e-mail
+app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) => {
+  const { assunto, destinatarios, corpo } = req.body;
+  if (!destinatarios) return res.status(400).json({ error: 'Informe pelo menos um destinatário.' });
+
+  db.get('SELECT * FROM propostas WHERE id = ?', [req.params.id], async (err, p) => {
     if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Proposta não encontrada' });
-    res.json({ success: true });
+    if (!p) return res.status(404).json({ error: 'Proposta não encontrada' });
+
+    try {
+      // 1. Gerar HTML da Proposta
+      const proposalHtml = gerarHtmlProposta(p);
+
+      // 2. Gerar PDF com layout completo usando html-pdf-node
+      const htmlPdf = require('html-pdf-node');
+      const pdfBuffer = await htmlPdf.generatePdf(
+        { content: proposalHtml },
+        { format: 'A4', margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } }
+      );
+
+      // 3. Enviar e-mail usando sendMailHelper
+      const toList = destinatarios.replace(/;/g, ',');
+      await sendMailHelper({
+        to: toList,
+        subject: assunto || `Proposta Comercial ${p.codigo}`,
+        html: corpo || '<p>Segue em anexo a nossa proposta comercial.</p>',
+        attachments: [
+          {
+            filename: `Proposta_${p.codigo}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+          }
+        ]
+      });
+
+      // 4. Registrar auditoria do envio de e-mail
+      const loggedUser = req.user?.username || req.user?.nome || 'unknown';
+      db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Envio de E-mail', '', ?, ?)`,
+        [loggedUser, `Enviado para: ${toList}`, p.id]);
+
+      res.json({ success: true });
+    } catch (e) {
+      console.error('[PROPOSTAS] Erro ao enviar e-mail:', e);
+      res.status(500).json({ error: 'Erro ao gerar ou enviar e-mail: ' + e.message });
+    }
   });
 });
+
+// Helper: Função para renderizar HTML do PDF da proposta
+function gerarHtmlProposta(p) {
+  const fmtMoeda = (v) => 'R$ ' + Number(v||0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const fmtData = (s) => {
+    if (!s) return '—';
+    try {
+      const d = new Date(s + (s.length === 10 ? 'T12:00:00' : ''));
+      return d.toLocaleDateString('pt-BR');
+    } catch (e) { return s; }
+  };
+  return `<!DOCTYPE html><html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <title>Proposta ${p.codigo}</title>
+        <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: Arial, sans-serif; font-size: 10pt; color: #1e293b; background: #fff; padding: 15px; }
+            .header { background: #4c1d95; color: white; padding: 15px 20px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+            .header h1 { font-size: 14pt; margin-bottom: 3px; }
+            .header .sub { font-size: 9pt; opacity: 0.85; }
+            .badge { background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 15px; font-size: 9pt; font-weight: bold; }
+            .section { margin-bottom: 15px; }
+            .section h3 { font-size: 9pt; font-weight: 700; color: #6d28d9; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e0e7ff; padding-bottom: 4px; margin-bottom: 8px; }
+            .grid { display: flex; flex-wrap: wrap; margin: -4px; }
+            .col-2 { width: 50%; padding: 4px; }
+            .col-3 { width: 33.33%; padding: 4px; }
+            .col-4 { width: 25%; padding: 4px; }
+            .col-12 { width: 100%; padding: 4px; }
+            .field { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 4px; padding: 6px 8px; }
+            .field label { display: block; font-size: 7.5pt; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
+            .field span { font-size: 9.5pt; color: #1e293b; font-weight: 600; }
+            .valor-box { background: #4c1d95; color: white; border-radius: 6px; padding: 10px 15px; text-align: center; margin-top: 12px; }
+            .valor-box .label { font-size: 8pt; opacity: 0.8; margin-bottom: 2px; }
+            .valor-box .val { font-size: 18pt; font-weight: 800; }
+            .footer { border-top: 1px solid #e2e8f0; padding-top: 10px; margin-top: 15px; font-size: 8pt; color: #94a3b8; text-align: center; }
+            .obs { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 4px; padding: 8px 10px; font-size: 9pt; color: #78350f; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div>
+                <h1>📋 Proposta de Locação</h1>
+                <div class="sub">América Rental Equipamentos · ${fmtData(p.data_cadastro)}</div>
+            </div>
+            <div class="badge">${p.codigo || 'S/N'}</div>
+        </div>
+
+        <div class="section">
+            <h3>Informações Gerais</h3>
+            <div class="grid">
+                <div class="col-4"><div class="field"><label>Tipo</label><span>${p.tipo||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Fase</label><span>${p.fase_negociacao||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Atendente</label><span>${p.atendente||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Previsão Fechamento</label><span>${fmtData(p.previsao_fechamento)||'—'}</span></div></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Cliente</h3>
+            <div class="grid">
+                <div class="col-2"><div class="field"><label>Cliente</label><span>${p.cliente_nome||'—'}</span></div></div>
+                <div class="col-2"><div class="field"><label>Contato</label><span>${p.contato_nome||'—'}</span></div></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Período e Local</h3>
+            <div class="grid">
+                <div class="col-4"><div class="field"><label>Período Início</label><span>${fmtData(p.periodo_inicio)||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Período Fim</label><span>${fmtData(p.periodo_fim)||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Hora Início / Fim</label><span>${p.hora_inicio||'00:00'} — ${p.hora_fim||'00:00'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Dias de Contrato</label><span>${p.dias_contrato||0}</span></div></div>
+                <div class="col-12" style="margin-top:4px;"><div class="field"><label>Endereço de Instalação</label><span>${p.endereco_instalacao||'—'}</span></div></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Condições Comerciais</h3>
+            <div class="grid">
+                <div class="col-4"><div class="field"><label>Tabela de Preços</label><span>${p.tabela_precos||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Condição Pagamento</label><span>${p.condicao_pagamento||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Desconto (%)</label><span>${Number(p.desconto_percent||0).toFixed(2)}%</span></div></div>
+                <div class="col-4"><div class="field"><label>Desconto (R$)</label><span>${fmtMoeda(p.desconto_reais)}</span></div></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Representante e Frete</h3>
+            <div class="grid">
+                <div class="col-4"><div class="field"><label>Representante</label><span>${p.representante||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Transportadora</label><span>${p.transportadora||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Frete Ida</label><span>${fmtMoeda(p.valor_frete_ida)}</span></div></div>
+                <div class="col-4"><div class="field"><label>Frete Volta</label><span>${fmtMoeda(p.valor_frete_volta)}</span></div></div>
+            </div>
+        </div>
+
+        ${p.observacoes ? `
+        <div class="section">
+            <h3>Observações</h3>
+            <div class="obs">${p.observacoes}</div>
+        </div>` : ''}
+
+        <div class="valor-box">
+            <div class="label">VALOR TOTAL DA PROPOSTA</div>
+            <div class="val">${fmtMoeda(p.valor_total)}</div>
+        </div>
+
+        <div class="footer">
+            América Rental Equipamentos · Gerado em ${new Date().toLocaleDateString('pt-BR')}
+        </div>
+    </body></html>`;
+}
 
 // DELETE /api/propostas/:id - Excluir proposta
 app.delete('/api/propostas/:id', authenticateToken, (req, res) => {
