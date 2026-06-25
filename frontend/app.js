@@ -934,6 +934,12 @@ function navigateTo(target) {
         window.scrollTo({ top: window._pipelineScrollY, behavior: 'instant' });
     }
 
+    if (target === 'treinamento-materiais-terapia' || target === 'treinamento-presenca-terapia') {
+        window._currentTreinamentoTipo = 'terapia';
+    } else if (target === 'treinamento-materiais' || target === 'treinamento-presenca') {
+        window._currentTreinamentoTipo = 'treinamento';
+    }
+
     const actualTarget = target.endsWith('-terapia') ? target.replace('-terapia', '') : target;
     const targetView = document.getElementById(`view-${actualTarget}`);
     if (targetView) targetView.classList.add('active');
