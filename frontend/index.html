@@ -274,14 +274,14 @@
                         onclick="window._currentTreinamentoTipo='treinamento'; navigateTo('treinamento-presenca'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.initPresencaTreinamento) window.initPresencaTreinamento(); }, 10); return false;"><i class="ph ph-check-square"></i>
                         Presenças</a>
 
-                    <div class="nav-group" id="nav-group-terapia" style="margin-top:5px; border-top: 1px solid rgba(14,116,144,0.15); padding-top:5px;">
+                    <div class="nav-group" id="nav-group-terapia">
                         <button class="nav-group-label nav-group-toggle"
                                 onclick="toggleNavGroup('nav-group-terapia')">
-                            <span style="display:flex;align-items:center;gap:0.55rem;color:#0e7490;">
+                            <span style="display:flex;align-items:center;gap:0.55rem;">
                                 <i class="ph ph-heart-beat"></i>
                                 Terapia
                             </span>
-                            <i class="ph ph-caret-right nav-group-chevron" style="color:#0e7490;"></i>
+                            <i class="ph ph-caret-right nav-group-chevron"></i>
                         </button>
                         <div class="nav-group-items" id="nav-group-items-terapia">
                             <a href="#" class="nav-item nav-item-sub" data-target="treinamento-materiais-terapia"
