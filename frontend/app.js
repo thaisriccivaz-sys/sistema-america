@@ -13898,7 +13898,7 @@ window._epiConfirmarFotoIrParaAssinatura = function () {
     if (thumbDt) thumbDt.textContent = dtStr;
 
     // Transição para o passo 2
-    document.getElementById('epiov-step-selfie').style.display = 'none';
+    document.getElementById('epi-step-selfie').style.display = 'none';
     const assinaturaArea = document.getElementById('area-assinatura-colaborador');
     assinaturaArea.style.display = 'flex';
     setTimeout(() => { setupHighDpiCanvas('canvas-colaborador', ctxColaborador, 'ctx1'); }, 100);
@@ -13911,7 +13911,7 @@ window.abrirModalAssinaturaColaborador = async function (docId) {
 
     const modal = document.getElementById('modal-assinatura-colaborador');
     document.getElementById('area-assinatura-colaborador').style.display = 'none';
-    document.getElementById('epiov-step-selfie').style.display = 'none';
+    document.getElementById('epi-step-selfie').style.display = 'none';
     modal.style.display = 'block';
 
     document.getElementById('nome-assinatura-colab').innerText = viewedColaborador.nome_completo || 'Colaborador';
@@ -13931,7 +13931,7 @@ window.abrirModalAssinaturaColaborador = async function (docId) {
         _tick();
         clearInterval(window._epiSelfieClock);
         window._epiSelfieClock = setInterval(() => {
-            if (!document.getElementById('epiov-step-selfie') || document.getElementById('epiov-step-selfie').style.display === 'none') {
+            if (!document.getElementById('epi-step-selfie') || document.getElementById('epi-step-selfie').style.display === 'none') {
                 clearInterval(window._epiSelfieClock);
             } else { _tick(); }
         }, 1000);
@@ -13940,7 +13940,7 @@ window.abrirModalAssinaturaColaborador = async function (docId) {
     const pdfUrl = `${API_URL}/documentos/view/${docId}?token=${currentToken}`;
     renderPdfToContainer(pdfUrl, 'pdf-viewer-colaborador', () => {
         // Após PDF carregado, iniciar câmera e mostrar passo 1
-        const selfieArea = document.getElementById('epiov-step-selfie');
+        const selfieArea = document.getElementById('epi-step-selfie');
         selfieArea.style.display = 'flex';
         _epiIniciarCamera();
     });
