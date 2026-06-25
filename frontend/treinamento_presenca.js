@@ -32,8 +32,16 @@
         } catch { return iso; }
     }
     function getInstrutorNome() {
-        return window.currentUser?.username
-            || window.currentUser?.nome
+        // Tenta pegar o usuário logado salvo no localStorage pelo app.js
+        try {
+            const saved = localStorage.getItem('erp_user');
+            if (saved) {
+                const u = JSON.parse(saved);
+                return u.nome || u.username || u.email || 'Instrutor';
+            }
+        } catch (e) { /* ignora */ }
+        return window.currentUser?.nome
+            || window.currentUser?.username
             || window.currentUsername
             || localStorage.getItem('erp_username')
             || localStorage.getItem('username')
@@ -238,7 +246,7 @@
 
                 const temDoc = h.assinatura_base64 || h.selfie_base64;
                 const btnDoc = temDoc
-                    ? `<button onclick="window._verDocumentoAssinado('${encodeURIComponent(JSON.stringify({ assinatura: h.assinatura_base64, selfie: h.selfie_base64, nome: nome, treinamento: h.treinamento_nome, data: dt, instrutor: h.instrutor_nome || '' }))}')"
+                    ? `<button onclick="window._verDocumentoAssinado('${encodeURIComponent(JSON.stringify({ assinatura: h.assinatura_base64, selfie: h.selfie_base64, capa: h.capa_url || '', nome: nome, treinamento: h.treinamento_nome, data: dt, instrutor: h.instrutor_nome || '' }))}')"
                         style="background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
                         <i class="ph ph-eye"></i> Ver documento
                       </button>`
@@ -267,45 +275,63 @@
         }
     };
 
-    // ── Visualizar documento assinado ─────────────────────────────────────────
+    // ── Visualizar documento assinado (fullscreen) ────────────────────────────
     window._verDocumentoAssinado = function (encodedData) {
         const data = JSON.parse(decodeURIComponent(encodedData));
-        let modal = document.getElementById('modal-ver-documento');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'modal-ver-documento';
-            modal.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;background:rgba(0,0,0,0.8);';
-            document.body.appendChild(modal);
+        let fs = document.getElementById('fs-ver-documento');
+        if (!fs) {
+            fs = document.createElement('div');
+            fs.id = 'fs-ver-documento';
+            document.body.appendChild(fs);
         }
-        modal.style.display = 'flex';
-        modal.innerHTML = `<div style="background:#fff;border-radius:16px;width:100%;max-width:600px;margin:auto;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-            <div style="background:linear-gradient(135deg,#0e7490,#06b6d4);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
+        fs.style.cssText = 'position:fixed;inset:0;z-index:10001;background:#f1f5f9;display:flex;flex-direction:column;overflow:hidden;';
+
+        fs.innerHTML = `
+            <!-- Header -->
+            <div style="background:linear-gradient(135deg,#0e7490,#06b6d4);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
                 <div>
-                    <h3 style="margin:0;color:#fff;font-size:1.1rem;font-weight:700;"><i class="ph ph-certificate"></i> Documento Assinado</h3>
-                    <p style="margin:4px 0 0;color:rgba(255,255,255,0.8);font-size:0.82rem;">${data.treinamento}</p>
+                    <h3 style="margin:0;color:#fff;font-size:1rem;font-weight:700;"><i class="ph ph-certificate"></i> Documento Assinado</h3>
+                    <p style="margin:3px 0 0;color:rgba(255,255,255,0.8);font-size:0.8rem;">${data.treinamento}</p>
                 </div>
-                <button onclick="document.getElementById('modal-ver-documento').style.display='none'"
-                    style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;width:36px;height:36px;cursor:pointer;color:#fff;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">
+                <button onclick="document.getElementById('fs-ver-documento').style.display='none'"
+                    style="background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:40px;height:40px;cursor:pointer;color:#fff;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">
                     <i class="ph ph-x"></i>
                 </button>
             </div>
-            <div style="padding:20px;">
-                <div style="background:#f8fafc;border-radius:10px;padding:12px 16px;margin-bottom:16px;border:1px solid #e2e8f0;">
-                    <p style="margin:0 0 4px;font-size:0.82rem;"><strong>Colaborador:</strong> ${data.nome}</p>
-                    <p style="margin:0 0 4px;font-size:0.82rem;"><strong>Treinamento:</strong> ${data.treinamento}</p>
-                    <p style="margin:0 0 4px;font-size:0.82rem;"><strong>Data/Hora:</strong> ${data.data}</p>
-                    ${data.instrutor ? `<p style="margin:0;font-size:0.82rem;"><strong>Instrutor:</strong> ${data.instrutor}</p>` : ''}
+            <!-- Conteúdo rolável -->
+            <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;max-width:680px;width:100%;margin:0 auto;">
+
+                <!-- Dados do registro -->
+                <div style="background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);border:1px solid #e2e8f0;">
+                    <p style="margin:0 0 6px;font-size:0.75rem;font-weight:700;color:#64748b;letter-spacing:.06em;">DADOS DO REGISTRO</p>
+                    <p style="margin:0 0 4px;font-size:0.88rem;"><strong>Colaborador:</strong> ${data.nome}</p>
+                    <p style="margin:0 0 4px;font-size:0.88rem;"><strong>Treinamento:</strong> ${data.treinamento}</p>
+                    <p style="margin:0 0 4px;font-size:0.88rem;"><strong>Data/Hora:</strong> ${data.data}</p>
+                    ${data.instrutor ? `<p style="margin:0;font-size:0.88rem;"><strong>Instrutor:</strong> ${data.instrutor}</p>` : ''}
                 </div>
-                ${data.assinatura ? `<div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:12px;">
-                    <p style="margin:0;background:#f1f5f9;padding:8px 12px;font-size:0.72rem;font-weight:700;color:#64748b;letter-spacing:.05em;">ASSINATURA DIGITAL</p>
-                    <img src="${data.assinatura}" style="width:100%;max-height:150px;object-fit:contain;padding:8px;display:block;" />
+
+                <!-- Capa do treinamento (se houver) -->
+                ${data.capa ? `<div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);border:1px solid #e2e8f0;">
+                    <p style="margin:0;background:#f1f5f9;padding:10px 14px;font-size:0.72rem;font-weight:700;color:#64748b;letter-spacing:.06em;">MATERIAL DO TREINAMENTO</p>
+                    <img src="${data.capa}" style="width:100%;max-height:360px;object-fit:contain;display:block;background:#000;" />
                 </div>` : ''}
-                ${data.selfie ? `<div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
-                    <p style="margin:0;background:#f1f5f9;padding:8px 12px;font-size:0.72rem;font-weight:700;color:#64748b;letter-spacing:.05em;">SELFIE DE CONFIRMAÇÃO</p>
-                    <img src="${data.selfie}" style="width:100%;max-height:260px;object-fit:cover;display:block;" />
+
+                <!-- Assinatura -->
+                ${data.assinatura ? `<div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);border:1px solid #e2e8f0;">
+                    <p style="margin:0;background:#f1f5f9;padding:10px 14px;font-size:0.72rem;font-weight:700;color:#64748b;letter-spacing:.06em;">ASSINATURA DIGITAL</p>
+                    <img src="${data.assinatura}" style="width:100%;max-height:180px;object-fit:contain;padding:12px;display:block;" />
                 </div>` : ''}
-            </div>
-        </div>`;
+
+                <!-- Selfie -->
+                ${data.selfie ? `<div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);border:1px solid #e2e8f0;">
+                    <p style="margin:0;background:#f1f5f9;padding:10px 14px;font-size:0.72rem;font-weight:700;color:#64748b;letter-spacing:.06em;">SELFIE DE CONFIRMAÇÃO</p>
+                    <img src="${data.selfie}" style="width:100%;max-height:320px;object-fit:cover;display:block;" />
+                </div>` : ''}
+
+                <div style="height:8px;"></div>
+            </div>`;
+
+        fs.style.display = 'flex';
     };
 
     // ── Abrir modal de assinatura ─────────────────────────────────────────────
@@ -874,6 +900,7 @@
                 const docData = encodeURIComponent(JSON.stringify({
                     assinatura: _assinaturaBase64,
                     selfie: _selfieBase64,
+                    capa: t.capa_url || '',
                     nome: c.nome_completo,
                     treinamento: t.nome,
                     data: new Date().toLocaleString('pt-BR'),
