@@ -4921,7 +4921,7 @@ app.put('/api/colaboradores/:id/sinistros/:sinistroId/dados-financeiros', authen
 app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', authenticateToken, async (req, res) => {
     try {
         const { id, sinistroId } = req.params;
-        const { t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado, finalizar_sem_condutor } = req.body;
+        const { t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado, finalizar_sem_condutor, gps_lat, gps_lon, dispositivo } = req.body;
 
         const novoStatus = finalizar_sem_condutor ? 'assinado_testemunhas' : undefined;
 
@@ -4933,6 +4933,18 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', aut
                 [t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado, sinistroId],
                 err => err ? reject(err) : resolve())
         );
+
+        // --- Auditoria Jurídica ---
+        try {
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+            const payloadHash = JSON.stringify({ t1_nome, t1_base64, t2_nome, t2_base64, finalizar_sem_condutor });
+            const hashDocumento = require('crypto').createHash('sha256').update(payloadHash).digest('hex');
+
+            db.run(
+                `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ['Sinistro Testemunhas', sinistroId, `Testemunhas de ID ${id}`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura em Tela']
+            );
+        } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
 
         // Responde imediatamente — PDF gerado de forma assíncrona para não causar OOM
         res.json({ sucesso: true });
@@ -4962,7 +4974,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', aut
 app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authenticateToken, async (req, res) => {
     try {
         const { id, sinistroId } = req.params;
-        const { assinatura_base64, documento_html, tipo_sinistro, parcelas, valor_parcela, valor_total } = req.body;
+        const { assinatura_base64, documento_html, tipo_sinistro, parcelas, valor_parcela, valor_total, gps_lat, gps_lon, dispositivo } = req.body;
 
         await new Promise((resolve, reject) =>
             db.run(`UPDATE sinistros SET assinatura_condutor_base64=?, documento_html=?, assinaturas_finalizadas=1, status='assinado', data_assinatura_condutor=CURRENT_TIMESTAMP,
@@ -4971,6 +4983,18 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authen
                 [assinatura_base64, documento_html, tipo_sinistro || null, parcelas || null, valor_parcela || null, valor_total || null, sinistroId],
                 err => err ? reject(err) : resolve())
         );
+
+        // --- Auditoria Jurídica ---
+        try {
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+            const payloadHash = JSON.stringify({ assinatura_base64, tipo_sinistro, parcelas, valor_parcela, valor_total });
+            const hashDocumento = require('crypto').createHash('sha256').update(payloadHash).digest('hex');
+
+            db.run(
+                `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ['Sinistro Condutor', sinistroId, `ID ${id}`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura Condutor']
+            );
+        } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
 
         // Responde imediatamente — PDF gerado de forma assíncrona para não causar OOM
         res.json({ sucesso: true });
@@ -5640,6 +5664,20 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
 
     const { document_id, colaborador_id, tab_name, document_type, year, month, vencimento, atestado_tipo, atestado_inicio, atestado_fim, assinafy_status } = req.body;
+    
+    const saveAuditLocal = (docId) => {
+        const { gps_lat, gps_lon, dispositivo } = req.body;
+        if (gps_lat || gps_lon || dispositivo) {
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+            const crypto = require('crypto');
+            try {
+                const fileBuffer = require('fs').readFileSync(req.file.path);
+                const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+                db.run(`INSERT INTO assinaturas_auditoria (documento_id, document_type, colaborador_id, colaborador_nome, gps_lat, gps_lon, dispositivo, ip_address, hash_assinatura) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [docId, document_type || tab_name, colaborador_id, req.body.colaborador_nome || 'DESCONHECIDO', gps_lat, gps_lon, dispositivo, ip, hash]);
+            } catch (err) { console.error('[AUDIT] Erro ao salvar auditoria:', err.message); }
+        }
+    };
     const file_path = req.file.path;
     let file_name = req.file.originalname;
     try { file_name = Buffer.from(file_name, 'latin1').toString('utf8'); } catch (e) { }
@@ -5780,6 +5818,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                         })();
                     }
 
+                    saveAuditLocal(row.id);
                     res.json({ message: 'Documento atualizado', id: row.id, file_path });
                 });
         } else {
@@ -5881,6 +5920,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                         }
                     }
 
+                    saveAuditLocal(newDocId);
                     res.status(201).json({ message: 'Documento salvo', id: newDocId, file_path });
                 });
         }
@@ -6337,6 +6377,20 @@ db.run(`CREATE TABLE IF NOT EXISTS auditoria (
     conteudo_anterior TEXT,
     conteudo_atual TEXT,
     registro_id INTEGER
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS assinatura_auditoria (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo_documento TEXT NOT NULL,
+    documento_id INTEGER NOT NULL,
+    colaborador_nome TEXT,
+    data_hora DATETIME DEFAULT CURRENT_TIMESTAMP,
+    ip TEXT,
+    dispositivo TEXT,
+    gps_lat TEXT,
+    gps_lon TEXT,
+    hash_pdf TEXT,
+    detalhes TEXT
 )`);
 
 db.run(`CREATE TABLE IF NOT EXISTS admissao_assinaturas (
@@ -9408,6 +9462,28 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
             const entregaId = this.lastID;
 
+            // --- Auditoria Jurídica de Assinatura ---
+            try {
+                const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+                const { dispositivo, gps_lat, gps_lon } = req.body;
+                
+                // Como não geramos o PDF aqui, geramos o hash com base nos dados brutos que atestam a entrega
+                const payloadHash = JSON.stringify({
+                    colaborador_id,
+                    epis_entregues,
+                    assinatura_base64,
+                    data_entrega
+                });
+                const hashDocumento = require('crypto').createHash('sha256').update(payloadHash).digest('hex');
+
+                db.run(
+                    `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    ['EPI', entregaId, `ID ${colaborador_id}`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, JSON.stringify(epis_entregues)]
+                );
+            } catch (errAudit) {
+                console.error('[AUDITORIA EPI] Erro ao salvar log de assinatura:', errAudit);
+            }
+
             // Criar registros de empréstimo se houver equipamentos para devolver
             if (Array.isArray(epis_para_devolver) && epis_para_devolver.length > 0) {
                 const dataEntregaFmt = data_entrega || new Date().toLocaleDateString('pt-BR');
@@ -9482,7 +9558,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                         }
 
                         // Alerta de estoque mínimo
-                        if (!errUpd && newQtd <= item.quantidade_minima && item.quantidade_atual > item.quantidade_minima) {
+                        if (!errUpd && newQtd < item.quantidade_minima && item.quantidade_atual >= item.quantidade_minima) {
                             const msg = `ESTOQUE BAIXO: O item "${item.nome}" (${item.departamento}) atingiu o estoque mínimo. Quantidade Atual: ${newQtd}.`;
                             const dadosStr = JSON.stringify({ item_id: item.id, nome: item.nome, quantidade_atual: newQtd, quantidade_minima: item.quantidade_minima });
 
@@ -11241,7 +11317,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/iniciar-processo', authenticate
 // POST /api/colaboradores/:id/multas/:multaId/assinar-testemunhas
 app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authenticateToken, (req, res) => {
     const { multaId } = req.params;
-    const { testemunha1_nome, testemunha1_assinatura, testemunha2_nome, testemunha2_assinatura, documento_html } = req.body;
+    const { testemunha1_nome, testemunha1_assinatura, testemunha2_nome, testemunha2_assinatura, documento_html, gps_lat, gps_lon, dispositivo } = req.body;
     if (!testemunha1_assinatura) {
         return res.status(400).json({ error: 'Assinatura da primeira testemunha e obrigatorio.' });
     }
@@ -11257,6 +11333,19 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authentic
         [testemunha1_nome, testemunha1_assinatura, testemunha2_nome || null, testemunha2_assinatura || null, documento_html || null, multaId],
         (err) => {
             if (err) return res.status(500).json({ error: err.message });
+
+            // --- Auditoria Jurídica ---
+            try {
+                const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+                const payloadHash = JSON.stringify({ testemunha1_nome, testemunha1_assinatura, testemunha2_nome, testemunha2_assinatura });
+                const hashDocumento = require('crypto').createHash('sha256').update(payloadHash).digest('hex');
+
+                db.run(
+                    `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    ['Multa Testemunhas', multaId, `Testemunhas da Multa ${multaId}`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura em Tela']
+                );
+            } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
+
             if (onedrive && documento_html) {
                 ; (async () => {
                     try {
@@ -11298,7 +11387,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authentic
 // POST /api/colaboradores/:id/multas/:multaId/assinar-condutor
 app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticateToken, async (req, res) => {
     const { multaId } = req.params;
-    const { assinatura_base64, documento_html } = req.body;
+    const { assinatura_base64, documento_html, gps_lat, gps_lon, dispositivo } = req.body;
     if (!assinatura_base64) return res.status(400).json({ error: 'Assinatura obrigatoria.' });
     try {
         const sqlUpdate = documento_html
@@ -11306,6 +11395,18 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
             : 'UPDATE multas SET assinatura_condutor_base64 = ?, assinaturas_finalizadas = 1, status = \'assinado\' WHERE id = ?';
         const sqlParams = documento_html ? [assinatura_base64, documento_html, multaId] : [assinatura_base64, multaId];
         await new Promise((resolve, reject) => db.run(sqlUpdate, sqlParams, (e) => e ? reject(e) : resolve()));
+
+        // --- Auditoria Jurídica ---
+        try {
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+            const payloadHash = JSON.stringify({ assinatura_base64 });
+            const hashDocumento = require('crypto').createHash('sha256').update(payloadHash).digest('hex');
+
+            db.run(
+                `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ['Multa Condutor', multaId, `Condutor da Multa ${multaId}`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura em Tela']
+            );
+        } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
         // Salvar PDF final no OneDrive (pasta unica por multa)
         if (onedrive && documento_html) {
             ; (async () => {
@@ -11380,6 +11481,14 @@ db.run(`CREATE TABLE IF NOT EXISTS dissidios (
 )`, (err) => {
     if (err) console.error('[Migration] Dissídios:', err.message);
     else console.log('[Migration] Tabela dissidios OK');
+});
+
+// GET /api/assinaturas-auditoria — retorna a trilha de auditoria jurídica (GPS, IP, Hash)
+app.get('/api/assinaturas-auditoria', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM assinatura_auditoria ORDER BY data_hora DESC', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
 });
 
 // Seed: valor padrão do VR (R$35,00) se não existir
@@ -17451,6 +17560,7 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
         console.error('[ESTOQUE PUT] Erro:', e.message);
         if (!res.headersSent) res.status(500).json({ error: e.message });
     }
+
 });
 
 
@@ -20419,147 +20529,6 @@ console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
 
 try { require('../rescue_estoque.js'); } catch(e) { console.error('Rescue script error:', e); }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// MÓDULO: TREINAMENTO / MATERIAIS
-// Tabelas: treinamentos, treinamento_anexos
-// Upload de arquivos via Cloudinary (resource_type: auto → suporta vídeo, PDF, imagem, etc.)
-// ══════════════════════════════════════════════════════════════════════════════
 
-// ══════════════════════════════════════════════════════════════════════════════
-// MÓDULO: ANEXOS DE OCORRÊNCIAS (Advertências)
-// Tabela: ocorrencia_anexos
-// Referencia a tabela `documentos` (que armazena os docs de advertência/ocorrência)
-// Upload via Cloudinary (resource_type: auto)
-// ══════════════════════════════════════════════════════════════════════════════
 
-db.run(`CREATE TABLE IF NOT EXISTS ocorrencia_anexos (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  documento_id    INTEGER NOT NULL,
-  nome            TEXT NOT NULL,
-  tipo            TEXT DEFAULT '',
-  tamanho_bytes   INTEGER DEFAULT 0,
-  url             TEXT NOT NULL,
-  public_id       TEXT DEFAULT '',
-  enviado_em      DATETIME DEFAULT CURRENT_TIMESTAMP
-)`);
-
-// Multer para ocorrências (disk → Cloudinary → unlink)
-const multerOcorr = require('multer')({
-  storage: require('multer').diskStorage({
-    destination: (req, file, cb) => cb(null, require('os').tmpdir()),
-    filename: (req, file, cb) => {
-      const ext = require('path').extname(file.originalname) || '';
-      cb(null, 'ocorr_' + Date.now() + '_' + Math.random().toString(36).slice(2) + ext);
-    }
-  }),
-  limits: { fileSize: 100 * 1024 * 1024 } // 100 MB
-});
-
-// Helper: corrige encoding do nome do arquivo (Latin-1 → UTF-8)
-function _fixOcorrFileName(nome) {
-  try { return Buffer.from(nome, 'latin1').toString('utf8'); } catch (e) { return nome; }
-}
-
-// ── Helper: extrai public_id de URL Cloudinary (se ainda não existe) ──────────
-function _extrairPublicIdOcorr(url) {
-  if (!url) return '';
-  try {
-    const m = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[a-z0-9]+)?$/i);
-    return m ? m[1] : '';
-  } catch (_) { return ''; }
-}
-
-// ── GET /api/ocorrencias/:id/anexos — Lista anexos de uma ocorrência ──────────
-app.get('/api/ocorrencias/:id/anexos', authenticateToken, (req, res) => {
-  db.all(
-    `SELECT id, documento_id, nome, tipo, tamanho_bytes, url, public_id, enviado_em
-     FROM ocorrencia_anexos
-     WHERE documento_id = ?
-     ORDER BY enviado_em DESC`,
-    [req.params.id],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(rows || []);
-    }
-  );
-});
-
-// ── POST /api/ocorrencias/:id/anexos — Upload de arquivo para ocorrência ──────
-app.post('/api/ocorrencias/:id/anexos', authenticateToken, multerOcorr.single('file'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
-
-  const docId    = req.params.id;
-  const nomeOrig = _fixOcorrFileName(req.file.originalname || 'arquivo');
-  const mime     = req.file.mimetype || '';
-  const tamanho  = req.file.size || 0;
-  const tmpPath  = req.file.path;
-
-  try {
-    if (!r2 || !r2.isReady()) {
-      try { require('fs').unlinkSync(tmpPath); } catch (_) {}
-      return res.status(500).json({ error: 'R2 Storage não configurado.' });
-    }
-
-    const fileExt = nomeOrig.split('.').pop() || 'bin';
-    const r2Key = `ocorrencias/${docId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-    const urlCloud = await r2.uploadToR2(r2Key, tmpPath, mime);
-    const publicId = r2Key;
-
-    // Limpar arquivo temporário
-    try { require('fs').unlinkSync(tmpPath); } catch (_) {}
-
-    db.run(
-      `INSERT INTO ocorrencia_anexos (documento_id, nome, tipo, tamanho_bytes, url, public_id)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [docId, nomeOrig, mime, tamanho, urlCloud, publicId],
-      function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.status(201).json({
-          id:           this.lastID,
-          documento_id: docId,
-          nome:         nomeOrig,
-          tipo:         mime,
-          tamanho_bytes: tamanho,
-          url:          urlCloud,
-          public_id:    publicId
-        });
-      }
-    );
-  } catch (e) {
-    try { require('fs').unlinkSync(tmpPath); } catch (_) {}
-    console.error('[OCORR-ANEXO] Erro no upload:', e);
-    res.status(500).json({ error: e.message || 'Erro no upload' });
-  }
-});
-
-// ── DELETE /api/ocorrencias/:id/anexos/:anexoId — Remove anexo ───────────────
-app.delete('/api/ocorrencias/:id/anexos/:anexoId', authenticateToken, async (req, res) => {
-  try {
-    const anexo = await new Promise((resolve, reject) =>
-      db.get(
-        `SELECT * FROM ocorrencia_anexos WHERE id = ? AND documento_id = ?`,
-        [req.params.anexoId, req.params.id],
-        (e, r) => e ? reject(e) : resolve(r)
-      )
-    );
-    if (!anexo) return res.status(404).json({ error: 'Anexo não encontrado.' });
-
-    // Deletar do R2
-    const pid = anexo.public_id;
-    if (pid && r2 && r2.isReady()) {
-      await r2.deleteFromR2(pid);
-    }
-
-    await new Promise((resolve, reject) =>
-      db.run(`DELETE FROM ocorrencia_anexos WHERE id = ?`, [req.params.anexoId],
-        e => e ? reject(e) : resolve())
-    );
-
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message || String(e) });
-  }
-});
-
-console.log('[OCORR-ANEXO] Módulo de anexos de ocorrências carregado.');
 

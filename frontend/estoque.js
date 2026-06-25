@@ -84,8 +84,8 @@ window.renderEstoqueTable = async function() {
 
         if (status === "minimo") data = data.filter(i => {
             const saldos = saldosMap[i.id] || [];
-            if (saldos.length > 0) return saldos.some(s => s.quantidade <= i.quantidade_minima);
-            return i.quantidade_atual <= i.quantidade_minima;
+            if (saldos.length > 0) return saldos.some(s => (parseInt(s.quantidade)||0) < (parseInt(s.quantidade_minima)||0) || (parseInt(s.quantidade)||0) < (parseInt(i.quantidade_minima)||0));
+            return (parseInt(i.quantidade_atual)||0) < (parseInt(i.quantidade_minima)||0);
         });
         
         const tipoEl = document.getElementById("filtro-estoque-tipo");
@@ -131,11 +131,11 @@ window.renderEstoqueTable = async function() {
             let isLow = false;
             if (saldos.length > 0) {
                 isLow = saldos.some(s => {
-                    const minRef = (s.quantidade_minima > 0) ? s.quantidade_minima : item.quantidade_minima;
-                    return minRef > 0 && s.quantidade <= minRef;
+                    const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : parseInt(item.quantidade_minima) || 0;
+                    return minRef > 0 && (parseInt(s.quantidade)||0) < minRef;
                 });
             } else {
-                isLow = item.quantidade_minima > 0 && item.quantidade_atual <= item.quantidade_minima;
+                isLow = (parseInt(item.quantidade_minima) > 0) && (parseInt(item.quantidade_atual)||0) < parseInt(item.quantidade_minima);
             }
 
             const rowBorderLeft = isLow ? '3px solid #ef4444' : '3px solid transparent';
@@ -165,8 +165,8 @@ window.renderEstoqueTable = async function() {
                 // Cor/estado deste endereço
                 let lowEnd = false;
                 if (s) {
-                    const minRef = (s.quantidade_minima > 0) ? s.quantidade_minima : item.quantidade_minima;
-                    lowEnd = minRef > 0 && s.quantidade <= minRef;
+                    const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : parseInt(item.quantidade_minima) || 0;
+                    lowEnd = minRef > 0 && (parseInt(s.quantidade)||0) < minRef;
                 }
 
                 // Qtd. Atual deste endereço

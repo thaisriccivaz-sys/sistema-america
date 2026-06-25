@@ -961,6 +961,8 @@
         const { colaborador: c, treinamento: t } = _assinTreinamento;
 
         try {
+            const secData = (typeof window.getDeviceSecurityData === 'function') ? await window.getDeviceSecurityData() : { gps_lat: '', gps_lon: '', dispositivo: navigator.userAgent };
+
             const r = await api('/treinamento-presenca/assinar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -969,7 +971,10 @@
                     treinamento_id: t.id,
                     assinatura_base64: _assinaturaBase64,
                     selfie_base64: _selfieBase64,
-                    instrutor_nome: getInstrutorNome()
+                    instrutor_nome: getInstrutorNome(),
+                    gps_lat: secData.gps_lat,
+                    gps_lon: secData.gps_lon,
+                    dispositivo: secData.dispositivo
                 })
             });
             if (!r.ok) {
