@@ -18238,6 +18238,75 @@ app.post('/api/public/pesquisa-treinamento/:token', (req, res) => {
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(400).json({ error: 'Pesquisa já respondida ou token inválido.' });
+      
+      // Notificações e e-mail (Assíncrono para não travar a resposta)
+      (async () => {
+          try {
+              const info = await new Promise((resolve, reject) => {
+                  db.get(`
+                      SELECT t.nome AS treinamento_nome, c.nome_completo AS colaborador_nome
+                      FROM treinamento_pesquisa_respostas r
+                      JOIN treinamentos t ON t.id = r.treinamento_id
+                      JOIN colaboradores c ON c.id = r.colaborador_id
+                      WHERE r.token = ?
+                  `, [token], (e, row) => e ? reject(e) : resolve(row));
+              });
+
+              if (info) {
+                  // Buscar usuários configurados para receber a notificação
+                  const configs = await new Promise((resolve, reject) => {
+                      db.all(`
+                          SELECT cn.usuario_id, u.email, u.nome
+                          FROM config_notificacoes cn
+                          JOIN usuarios u ON u.id = cn.usuario_id
+                          WHERE cn.tipo = 'pesquisa_satisfacao_treinamento'
+                      `, [], (e, rows) => e ? reject(e) : resolve(rows || []));
+                  });
+
+                  if (configs.length > 0) {
+                      const msg = `O colaborador ${info.colaborador_nome} respondeu à pesquisa do treinamento ${info.treinamento_nome}.`;
+                      const dadosStr = JSON.stringify({ treinamento_nome: info.treinamento_nome, colaborador_nome: info.colaborador_nome });
+                      
+                      // Inserir notificação no sistema (para popup via polling no frontend)
+                      for (const cfg of configs) {
+                          db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", 
+                              [cfg.usuario_id, 'pesquisa_satisfacao_treinamento', msg, dadosStr]);
+                      }
+
+                      // Enviar e-mail
+                      const emailsParaEnviar = configs.map(c => c.email).filter(e => e && e.trim() !== '');
+                      if (emailsParaEnviar.length > 0) {
+                          const mailOptions = {
+                              from: `"Treinamentos América Rental" <${SMTP_CONFIG.auth.user}>`,
+                              to: emailsParaEnviar,
+                              subject: `Pesquisa Respondida: ${info.treinamento_nome}`,
+                              html: `
+                                  <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                                      <div style="text-align: center; margin-bottom: 20px;">
+                                          <img src="cid:empresa-logo" alt="America Rental" style="max-height: 80px;" />
+                                      </div>
+                                      <h2 style="color: #0e7490; text-align: center;">Nova Pesquisa de Satisfação Respondida</h2>
+                                      <p>Temos uma nova resposta para a pesquisa de satisfação de treinamento.</p>
+                                      <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 20px;">
+                                          <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0; width: 140px;">Treinamento</th><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; color: #0e7490;">${info.treinamento_nome}</td></tr>
+                                          <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Colaborador</th><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">${info.colaborador_nome}</td></tr>
+                                      </table>
+                                      <p>Acesse o painel do sistema para visualizar as respostas em detalhes.</p>
+                                  </div>
+                              `,
+                              attachments: [
+                                  { filename: 'logo.png', path: path.join(__dirname, '..', 'frontend', 'assets', 'logo-america.png'), cid: 'empresa-logo' }
+                              ]
+                          };
+                          sendMailHelper(mailOptions).catch(e => console.error('[TREINAMENTO] Erro ao enviar e-mail de pesquisa:', e));
+                      }
+                  }
+              }
+          } catch (e) {
+              console.error('[TREINAMENTO] Erro ao processar notificação de pesquisa:', e);
+          }
+      })();
+
       res.json({ ok: true, message: 'Pesquisa salva com sucesso!' });
     }
   );

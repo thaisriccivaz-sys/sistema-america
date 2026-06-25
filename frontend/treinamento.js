@@ -134,8 +134,33 @@
             if (!r.ok) throw new Error('Erro ' + r.status);
             _cache = await r.json();
 
+            const deptSelect = el('filtro-treinamento-departamento');
+            if (deptSelect && deptSelect.options.length <= 1) {
+                api('/departamentos').then(res => res.json()).then(deptos => {
+                    if(!Array.isArray(deptos)) return;
+                    let html = '<option value="">Todos os Departamentos</option>';
+                    deptos.forEach(d => html += `<option value="${d.nome}">${d.nome}</option>`);
+                    const currentVal = deptSelect.value;
+                    deptSelect.innerHTML = html;
+                    deptSelect.value = currentVal;
+                }).catch(() => {});
+            }
+
             const filtro = (el('filtro-treinamento-busca') || { value: '' }).value.toLowerCase();
-            const lista  = filtro ? _cache.filter(t => t.nome.toLowerCase().includes(filtro)) : _cache;
+            const deptoFiltro = (el('filtro-treinamento-departamento') || { value: '' }).value;
+            
+            let lista = _cache;
+            if (filtro) {
+                lista = lista.filter(t => t.nome.toLowerCase().includes(filtro));
+            }
+            if (deptoFiltro) {
+                lista = lista.filter(t => {
+                    if (t.departamento === 'Todos') return true;
+                    if (!t.departamento) return false;
+                    const deptosArr = t.departamento.split(',').map(d => d.trim());
+                    return deptosArr.includes(deptoFiltro);
+                });
+            }
 
             if (badge) badge.textContent = `${lista.length} treinamento${lista.length !== 1 ? 's' : ''}`;
 
@@ -645,9 +670,10 @@
                         onmouseover="this.style.background='#0891b2'" onmouseout="this.style.background='#0e7490'">
                         <i class="ph ph-arrow-square-out"></i> Abrir
                     </button>
+                    <!-- botão de excluir material ocultado a pedido do usuário -->
                     <button onclick="window.excluirAnexoTrein(${a.id},${treinId})"
-                        style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:5px;padding:4px 8px;
-                        font-size:0.72rem;cursor:pointer;display:flex;align-items:center;"
+                        style="display:none; background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:5px;padding:4px 8px;
+                        font-size:0.72rem;cursor:pointer;align-items:center;"
                         onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'">
                         <i class="ph ph-trash"></i>
                     </button>

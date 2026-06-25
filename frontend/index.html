@@ -4531,6 +4531,11 @@
                 <input type="search" id="filtro-treinamento-busca" class="form-control" placeholder="Buscar treinamento..." oninput="window.renderTreinamentosTable()" autocomplete="off"
                     style="padding-left:38px;border-radius:8px;border:1px solid #e2e8f0;">
             </div>
+            <div style="width:250px;">
+                <select id="filtro-treinamento-departamento" class="form-control" onchange="window.renderTreinamentosTable()" style="border-radius:8px;border:1px solid #e2e8f0;">
+                    <option value="">Todos os Departamentos</option>
+                </select>
+            </div>
         </div>
         <div class="card" style="border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;margin-bottom:2rem;">
             <div style="background:linear-gradient(135deg,#0e7490,#0891b2);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;">

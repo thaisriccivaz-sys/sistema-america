@@ -13361,6 +13361,8 @@ async function checkUserNotificacoes() {
                     bg = '#fdf2f8'; color = '#ec4899'; icon = 'ph-user-plus'; titulo = 'Novo Colaborador para Distribuição'; navTarget = 'logistica-equipes';
                 } else if (notif.tipo === 'nova_ocorrencia') {
                     bg = '#fdf2f8'; color = '#d63384'; icon = 'ph-warning-octagon'; titulo = 'Notificação de RH'; navTarget = 'colaboradores';
+                } else if (notif.tipo === 'pesquisa_satisfacao_treinamento') {
+                    bg = '#ecfeff'; color = '#0e7490'; icon = 'ph-star'; titulo = 'Pesquisa de Satisfação'; navTarget = 'treinamentos';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -13465,6 +13467,16 @@ async function checkUserNotificacoes() {
                         <div style="color:#0f172a;font-weight:600;font-size:1rem;margin-bottom:4px;">
                             ${colabNome}
                         </div>
+                    `;
+                } else if (notif.tipo === 'pesquisa_satisfacao_treinamento') {
+                    const treinNome = dados.treinamento_nome || 'Treinamento';
+                    const colabNome = dados.colaborador_nome || 'Colaborador';
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#0f172a;font-weight:600;font-size:1rem;margin-bottom:4px;">${colabNome}</div>
+                        <div style="color:#64748b;font-size:0.85rem;">Respondeu à pesquisa do treinamento: <b>${treinNome}</b></div>
                     `;
                 } else {
                     contentHTML = `

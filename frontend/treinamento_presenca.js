@@ -128,7 +128,7 @@
                     ? `<button onclick="window.verResultadoPesquisaTreinamento(${t.id}, ${c.id})" title="Ver respostas da pesquisa" style="background:#10b981;color:#fff;border:1.5px solid #059669;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:3px;width:100%;">
                         <i class="ph ph-chart-bar"></i>
                     </button>`
-                    : `<button onclick="window.copiarLinkPesquisa(${t.id}, ${c.id}, this)" title="Copiar link da pesquisa" style="background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:3px;width:100%;"><i class="ph ph-link"></i></button>`;
+                    : `<button onclick="window.copiarLinkPesquisa(${t.id}, ${c.id}, this, '${t.nome.replace(/'/g, "\\'")}')" title="Copiar link da pesquisa" style="background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:3px;width:100%;"><i class="ph ph-link"></i></button>`;
 
                 return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
                     <i class="ph ph-check-circle" style="color:#10b981;font-size:1.1rem;flex-shrink:0;"></i>
@@ -273,7 +273,7 @@
                                 style="background:#10b981;color:#fff;border:1.5px solid #059669;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
                                 <i class="ph ph-chart-bar"></i> Ver Respostas
                             </button>`
-                          : `<button onclick="window.copiarLinkPesquisa(${h.treinamento_id}, ${colaboradorId}, this)"
+                          : `<button onclick="window.copiarLinkPesquisa(${h.treinamento_id}, ${colaboradorId}, this, '${h.treinamento_nome.replace(/'/g, "\\'")}')"
                                 style="background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
                                 <i class="ph ph-link"></i> Copiar Link
                               </button>`
@@ -1038,7 +1038,7 @@
     }
 
     // ── PESQUISA DE SATISFAÇÃO ────────────────────────────────────────────────
-    window.copiarLinkPesquisa = async function(treinId, colabId, btn) {
+    window.copiarLinkPesquisa = async function(treinId, colabId, btn, treinNome) {
         const textOrig = btn.innerHTML;
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...';
         btn.disabled = true;
@@ -1055,7 +1055,8 @@
             }
             const res = await r.json();
             
-            await navigator.clipboard.writeText(res.link);
+            const msgToCopy = `Pesquisa referente ao treinamento: ${treinNome || 'Treinamento'}\n\nPor favor, responda a nossa pesquisa de satisfação acessando o link abaixo:\n${res.link}`;
+            await navigator.clipboard.writeText(msgToCopy);
             
             btn.innerHTML = '<i class="ph ph-check"></i> Copiado!';
             setTimeout(() => {
