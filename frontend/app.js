@@ -19,6 +19,7 @@ function showToast(msg, type) {
 
 // Estado global
 let currentUser = null;
+window.currentUser = null;
 let currentToken = null;
 let currentDocs = [];
 let viewedColaborador = null;
@@ -131,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentToken = savedToken;
         window.currentToken = currentToken;
         currentUser = JSON.parse(savedUser);
+        window.currentUser = currentUser;
 
         const nameEl = document.getElementById('logged-user-name');
         if (nameEl) nameEl.textContent = currentUser.username;
@@ -209,6 +211,7 @@ if (formLogin) {
             currentToken = data.token;
             currentUser = data.user;
             window.currentToken = currentToken;
+            window.currentUser = currentUser;
 
             localStorage.setItem('erp_token', currentToken);
             localStorage.setItem('erp_user', JSON.stringify(currentUser));
@@ -241,6 +244,7 @@ if (btnLogout) {
     btnLogout.addEventListener('click', (e) => {
         e.preventDefault();
         currentUser = null;
+        window.currentUser = null;
         currentToken = null;
         localStorage.removeItem('erp_token');
         localStorage.removeItem('erp_user');

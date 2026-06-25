@@ -356,10 +356,14 @@ function _renderFormPropostaInt() {
     const prop = id ? _propostasData.find(p => p.id === id) : null;
     const isNovo = !prop;
     const hoje = new Date().toISOString().split('T')[0];
+    const dataCadastroVal = prop && prop.data_cadastro ? prop.data_cadastro : hoje;
     const umaSemanaDepois = (() => {
-        const d = new Date();
+        const d = new Date(dataCadastroVal + 'T12:00:00');
         d.setDate(d.getDate() + 7);
-        return d.toISOString().split('T')[0];
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
     })();
     const titulo = isNovo ? '📄 Nova Proposta' : `✏️ Editar Proposta — ${prop.codigo}`;
 
@@ -439,7 +443,7 @@ function _renderFormPropostaInt() {
                         </div>
                         <div>
                             <label class="prop-lbl">Atendente</label>
-                            <input type="text" id="prop-atendente" value="${v('atendente') || window.currentUser?.nome || window.currentUser?.email || ''}" readonly
+                            <input type="text" id="prop-atendente" value="${v('atendente') || window.currentUser?.nome || window.currentUser?.username || window.currentUser?.email || ''}" readonly
                                 style="width:100%;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                     </div>
@@ -448,12 +452,12 @@ function _renderFormPropostaInt() {
                     <div style="display:grid; grid-template-columns:1fr 1fr 1.5fr 1.5fr; gap:1rem; margin-bottom:1rem;">
                         <div>
                             <label class="prop-lbl">Data Cadastro *</label>
-                            <input type="date" id="prop-data-cadastro" value="${v('data_cadastro') || hoje}"
+                            <input type="date" id="prop-data-cadastro" value="${v('data_cadastro') || hoje}" onchange="window.calcularPrevisaoFechamento()"
                                 style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div>
                             <label class="prop-lbl">Previsão Fechamento *</label>
-                            <input type="date" id="prop-previsao" value="${v('previsao_fechamento') || (isNovo ? umaSemanaDepois : '')}"
+                            <input type="date" id="prop-previsao" value="${v('previsao_fechamento') || umaSemanaDepois}"
                                 style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div>
@@ -570,7 +574,7 @@ function _renderFormPropostaInt() {
                         <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr; gap:1rem;">
                             <div style="grid-column:span 2;">
                                 <label class="prop-lbl">Representante *</label>
-                                <input type="text" id="prop-representante" value="${v('representante') || window.currentUser?.nome || window.currentUser?.email || ''}" readonly
+                                <input type="text" id="prop-representante" value="${v('representante') || window.currentUser?.nome || window.currentUser?.username || window.currentUser?.email || ''}" readonly
                                     style="width:100%;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                             <div>
@@ -821,33 +825,26 @@ window.pesquisarClienteProposta = async function() {
 };
 
 window.pesquisarContatoProposta = async function() {
-    const query = document.getElementById('prop-contato').value.trim();
-    if (!query) {
-        Swal.fire({
-            title: 'Contato não informado',
-            text: 'Deseja abrir o formulário de Cadastro de Contatos?',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Sim, cadastrar',
-            cancelButtonText: 'Não',
-            confirmButtonColor: '#2e58a6',
-            cancelButtonColor: '#64748b'
-        }).then((res) => {
-            if (res.isConfirmed) {
-                _redirectAfterContactSave = true;
-                window.switchPropostaTab('cadastro-contatos');
-                window.limparFormContato();
-            }
-        });
+    const clienteNome = document.getElementById('prop-cliente').value.trim();
+    if (!clienteNome) {
+        Swal.fire('Aviso', 'Por favor, selecione o cliente primeiro para buscar os contatos.', 'warning');
         return;
     }
 
+    const query = document.getElementById('prop-contato').value.trim();
+
     try {
         const contatos = await apiGet('/contatos');
-        const filtrados = contatos.filter(c => 
-            (c.nome && c.nome.toLowerCase().includes(query.toLowerCase())) ||
-            (c.codigo && c.codigo.toString() === query)
-        );
+        const filtrados = contatos.filter(c => {
+            const matchCliente = c.cliente_nome && c.cliente_nome.toLowerCase() === clienteNome.toLowerCase();
+            if (!matchCliente) return false;
+            
+            if (query) {
+                return (c.nome && c.nome.toLowerCase().includes(query.toLowerCase())) ||
+                       (c.codigo && c.codigo.toString() === query);
+            }
+            return true;
+        });
 
         if (filtrados.length >= 1) {
             const rowsHtml = filtrados.map(c => `
@@ -895,13 +892,20 @@ window.pesquisarContatoProposta = async function() {
                     setTimeout(() => {
                         const nameInput = document.getElementById('con-nome');
                         if (nameInput) nameInput.value = query;
+                        const empRazaoInput = document.getElementById('emp-razao-social');
+                        if (empRazaoInput) {
+                            empRazaoInput.value = clienteNome;
+                            empRazaoInput.dispatchEvent(new Event('input'));
+                        }
                     }, 300);
                 }
             });
         } else {
             Swal.fire({
                 title: 'Contato não cadastrado',
-                text: `Nenhum contato encontrado com "${query}". Deseja abrir o Cadastro de Contatos?`,
+                text: query 
+                    ? `Nenhum contato encontrado com "${query}" para o cliente "${clienteNome}". Deseja abrir o Cadastro de Contatos?`
+                    : `Nenhum contato cadastrado para o cliente "${clienteNome}". Deseja abrir o Cadastro de Contatos?`,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonText: 'Sim, cadastrar',
@@ -916,6 +920,11 @@ window.pesquisarContatoProposta = async function() {
                     setTimeout(() => {
                         const nameInput = document.getElementById('con-nome');
                         if (nameInput) nameInput.value = query;
+                        const empRazaoInput = document.getElementById('emp-razao-social');
+                        if (empRazaoInput) {
+                            empRazaoInput.value = clienteNome;
+                            empRazaoInput.dispatchEvent(new Event('input'));
+                        }
                     }, 300);
                 }
             });
@@ -964,6 +973,18 @@ window.verDetalhesContatoProposta = async function() {
 };
 
 /* ── Cálculos auxiliares ────────────────────────────────────────────── */
+window.calcularPrevisaoFechamento = function() {
+    const dataCad = document.getElementById('prop-data-cadastro')?.value;
+    const previsaoEl = document.getElementById('prop-previsao');
+    if (!dataCad || !previsaoEl) return;
+    const date = new Date(dataCad + 'T12:00:00');
+    date.setDate(date.getDate() + 7);
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    previsaoEl.value = `${yyyy}-${mm}-${dd}`;
+};
+
 window.calcularDiasContrato = function() {
     const ini = document.getElementById('prop-periodo-ini')?.value;
     const fim = document.getElementById('prop-periodo-fim')?.value;
