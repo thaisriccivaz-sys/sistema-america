@@ -259,7 +259,7 @@
                     <div style="min-width:0;">
                         <div style="display:flex;align-items:center;gap:8px;">
                             <span style="font-weight:600;color:#0f172a;font-size:0.93rem;">${t.nome}</span>
-                            <span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:600;">${t.departamento || 'Todos'}</span>
+                            <span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:600;white-space:normal;max-width:350px;">${t.departamento && t.departamento.includes('Todos') ? 'Todos' : (t.departamento || 'Todos')}</span>
                         </div>
                         ${desc}
                         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">${pills || '<span style="color:#94a3b8;font-size:0.72rem;">Sem arquivos</span>'}</div>
