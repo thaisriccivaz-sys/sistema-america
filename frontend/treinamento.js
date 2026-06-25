@@ -919,7 +919,7 @@
     };
 
     window.carregarPerguntasTreinamento = async function(id) {
-        const container = el('lista-perguntas-treinamento');
+        const container = el('editar-treinamento-perguntas-container');
         if (!container) return;
         container.innerHTML = '<p>Carregando...</p>';
         try {
@@ -943,7 +943,7 @@
     };
 
     window.adicionarPerguntaTreinamento = function(texto = '') {
-        const container = el('lista-perguntas-treinamento');
+        const container = el('editar-treinamento-perguntas-container');
         if (!container) return;
         const div = document.createElement('div');
         div.className = 'editar-pesquisa-pergunta-item';
@@ -1008,7 +1008,7 @@
     };
 
     window.salvarPerguntasTreinamento = async function(id) {
-        const container = el('lista-perguntas-treinamento');
+        const container = el('editar-treinamento-perguntas-container');
         if (!container) return;
         const items = document.querySelectorAll('.editar-pesquisa-pergunta-item');
         const perguntasArray = Array.from(items).map(item => {
@@ -1033,8 +1033,10 @@
     window.fecharModalEditarTreinamento = function() {
         if (oldFechar) oldFechar();
         if (typeof window.mudarAbaEditarTreinamento === 'function') window.mudarAbaEditarTreinamento('detalhes');
-        const container = el('lista-perguntas-treinamento');
+        const container = el('editar-treinamento-perguntas-container');
         if (container) container.innerHTML = '';
     };
+
+    window._adicionarPerguntaPesquisaEditar = window.adicionarPerguntaTreinamento;
 
 })();
