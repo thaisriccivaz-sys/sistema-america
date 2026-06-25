@@ -268,11 +268,21 @@
                     <div class="dept-submenu-header" style="color:#0e7490;"><i class="ph ph-graduation-cap"></i> Treinamento
                     </div>
                     <a href="#" class="nav-item" data-target="treinamento-materiais"
-                        onclick="navigateTo('treinamento-materiais'); return false;"><i class="ph ph-books"></i>
+                        onclick="window._currentTreinamentoTipo='treinamento'; navigateTo('treinamento-materiais'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.renderTreinamentosTable) window.renderTreinamentosTable(); }, 10); return false;"><i class="ph ph-books"></i>
                         Materiais</a>
                     <a href="#" class="nav-item" data-target="treinamento-presenca"
-                        onclick="navigateTo('treinamento-presenca'); return false;"><i class="ph ph-check-square"></i>
+                        onclick="window._currentTreinamentoTipo='treinamento'; navigateTo('treinamento-presenca'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.initPresencaTreinamento) window.initPresencaTreinamento(); }, 10); return false;"><i class="ph ph-check-square"></i>
                         Presenças</a>
+
+                    <div class="dept-submenu-header" style="color:#0e7490; margin-top: 10px; border-top: 1px solid rgba(14,116,144,0.2); padding-top: 10px;">
+                        <i class="ph ph-heart-beat"></i> Terapia
+                    </div>
+                    <a href="#" class="nav-item" data-target="treinamento-materiais"
+                        onclick="window._currentTreinamentoTipo='terapia'; navigateTo('treinamento-materiais'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.renderTreinamentosTable) window.renderTreinamentosTable(); }, 10); return false;"><i class="ph ph-books"></i>
+                        Conteúdos</a>
+                    <a href="#" class="nav-item" data-target="treinamento-presenca"
+                        onclick="window._currentTreinamentoTipo='terapia'; navigateTo('treinamento-presenca'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.initPresencaTreinamento) window.initPresencaTreinamento(); }, 10); return false;"><i class="ph ph-list-numbers"></i>
+                        Listas</a>
                 </div>
             </div>
 
@@ -5480,8 +5490,8 @@
     <!-- ══════════════════════════════════════════════════════════════ -->
     <!-- MODAL: EDITAR TREINAMENTO                                      -->
     <!-- ══════════════════════════════════════════════════════════════ -->
-    <div id="modal-editar-treinamento" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9050;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto;">
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:560px;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;margin:auto;">
+    <div id="modal-editar-treinamento" style="display:none;position:fixed;inset:0;background:#fff;z-index:9050;align-items:flex-start;justify-content:center;padding:0;overflow-y:auto;">
+        <div style="background:#fff;border-radius:0;width:100%;min-height:100vh;box-shadow:none;overflow:hidden;margin:0;">
             <div style="background:linear-gradient(135deg,#1d4ed8,#2563eb);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
                 <h3 style="margin:0;color:#fff;font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:8px;">
                     <i class="ph ph-pencil-simple"></i> Editar Treinamento
@@ -5615,8 +5625,8 @@
     <!-- ══════════════════════════════════════════════════════════════ -->
     <!-- MODAL: NOVO TREINAMENTO                                        -->
     <!-- ══════════════════════════════════════════════════════════════ -->
-    <div id="modal-novo-treinamento" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;display:none;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto;">
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;margin:auto;">
+    <div id="modal-novo-treinamento" style="display:none;position:fixed;inset:0;background:#fff;z-index:9000;display:none;align-items:flex-start;justify-content:center;padding:0;overflow-y:auto;">
+        <div style="background:#fff;border-radius:0;width:100%;min-height:100vh;box-shadow:none;overflow:hidden;margin:0;">
             <div style="background:linear-gradient(135deg,#0e7490,#0891b2);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
                 <h3 style="margin:0;color:#fff;font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:8px;">
                     <i class="ph ph-graduation-cap"></i> Novo Treinamento

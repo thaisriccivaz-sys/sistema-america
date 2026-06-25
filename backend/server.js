@@ -17959,6 +17959,11 @@ db.run(`CREATE TABLE IF NOT EXISTS treinamentos (
   criado_em   DATETIME DEFAULT CURRENT_TIMESTAMP,
   criado_por  TEXT DEFAULT ''
 )`);
+db.run("ALTER TABLE treinamentos ADD COLUMN tipo TEXT DEFAULT 'treinamento'", (err) => {
+  if (err && !err.message.includes("duplicate column name")) {
+    console.error("Migração (treinamentos.tipo):", err.message);
+  }
+});
 db.run("ALTER TABLE treinamentos ADD COLUMN departamento TEXT DEFAULT 'Todos'", (err) => {
   if (err && !err.message.includes("duplicate column name")) {
     console.error("Migração (treinamentos.departamento):", err.message);
@@ -18035,6 +18040,7 @@ function _fixFileName(nome) {
 
 // ── GET /api/treinamentos — Lista todos com count de anexos ──────────────────
 app.get('/api/treinamentos', authenticateToken, (req, res) => {
+  const tipo = req.query.tipo || 'treinamento';
   const sql = `
     SELECT t.*,
       (SELECT json_group_array(json_object(
@@ -18047,9 +18053,10 @@ app.get('/api/treinamentos', authenticateToken, (req, res) => {
        FROM treinamento_anexos a WHERE a.treinamento_id = t.id
       ) AS _anexos_json
     FROM treinamentos t
+    WHERE t.tipo = ?
     ORDER BY t.criado_em DESC`;
 
-  db.all(sql, [], (err, rows) => {
+  db.all(sql, [tipo], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     const lista = (rows || []).map(r => {
       let anexos = [];
@@ -18062,13 +18069,13 @@ app.get('/api/treinamentos', authenticateToken, (req, res) => {
 
 // ── POST /api/treinamentos — Cria treinamento ─────────────────────────────────
 app.post('/api/treinamentos', authenticateToken, (req, res) => {
-  const { nome, descricao, departamento, capa_url, validade_dias, pesquisa_perguntas } = req.body || {};
+  const { nome, descricao, departamento, capa_url, validade_dias, pesquisa_perguntas, tipo = 'treinamento' } = req.body || {};
   if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
   const criado_por = req.user?.nome || req.user?.email || '';
   
   db.run(
-    `INSERT INTO treinamentos (nome, descricao, criado_por, departamento, capa_url, validade_dias) VALUES (?, ?, ?, ?, ?, ?)`,
-    [nome.trim(), (descricao || '').trim(), criado_por, (departamento || 'Todos').trim(), (capa_url || '').trim(), parseInt(validade_dias) || 0],
+    `INSERT INTO treinamentos (nome, descricao, criado_por, departamento, capa_url, validade_dias, tipo) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [nome.trim(), (descricao || '').trim(), criado_por, (departamento || 'Todos').trim(), (capa_url || '').trim(), parseInt(validade_dias) || 0, tipo.trim()],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       const newId = this.lastID;
@@ -18095,11 +18102,11 @@ app.post('/api/treinamentos', authenticateToken, (req, res) => {
 });
 // ── PUT /api/treinamentos/:id — Atualiza treinamento ─────────────────────────
 app.put('/api/treinamentos/:id', authenticateToken, (req, res) => {
-  const { nome, descricao, departamento, capa_url, validade_dias } = req.body || {};
+  const { nome, descricao, departamento, capa_url, validade_dias, tipo } = req.body || {};
   if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
   db.run(
-    `UPDATE treinamentos SET nome = ?, descricao = ?, departamento = ?, capa_url = ?, validade_dias = ? WHERE id = ?`,
-    [nome.trim(), (descricao || '').trim(), (departamento || 'Todos').trim(), (capa_url !== undefined ? capa_url : ''), parseInt(validade_dias) || 0, req.params.id],
+    `UPDATE treinamentos SET nome = ?, descricao = ?, departamento = ?, capa_url = ?, validade_dias = ?, tipo = ? WHERE id = ?`,
+    [nome.trim(), (descricao || '').trim(), (departamento || 'Todos').trim(), (capa_url !== undefined ? capa_url : ''), parseInt(validade_dias) || 0, tipo ? tipo.trim() : 'treinamento', req.params.id],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Treinamento não encontrado.' });
@@ -18527,7 +18534,7 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
     ORDER BY nome_completo ASC
   `;
   const sqlTrein = `
-    SELECT id, nome, descricao, departamento, capa_url, validade_dias
+    SELECT id, nome, descricao, departamento, capa_url, validade_dias, tipo
     FROM treinamentos
     ORDER BY nome ASC
   `;

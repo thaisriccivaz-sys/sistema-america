@@ -132,7 +132,31 @@
         try {
             const r = await api('/treinamentos');
             if (!r.ok) throw new Error('Erro ' + r.status);
-            _cache = await r.json();
+            let rawData = await r.json();
+            
+            const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
+            _cache = rawData.filter(t => (t.tipo || 'treinamento') === tipoAtual);
+
+            // Atualiza UI dinamicamente
+            const view = el('view-treinamento-materiais');
+            if (view) {
+                const h1 = view.querySelector('h1');
+                const p = view.querySelector('p');
+                const btnNovo = view.querySelector('button[onclick="window.abrirModalNovoTreinamento()"]');
+                if (tipoAtual === 'terapia') {
+                    if (h1) h1.textContent = 'Conteúdos de Terapia';
+                    if (p) p.textContent = 'Gerencie conteúdos, vídeos e materiais de terapia.';
+                    if (btnNovo) btnNovo.innerHTML = '<i class="ph ph-plus-circle"></i> Nova Terapia';
+                    el('filtro-treinamento-busca').placeholder = 'Buscar terapia...';
+                    if(view.querySelector('.ph-books').nextSibling) view.querySelector('.ph-books').nextSibling.textContent = ' Terapias Cadastradas';
+                } else {
+                    if (h1) h1.textContent = 'Materiais de Treinamento';
+                    if (p) p.textContent = 'Gerencie apresentações, vídeos, PDFs e outros materiais de treinamento.';
+                    if (btnNovo) btnNovo.innerHTML = '<i class="ph ph-plus-circle"></i> Novo Treinamento';
+                    el('filtro-treinamento-busca').placeholder = 'Buscar treinamento...';
+                    if(view.querySelector('.ph-books').nextSibling) view.querySelector('.ph-books').nextSibling.textContent = ' Treinamentos Cadastrados';
+                }
+            }
 
             const deptSelect = el('filtro-treinamento-departamento');
             if (deptSelect && deptSelect.options.length <= 1) {
@@ -162,12 +186,14 @@
                 });
             }
 
-            if (badge) badge.textContent = `${lista.length} treinamento${lista.length !== 1 ? 's' : ''}`;
+            if (badge) badge.textContent = `${lista.length} ${tipoAtual === 'terapia' ? 'terapia' : 'treinamento'}${lista.length !== 1 ? 's' : ''}`;
 
             if (!lista.length) {
+                const textNotFound = tipoAtual === 'terapia' ? 'Nenhuma terapia cadastrada ainda.' : 'Nenhum treinamento cadastrado ainda.';
+                const iconClass = tipoAtual === 'terapia' ? 'ph-heart-beat' : 'ph-graduation-cap';
                 tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:3rem;color:#94a3b8;">
-                    <i class="ph ph-graduation-cap" style="font-size:2.5rem;display:block;margin-bottom:0.5rem;"></i>
-                    Nenhum treinamento cadastrado ainda.</td></tr>`;
+                    <i class="ph ${iconClass}" style="font-size:2.5rem;display:block;margin-bottom:0.5rem;"></i>
+                    ${textNotFound}</td></tr>`;
                 return;
             }
 
@@ -357,8 +383,9 @@
             <option value="titulo">Título/Seção</option>
         `;
 
-        const input = document.createElement('input');
-        input.type = 'text';
+        const input = document.createElement('textarea');
+        input.rows = '2';
+        input.style.resize = 'vertical';
         input.className = 'form-control novo-pesquisa-input-pergunta';
         input.placeholder = `Texto da pergunta ou título...`;
         if (typeof texto === 'object' && texto !== null) {
@@ -495,10 +522,11 @@
             }).filter(p => p.pergunta !== '');
 
             // 1. Cria o treinamento
+            const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
             const r = await api('/treinamentos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, descricao: desc || '', departamento, validade_dias, pesquisa_perguntas })
+                body: JSON.stringify({ nome, descricao: desc || '', departamento, validade_dias, pesquisa_perguntas, tipo: tipoAtual })
             });
             if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'Erro ao criar'); }
             const novoTrein = await r.json();
@@ -512,7 +540,7 @@
                         await api('/treinamentos/' + novoTrein.id, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ nome, descricao: desc || '', departamento, capa_url: url })
+                            body: JSON.stringify({ nome, descricao: desc || '', departamento, capa_url: url, tipo: tipoAtual })
                         });
                     }
                 } catch (capaErr) {
@@ -845,11 +873,12 @@
             }
 
             const validade_dias = parseInt((el('editar-treinamento-validade') || {}).value || '0', 10) || 0;
+            const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
 
             const r = await api('/treinamentos/' + id, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, descricao: desc || '', departamento, capa_url, validade_dias })
+                body: JSON.stringify({ nome, descricao: desc || '', departamento, capa_url, validade_dias, tipo: tipoAtual })
             });
             if (!r.ok) {
                 const e = await r.json().catch(() => ({}));
@@ -997,8 +1026,9 @@
             <option value="titulo">Título/Seção</option>
         `;
 
-        const input = document.createElement('input');
-        input.type = 'text';
+        const input = document.createElement('textarea');
+        input.rows = '2';
+        input.style.resize = 'vertical';
         input.className = 'form-control input-pergunta';
         input.placeholder = 'Texto da pergunta ou título...';
         if (typeof texto === 'object' && texto !== null) {
