@@ -19721,7 +19721,7 @@ window._carregarAuditoria = async function () {
         `).join('');
 
     } catch (e) {
-        tbody.innerHTML = \`<tr><td colspan="7" style="text-align:center;padding:20px;color:#dc2626;"><i class="ph ph-warning-circle"></i> Erro ao carregar auditoria: \${e.message}</td></tr>\`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:#dc2626;"><i class="ph ph-warning-circle"></i> Erro ao carregar auditoria: ${e.message}</td></tr>`;
     }
 };
 
