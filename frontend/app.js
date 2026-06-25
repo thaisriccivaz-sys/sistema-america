@@ -9872,10 +9872,18 @@ window._avaliarRegraGerador = function (g, colab, deptNome) {
 
     if (!regra.visivel_automatico) return false;
 
-    // Verificar restrição de departamento
+    // Verificar restrição de departamento (ou cargo/tipo)
     if (regra.departamentos && regra.departamentos.length > 0) {
-        const deptNomeLower = (deptNome || '').toLowerCase().trim();
-        const match = regra.departamentos.some(d => d.toLowerCase().trim() === deptNomeLower);
+        const deptNomeLower = (deptNome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const cargoLower = (colab.cargo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const tipoLower = (colab.tipo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        
+        const match = regra.departamentos.some(d => {
+            const dLower = d.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            // Remove o 's' final do 'motoristas' para buscar 'motorista'
+            const dLowerBase = dLower.endsWith('s') && dLower !== 'liderancas' ? dLower.slice(0, -1) : dLower;
+            return deptNomeLower.includes(dLowerBase) || cargoLower.includes(dLowerBase) || tipoLower.includes(dLowerBase);
+        });
         if (!match) return false;
     }
 
