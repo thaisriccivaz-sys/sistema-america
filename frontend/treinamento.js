@@ -371,8 +371,37 @@
             select.innerHTML = html;
             const selArray = (typeof selecionado === 'string' ? selecionado : 'Todos').split(',').map(s => s.trim());
             const checkboxes = select.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(cb => {
-                cb.checked = selArray.includes(cb.value);
+            
+            const todoCheckbox = select.querySelector('input[value="Todos"]');
+            const otherCheckboxes = Array.from(checkboxes).filter(cb => cb.value !== 'Todos');
+
+            // Apply initial state
+            if (selArray.includes('Todos')) {
+                todoCheckbox.checked = true;
+                otherCheckboxes.forEach(cb => cb.checked = true);
+            } else {
+                otherCheckboxes.forEach(cb => {
+                    cb.checked = selArray.includes(cb.value);
+                });
+                todoCheckbox.checked = otherCheckboxes.length > 0 && otherCheckboxes.every(c => c.checked);
+            }
+
+            // Bind events
+            if (todoCheckbox) {
+                todoCheckbox.addEventListener('change', (e) => {
+                    otherCheckboxes.forEach(cb => cb.checked = e.target.checked);
+                });
+            }
+
+            otherCheckboxes.forEach(cb => {
+                cb.addEventListener('change', () => {
+                    if (!cb.checked) {
+                        if (todoCheckbox) todoCheckbox.checked = false;
+                    } else {
+                        const allChecked = otherCheckboxes.every(c => c.checked);
+                        if (todoCheckbox) todoCheckbox.checked = allChecked;
+                    }
+                });
             });
         } catch(e) {}
     }
