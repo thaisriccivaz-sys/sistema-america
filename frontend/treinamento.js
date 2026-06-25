@@ -190,7 +190,7 @@
 
             if (!lista.length) {
                 const textNotFound = tipoAtual === 'terapia' ? 'Nenhuma terapia cadastrada ainda.' : 'Nenhum treinamento cadastrado ainda.';
-                const iconClass = tipoAtual === 'terapia' ? 'ph-heart-beat' : 'ph-graduation-cap';
+                const iconClass = tipoAtual === 'terapia' ? 'ph-heartbeat' : 'ph-graduation-cap';
                 tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:3rem;color:#94a3b8;">
                     <i class="ph ${iconClass}" style="font-size:2.5rem;display:block;margin-bottom:0.5rem;"></i>
                     ${textNotFound}</td></tr>`;
