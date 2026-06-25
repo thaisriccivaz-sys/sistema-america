@@ -35,7 +35,7 @@ async function uploadToR2(destinationKey, fileData, contentType) {
     
     let bodyData;
     if (typeof fileData === 'string') {
-        bodyData = fs.createReadStream(fileData);
+        bodyData = fs.readFileSync(fileData);
     } else {
         bodyData = fileData;
     }

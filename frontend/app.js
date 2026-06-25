@@ -468,7 +468,7 @@ const BREADCRUMB_MAP = {
     'admissao': { path: 'Admissão', code: 'RHAD05' },
     'treinamento-materiais': { path: 'Treinamentos → Materiais', code: 'TREIN01' },
     'treinamento-presenca': { path: 'Treinamentos → Presenças', code: 'TREIN02' },
-    'treinamento-materiais-terapia': { path: 'Treinamentos - Terapia - Conteúdo', code: 'TER01' },
+    'treinamento-materiais-terapia': { path: 'Treinamentos - Terapia - Palestras', code: 'TER01' },
     'treinamento-presenca-terapia': { path: 'Treinamentos - Terapia - Listas', code: 'TER02' },
     'ficha-epi': { path: 'Ficha EPI', code: 'RHEPI01' },
     'avaliacoes': { path: 'Avaliações', code: 'RHAV01' },
@@ -730,7 +730,7 @@ const TAB_META = {
     'experiencia': { color: '#f503c5', icon: 'ph-user-check', title: 'Experiência' },
     'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais' },
     'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presenças' },
-    'treinamento-materiais-terapia': { color: '#0e7490', icon: 'ph-books', title: 'Conteúdos' },
+    'treinamento-materiais-terapia': { color: '#0e7490', icon: 'ph-books', title: 'Palestras' },
     'treinamento-presenca-terapia': { color: '#0e7490', icon: 'ph-list-numbers', title: 'Listas' },
     // Diretoria - Laranja
     'usuarios-permissoes': { color: '#d9480f', icon: 'ph-users-three', title: 'Usuários e Permissões' },
