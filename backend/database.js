@@ -79,6 +79,124 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `);
 
+            // Tabela de Clientes (América Rental)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS clientes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo INTEGER UNIQUE,
+                    data_cadastro TEXT,
+                    inativo INTEGER DEFAULT 0,
+                    cpf_cnpj TEXT UNIQUE,
+                    inscricao_estadual TEXT,
+                    inscricao_municipal TEXT,
+                    rg TEXT,
+                    data_nascimento TEXT,
+                    grupo_clientes TEXT,
+                    cliente_centralizador TEXT,
+                    nome_razao_social TEXT,
+                    nome_fantasia TEXT,
+                    cep TEXT,
+                    endereco TEXT,
+                    numero TEXT,
+                    complemento TEXT,
+                    bairro TEXT,
+                    uf TEXT,
+                    municipio TEXT,
+                    pais TEXT,
+                    telefone TEXT,
+                    ramal TEXT,
+                    telefone_2 TEXT,
+                    ramal_2 TEXT,
+                    fax TEXT,
+                    website TEXT,
+                    celular_ddi TEXT,
+                    celular TEXT,
+                    parametros TEXT,
+                    fiscal TEXT,
+                    contatos TEXT,
+                    validacao_dados TEXT,
+                    anexo_arquivos TEXT,
+                    criado_por TEXT,
+                    criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+                    atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+                )
+            `);
+
+            // Tabela de Contatos (América Rental)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS contatos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo INTEGER UNIQUE,
+                    nome TEXT,
+                    tipo TEXT,
+                    representante TEXT,
+                    departamento TEXT,
+                    cargo TEXT,
+                    origem TEXT,
+                    influenciador TEXT,
+                    classificacao TEXT,
+                    data_nascimento TEXT,
+                    ramo_atividade TEXT,
+                    regiao TEXT,
+                    sexo TEXT,
+                    celular TEXT,
+                    telefone TEXT,
+                    ramal TEXT,
+                    nextel TEXT,
+                    email TEXT,
+                    outra_comunicacao TEXT,
+                    inativo INTEGER DEFAULT 0,
+                    email_cobranca INTEGER DEFAULT 0,
+                    email_nfe INTEGER DEFAULT 0,
+                    email_os INTEGER DEFAULT 0,
+                    email_contrato INTEGER DEFAULT 0,
+                    cliente_id INTEGER,
+                    criado_por TEXT,
+                    criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+                    atualizado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+                    FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+                )
+            `);
+
+            // Tabela de Propostas Comerciais (América Rental)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS propostas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE,
+                    local TEXT,
+                    tipo TEXT,
+                    atendente TEXT,
+                    data_cadastro TEXT,
+                    previsao_fechamento TEXT,
+                    fase_negociacao TEXT,
+                    modelo_impressao TEXT,
+                    cliente_nome TEXT,
+                    contato_nome TEXT,
+                    periodo_inicio TEXT,
+                    periodo_fim TEXT,
+                    hora_inicio TEXT DEFAULT '00:00',
+                    hora_fim TEXT DEFAULT '00:00',
+                    dias_contrato INTEGER DEFAULT 0,
+                    tabela_precos TEXT,
+                    endereco_instalacao TEXT,
+                    desconto_percent REAL DEFAULT 0,
+                    desconto_reais REAL DEFAULT 0,
+                    condicao_pagamento TEXT,
+                    representante TEXT,
+                    transportadora TEXT,
+                    tipo_frete TEXT,
+                    valor_frete_ida REAL DEFAULT 0,
+                    valor_frete_volta REAL DEFAULT 0,
+                    observacoes TEXT,
+                    valor_total REAL DEFAULT 0,
+                    status TEXT DEFAULT 'Ativa',
+                    contrato TEXT,
+                    criado_por TEXT,
+                    criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+                    atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+                )
+            `);
+
             // Tabela de Colaboradores (Expandida com Emergência)
             db.run(`
                 CREATE TABLE IF NOT EXISTS colaboradores (
