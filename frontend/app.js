@@ -23,6 +23,34 @@ let currentToken = null;
 let currentDocs = [];
 let viewedColaborador = null;
 
+// Helper global para coletar GPS e Device Info para auditoria jurídica
+window.getDeviceSecurityData = async function() {
+    let gps_lat = '';
+    let gps_lon = '';
+    const dispositivo = navigator.userAgent;
+
+    return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+            resolve({ gps_lat, gps_lon, dispositivo });
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                resolve({
+                    gps_lat: position.coords.latitude.toString(),
+                    gps_lon: position.coords.longitude.toString(),
+                    dispositivo
+                });
+            },
+            (error) => {
+                console.warn('[GPS] Permissão negada ou erro:', error);
+                resolve({ gps_lat: 'negado/erro', gps_lon: 'negado/erro', dispositivo });
+            },
+            { timeout: 5000 }
+        );
+    });
+};
+
 // Helper global para PDF
 window.gerarPDFBlob = async function (element, filename = 'documento.pdf') {
     return new Promise((resolve, reject) => {
@@ -15383,6 +15411,13 @@ window._assinNextStep = async function () {
                 } catch(selfieErr) { console.error('[EPI Selfie]', selfieErr); }
             }
 
+            let securityData = { gps_lat: '', gps_lon: '', dispositivo: navigator.userAgent };
+            if (window.getDeviceSecurityData) {
+                try {
+                    securityData = await window.getDeviceSecurityData();
+                } catch(e) { console.error('Erro ao obter GPS', e); }
+            }
+
             const resp = await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`, {
                 method: 'POST',
                 signal: saveController.signal,
@@ -15393,7 +15428,10 @@ window._assinNextStep = async function () {
                     assinatura_base64: assinaturaBase64,
                     data_entrega: (() => { const i = document.getElementById('epi-data-entrega'); if (!i || !i.value) return ''; const p = i.value.split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : i.value; })(),
                     epis_para_devolver: Object.entries(window._assinEmprestimos || {}).filter(([,v]) => v).map(([nome, data_devolucao_prevista]) => ({ nome, data_devolucao_prevista })),
-                    endereco_por_epi: window._enderecoPorEpi || {}
+                    endereco_por_epi: window._enderecoPorEpi || {},
+                    gps_lat: securityData.gps_lat,
+                    gps_lon: securityData.gps_lon,
+                    dispositivo: securityData.dispositivo
                 })
             });
             clearTimeout(saveTimeout);
@@ -19649,4 +19687,47 @@ window.destacarCamposVazios = function () {
     }
 };
 
+window._carregarAuditoria = async function () {
+    const tbody = document.getElementById('auditoria-tbody');
+    if (!tbody) return;
 
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8;"><i class="ph ph-spinner" style="font-size:1.5rem;animation:spin 1s linear infinite;display:block;margin-bottom:8px;"></i> Carregando registros...</td></tr>`;
+
+    try {
+        const r = await apiGet('/assinaturas-auditoria');
+        if (!r || r.error) throw new Error(r?.error || 'Erro desconhecido');
+
+        if (r.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8;">Nenhum registro de auditoria encontrado.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = r.map(aud => `
+            <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:12px 16px;">\${new Date(aud.data_hora).toLocaleString('pt-BR')}</td>
+                <td style="padding:12px 16px;font-weight:500;">\${aud.tipo_documento} (ID \${aud.documento_id})<br><small style="color:#64748b;">\${aud.detalhes || ''}</small></td>
+                <td style="padding:12px 16px;">\${aud.colaborador_nome}</td>
+                <td style="padding:12px 16px;font-family:monospace;font-size:0.85em;">\${aud.ip || '-'}</td>
+                <td style="padding:12px 16px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="\${aud.dispositivo}">\${aud.dispositivo || '-'}</td>
+                <td style="padding:12px 16px;">\${aud.gps_lat ? \`<a href="https://maps.google.com/?q=\${aud.gps_lat},\${aud.gps_lon}" target="_blank" style="color:#0ea5e9;text-decoration:none;"><i class="ph ph-map-pin"></i> Ver no Mapa</a>\` : '-'}</td>
+                <td style="padding:12px 16px;font-family:monospace;font-size:0.8em;word-break:break-all;max-width:250px;">\${aud.hash_pdf || '-'}</td>
+            </tr>
+        `).join('');
+
+    } catch (e) {
+        tbody.innerHTML = \`<tr><td colspan="7" style="text-align:center;padding:20px;color:#dc2626;"><i class="ph ph-warning-circle"></i> Erro ao carregar auditoria: \${e.message}</td></tr>\`;
+    }
+};
+
+// Hook para navegar e carregar
+document.addEventListener('DOMContentLoaded', () => {
+    const originalNavigateTo = window.navigateTo;
+    if (originalNavigateTo) {
+        window.navigateTo = function(targetId) {
+            originalNavigateTo(targetId);
+            if (targetId === 'auditoria') {
+                if (window._carregarAuditoria) window._carregarAuditoria();
+            }
+        };
+    }
+});

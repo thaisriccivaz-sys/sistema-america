@@ -4920,7 +4920,7 @@ app.put('/api/colaboradores/:id/sinistros/:sinistroId/dados-financeiros', authen
 app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', authenticateToken, async (req, res) => {
     try {
         const { id, sinistroId } = req.params;
-        const { t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado, finalizar_sem_condutor } = req.body;
+        const { t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado, finalizar_sem_condutor, gps_lat, gps_lon, dispositivo } = req.body;
 
         const novoStatus = finalizar_sem_condutor ? 'assinado_testemunhas' : undefined;
 
@@ -4932,6 +4932,18 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', aut
                 [t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado, sinistroId],
                 err => err ? reject(err) : resolve())
         );
+
+        // --- Auditoria Jurídica ---
+        try {
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+            const payloadHash = JSON.stringify({ t1_nome, t1_base64, t2_nome, t2_base64, finalizar_sem_condutor });
+            const hashDocumento = require('crypto').createHash('sha256').update(payloadHash).digest('hex');
+
+            db.run(
+                `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ['Sinistro Testemunhas', sinistroId, `Testemunhas de ID ${id}`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura em Tela']
+            );
+        } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
 
         // Responde imediatamente — PDF gerado de forma assíncrona para não causar OOM
         res.json({ sucesso: true });
@@ -4961,7 +4973,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', aut
 app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authenticateToken, async (req, res) => {
     try {
         const { id, sinistroId } = req.params;
-        const { assinatura_base64, documento_html, tipo_sinistro, parcelas, valor_parcela, valor_total } = req.body;
+        const { assinatura_base64, documento_html, tipo_sinistro, parcelas, valor_parcela, valor_total, gps_lat, gps_lon, dispositivo } = req.body;
 
         await new Promise((resolve, reject) =>
             db.run(`UPDATE sinistros SET assinatura_condutor_base64=?, documento_html=?, assinaturas_finalizadas=1, status='assinado', data_assinatura_condutor=CURRENT_TIMESTAMP,
@@ -4970,6 +4982,18 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authen
                 [assinatura_base64, documento_html, tipo_sinistro || null, parcelas || null, valor_parcela || null, valor_total || null, sinistroId],
                 err => err ? reject(err) : resolve())
         );
+
+        // --- Auditoria Jurídica ---
+        try {
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+            const payloadHash = JSON.stringify({ assinatura_base64, tipo_sinistro, parcelas, valor_parcela, valor_total });
+            const hashDocumento = require('crypto').createHash('sha256').update(payloadHash).digest('hex');
+
+            db.run(
+                `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ['Sinistro Condutor', sinistroId, \`ID \${id}\`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura Condutor']
+            );
+        } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
 
         // Responde imediatamente — PDF gerado de forma assíncrona para não causar OOM
         res.json({ sucesso: true });
@@ -6326,6 +6350,20 @@ db.run(`CREATE TABLE IF NOT EXISTS auditoria (
     conteudo_anterior TEXT,
     conteudo_atual TEXT,
     registro_id INTEGER
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS assinatura_auditoria (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo_documento TEXT NOT NULL,
+    documento_id INTEGER NOT NULL,
+    colaborador_nome TEXT,
+    data_hora DATETIME DEFAULT CURRENT_TIMESTAMP,
+    ip TEXT,
+    dispositivo TEXT,
+    gps_lat TEXT,
+    gps_lon TEXT,
+    hash_pdf TEXT,
+    detalhes TEXT
 )`);
 
 db.run(`CREATE TABLE IF NOT EXISTS admissao_assinaturas (
@@ -9397,6 +9435,28 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
             const entregaId = this.lastID;
 
+            // --- Auditoria Jurídica de Assinatura ---
+            try {
+                const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+                const { dispositivo, gps_lat, gps_lon } = req.body;
+                
+                // Como não geramos o PDF aqui, geramos o hash com base nos dados brutos que atestam a entrega
+                const payloadHash = JSON.stringify({
+                    colaborador_id,
+                    epis_entregues,
+                    assinatura_base64,
+                    data_entrega
+                });
+                const hashDocumento = require('crypto').createHash('sha256').update(payloadHash).digest('hex');
+
+                db.run(
+                    `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    ['EPI', entregaId, \`ID \${colaborador_id}\`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, JSON.stringify(epis_entregues)]
+                );
+            } catch (errAudit) {
+                console.error('[AUDITORIA EPI] Erro ao salvar log de assinatura:', errAudit);
+            }
+
             // Criar registros de empréstimo se houver equipamentos para devolver
             if (Array.isArray(epis_para_devolver) && epis_para_devolver.length > 0) {
                 const dataEntregaFmt = data_entrega || new Date().toLocaleDateString('pt-BR');
@@ -11225,7 +11285,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/iniciar-processo', authenticate
 // POST /api/colaboradores/:id/multas/:multaId/assinar-testemunhas
 app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authenticateToken, (req, res) => {
     const { multaId } = req.params;
-    const { testemunha1_nome, testemunha1_assinatura, testemunha2_nome, testemunha2_assinatura, documento_html } = req.body;
+    const { testemunha1_nome, testemunha1_assinatura, testemunha2_nome, testemunha2_assinatura, documento_html, gps_lat, gps_lon, dispositivo } = req.body;
     if (!testemunha1_assinatura) {
         return res.status(400).json({ error: 'Assinatura da primeira testemunha e obrigatorio.' });
     }
@@ -11241,6 +11301,19 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authentic
         [testemunha1_nome, testemunha1_assinatura, testemunha2_nome || null, testemunha2_assinatura || null, documento_html || null, multaId],
         (err) => {
             if (err) return res.status(500).json({ error: err.message });
+
+            // --- Auditoria Jurídica ---
+            try {
+                const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+                const payloadHash = JSON.stringify({ testemunha1_nome, testemunha1_assinatura, testemunha2_nome, testemunha2_assinatura });
+                const hashDocumento = require('crypto').createHash('sha256').update(payloadHash).digest('hex');
+
+                db.run(
+                    `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    ['Multa Testemunhas', multaId, \`Testemunhas da Multa \${multaId}\`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura em Tela']
+                );
+            } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
+
             if (onedrive && documento_html) {
                 ; (async () => {
                     try {
@@ -11282,7 +11355,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authentic
 // POST /api/colaboradores/:id/multas/:multaId/assinar-condutor
 app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticateToken, async (req, res) => {
     const { multaId } = req.params;
-    const { assinatura_base64, documento_html } = req.body;
+    const { assinatura_base64, documento_html, gps_lat, gps_lon, dispositivo } = req.body;
     if (!assinatura_base64) return res.status(400).json({ error: 'Assinatura obrigatoria.' });
     try {
         const sqlUpdate = documento_html
@@ -11290,6 +11363,18 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
             : 'UPDATE multas SET assinatura_condutor_base64 = ?, assinaturas_finalizadas = 1, status = \'assinado\' WHERE id = ?';
         const sqlParams = documento_html ? [assinatura_base64, documento_html, multaId] : [assinatura_base64, multaId];
         await new Promise((resolve, reject) => db.run(sqlUpdate, sqlParams, (e) => e ? reject(e) : resolve()));
+
+        // --- Auditoria Jurídica ---
+        try {
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+            const payloadHash = JSON.stringify({ assinatura_base64 });
+            const hashDocumento = require('crypto').createHash('sha256').update(payloadHash).digest('hex');
+
+            db.run(
+                `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ['Multa Condutor', multaId, \`Condutor da Multa \${multaId}\`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura em Tela']
+            );
+        } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
         // Salvar PDF final no OneDrive (pasta unica por multa)
         if (onedrive && documento_html) {
             ; (async () => {
@@ -11364,6 +11449,14 @@ db.run(`CREATE TABLE IF NOT EXISTS dissidios (
 )`, (err) => {
     if (err) console.error('[Migration] Dissídios:', err.message);
     else console.log('[Migration] Tabela dissidios OK');
+});
+
+// GET /api/assinaturas-auditoria — retorna a trilha de auditoria jurídica (GPS, IP, Hash)
+app.get('/api/assinaturas-auditoria', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM assinatura_auditoria ORDER BY data_hora DESC', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
 });
 
 // Seed: valor padrão do VR (R$35,00) se não existir
