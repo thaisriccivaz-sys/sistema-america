@@ -120,19 +120,27 @@
 
         const listaTrein = (c.treinamentos || []).map(t => {
             if (t.concluido) {
-                const valStr = t.validade_dias > 0 ? ` · Válido por ${t.validade_dias} meses` : '';
+                const valStr = t.validade_dias > 0 ? `<br>Válido por ${t.validade_dias} meses` : '';
                 const encodedId = `${c.id},${t.id}`;
+                
+                const btnPesquisa = t.respondido_em 
+                    ? `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;"><button onclick="window.verResultadoPesquisaTreinamento(${t.id}, ${c.id})" title="Ver respostas da pesquisa" style="background:#f0fdf4;color:#166534;border:1.5px solid #bbf7d0;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;flex-shrink:0;"><i class="ph ph-chart-bar"></i></button><span style="font-size:0.6rem;color:#64748b;line-height:1;">${fmtData(t.respondido_em)}</span></div>`
+                    : `<button onclick="window.copiarLinkPesquisa(${t.id}, ${c.id}, this)" title="Copiar link da pesquisa" style="background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;flex-shrink:0;"><i class="ph ph-link"></i></button>`;
+
                 return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
                     <i class="ph ph-check-circle" style="color:#10b981;font-size:1.1rem;flex-shrink:0;"></i>
                     <div style="flex:1;min-width:0;">
                         <div style="font-size:0.82rem;font-weight:600;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${t.nome}">${t.nome}</div>
                         <div style="font-size:0.72rem;color:#10b981;">Concluído em ${fmtData(t.data_conclusao)}${valStr}</div>
                     </div>
-                    <button onclick="window._verDocTreinamento(${c.id},${t.id},'${(c.nome_completo||'').replace(/'/g,"\\'")}')"
-                        title="Ver documento assinado"
-                        style="background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;flex-shrink:0;">
-                        <i class="ph ph-eye"></i>
-                    </button>
+                    <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">
+                        <button onclick="window._verDocTreinamento(${c.id},${t.id},'${(c.nome_completo||'').replace(/'/g,"\\'")}')"
+                            title="Ver documento assinado"
+                            style="background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:3px;flex-shrink:0;">
+                            <i class="ph ph-eye"></i>
+                        </button>
+                        ${btnPesquisa}
+                    </div>
                 </div>`;
             } else if (t.vencido) {
                 return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
@@ -256,14 +264,19 @@
                         style="background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
                         <i class="ph ph-eye"></i> Ver documento
                       </button>
-                      <button onclick="window.enviarPesquisaTreinamento(${h.treinamento_id}, ${colaboradorId}, this)"
-                        style="background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
-                        <i class="ph ph-paper-plane-right"></i> Enviar Pesquisa
-                      </button>
-                      <button onclick="window.verResultadoPesquisaTreinamento(${h.treinamento_id}, ${colaboradorId})"
-                        style="background:#f0fdf4;color:#166534;border:1.5px solid #bbf7d0;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
-                        <i class="ph ph-chart-bar"></i> Respostas
-                      </button>`
+                      ${h.respondido_em 
+                          ? `<div style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">
+                                <button onclick="window.verResultadoPesquisaTreinamento(${h.treinamento_id}, ${colaboradorId})"
+                                    style="background:#f0fdf4;color:#166534;border:1.5px solid #bbf7d0;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+                                    <i class="ph ph-chart-bar"></i> Ver Respostas
+                                </button>
+                                <span style="font-size:0.65rem;color:#64748b;">${fmtData(h.respondido_em)}</span>
+                             </div>`
+                          : `<button onclick="window.copiarLinkPesquisa(${h.treinamento_id}, ${colaboradorId}, this)"
+                                style="background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+                                <i class="ph ph-link"></i> Copiar Link
+                              </button>`
+                      }`
                     : `<span style="font-size:0.75rem;color:#94a3b8;">Sem documento</span>`;
 
                 return `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:12px;background:#fafafa;">
@@ -1024,11 +1037,9 @@
     }
 
     // ── PESQUISA DE SATISFAÇÃO ────────────────────────────────────────────────
-    window.enviarPesquisaTreinamento = async function(treinId, colabId, btn) {
-        if (!confirm('Deseja enviar a pesquisa de satisfação para este colaborador (via WhatsApp)?')) return;
-        
+    window.copiarLinkPesquisa = async function(treinId, colabId, btn) {
         const textOrig = btn.innerHTML;
-        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...';
         btn.disabled = true;
 
         try {
@@ -1039,11 +1050,17 @@
             });
             if (!r.ok) {
                 const e = await r.json().catch(()=>({}));
-                throw new Error(e.error || 'Erro ao enviar pesquisa');
+                throw new Error(e.error || 'Erro ao gerar link de pesquisa');
             }
             const res = await r.json();
-            alert(`Pesquisa enviada com sucesso!\n\nLink: ${res.link}`);
-            btn.innerHTML = '<i class="ph ph-check"></i> Enviado';
+            
+            await navigator.clipboard.writeText(res.link);
+            
+            btn.innerHTML = '<i class="ph ph-check"></i> Copiado!';
+            setTimeout(() => {
+                btn.innerHTML = textOrig;
+                btn.disabled = false;
+            }, 2000);
         } catch (e) {
             alert('Erro: ' + e.message);
             btn.innerHTML = textOrig;

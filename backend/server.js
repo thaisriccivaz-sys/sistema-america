@@ -18449,9 +18449,10 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
     ORDER BY nome ASC
   `;
   const sqlPresencas = `
-    SELECT colaborador_id, treinamento_id, data_conclusao, data_presenca
-    FROM treinamento_presenca
-    WHERE colaborador_id IS NOT NULL
+    SELECT tp.colaborador_id, tp.treinamento_id, tp.data_conclusao, tp.data_presenca,
+           (SELECT pr.respondido_em FROM treinamento_pesquisa_respostas pr WHERE pr.treinamento_id = tp.treinamento_id AND pr.colaborador_id = tp.colaborador_id ORDER BY pr.id DESC LIMIT 1) as respondido_em
+    FROM treinamento_presenca tp
+    WHERE tp.colaborador_id IS NOT NULL
   `;
 
   db.all(sqlColabs, [], (err, colabs) => {
@@ -18495,7 +18496,8 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
               validade_dias: t.validade_dias || 0,
               concluido,
               vencido,
-              data_conclusao: dataConclusao
+              data_conclusao: dataConclusao,
+              respondido_em: presenca ? presenca.respondido_em : null
             };
           });
 
