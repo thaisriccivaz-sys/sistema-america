@@ -13471,8 +13471,7 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'novo_colaborador_equipe') {
                     bg = '#fdf2f8'; color = '#ec4899'; icon = 'ph-user-plus'; titulo = 'Novo Colaborador para Distribuição'; navTarget = 'logistica-equipes';
                 } else if (notif.tipo === 'nova_ocorrencia') {
-
-                    bg = '#fdf2f8'; color = '#d63384'; icon = 'ph-warning-octagon'; titulo = 'Notificação de RH'; navTarget = 'colaboradores';
+                    bg = '#fdf2f8'; color = '#ec4899'; icon = 'ph-warning-octagon'; titulo = 'Ocorrência Registrada'; navTarget = 'dashboard';
                 } else if (notif.tipo === 'pesquisa_satisfacao_treinamento') {
                     bg = '#ecfeff'; color = '#0e7490'; icon = 'ph-star'; titulo = 'Pesquisa de Satisfação'; navTarget = 'treinamentos';
                 } else if (notif.tipo === 'nova_multa_prontuario' || notif.tipo === 'nova_multa_monaco') {
@@ -13576,14 +13575,13 @@ async function checkUserNotificacoes() {
                         <div style="color:#64748b;font-size:0.85rem;">O colaborador <b style="color:${color}">${colabNome}</b> é um novo colaborador para distribuição de equipe.</div>
                     `;
                 } else if (notif.tipo === 'nova_ocorrencia') {
-                    const tipoOcorr = dados.tipo_ocorrencia || 'Ocorrência';
-                    const colabNome = dados.colaborador_nome || 'Colaborador';
+                    const nomeStr = notif.mensagem.replace(/^Uma nova ocorrência foi registrada no prontuário do colaborador:\s*/i, '').trim();
                     contentHTML = `
-                        <div style="font-weight:800;font-size:1.35rem;color:${color};margin-bottom:8px;line-height:1.2;">
-                            ${tipoOcorr}
+                        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> Ocorrência Registrada
                         </div>
-                        <div style="color:#0f172a;font-weight:600;font-size:1rem;margin-bottom:4px;">
-                            ${colabNome}
+                        <div style="color:#475569;font-weight:800;font-size:1.15rem;margin-bottom:4px;">
+                            ${nomeStr}
                         </div>
                     `;
                 } else if (notif.tipo === 'pesquisa_satisfacao_treinamento') {
