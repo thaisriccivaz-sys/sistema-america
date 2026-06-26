@@ -14571,7 +14571,9 @@ window._abrirAnexoOcorrencia = function(url, nome, isImage) {
     document.body.appendChild(modal);
 };
 
-
+window._carregarAuditoria = async function () {
+    const tbody = document.getElementById('auditoria-tbody');
+    if (!tbody) return;
 
     tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8;"><i class="ph ph-spinner" style="font-size:1.5rem;animation:spin 1s linear infinite;display:block;margin-bottom:8px;"></i> Carregando registros...</td></tr>`;
 
