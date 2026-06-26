@@ -24,6 +24,8 @@ let currentUser = null;
 let currentToken = null;
 let currentDocs = [];
 let viewedColaborador = null;
+window.viewedColaborador = null; // Alias para módulos externos (epi.js, etc.)
+
 
 // Helper global para coletar GPS e Device Info para auditoria jurídica
 window.getDeviceSecurityData = async function() {
@@ -3758,6 +3760,7 @@ window.editColaborador = async function (id) {
         currentDocs = docs || [];
 
         viewedColaborador = c;
+        window.viewedColaborador = c; // Sync para módulos externos
 
         const titleEl = document.getElementById('form-colab-title');
         if (titleEl) titleEl.textContent = c.nome_completo || `Colaborador #${c.id}`;
@@ -4509,6 +4512,7 @@ window.openProntuarioFromCurrentForm = function () {
 // --- PRONTUÁRIO DIGITAL ---
 window.openProntuario = async function (id, nome, cargo, cpf, sexo = '', admissao = '', status = '', rgTipo = 'RG') {
     viewedColaborador = { id, nome_completo: nome, cargo, cpf, sexo, data_admissao: admissao, status, rg_tipo: rgTipo };
+    window.viewedColaborador = viewedColaborador; // Sync para módulos externos
 
     // Vincular botão IMEDIATAMENTE (antes de qualquer await)
     const syncBtn = document.getElementById('btn-sync-onedrive');
@@ -4519,6 +4523,7 @@ window.openProntuario = async function (id, nome, cargo, cpf, sexo = '', admissa
     // Buscar dados atualizados para garantir que temos o foto_path correto
     const c = await apiGet(`/colaboradores/${id}`);
     viewedColaborador = c || { id, nome, cargo, cpf, sexo, admissao, status, rgTipo };
+    window.viewedColaborador = viewedColaborador; // Sync para módulos externos
 
     const admission = viewedColaborador.data_admissao || viewedColaborador.admissao || admissao;
     updateProbationBadge(admission);
@@ -11763,6 +11768,7 @@ window.initAdmissaoWorkflow = async function (colabId, step, silent) {
 
         // Atualiza referência global
         viewedColaborador = colab;
+        window.viewedColaborador = colab; // Sync para módulos externos
 
         // Pré-carrega documentos, assinaturas e geradores para o dashboard de admissão funcionar sem dependência da aba prontuário
         try {
