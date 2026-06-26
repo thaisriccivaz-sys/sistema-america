@@ -14340,6 +14340,190 @@ window.salvarAssinaturaColaborador = async function () {
     }
 };
 
+// ============================================================
+// ABA FICHA DE EPI NO PRONTUÁRIO — função original restaurada
+// ============================================================
+async function renderFichaEpiTab(container) {
+    container.innerHTML = '<p class="text-muted">Carregando fichas de EPI...</p>';
+    const colabId = viewedColaborador?.id;
+    if (!colabId) { container.innerHTML = '<div class="alert alert-info">Colaborador não identificado.</div>'; return; }
+
+    let fichas = [], templates = [], todasEntregas = [];
+    try {
+        [fichas, templates, todasEntregas] = await Promise.all([
+            apiGet(`/colaboradores/${colabId}/epi-fichas`),
+            apiGet('/epi-templates'),
+            apiGet(`/colaboradores/${colabId}/epi-entregas`)
+        ]);
+    } catch (e) {
+        container.innerHTML = '<div class="alert alert-danger">Erro ao carregar dados de EPI.</div>';
+        return;
+    }
+
+    if (!fichas || !templates) {
+        container.innerHTML = `
+            <div style="text-align:center; padding: 40px 20px; color: #64748b;">
+                <i class="ph-fill ph-warning-circle" style="font-size:2.5rem; color:#e67700; margin-bottom:12px; display:block;"></i>
+                <p style="font-size:1rem; font-weight:600; color:#1e3a5f; margin-bottom:8px;">Não foi possível carregar os dados de EPI</p>
+                <p style="font-size:0.85rem; margin-bottom:20px;">O servidor pode estar reiniciando. Aguarde alguns segundos e tente novamente.</p>
+                <button onclick="window.renderFichaEpiTab(this.closest('[data-prontuario-container]') || document.querySelector('.epi-tab-container') || document.getElementById('docs-list-container'))"
+                    style="background:#e67700; color:#fff; border:none; border-radius:8px; padding:10px 24px; font-size:0.9rem; font-weight:600; cursor:pointer;">
+                    🔄 Tentar novamente
+                </button>
+            </div>`;
+        return;
+    }
+
+    fichas = fichas || [];
+    templates = templates || [];
+    todasEntregas = todasEntregas || [];
+
+    const fichaAtiva = fichas.find(f => f.status === 'ativa');
+    const dept = viewedColaborador?.departamento || '';
+    const cargo = viewedColaborador?.cargo || '';
+
+    const SETORES_ADMIN = ['Comercial', 'Financeiro', 'Logística', 'Logistica', 'Administrativo', 'RH'];
+    const isSetorAdmin = SETORES_ADMIN.includes(dept) || SETORES_ADMIN.includes(cargo);
+
+    let templateDoColab = templates.find(t => (t.departamentos || []).includes(dept) || (t.departamentos || []).includes(cargo)) ||
+        templates.find(t => t.grupo === dept || t.grupo === cargo) ||
+        (isSetorAdmin ? templates.find(t => t.categoria === 'Administrativo') : null) ||
+        templates[0];
+
+    const fmtDate = iso => {
+        if (!iso) return '-';
+        const d = new Date(iso);
+        return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+    };
+
+    const parseDateEntrega = str => {
+        if (!str) return null;
+        if (str.includes('/')) {
+            const [d, m, y] = str.split('/');
+            return new Date(y, m - 1, d);
+        }
+        return new Date(str + 'T12:00:00');
+    };
+
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    let tabelaHtml = '';
+    if (todasEntregas && todasEntregas.length > 0) {
+        const linhas = todasEntregas.map(e => {
+            const dataObj = parseDateEntrega(e.data_entrega);
+            const diasAtras = dataObj ? Math.floor((hoje - dataObj) / (1000 * 60 * 60 * 24)) : null;
+            const recente = diasAtras !== null && diasAtras <= 15;
+            return `
+                <tr style="border-bottom:1px solid #f1f5f9;${recente ? 'background:#fffbeb;' : ''}">
+                    <td style="padding:0.55rem 0.85rem;font-size:0.85rem;color:#334155;white-space:nowrap;">
+                        ${e.data_entrega || '—'}
+                        ${recente ? '<span style="margin-left:6px;background:#fef3c7;color:#92400e;font-size:0.7rem;font-weight:700;padding:1px 7px;border-radius:999px;border:1px solid #fcd34d;">recente</span>' : ''}
+                    </td>
+                    <td style="padding:0.55rem 0.85rem;font-size:0.85rem;color:#0f172a;font-weight:500;">${e.epi_nome || '—'}</td>
+                    <td style="padding:0.55rem 0.85rem;font-size:0.85rem;text-align:center;">
+                        <span style="display:inline-block;background:#e0f2fe;color:#0369a1;font-weight:700;font-size:0.82rem;min-width:28px;padding:2px 8px;border-radius:999px;text-align:center;">${e.qty || 1}</span>
+                    </td>
+                    <td style="padding:0.55rem 0.85rem;font-size:0.8rem;color:#64748b;">${e.grupo || '—'}</td>
+                    <td style="padding:0.55rem 0.85rem;font-size:0.8rem;color:#64748b;">${e.registrado_por || '—'}</td>
+                    <td style="padding:0.35rem 0.6rem;text-align:center;">
+                        <button
+                            onclick="window._excluirEpiEntrega(${e.id}, '${(e.epi_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', this, ${e.ficha_id})"
+                            title="Excluir este EPI da ficha"
+                            style="background:none;border:1.5px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.78rem;display:inline-flex;align-items:center;gap:3px;transition:all .15s;"
+                            onmouseover="this.style.background='#fef2f2'"
+                            onmouseout="this.style.background='none'">
+                            <i class="ph ph-trash" style="font-size:0.85rem;"></i>
+                        </button>
+                    </td>
+                </tr>`;
+        }).join('');
+
+        tabelaHtml = `
+        <div style="margin-top:2rem;">
+            <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.85rem;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;">
+                <i class="ph ph-list-bullets" style="color:#3b82f6;font-size:1.15rem;"></i>
+                <h4 style="margin:0;font-size:0.97rem;font-weight:700;color:#0f172a;">Histórico de EPIs Entregues</h4>
+                <span data-epi-count-badge style="background:#3b82f6;color:#fff;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:999px;">${todasEntregas.length} registro${todasEntregas.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f8fafc;">
+                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;white-space:nowrap;">Data de Entrega</th>
+                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">EPI</th>
+                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:center;">Qtd</th>
+                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">Grupo/Ficha</th>
+                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;">Registrado por</th>
+                            <th style="padding:0.6rem 0.85rem;font-size:0.78rem;font-weight:700;color:#475569;text-align:center;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>${linhas}</tbody>
+                </table>
+            </div>
+        </div>`;
+    } else {
+        tabelaHtml = `
+        <div style="margin-top:2rem;padding:1.25rem;background:#f8fafc;border:1.5px dashed #e2e8f0;border-radius:10px;text-align:center;color:#94a3b8;font-size:0.88rem;">
+            <i class="ph ph-package" style="font-size:2rem;display:block;margin-bottom:0.4rem;"></i>
+            Nenhum EPI entregue registrado para este colaborador.
+        </div>`;
+    }
+
+    container.innerHTML = `
+        <div style="margin-bottom:1.25rem;">
+            <h3 style="margin:0 0 4px;font-size:1.1rem;font-weight:700;color:#0f172a;">Fichas de EPI</h3>
+            <p style="margin:0;font-size:0.82rem;color:#64748b;">Histórico para ${viewedColaborador?.nome_completo || ''}.</p>
+        </div>
+
+        ${fichaAtiva ? `
+        <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+            <i class="ph ph-check-circle" style="color:#16a34a;font-size:1.5rem;"></i>
+            <div style="flex:1;">
+                <p style="margin:0;font-weight:700;color:#15803d;">Ficha Ativa: ${fichaAtiva.grupo}</p>
+                <p style="margin:2px 0 0;font-size:0.8rem;color:#166534;">Criada em ${fmtDate(fichaAtiva.created_at)}</p>
+            </div>
+            <button onclick="window.abrirAssinaturaEpi(${fichaAtiva.id})" class="btn btn-primary"
+                    style="height:36px;display:flex;align-items:center;gap:6px;font-weight:700;">
+                <i class="ph ph-pen"></i> Registrar Entrega
+            </button>
+        </div>` : `
+        <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+                <i class="ph ph-warning" style="color:#f59e0b;font-size:1.5rem;"></i>
+                <p style="margin:0;font-size:0.88rem;color:#92400e;">Nenhuma ficha ativa disponível para ${cargo || dept}.</p>
+            </div>
+            ${templateDoColab ? `
+                <button onclick="window.gerarFichaEpiManualProntuario(${templateDoColab.id})" class="btn btn-warning" style="height:34px;display:flex;align-items:center;gap:4px;font-weight:700;background:#f59e0b;color:#fff;border:none;">
+                    <i class="ph ph-plus-circle"></i> Gerar Ficha Automaticamente
+                </button>
+            ` : ''}
+        </div>`}
+
+        <div>
+            ${fichas.length === 0 ? '<p class="text-muted" style="font-size:0.9rem;">Nenhuma ficha gerada ainda.</p>' : fichas.map(f => `
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:0.85rem 1.1rem;margin-bottom:0.6rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+                <i class="ph ph-file-text" style="color:#64748b;font-size:1.3rem;"></i>
+                <div style="flex:1;min-width:0;">
+                    <p style="margin:0;font-weight:700;font-size:0.9rem;color:#0f172a;">Ficha: ${f.grupo}</p>
+                    <p style="margin:2px 0 0;font-size:0.78rem;color:#64748b;">Criada: ${fmtDate(f.created_at)}${f.fechada_em ? ' &middot; Fechada: ' + fmtDate(f.fechada_em) : ''}</p>
+                </div>
+                <span style="background:${f.status === 'ativa' ? '#dcfce7' : '#f1f5f9'};color:${f.status === 'ativa' ? '#15803d' : '#475569'};border-radius:999px;padding:2px 10px;font-size:0.75rem;font-weight:700;white-space:nowrap;">
+                    ${f.status === 'ativa' ? '&#9679; Ativa' : '&#9675; Fechada'}
+                </span>
+                <button onclick="window.previewFichaEpi(${f.id})" class="btn btn-secondary btn-sm" style="height:32px;display:flex;align-items:center;gap:4px;">
+                    <i class="ph ph-eye"></i>
+                </button>
+            </div>
+            `).join('')}
+        </div>
+
+        ${tabelaHtml}
+    `;
+
+    window._epiProntuarioData = { fichas, templates, fichaAtiva, colabId, templateDoColab, todasEntregas };
+}
+// Expõe como window.renderFichaEpiTab para compatibilidade com módulos externos
+window.renderFichaEpiTab = renderFichaEpiTab;
+
 window._excluirEpiEntrega = async function(id, nome, btnEl, ficha_id) {
     if (!confirm(`Deseja realmente excluir o EPI "${nome}" da ficha?`)) return;
     const senha = prompt('Digite a senha para autorizar a exclusão:');
