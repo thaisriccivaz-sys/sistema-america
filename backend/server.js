@@ -9407,15 +9407,6 @@ app.get('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
     );
 });
 
-// Criação da tabela de selfies de entrega de EPI (migration automática)
-db.run(`CREATE TABLE IF NOT EXISTS epi_selfies (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    colaborador_id INTEGER NOT NULL,
-    selfie_base64 TEXT NOT NULL,
-    registrado_por TEXT,
-    timestamp TEXT,
-    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
-)`);
 
 // POST: salvar selfie da entrega de EPI
 app.post('/api/epi-selfie', authenticateToken, (req, res) => {

@@ -14676,15 +14676,14 @@ window.abrirAssinaturaEpi = async function (fichaId) {
     if (!ficha) return;
     const epis = ficha.snapshot_epis || [];
     const termo = ficha.snapshot_termo || '';
-    const old = document.getElementById('epi-assinatura-overlay');
-    if (old) old.remove();
+    if (window._assinSelfieStream) { window._assinSelfieStream.getTracks().forEach(t=>t.stop()); window._assinSelfieStream = null; } const old = document.getElementById('epi-assinatura-overlay'); if (old) old.remove();
     const overlay = document.createElement('div');
     overlay.id = 'epi-assinatura-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99990;background:rgba(15,23,42,0.92);display:flex;flex-direction:column;overflow:hidden;';
     overlay.innerHTML = `
         <div style="background:#1e3a5f;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
             <div style="display:flex;align-items:center;gap:0.75rem;"><i class="ph ph-shield-check" style="color:#60a5fa;font-size:1.3rem;"></i><span style="color:#f1f5f9;font-weight:700;font-size:0.97rem;">Registrar Entrega de EPI — ${ficha.grupo}</span></div>
-            <button onclick="document.getElementById('epi-assinatura-overlay').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;">×</button>
+            <button onclick="if(window._assinSelfieStream){window._assinSelfieStream.getTracks().forEach(t=>t.stop());window._assinSelfieStream=null;}document.getElementById('epi-assinatura-overlay').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;">×</button>
         </div>
         <div id="epi-assin-body" style="flex:1;overflow-y:auto;padding:1.5rem 2rem;">
             <div id="epi-step-1">
@@ -14808,7 +14807,7 @@ window._setEpiQty = async function (epi, qty) {
     if (qty>prevQty && prevQty===0 && window._requiresSize(epi)) {
         const tipoSize=window._requiresSize(epi); const opcoes=tipoSize==='bota'?['33','34','35','36','37','38','39','40','41','42','43','44','45','46']:['PP','P','M','G','GG','XG','XXG'];
         const {value:tamanho}=await Swal.fire({title:'Qual tamanho?',html:`<p style="color:#475569;font-size:0.9rem;">Selecione o tamanho para <strong>${epi}</strong>:</p><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px;">${opcoes.map(o=>`<button type="button" class="swal-size-btn" data-size="${o}" onclick="document.querySelectorAll('.swal-size-btn').forEach(b=>b.style.background='#f1f5f9');this.style.background='#1e3a5f';this.style.color='#fff';document.getElementById('swal-size-val').value='${o}'" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-weight:700;font-size:0.9rem;cursor:pointer;background:#f1f5f9;">${o}</button>`).join('')}</div><input type="hidden" id="swal-size-val" value="">`,showCancelButton:true,confirmButtonText:'Confirmar',cancelButtonText:'Pular',confirmButtonColor:'#1e3a5f',preConfirm:()=>document.getElementById('swal-size-val').value||null,didOpen:()=>{const c=document.querySelector('.swal2-container');if(c)c.style.zIndex='999999';}});
-        if(tamanho){const nomeComTamanho=`${epi} (TAM ${tamanho})`;if(!window._assinEpisDisponiveis.includes(nomeComTamanho))window._assinEpisDisponiveis.push(nomeComTamanho);window._assinQtds[nomeComTamanho]=qty;window._renderEpiGrid(document.getElementById('epi-filtro-input')?.value||'');return;}
+        if(tamanho){const nomeComTamanho=`${epi} (TAM ${tamanho})`;if(!window._assinEpisDisponiveis.includes(nomeComTamanho)){const idx = window._assinEpisDisponiveis.indexOf(epi); if(idx!==-1) window._assinEpisDisponiveis.splice(idx+1, 0, nomeComTamanho); else window._assinEpisDisponiveis.push(nomeComTamanho);}window._assinQtds[nomeComTamanho]=qty;window._renderEpiGrid(document.getElementById('epi-filtro-input')?.value||'');return;}
     }
     if(!window._assinQtds)window._assinQtds={};
     window._assinQtds[epi]=qty;
@@ -14930,7 +14929,7 @@ window._assinNextStep = async function () {
         try {
             window._assinSelfieStream = await navigator.mediaDevices.getUserMedia({video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false});
             const video = document.getElementById('epi-assin-selfie-video');
-            if (video) { video.srcObject = window._assinSelfieStream; video.style.display = 'block'; }
+            if (video) { video.srcObject = window._assinSelfieStream; video.style.display = 'block'; video.play().catch(e=>console.error(e)); }
             document.getElementById('epi-assin-selfie-canvas').style.display = 'none';
             const btnTirar = document.getElementById('btn-epi-assin-tirar');
             if (btnTirar) btnTirar.style.display = 'flex';
