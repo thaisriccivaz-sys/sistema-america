@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const fs = require('fs');
 
 const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
@@ -35,7 +35,7 @@ async function uploadToR2(destinationKey, fileData, contentType) {
     
     let bodyData;
     if (typeof fileData === 'string') {
-        bodyData = fs.createReadStream(fileData);
+        bodyData = fs.readFileSync(fileData);
     } else {
         bodyData = fileData;
     }
@@ -60,8 +60,25 @@ async function uploadToR2(destinationKey, fileData, contentType) {
         throw e;
     }
 }
+async function deleteFromR2(destinationKey) {
+    if (!s3Client) return; // Se não configurado, apenas ignora
+    if (!destinationKey) return;
+
+    const command = new DeleteObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: destinationKey,
+    });
+
+    try {
+        await s3Client.send(command);
+        console.log(`[R2 Storage] Exclusão concluída: ${destinationKey}`);
+    } catch (e) {
+        console.error(`[R2 Storage] Erro na exclusão de ${destinationKey}:`, e);
+    }
+}
 
 module.exports = {
     uploadToR2,
+    deleteFromR2,
     isReady: () => s3Client !== null
 };

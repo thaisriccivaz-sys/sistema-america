@@ -16,6 +16,21 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'rh-agenda',              pagina_nome: 'Agenda RH', icone: 'ph-calendar-check' },
     { modulo: 'RH', pagina_id: 'recibos',                pagina_nome: 'Recibos', icone: 'ph-receipt' },
     { modulo: 'RH', pagina_id: 'pagamentos-massa',       pagina_nome: 'Docs. em Massa', icone: 'ph-files' },
+    // Prontuário Digital Abas
+    { modulo: 'RH', pagina_id: 'prontuario-checklist', pagina_nome: '00. CheckList', icone: 'ph-list-checks' },
+    { modulo: 'RH', pagina_id: 'prontuario-ficha', pagina_nome: 'Ficha Cadastral', icone: 'ph-file-text' },
+    { modulo: 'RH', pagina_id: 'prontuario-pagamentos', pagina_nome: 'Pagamentos', icone: 'ph-currency-dollar' },
+    { modulo: 'RH', pagina_id: 'prontuario-aso', pagina_nome: 'ASO', icone: 'ph-stethoscope' },
+    { modulo: 'RH', pagina_id: 'prontuario-epi', pagina_nome: 'Ficha de EPI', icone: 'ph-shield-check' },
+    { modulo: 'RH', pagina_id: 'prontuario-atestados', pagina_nome: 'Faltas e Atestados', icone: 'ph-calendar-x' },
+    { modulo: 'RH', pagina_id: 'prontuario-contratos', pagina_nome: 'Contratos', icone: 'ph-handshake' },
+    { modulo: 'RH', pagina_id: 'prontuario-avaliacao', pagina_nome: 'Avaliação', icone: 'ph-clipboard-text' },
+    { modulo: 'RH', pagina_id: 'prontuario-ocorrencias', pagina_nome: 'Ocorrências', icone: 'ph-warning-circle' },
+    { modulo: 'RH', pagina_id: 'prontuario-faculdade', pagina_nome: 'Faculdade', icone: 'ph-graduation-cap' },
+    { modulo: 'RH', pagina_id: 'prontuario-certificados', pagina_nome: 'Certificados', icone: 'ph-certificate' },
+    { modulo: 'RH', pagina_id: 'prontuario-dependentes', pagina_nome: 'Dependentes', icone: 'ph-users' },
+    { modulo: 'RH', pagina_id: 'prontuario-multas', pagina_nome: 'Multas', icone: 'ph-receipt' },
+    { modulo: 'RH', pagina_id: 'prontuario-sinistros', pagina_nome: 'Sinistros', icone: 'ph-warning' },
     // Módulo Logística
     { modulo: 'Logística', pagina_id: 'logistica-dashboard',    pagina_nome: 'Dashboard Logística', icone: 'ph-chart-bar' },
     { modulo: 'Logística', pagina_id: 'logistica-pipeline',     pagina_nome: 'Pipeline OS',   icone: 'ph-kanban' },
@@ -38,6 +53,11 @@ const TELAS_SISTEMA = [
     { modulo: 'Administrativo', pagina_id: 'licencas', pagina_nome: 'Licenças', icone: 'ph-certificate' },
     { modulo: 'Administrativo', pagina_id: 'estoque', pagina_nome: 'Estoque', icone: 'ph-package' },
     { modulo: 'Administrativo', pagina_id: 'admin-em-breve', pagina_nome: 'Administrativo (Em breve)', icone: 'ph-gear' },
+    // Módulo Treinamentos
+    { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais', pagina_nome: 'Materiais', icone: 'ph-books' },
+    { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca', pagina_nome: 'Presenças', icone: 'ph-check-square' },
+    { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais-terapia', pagina_nome: 'Conteúdos (Terapia)', icone: 'ph-books' },
+    { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca-terapia', pagina_nome: 'Listas (Terapia)', icone: 'ph-list-numbers' },
     // Módulo Diretoria / Sistema
     { modulo: 'Diretoria', pagina_id: 'usuarios-permissoes',   pagina_nome: 'Usuários e Permissões', icone: 'ph-users-three' },
     { modulo: 'Diretoria', pagina_id: 'cargos',                pagina_nome: 'Cargos', icone: 'ph-briefcase' },
@@ -61,6 +81,34 @@ let _permissoesAtivas = {}; // { pagina_id: { visualizar, alterar, incluir, excl
 // ── CARREGAMENTO INICIAL ──────────────────────────────────────
 
 window.initUsuariosPermissoes = async function() {
+    try {
+        const reqEnd = await fetch(API_URL + '/estoque-enderecos', { headers: { Authorization: `Bearer ${currentToken}` }});
+        if (reqEnd.ok) {
+            const enderecos = await reqEnd.json();
+            
+            // Adicionar em TELAS_SISTEMA
+            enderecos.forEach(end => {
+                const idTela = 'estoque-endereco:' + end.id;
+                if (!TELAS_SISTEMA.find(t => t.pagina_id === idTela)) {
+                    TELAS_SISTEMA.push({ modulo: 'Administrativo', pagina_id: idTela, pagina_nome: end.nome, icone: 'ph-map-pin' });
+                }
+            });
+
+            // Adicionar em MENU_HIERARQUIA
+            const modAdmin = MENU_HIERARQUIA.find(m => m.modulo === 'Administrativo');
+            if (modAdmin) {
+                let grupoEnd = modAdmin.grupos.find(g => g.titulo === 'Controle de Estoque (Endereços)');
+                if (!grupoEnd) {
+                    grupoEnd = { titulo: 'Controle de Estoque (Endereços)', expandable: true, telas: [] };
+                    modAdmin.grupos.push(grupoEnd);
+                }
+                grupoEnd.telas = enderecos.map(e => 'estoque-endereco:' + e.id);
+            }
+        }
+    } catch(e) {
+        console.warn('[PERMISSOES] Erro ao carregar enderecos do estoque:', e);
+    }
+
     await Promise.all([carregarUsuariosLista(), carregarGruposLista()]);
 };
 
@@ -515,6 +563,16 @@ const MENU_HIERARQUIA = [
                     'dashboard', 'colaboradores', 'assinaturas-digitais', 'ferias', 'experiencia',
                     'admissao', 'integracao', 'faculdade', 'dissidio', 'rh-agenda', 'recibos', 'pagamentos-massa'
                 ]
+            },
+            {
+                titulo: 'Prontuário Digital (Abas)',
+                expandable: true,
+                telas: [
+                    'prontuario-checklist', 'prontuario-ficha', 'prontuario-pagamentos', 'prontuario-aso',
+                    'prontuario-epi', 'prontuario-atestados', 'prontuario-contratos', 'prontuario-avaliacao',
+                    'prontuario-ocorrencias', 'prontuario-faculdade', 'prontuario-certificados', 'prontuario-dependentes',
+                    'prontuario-multas', 'prontuario-sinistros'
+                ]
             }
         ]
     },
@@ -533,6 +591,10 @@ const MENU_HIERARQUIA = [
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',
         grupos: [{ titulo: 'Telas', telas: ['licencas', 'estoque', 'admin-em-breve'] }]
+    },
+    {
+        modulo: 'Treinamentos', icone: 'ph-graduation-cap', cor: '#0e7490',
+        grupos: [{ titulo: 'Telas', telas: ['treinamento-materiais', 'treinamento-presenca', 'treinamento-materiais-terapia', 'treinamento-presenca-terapia'] }]
     },
     {
         modulo: 'Diretoria', icone: 'ph-crown', cor: '#c92a2a',
@@ -568,18 +630,39 @@ function renderArvorePermissoesForm() {
     MENU_HIERARQUIA.forEach(mod => {
         html += `
         <div class="perm-mod" style="border-bottom:3px solid #e2e8f0;">
-            <div style="background:#f8fafc;padding:0.6rem 1rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
+            <div style="background:#f8fafc;padding:0.6rem 1rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;" onclick="(function(el){ const p=el.nextElementSibling; const open=p.style.display!=='none'; p.style.display=open?'none':'block'; const ic=el.querySelector('.mod-caret'); if(ic) ic.style.transform=open?'rotate(-90deg)':'rotate(0deg)'; })(this)">
                 <i class="ph ${mod.icone}" style="font-size:1.1rem;color:${mod.cor || '#64748b'};"></i>
                 <h4 style="margin:0;font-size:1rem;color:${mod.cor || '#1e293b'};">Módulo: ${mod.modulo}</h4>
-                <i class="ph ph-caret-down" style="margin-left:auto;color:#94a3b8;"></i>
+                <i class="ph ph-caret-down mod-caret" style="margin-left:auto;color:#94a3b8;transition:transform 0.2s;"></i>
             </div>
             <div style="display:none;padding:1rem;background:#fff;">`;
             
         mod.grupos.forEach(grp => {
-            const tituloHTML = grp.titulo && grp.titulo !== 'Telas'
-                ? '<h5 style="margin:0 0 0.75rem 0;font-size:0.8rem;color:#d9480f;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #f1f5f9;padding-bottom:0.25rem;">' + grp.titulo + '</h5>'
-                : '';
-            html += '<div style="margin-bottom:1rem;">' + tituloHTML + '<div style="display:grid;grid-template-columns:1fr;gap:0.5rem;">';
+            const isExpandable = !!grp.expandable;
+            const groupIdSafe = (grp.titulo || 'telas').replace(/\W/g, '');
+            let tituloHTML = '';
+
+            if (grp.titulo && grp.titulo !== 'Telas') {
+                if (isExpandable) {
+                    const anyActive = grp.telas.some(tid => _permissoesFormAtivas[tid] && _permissoesFormAtivas[tid].visualizar);
+                    const allActive = grp.telas.length > 0 && grp.telas.every(tid => _permissoesFormAtivas[tid] && _permissoesFormAtivas[tid].visualizar);
+                    tituloHTML = `
+                    <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.4rem;margin:0 0 0.75rem 0;cursor:pointer;" onclick="(function(el){ const panel=el.nextElementSibling; const isOpen=panel.style.display!=='none'; panel.style.display=isOpen?'none':'grid'; const icon=el.querySelector('.perm-caret'); if(icon) icon.style.transform=isOpen?'rotate(-90deg)':'rotate(0deg)'; })(this)">
+                        <h5 style="margin:0;font-size:0.8rem;color:#d9480f;text-transform:uppercase;letter-spacing:0.05em;display:flex;align-items:center;gap:6px;">
+                            <i class="ph ph-caret-down perm-caret" style="transition:transform 0.2s;transform:rotate(${anyActive ? '0' : '-90'}deg);font-size:0.9rem;"></i>
+                            <i class="ph ph-file-text" style="color:#d9480f;"></i> ${grp.titulo}
+                        </h5>
+                        <label style="font-size:0.75rem;color:#1971c2;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;" onclick="event.stopPropagation()">
+                            <input type="checkbox" id="cb-todas-${groupIdSafe}" onchange="window.setTodasTelasGrupoForm(this, '${groupIdSafe}')" ${allActive ? 'checked' : ''} style="accent-color:#1971c2;vertical-align:middle;"> Selecionar Todas
+                        </label>
+                    </div>`;
+                } else {
+                    tituloHTML = `<h5 style="margin:0 0 0.75rem 0;font-size:0.8rem;color:#d9480f;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #f1f5f9;padding-bottom:0.25rem;">${grp.titulo}</h5>`;
+                }
+            }
+
+            const anyActive = isExpandable && grp.telas.some(tid => _permissoesFormAtivas[tid] && _permissoesFormAtivas[tid].visualizar);
+            html += `<div style="margin-bottom:1rem;">${tituloHTML}<div id="grp-${groupIdSafe}" data-group-id="${groupIdSafe}" style="display:${isExpandable && !anyActive ? 'none' : 'grid'};grid-template-columns:1fr;gap:0.5rem;">`;
                     
             grp.telas.forEach(telaId => {
                 const telaInfo = TELAS_SISTEMA.find(t => t.pagina_id === telaId);
@@ -593,7 +676,7 @@ function renderArvorePermissoesForm() {
                             </span>
                             <div style="display:flex;gap:1.5rem;">
                                 <label style="display:flex;align-items:center;gap:4px;font-size:0.75rem;cursor:pointer;color:#1971c2;font-weight:600;">
-                                    <input type="checkbox" onchange="togglePermForm('${telaId}', this.checked)" ${p.visualizar?'checked':''} style="accent-color:#1971c2;"> Acesso Liberado
+                                    <input type="checkbox" data-tela-id="${telaId}" data-group="${groupIdSafe}" onchange="togglePermForm('${telaId}', this.checked); window.atualizarCheckboxTodasGrupo('${groupIdSafe}')" ${p.visualizar?'checked':''} style="accent-color:#1971c2;"> Acesso Liberado
                                 </label>
                             </div>
                         </div>`;
@@ -609,6 +692,39 @@ window.togglePermForm = function(paginaId, val) {
     if (!_permissoesFormAtivas[paginaId]) _permissoesFormAtivas[paginaId] = { visualizar:false, alterar:false, incluir:false, excluir:false };
     _permissoesFormAtivas[paginaId] = { visualizar: val, alterar: val, incluir: val, excluir: val };
     window._treeIsModified = true; // ← CRÍTICO: marcar que a árvore foi editada manualmente
+};
+
+window.setTodasTelasGrupoForm = function(checkbox, groupIdSafe) {
+    const container = document.getElementById('grp-' + groupIdSafe);
+    if (!container) return;
+    const inputs = container.querySelectorAll('input[type="checkbox"]');
+    inputs.forEach(cb => {
+        cb.checked = checkbox.checked;
+        // Atualiza o estado interno sem disparar atualizarCheckboxTodasGrupo novamente
+        const telaId = cb.getAttribute('data-tela-id');
+        if (telaId) {
+            if (!_permissoesFormAtivas[telaId]) _permissoesFormAtivas[telaId] = {};
+            _permissoesFormAtivas[telaId] = { visualizar: checkbox.checked, alterar: checkbox.checked, incluir: checkbox.checked, excluir: checkbox.checked };
+        }
+    });
+    window._treeIsModified = true;
+};
+
+// Atualiza o checkbox "Selecionar Todas" conforme as abas individuais são marcadas/desmarcadas
+// Lê as telas do MENU_HIERARQUIA usando o groupIdSafe para evitar JSON inline no onchange
+window.atualizarCheckboxTodasGrupo = function(groupIdSafe) {
+    const cbTodas = document.getElementById('cb-todas-' + groupIdSafe);
+    if (!cbTodas) return;
+    // Busca as telas deste grupo no MENU_HIERARQUIA
+    let telas = [];
+    MENU_HIERARQUIA.forEach(mod => {
+        mod.grupos.forEach(grp => {
+            const gId = (grp.titulo || 'telas').replace(/\W/g, '');
+            if (gId === groupIdSafe) telas = grp.telas;
+        });
+    });
+    const allActive = telas.length > 0 && telas.every(tid => _permissoesFormAtivas[tid] && _permissoesFormAtivas[tid].visualizar);
+    cbTodas.checked = allActive;
 };
 
 window.setTodasTelasForm = function(marcar) {

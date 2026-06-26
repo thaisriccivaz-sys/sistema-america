@@ -15,7 +15,8 @@ const TIPOS_NOTIFICACAO = [
     { id: 'estoque_minimo', nome: 'Estoque mínimo para compra', icone: 'ph-shopping-cart-simple', descricao: 'Notificado quando um item em endereço do tipo "Pedido de Compra" atinge o estoque mínimo.' },
     { id: 'estoque_reposicao', nome: 'Mínimo para reposição de estoque', icone: 'ph-arrows-left-right', descricao: 'Notificado quando um item em endereço do tipo "Pedido de Reposição" atinge o estoque mínimo.' },
     { id: 'novo_colaborador_equipe', nome: 'Equipe para distribuição', icone: 'ph-users-three' },
-    { id: 'nova_ocorrencia', nome: 'Nova Ocorrência no Prontuário', icone: 'ph-warning' }
+    { id: 'nova_ocorrencia', nome: 'Nova Ocorrência no Prontuário', icone: 'ph-warning' },
+    { id: 'pesquisa_satisfacao_treinamento', nome: 'Pesquisa de Satisfação de Treinamentos', icone: 'ph-star' }
 ];
 
 let globalUsuariosConfig = [];

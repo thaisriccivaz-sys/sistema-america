@@ -263,6 +263,49 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `);
 
+            db.run(`
+                CREATE TABLE IF NOT EXISTS treinamentos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL,
+                    tipo TEXT DEFAULT 'treinamento',
+                    departamentos TEXT,
+                    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            db.run(`
+                CREATE TABLE IF NOT EXISTS treinamento_colaboradores (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    colaborador_id INTEGER NOT NULL,
+                    treinamento_id INTEGER NOT NULL,
+                    concluido INTEGER DEFAULT 0,
+                    data_conclusao DATETIME,
+                    assinatura_path TEXT,
+                    selfie_path TEXT,
+                    instrutor_nome TEXT,
+                    UNIQUE(colaborador_id, treinamento_id),
+                    FOREIGN KEY (colaborador_id) REFERENCES colaboradores (id) ON DELETE CASCADE,
+                    FOREIGN KEY (treinamento_id) REFERENCES treinamentos (id) ON DELETE CASCADE
+                )
+            `);
+
+            // Tabela de Auditoria de Assinaturas (GPS, IP, Hash)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS assinaturas_auditoria (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    documento_id INTEGER NOT NULL,
+                    document_type TEXT NOT NULL,
+                    colaborador_id INTEGER NOT NULL,
+                    colaborador_nome TEXT,
+                    gps_lat TEXT,
+                    gps_lon TEXT,
+                    dispositivo TEXT,
+                    ip_address TEXT,
+                    hash_assinatura TEXT,
+                    data_assinatura DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
             // Tabela de Histórico de Alterações (Automações / Logs)
             db.run(`
                 CREATE TABLE IF NOT EXISTS historico_logs (
@@ -1010,6 +1053,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 if (!cols.includes('departamento'))       db.run("ALTER TABLE usuarios ADD COLUMN departamento TEXT DEFAULT 'RH'");
                 if (!cols.includes('grupo_permissao_id')) db.run("ALTER TABLE usuarios ADD COLUMN grupo_permissao_id INTEGER");
                 if (!cols.includes('ativo'))              db.run("ALTER TABLE usuarios ADD COLUMN ativo INTEGER DEFAULT 1");
+                if (!cols.includes('estoque_enderecos_permitidos')) db.run("ALTER TABLE usuarios ADD COLUMN estoque_enderecos_permitidos TEXT");
             });
 
             // Tabela de Grupos de Permissão

@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // MÓDULO DE FICHA DE EPI - v3
 // ============================================================
 
@@ -122,6 +122,66 @@ window.initEpiModule = function() {
     loadEpiTemplates();
     loadDeptList();
     ensureHeaderLogo();
+};
+
+
+// window.renderFichaEpiTab está definido em app.js (função original restaurada)
+// Não redefinir aqui para evitar sobrescrever a versão correta com acesso ao contexto de app.js
+
+
+// Cria nova ficha de EPI para colaborador (chamada pelo botão na aba)
+window._criarFichaEpi = async function(colabId, templateId) {
+    if (!colabId || !templateId) return;
+    const token = window.currentToken || localStorage.getItem('erp_token') || '';
+    const t = epiTemplates.find(x => x.id === templateId);
+    if (!t) { showToast && showToast('Template não encontrado.', 'error'); return; }
+    try {
+        const res = await fetch(`/api/colaboradores/${colabId}/epi-fichas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+            body: JSON.stringify({
+                template_id: t.id,
+                grupo: t.grupo,
+                snapshot_epis: t.epis || [],
+                snapshot_termo: t.termo_texto || '',
+                snapshot_rodape: t.rodape_texto || ''
+            })
+        });
+        if (!res.ok) throw new Error('Erro ao criar ficha');
+        if (typeof showToast === 'function') showToast('Ficha de EPI criada com sucesso!', 'success');
+        // Recarrega a aba
+        const container = document.querySelector('.prontuario-tab-content');
+        if (container) window.renderFichaEpiTab(container);
+    } catch (e) {
+        if (typeof showToast === 'function') showToast('Erro: ' + e.message, 'error');
+    }
+};
+
+// Visualiza PDF da ficha
+window._verFichaEpiPDF = async function(fichaId, colabId) {
+    const token = window.currentToken || localStorage.getItem('erp_token') || '';
+    try {
+        const res = await fetch(`/api/epi-fichas/${fichaId}/entregas`, { headers: { Authorization: 'Bearer ' + token } });
+        const entregas = res.ok ? await res.json() : [];
+        // Busca dados do colaborador
+        const colabRes = await fetch(`/api/colaboradores/${colabId}`, { headers: { Authorization: 'Bearer ' + token } });
+        const colab = colabRes.ok ? await colabRes.json() : window.viewedColaborador;
+        // Busca dados da ficha
+        const fichasRes = await fetch(`/api/colaboradores/${colabId}/epi-fichas`, { headers: { Authorization: 'Bearer ' + token } });
+        const fichas = fichasRes.ok ? await fichasRes.json() : [];
+        const ficha = fichas.find(f => f.id === fichaId);
+        if (!ficha) { if (typeof showToast === 'function') showToast('Ficha não encontrada.', 'error'); return; }
+        // Gera PDF usando a função existente
+        if (typeof window.gerarEpiPDF === 'function') {
+            await window.gerarEpiPDF(colab, ficha, entregas);
+        } else if (typeof window.generateEpiPDF === 'function') {
+            await window.generateEpiPDF(colab, ficha, entregas);
+        } else {
+            if (typeof showToast === 'function') showToast('Módulo de PDF de EPI não carregado.', 'error');
+        }
+    } catch (e) {
+        if (typeof showToast === 'function') showToast('Erro ao gerar PDF: ' + e.message, 'error');
+    }
 };
 
 // Restaura Ajudante se tiver sido editado incorretamente (chamado manualmente se necessário)

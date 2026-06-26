@@ -8,7 +8,16 @@ async function _carregarEnderecos() {
     try {
         const token = window.currentToken || localStorage.getItem("erp_token") || localStorage.getItem("token");
         const res = await fetch(API_URL + "/estoque-enderecos", { headers: { "Authorization": "Bearer " + token } });
-        if (res.ok) window._estoqueEnderecos = await res.json();
+        if (res.ok) {
+            let todos = await res.json();
+            if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
+                const hasAnyEndPerm = Object.keys(window.activeUserPerms).some(k => k.startsWith('estoque-endereco:') && window.activeUserPerms[k]);
+                if (hasAnyEndPerm) {
+                    todos = todos.filter(end => window.activeUserPerms['estoque-endereco:' + end.id]);
+                }
+            }
+            window._estoqueEnderecos = todos;
+        }
     } catch (e) { console.warn("[ESTOQUE] Erro ao carregar enderecos:", e.message); }
 }
 
@@ -38,11 +47,45 @@ window.renderEstoqueTable = async function() {
         const saldosMap = r2.ok ? await r2.json() : {};
 
         if (window._estoqueEnderecos.length === 0) await _carregarEnderecos();
+
+        const endSelect = document.getElementById("filtro-estoque-endereco");
+        if (endSelect && endSelect.options.length <= 1 && window._estoqueEnderecos.length > 0) {
+            window._estoqueEnderecos.forEach(end => {
+                const opt = document.createElement('option');
+                opt.value = end.id;
+                opt.textContent = end.nome;
+                endSelect.appendChild(opt);
+            });
+        }
+        const enderecoFiltro = endSelect ? endSelect.value : "";
+
         if (nome) data = data.filter(i => i.nome.toLowerCase().includes(nome));
+        if (enderecoFiltro) {
+            data = data.filter(i => {
+                const saldos = saldosMap[i.id] || [];
+                return saldos.some(s => String(s.endereco_id) === String(enderecoFiltro));
+            });
+        }
+
+        // Filtra por permissões de endereço
+        if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
+            const hasAnyEndPerm = Object.keys(window.activeUserPerms).some(k => k.startsWith('estoque-endereco:') && window.activeUserPerms[k]);
+            if (hasAnyEndPerm) {
+                data = data.filter(item => {
+                    const saldos = saldosMap[item.id] || [];
+                    if (saldos.length > 0) {
+                        const saldosPermitidos = saldos.filter(s => window.activeUserPerms['estoque-endereco:' + s.endereco_id]);
+                        if (saldosPermitidos.length === 0) return false; // Hide completely Se não tiver nenhum endereço permitido
+                    }
+                    return true;
+                });
+            }
+        }
+
         if (status === "minimo") data = data.filter(i => {
             const saldos = saldosMap[i.id] || [];
-            if (saldos.length > 0) return saldos.some(s => s.quantidade <= i.quantidade_minima);
-            return i.quantidade_atual <= i.quantidade_minima;
+            if (saldos.length > 0) return saldos.some(s => (parseInt(s.quantidade)||0) < (parseInt(s.quantidade_minima)||0) || (parseInt(s.quantidade)||0) < (parseInt(i.quantidade_minima)||0));
+            return (parseInt(i.quantidade_atual)||0) < (parseInt(i.quantidade_minima)||0);
         });
         
         const tipoEl = document.getElementById("filtro-estoque-tipo");
@@ -75,18 +118,24 @@ window.renderEstoqueTable = async function() {
 
         let rows = '';
         data.forEach(item => {
-            const saldos = saldosMap[item.id] || [];
+            let saldos = saldosMap[item.id] || [];
+            if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
+                const hasAnyEndPerm = Object.keys(window.activeUserPerms).some(k => k.startsWith('estoque-endereco:') && window.activeUserPerms[k]);
+                if (hasAnyEndPerm) {
+                    saldos = saldos.filter(s => window.activeUserPerms['estoque-endereco:' + s.endereco_id]);
+                }
+            }
             const multiEnd = saldos.length > 1;
 
             // ── Verificar se está no mínimo (usa min/max por endereço) ──
             let isLow = false;
             if (saldos.length > 0) {
                 isLow = saldos.some(s => {
-                    const minRef = (s.quantidade_minima > 0) ? s.quantidade_minima : item.quantidade_minima;
-                    return minRef > 0 && s.quantidade <= minRef;
+                    const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : parseInt(item.quantidade_minima) || 0;
+                    return minRef > 0 && (parseInt(s.quantidade)||0) < minRef;
                 });
             } else {
-                isLow = item.quantidade_minima > 0 && item.quantidade_atual <= item.quantidade_minima;
+                isLow = (parseInt(item.quantidade_minima) > 0) && (parseInt(item.quantidade_atual)||0) < parseInt(item.quantidade_minima);
             }
 
             const rowBorderLeft = isLow ? '3px solid #ef4444' : '3px solid transparent';
@@ -116,8 +165,8 @@ window.renderEstoqueTable = async function() {
                 // Cor/estado deste endereço
                 let lowEnd = false;
                 if (s) {
-                    const minRef = (s.quantidade_minima > 0) ? s.quantidade_minima : item.quantidade_minima;
-                    lowEnd = minRef > 0 && s.quantidade <= minRef;
+                    const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : parseInt(item.quantidade_minima) || 0;
+                    lowEnd = minRef > 0 && (parseInt(s.quantidade)||0) < minRef;
                 }
 
                 // Qtd. Atual deste endereço
@@ -208,7 +257,12 @@ window.abrirModalBaixaEstoque = async function(item) {
     let saldos = [];
     try {
         const r = await fetch(API_URL + "/estoque/" + item.id + "/saldo-enderecos", { headers: { "Authorization": "Bearer " + token } });
-        if (r.ok) saldos = await r.json();
+        if (r.ok) {
+            saldos = await r.json();
+            if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
+                saldos = saldos.filter(s => window._estoqueEnderecos.some(e => String(e.id) === String(s.endereco_id)));
+            }
+        }
     } catch(e) {}
 
     const semEndereco = saldos.length === 0;
@@ -362,7 +416,6 @@ window.editarEstoque = async function(item) {
     await _carregarEnderecos();
     document.getElementById("estoque-id").value   = item.id;
     document.getElementById("estoque-nome").value = item.nome;
-    document.getElementById("estoque-dept").value = item.departamento;
     document.getElementById("estoque-cat").value  = item.categoria;
     document.getElementById("estoque-qtd").value  = item.quantidade_atual;
     document.getElementById("estoque-min").value  = item.quantidade_minima;
@@ -377,6 +430,7 @@ window.editarEstoque = async function(item) {
 
     // Carregar endereços já vinculados
     window._enderecoLinhas = [];
+    window._hiddenEnderecoLinhas = [];
     try {
         const token = window.currentToken || localStorage.getItem("erp_token") || localStorage.getItem("token");
         const r = await fetch(API_URL + "/estoque/" + item.id + "/saldo-enderecos", {
@@ -384,7 +438,17 @@ window.editarEstoque = async function(item) {
         });
         if (r.ok) {
             const saldos = await r.json();
-            window._enderecoLinhas = saldos.map(s => ({
+            let saldosPermitidos = saldos;
+            if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
+                saldosPermitidos = saldos.filter(s => window._estoqueEnderecos.some(e => String(e.id) === String(s.endereco_id)));
+                window._hiddenEnderecoLinhas = saldos.filter(s => !window._estoqueEnderecos.some(e => String(e.id) === String(s.endereco_id))).map(s => ({
+                    endereco_id:       s.endereco_id,
+                    quantidade:        s.quantidade,
+                    quantidade_minima: s.quantidade_minima || 0,
+                    quantidade_maxima: s.quantidade_maxima || 0
+                }));
+            }
+            window._enderecoLinhas = saldosPermitidos.map(s => ({
                 endereco_id:       s.endereco_id,
                 quantidade:        s.quantidade,
                 quantidade_minima: s.quantidade_minima || 0,
@@ -402,7 +466,10 @@ window.editarEstoque = async function(item) {
 window.salvarEstoque = async function(e) {
     e.preventDefault();
     const id = document.getElementById("estoque-id").value;
-    const linhasValidas = (window._enderecoLinhas || []).filter(l => l.endereco_id);
+    let linhasValidas = (window._enderecoLinhas || []).filter(l => l.endereco_id);
+    if (window._hiddenEnderecoLinhas && window._hiddenEnderecoLinhas.length > 0) {
+        linhasValidas = linhasValidas.concat(window._hiddenEnderecoLinhas);
+    }
 
     // NOVO produto: obrigatório ter pelo menos 1 endereço selecionado
     if (!id && linhasValidas.length === 0) {
@@ -421,7 +488,7 @@ window.salvarEstoque = async function(e) {
 
     const payload = {
         nome:              document.getElementById("estoque-nome").value,
-        departamento:      document.getElementById("estoque-dept").value,
+        departamento:      '',
         categoria:         document.getElementById("estoque-cat").value,
         quantidade_atual:  qtdAtual,
         quantidade_minima: parseInt(document.getElementById("estoque-min").value) || 0,
@@ -713,6 +780,11 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
     try {
         const r = await fetch(API_URL + "/estoque", { headers: { "Authorization": "Bearer " + token } });
         if (r.ok) produtos = await r.json();
+        
+        if (!isEntrada) {
+            produtos = produtos.filter(p => p.categoria !== 'EPI' && p.categoria !== 'Uniforme');
+        }
+
         if (!window._estoqueEnderecos || window._estoqueEnderecos.length === 0) {
             await _carregarEnderecos();
         }
@@ -721,7 +793,8 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
     }
 
     if (produtos.length === 0) {
-        return Swal.fire('Atenção', 'Nenhum produto cadastrado no estoque.', 'warning');
+        const msg = !isEntrada ? 'Nenhum produto disponível para saída direta. (Itens de EPI e Uniforme devem ter saída pela Ficha de EPI)' : 'Nenhum produto cadastrado no estoque.';
+        return Swal.fire('Atenção', msg, 'warning');
     }
 
     // Ordenar alfabeticamente
@@ -798,9 +871,11 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
                             return `<option value="${end.id}">${end.nome} (Atual: ${qty})</option>`;
                         }).join('');
                     } else {
-                        const avail = saldos.filter(s => s.quantidade > 0);
+                        let avail = saldos.filter(s => s.quantidade > 0);
+                        // Filtra para garantir que o usuário só pode dar saída de endereços que ele tem acesso
+                        avail = avail.filter(s => window._estoqueEnderecos.some(e => String(e.id) === String(s.endereco_id)));
                         if (avail.length === 0) {
-                            optionsHTML = '<option value="">(Sem saldo em nenhum endereço)</option>';
+                            optionsHTML = '<option value="">(Sem saldo em nenhum endereço permitido)</option>';
                             selEnd.disabled = true;
                         } else {
                             optionsHTML += avail.map(s => `<option value="${s.endereco_id}">${s.endereco_nome} (Atual: ${s.quantidade})</option>`).join('');

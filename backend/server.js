@@ -9,7 +9,6 @@ const sharp = require('sharp');
 const nodemailer = require('nodemailer');
 const pdfParse = require('pdf-parse');
 const cron = require('node-cron');
-const cloudinary = require('cloudinary').v2;
 const rateLimit = require('express-rate-limit');
 // ─── MULTAS ANTIGAS: AITs já tratados e encerrados ──────────────────────────
 // Quando o sistema detectar qualquer um desses AITs (criação manual ou webhook
@@ -478,6 +477,14 @@ db.run("DELETE FROM cargos WHERE nome = 'teste' OR nome = 'Teste'", (err) => {
 
 // MIGRATION: Limpar duplicatas de geradores — executado em sequência garantida
 db.serialize(() => {
+db.run(`CREATE TABLE IF NOT EXISTS epi_selfies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    colaborador_id INTEGER NOT NULL,
+    selfie_base64 TEXT NOT NULL,
+    registrado_por TEXT,
+    timestamp TEXT,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
     // 1. Renomear ORDEM DE SERVIÇO NR01 (maiúsculo) para caixa mista
     db.run("UPDATE geradores SET nome = 'Ordem de Servi\u00e7o NR01' WHERE nome LIKE 'ORDEM%NR01' OR nome LIKE 'ORDEM%NR 01'", (err) => {
         if (err) console.error('Erro ao renomear NR01 maiúsculo:', err);
@@ -2633,6 +2640,8 @@ app.get('/api/equipes/colaboradores-sem-equipe', authenticateToken, (req, res) =
         WHERE LOWER(c.status) NOT LIKE '%desligado%' AND LOWER(c.status) NOT LIKE '%iniciado%'
         AND c.id NOT IN (SELECT colaborador_id FROM equipes_membros)
         AND (d.tipo = 'Operacional' OR (d.id IS NULL AND c.departamento IN ('EXTERNO', 'PÁTIO', 'MOTORISTA FREE')))
+        AND (c.departamento IS NULL OR LOWER(c.departamento) NOT LIKE '%manuten%')
+        AND (c.cargo IS NULL OR LOWER(c.cargo) NOT LIKE '%manuten%')
         GROUP BY c.id
         ORDER BY c.nome_completo ASC`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -4920,7 +4929,7 @@ app.put('/api/colaboradores/:id/sinistros/:sinistroId/dados-financeiros', authen
 app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', authenticateToken, async (req, res) => {
     try {
         const { id, sinistroId } = req.params;
-        const { t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado, finalizar_sem_condutor } = req.body;
+        const { t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado, finalizar_sem_condutor, gps_lat, gps_lon, dispositivo } = req.body;
 
         const novoStatus = finalizar_sem_condutor ? 'assinado_testemunhas' : undefined;
 
@@ -4932,6 +4941,18 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', aut
                 [t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado, sinistroId],
                 err => err ? reject(err) : resolve())
         );
+
+        // --- Auditoria Jurídica ---
+        try {
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+            const payloadHash = JSON.stringify({ t1_nome, t1_base64, t2_nome, t2_base64, finalizar_sem_condutor });
+            const hashDocumento = require('crypto').createHash('sha256').update(payloadHash).digest('hex');
+
+            db.run(
+                `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ['Sinistro Testemunhas', sinistroId, `Testemunhas de ID ${id}`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura em Tela']
+            );
+        } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
 
         // Responde imediatamente — PDF gerado de forma assíncrona para não causar OOM
         res.json({ sucesso: true });
@@ -4961,7 +4982,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', aut
 app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authenticateToken, async (req, res) => {
     try {
         const { id, sinistroId } = req.params;
-        const { assinatura_base64, documento_html, tipo_sinistro, parcelas, valor_parcela, valor_total } = req.body;
+        const { assinatura_base64, documento_html, tipo_sinistro, parcelas, valor_parcela, valor_total, gps_lat, gps_lon, dispositivo } = req.body;
 
         await new Promise((resolve, reject) =>
             db.run(`UPDATE sinistros SET assinatura_condutor_base64=?, documento_html=?, assinaturas_finalizadas=1, status='assinado', data_assinatura_condutor=CURRENT_TIMESTAMP,
@@ -4970,6 +4991,18 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authen
                 [assinatura_base64, documento_html, tipo_sinistro || null, parcelas || null, valor_parcela || null, valor_total || null, sinistroId],
                 err => err ? reject(err) : resolve())
         );
+
+        // --- Auditoria Jurídica ---
+        try {
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+            const payloadHash = JSON.stringify({ assinatura_base64, tipo_sinistro, parcelas, valor_parcela, valor_total });
+            const hashDocumento = require('crypto').createHash('sha256').update(payloadHash).digest('hex');
+
+            db.run(
+                `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ['Sinistro Condutor', sinistroId, `ID ${id}`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura Condutor']
+            );
+        } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
 
         // Responde imediatamente — PDF gerado de forma assíncrona para não causar OOM
         res.json({ sucesso: true });
@@ -5639,6 +5672,20 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
 
     const { document_id, colaborador_id, tab_name, document_type, year, month, vencimento, atestado_tipo, atestado_inicio, atestado_fim, assinafy_status } = req.body;
+    
+    const saveAuditLocal = (docId) => {
+        const { gps_lat, gps_lon, dispositivo } = req.body;
+        if (gps_lat || gps_lon || dispositivo) {
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+            const crypto = require('crypto');
+            try {
+                const fileBuffer = require('fs').readFileSync(req.file.path);
+                const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+                db.run(`INSERT INTO assinaturas_auditoria (documento_id, document_type, colaborador_id, colaborador_nome, gps_lat, gps_lon, dispositivo, ip_address, hash_assinatura) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [docId, document_type || tab_name, colaborador_id, req.body.colaborador_nome || 'DESCONHECIDO', gps_lat, gps_lon, dispositivo, ip, hash]);
+            } catch (err) { console.error('[AUDIT] Erro ao salvar auditoria:', err.message); }
+        }
+    };
     const file_path = req.file.path;
     let file_name = req.file.originalname;
     try { file_name = Buffer.from(file_name, 'latin1').toString('utf8'); } catch (e) { }
@@ -5779,6 +5826,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                         })();
                     }
 
+                    saveAuditLocal(row.id);
                     res.json({ message: 'Documento atualizado', id: row.id, file_path });
                 });
         } else {
@@ -5840,20 +5888,30 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                                         db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'nova_ocorrencia'", [], (errN, rowsN) => {
                                             if (!errN && rowsN && rowsN.length > 0) {
                                                 const msg = `Uma nova ocorrência foi registrada no prontuário do colaborador: ${colab.nome_completo}`;
-                                                const dadosStr = JSON.stringify({ colaborador_id, document_id: newDocId });
+                                                const dadosStr = JSON.stringify({ colaborador_id, document_id: newDocId, tipo_ocorrencia: _tipoSimples, colaborador_nome: colab.nome_completo });
                                                 rowsN.forEach(c => {
                                                     db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", 
                                                         [c.usuario_id, 'nova_ocorrencia', msg, dadosStr]);
                                                 });
                                                 
                                                 sendEmailParaNotificados('nova_ocorrencia', {
-                                                    subject: '?? Nova Ocorrência Registrada',
-                                                    html: `<div style="font-family: Arial, sans-serif; color: #333;">
-                                                            <h2 style="color: #d9480f;">Nova Ocorrência Registrada</h2>
-                                                            <p>Uma nova ocorrência disciplinar foi inserida no sistema.</p>
-                                                            <p><strong>Colaborador:</strong> ${colab.nome_completo}</p>
-                                                            <p>Acesse o <strong>Prontuário Digital</strong> para visualizar os detalhes.</p>
-                                                           </div>`
+                                                    subject: '📋 Nova Ocorrência Registrada',
+                                                    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                                        <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                                            <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                                        </div>
+                                                        <div style="padding:24px;">
+                                                            <h2 style="color:#d9480f;text-align:center;margin-top:0;">📋 Nova Ocorrência Registrada</h2>
+                                                            <p style="text-align:center;">Uma nova ocorrência disciplinar foi inserida no sistema.</p>
+                                                            <div style="background:#fff7ed;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #d9480f;">
+                                                                <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
+                                                            </div>
+                                                            <div style="text-align:center;margin-top:20px;">
+                                                                <a href="${process.env.PUBLIC_URL || 'https://sistema.america.onrender.com'}/?app=rh" style="display:inline-block;padding:12px 24px;background:#d9480f;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Acessar Prontuário Digital</a>
+                                                            </div>
+                                                            <p style="font-size:12px;color:#999;text-align:center;margin-top:16px;"><i>Esta notificação foi gerada automaticamente pelo Sistema América Rental.</i></p>
+                                                        </div>
+                                                    </div>`
                                                 });
                                             }
                                         });
@@ -5870,6 +5928,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                         }
                     }
 
+                    saveAuditLocal(newDocId);
                     res.status(201).json({ message: 'Documento salvo', id: newDocId, file_path });
                 });
         }
@@ -6326,6 +6385,20 @@ db.run(`CREATE TABLE IF NOT EXISTS auditoria (
     conteudo_anterior TEXT,
     conteudo_atual TEXT,
     registro_id INTEGER
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS assinatura_auditoria (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo_documento TEXT NOT NULL,
+    documento_id INTEGER NOT NULL,
+    colaborador_nome TEXT,
+    data_hora DATETIME DEFAULT CURRENT_TIMESTAMP,
+    ip TEXT,
+    dispositivo TEXT,
+    gps_lat TEXT,
+    gps_lon TEXT,
+    hash_pdf TEXT,
+    detalhes TEXT
 )`);
 
 db.run(`CREATE TABLE IF NOT EXISTS admissao_assinaturas (
@@ -9342,15 +9415,6 @@ app.get('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
     );
 });
 
-// Criação da tabela de selfies de entrega de EPI (migration automática)
-db.run(`CREATE TABLE IF NOT EXISTS epi_selfies (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    colaborador_id INTEGER NOT NULL,
-    selfie_base64 TEXT NOT NULL,
-    registrado_por TEXT,
-    timestamp TEXT,
-    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
-)`);
 
 // POST: salvar selfie da entrega de EPI
 app.post('/api/epi-selfie', authenticateToken, (req, res) => {
@@ -9383,6 +9447,43 @@ app.get('/api/epi-selfie/:colaborador_id', authenticateToken, (req, res) => {
     );
 });
 
+// GET: buscar dados completos de uma entrega de EPI (assinatura + EPIs)
+app.get('/api/epi-entregas/:id', authenticateToken, (req, res) => {
+    db.get(
+        `SELECT ee.id, ee.ficha_id, ee.colaborador_id, ee.data_entrega,
+                ee.epis_entregues, ee.assinatura_base64, ee.registrado_por,
+                ef.grupo,
+                c.nome_completo AS colaborador_nome
+         FROM epi_entregas ee
+         JOIN colaborador_epi_fichas ef ON ef.id = ee.ficha_id
+         LEFT JOIN colaboradores c ON c.id = ee.colaborador_id
+         WHERE ee.id = ?`,
+        [req.params.id],
+        (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!row) return res.status(404).json({ error: 'Entrega não encontrada.' });
+            const epis = JSON.parse(row.epis_entregues || '[]');
+            // Agrupa itens repetidos
+            const contagem = {};
+            epis.forEach(nome => { contagem[nome] = (contagem[nome] || 0) + 1; });
+            db.get(`SELECT selfie_base64 FROM epi_selfies WHERE colaborador_id = ? ORDER BY criado_em DESC LIMIT 1`, [row.colaborador_id], (err2, selfieRow) => {
+                res.json({
+                    id: row.id,
+                    ficha_id: row.ficha_id,
+                    colaborador_id: row.colaborador_id,
+                    colaborador_nome: row.colaborador_nome,
+                    data_entrega: row.data_entrega,
+                    grupo: row.grupo,
+                    registrado_por: row.registrado_por,
+                    epis: Object.entries(contagem).map(([nome, qty]) => ({ nome, qty })),
+                    assinatura_base64: row.assinatura_base64 || null,
+                    selfie_base64: selfieRow ? selfieRow.selfie_base64 : null
+                });
+            });
+        }
+    );
+});
+
 // POST: registrar entrega assinada de EPIs
 app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
     const fichaId = req.params.id;
@@ -9396,6 +9497,31 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             const entregaId = this.lastID;
+
+            // --- Auditoria Jurídica de Assinatura (tabela correta: assinaturas_auditoria) ---
+            try {
+                const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+                const { dispositivo, gps_lat, gps_lon } = req.body;
+                const payloadHash = JSON.stringify({ colaborador_id, epis_entregues, assinatura_base64, data_entrega });
+                const hashDocumento = require('crypto').createHash('sha256').update(payloadHash).digest('hex');
+
+                // Busca o nome real do colaborador antes de inserir
+                db.get(`SELECT nome_completo FROM colaboradores WHERE id = ?`, [colaborador_id], (errC, colabRow) => {
+                    const colabNome = colabRow ? colabRow.nome_completo : `ID ${colaborador_id}`;
+                    const episLabel = Array.isArray(epis_entregues)
+                        ? epis_entregues.slice(0, 3).join(', ') + (epis_entregues.length > 3 ? ` (+${epis_entregues.length - 3})` : '')
+                        : String(epis_entregues);
+                    const docLabel = `Entrega de EPI: ${episLabel}`;
+
+                    db.run(
+                        `INSERT INTO assinaturas_auditoria (documento_id, document_type, colaborador_id, colaborador_nome, gps_lat, gps_lon, dispositivo, ip_address, hash_assinatura) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [entregaId, docLabel, colaborador_id || null, colabNome, gps_lat || null, gps_lon || null, dispositivo || req.headers['user-agent'] || null, ip, hashDocumento],
+                        (errA) => { if (errA) console.error('[AUDITORIA EPI] Erro ao inserir na auditoria:', errA.message); }
+                    );
+                });
+            } catch (errAudit) {
+                console.error('[AUDITORIA EPI] Erro ao salvar log de assinatura:', errAudit);
+            }
 
             // Criar registros de empréstimo se houver equipamentos para devolver
             if (Array.isArray(epis_para_devolver) && epis_para_devolver.length > 0) {
@@ -9471,7 +9597,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                         }
 
                         // Alerta de estoque mínimo
-                        if (!errUpd && newQtd <= item.quantidade_minima && item.quantidade_atual > item.quantidade_minima) {
+                        if (!errUpd && newQtd < item.quantidade_minima && item.quantidade_atual >= item.quantidade_minima) {
                             const msg = `ESTOQUE BAIXO: O item "${item.nome}" (${item.departamento}) atingiu o estoque mínimo. Quantidade Atual: ${newQtd}.`;
                             const dadosStr = JSON.stringify({ item_id: item.id, nome: item.nome, quantidade_atual: newQtd, quantidade_minima: item.quantidade_minima });
 
@@ -9979,12 +10105,13 @@ app.get('/api/usuarios', authenticateToken, (req, res) => {
 });
 
 app.post('/api/usuarios', authenticateToken, (req, res) => {
-    const { username, password, nome, email, departamento, grupo_permissao_id, role } = req.body;
+    const { username, password, nome, email, departamento, grupo_permissao_id, role, estoque_enderecos_permitidos } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Username e senha são obrigatórios' });
     const hash = bcrypt.hashSync(password, 10);
+    const endPermitidos = estoque_enderecos_permitidos ? JSON.stringify(estoque_enderecos_permitidos) : null;
     db.run(
-        'INSERT INTO usuarios (username, password_hash, nome, email, departamento, grupo_permissao_id, role, ativo) VALUES (?,?,?,?,?,?,?,1)',
-        [username, hash, nome || username, email || null, departamento || 'RH', grupo_permissao_id || null, role || 'Operacional'],
+        'INSERT INTO usuarios (username, password_hash, nome, email, departamento, grupo_permissao_id, role, ativo, estoque_enderecos_permitidos) VALUES (?,?,?,?,?,?,?,1,?)',
+        [username, hash, nome || username, email || null, departamento || 'RH', grupo_permissao_id || null, role || 'Operacional', endPermitidos],
         function (err) {
             if (err) {
                 const msg = err.message.includes('UNIQUE') ? 'Este username já está cadastrado.' : err.message;
@@ -9996,7 +10123,7 @@ app.post('/api/usuarios', authenticateToken, (req, res) => {
 });
 
 app.put('/api/usuarios/:id', authenticateToken, (req, res) => {
-    const { nome, email, departamento, grupo_permissao_id, role, ativo, password } = req.body;
+    const { nome, email, departamento, grupo_permissao_id, role, ativo, password, estoque_enderecos_permitidos } = req.body;
     const updates = [];
     const values = [];
     if (nome !== undefined) { updates.push('nome = ?'); values.push(nome); }
@@ -10005,6 +10132,10 @@ app.put('/api/usuarios/:id', authenticateToken, (req, res) => {
     if (grupo_permissao_id !== undefined) { updates.push('grupo_permissao_id = ?'); values.push(grupo_permissao_id); }
     if (role !== undefined) { updates.push('role = ?'); values.push(role); }
     if (ativo !== undefined) { updates.push('ativo = ?'); values.push(ativo); }
+    if (estoque_enderecos_permitidos !== undefined) {
+        updates.push('estoque_enderecos_permitidos = ?');
+        values.push(estoque_enderecos_permitidos ? JSON.stringify(estoque_enderecos_permitidos) : null);
+    }
     if (password) { updates.push('password_hash = ?'); values.push(bcrypt.hashSync(password, 10)); }
     if (updates.length === 0) return res.json({ message: 'Nenhuma alteração' });
     values.push(req.params.id);
@@ -11225,7 +11356,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/iniciar-processo', authenticate
 // POST /api/colaboradores/:id/multas/:multaId/assinar-testemunhas
 app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authenticateToken, (req, res) => {
     const { multaId } = req.params;
-    const { testemunha1_nome, testemunha1_assinatura, testemunha2_nome, testemunha2_assinatura, documento_html } = req.body;
+    const { testemunha1_nome, testemunha1_assinatura, testemunha2_nome, testemunha2_assinatura, documento_html, gps_lat, gps_lon, dispositivo } = req.body;
     if (!testemunha1_assinatura) {
         return res.status(400).json({ error: 'Assinatura da primeira testemunha e obrigatorio.' });
     }
@@ -11241,6 +11372,19 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authentic
         [testemunha1_nome, testemunha1_assinatura, testemunha2_nome || null, testemunha2_assinatura || null, documento_html || null, multaId],
         (err) => {
             if (err) return res.status(500).json({ error: err.message });
+
+            // --- Auditoria Jurídica ---
+            try {
+                const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+                const payloadHash = JSON.stringify({ testemunha1_nome, testemunha1_assinatura, testemunha2_nome, testemunha2_assinatura });
+                const hashDocumento = require('crypto').createHash('sha256').update(payloadHash).digest('hex');
+
+                db.run(
+                    `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    ['Multa Testemunhas', multaId, `Testemunhas da Multa ${multaId}`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura em Tela']
+                );
+            } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
+
             if (onedrive && documento_html) {
                 ; (async () => {
                     try {
@@ -11282,7 +11426,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authentic
 // POST /api/colaboradores/:id/multas/:multaId/assinar-condutor
 app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticateToken, async (req, res) => {
     const { multaId } = req.params;
-    const { assinatura_base64, documento_html } = req.body;
+    const { assinatura_base64, documento_html, gps_lat, gps_lon, dispositivo } = req.body;
     if (!assinatura_base64) return res.status(400).json({ error: 'Assinatura obrigatoria.' });
     try {
         const sqlUpdate = documento_html
@@ -11290,6 +11434,18 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
             : 'UPDATE multas SET assinatura_condutor_base64 = ?, assinaturas_finalizadas = 1, status = \'assinado\' WHERE id = ?';
         const sqlParams = documento_html ? [assinatura_base64, documento_html, multaId] : [assinatura_base64, multaId];
         await new Promise((resolve, reject) => db.run(sqlUpdate, sqlParams, (e) => e ? reject(e) : resolve()));
+
+        // --- Auditoria Jurídica ---
+        try {
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+            const payloadHash = JSON.stringify({ assinatura_base64 });
+            const hashDocumento = require('crypto').createHash('sha256').update(payloadHash).digest('hex');
+
+            db.run(
+                `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ['Multa Condutor', multaId, `Condutor da Multa ${multaId}`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, 'Assinatura em Tela']
+            );
+        } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
         // Salvar PDF final no OneDrive (pasta unica por multa)
         if (onedrive && documento_html) {
             ; (async () => {
@@ -11364,6 +11520,32 @@ db.run(`CREATE TABLE IF NOT EXISTS dissidios (
 )`, (err) => {
     if (err) console.error('[Migration] Dissídios:', err.message);
     else console.log('[Migration] Tabela dissidios OK');
+});
+
+// GET /api/assinaturas-auditoria — retorna a trilha de auditoria jurídica (GPS, IP, Hash)
+app.get('/api/assinaturas-auditoria', authenticateToken, (req, res) => {
+    db.all(
+        `SELECT
+            id,
+            data_assinatura AS data_hora,
+            document_type AS tipo_documento,
+            documento_id,
+            colaborador_nome,
+            ip_address AS ip,
+            dispositivo,
+            gps_lat,
+            gps_lon,
+            hash_assinatura AS hash_pdf,
+            NULL AS detalhes
+         FROM assinaturas_auditoria
+         ORDER BY data_assinatura DESC
+         LIMIT 500`,
+        [],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows || []);
+        }
+    );
 });
 
 // Seed: valor padrão do VR (R$35,00) se não existir
@@ -12236,7 +12418,7 @@ async function verificarFeriasEquipes() {
         for (const m of emEquipe) {
             let taDeFerias = false;
             const st = (m.status || '').toLowerCase();
-            if (st === 'férias' || st === 'ferias' || st === 'afastado') taDeFerias = true;
+            if (st === 'férias' || st === 'ferias') taDeFerias = true;
             
             if (!taDeFerias && m.ferias_programadas_inicio && m.ferias_programadas_fim) {
                 const ini = parseDataLocal(m.ferias_programadas_inicio);
@@ -17391,6 +17573,44 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
                 () => {}
             );
         }
+
+        // Lógica de Notificação de Estoque Mínimo
+        try {
+            if (quantidade_atual <= quantidade_minima && oldRow.quantidade_atual > oldRow.quantidade_minima) {
+                const msg = `ESTOQUE BAIXO: O item "${nome}" (${departamento}) atingiu o estoque mínimo. Quantidade Atual: ${quantidade_atual}.`;
+                const dadosStr = JSON.stringify({ item_id: id, nome, quantidade_atual, quantidade_minima });
+                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'estoque_minimo'", [], (errC, rowsC) => {
+                    if (!errC && rowsC && rowsC.length > 0) {
+                        rowsC.forEach(c => {
+                            db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'estoque_minimo', msg, dadosStr]);
+                        });
+                        // E-mail de estoque mínimo (ajuste manual)
+                        sendEmailParaNotificados('estoque_minimo', {
+                            subject: `📦 Estoque Mínimo Atingido – ${nome}`,
+                            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                </div>
+                                <div style="padding:24px;">
+                                    <h2 style="color:#e67700;text-align:center;margin-top:0;">📦 Estoque Mínimo Atingido</h2>
+                                    <p>Um item do estoque atingiu a quantidade mínima após ajuste manual:</p>
+                                    <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
+                                        <p style="margin:4px 0;"><strong>Item:</strong> ${nome}</p>
+                                        <p style="margin:4px 0;"><strong>Departamento:</strong> ${departamento}</p>
+                                        <p style="margin:4px 0;"><strong>Quantidade Atual:</strong> ${quantidade_atual}</p>
+                                        <p style="margin:4px 0;"><strong>Quantidade Mínima:</strong> ${quantidade_minima}</p>
+                                    </div>
+                                    <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para reabastecer o estoque.</i></p>
+                                </div>
+                            </div>`
+                        });
+                    }
+                });
+            }
+        } catch(eNotif) {
+            console.error('[ESTOQUE PUT] Erro na notificacao:', eNotif.message);
+        }
+
         res.json({ success: true });
         
     } catch (e) {
@@ -17398,42 +17618,6 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
         if (!res.headersSent) res.status(500).json({ error: e.message });
     }
 
-    // Lógica de Notificação de Estoque Mínimo (fora do try/catch para não bloquear resposta, precisa usar try/catch isolado para variaveis)
-    try {
-        if (quantidade_atual <= quantidade_minima && oldRow.quantidade_atual > oldRow.quantidade_minima) {
-            const msg = `ESTOQUE BAIXO: O item "${nome}" (${departamento}) atingiu o estoque mínimo. Quantidade Atual: ${quantidade_atual}.`;
-            const dadosStr = JSON.stringify({ item_id: id, nome, quantidade_atual, quantidade_minima });
-            db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'estoque_minimo'", [], (errC, rowsC) => {
-                if (!errC && rowsC && rowsC.length > 0) {
-                    rowsC.forEach(c => {
-                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'estoque_minimo', msg, dadosStr]);
-                    });
-                    // E-mail de estoque mínimo (ajuste manual)
-                    sendEmailParaNotificados('estoque_minimo', {
-                        subject: `📦 Estoque Mínimo Atingido – ${nome}`,
-                        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
-                            <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                                <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
-                            </div>
-                            <div style="padding:24px;">
-                                <h2 style="color:#e67700;text-align:center;margin-top:0;">📦 Estoque Mínimo Atingido</h2>
-                                <p>Um item do estoque atingiu a quantidade mínima após ajuste manual:</p>
-                                <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
-                                    <p style="margin:4px 0;"><strong>Item:</strong> ${nome}</p>
-                                    <p style="margin:4px 0;"><strong>Departamento:</strong> ${departamento}</p>
-                                    <p style="margin:4px 0;"><strong>Quantidade Atual:</strong> ${quantidade_atual}</p>
-                                    <p style="margin:4px 0;"><strong>Quantidade Mínima:</strong> ${quantidade_minima}</p>
-                                </div>
-                                <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para reabastecer o estoque.</i></p>
-                            </div>
-                        </div>`
-                    });
-                }
-            });
-        }
-    } catch(eNotif) {
-        console.error('[ESTOQUE PUT] Erro na notificacao:', eNotif.message);
-    }
 });
 
 
@@ -17664,6 +17848,76 @@ app.post('/api/estoque/:id/baixa', authenticateToken, (req, res) => {
     });
 });
 
+// ── Movimentar estoque (Entrada ou Saída) ────────────────────────────────────
+// Chamado pelo frontend (estoque.js) nos botões "Entrada de produtos" e "Saída de produtos"
+// Recebe: { quantidade: Number (+ = entrada, - = saída), endereco_id?: Number, motivo?: String }
+app.post('/api/estoque/:id/movimentar', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { quantidade, endereco_id, motivo } = req.body;
+    const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
+
+    const qtdRaw = parseInt(quantidade);
+    if (isNaN(qtdRaw) || qtdRaw === 0) {
+        return res.status(400).json({ error: 'Quantidade inválida. Informe um número diferente de zero.' });
+    }
+
+    const isEntrada = qtdRaw > 0;
+    const qtdAbs    = Math.abs(qtdRaw);
+    const tipo      = isEntrada ? 'Entrada' : 'Saída';
+    const motivoFinal = motivo || (isEntrada ? 'Entrada de produtos' : 'Saída de produtos');
+
+    db.get('SELECT * FROM estoque WHERE id = ?', [id], (err, item) => {
+        if (err)   return res.status(500).json({ error: err.message });
+        if (!item) return res.status(404).json({ error: 'Item de estoque não encontrado.' });
+
+        // Validação de saldo apenas para saídas
+        if (!isEntrada && item.quantidade_atual < qtdAbs) {
+            return res.status(400).json({ error: `Estoque insuficiente. Disponível: ${item.quantidade_atual} unid.` });
+        }
+
+        const novaQtd = isEntrada
+            ? item.quantidade_atual + qtdAbs
+            : item.quantidade_atual - qtdAbs;
+
+        db.run(
+            'UPDATE estoque SET quantidade_atual = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
+            [novaQtd, id],
+            (errU) => {
+                if (errU) return res.status(500).json({ error: errU.message });
+
+                // Atualizar saldo por endereço se informado
+                if (endereco_id) {
+                    if (isEntrada) {
+                        db.run(
+                            `INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade)
+                             VALUES (?, ?, ?)
+                             ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET quantidade = quantidade + ?`,
+                            [id, endereco_id, qtdAbs, qtdAbs], () => {}
+                        );
+                    } else {
+                        db.run(
+                            'UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?',
+                            [qtdAbs, id, endereco_id], () => {}
+                        );
+                    }
+                }
+
+                // Registrar no histórico
+                db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [endereco_id || null], (errE, rowE) => {
+                    const endNome = rowE ? rowE.nome : null;
+                    db.run(
+                        'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        [id, qtdAbs, tipo, usuario, motivoFinal, endereco_id || null, endNome],
+                        () => {}
+                    );
+                });
+
+                res.json({ success: true, quantidade_atual: novaQtd, tipo });
+            }
+        );
+    });
+});
+
 // Transferência de estoque entre endereços
 app.post('/api/estoque/:id/transferir', authenticateToken, (req, res) => {
     const { id } = req.params;
@@ -17860,6 +18114,902 @@ try {
 } catch (e) {
     console.error('Erro ao carregar rota Control iD:', e.message);
 }
+
+
+
+// ── Criação das tabelas ───────────────────────────────────────────────────────
+db.run(`CREATE TABLE IF NOT EXISTS treinamentos (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome        TEXT NOT NULL,
+  descricao   TEXT DEFAULT '',
+  departamento TEXT DEFAULT 'Todos',
+  criado_em   DATETIME DEFAULT CURRENT_TIMESTAMP,
+  criado_por  TEXT DEFAULT ''
+)`);
+db.run("ALTER TABLE treinamentos ADD COLUMN tipo TEXT DEFAULT 'treinamento'", (err) => {
+  if (err && !err.message.includes("duplicate column name")) {
+    console.error("Migração (treinamentos.tipo):", err.message);
+  }
+});
+db.run("ALTER TABLE treinamentos ADD COLUMN departamento TEXT DEFAULT 'Todos'", (err) => {
+  if (err && !err.message.includes("duplicate column name")) {
+    console.error("Migração (treinamentos.departamento):", err.message);
+  }
+});
+db.run("ALTER TABLE treinamentos ADD COLUMN capa_url TEXT DEFAULT ''", (err) => {
+  if (err && !err.message.includes("duplicate column name")) {
+    console.error("Migração (treinamentos.capa_url):", err.message);
+  }
+});
+db.run("ALTER TABLE treinamentos ADD COLUMN validade_dias INTEGER DEFAULT 0", (err) => {
+  if (err && !err.message.includes("duplicate column name")) {
+    console.error("Migração (treinamentos.validade_dias):", err.message);
+  }
+});
+
+db.run(`CREATE TABLE IF NOT EXISTS treinamento_presenca (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  treinamento_id INTEGER NOT NULL REFERENCES treinamentos(id) ON DELETE CASCADE,
+  usuario_id     INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  instrutor_id   INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+  data_presenca  DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(treinamento_id, usuario_id)
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS treinamento_pesquisa_perguntas (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  treinamento_id INTEGER NOT NULL REFERENCES treinamentos(id) ON DELETE CASCADE,
+  pergunta       TEXT NOT NULL,
+  tipo           TEXT DEFAULT 'escala',
+  opcoes         TEXT,
+  ordem          INTEGER DEFAULT 0
+)`, () => {
+  db.run("ALTER TABLE treinamento_pesquisa_perguntas ADD COLUMN tipo TEXT DEFAULT 'escala'", (err) => { });
+  db.run("ALTER TABLE treinamento_pesquisa_perguntas ADD COLUMN opcoes TEXT", (err) => { });
+});
+
+db.run(`CREATE TABLE IF NOT EXISTS treinamento_pesquisa_respostas (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  treinamento_id INTEGER NOT NULL REFERENCES treinamentos(id) ON DELETE CASCADE,
+  colaborador_id INTEGER NOT NULL REFERENCES colaboradores(id) ON DELETE CASCADE,
+  token          TEXT UNIQUE NOT NULL,
+  respostas_json TEXT,
+  respondido_em  DATETIME
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS treinamento_anexos (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  treinamento_id   INTEGER NOT NULL REFERENCES treinamentos(id) ON DELETE CASCADE,
+  nome_arquivo     TEXT NOT NULL,
+  tipo_mime        TEXT DEFAULT '',
+  tamanho_bytes    INTEGER DEFAULT 0,
+  url_cloudinary   TEXT NOT NULL,
+  public_id        TEXT DEFAULT '',
+  enviado_em       DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
+// ── Multer (disk storage → Cloudinary → unlinkSync) ──────────────────────────
+const multerTrein = require('multer')({
+  storage: require('multer').diskStorage({
+    destination: (req, file, cb) => cb(null, require('os').tmpdir()),
+    filename:    (req, file, cb) => {
+      const ext = require('path').extname(file.originalname) || '';
+      cb(null, 'trein_' + Date.now() + '_' + Math.random().toString(36).slice(2) + ext);
+    }
+  }),
+  limits: { fileSize: 500 * 1024 * 1024 } // 500 MB
+});
+
+// Helper para decodificar nome do arquivo (multer / browser podem enviar Latin-1)
+function _fixFileName(nome) {
+  try { return Buffer.from(nome, 'latin1').toString('utf8'); } catch (e) { return nome; }
+}
+
+// ── GET /api/treinamentos — Lista todos com count de anexos ──────────────────
+app.get('/api/treinamentos', authenticateToken, (req, res) => {
+  const tipo = req.query.tipo || 'treinamento';
+  const sql = `
+    SELECT t.*,
+      (SELECT json_group_array(json_object(
+          'id',             a.id,
+          'nome_arquivo',   a.nome_arquivo,
+          'tipo_mime',      a.tipo_mime,
+          'url_cloudinary', a.url_cloudinary,
+          'enviado_em',     a.enviado_em
+        ))
+       FROM treinamento_anexos a WHERE a.treinamento_id = t.id
+      ) AS _anexos_json
+    FROM treinamentos t
+    WHERE IFNULL(t.tipo, 'treinamento') = ?
+    ORDER BY t.criado_em DESC`;
+
+  db.all(sql, [tipo], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    const lista = (rows || []).map(r => {
+      let anexos = [];
+      try { anexos = JSON.parse(r._anexos_json || '[]'); } catch (_) {}
+      return { ...r, _anexos_json: undefined, anexos };
+    });
+    res.json(lista);
+  });
+});
+
+// ── POST /api/treinamentos — Cria treinamento ─────────────────────────────────
+app.post('/api/treinamentos', authenticateToken, (req, res) => {
+  const { nome, descricao, departamento, capa_url, validade_dias, pesquisa_perguntas, tipo = 'treinamento' } = req.body || {};
+  if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
+  const criado_por = req.user?.nome || req.user?.email || '';
+  
+  db.run(
+    `INSERT INTO treinamentos (nome, descricao, criado_por, departamento, capa_url, validade_dias, tipo) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [nome.trim(), (descricao || '').trim(), criado_por, (departamento || 'Todos').trim(), (capa_url || '').trim(), parseInt(validade_dias) || 0, tipo.trim()],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      const newId = this.lastID;
+      
+      // Salvar perguntas da pesquisa se existirem
+      if (pesquisa_perguntas && Array.isArray(pesquisa_perguntas) && pesquisa_perguntas.length > 0) {
+        const stmt = db.prepare(`INSERT INTO treinamento_pesquisa_perguntas (treinamento_id, pergunta, tipo, opcoes, ordem) VALUES (?, ?, ?, ?, ?)`);
+        pesquisa_perguntas.forEach((p, idx) => {
+          if (typeof p === 'object' && p.pergunta && p.pergunta.trim()) {
+            const tipo = p.tipo || 'escala';
+            const opcoes = p.opcoes ? JSON.stringify(p.opcoes) : null;
+            stmt.run([newId, p.pergunta.trim(), tipo, opcoes, idx]);
+          } else if (typeof p === 'string' && p.trim()) {
+            // retro-compatibilidade
+            stmt.run([newId, p.trim(), 'escala', null, idx]);
+          }
+        });
+        stmt.finalize();
+      }
+      
+      res.status(201).json({ id: newId, nome: nome.trim(), descricao: descricao || '', departamento: (departamento || 'Todos').trim(), capa_url: (capa_url || '').trim(), validade_dias: parseInt(validade_dias) || 0, anexos: [] });
+    }
+  );
+});
+// ── PUT /api/treinamentos/:id — Atualiza treinamento ─────────────────────────
+app.put('/api/treinamentos/:id', authenticateToken, (req, res) => {
+  const { nome, descricao, departamento, capa_url, validade_dias, tipo } = req.body || {};
+  if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
+  db.run(
+    `UPDATE treinamentos SET nome = ?, descricao = ?, departamento = ?, capa_url = ?, validade_dias = ?, tipo = ? WHERE id = ?`,
+    [nome.trim(), (descricao || '').trim(), (departamento || 'Todos').trim(), (capa_url !== undefined ? capa_url : ''), parseInt(validade_dias) || 0, tipo ? tipo.trim() : 'treinamento', req.params.id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Treinamento não encontrado.' });
+      res.json({ ok: true });
+    }
+  );
+});
+
+// ── GET /api/treinamentos/:id/pesquisa — Retorna perguntas da pesquisa ──────────
+app.get('/api/treinamentos/:id/pesquisa', authenticateToken, (req, res) => {
+  db.all(`SELECT * FROM treinamento_pesquisa_perguntas WHERE treinamento_id = ? ORDER BY ordem ASC`, [req.params.id], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// ── POST /api/treinamentos/:id/pesquisa — Salva perguntas da pesquisa ──────────
+app.post('/api/treinamentos/:id/pesquisa', authenticateToken, (req, res) => {
+  const perguntas = req.body.perguntas || [];
+  const treinId = req.params.id;
+
+  db.serialize(() => {
+    db.run(`BEGIN TRANSACTION`);
+    db.run(`DELETE FROM treinamento_pesquisa_perguntas WHERE treinamento_id = ?`, [treinId], function (err) {
+      if (err) {
+        db.run(`ROLLBACK`);
+        return res.status(500).json({ error: err.message });
+      }
+
+      const stmt = db.prepare(`INSERT INTO treinamento_pesquisa_perguntas (treinamento_id, pergunta, tipo, opcoes, ordem) VALUES (?, ?, ?, ?, ?)`);
+      perguntas.forEach((p, idx) => {
+        if (typeof p === 'object' && p.pergunta && p.pergunta.trim()) {
+          const tipo = p.tipo || 'escala';
+          const opcoes = p.opcoes ? JSON.stringify(p.opcoes) : null;
+          stmt.run([treinId, p.pergunta.trim(), tipo, opcoes, idx]);
+        } else if (typeof p === 'string' && p.trim()) {
+          stmt.run([treinId, p.trim(), 'escala', null, idx]);
+        }
+      });
+      stmt.finalize((err) => {
+        if (err) {
+          db.run(`ROLLBACK`);
+          return res.status(500).json({ error: err.message });
+        }
+        db.run(`COMMIT`, () => res.json({ ok: true }));
+      });
+    });
+  });
+});
+
+// ── POST /api/treinamentos/:id/enviar-pesquisa — Envia link para o WhatsApp ────
+app.post('/api/treinamentos/:id/enviar-pesquisa', authenticateToken, (req, res) => {
+  const { colaborador_id } = req.body;
+  if (!colaborador_id) return res.status(400).json({ error: 'Colaborador não especificado.' });
+  const treinId = req.params.id;
+
+  // Gerar token único
+  const token = require('crypto').randomBytes(16).toString('hex');
+
+  // Buscar dados do treinamento e colaborador
+  db.get(`SELECT t.nome as trein_nome, c.nome_completo, c.telefone FROM treinamentos t, colaboradores c WHERE t.id = ? AND c.id = ?`, [treinId, colaborador_id], (err, info) => {
+    if (err || !info) return res.status(500).json({ error: err ? err.message : 'Dados não encontrados.' });
+
+    // Salvar no banco
+    db.run(`INSERT INTO treinamento_pesquisa_respostas (treinamento_id, colaborador_id, token) VALUES (?, ?, ?)`, [treinId, colaborador_id, token], function(err2) {
+      if (err2) return res.status(500).json({ error: err2.message });
+
+      // Link para responder a pesquisa (público)
+      const baseUrl = req.protocol + '://' + req.get('host');
+      const link = `${baseUrl}/pesquisa-treinamento.html?token=${token}`;
+
+      // Mensagem para o WhatsApp
+      const texto = `Olá ${info.nome_completo.split(' ')[0]}, vi que você participou do treinamento de *${info.trein_nome}*.\n\nPor favor, reserve 1 minuto para responder nossa pesquisa de avaliação clicando no link abaixo:\n${link}\n\nSua opinião é muito importante para nós!`;
+
+      // Disparar WhatsApp (utilizando a API existente ou simulação do sistema)
+      let phone = info.telefone ? info.telefone.replace(/\\D/g, '') : '';
+      if (phone && phone.length >= 10 && typeof enviarMensagemWhatsApp === 'function') {
+        if (!phone.startsWith('55')) phone = '55' + phone;
+        enviarMensagemWhatsApp(phone, texto).catch(e => console.error("Erro no envio WhatsApp:", e));
+      }
+
+      res.json({ ok: true, message: 'Pesquisa enviada.', link: link, texto_copia: texto });
+    });
+  });
+});
+
+// ── GET /api/treinamentos/:id/resultado-pesquisa/:colab_id — Retorna resposta do colaborador
+app.get('/api/treinamentos/:id/resultado-pesquisa/:colab_id', authenticateToken, (req, res) => {
+  db.get(`SELECT * FROM treinamento_pesquisa_respostas WHERE treinamento_id = ? AND colaborador_id = ? ORDER BY id DESC LIMIT 1`, [req.params.id, req.params.colab_id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(row || { status: 'não_enviado' });
+  });
+});
+
+// ── GET /api/public/pesquisa-treinamento/:token — Retorna dados da pesquisa (Público) ────
+app.get('/api/public/pesquisa-treinamento/:token', (req, res) => {
+  const token = req.params.token;
+  db.get(
+    `SELECT p.id as resposta_id, p.treinamento_id, p.colaborador_id, p.respondido_em, t.nome as treinamento_nome, c.nome_completo as colaborador_nome 
+     FROM treinamento_pesquisa_respostas p
+     JOIN treinamentos t ON p.treinamento_id = t.id
+     JOIN colaboradores c ON p.colaborador_id = c.id
+     WHERE p.token = ?`, 
+    [token], 
+    (err, info) => {
+      if (err) return res.status(500).json({ error: 'Erro no banco de dados.' });
+      if (!info) return res.status(404).json({ error: 'Pesquisa não encontrada ou token inválido.' });
+      
+      db.all(`SELECT id, pergunta, tipo, opcoes, ordem FROM treinamento_pesquisa_perguntas WHERE treinamento_id = ? ORDER BY ordem ASC`, [info.treinamento_id], (err2, perguntas) => {
+        if (err2) return res.status(500).json({ error: 'Erro ao buscar perguntas.' });
+        
+        if (!perguntas || perguntas.length === 0) {
+            // Fallback for old trainings that have no questions configured
+            perguntas = [
+                { id: 'default1', pergunta: 'O conteúdo do treinamento foi claro e bem estruturado?', ordem: 1 },
+                { id: 'default2', pergunta: 'O instrutor demonstrou domínio sobre o assunto?', ordem: 2 },
+                { id: 'default3', pergunta: 'Como você avalia este treinamento no geral?', ordem: 3 }
+            ];
+        }
+
+        res.json({ ...info, perguntas });
+      });
+  });
+});
+
+// ── POST /api/public/pesquisa-treinamento/:token — Salva respostas (Público) ────
+app.post('/api/public/pesquisa-treinamento/:token', (req, res) => {
+  const token = req.params.token;
+  const { respostas } = req.body; // array de objetos: { pergunta_id, nota }
+  
+  if (!respostas || !Array.isArray(respostas)) return res.status(400).json({ error: 'Respostas inválidas.' });
+  
+  db.run(
+    `UPDATE treinamento_pesquisa_respostas SET respostas_json = ?, respondido_em = CURRENT_TIMESTAMP WHERE token = ? AND respondido_em IS NULL`,
+    [JSON.stringify(respostas), token],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(400).json({ error: 'Pesquisa já respondida ou token inválido.' });
+      
+      // Notificações e e-mail (Assíncrono para não travar a resposta)
+      (async () => {
+          try {
+              const info = await new Promise((resolve, reject) => {
+                  db.get(`
+                      SELECT t.nome AS treinamento_nome, c.nome_completo AS colaborador_nome
+                      FROM treinamento_pesquisa_respostas r
+                      JOIN treinamentos t ON t.id = r.treinamento_id
+                      JOIN colaboradores c ON c.id = r.colaborador_id
+                      WHERE r.token = ?
+                  `, [token], (e, row) => e ? reject(e) : resolve(row));
+              });
+
+              if (info) {
+                  // Buscar usuários configurados para receber a notificação
+                  const configs = await new Promise((resolve, reject) => {
+                      db.all(`
+                          SELECT cn.usuario_id, u.email, u.nome
+                          FROM config_notificacoes cn
+                          JOIN usuarios u ON u.id = cn.usuario_id
+                          WHERE cn.tipo = 'pesquisa_satisfacao_treinamento'
+                      `, [], (e, rows) => e ? reject(e) : resolve(rows || []));
+                  });
+
+                  if (configs.length > 0) {
+                      const msg = `O colaborador ${info.colaborador_nome} respondeu à pesquisa do treinamento ${info.treinamento_nome}.`;
+                      const dadosStr = JSON.stringify({ treinamento_nome: info.treinamento_nome, colaborador_nome: info.colaborador_nome });
+                      
+                      // Inserir notificação no sistema (para popup via polling no frontend)
+                      for (const cfg of configs) {
+                          db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", 
+                              [cfg.usuario_id, 'pesquisa_satisfacao_treinamento', msg, dadosStr]);
+                      }
+
+                      // Enviar e-mail
+                      const emailsParaEnviar = configs.map(c => c.email).filter(e => e && e.trim() !== '');
+                      if (emailsParaEnviar.length > 0) {
+                          const mailOptions = {
+                              from: `"Treinamentos América Rental" <${SMTP_CONFIG.auth.user}>`,
+                              to: emailsParaEnviar,
+                              subject: `Pesquisa Respondida: ${info.treinamento_nome}`,
+                              html: `
+                                  <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                                      <div style="text-align: center; margin-bottom: 20px;">
+                                          <img src="cid:empresa-logo" alt="America Rental" style="max-height: 80px;" />
+                                      </div>
+                                      <h2 style="color: #0e7490; text-align: center;">Nova Pesquisa de Satisfação Respondida</h2>
+                                      <p>Temos uma nova resposta para a pesquisa de satisfação de treinamento.</p>
+                                      <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 20px;">
+                                          <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0; width: 140px;">Treinamento</th><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; color: #0e7490;">${info.treinamento_nome}</td></tr>
+                                          <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Colaborador</th><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">${info.colaborador_nome}</td></tr>
+                                      </table>
+                                      <p>Acesse o painel do sistema para visualizar as respostas em detalhes.</p>
+                                  </div>
+                              `,
+                              attachments: [
+                                  { filename: 'logo.png', path: path.join(__dirname, '..', 'frontend', 'assets', 'logo-america.png'), cid: 'empresa-logo' }
+                              ]
+                          };
+                          sendMailHelper(mailOptions).catch(e => console.error('[TREINAMENTO] Erro ao enviar e-mail de pesquisa:', e));
+                      }
+                  }
+              }
+          } catch (e) {
+              console.error('[TREINAMENTO] Erro ao processar notificação de pesquisa:', e);
+          }
+      })();
+
+      res.json({ ok: true, message: 'Pesquisa salva com sucesso!' });
+    }
+  );
+});
+
+// ── DELETE /api/treinamentos/:id — Remove treinamento + anexos Cloudinary ────
+app.delete('/api/treinamentos/:id', authenticateToken, async (req, res) => {
+  try {
+    // Buscar public_ids dos anexos para deletar do Cloudinary
+    const anexos = await new Promise((resolve, reject) =>
+      db.all(`SELECT public_id, url_cloudinary FROM treinamento_anexos WHERE treinamento_id = ?`,
+        [req.params.id], (e, r) => e ? reject(e) : resolve(r || []))
+    );
+
+    // Deletar do R2 em paralelo (ignorar erros individuais)
+    if (r2 && r2.isReady()) {
+      await Promise.allSettled(anexos.map(a => {
+        const pid = a.public_id;
+        if (!pid) return Promise.resolve();
+        return r2.deleteFromR2(pid);
+      }));
+    }
+
+    // Deletar registros do banco (ON DELETE CASCADE cuida dos anexos)
+    await new Promise((resolve, reject) =>
+      db.run(`DELETE FROM treinamentos WHERE id = ?`, [req.params.id], function (e) {
+        if (e) return reject(e);
+        if (this.changes === 0) return reject({ status: 404, message: 'Treinamento não encontrado.' });
+        resolve();
+      })
+    );
+
+    res.json({ ok: true });
+  } catch (e) {
+    const status = e.status || 500;
+    res.status(status).json({ error: e.message || String(e) });
+  }
+});
+
+// ── GET /api/treinamentos/:id/anexos — Lista anexos ──────────────────────────
+app.get('/api/treinamentos/:id/anexos', authenticateToken, (req, res) => {
+  db.all(
+    `SELECT * FROM treinamento_anexos WHERE treinamento_id = ? ORDER BY enviado_em DESC`,
+    [req.params.id],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows || []);
+    }
+  );
+});
+
+// ── POST /api/treinamentos/:id/anexos — Upload de arquivo ────────────────────
+app.post('/api/treinamentos/:id/anexos', authenticateToken, multerTrein.single('arquivo'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+
+  const treinId   = req.params.id;
+  const nomeOrig  = _fixFileName(req.file.originalname || 'arquivo');
+  const mime      = req.file.mimetype || '';
+  const tamanho   = req.file.size || 0;
+  const tmpPath   = req.file.path;
+
+  try {
+    // Verificar se o treinamento existe
+    const trein = await new Promise((resolve, reject) =>
+      db.get(`SELECT id FROM treinamentos WHERE id = ?`, [treinId], (e, r) => e ? reject(e) : resolve(r))
+    );
+    if (!trein) {
+      try { fs.unlinkSync(tmpPath); } catch (_) {}
+      return res.status(404).json({ error: 'Treinamento não encontrado.' });
+    }
+
+    if (!r2 || !r2.isReady()) {
+      try { fs.unlinkSync(tmpPath); } catch (_) {}
+      return res.status(500).json({ error: 'R2 Storage não configurado.' });
+    }
+
+    // Upload para o R2
+    const fileExt = nomeOrig.split('.').pop() || 'bin';
+    const r2Key = `treinamentos/${treinId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    
+    const urlCloud = await r2.uploadToR2(r2Key, tmpPath, mime);
+    const publicId = r2Key;
+
+    // Limpar arquivo temporário
+    try { fs.unlinkSync(tmpPath); } catch (_) {}
+
+    // Salvar no banco
+    db.run(
+      `INSERT INTO treinamento_anexos (treinamento_id, nome_arquivo, tipo_mime, tamanho_bytes, url_cloudinary, public_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [treinId, nomeOrig, mime, tamanho, urlCloud, publicId],
+      function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({
+          id: this.lastID,
+          treinamento_id: treinId,
+          nome_arquivo:   nomeOrig,
+          tipo_mime:      mime,
+          tamanho_bytes:  tamanho,
+          url_cloudinary: urlCloud,
+          public_id:      publicId
+        });
+      }
+    );
+  } catch (e) {
+    try { fs.unlinkSync(tmpPath); } catch (_) {}
+    console.error('[TREINAMENTO] Erro no upload:', e);
+    res.status(500).json({ error: e.message || 'Erro no upload' });
+  }
+});
+
+// ── DELETE /api/treinamentos/:id/anexos/:anexoId — Remove anexo ──────────────
+app.delete('/api/treinamentos/:id/anexos/:anexoId', authenticateToken, async (req, res) => {
+  try {
+    const anexo = await new Promise((resolve, reject) =>
+      db.get(`SELECT * FROM treinamento_anexos WHERE id = ? AND treinamento_id = ?`,
+        [req.params.anexoId, req.params.id], (e, r) => e ? reject(e) : resolve(r))
+    );
+    if (!anexo) return res.status(404).json({ error: 'Anexo não encontrado.' });
+
+    // Deletar do R2
+    const pid = anexo.public_id;
+    if (pid && r2 && r2.isReady()) {
+      await r2.deleteFromR2(pid);
+    }
+
+    await new Promise((resolve, reject) =>
+      db.run(`DELETE FROM treinamento_anexos WHERE id = ?`, [req.params.anexoId],
+        e => e ? reject(e) : resolve())
+    );
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message || String(e) });
+  }
+});
+
+// ── GET /api/treinamentos/:id/presencas — Lista presenças ─────────────────────
+app.get('/api/treinamentos/:id/presencas', authenticateToken, (req, res) => {
+  const sql = `
+    SELECT tp.id, tp.treinamento_id, tp.usuario_id, tp.instrutor_id, tp.data_presenca,
+           u.nome as usuario_nome, u.departamento as usuario_departamento
+    FROM treinamento_presenca tp
+    JOIN usuarios u ON tp.usuario_id = u.id
+    WHERE tp.treinamento_id = ?
+    ORDER BY u.nome ASC
+  `;
+  db.all(sql, [req.params.id], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// ── POST /api/treinamentos/:id/presencas — Adiciona presença ──────────────────
+app.post('/api/treinamentos/:id/presencas', authenticateToken, (req, res) => {
+  const { usuario_id } = req.body;
+  const instrutor_id = req.user.id;
+  if (!usuario_id) return res.status(400).json({ error: 'usuario_id é obrigatório' });
+
+  db.run(
+    `INSERT INTO treinamento_presenca (treinamento_id, usuario_id, instrutor_id) VALUES (?, ?, ?)`,
+    [req.params.id, usuario_id, instrutor_id],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE constraint failed')) {
+          return res.status(400).json({ error: 'Usuário já tem presença marcada neste treinamento.' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ id: this.lastID, treinamento_id: req.params.id, usuario_id, instrutor_id });
+    }
+  );
+});
+
+// ── DELETE /api/treinamentos/:id/presencas/:usuarioId — Remove presença ───────
+app.delete('/api/treinamentos/:id/presencas/:usuarioId', authenticateToken, (req, res) => {
+  db.run(
+    `DELETE FROM treinamento_presenca WHERE treinamento_id = ? AND usuario_id = ?`,
+    [req.params.id, req.params.usuarioId],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ ok: true, changes: this.changes });
+    }
+  );
+});
+
+// ── Helper: extrai public_id de URL Cloudinary ────────────────────────────────
+function _extrairPublicId(url) {
+  if (!url) return '';
+  try {
+    // Ex: https://res.cloudinary.com/xxx/video/upload/v123/treinamentos/abc.mp4
+    //     → public_id = treinamentos/abc
+    const m = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[a-z0-9]+)?$/i);
+    return m ? m[1] : '';
+  } catch (_) { return ''; }
+}
+
+console.log('[TREINAMENTO] Módulo de treinamentos carregado.');
+
+// ── MIGRAÇÃO: colunas de assinatura/selfie na tabela treinamento_presenca ────
+['assinatura_base64', 'selfie_base64', 'data_conclusao', 'colaborador_id', 'instrutor_nome'].forEach(col => {
+  const type = col === 'colaborador_id' ? 'INTEGER' : "TEXT DEFAULT ''";
+  db.run(`ALTER TABLE treinamento_presenca ADD COLUMN ${col} ${type}`, err => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error(`[PRESENÇA] Migração (${col}):`, err.message);
+    }
+  });
+});
+
+
+// ── MIGRAÇÃO: Remover UNIQUE(treinamento_id, usuario_id) que apagava registros de outros colaboradores
+db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='treinamento_presenca'", (err, row) => {
+    if (row && row.sql.includes('UNIQUE(treinamento_id, usuario_id)')) {
+        console.log('[PRESENÇA] Iniciando migração para corrigir UNIQUE constraint...');
+        db.serialize(() => {
+            db.run('BEGIN TRANSACTION');
+            db.run(`CREATE TABLE treinamento_presenca_v2 (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                treinamento_id INTEGER NOT NULL REFERENCES treinamentos(id) ON DELETE CASCADE,
+                usuario_id     INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
+                colaborador_id INTEGER REFERENCES colaboradores(id) ON DELETE CASCADE,
+                instrutor_id   INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                data_presenca  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                assinatura_base64 TEXT,
+                selfie_base64 TEXT,
+                data_conclusao TEXT,
+                instrutor_nome TEXT,
+                UNIQUE(treinamento_id, colaborador_id)
+            )`);
+            db.run(`INSERT OR REPLACE INTO treinamento_presenca_v2 (id, treinamento_id, usuario_id, colaborador_id, instrutor_id, data_presenca, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome)
+                    SELECT id, treinamento_id, usuario_id, colaborador_id, instrutor_id, data_presenca, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome FROM treinamento_presenca`);
+            db.run(`DROP TABLE treinamento_presenca`);
+            db.run(`ALTER TABLE treinamento_presenca_v2 RENAME TO treinamento_presenca`);
+            db.run('COMMIT', (err) => {
+                if (err) console.error('[PRESENÇA] Erro na migração de constraint:', err.message);
+                else console.log('[PRESENÇA] Migração de constraint concluída com sucesso!');
+            });
+        });
+    }
+});
+
+// ── GET /api/treinamento-presenca/colaboradores ──────────────────────────────
+// Retorna lista de colaboradores com seus treinamentos aplicáveis (por depto)
+// e o status de conclusão de cada treinamento
+app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res) => {
+  const sqlColabs = `
+    SELECT id, nome_completo, departamento, cargo, status
+    FROM colaboradores
+    WHERE status != 'Desligado'
+    ORDER BY nome_completo ASC
+  `;
+  const sqlTrein = `
+    SELECT id, nome, descricao, departamento, capa_url, validade_dias, IFNULL(tipo, 'treinamento') AS tipo
+    FROM treinamentos
+    ORDER BY nome ASC
+  `;
+  const sqlPresencas = `
+    SELECT tp.colaborador_id, tp.treinamento_id, tp.data_conclusao, tp.data_presenca,
+           (SELECT pr.respondido_em FROM treinamento_pesquisa_respostas pr WHERE pr.treinamento_id = tp.treinamento_id AND pr.colaborador_id = tp.colaborador_id ORDER BY pr.id DESC LIMIT 1) as respondido_em
+    FROM treinamento_presenca tp
+    WHERE tp.colaborador_id IS NOT NULL
+  `;
+
+  db.all(sqlColabs, [], (err, colabs) => {
+    if (err) return res.status(500).json({ error: err.message });
+    db.all(sqlTrein, [], (err2, treinamentos) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+      db.all(sqlPresencas, [], (err3, presencas) => {
+        if (err3) return res.status(500).json({ error: err3.message });
+
+        const agora = new Date();
+
+        const resultado = colabs.map(c => {
+          // Treinamentos aplicáveis: departamento 'Todos' ou contém o depto do colaborador
+          const aplicaveis = treinamentos.filter(t => {
+            if (!t.departamento || t.departamento === 'Todos') return true;
+            const deptos = t.departamento.split(',').map(d => d.trim().toLowerCase());
+            return deptos.includes((c.departamento || '').trim().toLowerCase());
+          });
+
+          const treinamentosComStatus = aplicaveis.map(t => {
+            const presenca = presencas.find(p => p.colaborador_id === c.id && p.treinamento_id === t.id);
+            const dataConclusao = presenca ? (presenca.data_conclusao || presenca.data_presenca) : null;
+
+            // Verificar se treinamento está vencido (validade_dias > 0)
+            let vencido = false;
+            if (presenca && dataConclusao && t.validade_dias > 0) {
+              const dtConclusao = new Date(dataConclusao);
+              const dtVencimento = new Date(dtConclusao);
+              dtVencimento.setMonth(dtVencimento.getMonth() + t.validade_dias);
+              if (agora > dtVencimento) vencido = true;
+            }
+
+            // Se vencido, tratar como não concluído
+            const concluido = !!presenca && !vencido;
+
+            return {
+              id: t.id,
+              nome: t.nome,
+              descricao: t.descricao,
+              capa_url: t.capa_url,
+              validade_dias: t.validade_dias || 0,
+              tipo: t.tipo || 'treinamento',
+              concluido,
+              vencido,
+              data_conclusao: dataConclusao,
+              respondido_em: presenca ? presenca.respondido_em : null
+            };
+          });
+
+          return {
+            id: c.id,
+            nome_completo: c.nome_completo,
+            departamento: c.departamento,
+            cargo: c.cargo,
+            treinamentos: treinamentosComStatus,
+            total: treinamentosComStatus.length,
+            concluidos: treinamentosComStatus.filter(t => t.concluido).length
+          };
+        });
+
+        res.json(resultado);
+      });
+    });
+  });
+});
+
+// ── GET /api/treinamento-presenca/historico/:colaboradorId ─────────────────────
+// Retorna histórico completo de presenças de um colaborador (incluindo vencidos)
+app.get('/api/treinamento-presenca/historico/:colaboradorId', authenticateToken, (req, res) => {
+  const { colaboradorId } = req.params;
+  db.all(
+    `SELECT tp.id, tp.treinamento_id, tp.data_conclusao, tp.data_presenca,
+            tp.assinatura_base64, tp.selfie_base64, tp.instrutor_nome,
+            t.nome AS treinamento_nome, t.capa_url, t.validade_dias,
+            (SELECT respondido_em FROM treinamento_pesquisa_respostas pr WHERE pr.treinamento_id = tp.treinamento_id AND pr.colaborador_id = tp.colaborador_id ORDER BY pr.id DESC LIMIT 1) as respondido_em,
+            (SELECT token FROM treinamento_pesquisa_respostas pr WHERE pr.treinamento_id = tp.treinamento_id AND pr.colaborador_id = tp.colaborador_id ORDER BY pr.id DESC LIMIT 1) as pesquisa_token
+     FROM treinamento_presenca tp
+     JOIN treinamentos t ON t.id = tp.treinamento_id
+     WHERE tp.colaborador_id = ?
+     ORDER BY COALESCE(tp.data_conclusao, tp.data_presenca) DESC`,
+    [colaboradorId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      const agora = new Date();
+      const resultado = (rows || []).map(r => {
+        const dataConclusao = r.data_conclusao || r.data_presenca;
+        let vencido = false;
+        if (dataConclusao && r.validade_dias > 0) {
+          const dtConclusao = new Date(dataConclusao);
+          const dtVencimento = new Date(dtConclusao);
+          dtVencimento.setMonth(dtVencimento.getMonth() + r.validade_dias);
+          if (agora > dtVencimento) vencido = true;
+        }
+        return { ...r, data_conclusao: dataConclusao, vencido };
+      });
+      res.json(resultado);
+    }
+  );
+});
+
+// ── POST /api/treinamento-presenca/assinar ────────────────────────────────────
+// Registra presença com assinatura digital e selfie
+
+// DELETE signature based on colaborador_id
+app.delete('/api/treinamento-presenca/:treinamentoId/:colaboradorId', authenticateToken, (req, res) => {
+  db.run(
+    `DELETE FROM treinamento_presenca WHERE treinamento_id = ? AND colaborador_id = ?`,
+    [req.params.treinamentoId, req.params.colaboradorId],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ ok: true, changes: this.changes });
+    }
+  );
+});
+
+app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
+  const {
+    colaborador_id, treinamento_id, assinatura_base64, selfie_base64, instrutor_nome,
+    gps_lat, gps_lon, dispositivo
+  } = req.body;
+
+  if (!colaborador_id || !treinamento_id) {
+    return res.status(400).json({ error: 'colaborador_id e treinamento_id são obrigatórios' });
+  }
+
+  const now = new Date().toISOString();
+  const instrutorNome = instrutor_nome || req.user?.username || req.user?.nome || '';
+  const usuarioId = req.user?.id || 0;
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+
+  // Função auxiliar: registra na trilha de auditoria após sucesso
+  const registrarAuditoria = (presencaId) => {
+    try {
+      const crypto = require('crypto');
+      const hash = crypto.createHash('sha256')
+        .update((assinatura_base64 || '') + colaborador_id + treinamento_id + now)
+        .digest('hex');
+
+      // Buscar nome do colaborador E nome/tipo do treinamento em paralelo
+      db.get(`SELECT nome_completo FROM colaboradores WHERE id = ?`, [colaborador_id], (errC, colab) => {
+        const colabNome = colab ? colab.nome_completo : 'Desconhecido';
+
+        db.get(`SELECT nome, IFNULL(tipo, 'treinamento') AS tipo FROM treinamentos WHERE id = ?`, [treinamento_id], (errT, trein) => {
+          // Monta label do documento: "Palestra: Junho - Gestão de Estresse"
+          let docLabel = 'Lista de Presença';
+          if (trein) {
+            const tipoCapitalized = trein.tipo
+              ? trein.tipo.charAt(0).toUpperCase() + trein.tipo.slice(1)
+              : 'Treinamento';
+            docLabel = `${tipoCapitalized}: ${trein.nome}`;
+          }
+
+          // Registrar na assinaturas_auditoria
+          db.run(
+            `INSERT INTO assinaturas_auditoria
+               (documento_id, document_type, colaborador_id, colaborador_nome,
+                gps_lat, gps_lon, dispositivo, ip_address, hash_assinatura)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [presencaId, docLabel, colaborador_id, colabNome,
+             gps_lat || null, gps_lon || null, dispositivo || null, ip, hash],
+            (errA) => {
+              if (errA) console.error('[PRESENÇA-AUDITORIA] Erro ao registrar auditoria:', errA.message);
+              else console.log(`[PRESENÇA-AUDITORIA] Auditoria registrada: "${docLabel}" para ${colabNome}`);
+            }
+          );
+        });
+      });
+    } catch (e) {
+      console.error('[PRESENÇA-AUDITORIA] Erro inesperado:', e.message);
+    }
+  };
+
+
+  // Verificar se já existe registro para esse par (colaborador + treinamento)
+  // A tabela tem UNIQUE(treinamento_id, usuario_id) — usamos isso para o UPSERT
+  db.get(
+    `SELECT id FROM treinamento_presenca
+     WHERE treinamento_id = ?
+       AND (colaborador_id = ? OR (usuario_id = ? AND colaborador_id IS NULL))
+     LIMIT 1`,
+    [treinamento_id, colaborador_id, usuarioId],
+    (err, existing) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      if (existing) {
+        // Atualiza registro existente — garante que colaborador_id está preenchido
+        db.run(
+          `UPDATE treinamento_presenca
+           SET colaborador_id = ?, assinatura_base64 = ?, selfie_base64 = ?,
+               data_conclusao = ?, instrutor_nome = ?
+           WHERE id = ?`,
+          [colaborador_id, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, existing.id],
+          function(err2) {
+            if (err2) return res.status(500).json({ error: err2.message });
+            registrarAuditoria(existing.id);
+            res.json({ ok: true, updated: true, data_conclusao: now });
+          }
+        );
+      } else {
+        // Insere novo registro usando INSERT OR REPLACE para lidar com a UNIQUE constraint
+        db.run(
+          `INSERT INTO treinamento_presenca
+             (treinamento_id, colaborador_id, usuario_id, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [treinamento_id, colaborador_id, usuarioId, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome],
+          function(err2) {
+            if (err2) {
+              // UNIQUE conflict em (treinamento_id, usuario_id): atualiza pelo usuario_id
+              db.run(
+                `UPDATE treinamento_presenca
+                 SET colaborador_id = ?, assinatura_base64 = ?, selfie_base64 = ?,
+                     data_conclusao = ?, instrutor_nome = ?
+                 WHERE treinamento_id = ? AND usuario_id = ?`,
+                [colaborador_id, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, treinamento_id, usuarioId],
+                function(err3) {
+                  if (err3) return res.status(500).json({ error: err3.message });
+                  db.get(
+                    `SELECT id FROM treinamento_presenca WHERE treinamento_id = ? AND colaborador_id = ?`,
+                    [treinamento_id, colaborador_id],
+                    (errId, row) => { if (row) registrarAuditoria(row.id); }
+                  );
+                  res.json({ ok: true, updated: true, data_conclusao: now });
+                }
+              );
+            } else {
+              registrarAuditoria(this.lastID);
+              res.json({ ok: true, id: this.lastID, data_conclusao: now });
+            }
+          }
+        );
+      }
+    }
+  );
+
+});
+
+
+// ── GET /api/treinamento-presenca/registro/:colaboradorId/:treinamentoId ───────
+// Busca registro completo (assinatura + selfie) para exibição pós-assinatura
+app.get('/api/treinamento-presenca/registro/:colaboradorId/:treinamentoId', authenticateToken, (req, res) => {
+  db.get(
+    `SELECT id, data_conclusao, data_presenca, assinatura_base64, selfie_base64, instrutor_nome
+     FROM treinamento_presenca
+     WHERE colaborador_id = ? AND treinamento_id = ?`,
+    [req.params.colaboradorId, req.params.treinamentoId],
+    (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(row || null);
+    }
+  );
+});
+
+// ── GET /api/treinamento-presenca/:colaboradorId/:treinamentoId ───────────────
+// Verifica se um colaborador já concluiu um treinamento específico
+app.get('/api/treinamento-presenca/:colaboradorId/:treinamentoId', authenticateToken, (req, res) => {
+  db.get(
+    `SELECT id, data_conclusao, data_presenca, assinatura_base64, selfie_base64
+     FROM treinamento_presenca
+     WHERE colaborador_id = ? AND treinamento_id = ?`,
+    [req.params.colaboradorId, req.params.treinamentoId],
+    (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(row || null);
+    }
+  );
+});
+
+
 
 app.listen(PORT, () => {
 
@@ -20240,4 +21390,9 @@ console.log('[CLIENTES] Módulo de cadastro de clientes carregado.');
 
 
 
+
 try { require('../rescue_estoque.js'); } catch(e) { console.error('Rescue script error:', e); }
+
+
+
+

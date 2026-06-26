@@ -258,6 +258,43 @@
                 </div>
             </div>
 
+            <!-- Treinamento - Azul Turquesa -->
+            <div class="dept-item" style="--dept-color:#0e7490; --dept-bg:#cffafe;">
+                <button class="dept-btn" title="Treinamento">
+                    <i class="ph ph-graduation-cap"></i>
+                    <span>Treiname.</span>
+                </button>
+                <div class="dept-submenu">
+                    <div class="dept-submenu-header" style="color:#0e7490;"><i class="ph ph-graduation-cap"></i> Treinamento
+                    </div>
+                    <a href="#" class="nav-item" data-target="treinamento-materiais"
+                        onclick="window._currentTreinamentoTipo='treinamento'; navigateTo('treinamento-materiais'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.renderTreinamentosTable) window.renderTreinamentosTable(); }, 10); return false;"><i class="ph ph-books"></i>
+                        Materiais</a>
+                    <a href="#" class="nav-item" data-target="treinamento-presenca"
+                        onclick="window._currentTreinamentoTipo='treinamento'; navigateTo('treinamento-presenca'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.initPresencaTreinamento) window.initPresencaTreinamento(); }, 10); return false;"><i class="ph ph-check-square"></i>
+                        Presenças</a>
+
+                    <div class="nav-group" id="nav-group-terapia">
+                        <button class="nav-group-label nav-group-toggle"
+                                onclick="toggleNavGroup('nav-group-terapia')">
+                            <span style="display:flex;align-items:center;gap:0.55rem;">
+                                <i class="ph ph-heartbeat"></i>
+                                Terapia
+                            </span>
+                            <i class="ph ph-caret-right nav-group-chevron"></i>
+                        </button>
+                        <div class="nav-group-items" id="nav-group-items-terapia">
+                            <a href="#" class="nav-item nav-item-sub" data-target="treinamento-materiais-terapia"
+                                onclick="window._currentTreinamentoTipo='terapia'; navigateTo('treinamento-materiais-terapia'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.renderTreinamentosTable) window.renderTreinamentosTable(); }, 10); return false;"><i class="ph ph-books"></i>
+                                Palestras</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="treinamento-presenca-terapia"
+                                onclick="window._currentTreinamentoTipo='terapia'; navigateTo('treinamento-presenca-terapia'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.initPresencaTreinamento) window.initPresencaTreinamento(); }, 10); return false;"><i class="ph ph-list-numbers"></i>
+                                Listas</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Diretoria - Laranja -->
             <div class="dept-item" style="--dept-color:#c92a2a; --dept-bg:#fff5f5;">
                 <button class="dept-btn" title="Diretoria">
@@ -268,6 +305,7 @@
                     <div class="dept-submenu-header" style="color:#d9480f;"><i class="ph ph-crown"></i> Diretoria</div>
                     <a href="#" class="nav-item" data-target="gerenciar-avaliacoes"><i class="ph ph-clipboard-text"></i>
                         Avalia&ccedil;&otilde;es</a>
+                    <a href="#" class="nav-item" data-target="auditoria" onclick="navigateTo('auditoria'); return false;"><i class="ph ph-shield-check"></i> Trilha de Auditoria</a>
                     <a href="#" class="nav-item" data-target="usuarios-permissoes"><i class="ph ph-users-three"></i>
                         Usuários</a>
                     <a href="#" class="nav-item" data-target="cargos"><i class="ph ph-briefcase"></i> Cargos</a>
@@ -288,6 +326,8 @@
                     <a href="#" class="nav-item" data-target="ficha-epi"><i class="ph ph-shield-check"></i> Ficha EPI</a>
                 </div>
             </div>
+
+
 
 
         </aside>
@@ -316,7 +356,7 @@
                             <i class="ph ph-clock-counter-clockwise"></i>
                         </button>
                         <button id="btn-star-page" onclick="toggleBookmarkCurrentPage()"
-                            style="background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#f503c5; font-size:1.5rem; transition: transform 0.2s;">
+                            style="background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#0e7490; font-size:1.5rem; transition: transform 0.2s;">
                             <i class="ph ph-star"></i>
                         </button>
                         <div id="bookmarks-list" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
@@ -3090,11 +3130,11 @@
                         <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
                             <div style="flex: 1; min-width: 200px;">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Buscar por nome</label>
-                                <input type="search" id="filtro-estoque-nome" class="form-control" placeholder="Buscar..." oninput="window.renderEstoqueTable()" autocomplete="new-password" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')">
+                                <input type="search" id="filtro-estoque-nome" class="form-control" style="width: 100%;" placeholder="Buscar..." oninput="window.renderEstoqueTable()" autocomplete="new-password" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')">
                             </div>
-                            <div style="flex: 1; min-width: 200px;">
+                            <div style="flex: 1; min-width: 200px; display: none;">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Departamento</label>
-                                <select id="filtro-estoque-dept" class="form-control" onchange="window.renderEstoqueTable()">
+                                <select id="filtro-estoque-dept" class="form-control" style="width: 100%;" onchange="window.renderEstoqueTable()">
                                     <option value="">Todos</option>
                                     <option value="RH">RH</option>
                                     <option value="Administrativo">Administrativo</option>
@@ -3104,8 +3144,14 @@
                                 </select>
                             </div>
                             <div style="flex: 1; min-width: 200px;">
+                                <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Endereço</label>
+                                <select id="filtro-estoque-endereco" class="form-control" style="width: 100%;" onchange="window.renderEstoqueTable()">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                            <div style="flex: 1; min-width: 200px;">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Categoria</label>
-                                <select id="filtro-estoque-cat" class="form-control" onchange="window.renderEstoqueTable()">
+                                <select id="filtro-estoque-cat" class="form-control" style="width: 100%;" onchange="window.renderEstoqueTable()">
                                     <option value="">Todas</option>
                                     <option value="EPI">EPI</option>
                                     <option value="Uniforme">Uniforme</option>
@@ -3115,14 +3161,14 @@
                             </div>
                             <div style="flex: 1; min-width: 200px;">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Status</label>
-                                <select id="filtro-estoque-status" class="form-control" onchange="window.renderEstoqueTable()">
+                                <select id="filtro-estoque-status" class="form-control" style="width: 100%;" onchange="window.renderEstoqueTable()">
                                     <option value="">Todos</option>
                                     <option value="minimo">Estoque Mínimo</option>
                                 </select>
                             </div>
                             <div style="flex: 1; min-width: 200px;">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Tipo</label>
-                                <select id="filtro-estoque-tipo" class="form-control" onchange="window.renderEstoqueTable()">
+                                <select id="filtro-estoque-tipo" class="form-control" style="width: 100%;" onchange="window.renderEstoqueTable()">
                                     <option value="">Todos</option>
                                     <option value="sem_tipo">Sem tipo</option>
                                     <option value="compra">Pedido de Compra</option>
@@ -3202,26 +3248,14 @@
                                         <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Nome do Item *</label>
                                         <input type="text" id="estoque-nome" required class="form-control" style="width: 100%; min-width: 300px;" placeholder="Ex: Capacete">
                                     </div>
-                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
-                                        <div>
-                                            <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Departamento *</label>
-                                            <select id="estoque-dept" required class="form-control">
-                                                <option value="RH">RH</option>
-                                                <option value="Administrativo">Administrativo</option>
-                                                <option value="Logística">Logística</option>
-                                                <option value="Financeiro">Financeiro</option>
-                                                <option value="Comercial">Comercial</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Categoria *</label>
-                                            <select id="estoque-cat" required class="form-control">
-                                                <option value="EPI">EPI</option>
-                                                <option value="Uniforme">Uniforme</option>
-                                                <option value="Itens de Escritório">Itens de Escritório</option>
-                                                <option value="Outros">Outros</option>
-                                            </select>
-                                        </div>
+                                    <div style="margin-bottom:1rem;">
+                                        <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Categoria *</label>
+                                        <select id="estoque-cat" required class="form-control" style="width: 100%;">
+                                            <option value="EPI">EPI</option>
+                                            <option value="Uniforme">Uniforme</option>
+                                            <option value="Itens de Escritório">Itens de Escritório</option>
+                                            <option value="Outros">Outros</option>
+                                        </select>
                                     </div>
                                     <!-- Campos globais de Qtd/Mín/Máx removidos — controle é por endereço -->
                                     <input type="hidden" id="estoque-qtd" value="0">
@@ -3990,6 +4024,42 @@
                 <section id="view-logistica-frota" class="content-view" style="padding:0;">
                     <div id="frota-veiculos-container"></div>
                 </section>
+                <!-- VIEW: TRILHA DE AUDITORIA -->
+                <section id="view-auditoria" class="content-view" style="padding:1.5rem; background:#f1f5f9;">
+                    <div class="page-header flex-between">
+                        <div>
+                            <h2><i class="ph ph-shield-check" style="color:#d9480f;"></i> Trilha de Auditoria</h2>
+                            <p>Registro de validade jurídica das assinaturas (GPS, IP, Hash do PDF, etc.)</p>
+                        </div>
+                        <button onclick="window._carregarAuditoria && window._carregarAuditoria()" style="background:#d9480f;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;font-weight:600;">
+                            <i class="ph ph-arrows-clockwise"></i> Atualizar
+                        </button>
+                    </div>
+
+                    <div style="background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow-x:auto;">
+                        <table class="table" style="width:100%;min-width:1000px;border-collapse:collapse;font-size:0.9rem;">
+                            <thead>
+                                <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
+                                    <th style="padding:12px 16px;text-align:left;color:#475569;font-weight:600;">Data/Hora</th>
+                                    <th style="padding:12px 16px;text-align:left;color:#475569;font-weight:600;">Documento</th>
+                                    <th style="padding:12px 16px;text-align:left;color:#475569;font-weight:600;">Colaborador</th>
+                                    <th style="padding:12px 16px;text-align:left;color:#475569;font-weight:600;">IP</th>
+                                    <th style="padding:12px 16px;text-align:left;color:#475569;font-weight:600;">Dispositivo</th>
+                                    <th style="padding:12px 16px;text-align:left;color:#475569;font-weight:600;">GPS (Lat, Lon)</th>
+                                    <th style="padding:12px 16px;text-align:left;color:#475569;font-weight:600;">Hash (SHA-256)</th><th style="padding:12px 16px;text-align:center;color:#475569;font-weight:600;width:60px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditoria-tbody">
+                                <tr>
+                                    <td colspan="7" style="text-align:center;padding:20px;color:#94a3b8;">
+                                        <i class="ph ph-spinner" style="font-size:1.5rem;animation:spin 1s linear infinite;display:block;margin-bottom:8px;"></i>
+                                        Carregando registros...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
 
                 <section id="view-usuarios-permissoes" class="content-view">
 
@@ -4491,6 +4561,120 @@
                     </div>
                     <div id="sigor-config-alert" style="display:none;margin-top:1rem;max-width:900px;padding:0.75rem 1rem;border-radius:10px;font-size:0.85rem;"></div>
                 </section>
+    </section>
+
+    <!-- -------------------------------------------------------------- -->
+    <!-- TELA: TREINAMENTO / MATERIAIS                                   -->
+    <!-- -------------------------------------------------------------- -->
+    <section id="view-treinamento-materiais" class="content-view">
+        <div class="page-header flex-between" style="position:sticky;top:60px;z-index:20;background:var(--bg-main);padding:1rem 0;margin-top:-1.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border-color);">
+            <div style="display:flex;align-items:center;gap:1.5rem;">
+                <div style="width:70px;height:70px;border-radius:50%;border:2px dashed #0e7490;display:flex;align-items:center;justify-content:center;background:#cffafe;color:#0e7490;font-size:2rem;">
+                    <i class="ph ph-graduation-cap"></i>
+                </div>
+                <div>
+                    <h1 style="margin:0;font-size:1.85rem;font-weight:700;color:#334155;">Materiais de Treinamento</h1>
+                    <p style="margin:4px 0 0;color:#64748b;font-size:0.88rem;">Gerencie apresentações, vídeos, PDFs e outros materiais de treinamento.</p>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="window.abrirModalNovoTreinamento()" style="background:#0e7490;border-color:#0e7490;display:flex;align-items:center;gap:6px;">
+                <i class="ph ph-plus-circle"></i> Novo Treinamento
+            </button>
+        </div>
+        <div style="margin-bottom:1.5rem;display:flex;gap:1rem;flex-wrap:wrap;align-items:center;">
+            <div style="position:relative;flex:1;min-width:220px;">
+                <i class="ph ph-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1.1rem;"></i>
+                <input type="search" id="filtro-treinamento-busca" class="form-control" placeholder="Buscar treinamento..." oninput="window.renderTreinamentosTable()" autocomplete="off"
+                    style="padding-left:38px;border-radius:8px;border:1px solid #e2e8f0;">
+            </div>
+            <div style="width:250px;">
+                <select id="filtro-treinamento-departamento" class="form-control" onchange="window.renderTreinamentosTable()" style="border-radius:8px;border:1px solid #e2e8f0;">
+                    <option value="">Todos os Departamentos</option>
+                </select>
+            </div>
+        </div>
+        <div class="card" style="border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;margin-bottom:2rem;">
+            <div style="background:linear-gradient(135deg,#0e7490,#0891b2);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;">
+                <span style="color:#fff;font-weight:700;font-size:1rem;display:flex;align-items:center;gap:8px;">
+                    <i class="ph ph-books"></i> Treinamentos Cadastrados
+                </span>
+                <span id="treinamento-count-badge" style="background:rgba(255,255,255,0.2);color:#fff;border-radius:20px;padding:2px 12px;font-size:0.82rem;font-weight:600;">0 treinamentos</span>
+            </div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
+                            <th style="padding:12px 16px;text-align:left;font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Treinamento</th>
+                            <th style="padding:12px 16px;text-align:left;font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Arquivos</th>
+                            <th style="padding:12px 16px;text-align:left;font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Validade</th>
+                            <th style="padding:12px 16px;text-align:left;font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Data</th>
+                            <th style="padding:12px 16px;text-align:center;font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="treinamentos-tbody">
+                        <tr>
+                            <td colspan="5" style="text-align:center;padding:3rem;color:#94a3b8;">
+                                <i class="ph ph-graduation-cap" style="font-size:2.5rem;display:block;margin-bottom:0.5rem;"></i>
+                                Nenhum treinamento cadastrado ainda.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- TELA: TREINAMENTO / PRESEN�AS                                  -->
+    <!-- -------------------------------------------------------------- -->
+    <section id="view-treinamento-presenca" class="content-view">
+        <!-- Cabeçalho -->
+        <div class="page-header flex-between" style="position:sticky;top:60px;z-index:20;background:var(--bg-main);padding:1rem 0;margin-top:-1.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border-color);">
+            <div style="display:flex;align-items:center;gap:1.5rem;">
+                <div style="width:70px;height:70px;border-radius:50%;border:2px dashed #0e7490;display:flex;align-items:center;justify-content:center;background:#cffafe;color:#0e7490;font-size:2rem;">
+                    <i class="ph ph-check-square"></i>
+                </div>
+                <div>
+                    <h1 style="margin:0;font-size:1.85rem;font-weight:700;color:#334155;">Treinamentos - Presença</h1>
+                    <p style="margin:4px 0 0;color:#64748b;font-size:0.88rem;">Visualize e registre a conclusão de treinamentos por colaborador.</p>
+                </div>
+            </div>
+            <button onclick="window.initPresencaTreinamento()" style="background:#fff;color:#0e7490;border:1.5px solid #0e7490;border-radius:8px;padding:9px 16px;cursor:pointer;font-size:0.85rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                <i class="ph ph-arrows-clockwise"></i> Atualizar
+            </button>
+        </div>
+
+        <!-- Filtros -->
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:1.5rem;align-items:flex-end;">
+            <div style="flex:1;min-width:180px;">
+                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Departamento</label>
+                <select id="pres-filtro-depto" class="form-control" style="width:100%;" onchange="window.filtrarPresencaDepto(this.value)">
+                    <option value="">Todos os departamentos</option>
+                </select>
+            </div>
+            <div style="flex:2;min-width:200px;">
+                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Buscar colaborador</label>
+                <input type="search" id="pres-filtro-busca" class="form-control" style="width:100%;" placeholder="Nome ou cargo..." oninput="window.filtrarPresencaBusca(this.value)" autocomplete="off">
+            </div>
+            <div style="display:flex;align-items:flex-end;">
+                <span id="pres-counter" style="font-size:0.82rem;color:#64748b;background:#f1f5f9;border-radius:20px;padding:6px 14px;font-weight:600;">—</span>
+            </div>
+        </div>
+
+        <!-- Legenda rápida -->
+        <div style="display:flex;gap:16px;margin-bottom:1.2rem;flex-wrap:wrap;">
+            <span style="font-size:0.78rem;color:#10b981;display:flex;align-items:center;gap:4px;font-weight:600;"><i class="ph ph-check-circle"></i> Concluído</span>
+            <span style="font-size:0.78rem;color:#f59e0b;display:flex;align-items:center;gap:4px;font-weight:600;"><i class="ph ph-clock"></i> Pendente — clique em "Assinar"</span>
+        </div>
+
+        <!-- Grid de cards -->
+        <div id="presenca-colaboradores-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;padding-bottom:2rem;">
+            <div style="grid-column:1/-1;text-align:center;padding:3rem;color:#94a3b8;">
+                <i class="ph ph-check-square" style="font-size:2.5rem;display:block;margin-bottom:0.5rem;"></i>
+                Carregando colaboradores...
+            </div>
+        </div>
+    </section>
+
           </main>
         </div>
     </div>
@@ -5239,7 +5423,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=1778869020176"></script>
-    <script src="app.js?v=1779300202068"></script>
+    <script src="app.js?v=202606251404"></script>
     <script src="frota_resumo.js?v=1778869020176"></script>
     <!-- Global Scroll-to-Top Button -->
     <button id="global-scroll-top" onclick="window.scrollTo({top:0, behavior:'smooth'})"
@@ -5349,6 +5533,94 @@
             }
         }
     </style>
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- MODAL: EDITAR TREINAMENTO                                      -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div id="modal-editar-treinamento" style="display:none;position:fixed;inset:0;background:#fff;z-index:9050;align-items:flex-start;justify-content:center;padding:0;overflow-y:auto;">
+        <div style="background:#fff;border-radius:0;width:100%;min-height:100vh;box-shadow:none;overflow:hidden;margin:0;">
+            <div style="background:linear-gradient(135deg,#1d4ed8,#2563eb);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
+                <h3 style="margin:0;color:#fff;font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:8px;">
+                    <i class="ph ph-pencil-simple"></i> Editar Treinamento
+                </h3>
+                <button onclick="window.fecharModalEditarTreinamento()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;">&times;</button>
+            </div>
+            <div style="padding:28px;">
+                <div style="display:flex;gap:20px;border-bottom:1px solid #e2e8f0;margin-bottom:20px;">
+                    <button type="button" id="btn-aba-detalhes" onclick="mudarAbaEditarTreinamento('detalhes')" style="background:none;border:none;padding:10px 4px;font-weight:600;font-size:0.95rem;color:#1d4ed8;border-bottom:2px solid #1d4ed8;cursor:pointer;">Detalhes</button>
+                    <button type="button" id="btn-aba-pesquisa" onclick="mudarAbaEditarTreinamento('pesquisa')" style="background:none;border:none;padding:10px 4px;font-weight:600;font-size:0.95rem;color:#64748b;border-bottom:none;cursor:pointer;">Pesquisa (Formulário)</button>
+                </div>
+                <form id="form-editar-treinamento" onsubmit="window.salvarEdicaoTreinamento(event)">
+                    <div id="aba-detalhes-content">
+                    <input type="hidden" id="editar-treinamento-id">
+                    <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Nome do Treinamento *</label>
+                        <input type="text" id="editar-treinamento-nome" class="form-control" placeholder="Ex: NR-35 Trabalho em Altura" required
+                            style="width:100%;box-sizing:border-box;border-radius:8px;font-size:1rem;padding:10px 14px;border:1.5px solid #cbd5e1;">
+                    </div>
+                    <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Departamentos</label>
+                        <div id="editar-treinamento-departamento" style="width:100%;max-height:130px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.95rem;padding:10px 14px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:8px;">
+                            <!-- Checkboxes injetados pelo JS -->
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Descrição</label>
+                        <textarea id="editar-treinamento-desc" class="form-control" rows="5" placeholder="Descreva brevemente o conteúdo, objetivos e público-alvo do treinamento..."
+                            style="width:100%;box-sizing:border-box;border-radius:8px;resize:vertical;font-size:0.93rem;padding:10px 14px;border:1.5px solid #cbd5e1;min-height:120px;"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Imagem de Capa</label>
+                        <div id="editar-capa-preview-wrap" style="display:none;margin-bottom:8px;">
+                            <div style="position:relative;display:inline-block;width:100%;">
+                                <img id="editar-capa-preview" src="" alt="Capa" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;border:1.5px solid #cbd5e1;display:block;">
+                                <button type="button" onclick="window._editarCapaRemover()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);border:none;color:#fff;border-radius:50%;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.85rem;" title="Remover capa">&times;</button>
+                            </div>
+                        </div>
+                        <label for="editar-treinamento-capa" style="display:flex;align-items:center;gap:8px;cursor:pointer;border:2px dashed #cbd5e1;border-radius:10px;padding:14px 16px;color:#64748b;font-size:0.88rem;transition:border-color .2s;" onmouseover="this.style.borderColor='#1d4ed8'" onmouseout="this.style.borderColor='#cbd5e1'">
+                            <i class="ph ph-image" style="font-size:1.5rem;color:#1d4ed8;"></i>
+                            <span id="editar-capa-label">Clique para alterar a imagem de capa...</span>
+                        </label>
+                        <input type="file" id="editar-treinamento-capa" accept="image/*" style="display:none;" onchange="window._editarCapaPreview(this)">
+                        <input type="hidden" id="editar-treinamento-capa-url">
+                    </div>
+                    <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:4px;">Validade do Treinamento</label>
+                        <p style="font-size:0.78rem;color:#94a3b8;margin:0 0 8px;">Número de meses válido após a conclusão. 0 = sem validade.</p>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <input type="number" id="editar-treinamento-validade" class="form-control" min="0" max="9999" value="0"
+                                style="width:130px;border-radius:8px;font-size:1rem;padding:10px 14px;border:1.5px solid #cbd5e1;">
+                            <span style="font-size:0.88rem;color:#64748b;">meses</span>
+                        </div>
+                    </div>
+                    </div>
+
+                    <div id="aba-pesquisa-content" style="display:none;">
+                        <div class="mb-3">
+                            <p style="font-size:0.9rem; color:#64748b; margin-bottom:15px;">
+                                A pesquisa de satisfação permite coletar feedback dos colaboradores após a conclusão do treinamento. O modelo atual permite a criação de perguntas de texto livre, escala ou seção.
+                            </p>
+                            <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Perguntas da Pesquisa</label>
+                            
+                            <div id="editar-treinamento-perguntas-container" style="display:flex;flex-direction:column;gap:12px;margin-bottom:15px;">
+                                <!-- Perguntas injetadas via JS -->
+                            </div>
+                            
+                            <button type="button" class="btn btn-outline-secondary" onclick="window._adicionarPerguntaPesquisaEditar()" style="font-size:0.85rem; display:flex; align-items:center; gap:6px;">
+                                <i class="ph ph-plus"></i> Adicionar Pergunta
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:1.5rem;">
+                        <button type="button" class="btn btn-secondary" onclick="window.fecharModalEditarTreinamento()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="btn-salvar-edicao-treinamento" style="background:#1d4ed8;border-color:#1d4ed8;padding:8px 20px;">Salvar Alterações</button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="logistica_agenda.js?v=1778869020176"></script>
     <script src="logistica_epi.js?v=202606240125"></script>
     <script src="config-sigor.js"></script>
@@ -5367,15 +5639,189 @@
            O acordeão só fechará se o usuário clicar nele novamente. */
     </script>
     <script src="end-produto.js"></script>
+    <script src="treinamento.js?v=202606251437"></script>
+    <script src="treinamento_presenca.js?v=202606251352"></script>
+
+    
+    <!-- MODAL: ASSINATURA DE TREINAMENTO -->
+    <div id="modal-assinatura-treinamento" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9200;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto;">
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,0.25);overflow:hidden;margin:auto;">
+            <!-- Header -->
+            <div style="background:linear-gradient(135deg,#0e7490,#06b6d4);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                    <h3 id="modal-assin-titulo" style="margin:0;color:#fff;font-size:1rem;font-weight:700;display:flex;align-items:center;gap:8px;">
+                        <i class="ph ph-pen-nib"></i> Assinatura de Treinamento
+                    </h3>
+                </div>
+                <button onclick="window.fecharModalAssinaturaTreinamento()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;">&times;</button>
+            </div>
+            <!-- Indicador de passos -->
+            <div id="modal-assin-sub" style="padding:14px 20px;background:#f8fafc;border-bottom:1px solid #e2e8f0;"></div>
+            <!-- Corpo dinâmico -->
+            <div id="modal-assin-corpo" style="padding:20px;max-height:65vh;overflow-y:auto;"></div>
+        </div>
+    </div>
+
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- TELA: TREINAMENTO / MATERIAIS                                  -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- MODAL: NOVO TREINAMENTO                                        -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div id="modal-novo-treinamento" style="display:none;position:fixed;inset:0;background:#fff;z-index:9000;display:none;align-items:flex-start;justify-content:center;padding:0;overflow-y:auto;">
+        <div style="background:#fff;border-radius:0;width:100%;min-height:100vh;box-shadow:none;overflow:hidden;margin:0;">
+            <div style="background:linear-gradient(135deg,#0e7490,#0891b2);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
+                <h3 style="margin:0;color:#fff;font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:8px;">
+                    <i class="ph ph-graduation-cap"></i> Novo Treinamento
+                </h3>
+                <button onclick="window.fecharModalNovoTreinamento()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;">&times;</button>
+            </div>
+            <div style="padding:28px;">
+                <div style="display:flex;gap:20px;border-bottom:1px solid #e2e8f0;margin-bottom:20px;">
+                    <button type="button" id="btn-aba-novo-detalhes" onclick="mudarAbaNovoTreinamento('detalhes')" style="background:none;border:none;padding:10px 4px;font-weight:600;font-size:0.95rem;color:#0e7490;border-bottom:2px solid #0e7490;cursor:pointer;">Detalhes</button>
+                    <button type="button" id="btn-aba-novo-pesquisa" onclick="mudarAbaNovoTreinamento('pesquisa')" style="background:none;border:none;padding:10px 4px;font-weight:600;font-size:0.95rem;color:#64748b;border-bottom:none;cursor:pointer;">Pesquisa (Formulário)</button>
+                </div>
+                <form id="form-novo-treinamento" onsubmit="window.salvarNovoTreinamento(event)">
+                    <div id="aba-novo-detalhes-content">
+                    <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Nome do Treinamento *</label>
+                        <input type="text" id="novo-treinamento-nome" class="form-control" placeholder="Ex: NR-35 Trabalho em Altura" required
+                            style="width:100%;box-sizing:border-box;border-radius:8px;font-size:1rem;padding:10px 14px;border:1.5px solid #cbd5e1;">
+                    </div>
+                    <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Departamentos</label>
+                        <div id="novo-treinamento-departamento" style="width:100%;max-height:130px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.95rem;padding:10px 14px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:8px;">
+                            <!-- Checkboxes injetados pelo JS -->
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:4px;">Validade do Treinamento</label>
+                        <p style="font-size:0.78rem;color:#94a3b8;margin:0 0 8px;">Número de meses válido após a conclusão. 0 = sem validade.</p>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <input type="number" id="novo-treinamento-validade" class="form-control" min="0" max="9999" value="0"
+                                style="width:100px;box-sizing:border-box;border-radius:8px;font-size:1rem;padding:10px;border:1.5px solid #cbd5e1;">
+                            <span style="color:#64748b;font-size:0.9rem;font-weight:500;">meses</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Descrição</label>
+                        <textarea id="novo-treinamento-desc" class="form-control" rows="5" placeholder="Descreva brevemente o conteudo, objetivos e publico-alvo do treinamento..." style="width:100%;box-sizing:border-box;border-radius:8px;resize:vertical;font-size:0.93rem;padding:10px 14px;border:1.5px solid #cbd5e1;min-height:110px;"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Imagem de Capa</label>
+                        <div id="novo-capa-preview-wrap" style="display:none;margin-bottom:8px;">
+                            <div style="position:relative;display:inline-block;">
+                                <img id="novo-capa-preview" src="" alt="Capa" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;border:1.5px solid #cbd5e1;display:block;">
+                                <button type="button" onclick="window._novoCapaRemover()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);border:none;color:#fff;border-radius:50%;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.85rem;" title="Remover capa">&times;</button>
+                            </div>
+                        </div>
+                        <label for="novo-treinamento-capa" style="display:flex;align-items:center;gap:8px;cursor:pointer;border:2px dashed #cbd5e1;border-radius:10px;padding:14px 16px;color:#64748b;font-size:0.88rem;transition:border-color .2s;" onmouseover="this.style.borderColor='#0e7490'" onmouseout="this.style.borderColor='#cbd5e1'">
+                            <i class="ph ph-image" style="font-size:1.5rem;color:#0e7490;"></i>
+                            <span id="novo-capa-label">Clique para selecionar uma imagem de capa...</span>
+                        </label>
+                        <input type="file" id="novo-treinamento-capa" accept="image/*" style="display:none;" onchange="window._novoCapaPreview(this)">
+                    </div>
+                    </div><!-- /aba-novo-detalhes-content -->
+                    <div id="aba-novo-pesquisa-content" style="display:none;">
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:20px;">
+                            <h4 style="margin-top:0;margin-bottom:15px;color:#1e293b;font-size:1rem;font-weight:600;display:flex;align-items:center;gap:8px;">
+                                <i class="ph ph-list-numbers" style="color:#0ea5e9;"></i> Perguntas da Pesquisa
+                            </h4>
+                            <p style="font-size:0.85rem;color:#64748b;margin-top:0;margin-bottom:15px;line-height:1.4;">
+                                Adicione as perguntas que o colaborador deverá responder na pesquisa de satisfação. O modelo atual permite perguntas de texto, escala (1 a 5) ou títulos.
+                            </p>
+                            <div id="novo-pesquisa-perguntas-lista" style="display:flex;flex-direction:column;gap:12px;margin-bottom:15px;">
+                                <!-- Perguntas injetadas aqui -->
+                            </div>
+                            <button type="button" onclick="window.adicionarNovaPerguntaPesquisaNovo()" style="background:#f1f5f9;border:1px dashed #cbd5e1;color:#475569;padding:10px 16px;border-radius:8px;font-weight:600;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;transition:all 0.2s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#475569'">
+                                <i class="ph ph-plus-circle"></i> Adicionar Pergunta
+                            </button>
+                        </div>
+                    </div><!-- /aba-novo-pesquisa-content -->
+
+                    <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:1.5rem;">
+                        <button type="button" class="btn btn-secondary" onclick="window.fecharModalNovoTreinamento()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" style="background:#0e7490;border-color:#0e7490;">Criar Treinamento</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- MODAL: DETALHES/ANEXOS DE TREINAMENTO                         -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div id="modal-detalhe-treinamento" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9100;align-items:center;justify-content:center;padding:1rem;">
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:900px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 80px rgba(0,0,0,0.25);overflow:hidden;">
+            <!-- Header do modal -->
+            <div style="background:linear-gradient(135deg,#0e7490,#0891b2);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+                <div>
+                    <h3 id="detalhe-treinamento-nome" style="margin:0;color:#fff;font-size:1.2rem;font-weight:700;"></h3>
+                    <p id="detalhe-treinamento-desc" style="margin:4px 0 0;color:rgba(255,255,255,0.8);font-size:0.85rem;"></p>
+                </div>
+                <div style="display:flex; gap: 12px; align-items: center;">
+                    <input type="file" id="treinamento-file-input" multiple style="display:none;" onchange="window.handleTreinamentoFileChange(event)">
+                    <button onclick="document.getElementById('treinamento-file-input').click()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;padding:6px 16px;border-radius:8px;font-weight:600;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                        <i class="ph ph-upload-simple"></i> Anexar arquivo
+                    </button>
+                    <button onclick="window.fecharModalDetalheTreinamento()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">&times;</button>
+                </div>
+            </div>
+
+            <!-- Tabs de tipo de arquivo -->
+            <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;background:#f8fafc;flex-shrink:0;overflow-x:auto;">
+                <button id="tab-trein-todos" onclick="window.switchTreinTab('todos')" style="padding:10px 20px;border:none;background:transparent;font-weight:700;font-size:0.85rem;color:#0e7490;border-bottom:3px solid #0e7490;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-stack"></i> Todos
+                </button>
+                <button id="tab-trein-videos" onclick="window.switchTreinTab('videos')" style="padding:10px 20px;border:none;background:transparent;font-weight:600;font-size:0.85rem;color:#64748b;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-film-strip"></i> Vídeos
+                </button>
+                <button id="tab-trein-pdfs" onclick="window.switchTreinTab('pdfs')" style="padding:10px 20px;border:none;background:transparent;font-weight:600;font-size:0.85rem;color:#64748b;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-file-pdf"></i> PDFs
+                </button>
+                <button id="tab-trein-imagens" onclick="window.switchTreinTab('imagens')" style="padding:10px 20px;border:none;background:transparent;font-weight:600;font-size:0.85rem;color:#64748b;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-image"></i> Imagens
+                </button>
+                <button id="tab-trein-outros" onclick="window.switchTreinTab('outros')" style="padding:10px 20px;border:none;background:transparent;font-weight:600;font-size:0.85rem;color:#64748b;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-file"></i> Outros
+                </button>
+            </div>
+
+            <!-- Área de upload + conteúdo -->
+            <div style="flex:1;overflow-y:auto;padding:20px 24px;">
+                
+
+                <!-- Indicador de upload em progresso -->
+                <div id="treinamento-upload-progress" style="display:none;margin-bottom:16px;">
+                    <div style="background:#e2e8f0;border-radius:100px;height:6px;overflow:hidden;">
+                        <div id="treinamento-progress-bar" style="height:100%;background:linear-gradient(90deg,#0e7490,#0891b2);width:0%;transition:width 0.3s;"></div>
+                    </div>
+                    <p id="treinamento-progress-text" style="margin:6px 0 0;font-size:0.82rem;color:#64748b;text-align:center;">Enviando...</p>
+                </div>
+
+                <!-- Grid de miniaturas dos anexos -->
+                <div id="treinamento-anexos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;">
+                    <!-- Preenchido via JS -->
+                </div>
+                <div id="treinamento-anexos-vazio" style="display:none;text-align:center;padding:2rem;color:#94a3b8;">
+                    <i class="ph ph-folder-open" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
+                    Nenhum arquivo nesta categoria.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox de vídeo/imagem -->
+    <div id="treinamento-lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;align-items:center;justify-content:center;flex-direction:column;"
+        onclick="if(event.target===this)window.fecharTreinamentoLightbox()">
+        <button onclick="window.fecharTreinamentoLightbox()" style="position:absolute;top:20px;right:24px;background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:50%;width:40px;height:40px;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+        <div id="treinamento-lightbox-content" style="max-width:90vw;max-height:85vh;display:flex;align-items:center;justify-content:center;"></div>
+        <p id="treinamento-lightbox-caption" style="color:rgba(255,255,255,0.8);margin-top:12px;font-size:0.9rem;"></p>
+    </div>
+
 </body>
 
 </html>
-
-
-
-
-
-
-
-
-

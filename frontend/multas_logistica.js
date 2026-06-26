@@ -115,6 +115,12 @@ function _buildMultaRow(m) {
     const btnTermo = (m.termo_desconto_base64)
         ? `<button onclick="visualizarTermoDescontoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; margin-right:8px;" title="Termo de Desconto Assinado (Mônaco)"><img src="assets/icone_termo_desconto.png" alt="Termo" style="width:1.2rem; height:1.2rem; object-fit:contain; filter: brightness(0); opacity: 0.8;"></button>` : '';
 
+    // Botão Assinar — aparece quando há motorista vinculado e status permite assinatura do termo
+    const _podeAssinar = m.motorista_id && String(m.motorista_id) !== '-1' && (m.status === 'Conferido' || m.status === 'Conferência' || m.status === 'Indicado' || m.status === 'Multa NIC');
+    const btnAssinar = _podeAssinar
+        ? `<button onclick="abrirModalAssinaturaMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#7c3aed; margin-right:8px;" title="Assinar Documento"><i class="ph ph-pen-nib" style="font-size:1.2rem;"></i></button>`
+        : '';
+
     return `
         <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
             <td style="padding:1rem;"><strong>${m.numero_ait || '—'}</strong></td>
@@ -126,7 +132,7 @@ function _buildMultaRow(m) {
             <td style="padding:1rem;">${_statusMonacoBadge(m)}</td>
             <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite)}</td>
             <td style="padding:1rem; text-align:center; min-width:140px; white-space:nowrap;">
-                ${btnEditar}${olhoAzul}${olhoVerde}${btnDoc}${btnTermo}${btnLink}${btnExcluir}
+                ${btnEditar}${btnAssinar}${olhoAzul}${olhoVerde}${btnDoc}${btnTermo}${btnLink}${btnExcluir}
             </td>
         </tr>`;
 }
@@ -411,10 +417,18 @@ function abrirModalNovaMulta() {
     modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:9999;';
     
     modal.innerHTML = `
-        <div style="background:#fff; width:800px; max-width:95%; max-height:95vh; display:flex; flex-direction:column; border-radius:10px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
-            <div style="background:#f8fafc; padding:1.2rem 1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
-                <h3 style="margin:0; color:#0f172a; font-size:1.2rem;">&#128196; Nova Multa</h3>
-                <button onclick="this.closest('#modal-nova-multa').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+        <div style="background:#fff; width:800px; max-width:95%; max-height:95vh; display:flex; flex-direction:column; border-radius:10px; overflow:hidden; box-shadow:0 10px 30px rgba(21,128,61,0.18);">
+            <div style="background:linear-gradient(135deg,#16a34a,#15803d); padding:1.2rem 1.5rem; border-bottom:2px solid #14532d; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <div style="background:rgba(255,255,255,0.15); border-radius:8px; padding:0.4rem 0.6rem; display:flex; align-items:center;">
+                        <i class="ph ph-traffic-cone" style="color:#fff; font-size:1.3rem;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0; color:#fff; font-size:1.15rem; font-weight:700;">Nova Multa</h3>
+                        <span style="font-size:0.75rem; color:#bbf7d0; font-weight:500;">Logística — Registro de Autuação</span>
+                    </div>
+                </div>
+                <button onclick="this.closest('#modal-nova-multa').remove()" style="background:rgba(255,255,255,0.15); border:none; font-size:1.5rem; cursor:pointer; color:#fff; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; line-height:1;">&times;</button>
             </div>
             <div style="padding:1.5rem; overflow-y:auto; flex:1;">
                 <form id="form-nova-multa" onsubmit="salvarNovaMultaLogistica(event)">
@@ -482,9 +496,13 @@ function abrirModalNovaMulta() {
                         </div>
                     </div>
 
-                    <div style="margin-bottom:1rem; background:#fff7ed; border:1.5px solid #fed7aa; border-radius:8px; padding:0.85rem 1rem;">
-                        <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:700; color:#c2410c;">&#128197; Data Limite &mdash; Indicação de Condutor / Defesa de Autuação</label>
-                        <input type="date" id="nm-data-limite" style="width:100%; padding:0.6rem; border:1px solid #fed7aa; border-radius:4px; font-size:0.9rem;">
+                    <div style="margin-bottom:1rem; background:linear-gradient(135deg,#fefce8,#fef9c3); border:1.5px solid #fbbf24; border-radius:8px; padding:0.85rem 1rem; box-shadow:0 2px 6px rgba(251,191,36,0.15);">
+                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+                            <i class="ph ph-calendar-check" style="color:#d97706; font-size:1.1rem;"></i>
+                            <label style="font-size:0.85rem; font-weight:700; color:#92400e; margin:0;">Prazo de Indicação do Condutor / Defesa de Autuação</label>
+                        </div>
+                        <p style="margin:0 0 0.5rem; font-size:0.78rem; color:#78350f;">Preencha o prazo limite para indicar o condutor ou apresentar defesa à autoridade de trânsito.</p>
+                        <input type="date" id="nm-data-limite" style="width:100%; padding:0.6rem; border:1.5px solid #fbbf24; border-radius:6px; font-size:0.9rem; background:#fff; font-weight:600; color:#92400e;">
                     </div>
 
                     <!-- NOVOS CAMPOS: Motorista e Resolução -->
@@ -1373,6 +1391,116 @@ function visualizarTermoDescontoMulta(id) {
     const url = `/api/logistica/multas/${id}/termo-desconto?token=${encodeURIComponent(token)}`;
     window.open(url, '_blank');
 }
+
+// ── Modal de Assinatura de Multa (Logística) ─────────────────────────────────
+// Abre o fluxo de assinatura do documento de multa pelo condutor + testemunhas.
+// Usa as funções window.abrirModalTestemunhas / window.abrirModalAssinaturaCondutor
+// do app.js, adaptando o objeto 'm' da logística para o formato esperado.
+async function abrirModalAssinaturaMulta(id) {
+    const multa = multasLogistica.find(m => m.id === id);
+    if (!multa) { mostrarToastErro('Multa não encontrada.'); return; }
+
+    // Se as funções de assinatura do app.js estão disponíveis, delega a elas
+    if (typeof window.abrirModalTestemunhas === 'function' && multa.motorista_id && multa.motorista_id !== -1) {
+        // Monta objeto no formato esperado pelo fluxo de assinatura do app.js
+        const mObj = {
+            id: multa.id,
+            tipo_resolucao: multa.status === 'Multa NIC' ? 'nic' : 'indicacao',
+            processo_iniciado: true,
+            documento_html: null,
+            codigo_infracao: multa.numero_ait || multa.motivo || '',
+            placa: multa.placa || '',
+            data_infracao: multa.data_infracao || '',
+            hora_infracao: multa.hora_infracao || '',
+            valor_multa: multa.valor_multa || '',
+            pontuacao: multa.pontuacao || '',
+            assinatura_testemunha1_base64: multa.assinatura_testemunha1_base64 || null,
+            assinatura_condutor_base64: multa.assinatura_condutor_base64 || null,
+        };
+        const colabId = multa.motorista_id;
+        window.abrirModalTestemunhas(mObj, colabId);
+        return;
+    }
+
+    // Fallback: abre modal próprio de assinatura simples com canvas
+    document.getElementById('modal-assinatura-multa-log')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'modal-assinatura-multa-log';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;padding:1rem;';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:14px;width:100%;max-width:520px;box-shadow:0 16px 40px rgba(0,0,0,0.3);overflow:hidden;">
+            <div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:1.1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+                <div style="display:flex;align-items:center;gap:0.6rem;">
+                    <i class="ph ph-pen-nib" style="color:#fff;font-size:1.3rem;"></i>
+                    <div>
+                        <div style="color:#fff;font-weight:700;font-size:1rem;">Assinar Documento</div>
+                        <div style="color:#ddd6fe;font-size:0.75rem;">Multa ${multa.numero_ait || multa.id} — ${multa.placa || ''}</div>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('modal-assinatura-multa-log').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">&times;</button>
+            </div>
+            <div style="padding:1.5rem;">
+                <p style="margin:0 0 0.5rem;font-size:0.85rem;color:#475569;">Assine abaixo para confirmar o recebimento / ciência desta multa:</p>
+                <canvas id="canvas-multa-log-sign" width="460" height="160" style="border:1.5px solid #c4b5fd;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;"></canvas>
+                <button onclick="_limparCanvasMulLog()" style="margin-top:4px;background:none;border:none;color:#64748b;cursor:pointer;font-size:0.8rem;"><i class="ph ph-eraser"></i> Limpar</button>
+                <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:1rem;">
+                    <button onclick="document.getElementById('modal-assinatura-multa-log').remove()" style="padding:0.6rem 1.2rem;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;font-weight:600;color:#475569;">Cancelar</button>
+                    <button onclick="_confirmarAssinaturaMulLog(${multa.id})" style="padding:0.6rem 1.5rem;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;"><i class="ph ph-check"></i> Confirmar Assinatura</button>
+                </div>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+
+    // Inicializar canvas
+    const canvas = document.getElementById('canvas-multa-log-sign');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        let drawing = false, lx = 0, ly = 0;
+        const pos = e => {
+            const r = canvas.getBoundingClientRect();
+            const sx = canvas.width / r.width, sy = canvas.height / r.height;
+            if (e.touches) return { x: (e.touches[0].clientX - r.left) * sx, y: (e.touches[0].clientY - r.top) * sy };
+            return { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
+        };
+        canvas.onmousedown = canvas.ontouchstart = e => { e.preventDefault(); drawing = true; const p = pos(e); lx = p.x; ly = p.y; };
+        canvas.onmousemove = canvas.ontouchmove = e => { e.preventDefault(); if (!drawing) return; const p = pos(e); ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(p.x, p.y); ctx.stroke(); lx = p.x; ly = p.y; };
+        canvas.onmouseup = canvas.ontouchend = canvas.onmouseleave = () => { drawing = false; };
+    }
+}
+
+function _limparCanvasMulLog() {
+    const c = document.getElementById('canvas-multa-log-sign');
+    if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+}
+
+async function _confirmarAssinaturaMulLog(multaId) {
+    const canvas = document.getElementById('canvas-multa-log-sign');
+    if (!canvas) return;
+    const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    const temConteudo = Array.from(data).some((v, i) => i % 4 === 3 && v > 0);
+    if (!temConteudo) { mostrarToastAviso('Por favor, realize a assinatura antes de confirmar.'); return; }
+    const assinatura = canvas.toDataURL('image/png');
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    try {
+        const resp = await fetch(`/api/logistica/multas/${multaId}/assinar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ assinatura_base64: assinatura })
+        });
+        if (resp.ok) {
+            mostrarToastSucesso('Documento assinado com sucesso!');
+            document.getElementById('modal-assinatura-multa-log')?.remove();
+            await carregarMultasLogistica();
+        } else {
+            const err = await resp.json().catch(() => ({}));
+            mostrarToastErro(err.error || 'Erro ao salvar assinatura.');
+        }
+    } catch (e) {
+        mostrarToastErro('Erro de conexão ao salvar assinatura.');
+    }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // Tabela de pontuação baseada no CTB (Código de Trânsito Brasileiro)
 // IMPORTANTE: a ordem importa — frases mais específicas devem vir primeiro dentro de cada grupo,

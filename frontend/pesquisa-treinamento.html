@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pesquisa de Satisfação do Treinamento</title>
+    <!-- Fonte e Icones -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --primary: #0ea5e9;
+            --primary-hover: #0284c7;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background: var(--card-bg);
+            max-width: 600px;
+            width: 100%;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0e7490, #0891b2);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .header p {
+            margin: 8px 0 0;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.85);
+        }
+
+        .content {
+            padding: 25px;
+        }
+
+        .question-card {
+            background: #f1f5f9;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .question-title {
+            font-weight: 600;
+            margin-bottom: 15px;
+            font-size: 1rem;
+            color: #334155;
+        }
+
+        .rating-group {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .rating-option {
+            flex: 1;
+        }
+
+        .rating-option input[type="radio"] {
+            display: none;
+        }
+
+        .rating-option label {
+            display: block;
+            text-align: center;
+            padding: 12px 0;
+            background: #fff;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            font-size: 1rem;
+        }
+
+        .rating-option input[type="radio"]:checked + label[data-val="1"] { background: #fee2e2; border-color: #ef4444; color: #b91c1c; }
+        .rating-option input[type="radio"]:checked + label[data-val="2"] { background: #ffedd5; border-color: #f97316; color: #c2410c; }
+        .rating-option input[type="radio"]:checked + label[data-val="3"] { background: #fef9c3; border-color: #eab308; color: #a16207; }
+        .rating-option input[type="radio"]:checked + label[data-val="4"] { background: #ecfccb; border-color: #84cc16; color: #4d7c0f; }
+        .rating-option input[type="radio"]:checked + label[data-val="5"] { background: #dcfce7; border-color: #22c55e; color: #15803d; }
+
+        .rating-option label[data-val="1"]:hover { border-color: #fca5a5; }
+        .rating-option label[data-val="2"]:hover { border-color: #fdba74; }
+        .rating-option label[data-val="3"]:hover { border-color: #fde047; }
+        .rating-option label[data-val="4"]:hover { border-color: #bef264; }
+        .rating-option label[data-val="5"]:hover { border-color: #86efac; }
+
+        .textarea-response {
+            width: 100%;
+            padding: 12px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            color: var(--text-main);
+            resize: vertical;
+            min-height: 100px;
+            box-sizing: border-box;
+        }
+        .textarea-response:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px #e0f2fe;
+        }
+
+        .question-title-section {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .btn-submit {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            width: 100%;
+            padding: 14px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-submit:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-submit:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .message {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .message i {
+            font-size: 4rem;
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        .message.success i { color: var(--success); }
+        .message.error i { color: var(--danger); }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="app">
+        <div class="loading">
+            <i class="ph ph-spinner" style="font-size: 2rem; animation: spin 1s linear infinite;"></i>
+            <p style="margin-top: 10px;">Carregando pesquisa...</p>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        const app = document.getElementById('app');
+
+        let pesquisaData = null;
+
+        async function init() {
+            if (!token) {
+                showError('Token de acesso não fornecido ou inválido.');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/public/pesquisa-treinamento/${token}`);
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showError(data.error || 'Erro ao carregar a pesquisa.');
+                    return;
+                }
+
+                if (data.respondido_em) {
+                    showSuccess('Você já respondeu a esta pesquisa. Obrigado!');
+                    return;
+                }
+
+                pesquisaData = data;
+                renderForm();
+
+            } catch (e) {
+                showError('Erro de conexão ao carregar a pesquisa.');
+            }
+        }
+
+        function renderForm() {
+            if (!pesquisaData.perguntas || pesquisaData.perguntas.length === 0) {
+                showError('Nenhuma pergunta configurada para este treinamento.');
+                return;
+            }
+
+            let html = `
+                <div class="header">
+                    <h1>${pesquisaData.treinamento_nome}</h1>
+                    <p>Olá, ${pesquisaData.colaborador_nome.split(' ')[0]}! Avalie este treinamento:</p>
+                </div>
+                <div class="content">
+                    <div style="background:#f8fafc; padding:15px; border-radius:10px; margin-bottom:20px; font-size:0.9rem; color:#475569; border:1px solid #e2e8f0; line-height:1.5;">
+                        <strong style="color:#334155;">Escala de Avaliação:</strong><br>
+                        • 5 - Muito satisfeito<br>
+                        • 4 - Satisfeito<br>
+                        • 3 - Neutro<br>
+                        • 2 - Insatisfeito<br>
+                        • 1 - Muito insatisfeito
+                    </div>
+                    <form id="form-pesquisa" onsubmit="enviarPesquisa(event)">
+            `;
+
+            let questionCounter = 1;
+            pesquisaData.perguntas.forEach((p) => {
+                if (p.tipo === 'titulo') {
+                    html += `<div class="question-title-section">${p.pergunta}</div>`;
+                    return;
+                }
+
+                html += `
+                    <div class="question-card">
+                        <div class="question-title">${questionCounter}. ${p.pergunta}</div>
+                `;
+
+                if (p.tipo === 'texto') {
+                    html += `
+                        <textarea class="textarea-response" name="pergunta_${p.id}" placeholder="Sua resposta..." required></textarea>
+                    </div>`;
+                } else {
+                    html += `
+                        <div class="rating-group">
+                            ${[1, 2, 3, 4, 5].map(nota => `
+                                <div class="rating-option">
+                                    <input type="radio" id="p${p.id}_n${nota}" name="pergunta_${p.id}" value="${nota}" required>
+                                    <label for="p${p.id}_n${nota}" data-val="${nota}">${nota}</label>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.75rem; color: #94a3b8; padding: 0 4px;">
+                            <span>Péssimo</span>
+                            <span>Excelente</span>
+                        </div>
+                    </div>
+                    `;
+                }
+                questionCounter++;
+            });
+
+            html += `
+                        <button type="submit" class="btn-submit" id="btn-submit">
+                            <i class="ph ph-check-circle"></i> Enviar Respostas
+                        </button>
+                    </form>
+                </div>
+            `;
+
+            app.innerHTML = html;
+        }
+
+        async function enviarPesquisa(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const btn = document.getElementById('btn-submit');
+            
+            const respostas = [];
+            let valid = true;
+
+            pesquisaData.perguntas.forEach(p => {
+                if (p.tipo === 'titulo') return;
+
+                if (p.tipo === 'texto') {
+                    const el = form.querySelector(`textarea[name="pergunta_${p.id}"]`);
+                    if (el && el.value.trim() !== '') {
+                        respostas.push({
+                            pergunta_id: p.id,
+                            pergunta: p.pergunta,
+                            nota: null,
+                            texto: el.value.trim()
+                        });
+                    } else {
+                        valid = false;
+                    }
+                } else {
+                    const checked = form.querySelector(`input[name="pergunta_${p.id}"]:checked`);
+                    if (checked) {
+                        respostas.push({
+                            pergunta_id: p.id,
+                            pergunta: p.pergunta,
+                            nota: parseInt(checked.value, 10),
+                            texto: null
+                        });
+                    } else {
+                        valid = false;
+                    }
+                }
+            });
+
+            if (!valid) {
+                alert('Por favor, responda todas as perguntas.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ph ph-spinner" style="animation: spin 1s linear infinite;"></i> Enviando...';
+
+            try {
+                const res = await fetch(`/api/public/pesquisa-treinamento/${token}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ respostas })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.error || 'Erro ao salvar pesquisa.');
+
+                showSuccess('Suas respostas foram enviadas com sucesso. Agradecemos sua avaliação!');
+            } catch (e) {
+                alert('Erro: ' + e.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-check-circle"></i> Enviar Respostas';
+            }
+        }
+
+        function showError(msg) {
+            app.innerHTML = `
+                <div class="message error">
+                    <i class="ph ph-x-circle"></i>
+                    <h2 style="margin:0 0 10px; font-size: 1.2rem; color: var(--text-main);">Ops! Algo deu errado.</h2>
+                    <p style="margin:0; color: var(--text-muted);">${msg}</p>
+                </div>
+            `;
+        }
+
+        function showSuccess(msg) {
+            app.innerHTML = `
+                <div class="message success">
+                    <i class="ph ph-check-circle"></i>
+                    <h2 style="margin:0 0 10px; font-size: 1.2rem; color: var(--text-main);">Tudo certo!</h2>
+                    <p style="margin:0; color: var(--text-muted);">${msg}</p>
+                </div>
+            `;
+        }
+
+        // Adicionar animação de spin
+        const style = document.createElement('style');
+        style.innerHTML = '@keyframes spin { 100% { transform: rotate(360deg); } }';
+        document.head.appendChild(style);
+
+        // Iniciar
+        init();
+    </script>
+</body>
+</html>

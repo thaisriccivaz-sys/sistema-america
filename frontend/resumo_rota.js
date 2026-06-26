@@ -390,8 +390,13 @@ window.rrListarHistorico = async function() {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         _rrHistoricoList = await res.json();
 
+        // Desativa o onchange temporariamente para não disparar rrCarregarHistorico('') ao reconstruir as options
+        const savedOnchange = sel.onchange;
+        sel.onchange = null;
+
         if (!_rrHistoricoList.length) {
             sel.innerHTML = '<option value="">Nenhum resumo salvo ainda</option>';
+            sel.onchange = savedOnchange;
             return;
         }
         sel.innerHTML = '<option value="">Selecione um resumo anterior...</option>';
@@ -402,11 +407,15 @@ window.rrListarHistorico = async function() {
             sel.appendChild(opt);
         });
         if (_rrCurrentId) sel.value = _rrCurrentId;
+
+        // Restaura o onchange após reconstruir as options
+        sel.onchange = savedOnchange;
     } catch (e) {
         console.error('[RR] Erro ao listar histórico:', e);
         sel.innerHTML = '<option value="">Erro ao carregar histórico</option>';
     }
 };
+
 
 window.rrCarregarHistorico = async function(id) {
     const btnExportar = document.getElementById('rr-btn-exportar');
