@@ -15404,3 +15404,3834 @@ window.filterTabsList = function(q) {
 };
 
 
+
+
+// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// CERTIFICADO DIGITAL (.PFX) ÔÇö Assinatura Autom├ítica da America Rental
+// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+/**
+ * Carrega o status do certificado digital e atualiza o banner.
+ * Chamado ao entrar no step 2 da admiss├úo e tamb├®m nas abas ASO / Pagamentos do Prontu├írio.
+ */
+window.carregarStatusCertificado = async function (customBannerId = null) {
+    const bannerId = customBannerId || 'cert-digital-banner';
+    const banner = document.getElementById(bannerId);
+    if (!banner) return;
+
+    // Verificar se o usu├írio ├® da Diretoria
+    const isDiretoria = currentUser && (
+        currentUser.role === 'Diretoria' ||
+        currentUser.role === 'Administrador' ||
+        currentUser.departamento === 'Diretoria'
+    );
+
+    const btnGerenciar = isDiretoria
+        ? `<button onclick="navigateTo('certificado-digital')"
+               style="border:none;background:rgba(22,163,74,0.15);color:#166534;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;flex-shrink:0;">
+               <i class="ph ph-arrow-square-out"></i> Diretoria ÔåÆ Certificado
+           </button>`
+        : '';
+
+    const btnConfigurar = isDiretoria
+        ? `<button onclick="navigateTo('certificado-digital')"
+               style="border:none;background:#fef3c7;color:#92400e;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;flex-shrink:0;">
+               <i class="ph ph-arrow-square-out"></i> Configurar na Diretoria
+           </button>`
+        : `<span style="font-size:0.76rem;opacity:0.75;white-space:nowrap;">Configure em Diretoria ÔåÆ Certificado Digital</span>`;
+
+    try {
+        const data = await apiGet('/certificado-digital/status');
+
+        if (data.configurado && data.ok) {
+            banner.style.background = '#f0fdf4';
+            banner.style.border = '1.5px solid #bbf7d0';
+            banner.style.color = '#166534';
+            banner.innerHTML = `
+                <i class="ph ph-seal-check" style="font-size:1.3rem;color:#16a34a;flex-shrink:0;"></i>
+                <div style="flex:1;">
+                    <div style="font-weight:700;">Ô£à Assinatura Digital da Empresa Ativa</div>
+                    <div style="font-size:0.76rem;margin-top:2px;opacity:0.85;">
+                        ${data.cn ? `<b>${data.cn}</b> ÔÇö ` : ''}Validade: ${data.validade || 'N/A'}
+                        ÔÇö Os documentos ser├úo pr├®-assinados com o certificado antes de ir ao colaborador
+                    </div>
+                </div>
+                ${btnGerenciar}`;
+        } else {
+            banner.style.background = '#fffbeb';
+            banner.style.border = '1.5px solid #fcd34d';
+            banner.style.color = '#92400e';
+            banner.innerHTML = `
+                <i class="ph ph-warning" style="font-size:1.3rem;color:#d97706;flex-shrink:0;"></i>
+                <div style="flex:1;">
+                    <div style="font-weight:700;">Assinatura Digital n├úo configurada</div>
+                    <div style="font-size:0.76rem;margin-top:2px;opacity:0.85;">
+                        Os documentos ser├úo enviados <b>sem assinatura digital</b>.
+                        ${isDiretoria ? 'Configure o certificado .pfx na Diretoria.' : 'Solicite ├á Diretoria para configurar o certificado digital.'}
+                    </div>
+                </div>
+                ${btnConfigurar}`;
+        }
+    } catch (e) {
+        banner.style.background = '#f1f5f9';
+        banner.style.border = '1.5px solid #e2e8f0';
+        banner.style.color = '#64748b';
+        banner.innerHTML = `<i class="ph ph-info" style="font-size:1.1rem;"></i> <span style="flex:1;">Assinatura digital: verifica├º├úo indispon├¡vel</span>`;
+    }
+};
+
+/**
+ * Abre o modal de gerenciamento do certificado digital.
+ */
+window.abrirModalCertificado = function () {
+    // Criar modal se n├úo existir
+    let modal = document.getElementById('modal-cert-digital');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-cert-digital';
+        modal.style.cssText = `position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;`;
+        modal.innerHTML = `
+            <div style="background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 25px 60px rgba(0,0,0,0.3);overflow:hidden;">
+                <!-- Header -->
+                <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#0f172a,#1e293b);">
+                    <div style="display:flex;align-items:center;gap:0.75rem;">
+                        <div style="width:40px;height:40px;background:rgba(255,255,255,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                            <i class="ph ph-certificate" style="font-size:1.4rem;color:#a78bfa;"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight:700;color:#fff;font-size:1rem;">Certificado Digital (.PFX)</div>
+                            <div style="font-size:0.75rem;color:#94a3b8;">Assinatura autom├ítica da America Rental</div>
+                        </div>
+                    </div>
+                    <button onclick="window.fecharModalCertificado()" style="background:rgba(255,255,255,0.1);border:none;width:32px;height:32px;border-radius:8px;color:#fff;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>
+
+                <!-- Corpo -->
+                <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1.25rem;">
+
+                    <!-- Status atual -->
+                    <div id="cert-modal-status" style="padding:0.85rem 1rem;border-radius:10px;background:#f8fafc;border:1.5px solid #e2e8f0;font-size:0.85rem;color:#64748b;display:flex;align-items:center;gap:0.6rem;">
+                        <i class="ph ph-spinner ph-spin"></i> Carregando status...
+                    </div>
+
+                    <!-- Explica├º├úo -->
+                    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:0.85rem 1rem;font-size:0.82rem;color:#1e40af;">
+                        <div style="font-weight:700;margin-bottom:4px;"><i class="ph ph-info"></i> Como funciona</div>
+                        O certificado digital A1 (.pfx) da empresa ├® usado para assinar os PDFs gerados <b>antes</b> de serem 
+                        enviados ao colaborador via Assinafy. Isso garante que o documento j├í sai com a assinatura oficial 
+                        da <b>America Rental Equipamentos Ltda</b>.
+                    </div>
+
+                    <!-- Upload formul├írio -->
+                    <div>
+                        <label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">
+                            Arquivo .PFX <span style="font-weight:400;color:#94a3b8;">(Certificado A1)</span>
+                        </label>
+                        <div style="display:flex;gap:0.5rem;align-items:center;">
+                            <label id="cert-upload-label" style="flex:1;padding:0.6rem 1rem;border:2px dashed #e2e8f0;border-radius:8px;cursor:pointer;font-size:0.83rem;color:#94a3b8;text-align:center;background:#fafafa;transition:0.2s;"
+                                onmouseover="this.style.borderColor='#a78bfa';this.style.color='#7c3aed'"
+                                onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#94a3b8'">
+                                <i class="ph ph-upload-simple"></i> Clique para selecionar o .pfx
+                                <input type="file" id="cert-pfx-input" accept=".pfx" style="display:none;" onchange="window.onCertFileSelected(this)">
+                            </label>
+                        </div>
+                        <div id="cert-file-preview" style="display:none;margin-top:0.5rem;padding:0.5rem 0.75rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;font-size:0.82rem;color:#166534;display:flex;align-items:center;gap:0.5rem;">
+                            <i class="ph ph-file-lock"></i> <span id="cert-file-name"></span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">
+                            Senha do Certificado
+                        </label>
+                        <div style="position:relative;">
+                            <input type="password" id="cert-senha-input" placeholder="Senha do arquivo .pfx"
+                                style="width:100%;padding:0.6rem 2.5rem 0.6rem 0.85rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.88rem;outline:none;box-sizing:border-box;"
+                                onfocus="this.style.borderColor='#a78bfa'" onblur="this.style.borderColor='#e2e8f0'">
+                            <button type="button" onclick="const i=document.getElementById('cert-senha-input');i.type=i.type==='password'?'text':'password'"
+                                style="position:absolute;right:0.6rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94a3b8;font-size:1rem;padding:0;">
+                                <i class="ph ph-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="cert-upload-msg" style="display:none;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;"></div>
+                </div>
+
+                <!-- Footer -->
+                <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:0.75rem;background:#f8fafc;">
+                    <button id="btn-cert-remover" onclick="window.removerCertificado()" 
+                        style="border:1px solid #fca5a5;background:#fff;color:#dc2626;border-radius:8px;padding:0.55rem 1rem;font-size:0.85rem;font-weight:600;cursor:pointer;display:none;align-items:center;gap:4px;">
+                        <i class="ph ph-trash"></i> Remover
+                    </button>
+                    <div style="display:flex;gap:0.5rem;margin-left:auto;">
+                        <button id="btn-cert-testar" onclick="window.testarCertificado()"
+                            style="border:1px solid #e2e8f0;background:#fff;color:#374151;border-radius:8px;padding:0.55rem 1rem;font-size:0.85rem;font-weight:600;cursor:pointer;display:none;align-items:center;gap:4px;">
+                            <i class="ph ph-flask"></i> Testar
+                        </button>
+                        <button onclick="window.fecharModalCertificado()"
+                            style="border:1px solid #e2e8f0;background:#fff;color:#374151;border-radius:8px;padding:0.55rem 1rem;font-size:0.85rem;font-weight:600;cursor:pointer;">
+                            Fechar
+                        </button>
+                        <button id="btn-cert-salvar" onclick="window.salvarCertificado()"
+                            style="border:none;background:#7c3aed;color:#fff;border-radius:8px;padding:0.55rem 1.25rem;font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                            <i class="ph ph-floppy-disk"></i> Salvar Certificado
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+        // Fechar ao clicar fora
+        modal.addEventListener('click', e => { if (e.target === modal) window.fecharModalCertificado(); });
+    }
+
+    modal.style.display = 'flex';
+    window._atualizarStatusModalCert();
+};
+
+window.fecharModalCertificado = function () {
+    const m = document.getElementById('modal-cert-digital');
+    if (m) m.style.display = 'none';
+};
+
+window.onCertFileSelected = function (input) {
+    const file = input.files[0];
+    if (!file) return;
+    const nameEl = document.getElementById('cert-file-name');
+    const preview = document.getElementById('cert-file-preview');
+    const label = document.getElementById('cert-upload-label');
+    if (nameEl) nameEl.textContent = file.name;
+    if (preview) preview.style.display = 'flex';
+    if (label) label.style.borderColor = '#a78bfa';
+};
+
+window._atualizarStatusModalCert = async function () {
+    const statusEl = document.getElementById('cert-modal-status');
+    const btnRemover = document.getElementById('btn-cert-remover');
+    const btnTestar = document.getElementById('btn-cert-testar');
+    if (!statusEl) return;
+
+    statusEl.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Verificando...`;
+    try {
+        const data = await apiGet('/certificado-digital/status');
+        if (data.configurado && data.ok) {
+            statusEl.style.background = '#f0fdf4';
+            statusEl.style.border = '1.5px solid #bbf7d0';
+            statusEl.style.color = '#166534';
+            statusEl.innerHTML = `
+                <i class="ph ph-seal-check" style="font-size:1.2rem;"></i>
+                <div>
+                    <div style="font-weight:700;">Certificado ativo</div>
+                    <div style="font-size:0.77rem;opacity:0.85;">
+                        CN: ${data.cn || 'N/A'} | Org: ${data.org || 'N/A'} | 
+                        Validade: ${data.validade || 'N/A'} | Serial: ${(data.serial || '').slice(-8)}
+                    </div>
+                </div>`;
+            if (btnRemover) btnRemover.style.display = 'flex';
+            if (btnTestar) btnTestar.style.display = 'flex';
+        } else {
+            statusEl.style.background = '#fffbeb';
+            statusEl.style.border = '1.5px solid #fcd34d';
+            statusEl.style.color = '#92400e';
+            statusEl.innerHTML = `<i class="ph ph-warning" style="font-size:1.1rem;"></i> <span>Nenhum certificado configurado. ${data.motivo ? '(' + data.motivo + ')' : ''}</span>`;
+            if (btnRemover) btnRemover.style.display = 'none';
+            if (btnTestar) btnTestar.style.display = 'none';
+        }
+    } catch (e) {
+        statusEl.innerHTML = `<i class="ph ph-warning-circle"></i> Erro ao verificar: ${e.message}`;
+    }
+};
+
+window.salvarCertificado = async function () {
+    const fileInput = document.getElementById('cert-pfx-input');
+    const senha = document.getElementById('cert-senha-input')?.value || '';
+    const msgEl = document.getElementById('cert-upload-msg');
+    const btnSalvar = document.getElementById('btn-cert-salvar');
+
+    if (!fileInput?.files[0]) {
+        alert('Selecione um arquivo .pfx primeiro.');
+        return;
+    }
+
+    if (msgEl) { msgEl.style.display = 'block'; msgEl.style.background = '#f8fafc'; msgEl.style.color = '#64748b'; msgEl.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Enviando certificado...`; }
+    if (btnSalvar) { btnSalvar.disabled = true; btnSalvar.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Salvando...`; }
+
+    try {
+        const formData = new FormData();
+        formData.append('certificado', fileInput.files[0]);
+        formData.append('senha', senha);
+
+        const res = await fetch(`${API_URL}/certificado-digital/upload`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || 'Erro ao salvar o certificado');
+
+        if (msgEl) { msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = `Ô£à Certificado salvo com sucesso! CN: <b>${data.cn}</b> | Validade: ${data.validade}`; }
+
+        // Atualizar status no modal e no banner
+        await window._atualizarStatusModalCert();
+        window.carregarStatusCertificado();
+
+    } catch (e) {
+        if (msgEl) { msgEl.style.background = '#fef2f2'; msgEl.style.border = '1px solid #fca5a5'; msgEl.style.color = '#dc2626'; msgEl.innerHTML = `ÔØî ${e.message}`; }
+    } finally {
+        if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.innerHTML = `<i class="ph ph-floppy-disk"></i> Salvar Certificado`; }
+    }
+};
+
+window.testarCertificado = async function () {
+    const msgEl = document.getElementById('cert-upload-msg');
+    const btnTest = document.getElementById('btn-cert-testar');
+    if (msgEl) { msgEl.style.display = 'block'; msgEl.style.background = '#eff6ff'; msgEl.style.border = '1px solid #bfdbfe'; msgEl.style.color = '#1e40af'; msgEl.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Testando assinatura de um PDF de exemplo...`; }
+    if (btnTest) { btnTest.disabled = true; }
+
+    try {
+        const res = await fetch(`${API_URL}/certificado-digital/testar`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' } });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.erro || 'Falha no teste');
+        if (msgEl) { msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = `${data.message || 'Ô£à Assinatura funcionando!'} (PDF: ${(data.tamanho_bytes / 1024).toFixed(1)} KB)`; }
+    } catch (e) {
+        if (msgEl) { msgEl.style.background = '#fef2f2'; msgEl.style.border = '1px solid #fca5a5'; msgEl.style.color = '#dc2626'; msgEl.innerHTML = `ÔØî Teste falhou: ${e.message}`; }
+    } finally {
+        if (btnTest) { btnTest.disabled = false; }
+    }
+};
+
+window.removerCertificado = async function () {
+    if (!confirm('Tem certeza que deseja remover o certificado digital? Os documentos ser├úo enviados sem assinatura autom├ítica da empresa.')) return;
+    try {
+        const res = await fetch(`${API_URL}/certificado-digital`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${currentToken}` } });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao remover');
+        await window._atualizarStatusModalCert();
+        window.carregarStatusCertificado();
+        const msgEl = document.getElementById('cert-upload-msg');
+        if (msgEl) { msgEl.style.display = 'block'; msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = 'Ô£à Certificado removido com sucesso.'; }
+    } catch (e) { alert(e.message); }
+};
+
+
+// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// CERTIFICADO DIGITAL ÔÇö Fun├º├Áes da View da Diretoria
+// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+/** Carrega o status na view de Diretoria > Certificado Digital */
+window.carregarCertificadoView = async function () {
+    const statusEl = document.getElementById('cert-view-status');
+    const btnTestar = document.getElementById('btn-cert-view-testar');
+    const btnRemove = document.getElementById('btn-cert-view-remover');
+    if (!statusEl) return;
+
+    statusEl.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Verificando certificado...`;
+    try {
+        const data = await apiGet('/certificado-digital/status');
+
+        if (data.configurado && data.ok) {
+            statusEl.style.cssText = 'padding:1rem;border-radius:10px;background:#f0fdf4;border:1.5px solid #bbf7d0;font-size:0.88rem;color:#166534;display:flex;align-items:flex-start;gap:0.75rem;min-height:70px;';
+            statusEl.innerHTML = `
+                <i class="ph ph-seal-check" style="font-size:1.8rem;color:#16a34a;flex-shrink:0;"></i>
+                <div>
+                    <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px;">Ô£à Certificado Digital Ativo</div>
+                    <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:0.82rem;">
+                        <span style="opacity:0.7;">Titular:</span> <b>${data.cn || 'N/A'}</b>
+                        <span style="opacity:0.7;">Organiza├º├úo:</span> <span>${data.org || 'N/A'}</span>
+                        <span style="opacity:0.7;">Validade:</span> <b style="color:${isDateNear(data.validade) ? '#dc2626' : '#166534'}">${data.validade || 'N/A'} ${isDateNear(data.validade) ? 'ÔÜá´©Å Pr├│ximo do vencimento!' : ''}</b>
+                        <span style="opacity:0.7;">Serial:</span> <span style="font-family:monospace;">${(data.serial || '').slice(-12)}</span>
+                    </div>
+                </div>`;
+            if (btnTestar) btnTestar.style.display = 'flex';
+            if (btnRemove) btnRemove.style.display = 'flex';
+        } else {
+            const isErro = data.configurado && !data.ok;
+            const titulo = isErro ? 'Problema no Certificado Atual' : 'Nenhum certificado configurado';
+            const subtitulo = isErro ? `ÔÜá´©Å ${data.erro || 'Falha ao ler o certificado (senha inv├ílida ou arquivo corrompido).'}` : (data.motivo || 'Configure o arquivo .pfx ao lado para ativar a assinatura autom├ítica.');
+
+            statusEl.style.cssText = `padding:1rem;border-radius:10px;background:#fffbeb;border:1.5px solid ${isErro ? '#fca5a5' : '#fcd34d'};font-size:0.88rem;color:${isErro ? '#dc2626' : '#92400e'};display:flex;align-items:center;gap:0.75rem;min-height:70px;`;
+            statusEl.innerHTML = `
+                <i class="ph ${isErro ? 'ph-warning-circle' : 'ph-warning'}" style="font-size:1.5rem;color:${isErro ? '#dc2626' : '#d97706'};flex-shrink:0;"></i>
+                <div>
+                    <div style="font-weight:700;">${titulo}</div>
+                    <div style="font-size:0.8rem;margin-top:2px;">${subtitulo}</div>
+                </div>`;
+            if (btnTestar) btnTestar.style.display = 'none';
+            if (btnRemove) btnRemove.style.display = data.configurado ? 'flex' : 'none';
+        }
+
+
+    } catch (e) {
+        statusEl.innerHTML = `<i class="ph ph-warning-circle"></i> Erro ao verificar: ${e.message}`;
+    }
+};
+
+function isDateNear(dateStr) {
+    if (!dateStr) return false;
+    try {
+        const [d, m, y] = dateStr.split('/').map(Number);
+        const exp = new Date(y, m - 1, d);
+        const diff = (exp - new Date()) / (1000 * 60 * 60 * 24);
+        return diff < 60; // menos de 60 dias
+    } catch (e) { return false; }
+}
+
+window.onCertViewFileSelected = function (input) {
+    const file = input.files[0];
+    if (!file) return;
+    document.getElementById('cert-view-file-name').textContent = file.name;
+    const preview = document.getElementById('cert-view-file-preview');
+    const label = document.getElementById('cert-view-upload-label');
+    if (preview) preview.style.display = 'flex';
+    if (label) label.style.borderColor = '#a78bfa';
+};
+
+window.salvarCertificadoView = async function () {
+    const fileInput = document.getElementById('cert-view-pfx-input');
+    const senha = document.getElementById('cert-view-senha')?.value || '';
+    const msgEl = document.getElementById('cert-view-save-msg');
+    const btnSalvar = document.getElementById('btn-cert-view-salvar');
+
+    if (!fileInput?.files[0]) { alert('Selecione um arquivo .pfx primeiro.'); return; }
+
+    if (msgEl) { msgEl.style.display = 'block'; msgEl.style.cssText = 'display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f8fafc;color:#64748b;margin-bottom:0.75rem;'; msgEl.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando e validando certificado...'; }
+    if (btnSalvar) { btnSalvar.disabled = true; btnSalvar.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
+
+    try {
+        const formData = new FormData();
+        formData.append('certificado', fileInput.files[0]);
+        formData.append('senha', senha);
+
+        const res = await fetch(`${API_URL}/certificado-digital/upload`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
+
+        if (msgEl) { msgEl.style.cssText = 'display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;margin-bottom:0.75rem;'; msgEl.innerHTML = `Ô£à Certificado salvo com sucesso! Ativo para sempre at├® o vencimento.<br><b>Titular:</b> ${data.cn} | <b>Validade:</b> ${data.validade}`; }
+
+        // Recarregar status
+        await window.carregarCertificadoView();
+
+    } catch (e) {
+        if (msgEl) { msgEl.style.cssText = 'display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;margin-bottom:0.75rem;'; msgEl.innerHTML = `ÔØî ${e.message}`; }
+    } finally {
+        if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Certificado'; }
+    }
+};
+
+window.testarCertificadoView = async function () {
+    return window.testarAssinaturaView();
+};
+
+window.testarAssinaturaView = async function () {
+    const resultEl = document.getElementById('cert-view-test-result');
+    const btn = document.getElementById('btn-cert-view-testar');
+    if (resultEl) { resultEl.style.cssText = 'display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;'; resultEl.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Testando assinatura no servidor...'; }
+    if (btn) btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_URL}/certificado-digital/testar-assinatura`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' } });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.erro || 'Falha no teste');
+        if (resultEl) { resultEl.style.cssText = 'display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;'; resultEl.innerHTML = `Ô£à ${data.mensagem} PDF assinado: ${(data.tamanhoAssinado / 1024).toFixed(1)} KB`; }
+    } catch (e) {
+        if (resultEl) { resultEl.style.cssText = 'display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;'; resultEl.innerHTML = `ÔØî Erro: ${e.message}`; }
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+};
+
+window.removerCertificadoView = async function () {
+    if (!confirm('Remover o certificado digital? Os documentos ser├úo enviados SEM assinatura autom├ítica da empresa at├® que outro seja configurado.')) return;
+    try {
+        const res = await fetch(`${API_URL}/certificado-digital`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${currentToken}` } });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao remover');
+        await window.carregarCertificadoView();
+    } catch (e) { alert(e.message); }
+};
+
+// Hook: ao navegar para 'certificado-digital', carregar status automaticamente
+const _origShowView = window.showView;
+window.showView = function (id) {
+    if (typeof _origShowView === 'function') _origShowView(id);
+};
+// J├í existe o navigateTo ÔÇö adicionar hook para certificado-digital
+const _origNavigateTo = window.navigateTo;
+if (typeof _origNavigateTo === 'function') {
+    window.navigateTo = function (view) {
+        _origNavigateTo(view);
+        if (view === 'certificado-digital') {
+            setTimeout(() => window.carregarCertificadoView(), 150);
+        }
+    };
+}
+
+
+// ===== TELA DE ASSINATURAS DIGITAIS =====
+window.limparAsssinaturasTeste = async function () {
+    if (!confirm('Isso vai remover TODOS os registros de assinatura (apenas os de teste). Confirmar?')) return;
+    try {
+        const res = await fetch(`${API_URL}/assinaturas/limpar-testes`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        const data = await res.json();
+        if (res.ok) {
+            alert('Ô£à Registros de teste removidos com sucesso!');
+            window.loadAssinaturasDigitais();
+        } else {
+            alert('Erro: ' + (data.error || 'Falha ao limpar.'));
+        }
+    } catch (e) {
+        alert('Erro de conex├úo: ' + e.message);
+    }
+};
+
+window.loadAssinaturasDigitais = async function () {
+    const container = document.getElementById('assinaturas-digitais-container');
+    if (!container) return;
+    container.innerHTML = '<div style="text-align:center;padding:3rem;"><i class="ph ph-circle-notch ph-spin" style="font-size:2.5rem;color:#f503c5;"></i><p style="margin-top:1rem;color:#64748b;">Carregando...</p></div>';
+
+    try {
+        const dados = await apiGet('/admissao-assinaturas/todos');
+        if (!dados || dados.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:4rem;color:#94a3b8;"><i class="ph ph-signature" style="font-size:3rem;"></i><p style="margin-top:1rem;">Nenhum documento enviado para assinatura ainda.</p></div>';
+            return;
+        }
+
+        // Coletar tipos ├║nicos de documentos, colaboradores e statuses para filtros
+        const tipos = [...new Set(dados.map(d => d.nome_documento).filter(Boolean))].sort();
+        const colabs = [...new Set(dados.map(d => d.colaborador_nome).filter(Boolean))].sort();
+        const statuses = ['Todos', 'Assinado', 'Pendente'];
+
+        const fmtDate = (v) => {
+            if (!v) return 'ÔÇö';
+            try {
+                const d = new Date(String(v).includes('Z') ? v : v + 'Z');
+                return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            } catch { return v; }
+        };
+
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+
+        container.innerHTML = `
+        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+            <!-- Filtros -->
+            <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;background:#f8fafc;">
+                <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:220px;border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;background:#fff;">
+                    <i class="ph ph-user" style="color:#94a3b8;"></i>
+                    <input type="text" id="ass-filter-colab" list="ass-colab-list" placeholder="Filtrar por Colaborador..." oninput="window.filtrarAssinaturas()" autocomplete="off"
+                        style="border:none;outline:none;font-size:0.85rem;width:100%;background:transparent;color:#334155;">
+                    <datalist id="ass-colab-list">
+                        ${colabs.map(c => `<option value="${c}">`).join('')}
+                    </datalist>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:180px;border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;background:#fff;">
+                    <i class="ph ph-magnifying-glass" style="color:#94a3b8;"></i>
+                    <input type="text" id="ass-search" placeholder="Buscar documento..." oninput="window.filtrarAssinaturas()" autocomplete="off"
+                        style="border:none;outline:none;font-size:0.85rem;width:100%;background:transparent;color:#334155;">
+                </div>
+                <select id="ass-filter-status" onchange="window.filtrarAssinaturas()"
+                    style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
+                    <option value="">Todos os status</option>
+                    <option value="Assinado">Ô£à Assinado</option>
+                    <option value="Pendente">ÔÅ│ Aguardando</option>
+                </select>
+                <select id="ass-filter-tipo" onchange="window.filtrarAssinaturas()"
+                    style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
+                    <option value="">Todos os documentos</option>
+                    ${tipos.map(t => `<option value="${t}">${t}</option>`).join('')}
+                </select>
+                <span id="ass-count-label" style="font-size:0.82rem;color:#64748b;white-space:nowrap;font-weight:600;"></span>
+            </div>
+            <!-- Tabela -->
+            <div style="overflow-x:auto;max-height:70vh;overflow-y:auto;">
+                <table id="ass-table" style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                    <thead>
+                        <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:1;">
+                            <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;white-space:nowrap;">Colaborador</th>
+                            <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;white-space:nowrap;">Documento</th>
+                            <th style="padding:0.75rem 1rem;text-align:center;font-weight:700;color:#475569;white-space:nowrap;">Status</th>
+                            <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;white-space:nowrap;">Enviado em</th>
+                            <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;white-space:nowrap;">Assinado em</th>
+                            <th style="padding:0.75rem 1rem;text-align:center;font-weight:700;color:#475569;white-space:nowrap;">A├º├Áes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ass-table-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>`;
+
+        // Guardar dados globalmente para filtro
+        window._assinaturasData = dados;
+        window._assinaturaToken = token;
+        window.filtrarAssinaturas();
+
+    } catch (e) {
+        container.innerHTML = `<div style="text-align:center;padding:3rem;color:#ef4444;"><i class="ph ph-warning" style="font-size:2.5rem;"></i><p>${e.message}</p></div>`;
+    }
+};
+
+
+window.setStatusOutroMeio = async function (id, source) {
+    if (!confirm('Tem certeza que deseja marcar este documento como assinado por "Outro Meio"? Ele sa├¡ra da fila de pendentes.')) return;
+    try {
+        const res = await apiPost('/admissao-assinaturas/outro-meio', { id, source });
+        alert(res.message || 'Status atualizado com sucesso!');
+        await loadAssinaturasDigitaisList(); // Reload se existir
+        if (window.filtrarAssinaturas) {
+            const container = document.getElementById('assinaturas-digitais-container');
+            if (container) {
+                container.innerHTML = '<div style="text-align:center;padding:3rem;"><i class="ph ph-circle-notch ph-spin" style="font-size:2.5rem;color:#f503c5;"></i></div>';
+                const dados = await apiGet('/admissao-assinaturas/todos');
+                window._assinaturasData = dados || [];
+                window.filtrarAssinaturas();
+            }
+        }
+    } catch (e) { alert('Erro: ' + e.message); }
+};
+window.filtrarAssinaturas = function () {
+    const dados = window._assinaturasData || [];
+    const search = (document.getElementById('ass-search')?.value || '').toLowerCase();
+    const filterColab = (document.getElementById('ass-filter-colab')?.value || '').toLowerCase();
+    const filterStatus = document.getElementById('ass-filter-status')?.value || '';
+    const filterTipo = document.getElementById('ass-filter-tipo')?.value || '';
+    const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+
+    const filtered = dados.filter(d => {
+        const matchSearch = !search || (d.nome_documento || '').toLowerCase().includes(search);
+        const matchColab = !filterColab || (d.colaborador_nome || '').toLowerCase().includes(filterColab);
+        const matchStatus = !filterStatus ||
+            (filterStatus === 'Pendente' ? d.assinafy_status !== 'Assinado' : d.assinafy_status === filterStatus);
+        const matchTipo = !filterTipo || d.nome_documento === filterTipo;
+        return matchSearch && matchColab && matchStatus && matchTipo;
+    });
+
+    const label = document.getElementById('ass-count-label');
+    if (label) label.textContent = `${filtered.length} registro(s)`;
+
+    const fmtDate = (v) => {
+        if (!v) return 'ÔÇö';
+        try {
+            const d = new Date(String(v).includes('Z') ? v : v + 'Z');
+            return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        } catch { return v; }
+    };
+
+    const tbody = document.getElementById('ass-table-body');
+    if (!tbody) return;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#94a3b8;">Nenhum resultado encontrado</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(d => {
+        const isSigned = d.assinafy_status === 'Assinado';
+        const statusBadge = isSigned
+            ? '<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-check-circle"></i> Assinado</span>'
+            : '<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-clock"></i> Aguardando</span>';
+
+        let viewBtn = `<span style="color:#94a3b8;font-size:0.78rem;">ÔÇö</span>`;
+        if (isSigned) {
+            const nomeEsc = (d.nome_documento || '').replace(/'/g, "\\'");
+            if (d.source === 'documento') {
+                viewBtn = `<button onclick="window.openSignedDocPopupDocumento(${d.id}, '${nomeEsc}')" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button>`;
+            } else {
+                viewBtn = `<button onclick="window.openSignedDocPopup(${d.id}, '${nomeEsc}', event)" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button>`;
+            }
+        } else if (d.assinafy_id) {
+            // Qualquer status n├úo-assinado com assinafy_id ÔåÆ pode reenviar
+            viewBtn = `<button onclick="window.reenviarAssinatura(${d.id}, '${d.source}', this)" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Copiar link ou Enviar WhatsApp"><i class="ph ph-paper-plane-right"></i> Reenviar</button>`;
+        }
+
+        return `
+        <tr style="border-bottom:1px solid #f1f5f9;transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+            <td style="padding:0.75rem 1rem;">
+                <div style="font-weight:600;color:#1e293b;">${d.colaborador_nome || 'ÔÇö'}</div>
+                <div style="font-size:0.75rem;color:#94a3b8;">${d.colaborador_cargo || ''} ${d.colaborador_departamento ? '┬À ' + d.colaborador_departamento : ''}</div>
+            </td>
+            <td style="padding:0.75rem 1rem;">
+                <div style="font-weight:600;color:#334155;">${d.nome_documento || 'ÔÇö'}</div>
+            </td>
+            <td style="padding:0.75rem 1rem;text-align:center;">${statusBadge}</td>
+            <td style="padding:0.75rem 1rem;color:#475569;white-space:nowrap;">${fmtDate(d.enviado_em)}</td>
+            <td style="padding:0.75rem 1rem;${isSigned ? 'color:#15803d;' : 'color:#94a3b8;'}white-space:nowrap;font-weight:${isSigned ? '600' : '400'};">${fmtDate(d.assinado_em)}</td>
+            <td style="padding:0.75rem 1rem;text-align:center;">${viewBtn}</td>
+        </tr>`;
+    }).join('');
+};
+
+window.reenviarAssinatura = async function (id, source, btn) {
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+    btn.disabled = true;
+
+    try {
+        const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/assinaturas/reenviar`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, source })
+        });
+        const data = await res.json();
+
+        btn.innerHTML = `<i class="ph ph-check-circle"></i> Gerado`;
+        setTimeout(() => { btn.innerHTML = oldHtml; btn.disabled = false; }, 1500);
+
+        if (res.ok && data.success) {
+            if (data.warn) {
+                alert('Aten├º├úo: ' + data.warn + '\n\nO link ├®: ' + (data.link || ''));
+            } else {
+                alert('E-mail de lembrete enviado com sucesso para o colaborador!');
+            }
+        } else {
+            alert(data.error || 'Erro ao comunicar com o servidor.');
+        }
+    } catch (e) {
+        alert('Erro ao processar: ' + e.message);
+        btn.innerHTML = oldHtml;
+        btn.disabled = false;
+    }
+};
+
+// Registrar navega├º├úo para a tela de assinaturas
+(function () {
+    const origNavigate = window.navigateTo;
+    if (typeof origNavigate === 'function') {
+        window.navigateTo = function (view) {
+            origNavigate(view);
+            if (view === 'assinaturas-digitais') {
+                setTimeout(() => window.loadAssinaturasDigitais(), 150);
+            }
+        };
+    } else {
+        // Fallback: observar clique no item do menu
+        document.addEventListener('click', function (e) {
+            const link = e.target.closest('[data-target="assinaturas-digitais"]');
+            if (link) setTimeout(() => window.loadAssinaturasDigitais(), 200);
+        });
+    }
+})();
+
+
+
+// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// ENVIO EM MASSA DE PAGAMENTOS
+// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+(function () {
+    'use strict';
+
+    let _pdfBase64 = null;        // PDF original em base64
+    let _itensProcessados = [];   // [{pagina, colaborador_id, colaborador_nome, departamento, cargo, setor, confianca, selecionado, enviarEmail}]
+    let _todosColabs = [];        // cache de colaboradores do banco (para dropdown de corre├º├úo)
+    let _jobId = null;
+    let _pollTimer = null;
+
+    // ÔöÇÔöÇ Render da tela ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    window.renderPagamentosMassa = function () {
+        const main = document.getElementById('main-content');
+        if (!main) return;
+
+        // Resetar estado ao re-entrar na tela (garante que dados anteriores n├úo persistam)
+        _pdfBase64 = null;
+        _itensProcessados = [];
+        _jobId = null;
+        if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+        window._pdfDuploBase64 = null;
+        window.onbeforeunload = null;
+
+        main.innerHTML = `
+        <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;">
+
+          <!-- Header -->
+          <div style="padding:1.25rem 1.5rem 0.75rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:1rem;flex-shrink:0;">
+            <div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#f503c5,#a21caf);display:flex;align-items:center;justify-content:center;">
+              <i class="ph ph-currency-dollar" style="color:#fff;font-size:1.25rem;"></i>
+            </div>
+            <div>
+              <h2 style="margin:0;font-size:1.2rem;font-weight:700;color:#1e293b;">Envio em Massa de Pagamentos</h2>
+              <p style="margin:0;font-size:0.78rem;color:#64748b;">Carregue o PDF consolidado, revise os colaboradores e dispare as assinaturas em massa.</p>
+            </div>
+          </div>
+
+          <!-- Corpo scroll├ível -->
+          <div style="flex:1;overflow:auto;padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1.25rem;">
+
+            <!-- ETAPA 1: Tipo de Documento (OBRIGAT├ôRIO primeiro) -->
+            <div id="pm-upload-section" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.5rem;">
+              <h3 style="margin:0 0 1rem;font-size:0.95rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:0.5rem;">
+                <span style="background:#f503c5;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">1</span>
+                Configurar e Selecionar PDF
+              </h3>
+
+              <!-- Tipo de documento PRIMEIRO -->
+              <div style="display:flex;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap;padding:1rem;background:#fdf4ff;border:1px solid #f9a8d4;border-radius:10px;">
+                <div style="flex:1;min-width:120px;">
+                  <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">M├¬s</label>
+                  <select id="pm-mes" onchange="if(document.getElementById('pm-tipo-doc').value==='Pagamentos') window._pmCarregarDocumentos()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
+                    ${['Janeiro','Fevereiro','Mar├ºo','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+                      .map((m,i) => `<option value="${String(i+1).padStart(2,'0')}" ${i+1===new Date().getMonth()+1?'selected':''}>${m}</option>`).join('')}
+                  </select>
+                </div>
+                <div style="flex:1;min-width:100px;">
+                  <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Ano</label>
+                  <input id="pm-ano" type="number" value="${new Date().getFullYear()}" min="2020" max="2099" onchange="if(document.getElementById('pm-tipo-doc').value==='Pagamentos') window._pmCarregarDocumentos()"
+                    style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
+                </div>
+                <div style="flex:2;min-width:200px;">
+                  <label style="font-size:0.75rem;font-weight:700;color:#86198f;display:block;margin-bottom:4px;">ÔÜá´©Å Tipo de Documento <span style="color:#ef4444;">*</span></label>
+                  <select id="pm-tipo-doc" onchange="window._pmOnTipoChange()" style="width:100%;padding:0.5rem;border:2px solid #f9a8d4;border-radius:8px;font-size:0.85rem;background:#fff;font-weight:600;">
+                    <option value="">-- Selecione o tipo antes de anexar --</option>
+                    <option value="Pagamentos">Pagamentos</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- SINGLE UPLOAD (Para os demais tipos) -->
+              <div id="pm-single-upload-section">
+                <div id="pm-dropzone"
+                  style="border:2px dashed #d1d5db;border-radius:10px;padding:2.5rem 1rem;text-align:center;cursor:not-allowed;transition:all 0.2s;background:#f1f5f9;opacity:0.5;"
+                  onclick="window._pmDropzoneClick()"
+                  ondragover="event.preventDefault();if(window._pmTipoOk()){this.style.borderColor='#f503c5';this.style.background='#fdf4ff';}"
+                  ondragleave="this.style.borderColor='#d1d5db';this.style.background=window._pmTipoOk()?'#f8fafc':'#f1f5f9';"
+                  ondrop="window._pmHandleDrop(event)">
+                  <i class="ph ph-file-pdf" style="font-size:3rem;color:#94a3b8;display:block;margin-bottom:0.75rem;"></i>
+                  <p style="margin:0;font-weight:600;color:#94a3b8;">Selecione o tipo de documento acima primeiro</p>
+                  <p style="margin:0.25rem 0 0;font-size:0.8rem;color:#94a3b8;">Apenas arquivos PDF ÔÇó M├íx. 50 MB</p>
+                </div>
+                <input id="pm-file-input" type="file" accept=".pdf" style="display:none" onchange="window._pmHandleFile(this.files[0])">
+              </div>
+
+              <!-- DUAL UPLOAD (Apenas para Pagamentos) -->
+              <div id="pm-dual-upload-section" style="display:none; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.5rem; margin-top:1rem;">
+                <h4 style="margin:0 0 1rem; color:#334155; font-size:0.95rem;">Anexar Holerites (Opcional)</h4>
+                
+                <div style="margin-bottom:1rem;">
+                  <label style="font-size:0.8rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Holerite Adiantamento (PDF ├Ünico)</label>
+                  <input id="pm-file-adiantamento" type="file" accept=".pdf" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
+                </div>
+
+                <div style="margin-bottom:1.5rem;">
+                  <label style="font-size:0.8rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Holerite Sal├írio/Pagamento (PDF ├Ünico)</label>
+                  <input id="pm-file-pagamento" type="file" accept=".pdf" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
+                </div>
+
+                <button type="button" onclick="window._pmProcessarDuplo()" style="width:100%;padding:0.7rem;background:#8b5cf6;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
+                  <i class="ph ph-magic-wand"></i> Processar Holerites Anexados
+                </button>
+              </div>
+
+              <div id="pm-processing" style="display:none;margin-top:1rem;padding:1rem;background:#f0fdf4;border-radius:8px;color:#166534;font-size:0.85rem;">
+                <i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i>
+                Processando PDF e detectando colaboradores...
+              </div>
+            </div>
+
+            <!-- ETAPA 2: Revis├úo e Filtros (oculto at├® processar) -->
+            <div id="pm-review-section" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.5rem;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
+                <h3 style="margin:0;font-size:0.95rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:0.5rem;">
+                  <span style="background:#f503c5;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">2</span>
+                  Revisar e Selecionar Colaboradores
+                  <span id="pm-badge-total" style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:600;"></span>
+                </h3>
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                  <button onclick="window._pmSelecionarTodos(true)" style="padding:0.4rem 0.9rem;border-radius:7px;border:1px solid #e2e8f0;background:#fff;font-size:0.8rem;cursor:pointer;font-weight:600;">
+                    <i class="ph ph-check-square"></i> Selecionar Todos
+                  </button>
+                  <button onclick="window._pmSelecionarTodos(false)" style="padding:0.4rem 0.9rem;border-radius:7px;border:1px solid #e2e8f0;background:#fff;font-size:0.8rem;cursor:pointer;font-weight:600;">
+                    <i class="ph ph-square"></i> Desmarcar Todos
+                  </button>
+                </div>
+              </div>
+
+              <!-- Filtros -->
+              <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem;padding:0.75rem;background:#f8fafc;border-radius:8px;">
+                <div style="flex:2;min-width:160px;">
+                  <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Nome</label>
+                  <input id="pm-f-nome" type="text" placeholder="Filtrar por nome..." oninput="window._pmFiltrar()"
+                    style="width:100%;padding:0.4rem 0.6rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;">
+                </div>
+                <div style="flex:1;min-width:140px;">
+                  <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Departamento</label>
+                  <select id="pm-f-depto" onchange="window._pmFiltrar()" style="width:100%;padding:0.4rem 0.6rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;">
+                    <option value="">Todos</option>
+                  </select>
+                </div>
+                <div style="flex:1;min-width:140px;">
+                  <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Cargo</label>
+                  <select id="pm-f-cargo" onchange="window._pmFiltrar()" style="width:100%;padding:0.4rem 0.6rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;">
+                    <option value="">Todos</option>
+                  </select>
+                </div>
+                <div style="flex:1;min-width:120px;">
+                  <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Status Match</label>
+                  <select id="pm-f-match" onchange="window._pmFiltrar()" style="width:100%;padding:0.4rem 0.6rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;">
+                    <option value="">Todos</option>
+                    <option value="exato">Match exato</option>
+                    <option value="parcial">Match parcial</option>
+                    <option value="aproximado">Match aproximado</option>
+                    <option value="sem_match">Sem match</option>
+                  </select>
+                </div>
+                <div style="flex:1;min-width:120px;">
+                  <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Setor</label>
+                  <select id="pm-f-setor" onchange="window._pmFiltrar()" style="width:100%;padding:0.4rem 0.6rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;">
+                    <option value="">Todos</option>
+                    <option value="Administrativo">Administrativo</option>
+                    <option value="Operacional">Operacional</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Tabela -->
+              <div style="overflow:auto;max-height:450px;border:1px solid #e2e8f0;border-radius:8px;">
+                <table style="width:100%;border-collapse:collapse;min-width:700px;">
+                  <thead style="position:sticky;top:0;z-index:2;background:#f8fafc;outline:1px solid #e2e8f0;">
+                    <tr>
+                      <th style="padding:0.5rem 0.75rem;text-align:center;width:40px;"><i class="ph ph-check-square" style="color:#64748b;"></i></th>
+                      <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">NOME DETECTADO</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">COLABORADOR</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">DEPARTAMENTO</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">ADIANTAMENTO</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">HOLERITE</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#16a34a;">SALVO</th>
+                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#a21caf;">ENVIADO</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">A├ç├òES</th>
+                     </tr>
+                  </thead>
+                  <tbody id="pm-tbody"></tbody>
+                </table>
+              </div>
+
+              <!-- Bot├úo Enviar -->
+              <div style="margin-top:1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
+                <div id="pm-selecionados-info" style="font-size:0.85rem;color:#64748b;"></div>
+                <div style="display:flex; gap:0.5rem;">
+                  <button id="pm-btn-enviar" onclick="window._pmEnviar()"
+                    style="padding:0.65rem 1.5rem;background:linear-gradient(135deg,#f503c5,#a21caf);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:0.5rem;">
+                    <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ETAPA 3: Progresso -->
+            <div id="pm-progress-section" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.5rem;">
+              <h3 id="pm-progress-title" style="margin:0 0 1rem;font-size:0.95rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:0.5rem;">
+                <span style="background:#f503c5;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">3</span>
+                Processando...
+              </h3>
+              <div style="background:#f1f5f9;border-radius:8px;height:12px;overflow:hidden;margin-bottom:0.75rem;">
+                <div id="pm-progress-bar" style="height:100%;background:linear-gradient(90deg,#f503c5,#a21caf);width:0%;transition:width 0.4s;"></div>
+              </div>
+              <p id="pm-progress-text" style="margin:0;font-size:0.85rem;color:#64748b;text-align:center;"></p>
+              <div id="pm-result-list" style="margin-top:1rem;max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:0.4rem;"></div>
+            </div>
+
+          </div>
+        </div>
+        <style>@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}</style>`;
+
+        // Carregar colaboradores para dropdown de corre├º├úo
+        fetch('/api/colaboradores?status=Ativo', { headers: { Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) } })
+            .then(r => r.json()).then(data => { _todosColabs = data.colaboradores || data || []; })
+            .catch(() => {});
+    };
+
+    // ÔöÇÔöÇ Controle do tipo de documento ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    window._pmTipoOk = function() {
+        const t = document.getElementById('pm-tipo-doc');
+        return t && t.value !== '';
+    };
+
+    window._pmOnTipoChange = function() {
+        const t = document.getElementById('pm-tipo-doc');
+        const dz = document.getElementById('pm-single-upload-section');
+        const dzDual = document.getElementById('pm-dual-upload-section');
+        if (!dz || !dzDual) return;
+        
+        if (t && t.value === 'Pagamentos') {
+            dz.style.display = 'none';
+            dzDual.style.display = 'block';
+            window._pmCarregarDocumentos();
+            return;
+        } else {
+            dz.style.display = 'block';
+            dzDual.style.display = 'none';
+        }
+
+        if (window._pmTipoOk()) {
+            const drop = document.getElementById('pm-dropzone');
+            if (drop) {
+                drop.style.cursor = 'pointer';
+                drop.style.opacity = '1';
+                drop.innerHTML = `<i class="ph ph-upload-simple" style="font-size:3rem;color:#f503c5;display:block;margin-bottom:0.75rem;"></i>
+                                  <p style="margin:0;font-weight:600;color:#374151;">Clique ou arraste o PDF consolidado aqui</p>
+                                  <p style="margin:0.25rem 0 0;font-size:0.8rem;color:#64748b;">M├íx. 50 MB</p>`;
+            }
+        }
+    };
+
+    window._pmDropzoneClick = function() {
+        if (!window._pmTipoOk()) {
+            Swal.fire({ icon:'warning', title:'Selecione o tipo', text:'Escolha o Tipo de Documento antes de anexar o PDF.', timer:2500, showConfirmButton:false });
+            document.getElementById('pm-tipo-doc').focus();
+            document.getElementById('pm-tipo-doc').style.borderColor = '#ef4444';
+            setTimeout(()=>{ const s=document.getElementById('pm-tipo-doc'); if(s) s.style.borderColor='#f9a8d4'; }, 2000);
+            return;
+        }
+        document.getElementById('pm-file-input').click();
+    };
+
+    // ÔöÇÔöÇ Drag & drop ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    window._pmHandleDrop = function (e) {
+        e.preventDefault();
+        const dz = document.getElementById('pm-dropzone');
+        dz.style.borderColor = '#d1d5db'; dz.style.background = '#f8fafc';
+        const file = e.dataTransfer.files[0];
+        if (file) window._pmHandleFile(file);
+    };
+
+    window._pmHandleFile = async function (file) {
+        // Permitir selecionar o mesmo arquivo novamente (resetando o input)
+        const fileInput = document.getElementById('pm-file-input');
+        if (fileInput) fileInput.value = '';
+
+        if (!window._pmTipoOk()) {
+            Swal.fire({ icon:'warning', title:'Selecione o tipo', text:'Escolha o Tipo de Documento antes de anexar o PDF.', timer:2500, showConfirmButton:false });
+            return;
+        }
+        if (!file || file.type !== 'application/pdf') {
+            alert('Por favor selecione um arquivo PDF v├ílido.'); return;
+        }
+        // Ler como base64
+        const arrayBuf = await file.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuf);
+        let binary = '';
+        bytes.forEach(b => binary += String.fromCharCode(b));
+        _pdfBase64 = btoa(binary);
+
+        // Atualizar dropzone
+        const dz = document.getElementById('pm-dropzone');
+        dz.innerHTML = `<i class="ph ph-file-pdf" style="font-size:2.5rem;color:#f503c5;display:block;margin-bottom:0.5rem;"></i>
+            <p style="margin:0;font-weight:700;color:#374151;">${file.name}</p>
+            <p style="margin:0.25rem 0 0;font-size:0.8rem;color:#6b7280;">${(file.size/1024/1024).toFixed(2)} MB ÔÇó Clique para trocar</p>`;
+        dz.onclick = window._pmDropzoneClick;
+
+        // Processar
+        document.getElementById('pm-processing').style.display = 'block';
+        try {
+            const formData = new FormData();
+            formData.append('pdf', file);
+            formData.append('tipoDocumento', document.getElementById('pm-tipo-doc').value);
+            formData.append('mes', document.getElementById('pm-mes').value);
+            formData.append('ano', document.getElementById('pm-ano').value);
+            
+            const r = await fetch('/api/pagamentos-massa/processar', {
+                method: 'POST',
+                headers: { Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) },
+                body: formData,
+            });
+            // Verificar se a resposta ├® JSON antes de parsear
+            const contentType = r.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                const text = await r.text();
+                console.error('[PM] Resposta inesperada do servidor:', text.substring(0, 200));
+                throw new Error(`Servidor retornou status ${r.status}. Verifique se o backend est├í online.`);
+            }
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error || 'Erro ao processar');
+            document.getElementById('pm-processing').style.display = 'none';
+            _pmCarregarResultado(data.resultado);
+        } catch (e) {
+            document.getElementById('pm-processing').style.display = 'none';
+            Swal.fire({ icon:'error', title:'Erro ao processar PDF', text: e.message });
+        }
+    };
+
+    window._pmProcessarDuplo = async function () {
+        const fileAd = document.getElementById('pm-file-adiantamento')?.files[0];
+        const filePg = document.getElementById('pm-file-pagamento')?.files[0];
+
+        if (!fileAd && !filePg) {
+            Swal.fire({ icon:'warning', title:'Aten├º├úo', text:'Anexe pelo menos um holerite (Adiantamento ou Pagamento) para processar.', timer:3000 });
+            return;
+        }
+
+        // Ler base64
+        const readB64 = async (f) => {
+            if (!f) return null;
+            const buf = await f.arrayBuffer();
+            const bytes = new Uint8Array(buf);
+            let binary = ''; bytes.forEach(b => binary += String.fromCharCode(b));
+            return btoa(binary);
+        };
+
+        const b64Ad = await readB64(fileAd);
+        const b64Pg = await readB64(filePg);
+
+        window._pdfDuploBase64 = { adiantamento: b64Ad, pagamento: b64Pg };
+
+        document.getElementById('pm-processing').style.display = 'block';
+        document.getElementById('pm-processing').innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i> Processando Holerites...';
+
+        try {
+            const formData = new FormData();
+            formData.append('tipoDocumento', 'Pagamentos');
+            formData.append('mes', document.getElementById('pm-mes').value);
+            formData.append('ano', document.getElementById('pm-ano').value);
+            if (fileAd) formData.append('pdfAdiantamento', fileAd);
+            if (filePg) formData.append('pdfPagamento', filePg);
+
+            const r = await fetch('/api/pagamentos-massa/processar', {
+                method: 'POST',
+                headers: { Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) },
+                body: formData,
+            });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error || 'Erro ao processar holerites');
+
+            document.getElementById('pm-processing').style.display = 'none';
+
+            if (data.resultado && data.resultado.length > 0) {
+                let matches = 0;
+                data.resultado.forEach(res => {
+                    const item = _itensProcessados.find(i => String(i.colaborador_id) === String(res.colaborador_id));
+                    if (item) {
+                        item.paginaAdiantamento = res.paginaAdiantamento;
+                        item.paginaPagamento = res.paginaPagamento;
+                        matches++;
+                    }
+                });
+
+                if (matches === 0) {
+                    Swal.fire({ icon:'warning', title:'Nenhuma correspond├¬ncia', text:'Nenhum colaborador foi encontrado nos holerites anexados.', timer:3000 });
+                    _pmFiltrar();
+                    return;
+                }
+
+                // Auto-salvar automaticamente ap├│s processar
+                document.getElementById('pm-processing').style.display = 'block';
+                document.getElementById('pm-processing').innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i> Salvando holerites nos colaboradores...';
+
+                const tipo = document.getElementById('pm-tipo-doc')?.value || 'Pagamentos';
+                const mes  = document.getElementById('pm-mes')?.value || String(new Date().getMonth()+1).padStart(2,'0');
+                const ano  = document.getElementById('pm-ano')?.value || String(new Date().getFullYear());
+
+                // Itens com holerite identificado e selecionados
+                const itensComHolerite = _itensProcessados.filter(i => i.selecionado && i.colaborador_id && (i.paginaAdiantamento || i.paginaPagamento));
+
+                if (itensComHolerite.length === 0) {
+                    Swal.fire({ icon:'success', title:'Processado', text: `${matches} correspond├¬ncias encontradas, mas nenhuma selecionada para salvar.`, timer:3000 });
+                    document.getElementById('pm-processing').style.display = 'none';
+                    _pmFiltrar();
+                    return;
+                }
+
+                // Verifica se algum item j├í teve e-mail enviado
+                const itensJaEnviados = itensComHolerite.filter(i => i.enviadoEm || i.assinadoStatus === 'Pendente' || i.assinadoStatus === 'Assinado');
+                let itensSalvar = itensComHolerite;
+
+                if (itensJaEnviados.length > 0) {
+                    document.getElementById('pm-processing').style.display = 'none';
+                    const { value: escolha } = await Swal.fire({
+                        icon: 'question',
+                        title: 'Holerites j├í enviados para assinatura',
+                        html: `<p style="margin:0 0 0.5rem;color:#374151;">${itensJaEnviados.length} colaborador(es) j├í tiveram o e-mail de assinatura enviado.</p>
+                               <p style="margin:0;color:#6b7280;font-size:0.9rem;">Como deseja prosseguir?</p>`,
+                        showDenyButton: true,
+                        showCancelButton: true,
+                        confirmButtonText: '<i class="ph ph-users"></i> Anexar em todos',
+                        denyButtonText: '<i class="ph ph-user-check"></i> Apenas quem n├úo recebeu',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#3b82f6',
+                        denyButtonColor: '#10b981',
+                        cancelButtonColor: '#9ca3af',
+                        reverseButtons: false,
+                    });
+
+                    if (!escolha && escolha !== false) {
+                        // Cancelou
+                        _pmFiltrar();
+                        return;
+                    }
+                    if (escolha === false) {
+                        // Clicou em "Apenas quem n├úo recebeu" (denyButton retorna false)
+                        itensSalvar = itensComHolerite.filter(i => !i.enviadoEm && i.assinadoStatus !== 'Pendente' && i.assinadoStatus !== 'Assinado');
+                        if (itensSalvar.length === 0) {
+                            Swal.fire({ icon:'info', title:'Nenhum pendente', text:'Todos os colaboradores j├í receberam o e-mail de assinatura.', timer:3000 });
+                            _pmFiltrar();
+                            return;
+                        }
+                    }
+                    // Se confirmButtonText (true) ÔåÆ itensSalvar = todos (j├í est├í assim)
+                    document.getElementById('pm-processing').style.display = 'block';
+                    document.getElementById('pm-processing').innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i> Salvando holerites nos colaboradores...';
+                }
+
+                const btnEnviar = document.getElementById('pm-btn-enviar');
+                if(btnEnviar){ btnEnviar.disabled = true; btnEnviar.style.opacity = '0.6'; }
+
+                try {
+                    const salvBody = {
+                        pdfBase64: null,
+                        pdfDuploBase64: window._pdfDuploBase64 || null,
+                        tipoDocumento: tipo, mes, ano,
+                        itens: itensSalvar.map(i => ({
+                            pagina: i.pagina,
+                            paginaAdiantamento: i.paginaAdiantamento,
+                            paginaPagamento: i.paginaPagamento,
+                            colaborador_id: i.colaborador_id,
+                            docId: i.docId,
+                            enviarEmail: false,
+                        })),
+                    };
+                    const rs = await fetch('/api/pagamentos-massa/enviar', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) },
+                        body: JSON.stringify(salvBody),
+                    });
+                    const sd = await rs.json();
+                    document.getElementById('pm-processing').style.display = 'none';
+                    if (!rs.ok) throw new Error(sd.error);
+                    _jobId = sd.jobId;
+
+                    document.getElementById('pm-progress-section').style.display = 'block';
+                    document.getElementById('pm-progress-section').scrollIntoView({ behavior: 'smooth' });
+                    const ptxt = document.getElementById('pm-progress-title');
+                    if(ptxt) ptxt.innerHTML = `<span style="background:#10b981;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">3</span> Salvando holerites...`;
+                    window.onbeforeunload = null;
+                    _pmPollStatus(itensSalvar.length, true);
+                } catch(eS) {
+                    document.getElementById('pm-processing').style.display = 'none';
+                    if(btnEnviar){ btnEnviar.disabled = false; btnEnviar.style.opacity = '1'; }
+                    Swal.fire({ icon:'error', title:'Erro ao salvar', text: eS.message });
+                }
+            }
+        } catch (e) {
+            document.getElementById('pm-processing').style.display = 'none';
+            Swal.fire({ icon:'error', title:'Erro ao processar', text: e.message });
+        }
+    };
+
+    window._pmCarregarDocumentos = async function() {
+        if (!window._pmTipoOk()) {
+            Swal.fire({ icon:'warning', title:'Selecione o tipo', text:'Escolha o Tipo de Documento antes de carregar do banco.', timer:2500, showConfirmButton:false });
+            return;
+        }
+
+        const tipo = document.getElementById('pm-tipo-doc').value;
+        const mes = document.getElementById('pm-mes').value;
+        const ano = document.getElementById('pm-ano').value;
+        
+        document.getElementById('pm-processing').style.display = 'block';
+        document.getElementById('pm-processing').innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i> Buscando documentos n├úo assinados...';
+        
+        try {
+            const url = `/api/pagamentos-massa/pendentes?tipoDocumento=${encodeURIComponent(tipo)}&mes=${encodeURIComponent(mes)}&ano=${encodeURIComponent(ano)}`;
+            const r = await fetch(url, {
+                headers: { Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) }
+            });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error || 'Erro ao buscar documentos');
+            
+            _pdfBase64 = null; // No PDF file
+
+            document.getElementById('pm-processing').style.display = 'none';
+            if (data.resultado && data.resultado.length > 0) {
+                _pmCarregarResultado(data.resultado);
+                const dz = document.getElementById('pm-dropzone');
+                dz.innerHTML = `<i class="ph ph-check-circle" style="font-size:2.5rem;color:#10b981;display:block;margin-bottom:0.5rem;"></i>
+                    <p style="margin:0;font-weight:700;color:#374151;">${data.resultado.length} Documento(s) Carregado(s)</p>
+                    <p style="margin:0.25rem 0 0;font-size:0.8rem;color:#6b7280;">Do banco de dados</p>`;
+            } else {
+                Swal.fire({ icon: 'info', title: 'Nenhum documento', text: 'N├úo foram encontrados recibos em lote pendentes para os filtros.' });
+            }
+        } catch (e) {
+            document.getElementById('pm-processing').style.display = 'none';
+            Swal.fire({ icon: 'error', title: 'Erro', text: e.message });
+        }
+    };
+
+    // ÔöÇÔöÇ Carregar resultado na tabela ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    function _pmCarregarResultado(resultado) {
+        _itensProcessados = resultado.map(item => ({
+            ...item,
+            selecionado: !!item.colaborador_id,
+            enviarEmail: true,
+            salvoEm: item.salvoEm || null,       // Data de salvamento do banco
+            enviadoEm: item.enviadoEm || null,    // Data de envio por e-mail
+            assinadoEm: item.assinadoEm || null,  // Data de assinatura pelo colaborador
+            assinadoStatus: item.assinadoStatus || null, // 'Assinado' quando assinado
+        }));
+
+        // Ordena├º├úo alfab├®tica
+        _itensProcessados.sort((a, b) => {
+            const nomeA = (a.colaborador_nome || a.nomeDetectado || '').toLowerCase();
+            const nomeB = (b.colaborador_nome || b.nomeDetectado || '').toLowerCase();
+            return nomeA.localeCompare(nomeB);
+        });
+
+        // Popular filtros
+        const deptos = [...new Set(_itensProcessados.map(i => i.departamento).filter(Boolean))].sort();
+        const cargos = [...new Set(_itensProcessados.map(i => i.cargo).filter(Boolean))].sort();
+        const selDepto = document.getElementById('pm-f-depto');
+        const selCargo = document.getElementById('pm-f-cargo');
+        if (selDepto) { selDepto.innerHTML = '<option value="">Todos</option>' + deptos.map(d => `<option>${d}</option>`).join(''); }
+        if (selCargo) { selCargo.innerHTML = '<option value="">Todos</option>' + cargos.map(c => `<option>${c}</option>`).join(''); }
+
+        document.getElementById('pm-review-section').style.display = 'block';
+        _pmFiltrar();
+        
+        // Ativar alerta se tentar recarregar/fechar a p├ígina sem salvar
+        if (window._pdfDuploBase64) {
+            window.onbeforeunload = function() {
+                return 'Voc├¬ tem documentos processados que ainda n├úo foram enviados/salvos. Se atualizar a p├ígina, perder├í os arquivos carregados.';
+            };
+        }
+    }
+
+    // ÔöÇÔöÇ Filtrar e renderizar tabela ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    let _itensFiltrados = []; // itens atualmente vis├¡veis (com filtro)
+
+    window._pmFiltrar = function () {
+        const fNome  = (document.getElementById('pm-f-nome')?.value || '').toLowerCase().trim();
+        const fDepto = (document.getElementById('pm-f-depto')?.value || '').toLowerCase();
+        const fCargo = (document.getElementById('pm-f-cargo')?.value || '').toLowerCase();
+        const fMatch = (document.getElementById('pm-f-match')?.value || '');
+        const fSetor = (document.getElementById('pm-f-setor')?.value || '');
+
+        _itensFiltrados = _itensProcessados.filter(item => {
+            if (fNome && !(item.colaborador_nome || item.nomeDetectado || '').toLowerCase().includes(fNome)) return false;
+            if (fDepto && (item.departamento || '').toLowerCase() !== fDepto) return false;
+            if (fCargo && (item.cargo || '').toLowerCase() !== fCargo) return false;
+            if (fMatch === 'sem_match' && item.colaborador_id) return false;
+            if (fMatch && fMatch !== 'sem_match' && item.confianca !== fMatch) return false;
+            if (fSetor && (item.setor || '') !== fSetor) return false;
+            return true;
+        });
+
+        _pmRenderTabela(_itensFiltrados);
+        _pmAtualizarInfo();
+    };
+
+    function _pmRenderTabela(itens) {
+        const tbody = document.getElementById('pm-tbody');
+        if (!tbody) return;
+        const matchColors = { exato: '#dcfce7', parcial: '#fef9c3', aproximado: '#ffedd5', null: '#fee2e2' };
+        const matchLabels = { exato: 'Ô£à Exato', parcial: '­ƒƒí Parcial', aproximado: '­ƒƒá Aprox.', null: 'ÔØî Sem match' };
+
+        const dropdownOpts = [{ id: '', nome_completo: 'ÔÇö N├úo atribuir ÔÇö' }, ..._todosColabs]
+            .map(c => `<option value="${c.id||''}">${c.nome_completo||''}</option>`).join('');
+
+        tbody.innerHTML = itens.map((item, idx) => {
+            const realIdx = _itensProcessados.indexOf(item);
+            const bg = matchColors[item.confianca] || matchColors[null];
+            const temErroEnvio = item.erroEnvio || item.assinadoStatus === 'Erro';
+            const nomeColor = temErroEnvio ? '#dc2626' : (item.colaborador_id ? '#374151' : '#ef4444'); // Red if error or no match
+            const nomeWeight = (temErroEnvio || !item.colaborador_id) ? '700' : 'normal';
+
+            // C├®lula SALVO
+            let celulaSalvo = item.salvoEm
+                ? `<td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.72rem;">
+                    <div style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">
+                      <span style="background:#f0fdf4;color:#16a34a;border-radius:12px;padding:2px 8px;font-weight:700;font-size:0.7rem;display:flex;align-items:center;gap:3px;white-space:nowrap;">
+                        <i class="ph ph-check-circle"></i> SALVO
+                      </span>
+                      <span style="color:#64748b;font-size:0.67rem;">${item.salvoEm}</span>
+                    </div>
+                  </td>`
+                : `<td style="padding:0.5rem 0.75rem;text-align:center;"><span style="color:#cbd5e1;font-size:0.8rem;">ÔÇö</span></td>`;
+
+            // C├®lula ENVIADO ÔÇö prioridade: ASSINADO > ENVIADO > ÔÇö
+            let celulaEnviado;
+            if (item.assinadoStatus === 'Assinado' || item.assinadoEm) {
+                // Documento ASSINADO pelo colaborador
+                celulaEnviado = `<td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.72rem;">
+                    <div style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">
+                      <span style="background:#eff6ff;color:#1d4ed8;border-radius:12px;padding:2px 8px;font-weight:700;font-size:0.7rem;display:flex;align-items:center;gap:3px;white-space:nowrap;">
+                        <i class="ph ph-pen-nib"></i> ASSINADO
+                      </span>
+                      <span style="color:#64748b;font-size:0.67rem;">${item.assinadoEm || item.enviadoEm || ''}</span>
+                    </div>
+                  </td>`;
+            } else if (item.enviadoEm) {
+                // Documento enviado por e-mail (aguardando assinatura)
+                celulaEnviado = `<td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.72rem;">
+                    <div style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">
+                      <span style="background:#fdf4ff;color:#a21caf;border-radius:12px;padding:2px 8px;font-weight:700;font-size:0.7rem;display:flex;align-items:center;gap:3px;white-space:nowrap;">
+                        <i class="ph ph-paper-plane-tilt"></i> ENVIADO
+                      </span>
+                      <span style="color:#64748b;font-size:0.67rem;">${item.enviadoEm}</span>
+                    </div>
+                  </td>`;
+            } else if (item.assinadoStatus === 'Erro' || item.erroEnvio) {
+                // Erro no envio ÔÇö exibe badge vermelho
+                celulaEnviado = `<td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.72rem;">
+                    <div style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">
+                      <span style="background:#fef2f2;color:#dc2626;border-radius:12px;padding:2px 8px;font-weight:700;font-size:0.7rem;display:flex;align-items:center;gap:3px;white-space:nowrap;">
+                        <i class="ph ph-warning-circle"></i> ERRO
+                      </span>
+                      <span style="color:#64748b;font-size:0.67rem;">falha no envio</span>
+                    </div>
+                  </td>`;
+            } else {
+                celulaEnviado = `<td style="padding:0.5rem 0.75rem;text-align:center;"><span style="color:#cbd5e1;font-size:0.8rem;">ÔÇö</span></td>`;
+            }
+
+        return `<tr style="border-bottom:1px solid #f1f5f9;${!item.colaborador_id?'opacity:0.9':''}">
+            <td style="padding:0.5rem 0.75rem;text-align:center;">
+              <input type="checkbox" ${item.selecionado&&item.colaborador_id?'checked':''} ${!item.colaborador_id?'disabled':''} onchange="window._pmToggle(${realIdx},this.checked)"
+                style="width:15px;height:15px;cursor:pointer;">
+            </td>
+            <td style="padding:0.5rem 0.75rem;font-size:0.82rem;color:${nomeColor};font-weight:${nomeWeight};">${item.nomeDetectado || '<span style="color:#9ca3af">N├úo detectado</span>'}</td>
+            <td style="padding:0.5rem 0.75rem;">
+              <select onchange="window._pmCorrigirColab(${realIdx},this.value)"
+                style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.8rem;background:${bg};">
+                ${dropdownOpts.replace(`value="${item.colaborador_id||''}"`, `value="${item.colaborador_id||''}" selected`)}
+              </select>
+            </td>
+            <td style="padding:0.5rem 0.75rem;font-size:0.8rem;color:#64748b;">${item.departamento || '-'}</td>
+            <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#22c55e;">
+              ${((item.paginaAdiantamento && item.paginaAdiantamento !== '-') || item.temAdiantamento) ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
+            </td>
+            <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#22c55e;">
+              ${((item.paginaPagamento && item.paginaPagamento !== '-') || item.temPagamento) ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
+            </td>
+            ${celulaSalvo}
+            ${celulaEnviado}
+            <td style="padding:0.5rem 0.75rem;text-align:center;">
+              <button onclick="window._pmPreview(${realIdx})" style="background:transparent;border:none;color:#3b82f6;cursor:pointer;padding:4px;border-radius:4px;" title="Visualizar Documento">
+                 <i class="ph ph-eye" style="font-size:1.1rem;"></i>
+              </button>
+            </td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="9" style="text-align:center;padding:2rem;color:#9ca3af;">Nenhum item encontrado com os filtros.</td></tr>';
+    }
+
+    // ÔöÇÔöÇ Helpers de estado ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    window._pmToggle = function (idx, val) {
+        if (_itensProcessados[idx]) { _itensProcessados[idx].selecionado = val; _pmAtualizarInfo(); }
+    };
+    window._pmPreview = function (idx) {
+        const item = _itensProcessados[idx];
+        if (!item) return;
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+
+        // Se j├í foi salvo (holerites j├í est├úo no arquivo do banco), abre direto o arquivo salvo
+        if (item.docId && item.salvoEm) {
+            window.open(`/api/documentos/view/${item.docId}?token=${token}`, '_blank');
+            return;
+        }
+
+        // Se temos um docId base (do banco) e temos as p├íginas do holerite ainda n├úo salvas,
+        // usa preview-merge para mostrar como ficar├í (sem salvar)
+        if (item.docId && window._pdfDuploBase64 && (item.paginaAdiantamento || item.paginaPagamento)) {
+            const f = document.createElement('form');
+            f.method = 'POST';
+            f.action = `/api/pagamentos-massa/preview-merge?token=${token}`;
+            f.target = '_blank';
+            
+            const i1 = document.createElement('input'); i1.type='hidden'; i1.name='docId'; i1.value=item.docId; f.appendChild(i1);
+            
+            if (item.paginaAdiantamento && window._pdfDuploBase64.adiantamento) {
+               const i2 = document.createElement('input'); i2.type='hidden'; i2.name='pdfAdiantamento'; i2.value=window._pdfDuploBase64.adiantamento; f.appendChild(i2);
+               const i3 = document.createElement('input'); i3.type='hidden'; i3.name='paginaAdiantamento'; i3.value=item.paginaAdiantamento; f.appendChild(i3);
+            }
+            if (item.paginaPagamento && window._pdfDuploBase64.pagamento) {
+               const i4 = document.createElement('input'); i4.type='hidden'; i4.name='pdfPagamento'; i4.value=window._pdfDuploBase64.pagamento; f.appendChild(i4);
+               const i5 = document.createElement('input'); i5.type='hidden'; i5.name='paginaPagamento'; i5.value=item.paginaPagamento; f.appendChild(i5);
+            }
+            document.body.appendChild(f);
+            f.submit();
+            document.body.removeChild(f);
+            
+        } else if (item.docId) {
+            window.open(`/api/documentos/view/${item.docId}?token=${token}`, '_blank');
+        } else if (_pdfBase64) {
+            let url = `data:application/pdf;base64,${_pdfBase64}`;
+            if (item.pagina && item.pagina !== '-') { url += `#page=${item.pagina}`; }
+            window.open(url, '_blank');
+        } else {
+            if (typeof Swal !== 'undefined') Swal.fire('Aviso', 'N├úo h├í documento dispon├¡vel para pr├®-visualiza├º├úo.', 'warning');
+        }
+    };
+
+    window._pmToggleEmail = function (idx, val) {
+        if (_itensProcessados[idx]) _itensProcessados[idx].enviarEmail = val;
+    };
+    window._pmCorrigirColab = function (idx, colabId) {
+        const item = _itensProcessados[idx];
+        if (!item) return;
+        const colab = _todosColabs.find(c => String(c.id) === String(colabId));
+        item.colaborador_id = colabId || null;
+        item.colaborador_nome = colab?.nome_completo || null;
+        item.departamento = colab?.departamento || null;
+        item.cargo = colab?.cargo || null;
+        item.setor = colab?.departamento_tipo || null; // 'Administrativo' ou 'Operacional'
+        item.confianca = colabId ? 'manual' : null;
+        item.selecionado = !!colabId;
+        _pmFiltrar();
+    };
+    window._pmSelecionarTodos = function (val) {
+        // Aplica apenas nos itens atualmente vis├¡veis (respeitando filtros)
+        const alvo = _itensFiltrados.length > 0 ? _itensFiltrados : _itensProcessados;
+        alvo.forEach(i => { if (i.colaborador_id) { i.selecionado = val; i.enviarEmail = val; } });
+        _pmFiltrar();
+    };
+    function _pmAtualizarInfo() {
+        const selecionados = _itensProcessados.filter(i => i.selecionado && i.colaborador_id).length;
+        const total = _itensProcessados.length;
+        const semMatch = _itensProcessados.filter(i => !i.colaborador_id).length;
+        const badge = document.getElementById('pm-badge-total');
+        const info = document.getElementById('pm-selecionados-info');
+        if (badge) badge.textContent = `${total} p├íginas`;
+        if (info) info.innerHTML = `<strong>${selecionados}</strong> selecionados para envio${semMatch ? ` ÔÇó <span style="color:#ef4444">${semMatch} sem match</span>` : ''}`;
+    }
+
+    // ÔöÇÔöÇ Salvar e Enviar ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    window._pmSalvar = async function () {
+        const itensSelecionados = _itensProcessados.filter(i => i.selecionado && i.colaborador_id);
+        if (!itensSelecionados.length) { alert('Selecione pelo menos um colaborador para salvar.'); return; }
+        if (!confirm(`Salvar documentos para ${itensSelecionados.length} colaborador(es)?`)) return;
+
+        const btn1 = document.getElementById('pm-btn-salvar');
+        const btn2 = document.getElementById('pm-btn-enviar');
+        if(btn1){ btn1.disabled = true; btn1.style.opacity = '0.6'; }
+        if(btn2){ btn2.disabled = true; btn2.style.opacity = '0.6'; }
+
+        const tipo = document.getElementById('pm-tipo-doc')?.value || 'Holerite Adiantamento';
+        const mes  = document.getElementById('pm-mes')?.value || String(new Date().getMonth()+1).padStart(2,'0');
+        const ano  = document.getElementById('pm-ano')?.value || String(new Date().getFullYear());
+
+        try {
+            const bodyParams = {
+                pdfBase64: _pdfBase64,
+                pdfDuploBase64: window._pdfDuploBase64 || null,
+                tipoDocumento: tipo, mes, ano,
+                itens: itensSelecionados.map(i => ({
+                    pagina: i.pagina,
+                    paginaAdiantamento: i.salvoEm ? null : i.paginaAdiantamento,
+                    paginaPagamento: i.salvoEm ? null : i.paginaPagamento,
+                    colaborador_id: i.colaborador_id,
+                    docId: i.docId,
+                    enviarEmail: false, // <-- S├│ salva, n├úo envia
+                })),
+            };
+
+            const r = await fetch('/api/pagamentos-massa/enviar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) },
+                body: JSON.stringify(bodyParams),
+            });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error);
+            _jobId = data.jobId;
+
+            document.getElementById('pm-progress-section').style.display = 'block';
+            document.getElementById('pm-progress-section').scrollIntoView({ behavior: 'smooth' });
+            
+            // Alterar t├¡tulo do progresso
+            const txt = document.getElementById('pm-progress-title');
+            if(txt) txt.innerHTML = `<span style="background:#10b981;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">3</span> Salvando...`;
+
+            window.onbeforeunload = null; // Remove aviso de recarregar p├ígina
+            _pmPollStatus(itensSelecionados.length, true); // true = ├® salvamento
+        } catch (e) {
+            if(btn1){ btn1.disabled = false; btn1.style.opacity = '1'; }
+            if(btn2){ btn2.disabled = false; btn2.style.opacity = '1'; }
+            alert('Erro ao iniciar salvamento: ' + e.message);
+        }
+    };
+
+    window._pmEnviar = async function () {
+        const itensSelecionados = _itensProcessados.filter(i => i.selecionado && i.colaborador_id);
+        if (!itensSelecionados.length) { alert('Selecione pelo menos um colaborador para enviar.'); return; }
+        // if (!_pdfBase64) { alert('PDF n├úo carregado.'); return; } // Allow null if using DB documents
+        if (!confirm(`Enviar documentos para ${itensSelecionados.length} colaborador(es)?`)) return;
+
+        const btn1 = document.getElementById('pm-btn-salvar');
+        const btn2 = document.getElementById('pm-btn-enviar');
+        if(btn1){ btn1.disabled = true; btn1.style.opacity = '0.6'; }
+        if(btn2){ btn2.disabled = true; btn2.style.opacity = '0.6'; }
+
+        const tipo = document.getElementById('pm-tipo-doc')?.value || 'Holerite Adiantamento';
+        const mes  = document.getElementById('pm-mes')?.value || String(new Date().getMonth()+1).padStart(2,'0');
+        const ano  = document.getElementById('pm-ano')?.value || String(new Date().getFullYear());
+
+        try {
+            const bodyParams = {
+                pdfBase64: _pdfBase64,
+                pdfDuploBase64: window._pdfDuploBase64 || null,
+                tipoDocumento: tipo, mes, ano,
+                itens: itensSelecionados.map(i => ({
+                    pagina: i.pagina,
+                    paginaAdiantamento: i.salvoEm ? null : i.paginaAdiantamento,
+                    paginaPagamento: i.salvoEm ? null : i.paginaPagamento,
+                    colaborador_id: i.colaborador_id,
+                    docId: i.docId,
+                    enviarEmail: true,
+                })),
+            };
+
+            const r = await fetch('/api/pagamentos-massa/enviar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) },
+                body: JSON.stringify(bodyParams),
+            });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error);
+            _jobId = data.jobId;
+
+            document.getElementById('pm-progress-section').style.display = 'block';
+            const txt = document.getElementById('pm-progress-title');
+            if(txt) txt.innerHTML = `<span style="background:#f503c5;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">3</span> Enviando...`;
+
+            window.onbeforeunload = null;
+            _pmPollStatus(itensSelecionados.length, false);
+        } catch (e) {
+            if(btn1){ btn1.disabled = false; btn1.style.opacity = '1'; }
+            if(btn2){ btn2.disabled = false; btn2.style.opacity = '1'; }
+            alert('Erro ao iniciar envio: ' + e.message);
+        }
+    };
+
+    function _pmPollStatus(total, isSalvarOnly) {
+        clearInterval(_pollTimer);
+        _pollTimer = setInterval(async () => {
+            try {
+                const r = await fetch(`/api/pagamentos-massa/status/${_jobId}`, {
+                    headers: { Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) }
+                });
+                const job = await r.json();
+                const pct = total > 0 ? Math.round((job.done / total) * 100) : 0;
+                const bar = document.getElementById('pm-progress-bar');
+                const txt = document.getElementById('pm-progress-text');
+                if (bar) bar.style.width = pct + '%';
+                if (txt) txt.textContent = `${job.done} de ${total} processados... (${job.erros} erro${job.erros!==1?'s':''})`;
+
+                // Mostrar resultados
+                const listEl = document.getElementById('pm-result-list');
+                if (listEl && job.resultados) {
+                    listEl.innerHTML = job.resultados.map(res => `
+                        <div style="padding:0.4rem 0.75rem;border-radius:6px;font-size:0.82rem;
+                          background:${res.ok?'#f0fdf4':'#fef2f2'};color:${res.ok?'#166534':'#991b1b'};
+                          display:flex;align-items:center;gap:0.5rem;">
+                          <i class="ph ${res.ok?'ph-check-circle':'ph-x-circle'}"></i>
+                          <strong>${res.nome || 'ID ' + res.colaborador_id}</strong>
+                          ${res.ok ? (res.urlAssinatura ? 'ÔÇö link enviado' : 'ÔÇö salvo (sem e-mail)') : 'ÔÇö ' + (res.erro||'erro')}
+                        </div>`).join('');
+                }
+
+                if (job.concluido) {
+                    clearInterval(_pollTimer);
+                    
+                    // Atualiza o docId nos itens da tabela se vieram
+                    if (job.resultados && job.resultados.length > 0) {
+                        const agora = new Date();
+                        const dataHora = `${String(agora.getDate()).padStart(2,'0')}/${String(agora.getMonth()+1).padStart(2,'0')}/${agora.getFullYear()} ${String(agora.getHours()).padStart(2,'0')}:${String(agora.getMinutes()).padStart(2,'0')}`;
+                        job.resultados.forEach(res => {
+                            const localItem = _itensProcessados.find(i => i.colaborador_id === res.colaborador_id);
+                            if (!localItem) return;
+                            if (res.ok && res.docId) {
+                                localItem.docId = res.docId;
+                                // Limpa erro anterior se agora foi com sucesso
+                                localItem.erroEnvio = false;
+                                localItem.assinadoStatus = localItem.assinadoStatus === 'Erro' ? null : localItem.assinadoStatus;
+                                if (isSalvarOnly) {
+                                    localItem.salvoEm = dataHora;   // Ô£à Data/hora do salvamento
+                                } else {
+                                    localItem.salvoEm = localItem.salvoEm || dataHora; // Mant├®m salvo se j├í existia
+                                    localItem.enviadoEm = dataHora; // Ô£ê Data/hora do envio por e-mail
+                                }
+                            } else if (!res.ok) {
+                                // Marca erro na sess├úo para nome ficar vermelho imediatamente
+                                localItem.erroEnvio = true;
+                            }
+                        });
+                        // Re-renderiza a tabela para exibir OKs de db se houver
+                        _pmFiltrar();
+                    }
+
+                    const txt2 = document.getElementById('pm-progress-text');
+                    const operacaoStr = isSalvarOnly ? 'salvo(s)' : 'enviado(s)';
+                    if (txt2) txt2.innerHTML = `<strong style="color:${job.erros?'#ef4444':'#16a34a'}">
+                        Ô£à Conclu├¡do! ${job.done - job.erros} ${operacaoStr} com sucesso${job.erros?' ÔÇó '+job.erros+' erro(s)':''}</strong>`;
+                    const btn1 = document.getElementById('pm-btn-salvar');
+                    const btn2 = document.getElementById('pm-btn-enviar');
+                    if (btn1) { btn1.disabled = false; btn1.style.opacity = '1'; }
+                    if (btn2) { btn2.disabled = false; btn2.style.opacity = '1'; }
+                }
+            } catch(e) { clearInterval(_pollTimer); }
+        }, 2000);
+    }
+
+    // ÔöÇÔöÇ Navega├º├úo ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    document.addEventListener('click', function (e) {
+        const link = e.target.closest('[data-target="pagamentos-massa"]');
+        if (link) setTimeout(() => window.renderPagamentosMassa(), 150);
+    });
+})();
+
+window._historyData = [];
+window._historyPage = 1;
+const HISTORY_PER_PAGE = 20;
+
+window.historyPageChange = function (delta) {
+    const totalPages = Math.ceil(window._historyData.length / HISTORY_PER_PAGE);
+    window._historyPage = Math.max(1, Math.min(totalPages, window._historyPage + delta));
+    window._renderHistoryPage();
+};
+
+window._renderHistoryPage = function () {
+    const tbody = document.getElementById('history-table-body');
+    const pageInfo = document.getElementById('history-page-info');
+    const prevBtn = document.getElementById('history-prev-btn');
+    const nextBtn = document.getElementById('history-next-btn');
+    if (!tbody) return;
+
+    const data = window._historyData;
+    const page = window._historyPage;
+    const totalPages = Math.max(1, Math.ceil(data.length / HISTORY_PER_PAGE));
+    const start = (page - 1) * HISTORY_PER_PAGE;
+    const slice = data.slice(start, start + HISTORY_PER_PAGE);
+
+    if (pageInfo) pageInfo.textContent = `P├íg. ${page} / ${totalPages}`;
+    if (prevBtn) prevBtn.disabled = page <= 1;
+    if (nextBtn) nextBtn.disabled = page >= totalPages;
+
+    // Mostrar/ocultar coluna Documento
+    const hasDocNome = data.some(r => r.documento_nome);
+    const thDoc = document.getElementById('history-th-documento');
+    if (thDoc) {
+        thDoc.style.display = hasDocNome ? 'table-cell' : 'none';
+        const isOsHistory = data.some(r => r.programa === 'OS Log├¡stica');
+        thDoc.textContent = isOsHistory ? 'N┬║ OS' : 'Registro / Relacionado';
+    }
+
+    if (slice.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${hasDocNome ? 6 : 5}" style="text-align:center; padding: 2rem; color: #94a3b8;">Nenhum registro de altera├º├úo encontrado.</td></tr>`;
+        return;
+    }
+
+    let html = '';
+    slice.forEach((log, i) => {
+        const rawDate = log.data_hora || '';
+        let dateStr = '-', horaStr = '-';
+        try {
+            const dt = new Date(rawDate.endsWith('Z') ? rawDate : rawDate + 'Z');
+            dateStr = dt.toLocaleDateString('pt-BR');
+            horaStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        } catch (e) { }
+
+        const stripBg = i % 2 === 0 ? 'background:#fff;' : 'background:#f8fafc;';
+
+        const campoLabel = log.campo ? `<span style="color:#94a3b8;font-size:0.75rem;font-weight:600;">${log.campo}: </span>` : '';
+        const anteriorCell = log.conteudo_anterior
+            ? `${campoLabel}<span>${log.conteudo_anterior}</span>`
+            : `<span style="color:#cbd5e1;">ÔÇö</span>`;
+        const atualCell = log.conteudo_atual
+            ? `${campoLabel}<span style="font-weight:600;">${log.conteudo_atual}</span>`
+            : `<span style="color:#cbd5e1;">ÔÇö</span>`;
+
+        const docCell = hasDocNome
+            ? `<td style="padding:0.7rem 1rem; font-weight:600; color:#0f4c81; font-size:0.82rem; max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${log.documento_nome || '<span style="color:#cbd5e1;">ÔÇö</span>'}</td>`
+            : '';
+
+        html += `<tr style="${stripBg}border-bottom:1px solid #f1f5f9;">
+            <td style="padding:0.7rem 1rem; white-space:nowrap; color:#334155; font-size:0.82rem;">${dateStr}</td>
+            <td style="padding:0.7rem 1rem; white-space:nowrap; color:#64748b; font-family:monospace; font-size:0.82rem;">${horaStr}</td>
+            <td style="padding:0.7rem 1rem; font-weight:700; color:#f503c5; font-size:0.82rem; text-transform:uppercase;">${log.usuario || 'SISTEMA'}</td>
+            ${docCell}
+            <td style="padding:0.7rem 1rem; color:#ef4444; font-size:0.82rem;">${anteriorCell}</td>
+            <td style="padding:0.7rem 1rem; color:#16a34a; font-size:0.82rem;">${atualCell}</td>
+        </tr>`;
+    });
+    tbody.innerHTML = html;
+};
+
+window.showHistoryPopup = async function () {
+    const historyMod = document.getElementById('modal-history');
+    if (historyMod) historyMod.style.display = 'flex';
+    const tbody = document.getElementById('history-table-body');
+    const loading = document.getElementById('history-loading');
+    const contextLabel = document.getElementById('history-context-label');
+
+    window._historyPage = 1;
+    window._historyData = [];
+    tbody.innerHTML = '';
+    loading.style.display = 'block';
+
+    try {
+        let url = `${API_URL}/auditoria`;
+        let labelText = 'Todas as altera├º├Áes do sistema';
+
+        const viewPront = document.getElementById('view-prontuario');
+        const viewAdm = document.getElementById('view-admissao');
+        const viewForm = document.getElementById('view-form-colaborador');
+        const viewListColab = document.getElementById('view-colaboradores');
+        const viewGer = document.getElementById('view-geradores');
+        const viewCargos = document.getElementById('view-cargos');
+        const viewFaculdade = document.getElementById('view-faculdade');
+        const viewEpi = document.getElementById('view-ficha-epi');
+        const viewAvaliacoes = document.getElementById('view-gerenciar-avaliacoes');
+        const viewDissidio = document.getElementById('view-dissidio');
+        const viewRotaRedonda = document.getElementById('rota-redonda-container');
+        const viewAgenda = document.getElementById('view-logistica-agenda');
+
+        const isColabActive = (viewPront && viewPront.classList.contains('active')) ||
+            (viewAdm && viewAdm.classList.contains('active')) ||
+            (viewForm && viewForm.classList.contains('active')) ||
+            (viewListColab && viewListColab.classList.contains('active'));
+        const isGerActive = viewGer && viewGer.classList.contains('active');
+        const isCargosActive = viewCargos && viewCargos.classList.contains('active');
+        const isFaculdadeActive = viewFaculdade && viewFaculdade.classList.contains('active');
+        const isEpiActive = viewEpi && viewEpi.classList.contains('active');
+        const isAvaliacoesActive = viewAvaliacoes && viewAvaliacoes.classList.contains('active');
+        const isDissidioActive = viewDissidio && viewDissidio.classList.contains('active');
+        const isRotaRedondaActive = viewRotaRedonda && viewRotaRedonda.offsetParent !== null;
+        const isAgendaActive = viewAgenda && viewAgenda.classList.contains('active');
+        const viewRhAgendaHist = document.getElementById('view-rh-agenda');
+        const isRhAgendaActive = viewRhAgendaHist && viewRhAgendaHist.classList.contains('active');
+
+        if (isColabActive && viewedColaborador && viewedColaborador.id) {
+            // Prontu├írio ou Admiss├úo de um colaborador espec├¡fico
+            url += `?contexto=colaborador&id=${viewedColaborador.id}`;
+            labelText = `Colaborador: ${viewedColaborador.nome_completo || viewedColaborador.nome || ''}`;
+        } else if (isColabActive) {
+            // Lista de colaboradores = todas as altera├º├Áes em todos os colaboradores
+            url += `?contexto=colaboradores_geral`;
+            labelText = 'Todas as altera├º├Áes em Colaboradores';
+        } else if (isGerActive) {
+            url += `?contexto=gerador`;
+            labelText = 'Tela: Geradores de Documentos';
+        } else if (isCargosActive) {
+            url += `?programa=Cargos`;
+            labelText = 'Tela: Cargos';
+        } else if (isFaculdadeActive) {
+            url += `?programa=Faculdade`;
+            labelText = 'Tela: Faculdade';
+        } else if (isEpiActive) {
+            url += `?programa=EPI`;
+            labelText = 'Tela: Fichas EPI';
+        } else if (isAvaliacoesActive) {
+            url += `?programa=Avalia`;
+            labelText = 'Tela: Avalia├º├Áes';
+        } else if (isDissidioActive) {
+            url += `?programa=Diss├¡dio`;
+            labelText = 'Tela: Diss├¡dio Coletivo';
+        } else if (isAgendaActive) {
+            url += `?programa=Agenda Log├¡stica`;
+            labelText = 'Tela: Agenda Log├¡stica';
+        } else if (isRhAgendaActive) {
+            url += `?programa=Agenda RH`;
+            labelText = 'Tela: Agenda RH';
+        } else if (isRotaRedondaActive) {
+            url += `?programa=OS Log├¡stica`;
+            labelText = 'Tela: Rota Redonda ÔÇö Hist├│rico Geral';
+            const numOsInput = document.getElementById('rr-input-os');
+            const numOsFiltro = numOsInput ? numOsInput.value.trim() : '';
+            if (numOsFiltro) {
+                url += `&numero_os=${encodeURIComponent(numOsFiltro)}`;
+                labelText = `OS Log├¡stica ÔÇö Hist├│rico do N├║mero: ${numOsFiltro}`;
+            }
+        } else {
+            url += `?contexto=geral`;
+        }
+
+        if (contextLabel) contextLabel.textContent = labelText;
+
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+        if (!res.ok) throw new Error('Falha ao carregar hist├│rico');
+        const data = await res.json();
+
+        loading.style.display = 'none';
+        window._historyData = data || [];
+        window._renderHistoryPage();
+
+    } catch (e) {
+        loading.style.display = 'none';
+        document.getElementById('history-table-body').innerHTML = `<tr><td colspan="5" style="text-align:center; color:#ef4444; padding:1rem;">Erro ao carregar hist├│rico: ${e.message}</td></tr>`;
+    }
+};
+
+// Automatically show/hide history icon based on view
+setInterval(() => {
+    const btnHistory = document.getElementById('btn-history-page');
+    if (!btnHistory) return;
+
+    // Colaboradores / Prontu├írio / Admiss├úo
+    const viewPront = document.getElementById('view-prontuario');
+    const viewAdms = document.getElementById('view-admissao');
+    const viewForm = document.getElementById('view-form-colaborador');
+    const viewListColab = document.getElementById('view-colaboradores');
+
+    // Geradores
+    const viewGer = document.getElementById('view-geradores');
+
+    // RH extras
+    const viewCargos = document.getElementById('view-cargos');
+    const viewFaculdade = document.getElementById('view-faculdade');
+    const viewEpi = document.getElementById('view-ficha-epi');
+    const viewAvaliacoes = document.getElementById('view-gerenciar-avaliacoes');
+    const viewDissidio = document.getElementById('view-dissidio');
+
+    // Log├¡stica
+    const viewSenhas = document.getElementById('logistica-senhas-container');
+    const viewAgenda = document.getElementById('view-logistica-agenda');
+
+    const isColabActive = (viewPront && viewPront.classList.contains('active')) ||
+        (viewAdms && viewAdms.classList.contains('active')) ||
+        (viewForm && viewForm.classList.contains('active')) ||
+        (viewListColab && viewListColab.classList.contains('active'));
+
+    const isGerActive = viewGer && viewGer.classList.contains('active');
+    const isCargosActive = viewCargos && viewCargos.classList.contains('active');
+    const isFaculdadeActive = viewFaculdade && viewFaculdade.classList.contains('active');
+    const isEpiActive = viewEpi && viewEpi.classList.contains('active');
+    const isAvaliacoesActive = viewAvaliacoes && viewAvaliacoes.classList.contains('active');
+    const isDissidioActive = viewDissidio && viewDissidio.classList.contains('active');
+    const isAgendaActive = viewAgenda && viewAgenda.classList.contains('active');
+    const viewRhAgendaBtn = document.getElementById('view-rh-agenda');
+    const isRhAgendaActive = viewRhAgendaBtn && viewRhAgendaBtn.classList.contains('active');
+
+    // Cofre de Senhas ÔÇö container vis├¡vel (n├úo tem classe active, verifica display)
+    const isSenhasActive = viewSenhas && viewSenhas.offsetParent !== null;
+
+    // Rota Redonda ÔÇö container vis├¡vel
+    const viewRotaRedondaInterval = document.getElementById('rota-redonda-container');
+    const isRotaRedondaActive = viewRotaRedondaInterval && viewRotaRedondaInterval.offsetParent !== null;
+
+    const viewResumoRota = document.getElementById('view-logistica-resumo-rota');
+    const isResumoRotaActive = viewResumoRota && viewResumoRota.classList.contains('active');
+
+    const shouldShow = isColabActive || isGerActive || isCargosActive ||
+        isFaculdadeActive || isEpiActive || isAvaliacoesActive ||
+        isDissidioActive || isSenhasActive || isRotaRedondaActive || isAgendaActive || isRhAgendaActive || isResumoRotaActive;
+
+    btnHistory.style.display = shouldShow ? 'flex' : 'none';
+
+    // Redireciona o onclick para a fun├º├úo correta
+    if (isSenhasActive) {
+        btnHistory.onclick = () => typeof window.abrirHistoricoSenhas === 'function' ? window.abrirHistoricoSenhas() : null;
+    } else if (isResumoRotaActive && typeof window._rrAbrirHistoricoAlteracoes === 'function') {
+        btnHistory.onclick = () => window._rrAbrirHistoricoAlteracoes();
+    } else if (isRhAgendaActive && typeof window.rhAgendaAbrirHistorico === 'function') {
+        btnHistory.onclick = () => window.rhAgendaAbrirHistorico();
+    } else if (isAgendaActive && typeof window.agendaAbrirHistorico === 'function') {
+        btnHistory.onclick = () => window.agendaAbrirHistorico();
+    } else {
+        btnHistory.onclick = () => window.showHistoryPopup();
+    }
+}, 500);
+
+// === INJE├ç├âO ROBUSTA DE BOT├òES DE HIST├ôRICO ===
+(function _injectHistoryButtons() {
+
+    function makeBtn(onclickFn) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-secondary';
+        btn.setAttribute('data-hist-btn', '1');
+        btn.title = 'Hist├│rico de Altera├º├Áes';
+        btn.style.cssText = 'display:flex;align-items:center;gap:6px;border-color:#cbd5e1;color:#475569;white-space:nowrap;flex-shrink:0;';
+        btn.innerHTML = '<i class="ph ph-clock-counter-clockwise"></i> Hist├│rico';
+        btn.onclick = onclickFn;
+        return btn;
+    }
+
+    function hasHistBtn(container) {
+        // Considera tanto bot├Áes injetados quanto os j├í existentes no HTML
+        return !!(container.querySelector('[data-hist-btn]') ||
+            container.querySelector('[onclick*="showHistoryPopup"]') ||
+            container.querySelector('[onclick*="abrirHistoricoSenhas"]') ||
+            Array.from(container.querySelectorAll('button')).find(b =>
+                b.textContent.includes('Hist├│rico') && b.textContent.trim().length < 30));
+    }
+
+    // Injeta bot├úo no header de uma view est├ítica (ex: Cargos, Faculdade, EPI)
+    function injectStaticView(viewSelector, onclick) {
+        const header = document.querySelector(viewSelector + '.active .page-header');
+        if (!header || hasHistBtn(header)) return;
+        header.appendChild(makeBtn(onclick));
+    }
+
+    // Injeta bot├úo em header din├ómico baseado em texto do container de bot├Áes
+    function injectDynamicHeader(viewSelector, btnGroupSelector, onclick, prepend) {
+        const view = document.querySelector(viewSelector + '.active');
+        if (!view) return;
+        const container = btnGroupSelector ? view.querySelector(btnGroupSelector) : view.querySelector('.page-header');
+        if (!container || hasHistBtn(container)) return;
+        const btn = makeBtn(onclick);
+        if (prepend) container.insertBefore(btn, container.firstChild);
+        else container.appendChild(btn);
+    }
+
+    setInterval(() => {
+        // Cargos ÔÇö header est├ítico no index.html
+        injectStaticView('#view-cargos', () => window.showHistoryPopup());
+
+        // Faculdade ÔÇö header est├ítico no index.html
+        injectStaticView('#view-faculdade', () => window.showHistoryPopup());
+
+        // EPI ÔÇö header est├ítico no index.html
+        injectStaticView('#view-ficha-epi', () => window.showHistoryPopup());
+
+        // Avalia├º├Áes ÔÇö header renderizado por JS no #gerenciar-avaliacoes-container
+        const avalView = document.querySelector('#view-gerenciar-avaliacoes.active');
+        if (avalView) {
+            const avalHeader = avalView.querySelector('.page-header') ||
+                avalView.querySelector('[style*="space-between"]');
+            if (avalHeader && !hasHistBtn(avalHeader)) {
+                avalHeader.appendChild(makeBtn(() => window.showHistoryPopup()));
+            }
+        }
+
+        // Diss├¡dio ÔÇö header renderizado por JS
+        injectStaticView('#view-dissidio', () => window.showHistoryPopup());
+
+        // Rota Redonda ÔÇö header din├ómico renderizado por renderRotaRedonda()
+        const rrContainer = document.querySelector('#rota-redonda-container');
+        if (rrContainer && rrContainer.offsetParent !== null) {
+            // Busca o div de actions no topo da tela (onde ficam Colar OS, Limpar, etc.)
+            const rrHeader = rrContainer.querySelector('[style*="space-between"]') ||
+                rrContainer.querySelector('.rr-topbar') ||
+                rrContainer.firstElementChild;
+            if (rrHeader && !hasHistBtn(rrHeader)) {
+                rrHeader.appendChild(makeBtn(() => window.showHistoryPopup()));
+            }
+        }
+
+        // Cofre de Senhas ÔÇö header renderizado por initLogisticaSenhas()
+        const senhasHeader = document.querySelector('#logistica-senhas-container .page-header');
+        if (senhasHeader && !hasHistBtn(senhasHeader)) {
+            const actionsDiv = senhasHeader.querySelector('div:last-child') || senhasHeader;
+            actionsDiv.insertBefore(makeBtn(() => typeof window.abrirHistoricoSenhas === 'function' ? window.abrirHistoricoSenhas() : null), actionsDiv.firstChild);
+        }
+    }, 800);
+})();
+
+// ===== SISTEMA DE TOAST: NOTIFICA├ç├òES DE DOCUMENTOS ASSINADOS (ADMISS├âO) =====
+(function () {
+    // Container de toasts
+    function getToastContainer() {
+        let c = document.getElementById('admissao-toast-container');
+        if (!c) {
+            c = document.createElement('div');
+            c.id = 'admissao-toast-container';
+            c.style.cssText = `
+                position: fixed;
+                bottom: 1.2rem;
+                right: 1.2rem;
+                z-index: 99999;
+                display: flex;
+                flex-direction: column-reverse;
+                gap: 0.6rem;
+                pointer-events: none;
+                max-width: 360px;
+            `;
+            document.body.appendChild(c);
+        }
+        return c;
+    }
+
+    function showToast(nomeDoc, nomeColab, hora, isAso = false) {
+        hora = hora || new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const container = getToastContainer();
+        const toast = document.createElement('div');
+        toast.setAttribute('data-toast-item', '1');
+
+        let colorMain = isAso ? '#84cc16' : '#22c55e'; // lime-500/olive-like para ASO, green-500 default
+        let colorBg = isAso ? '#f7fee7' : '#f0fdf4'; // very subtle green background variations inside
+        let colorText = isAso ? '#a3e635' : '#86efac';
+
+        toast.style.cssText = `
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: #fff;
+            border-radius: 12px;
+            padding: 0.9rem 1.1rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+            border-left: 4px solid ${colorMain};
+            pointer-events: all;
+            animation: toastSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-width: 340px;
+        `;
+        toast.innerHTML = `
+            <i class="ph-fill ph-check-circle" style="font-size:1.8rem;color:${colorMain};flex-shrink:0;margin-top:1px;"></i>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:0.7rem;font-weight:700;color:${colorText};text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">
+                    Ô£à Documento Assinado
+                </div>
+                <div style="font-size:0.9rem;font-weight:700;color:#f0fdf4;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    ${nomeDoc}
+                </div>
+                <div style="font-size:0.78rem;color:#94a3b8;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    <i class="ph ph-user"></i> ${nomeColab}
+                </div>
+                <div style="font-size:0.73rem;color:#64748b;margin-top:1px;">
+                    <i class="ph ph-clock"></i> ${hora}
+                </div>
+            </div>
+            <button onclick="this.closest('[data-toast-item]')?.remove()"
+                style="background:none;border:none;color:#64748b;cursor:pointer;font-size:1.1rem;padding:0 0 0 4px;flex-shrink:0;pointer-events:all;line-height:1;"
+                title="Fechar">Ô£ò</button>
+        `;
+        // Inject animation keyframes once
+        if (!document.getElementById('toast-anim-style')) {
+            const style = document.createElement('style');
+            style.id = 'toast-anim-style';
+            style.textContent = `
+                @keyframes toastSlideIn {
+                    from { opacity: 0; transform: translateX(80px) scale(0.9); }
+                    to   { opacity: 1; transform: translateX(0) scale(1); }
+                }
+                @keyframes toastFadeOut {
+                    from { opacity: 1; transform: scale(1); }
+                    to   { opacity: 0; transform: scale(0.9); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        container.appendChild(toast);
+        // Removido auto-remove: o popup ficar├í ativo at├® ser fechado manualmente
+    }
+
+    // Polling: verifica a cada 30 segundos por documentos rec├®m-assinados
+    const SEEN_KEY = 'admissao_toasts_vistos';
+    const SEEN_TTL_KEY = 'admissao_toasts_ttl';
+    function getSeenIds() {
+        try {
+            // Limpar seen IDs a cada 24h para not mostrar alertas velhos de forma permanente
+            const ttl = localStorage.getItem(SEEN_TTL_KEY);
+            if (!ttl || Date.now() - parseInt(ttl) > 86400000) {
+                localStorage.removeItem(SEEN_KEY);
+                localStorage.setItem(SEEN_TTL_KEY, String(Date.now()));
+                return new Set();
+            }
+            return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'));
+        } catch { return new Set(); }
+    }
+    function markSeen(ids) {
+        try {
+            const seen = getSeenIds();
+            ids.forEach(id => seen.add(id));
+            // Manter apenas os ├║ltimos 200 para n├úo encher o storage
+            const arr = Array.from(seen).slice(-200);
+            localStorage.setItem(SEEN_KEY, JSON.stringify(arr));
+        } catch { }
+    }
+
+    async function checkAlertasRecentes() {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        if (!token) return;
+
+        // Verifica├º├úo simples: apenas requer login
+        try {
+            const resp = await fetch(`${API_URL}/admissao-assinaturas/alertas-recentes`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!resp.ok) return;
+            const alertas = await resp.json();
+            if (!Array.isArray(alertas) || alertas.length === 0) return;
+            const seen = getSeenIds();
+            const novos = alertas.filter(a => !seen.has(String(a.unq_id)));
+            if (novos.length === 0) return;
+
+            novos.slice(0, 5).forEach(a => {
+                const hora = a.assinado_em
+                    ? new Date(a.assinado_em + (String(a.assinado_em).includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    : new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                showToast(a.nome_documento || 'Documento', a.colaborador_nome || 'Colaborador', hora);
+            });
+            markSeen(novos.map(a => String(a.unq_id)));
+
+            // AUTO-REFRESH STATUS ao detectar novo documento assinado
+            // Sempre tenta recarregar a aba Contratos; _reloadContratosContainer s├│ executa
+            // se o usu├írio estiver de fato na aba Contratos (ca-list-container no DOM)
+            window._reloadContratosContainer().catch(() => { });
+            // Se o workflow de admiss├úo estiver aberto, atualiza tamb├®m
+            if (document.getElementById('admissao-signature-list') && typeof window.initAdmissaoWorkflow === 'function' && viewedColaborador) {
+                window.initAdmissaoWorkflow(viewedColaborador.id, 2, true);
+            }
+        } catch { }
+    }
+
+
+    // Iniciar polling ap├│s 5 segundos (aguarda login completo) e repetir a cada 15s
+    setTimeout(() => {
+        checkAlertasRecentes();
+        setInterval(checkAlertasRecentes, 15000);
+    }, 5000);
+
+    // SEGUNDO POLL: a cada 30s verifica silenciosamente se h├í docs Pendentes que
+    // foram assinados (fallback para quando alertas-recentes n├úo captura o evento)
+    setInterval(() => {
+        if (document.getElementById('ca-list-container') && viewedColaborador) {
+            window.sincronizarStatusAssinaturas(false);
+        }
+    }, 30000);
+
+})();
+
+// --- GEST├âO DE INTEGRA├ç├âO ---
+window.startIntegracao = function (val) {
+    if (val) {
+        document.getElementById('integracao-workflow').style.display = 'block';
+    } else {
+        document.getElementById('integracao-workflow').style.display = 'none';
+    }
+};
+window.nextIntegracaoStep = function (step) {
+    document.querySelectorAll('.integracao-panel').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('#integracao-workflow .step-item').forEach(s => s.classList.remove('active'));
+
+    const panel = document.getElementById('int-panel-step-' + step);
+    if (panel) panel.style.display = 'block';
+
+    const icon = document.getElementById('int-step-' + step);
+    if (icon) icon.classList.add('active');
+};
+
+window.switchCargoDeptoTab = function (tab) {
+    document.getElementById('tab-btn-cargos').style.color = '#64748b';
+    document.getElementById('tab-btn-cargos').style.borderBottomColor = 'transparent';
+    document.getElementById('tab-btn-cargos').style.fontWeight = '500';
+    document.getElementById('tab-btn-departamentos').style.color = '#64748b';
+    document.getElementById('tab-btn-departamentos').style.borderBottomColor = 'transparent';
+    document.getElementById('tab-btn-departamentos').style.fontWeight = '500';
+    document.getElementById('tab-content-cargos').style.display = 'none';
+    document.getElementById('tab-content-departamentos').style.display = 'none';
+    document.getElementById('tab-btn-' + tab).style.color = 'var(--primary-color)';
+    document.getElementById('tab-btn-' + tab).style.borderBottomColor = 'var(--primary-color)';
+    document.getElementById('tab-btn-' + tab).style.fontWeight = '600';
+    document.getElementById('tab-content-' + tab).style.display = 'block';
+    if (tab === 'departamentos' && typeof loadDepartamentos === 'function') loadDepartamentos();
+};
+
+window.loadIntegracaoColabs = async function () {
+    try {
+        const colaboradores = await apiGet('/colaboradores');
+        if (!colaboradores) return;
+        const integracaoUsers = colaboradores.filter(c => c.status === 'Em Integra├º├úo');
+        const sel = document.getElementById('select-integracao-colab');
+        if (sel) {
+            sel.innerHTML = '<option value="">Selecione um colaborador...</option>';
+            integracaoUsers.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.nome_completo;
+                sel.appendChild(opt);
+            });
+        }
+    } catch (e) { }
+};
+window.toggleAlergias = function (val) {
+    const input = document.getElementById('colab-alergias');
+    if (!input) return;
+    if (val === 'Sim') {
+        input.disabled = false;
+        input.style.background = '#fff';
+        input.style.cursor = 'text';
+        input.style.color = '#0f172a';
+        input.placeholder = 'Descreva aqui alergias, restri├º├Áes ou intoler├óncias...';
+    } else {
+        input.disabled = true;
+        input.style.background = '#f8fafc';
+        input.style.cursor = 'not-allowed';
+        input.style.color = '#94a3b8';
+        input.value = '';
+    }
+};
+
+window.toggleAdiantamento = function (val) {
+    const input = document.getElementById('colab-adiantamento-valor');
+    if (!input) return;
+    if (val === 'Sim') {
+        input.disabled = false;
+        input.style.background = '#fff';
+        input.style.cursor = 'text';
+        input.style.color = '#0f172a';
+    } else {
+        input.disabled = true;
+        input.style.background = '#f8fafc';
+        input.style.cursor = 'not-allowed';
+        input.style.color = '#94a3b8';
+        input.value = '';
+    }
+};
+
+window.toggleInsalubridade = function (val) {
+    const input = document.getElementById('colab-insalubridade-valor');
+    if (!input) return;
+    if (val === 'Sim') {
+        input.disabled = false;
+        input.style.background = '#fff';
+        input.style.cursor = 'text';
+        input.style.color = '#0f172a';
+    } else {
+        input.disabled = true;
+        input.style.background = '#f8fafc';
+        input.style.cursor = 'not-allowed';
+        input.style.color = '#94a3b8';
+        input.value = '';
+    }
+};
+
+window.previewFichaAdmissao = function () {
+    let colabId = viewedColaborador && viewedColaborador.id;
+    if (!colabId) {
+        const hid = document.getElementById('admissao-select-colab');
+        colabId = hid ? hid.value : null;
+    }
+    if (!colabId) { alert('Nenhum colaborador selecionado na admiss\u00e3o.'); return; }
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    if (!token) { alert('Sess\u00e3o expirada. Fa\u00e7a login novamente.'); return; }
+
+    const pdfUrl = `/api/colaboradores/${colabId}/ficha-admissao/html?token=${token}`;
+
+    // Remove modal anterior se existir
+    const existing = document.getElementById('ficha-pdf-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'ficha-pdf-modal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:99999;display:flex;flex-direction:column;';
+    modal.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 20px;background:#1e293b;flex-shrink:0;">
+            <span style="color:#fff;font-weight:600;font-size:0.95rem;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-file-pdf" style="color:#e03131;font-size:1.2rem;"></i> Ficha de Admiss\u00e3o
+            </span>
+            <button onclick="document.getElementById('ficha-pdf-modal').remove()" style="background:#e03131;border:none;color:#fff;padding:6px 18px;border-radius:6px;cursor:pointer;font-weight:700;font-size:0.9rem;">\u00d7 Fechar</button>
+        </div>
+        <iframe src="${pdfUrl}" style="flex:1;width:100%;border:none;" type="application/pdf"></iframe>
+    `;
+    document.body.appendChild(modal);
+};
+
+window.enviarFichaContabilidade = async function (btn) {
+    let colabId = viewedColaborador && viewedColaborador.id;
+    if (!colabId) {
+        const hid = document.getElementById('admissao-select-colab');
+        colabId = hid ? hid.value : null;
+    }
+    if (!colabId) {
+        alert('Nenhum colaborador selecionado.');
+        return;
+    }
+    const email = document.getElementById('email-contabilidade').value;
+    const dataInicio = document.getElementById('data-inicio-contabilidade').value;
+
+    if (!email) {
+        alert("Preencha o e-mail destino.");
+        return;
+    }
+    if (!dataInicio) {
+        alert("Preencha a Data de In├¡cio Prevista.");
+        return;
+    }
+
+    // Verificar se todos os passos est├úo em 100%
+    const stepBadges = document.querySelectorAll('.step-badge .step-pct');
+    let allComplete = true;
+    stepBadges.forEach(badge => {
+        const pct = parseInt(badge.textContent) || 0;
+        if (pct < 100) allComplete = false;
+    });
+    if (!allComplete) {
+        const ok = confirm('ÔÜá´©Å Aten├º├úo! Ainda existem passos n├úo conclu├¡dos (n├úo est├úo em 100%).\n\nDeseja continuar mesmo assim e enviar os documentos para a Contabilidade?');
+        if (!ok) return;
+    }
+
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+    btn.disabled = true;
+
+    try {
+        const url = (typeof API_URL !== 'undefined' ? API_URL : 'https://sistema-america.onrender.com/api') + `/colaboradores/${colabId}/enviar-ficha-contabilidade`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')}` },
+            body: JSON.stringify({ email: email, data_inicio: dataInicio })
+        });
+        const data = await res.json();
+        if (data.sucesso) {
+            // Mostrar imediatamente os documentos enviados usando os dados da resposta
+            if (viewedColaborador) {
+                viewedColaborador.admissao_contabil_enviada_em = data.enviada_em || new Date().toISOString();
+                viewedColaborador.admissao_contabil_anexos = data.anexos || '';
+            }
+            if (typeof window.renderEnvioContabilidadeLog === 'function') {
+                window.renderEnvioContabilidadeLog();
+            }
+            // Mostrar toast em vez de alert bloqueante
+            if (typeof admissaoToast === 'function') {
+                admissaoToast(`Ô£à E-mail enviado para ${email}`, 'success');
+            } else {
+                alert('Ficha e anexos enviados com sucesso para ' + email);
+            }
+            // Refresh ass├¡ncrono em background para garantir consist├¬ncia
+            apiGet(`/colaboradores/${colabId}`).then(ref => {
+                if (ref && viewedColaborador) {
+                    viewedColaborador = Object.assign(viewedColaborador, ref);
+                    if (typeof window.renderEnvioContabilidadeLog === 'function') {
+                        window.renderEnvioContabilidadeLog();
+                    }
+                }
+            }).catch(() => { });
+        } else {
+            alert('Erro ao enviar para Contabilidade: ' + (data.error || 'Erro desconhecido.'));
+        }
+    } catch (err) {
+        alert('Erro de conex├úo: ' + err.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+};
+
+// ===== RENDER LOG DE ENVIO PARA CONTABILIDADE (PASSO 5) =====
+window.renderEnvioContabilidadeLog = function () {
+    const colab = viewedColaborador;
+    const logPanel = document.getElementById('envio-contabilidade-log');
+    const dataEl = document.getElementById('envio-contab-data');
+    const anexosEl = document.getElementById('envio-contab-anexos');
+    if (!logPanel) return;
+
+    const enviada_em = colab && colab.admissao_contabil_enviada_em;
+    if (!enviada_em) {
+        logPanel.style.display = 'none';
+        return;
+    }
+
+    // Formatar data/hora em pt-BR com destaque
+    let dataFormatada = enviada_em;
+    try {
+        const dt = new Date(enviada_em.endsWith('Z') ? enviada_em : enviada_em + 'Z');
+        const dia = dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const hora = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        dataFormatada = `${dia} ├ás ${hora}`;
+    } catch (e) { }
+
+    if (dataEl) dataEl.textContent = dataFormatada;
+
+    // Listar anexos
+    if (anexosEl && colab.admissao_contabil_anexos) {
+        const lista = colab.admissao_contabil_anexos.split(',').map(s => s.trim()).filter(Boolean);
+        if (lista.length > 0) {
+            anexosEl.innerHTML = lista.map(a => `<li>­ƒôä ${a}</li>`).join('');
+        } else {
+            anexosEl.innerHTML = '<li style="color:#94a3b8">Nenhum anexo registrado</li>';
+        }
+    }
+
+    logPanel.style.display = 'block';
+};
+
+
+// ============================================================
+// PASSO 2 ADMISS├âO ÔÇö SANTANDER (Pedido de Abertura de Conta)
+// ============================================================
+// Helper: atualiza UI do Step 2 Santander (usada ao gerar e ao voltar ao passo)
+window._updateSantanderStepUI = function (dataSantander) {
+    var log = document.getElementById('santander-status-log');
+    var logText = document.getElementById('santander-status-text');
+
+    if (!dataSantander) return;
+
+    // Mostrar bloco verde
+    if (log) log.style.display = 'block';
+    if (logText) {
+        try {
+            var dt = new Date(dataSantander);
+            logText.textContent = 'Ficha gerada em ' + dt.toLocaleString('pt-BR');
+        } catch (e) { logText.textContent = 'Ficha gerada'; }
+    }
+
+    // === Marcar step 2 como 100% ===
+    // Estrat├®gia 1: element com id step-2-pc
+    var elPc = document.getElementById('step-2-pc');
+    if (elPc) elPc.textContent = '100%';
+
+    // Estrat├®gia 2: o step-item do stepper (bolinha)
+    var stepEl = document.getElementById('step-2');
+    if (stepEl) {
+        // Checar em diferentes estilos de stepper
+        // Aplicar via classe CSS (n├úo via style inline - conflita com .active:not(.pc-success))
+        stepEl.classList.remove('pc-warning');
+        stepEl.classList.add('pc-success');
+        var iconEl = stepEl.querySelector('.step-icon');
+        if (iconEl) {
+            iconEl.style.removeProperty('background');
+            iconEl.style.removeProperty('border-color');
+            iconEl.style.removeProperty('color');
+        }
+        var numEl = stepEl.querySelector('.num, .step-number');
+        if (numEl) numEl.style.removeProperty('display'); // NUNCA esconder o n├║mero
+        var pcEl = stepEl.querySelector('.percent, .step-percent, .pc');
+        if (pcEl) { pcEl.style.display = 'inline'; pcEl.textContent = '100%'; }
+    }
+
+    // Estrat├®gia 3: procurar qualquer elemento que contenha "step-2" e "pc"
+    var allPc = document.querySelectorAll('[id*="step"][id*="pc"]');
+    allPc.forEach(function (el) {
+        if (el.id === 'step-2-pc' || el.id.match(/step.?2.?pc/i)) {
+            el.textContent = '100%';
+        }
+    });
+}
+
+window.populateSantanderPreview = async function () {
+    var colab = viewedColaborador || window._admissaoColabSelecionado;
+    if (!colab) return;
+
+    // Se ainda n├úo tem a data na mem├│ria, busca do servidor (dados podem estar desatualizados)
+    if (!colab.santander_ficha_data && colab.id) {
+        try {
+            var fresh = await apiGet('/colaboradores/' + colab.id);
+            if (fresh && fresh.santander_ficha_data) {
+                colab.santander_ficha_data = fresh.santander_ficha_data;
+                if (viewedColaborador) viewedColaborador.santander_ficha_data = fresh.santander_ficha_data;
+            }
+        } catch (e) { /* silent fail */ }
+    }
+
+    window._updateSantanderStepUI(colab.santander_ficha_data);
+};
+
+window.gerarFichaSantander = async function () {
+    const colab = viewedColaborador || window._admissaoColabSelecionado;
+    if (!colab) { alert('Selecione um colaborador primeiro.'); return; }
+
+    const fmt = (v) => v || 'ÔÇö';
+    const hoje = new Date();
+    const dataHoje = hoje.toLocaleDateString('pt-BR');
+    const mesExtenso = hoje.toLocaleDateString('pt-BR', { month: 'long' });
+    const anoStr = hoje.getFullYear();
+
+    // Sal├írio formatado
+    const salario = colab.salario ? parseFloat(colab.salario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'ÔÇö';
+
+    // Endere├ºo completo (usado em um ├║nico campo)
+    const enderecoPuro = fmt(colab.endereco);
+
+    // Data admiss├úo formatada
+    let admissaoFmt = 'ÔÇö';
+    if (colab.data_admissao) {
+        const d = new Date(colab.data_admissao);
+        d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
+        admissaoFmt = d.toLocaleDateString('pt-BR');
+    }
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Pedido de Abertura de Conta - ${colab.nome_completo}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #000; background: #fff; padding: 20px; }
+  .page { max-width: 750px; margin: 0 auto; }
+  .logo-area { text-align: center; margin-bottom: 5px; }
+  .logo-area img { width: 100%; max-height: 55px; object-fit: contain; object-position: center; }
+  h1.titulo { text-align: center; font-size: 12pt; font-weight: 900; background: #e8e8e8; border: 1.5px solid #ccc; padding: 4px 0; margin: 5px 0 10px 0; letter-spacing: 1px; }
+  .colab-label { font-size: 10pt; font-weight: 900; margin: 4px 0 2px; }
+  .colab-nome { font-size: 13pt; font-weight: 900; margin-bottom: 5px; }
+  p.body-text { font-size: 9pt; margin-bottom: 5px; text-align: justify; line-height: 1.25; }
+  ul.docs { font-size: 9pt; margin: 2px 0 5px 20px; line-height: 1.25; }
+  .data-box { border: 1.5px solid #555; margin: 5px 0; }
+  .data-box-title { background: #d0d0d0; font-weight: 900; font-size: 10pt; padding: 4px 8px; border-bottom: 1.5px solid #555; }
+  .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 6px 8px; }
+  .data-line { font-size: 9pt; margin: 1px 0; }
+  .data-line b { font-weight: 700; }
+  .assinaturas { display: flex; justify-content: space-between; margin-top: 15px; align-items: flex-end; }
+  .assin-block { text-align: center; width: 45%; }
+  .assin-line { border-top: 1px solid #000; padding-top: 4px; margin-top: 25px; font-size: 9pt; }
+  .assin-label { font-size: 9pt; color: #333; margin-top: 3px; }
+  @media print {
+    body { padding: 0; }
+    .no-print { display: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <!-- Logo real da Am├®rica Rental -->
+  <div class="logo-area">
+    <img src="data:image/png;base64,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" alt="Am├®rica Rental">
+  </div>
+
+  <h1 class="titulo">PEDIDO DE ABERTURA DE CONTA</h1>
+
+  <div class="colab-label">COLABORADOR:</div>
+  <div class="colab-nome">${fmt(colab.nome_completo)}</div>
+
+  <p class="body-text">Prezado (a)</p>
+  <p class="body-text">Escolhemos o Santander como nosso parceiro para o processamento do pagamento do seu sal├írio.</p>
+  <p class="body-text">Conforme determinam as Resolu├º├Áes n┬║ 3.402 e 3.424/06, do Conselho Monet├írio Nacional, seu sal├írio ser├í creditado em uma conta de registro, denominada 'conta sal├írio', que n├úo ├® moviment├ível por cheque, n├úo admite cr├®ditos de outras naturezas que n├úo salariais e possui servi├ºos limitados.</p>
+  <p class="body-text">Voc├¬ tamb├®m poder├í aproveitar as vantagens de ter uma <b>CONTA SAL├üRIO</b> e transferir automaticamente o seu sal├írio, possibilitando assim fazer uso de diversos outros servi├ºos e condi├º├Áes diferenciadas oferecidas pelo Santander, que acreditamos que tenham um valor diferenciado para voc├¬. Para conhecer as vantagens de uma conta sal├írio compare├ºa a uma ag├¬ncia at├® a data da sua admiss├úo e apresente o original e uma c├│pia simples (frente e verso) dos documentos abaixo indicados:</p>
+
+  <ul class="docs">
+    <li>Esta carta;</li>
+    <li>Documento de identidade com foto;</li>
+    <li>CPF ÔÇô Cadastro de Pessoa F├¡sica;</li>
+    <li>Comprovante de endere├ºo residencial (onde prefere receber correspond├¬ncia) com prazo inferior a 60 dias da data de vencimento. Ex.: conta de luz, de ├ígua, de g├ís, de telefone fixo, IPTU;</li>
+    <li>Se casado (a), apresentar nome completo do c├┤njuge, n├║mero do CPF, data de nascimento e data do casamento.</li>
+  </ul>
+
+  <p class="body-text">Se a sua op├º├úo for apenas pela utiliza├º├úo da conta sal├írio, voc├¬ poder├í realizar a portabilidade de sal├írio para outra institui├º├úo ou utilizar o cart├úo de d├®bito, fornecido sem custo*, para os servi├ºos mensais gratuitos** dispon├¡veis para a conta sal├írio. Procure a ag├¬ncia Santander de sua conveni├¬ncia e fale com o gerente que est├í apto a orientar-lo e a prestar todas as informa├º├Áes necess├írias para a movimenta├º├úo da sua conta.</p>
+
+  <!-- Dados do colaborador -->
+  <div class="data-box">
+    <div class="data-box-title">Dados do Colaborador</div>
+    <div class="data-grid">
+      <div class="data-line">Declaramos que o Sr (a) <b>${fmt(colab.nome_completo)}</b></div>
+      <div class="data-line">CPF: <b>${fmt(colab.cpf)}</b>&nbsp;&nbsp;&nbsp;Admiss├úo: <b>${admissaoFmt}</b></div>
+      <div class="data-line" style="grid-column: 1 / -1;">Endere├ºo: <b>${enderecoPuro}</b></div>
+      <div class="data-line">Cargo: <b>${fmt(colab.cargo)}</b></div>
+      <div class="data-line">Sal├írio Mensal: <b>${salario}</b></div>
+    </div>
+  </div>
+
+  <div style="font-size: 9pt; margin-top: 10px; line-height: 1.3;">
+    Respons├ível de RH: Juliene de Camargo Corr├¬a<br>
+    Telefone: - (11) 99025-2820 ou (11) 2499-3353<br>
+    EMPRESA: America Rental Equipamentos LTDA<br>
+    CNPJ: 03.434.448/0001-01
+  </div>
+
+  <div style="font-size: 9pt; margin-top: 15px;">
+    Guarulhos, ${hoje.getDate()} de ${mesExtenso} de ${anoStr}.
+  </div>
+
+  <!-- Assinaturas -->
+  <div class="assinaturas">
+    <!-- Bloco empresa: linha + nome abaixo (espa├ºo para carimbo f├¡sico acima) -->
+    <div class="assin-block">
+      <div class="assin-line">
+        Am├®rica Rental
+      </div>
+    </div>
+    <!-- Bloco colaborador -->
+    <div class="assin-block">
+      <div class="assin-line">${fmt(colab.nome_completo)}</div>
+    </div>
+  </div>
+
+  <!-- Anexo 3 (Rodap├® e Quadro) -->
+  <div style="font-size: 7.5pt; margin-top: 10px; text-align: justify; line-height: 1.2;">
+    *Exceto nos casos de pedidos de reposi├º├úo formulados pelo cliente decorrentes de perda, roubo, danifica├º├úo ou outros motivos n├úo imput├íveis ao Banco. ** Servi├ºos gratuitos: duas consultas ao saldo de sua conta, dois extratos dos ├║ltimos 30 dias, um DOC/TED pelo valor total do cr├®dito e cinco saques (por evento de cr├®dito). A utiliza├º├úo acima desses limites ou de quaisquer outros servi├ºos estar├í sujeita ├á cobran├ºa de tarifas.
+  </div>
+
+  <div style="border: 2px solid #000; margin-top: 10px; page-break-inside: avoid;">
+    <div style="background: #ccc; font-weight: bold; font-size: 9pt; padding: 4px 8px; border-bottom: 2px solid #000;">
+      Para uso exclusivo do Banco Santander:
+    </div>
+    <div style="padding: 6px 8px; font-size: 9pt; line-height: 2;">
+      <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+        <span style="white-space: nowrap;">Nome e N├║mero da Ag├¬ncia: Guarulhos</span>
+        <span style="border-bottom: 1px solid #000; flex-grow: 1; margin-left: 10px;"></span>
+      </div>
+      <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+        <span style="white-space: nowrap;">N├║mero da Conta:</span>
+        <span style="border-bottom: 1px solid #000; flex-grow: 1; margin-left: 10px;"></span>
+      </div>
+      <div style="display: flex; align-items: flex-end;">
+        <span style="white-space: nowrap;">Respons├ível pelo atendimento:</span>
+        <span style="border-bottom: 1px solid #000; flex-grow: 1; margin-left: 10px;"></span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>`;
+
+    // Salvar o HTML globalmente para poder via via "Ver Documento"
+    window._santanderPreVHtml = html;
+
+    // Registrar no backend / interface
+    if (colab) {
+        colab.santander_ficha_data = new Date().toISOString();
+        const log = document.getElementById('santander-status-log');
+        const logText = document.getElementById('santander-status-text');
+
+        if (log) log.style.display = 'block';
+        if (logText) logText.textContent = `Ficha gerada em ${new Date().toLocaleString('pt-BR')}`;
+
+        // Exibe o bot├úo de visualiza├º├úo
+        const btnVer = document.getElementById('btn-ver-santander');
+        if (btnVer) btnVer.style.display = 'flex';
+
+        // Atualizar visual do Step 2 para 100% (sempre, independente de _admissaoChecklist)
+        window._updateSantanderStepUI(colab.santander_ficha_data);
+
+        try {
+            // Salvar santander_ficha_data diretamente no colaborador (endpoint correto)
+            await fetch(`${API_URL}/colaboradores/${colab.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                body: JSON.stringify({ santander_ficha_data: colab.santander_ficha_data })
+            });
+            console.log('[Santander] Data salva no banco:', colab.santander_ficha_data);
+        } catch (e) { console.error('[Santander] Erro ao salvar data:', e); }
+
+        if (typeof showToast === 'function') {
+            showToast('Ficha gerada com sucesso! Use o bot├úo Visualizar para imprimir.', 'success');
+        } else alert('Ficha gerada com sucesso! Use o bot├úo Visualizar para imprimir.');
+    }
+};
+
+window.verFichaSantander = async function () {
+    // Se n├úo tem cache mas a ficha j├í foi gerada: regenera silenciosamente
+    const colab = viewedColaborador || window._admissaoColabSelecionado;
+    if (!window._santanderPreVHtml && colab && colab.santander_ficha_data) {
+        // Mostrar loading
+        const btn = document.querySelector('[onclick*="verFichaSantander"]');
+        if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...'; btn.disabled = true; }
+
+        try {
+            // Reutiliza a fun├º├úo de gera├º├úo, mas sem exibir toast de sucesso
+            window._silentSantanderGen = true;
+            await window.gerarFichaSantander();
+            window._silentSantanderGen = false;
+        } catch (e) {
+            alert('Erro ao regenerar documento: ' + e.message);
+        } finally {
+            if (btn) { btn.innerHTML = '<i class="ph ph-eye"></i> Visualizar'; btn.disabled = false; }
+        }
+    }
+
+    if (window._santanderPreVHtml) {
+        const previewTitle = document.getElementById('preview-doc-title');
+        const previewContainer = document.getElementById('preview-doc-body');
+        const buttonsContainer = document.getElementById('preview-doc-buttons');
+
+        if (previewTitle) previewTitle.textContent = 'Pedido de Abertura de Conta (Santander)';
+
+        if (buttonsContainer) {
+            buttonsContainer.innerHTML = `
+                <button class="btn btn-primary" onclick="window.imprimirFichaSantander()" style="display:flex;align-items:center;gap:0.4rem;">
+                    <i class="ph ph-printer"></i> Imprimir Documento
+                </button>
+                <button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'">
+                    <i class="ph ph-x"></i> Fechar
+                </button>
+            `;
+        }
+
+        if (previewContainer) {
+            previewContainer.innerHTML = `<iframe id="santander-iframe" style="width:100%; height:85vh; border:none;" srcdoc="${window._santanderPreVHtml.replace(/"/g, '&quot;')}"></iframe>`;
+        }
+
+        document.getElementById('modal-preview-doc').style.display = 'block';
+    } else {
+        alert("Gere o documento primeiro.");
+    }
+};
+
+window.imprimirFichaSantander = function () {
+    const iframe = document.getElementById('santander-iframe');
+    if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+    }
+};
+
+window.verProntuarioColaborador = async function (id, tabName) {
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch(`/api/colaboradores/${id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Falha ao buscar colaborador');
+        const colab = await res.json();
+        
+        await window.openProntuario(
+            colab.id,
+            colab.nome_completo || colab.nome,
+            colab.cargo_nome_exibindo || colab.cargo,
+            colab.cpf,
+            colab.genero || colab.sexo,
+            colab.data_admissao || colab.admissao,
+            colab.status
+        );
+        
+        if (tabName) {
+            setTimeout(() => {
+                const tabLi = document.querySelector(`li[data-tab="${tabName}"]`);
+                if (tabLi) {
+                    tabLi.click();
+                } else {
+                    const allTabs = document.querySelectorAll('#tabs-list li');
+                    for (const t of allTabs) {
+                        if (t.textContent.includes(tabName)) {
+                            t.click();
+                            break;
+                        }
+                    }
+                }
+            }, 500);
+        }
+    } catch (err) {
+        console.error('Erro em verProntuarioColaborador:', err);
+        alert('N├úo foi poss├¡vel carregar o prontu├írio deste colaborador.');
+    }
+};
+
+window.irAoProntuarioDigital = async function (tabName) {
+    console.log('[irAoProntuarioDigital] Iniciado com aba alvo:', tabName);
+    const colab = window._admissaoColabSelecionado || viewedColaborador;
+    if (!colab) {
+        console.warn('[irAoProntuarioDigital] Nenhum colaborador selecionado. _admissaoColabSelecionado:', window._admissaoColabSelecionado, 'viewedColaborador:', viewedColaborador);
+        alert('Nenhum colaborador selecionado na Admiss├úo.');
+        return;
+    }
+
+    console.log('[irAoProntuarioDigital] Colaborador detectado:', colab.nome_completo || colab.nome, colab.id);
+
+    try {
+        console.log('[irAoProntuarioDigital] Chamando openProntuario...');
+        await window.openProntuario(
+            colab.id,
+            colab.nome_completo || colab.nome,
+            colab.cargo_nome_exibindo || colab.cargo,
+            colab.cpf,
+            colab.genero || colab.sexo,
+            colab.data_admissao || colab.admissao,
+            colab.status
+        );
+        console.log('[irAoProntuarioDigital] openProntuario conclu├¡do.');
+
+        if (tabName) {
+            setTimeout(() => {
+                console.log('[irAoProntuarioDigital] Procurando aba:', tabName);
+                const tabLi = document.querySelector(`li[data-tab="${tabName}"]`);
+                if (tabLi) {
+                    console.log('[irAoProntuarioDigital] Aba encontrada. Clicando...');
+                    tabLi.click();
+                } else {
+                    console.log('[irAoProntuarioDigital] Aba n├úo encontrada no DOM. For├ºando renderTabContent...');
+                    if (typeof window.renderTabContent === 'function') {
+                        window.renderTabContent(tabName, tabName);
+                    }
+                }
+            }, 600);
+        }
+    } catch (e) {
+        console.error('[irAoProntuarioDigital] Erro:', e);
+        alert('Erro ao abrir o Prontu├írio Digital: ' + e.message);
+    }
+};
+
+// Fun├ºao mockup caso n├▓o exista _recalculateAdmissaoFinalProg
+if (typeof window._recalculateAdmissaoFinalProg !== 'function') {
+    window._recalculateAdmissaoFinalProg = function () {
+        const bar = document.getElementById('admissao-progress-bar');
+        const pc = document.getElementById('admissao-pc-total');
+        if (bar) bar.style.width = '30%';
+    }
+}
+
+
+// ============================================================
+// ABA MULTAS ÔÇö MOTORISTAS (v2 ÔÇö Novo Fluxo de Processo)
+// ============================================================
+
+window._recarregarListaMultas = async function (colabId) {
+    var tabContent = document.getElementById('tab-dynamic-content');
+    if (tabContent && typeof window.renderMultasMotoristaTab === 'function') {
+        tabContent.innerHTML = '';
+        await window.renderMultasMotoristaTab(tabContent);
+    }
+};
+
+window.renderMultasMotoristaTab = async function (container) {
+    const colab = viewedColaborador;
+    if (!colab) return;
+    container.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#94a3b8;padding:1rem 0;">
+        <i class="ph ph-spinner ph-spin"></i> Carregando multas...
+    </div>`;
+
+    // Aviso informativo
+    const aviso = document.createElement('div');
+    aviso.style = 'background:#f0f9ff;border:1px solid #7dd3fc;border-radius:10px;padding:0.85rem 1.1rem;display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;font-size:0.85rem;color:#0369a1;';
+    aviso.innerHTML = '<i class="ph ph-info" style="font-size:1.2rem;flex-shrink:0;"></i><span>Para cadastrar uma nova multa, acesse o menu <strong>Log├¡stica ÔåÆ Multas</strong> e atribua o motorista ao registrar a infra├º├úo.</span>';
+
+    let multas = [];
+    try {
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || currentToken || '';
+        const resp = await fetch(`/api/logistica/multas?motorista_id=${colab.id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (resp.ok) {
+            const todas = await resp.json();
+            multas = todas.filter(m => String(m.motorista_id) === String(colab.id));
+        }
+    } catch (e) {
+        // fallback: tenta endpoint antigo
+        try { multas = await apiGet(`/colaboradores/${colab.id}/multas`) || []; } catch (_) { }
+    }
+
+    // ÔöÇÔöÇ Apenas multas com status Indicado ou Multa NIC aparecem no prontu├írio ÔöÇÔöÇ
+    const multasVisiveis = multas.filter(m => m.status === 'Indicado' || m.status === 'Multa NIC');
+
+    container.innerHTML = '';
+    container.appendChild(aviso);
+
+    if (multasVisiveis.length === 0) {
+        const vazio = document.createElement('div');
+        vazio.className = 'alert alert-info';
+        if (multas.length > 0) {
+            vazio.innerHTML = '<i class="ph ph-clock"></i> Este colaborador possui multas em processo de an├ílise. Elas aparecer├úo aqui quando atingirem o status <strong>Indicado</strong> ou <strong>Multa NIC</strong>.';
+        } else {
+            vazio.innerHTML = '<i class="ph ph-warning"></i> Nenhuma multa registrada para este colaborador.';
+        }
+        container.appendChild(vazio);
+        return;
+    }
+
+    const STATUS_COLOR = {
+        'Confer├¬ncia': '#fef08a',
+        'Conferido': '#bfdbfe',
+        'Indicado': '#bbf7d0',
+        'Multa NIC': '#fecaca',
+        'N├úo Se Aplica': '#e2e8f0',
+    };
+
+    multas.forEach((m, idx) => {
+        if (m.status !== 'Indicado' && m.status !== 'Multa NIC') return; // s├│ exibe vis├¡veis
+        const dataFmt = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : 'ÔÇö';
+        const bgStatus = STATUS_COLOR[m.status] || '#e2e8f0';
+        const uid = `multa-det-${m.id || idx}`;
+
+        // Parcelas
+        const parcelas = m.parcelas ? `${m.parcelas}x` : '1x';
+
+        // Quem incluiu: prioriza created_by_nome (usu├írio do sistema)
+        const quemIncluiu = m.created_by_nome || m.created_by || 'ÔÇö';
+
+        // Data limite / prazo indica├º├úo
+        const prazoFmt = m.data_limite ? m.data_limite.split('-').reverse().join('/') : 'ÔÇö';
+
+        const card = document.createElement('div');
+        card.style = 'border:1.5px solid #e2e8f0;border-radius:12px;margin-bottom:0.75rem;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.06);overflow:hidden;';
+        card.innerHTML = `
+            <!-- Linha principal (sempre vis├¡vel) -->
+            <div onclick="(function(){
+                    var det = document.getElementById('${uid}');
+                    var ico = document.getElementById('${uid}-ico');
+                    var open = det.style.display !== 'none';
+                    det.style.display = open ? 'none' : 'block';
+                    ico.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
+                })()" 
+                style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:0.9rem 1.1rem;cursor:pointer;user-select:none;transition:background 0.15s;"
+                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+                    <!-- Seta rotativa -->
+                    <span id="${uid}-ico" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#f1f5f9;border:1px solid #e2e8f0;color:#64748b;font-size:0.8rem;flex-shrink:0;transition:transform 0.2s;transform:rotate(0deg);">
+                        <i class="ph ph-caret-right"></i>
+                    </span>
+                    <div style="min-width:0;">
+                        <div style="font-weight:700;font-size:0.92rem;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                            ­ƒÜª AIT: ${m.numero_ait || 'ÔÇö'}
+                            ${m.placa ? `<span style="margin-left:8px;font-size:0.8rem;font-weight:600;color:#64748b;background:#f1f5f9;padding:1px 8px;border-radius:10px;">${m.placa}</span>` : ''}
+                        </div>
+                        <div style="font-size:0.78rem;color:#94a3b8;margin-top:2px;">${dataFmt}${m.hora_infracao ? ' ├ás ' + m.hora_infracao : ''}</div>
+                    </div>
+                </div>
+                <span style="background:${bgStatus};color:#0f172a;font-weight:700;font-size:0.75rem;padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${m.status || 'ÔÇö'}</span>
+            </div>
+
+            <!-- Painel de detalhes (expans├¡vel) -->
+            <div id="${uid}" style="display:none;border-top:1px solid #f1f5f9;padding:1rem 1.25rem;background:#fafafa;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;font-size:0.83rem;color:#334155;">
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Placa</span>
+                        <span style="font-weight:600;">${m.placa || 'ÔÇö'}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Data e Hora</span>
+                        <span style="font-weight:600;">${dataFmt}${m.hora_infracao ? ' ÔÇö ' + m.hora_infracao : ''}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Valor da Multa</span>
+                        <span style="font-weight:700;color:#dc2626;">R$ ${m.valor_multa || 'ÔÇö'}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Pontua├º├úo</span>
+                        <span style="font-weight:600;">${m.pontuacao || 'ÔÇö'} pt(s)</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Parcelas</span>
+                        <span style="font-weight:600;">${parcelas}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Prazo Indica├º├úo</span>
+                        <span style="font-weight:600;${m.data_limite ? 'color:#d97706;' : ''}">${prazoFmt}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;grid-column:1/-1;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Local da Infra├º├úo</span>
+                        <span style="font-weight:500;">${m.local_infracao || 'ÔÇö'}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;grid-column:1/-1;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Infra├º├úo / Motivo</span>
+                        <span style="font-weight:500;">${m.motivo || 'ÔÇö'}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Inclu├¡do por</span>
+                        <span style="font-weight:600;">${quemIncluiu}</span>
+                    </div>
+                    ${m.observacao ? `
+                    <div style="display:flex;flex-direction:column;gap:2px;grid-column:1/-1;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Observa├º├úo</span>
+                        <span style="font-style:italic;color:#475569;">${m.observacao}</span>
+                    </div>` : ''}
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+};
+
+
+window._renderMultaCard = function (m, colabId, container) {
+    const statusColor = { pendente: '#f59e0b', doc_gerado: '#3b82f6', testemunhas_assinadas: '#8b5cf6', assinado: '#10b981', confirmado: '#8b5cf6' };
+    const statusLabel = { pendente: 'Pendente', doc_gerado: 'Processo Iniciado', testemunhas_assinadas: 'Testemunhas Assinadas', assinado: 'Assinado', confirmado: 'Confirmado' };
+    const cor = statusColor[m.status] || '#64748b';
+
+    const card = document.createElement('div');
+    card.style = 'border:1.5px solid #e2e8f0;border-radius:12px;padding:1rem;margin-bottom:1rem;background:#fff;';
+    card.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div>
+                <span style="font-weight:700;font-size:1rem;color:#1e293b;">­ƒÜª ${m.codigo_infracao || 'ÔÇö'}</span>
+                <span style="margin-left:8px;color:#64748b;font-size:0.85rem;">${m.descricao_infracao || ''}</span>
+            </div>
+            <span style="background:${cor}20;color:${cor};font-weight:700;font-size:0.78rem;padding:3px 10px;border-radius:20px;">${statusLabel[m.status] || m.status}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-top:8px;font-size:0.82rem;color:#475569;">
+            <span><b>Placa:</b> ${m.placa || 'ÔÇö'}</span>
+            <span><b>Ve├¡culo:</b> ${m.veiculo || 'ÔÇö'}</span>
+            <span><b>Data:</b> ${m.data_infracao || 'ÔÇö'} ${m.hora_infracao || ''}</span>
+            <span><b>Valor:</b> ${m.valor_multa || 'ÔÇö'}</span>
+            <span><b>Pontos:</b> ${m.pontuacao || 'ÔÇö'}</span>
+            ${m.processo_iniciado ? `<span><b>Tipo:</b> ${m.tipo_resolucao === 'indicacao' ? 'Indica├º├úo' : m.tipo_resolucao === 'nic' ? 'NIC' : 'ÔÇö'}</span>
+            <span><b>Parcelas:</b> ${m.parcelas || 1}x</span>` : ''}
+        </div>
+        <div id="multa-actions-${m.id}" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;">
+        </div>
+    `;
+    container.appendChild(card);
+    window._renderMultaActions(m, colabId, card.querySelector(`#multa-actions-${m.id}`));
+};
+
+window._renderMultaActions = function (m, colabId, actionsDiv) {
+    actionsDiv.innerHTML = '';
+    const assinFinalizado = m.assinaturas_finalizadas || m.status === 'assinado' || m.status === 'confirmado';
+
+    // ÔöÇÔöÇ Bot├úo Iniciar / Processo Iniciado ÔöÇÔöÇ
+    if (!m.processo_iniciado) {
+        const btnIniciar = document.createElement('button');
+        btnIniciar.style = 'background:linear-gradient(135deg,#f503c5,#8b5cf6);color:#fff;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;';
+        btnIniciar.innerHTML = '<i class="ph ph-play"></i> Iniciar Processo';
+        btnIniciar.onclick = () => window.abrirPopupIniciarProcesso(m, colabId);
+        actionsDiv.appendChild(btnIniciar);
+    } else {
+        const btnPI = document.createElement('button');
+        const processoTravado = !!(m.assinatura_testemunha1_base64);
+        if (processoTravado) {
+            btnPI.style = 'background:#e0f2fe;color:#0369a1;border:1.5px solid #7dd3fc;border-radius:8px;padding:6px 14px;cursor:not-allowed;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;opacity:0.6;';
+            btnPI.innerHTML = '<i class="ph ph-check-circle"></i> Processo Iniciado';
+            btnPI.disabled = true;
+        } else {
+            btnPI.style = 'background:#e0f2fe;color:#0369a1;border:1.5px solid #7dd3fc;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;';
+            btnPI.innerHTML = '<i class="ph ph-check-circle"></i> Processo Iniciado';
+            btnPI.onclick = () => window.abrirPopupIniciarProcesso(m, colabId);
+        }
+        actionsDiv.appendChild(btnPI);
+
+        // ÔöÇÔöÇ Bot├úo ­ƒæü Visualizar ÔöÇÔöÇ
+        const btnEye = document.createElement('button');
+        btnEye.style = 'background:#dbeafe;color:#1d4ed8;border:1.5px solid #93c5fd;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.85rem;display:inline-flex;align-items:center;gap:4px;';
+        btnEye.innerHTML = '<i class="ph ph-eye"></i>';
+        btnEye.title = 'Ver Documento';
+        btnEye.onclick = () => window.verDocumentoMulta(m.id, colabId, m.tipo_resolucao || 'indicacao', m);
+        actionsDiv.appendChild(btnEye);
+
+        // ÔöÇÔöÇ Bot├úo Testemunhas ÔöÇÔöÇ
+        const testemunhasOk = m.assinatura_testemunha1_base64;
+        const btnTest = document.createElement('button');
+        if (testemunhasOk) {
+            btnTest.style = 'background:#d1fae5;color:#065f46;border:1.5px solid #6ee7b7;border-radius:8px;padding:6px 12px;cursor:not-allowed;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:5px;opacity:0.7;';
+            btnTest.innerHTML = '<i class="ph ph-users"></i> Testemunhas Ô£ô';
+            btnTest.disabled = true;
+        } else {
+            btnTest.style = 'background:#f3e8ff;color:#7c3aed;border:1.5px solid #c4b5fd;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:5px;';
+            btnTest.innerHTML = '<i class="ph ph-users"></i> Testemunhas';
+            btnTest.onclick = () => window.abrirModalTestemunhas(m, colabId);
+        }
+        actionsDiv.appendChild(btnTest);
+
+        // ÔöÇÔöÇ Bot├úo Assinatura do Condutor (s├│ ap├│s testemunhas) ÔöÇÔöÇ
+        if (testemunhasOk) {
+            const condutorOk = m.assinatura_condutor_base64;
+            const btnCond = document.createElement('button');
+            if (condutorOk) {
+                btnCond.style = 'background:#d1fae5;color:#065f46;border:1.5px solid #6ee7b7;border-radius:8px;padding:6px 12px;cursor:not-allowed;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:5px;opacity:0.7;';
+                btnCond.innerHTML = '<i class="ph ph-pen"></i> Condutor Ô£ô';
+                btnCond.disabled = true;
+            } else {
+                btnCond.style = 'background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:5px;';
+                btnCond.innerHTML = '<i class="ph ph-pen"></i> Assinatura do Condutor';
+                btnCond.onclick = () => window.abrirModalAssinaturaCondutor(m, colabId);
+            }
+            actionsDiv.appendChild(btnCond);
+        }
+    }
+
+    // ÔöÇÔöÇ Excluir (apenas pendente/doc_gerado n├úo assinado) ÔöÇÔöÇ
+    if (!assinFinalizado && (m.status === 'pendente' || m.status === 'doc_gerado') && !m.assinatura_testemunha1_base64) {
+        const btnDel = document.createElement('button');
+        btnDel.style = 'background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:4px;';
+        btnDel.innerHTML = '<i class="ph ph-trash"></i>';
+        btnDel.onclick = () => window.excluirMulta(m.id, colabId, btnDel);
+        actionsDiv.appendChild(btnDel);
+    }
+};
+
+// ÔöÇÔöÇÔöÇ Modal: Formul├írio de nova multa (SEM tipo/parcelas) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+window.abrirFormNovaMulta = function (colabId, container) {
+    let modal = document.getElementById('modal-nova-multa');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.id = 'modal-nova-multa';
+    modal.style = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:680px;max-height:90vh;overflow-y:auto;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+                <h3 style="margin:0;color:#1e293b;font-size:1.1rem;"><i class="ph ph-traffic-sign" style="color:#f503c5;"></i> Nova Multa de Tr├ónsito</h3>
+                <button onclick="document.getElementById('modal-nova-multa').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#64748b;">├ù</button>
+            </div>
+
+            <div style="border:2px dashed #e2e8f0;border-radius:10px;padding:1.5rem;text-align:center;margin-bottom:1.5rem;cursor:pointer;background:#f8fafc;" id="multa-upload-area">
+                <i class="ph ph-file-pdf" style="font-size:2.5rem;color:#ef4444;display:block;margin-bottom:8px;"></i>
+                <p style="margin:0;font-weight:600;color:#334155;">Anexar Notifica├º├úo de Autua├º├úo (PDF)</p>
+                <p style="margin:4px 0 0;font-size:0.8rem;color:#94a3b8;">Clique ou arraste o PDF ÔÇö dados ser├úo extra├¡dos automaticamente</p>
+                <input type="file" id="multa-notificacao-input" accept=".pdf" style="display:none;" onchange="window.processarNotificacaoMulta(this, ${colabId})">
+            </div>
+            <div id="multa-loader" style="display:none;text-align:center;color:#64748b;padding:1rem;">
+                <i class="ph ph-spinner ph-spin" style="font-size:1.5rem;"></i> Extraindo dados...
+            </div>
+
+            <div id="multa-dados" style="display:none;">
+                <h4 style="color:#475569;font-size:0.9rem;margin-bottom:0.75rem;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">­ƒôï Dados da Infra├º├úo</h4>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.5rem;">
+                    <div class="input-group"><label>Placa</label><input id="m-placa" class="form-control" placeholder="AAA0000"></div>
+                    <div class="input-group"><label>Ve├¡culo</label><input id="m-veiculo" class="form-control"></div>
+                    <div class="input-group"><label>C├│digo da Infra├º├úo</label><input id="m-codigo" class="form-control" placeholder="Ex: 7455" oninput="window.lookupCtb(this.value)"></div>
+                    <div class="input-group"><label>N┬░ AIT</label><input id="m-ait" class="form-control"></div>
+                    <div class="input-group" style="grid-column:span 2;"><label>Descri├º├úo</label><input id="m-descricao" class="form-control"></div>
+                    <div class="input-group"><label>Data</label><input id="m-data" class="form-control" placeholder="DD/MM/AAAA"></div>
+                    <div class="input-group"><label>Hora</label><input id="m-hora" class="form-control" placeholder="HH:MM"></div>
+                    <div class="input-group" style="grid-column:span 2;"><label>Local</label><input id="m-local" class="form-control"></div>
+                    <div class="input-group"><label>Pontua├º├úo</label><input id="m-pontuacao" class="form-control" readonly style="background:#f1f5f9;"></div>
+                    <div class="input-group"><label>Valor da Multa</label><input id="m-valor" class="form-control" readonly style="background:#f1f5f9;"></div>
+                </div>
+                <p style="font-size:0.8rem;color:#64748b;background:#f8fafc;padding:10px;border-radius:8px;margin-bottom:1rem;">
+                    <i class="ph ph-info"></i> Ap├│s salvar, clique em <b>"Iniciar Processo"</b> no card para escolher a forma de resolu├º├úo e parcelamento.
+                </p>
+                <button onclick="window.salvarNovaMulta(${colabId})"
+                    style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#f503c5,#8b5cf6);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
+                    <i class="ph ph-floppy-disk"></i> Salvar Multa
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#multa-upload-area').addEventListener('click', () => modal.querySelector('#multa-notificacao-input').click());
+    window._multaArquivo = null;
+};
+
+// ÔöÇÔöÇÔöÇ Popup: Iniciar Processo (popup menor, n├úo fullscreen) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+window.abrirPopupIniciarProcesso = function (m, colabId) {
+    let modal = document.getElementById('modal-iniciar-processo');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.id = 'modal-iniciar-processo';
+    modal.style = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+    const tipoAtual = m.tipo_resolucao || '';
+    const parcAtual = m.parcelas || 1;
+
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+                <h3 style="margin:0;color:#1e293b;font-size:1.1rem;">ÔÜû´©Å Iniciar Processo ÔÇö Multa ${m.codigo_infracao || ''}</h3>
+                <button onclick="document.getElementById('modal-iniciar-processo').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#64748b;">├ù</button>
+            </div>
+
+            <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">ÔÜû´©Å Forma de Resolu├º├úo</h4>
+            <div style="display:flex;gap:12px;margin-bottom:1.5rem;">
+                <button id="tipo-indicacao" onclick="window.selecionarTipoMulta('indicacao')"
+                    style="flex:1;padding:0.75rem;border-radius:8px;border:2px solid ${tipoAtual === 'indicacao' ? '#f503c5' : '#e2e8f0'};background:${tipoAtual === 'indicacao' ? '#fdf4ff' : '#fff'};cursor:pointer;font-weight:600;color:${tipoAtual === 'indicacao' ? '#f503c5' : '#334155'};">
+                    ­ƒôï Seguir com a Indica├º├úo
+                </button>
+                <button id="tipo-nic" onclick="window.selecionarTipoMulta('nic')"
+                    style="flex:1;padding:0.75rem;border-radius:8px;border:2px solid ${tipoAtual === 'nic' ? '#f503c5' : '#e2e8f0'};background:${tipoAtual === 'nic' ? '#fdf4ff' : '#fff'};cursor:pointer;font-weight:600;color:${tipoAtual === 'nic' ? '#f503c5' : '#334155'};">
+                    ­ƒÆ│ Pagamento da Multa NIC
+                </button>
+            </div>
+
+            <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;">­ƒÆ░ Parcelamento do Desconto</h4>
+            <div style="display:flex;gap:10px;margin-bottom:1.5rem;">
+                ${[1, 2, 3].map(n => `<button id="parc-${n}" onclick="window.selecionarParcelas(${n})"
+                    style="flex:1;padding:0.6rem;border-radius:8px;border:2px solid ${parcAtual === n ? '#8b5cf6' : '#e2e8f0'};background:${parcAtual === n ? '#f5f3ff' : '#fff'};cursor:pointer;font-weight:700;color:${parcAtual === n ? '#8b5cf6' : '#334155'};">${n}x</button>`).join('')}
+            </div>
+
+            <button onclick="window.confirmarIniciarProcesso(${m.id}, ${colabId})"
+                style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#f503c5,#8b5cf6);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
+                <i class="ph ph-play"></i> Confirmar Processo
+            </button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    window._multaTipoSelecionado = tipoAtual || null;
+    window._multaParcelasSelecionadas = parcAtual;
+    window._multaProcessoId = m.id;
+};
+
+window.confirmarIniciarProcesso = async function (multaId, colabId) {
+    if (!window._multaTipoSelecionado) {
+        alert('Selecione a forma de resolu├º├úo antes de continuar.'); return;
+    }
+    // Valida se h├í colaborador vinculado ├á multa
+    if (!colabId || colabId === 'undefined' || colabId === 'null' || String(colabId) === 'undefined') {
+        alert('ÔÜá´©Å Esta multa n├úo possui motorista vinculado.\n\nPara iniciar o processo, primeiro vincule um motorista pela op├º├úo "Gerenciar Multa" ÔåÆ "+ Adicionar Motorista".'); 
+        return;
+    }
+
+    const btnConfirmar = document.querySelector('#modal-iniciar-processo button[onclick*="confirmarIniciarProcesso"]');
+    const originalBtnText = btnConfirmar ? btnConfirmar.innerHTML : '';
+    if (btnConfirmar) { btnConfirmar.disabled = true; btnConfirmar.textContent = 'Processando...'; }
+
+    try {
+        // Gera o documento HTML
+        const docRes = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/gerar-documento`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+            body: JSON.stringify({ tipo: window._multaTipoSelecionado })
+        });
+        const docData = await docRes.json();
+        if (!docRes.ok) throw new Error(docData.error || `Erro HTTP ${docRes.status}`);
+
+        const procRes = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/iniciar-processo`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+            body: JSON.stringify({
+                tipo_resolucao: window._multaTipoSelecionado,
+                parcelas: window._multaParcelasSelecionadas,
+                documento_html: docData.html || null
+            })
+        });
+        if (!procRes.ok) { const d = await procRes.json().catch(()=>({})); throw new Error(d.error || `Erro HTTP ${procRes.status}`); }
+
+        document.getElementById('modal-iniciar-processo')?.remove();
+        await window._recarregarListaMultas(colabId);
+        if (typeof showToast === 'function') showToast('Processo iniciado!', 'success');
+    } catch (e) {
+        if (btnConfirmar) { btnConfirmar.disabled = false; btnConfirmar.innerHTML = originalBtnText; }
+        alert('Erro ao iniciar processo: ' + e.message);
+    }
+
+};
+
+// ÔöÇÔöÇÔöÇ Modal Testemunhas (100% fullscreen) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+window.abrirModalTestemunhas = async function (m, colabId) {
+    let modal = document.getElementById('modal-testemunhas-multa');
+    if (modal) modal.remove();
+
+    // Buscar lista de colaboradores para o dropdown
+    let listaColab = [];
+    try { listaColab = await apiGet('/colaboradores') || []; } catch (e) { }
+    const optsColab = listaColab.map(c => `<option value="${c.nome_completo || c.nome}">${c.nome_completo || c.nome}</option>`).join('');
+
+    // Gerar/recuperar HTML do documento
+    let docHtml = m.documento_html || '';
+    if (!docHtml && m.processo_iniciado) {
+        try {
+            const r = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${m.id}/gerar-documento`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                body: JSON.stringify({ tipo: m.tipo_resolucao || 'indicacao' })
+            });
+            const d = await r.json();
+            docHtml = d.html || '';
+        } catch (e) { }
+    }
+
+    modal = document.createElement('div');
+    modal.id = 'modal-testemunhas-multa';
+    modal.style = 'position:fixed;inset:0;z-index:10001;background:#0f172a;display:flex;flex-direction:column;overflow:hidden;';
+    modal.innerHTML = `
+        <div style="background:#1e293b;padding:0.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+            <h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-users" style="color:#a78bfa;"></i> Assinatura das Testemunhas ÔÇö Multa ${m.codigo_infracao || ''}</h3>
+            <button onclick="document.getElementById('modal-testemunhas-multa').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;">Fechar</button>
+        </div>
+        <div style="flex:1;display:flex;overflow:hidden;">
+            <!-- Documento ├á esquerda -->
+            <div style="flex:1;overflow-y:auto;background:#f1f5f9;padding:1rem;" id="doc-preview-testemunhas">
+                <div style="color:#64748b;text-align:center;padding:2rem;">Carregando documento...</div>
+            </div>
+            <!-- Painel direito -->
+            <div style="width:380px;background:#fff;overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1rem;border-left:1px solid #e2e8f0;flex-shrink:0;">
+                <div>
+                    <label style="font-size:0.85rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Testemunha 1 *</label>
+                    <select id="test1-select" class="form-control" style="width:100%;">
+                        <option value="">Selecione a testemunha</option>
+                        ${optsColab}
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.85rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Assinatura da Testemunha 1 *</label>
+                    <canvas id="canvas-test1" width="340" height="130" style="border:1.5px solid #c4b5fd;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;"></canvas>
+                    <button onclick="window._limparCanvasMulta('canvas-test1')" style="margin-top:4px;background:none;border:none;color:#64748b;cursor:pointer;font-size:0.8rem;"><i class="ph ph-eraser"></i> Limpar</button>
+                </div>
+                <div>
+                    <label style="font-size:0.85rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Testemunha 2 (opcional)</label>
+                    <select id="test2-select" class="form-control" style="width:100%;">
+                        <option value="">Selecione a testemunha</option>
+                        ${optsColab}
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.85rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Assinatura da Testemunha 2</label>
+                    <canvas id="canvas-test2" width="340" height="130" style="border:1.5px solid #e2e8f0;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;"></canvas>
+                    <button onclick="window._limparCanvasMulta('canvas-test2')" style="margin-top:4px;background:none;border:none;color:#64748b;cursor:pointer;font-size:0.8rem;"><i class="ph ph-eraser"></i> Limpar</button>
+                </div>
+                <p style="font-size:0.78rem;color:#94a3b8;background:#f8fafc;padding:8px;border-radius:6px;">Role o documento at├® o final antes de assinar.</p>
+                <button id="btn-confirmar-testemunhas"
+                    onclick="window.confirmarAssinaturaTestemunhas(${m.id}, ${colabId})"
+                    style="padding:0.85rem;background:linear-gradient(135deg,#7c3aed,#f503c5);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
+                    <i class="ph ph-check"></i> Confirmar Assinaturas das Testemunhas
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Renderizar documento no preview
+    const docPreview = modal.querySelector('#doc-preview-testemunhas');
+    if (docHtml) {
+        const iframe = document.createElement('iframe');
+        iframe.style = 'width:100%;height:100%;min-height:600px;border:none;border-radius:8px;background:#fff;';
+        docPreview.innerHTML = '';
+        docPreview.appendChild(iframe);
+        setTimeout(() => {
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open(); doc.write(docHtml); doc.close();
+        }, 50);
+    } else {
+        docPreview.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:3rem;">Documento n├úo dispon├¡vel.</div>';
+    }
+
+    // Inicializar canvas
+    window._initCanvasMulta('canvas-test1');
+    window._initCanvasMulta('canvas-test2');
+    // Guardar htmlDoc original para enriquecer com assinaturas ao confirmar
+    window._multaDocHtmlTestemunhas = docHtml;
+};
+
+window.confirmarAssinaturaTestemunhas = async function (multaId, colabId) {
+    const t1Nome = document.getElementById('test1-select')?.value || '';
+    const t2Nome = document.getElementById('test2-select')?.value || '';
+    const c1 = document.getElementById('canvas-test1');
+    const c2 = document.getElementById('canvas-test2');
+
+    if (!t1Nome) { alert('Selecione a Testemunha 1.'); return; }
+    if (!window._canvasTemConteudo('canvas-test1')) { alert('A Testemunha 1 precisa assinar.'); return; }
+
+    const t1Ass = c1.toDataURL('image/png');
+    const t2Ass = (c2 && window._canvasTemConteudo('canvas-test2')) ? c2.toDataURL('image/png') : null;
+
+    const btn = document.getElementById('btn-confirmar-testemunhas');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
+
+    try {
+        // Montar HTML com assinaturas das testemunhas injetadas
+        let docHtmlComAssinaturas = window._multaDocHtmlTestemunhas || '';
+        if (docHtmlComAssinaturas) {
+            const inject = `
+                <div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">
+                    <p style="font-weight:700;font-size:11px;">ASSINATURAS DAS TESTEMUNHAS:</p>
+                    <div style="display:flex;gap:20px;">
+                        <div style="text-align:center;">
+                            <img src="${t1Ass}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;">
+                            <p style="font-size:10px;margin:2px 0;">${t1Nome}</p>
+                        </div>
+                        ${t2Ass && t2Nome ? `<div style="text-align:center;">
+                            <img src="${t2Ass}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;">
+                            <p style="font-size:10px;margin:2px 0;">${t2Nome}</p>
+                        </div>` : ''}
+                    </div>
+                </div>`;
+            docHtmlComAssinaturas = docHtmlComAssinaturas.replace('</body>', inject + '</body>');
+        }
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/assinar-testemunhas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+            body: JSON.stringify({
+                testemunha1_nome: t1Nome,
+                testemunha1_assinatura: t1Ass,
+                testemunha2_nome: t2Nome || null,
+                testemunha2_assinatura: t2Ass,
+                documento_html: docHtmlComAssinaturas
+            })
+        });
+        const data = await res.json();
+        if (!data.sucesso) throw new Error(data.error || 'Erro ao salvar.');
+        document.getElementById('modal-testemunhas-multa')?.remove();
+        await window._recarregarListaMultas(colabId);
+        if (typeof showToast === 'function') showToast('Assinaturas das testemunhas salvas!', 'success');
+    } catch (e) {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check"></i> Confirmar Assinaturas das Testemunhas'; }
+        alert('Erro: ' + e.message);
+    }
+};
+
+// ÔöÇÔöÇÔöÇ Modal Assinatura do Condutor (fullscreen) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+window.abrirModalAssinaturaCondutor = async function (m, colabId) {
+    let modal = document.getElementById('modal-condutor-multa');
+    if (modal) modal.remove();
+
+    // Buscar documento e inserir assinaturas das testemunhas no HTML
+    let docHtml = m.documento_html || '';
+    if (!docHtml) {
+        try {
+            const r = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${m.id}/gerar-documento`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                body: JSON.stringify({ tipo: m.tipo_resolucao || 'indicacao' })
+            });
+            docHtml = (await r.json()).html || '';
+        } catch (e) { }
+    }
+
+    // m.documento_html ja contem as assinaturas das testemunhas (salvas por confirmarAssinaturaTestemunhas)
+    // Nao reinjetar para evitar duplicatas
+
+    modal = document.createElement('div');
+    modal.id = 'modal-condutor-multa';
+    modal.style = 'position:fixed;inset:0;z-index:10001;background:#0f172a;display:flex;flex-direction:column;overflow:hidden;';
+    modal.innerHTML = `
+        <div style="background:#1e293b;padding:0.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+            <h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-pen" style="color:#fcd34d;"></i> Assinatura do Condutor ÔÇö Multa ${m.codigo_infracao || ''}</h3>
+            <button onclick="document.getElementById('modal-condutor-multa').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;">Fechar</button>
+        </div>
+        <div style="flex:1;display:flex;overflow:hidden;">
+            <!-- Documento -->
+            <div style="flex:1;overflow-y:auto;background:#f1f5f9;padding:1rem;" id="doc-preview-condutor">
+                <div style="color:#64748b;text-align:center;padding:2rem;">Carregando...</div>
+            </div>
+            <!-- Painel assinatura -->
+            <div style="width:360px;background:#fff;overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1rem;border-left:1px solid #e2e8f0;flex-shrink:0;">
+                <div style="background:#fef3c7;border-radius:8px;padding:10px;">
+                    <p style="margin:0;font-size:0.82rem;color:#92400e;"><i class="ph ph-warning"></i> <b>Role o documento at├® o final</b> antes de assinar.</p>
+                </div>
+                <div>
+                    <label style="font-size:0.85rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Assinatura do Condutor *</label>
+                    <canvas id="canvas-condutor" width="320" height="140" style="border:1.5px solid #fcd34d;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;"></canvas>
+                    <button onclick="window._limparCanvasMulta('canvas-condutor')" style="margin-top:4px;background:none;border:none;color:#64748b;cursor:pointer;font-size:0.8rem;"><i class="ph ph-eraser"></i> Limpar</button>
+                </div>
+                <button id="btn-confirmar-condutor"
+                    onclick="window.confirmarAssinaturaCondutor(${m.id}, ${colabId})"
+                    style="padding:0.85rem;background:linear-gradient(135deg,#d97706,#f59e0b);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
+                    <i class="ph ph-check"></i> Confirmar Assinatura do Condutor
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Renderizar documento
+    const docPreview = modal.querySelector('#doc-preview-condutor');
+    if (docHtml) {
+        const iframe = document.createElement('iframe');
+        iframe.style = 'width:100%;height:100%;min-height:600px;border:none;border-radius:8px;background:#fff;';
+        docPreview.innerHTML = '';
+        docPreview.appendChild(iframe);
+        setTimeout(() => {
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open(); doc.write(docHtml); doc.close();
+        }, 50);
+    }
+
+    window._initCanvasMulta('canvas-condutor');
+    // Guardar HTML (ja com assinaturas das testemunhas) para enriquecer com condutor ao confirmar
+    window._multaDocHtmlCondutor = docHtml;
+    // Guardar nome do colaborador (condutor) para injetar na assinatura
+    window._multaCondutorNome = (viewedColaborador && (viewedColaborador.nome_completo || viewedColaborador.nome)) || 'Condutor';
+};
+
+window.confirmarAssinaturaCondutor = async function (multaId, colabId) {
+    if (!window._canvasTemConteudo('canvas-condutor')) { alert('O condutor precisa assinar.'); return; }
+    const assinatura = document.getElementById('canvas-condutor').toDataURL('image/png');
+    const btn = document.getElementById('btn-confirmar-condutor');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
+    try {
+        // Injetar assinatura do condutor no HTML ANTES das testemunhas e salvar
+        const assinaturaImg = assinatura;
+        const condutorNome = window._multaCondutorNome || 'Condutor';
+        let htmlComCondutor = window._multaDocHtmlCondutor || '';
+        if (htmlComCondutor) {
+            const condutorSection = '<div style="margin-top:20px;padding:10px;border-top:2px solid #fcd34d;">'
+                + '<p style="font-weight:700;font-size:11px;">ASSINATURA DO CONDUTOR:</p>'
+                + '<div style="display:inline-block;text-align:center;">'
+                + '<img src="' + assinaturaImg + '" style="max-width:220px;max-height:70px;display:block;border-bottom:1px solid #000;">'
+                + '<p style="font-size:10px;margin:2px 0;color:#d97706;font-weight:700;">' + condutorNome + '</p>'
+                + '</div></div>';
+            // Inserir condutor ANTES do bloco de testemunhas (ou antes do </body>)
+            if (htmlComCondutor.includes('ASSINATURAS DAS TESTEMUNHAS')) {
+                htmlComCondutor = htmlComCondutor.replace(
+                    '<div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">',
+                    condutorSection + '<div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">'
+                );
+            } else {
+                htmlComCondutor = htmlComCondutor.replace('</body>', condutorSection + '</body>');
+            }
+        }
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/assinar-condutor`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+            body: JSON.stringify({ assinatura_base64: assinaturaImg, documento_html: htmlComCondutor })
+        });
+        const data = await res.json();
+        if (!data.sucesso) throw new Error(data.error || 'Erro.');
+        document.getElementById('modal-condutor-multa')?.remove();
+        await window._recarregarListaMultas(colabId);
+        if (typeof showToast === 'function') showToast('Documento assinado pelo condutor!', 'success');
+    } catch (e) {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check"></i> Confirmar Assinatura do Condutor'; }
+        alert('Erro: ' + e.message);
+    }
+};
+
+// ÔöÇÔöÇÔöÇ Helpers de canvas ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+window._initCanvasMulta = function (id) {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    let drawing = false, lx = 0, ly = 0;
+    const pos = (e) => {
+        const r = canvas.getBoundingClientRect();
+        const sx = canvas.width / r.width, sy = canvas.height / r.height;
+        if (e.touches) return { x: (e.touches[0].clientX - r.left) * sx, y: (e.touches[0].clientY - r.top) * sy };
+        return { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
+    };
+    canvas.onmousedown = canvas.ontouchstart = (e) => { e.preventDefault(); drawing = true; const p = pos(e); lx = p.x; ly = p.y; };
+    canvas.onmousemove = canvas.ontouchmove = (e) => { e.preventDefault(); if (!drawing) return; const p = pos(e); ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(p.x, p.y); ctx.stroke(); lx = p.x; ly = p.y; };
+    canvas.onmouseup = canvas.ontouchend = canvas.onmouseleave = () => { drawing = false; };
+};
+
+window._limparCanvasMulta = function (id) {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+};
+
+window._canvasTemConteudo = function (id) {
+    const canvas = document.getElementById(id);
+    if (!canvas) return false;
+    const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    for (let i = 3; i < data.length; i += 4) { if (data[i] > 0) return true; }
+    return false;
+};
+
+// ÔöÇÔöÇÔöÇ Helpers legados (compatibilidade) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+window.selecionarTipoMulta = function (tipo) {
+    window._multaTipoSelecionado = tipo;
+    ['indicacao', 'nic'].forEach(t => {
+        const btn = document.getElementById(`tipo-${t}`);
+        if (!btn) return;
+        const sel = t === tipo;
+        btn.style.borderColor = sel ? '#f503c5' : '#e2e8f0';
+        btn.style.background = sel ? '#fdf4ff' : '#fff';
+        btn.style.color = sel ? '#f503c5' : '#334155';
+    });
+};
+
+window.selecionarParcelas = function (n) {
+    window._multaParcelasSelecionadas = n;
+    [1, 2, 3].forEach(i => {
+        const btn = document.getElementById(`parc-${i}`);
+        if (!btn) return;
+        const sel = i === n;
+        btn.style.borderColor = sel ? '#8b5cf6' : '#e2e8f0';
+        btn.style.background = sel ? '#f5f3ff' : '#fff';
+        btn.style.color = sel ? '#8b5cf6' : '#334155';
+    });
+};
+
+window.lookupCtb = async function (codigo) {
+    if (!codigo || codigo.length < 4) return;
+    try {
+        const data = await apiGet(`/ctb/${codigo}`);
+        if (data && data.pontuacao) {
+            const el = document.getElementById('m-pontuacao');
+            const el2 = document.getElementById('m-valor');
+            if (el) el.value = data.pontuacao;
+            if (el2) el2.value = data.valor || '';
+            if (!document.getElementById('m-descricao').value && data.descricao)
+                document.getElementById('m-descricao').value = data.descricao;
+        }
+    } catch (e) { }
+};
+
+window.processarNotificacaoMulta = async function (input, colabId) {
+    const file = input.files[0];
+    if (!file) return;
+    window._multaArquivo = file;
+    const loader = document.getElementById('multa-loader');
+    const uploadArea = document.getElementById('multa-upload-area');
+    const dadosDiv = document.getElementById('multa-dados');
+    loader.style.display = 'block';
+    uploadArea.style.display = 'none';
+    try {
+        const formData = new FormData();
+        formData.append('arquivo', file); // campo esperado pelo /api/colaboradores/:id/multas/upload-notificacao
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/upload-notificacao`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+        set('m-placa', data.placa); set('m-veiculo', data.veiculo);
+        set('m-codigo', data.codigo_infracao); set('m-descricao', data.descricao_infracao);
+        set('m-data', data.data_infracao); set('m-hora', data.hora_infracao);
+        set('m-local', data.local_infracao); set('m-valor', data.valor_multa);
+        set('m-pontuacao', data.pontuacao); set('m-ait', data.numero_ait);
+        dadosDiv.style.display = 'block';
+        loader.textContent = 'Ô£à Dados extra├¡dos! Confira e corrija se necess├írio.';
+        loader.style.color = '#10b981';
+    } catch (e) {
+        loader.textContent = `ÔÜá´©Å Falha ao extrair: ${e.message || 'Preencha manualmente.'}`;
+        loader.style.color = '#ef4444';
+        document.getElementById('multa-dados').style.display = 'block';
+    }
+};
+
+window.salvarNovaMulta = async function (colabId) {
+    const get = id => (document.getElementById(id) || {}).value || '';
+    const formData = new FormData();
+    formData.append('codigo_infracao', get('m-codigo'));
+    formData.append('descricao_infracao', get('m-descricao'));
+    formData.append('placa', get('m-placa'));
+    formData.append('veiculo', get('m-veiculo'));
+    formData.append('data_infracao', get('m-data'));
+    formData.append('hora_infracao', get('m-hora'));
+    formData.append('local_infracao', get('m-local'));
+    formData.append('numero_ait', get('m-ait'));
+    formData.append('pontuacao', get('m-pontuacao'));
+    formData.append('valor_multa', get('m-valor'));
+    if (window._multaArquivo) formData.append('arquivo', window._multaArquivo);
+    try {
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+        const data = await res.json();
+        if (!data.sucesso) throw new Error(data.error || 'Erro ao salvar.');
+        document.getElementById('modal-nova-multa')?.remove();
+        await window._recarregarListaMultas(colabId);
+        if (typeof showToast === 'function') showToast('Multa salva! Clique em "Iniciar Processo" para continuar.', 'success');
+    } catch (e) { alert('Erro: ' + e.message); }
+};
+
+window.excluirMulta = async function (multaId, colabId, btn) {
+    if (!confirm('Excluir este registro de multa? Esta a├º├úo n├úo pode ser desfeita.')) return;
+    if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>'; btn.disabled = true; }
+    try {
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}`, {
+            method: 'DELETE', headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (!res.ok) throw new Error('Falha ao excluir');
+        await window._recarregarListaMultas(colabId);
+        if (typeof showToast === 'function') showToast('Multa exclu├¡da.', 'success');
+    } catch (e) {
+        if (btn) { btn.innerHTML = '<i class="ph ph-trash"></i>'; btn.disabled = false; }
+        alert('Erro: ' + e.message);
+    }
+};
+
+window.verDocumentoMulta = async function (multaId, colabId, tipo, multaObj) {
+    try {
+        let htmlFinal = '';
+        // Usar documento salvo no DB (com assinaturas), se disponivel
+        if (multaObj && multaObj.documento_html) {
+            htmlFinal = multaObj.documento_html;
+            // Se condutor assinou e a assinatura ainda nao esta no HTML, injetar
+            if (multaObj.assinatura_condutor_base64 && !htmlFinal.includes('ASSINATURA DO CONDUTOR')) {
+                const condutorInject = '<div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">'
+                    + '<p style="font-weight:700;font-size:11px;">ASSINATURA DO CONDUTOR:</p>'
+                    + '<div style="text-align:center;display:inline-block;">'
+                    + '<img src="' + multaObj.assinatura_condutor_base64 + '" style="max-width:220px;max-height:70px;border-bottom:1px solid #000;">'
+                    + '<p style="font-size:10px;margin:2px 0;color:#d97706;font-weight:700;">Condutor</p>'
+                    + '</div></div>';
+                htmlFinal = htmlFinal.replace('</body>', condutorInject + '</body>');
+            }
+        } else {
+            // Sem documento salvo: gerar do zero (sem assinaturas)
+            const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/gerar-documento`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                body: JSON.stringify({ tipo: tipo || 'indicacao' })
+            });
+            const data = await res.json();
+            htmlFinal = data.html || '';
+        }
+        if (!htmlFinal) { alert('Documento nao disponivel.'); return; }
+        let modal = document.getElementById('modal-preview-multa');
+        if (modal) modal.remove();
+        modal = document.createElement('div');
+        modal.id = 'modal-preview-multa';
+        modal.style = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;flex-direction:column;';
+        const header = document.createElement('div');
+        header.style = 'background:#1e293b;padding:1rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;';
+        header.innerHTML = '<h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-file-text" style="color:#f503c5;"></i> Documento &mdash; ' + (tipo === 'indicacao' ? 'Indicacao de Condutor' : 'Pagamento NIC') + '</h3>';
+        const btnFechar = document.createElement('button');
+        btnFechar.textContent = 'Fechar';
+        btnFechar.style = 'padding:0.5rem 1rem;background:#475569;color:#fff;border:none;border-radius:8px;cursor:pointer;';
+        btnFechar.addEventListener('click', () => modal.remove());
+        header.appendChild(btnFechar);
+        const iframe = document.createElement('iframe');
+        iframe.id = 'multa-preview-iframe';
+        iframe.style = 'flex:1;border:none;background:#fff;';
+        modal.appendChild(header);
+        modal.appendChild(iframe);
+        document.body.appendChild(modal);
+        setTimeout(() => {
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            if (doc) { doc.open(); doc.write(htmlFinal); doc.close(); }
+        }, 50);
+    } catch (e) { alert('Erro: ' + e.message); }
+};
+
+window.destacarCamposVazios = function () {
+    const form = document.getElementById('form-colaborador');
+    if (!form) return;
+
+    // Resetar destaques anteriores
+    const allInputs = form.querySelectorAll('input, select, textarea');
+    allInputs.forEach(el => {
+        el.style.border = '';
+        el.style.backgroundColor = '';
+        el.style.boxShadow = '';
+    });
+
+    let count = 0;
+    // Filtrar e destacar
+    allInputs.forEach(el => {
+        // Ignorar campos hidden, readonly, disabled, inputs de arquivo ou bot├Áes de r├ídio n├úo agrupados
+        if (el.type === 'hidden' || el.type === 'file' || el.readOnly || el.disabled || el.type === 'submit' || el.type === 'button') return;
+
+        // Ignorar campos que n├úo est├úo vis├¡veis (offsetParent === null)
+        if (el.offsetParent === null) return;
+
+        // Se for um select, verifica se tem valor v├ílido (n├úo vazio e diferente do placeholder padr├úo)
+        let vazio = false;
+        if (el.tagName === 'SELECT') {
+            vazio = !el.value || el.value === '';
+        } else if (el.type === 'checkbox' || el.type === 'radio') {
+            // Em formul├írios como esse, checkboxes de op├º├úo geralmente n├úo s├úo obrigat├│rios
+            return;
+        } else {
+            vazio = !el.value || el.value.trim() === '';
+        }
+
+        if (vazio) {
+            el.style.border = '2px solid #e03131';
+            el.style.backgroundColor = '#fff5f5';
+            el.style.boxShadow = '0 0 5px rgba(224, 49, 49, 0.4)';
+            count++;
+
+            // Adicionar listener para remover o destaque quando preenchido
+            const removeHighlight = function () {
+                this.style.border = '';
+                this.style.backgroundColor = '';
+                this.style.boxShadow = '';
+                this.removeEventListener('input', removeHighlight);
+                this.removeEventListener('change', removeHighlight);
+            };
+            el.addEventListener('input', removeHighlight);
+            el.addEventListener('change', removeHighlight);
+        }
+    });
+
+    if (count > 0) {
+        showToast(`Foram encontrados ${count} campos n├úo preenchidos.`, 'warning');
+    } else {
+        showToast('Todos os campos vis├¡veis est├úo preenchidos!', 'success');
+    }
+};
+
+window._carregarAuditoria = async function () {
+    const tbody = document.getElementById('auditoria-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8;"><i class="ph ph-spinner" style="font-size:1.5rem;animation:spin 1s linear infinite;display:block;margin-bottom:8px;"></i> Carregando registros...</td></tr>`;
+
+    try {
+        const r = await apiGet('/assinaturas-auditoria');
+        if (!r || r.error) throw new Error(r?.error || 'Erro desconhecido');
+
+        if (r.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8;">Nenhum registro de auditoria encontrado.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = r.map(aud => `
+            <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:12px 16px;">\${new Date(aud.data_hora).toLocaleString('pt-BR')}</td>
+                <td style="padding:12px 16px;font-weight:500;">\${aud.tipo_documento} (ID \${aud.documento_id})<br><small style="color:#64748b;">\${aud.detalhes || ''}</small></td>
+                <td style="padding:12px 16px;">\${aud.colaborador_nome}</td>
+                <td style="padding:12px 16px;font-family:monospace;font-size:0.85em;">\${aud.ip || '-'}</td>
+                <td style="padding:12px 16px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="\${aud.dispositivo}">\${aud.dispositivo || '-'}</td>
+                <td style="padding:12px 16px;">\${aud.gps_lat ? \`<a href="https://maps.google.com/?q=\${aud.gps_lat},\${aud.gps_lon}" target="_blank" style="color:#0ea5e9;text-decoration:none;"><i class="ph ph-map-pin"></i> Ver no Mapa</a>\` : '-'}</td>
+                <td style="padding:12px 16px;font-family:monospace;font-size:0.8em;word-break:break-all;max-width:250px;">\${aud.hash_pdf || '-'}</td>
+            </tr>
+        `).join('');
+
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:#dc2626;"><i class="ph ph-warning-circle"></i> Erro ao carregar auditoria: ${e.message}</td></tr>`;
+    }
+};
+
+// Hook para navegar e carregar
+document.addEventListener('DOMContentLoaded', () => {
+    const originalNavigateTo = window.navigateTo;
+    if (originalNavigateTo) {
+        window.navigateTo = function(targetId) {
+            originalNavigateTo(targetId);
+            if (targetId === 'auditoria') {
+                if (window._carregarAuditoria) window._carregarAuditoria();
+            }
+        };
+    }
+});
