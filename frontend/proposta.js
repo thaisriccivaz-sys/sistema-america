@@ -78,20 +78,255 @@ function renderTelaPropostas() {
 
 
 
-            <!-- ABAS INTERNAS -->
-            <div style="display:flex; gap:1rem; border-bottom:1px solid #e2e8f0; margin-bottom:1.5rem;">
-                <button id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="background:none; border:none; border-bottom:2px solid ${_currentPropostaTab === 'lista' ? '#7048e8' : 'transparent'}; color:${_currentPropostaTab === 'lista' ? '#7048e8' : '#64748b'}; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem; outline:none; transition:all 0.2s;">
-                    <i class="ph ph-list-bullets"></i> Lista de Propostas
-                </button>
-                <button id="tab-prop-form" onclick="switchPropostaTab('form')" style="background:none; border:none; border-bottom:2px solid ${_currentPropostaTab === 'form' ? '#7048e8' : 'transparent'}; color:${_currentPropostaTab === 'form' ? '#7048e8' : '#64748b'}; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem; outline:none; transition:all 0.2s;">
-                    <i class="ph ph-pencil-simple"></i> <span id="tab-prop-form-text">${_propostasEditandoId ? 'Editar Proposta' : 'Nova Proposta'}</span>
-                </button>
-                <button id="tab-prop-cadastro-cliente" onclick="switchPropostaTab('cadastro-cliente')" style="background:none; border:none; border-bottom:2px solid ${_currentPropostaTab === 'cadastro-cliente' ? '#7048e8' : 'transparent'}; color:${_currentPropostaTab === 'cadastro-cliente' ? '#7048e8' : '#64748b'}; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem; outline:none; transition:all 0.2s;">
-                    <i class="ph ph-users-three"></i> Cadastro de Clientes
-                </button>
-                <button id="tab-prop-cadastro-contatos" onclick="switchPropostaTab('cadastro-contatos')" style="background:none; border:none; border-bottom:2px solid ${_currentPropostaTab === 'cadastro-contatos' ? '#7048e8' : 'transparent'}; color:${_currentPropostaTab === 'cadastro-contatos' ? '#7048e8' : '#64748b'}; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem; outline:none; transition:all 0.2s;">
-                    <i class="ph ph-identification-card"></i> Cadastro de Contatos
-                </button>
+            <!-- STYLE PARA A NAVBAR SAAS -->
+            <style>
+                .saas-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    background-color: #F4F5F7;
+                    padding: 0.6rem 1.5rem;
+                    border-radius: 8px;
+                    border: 1px solid #E2E8F0;
+                    margin-bottom: 1.5rem;
+                    font-family: 'Inter', sans-serif;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+                }
+                .saas-brand {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.6rem;
+                    cursor: pointer;
+                    user-select: none;
+                }
+                .saas-logo-icon {
+                    font-size: 1.6rem;
+                    color: #475569;
+                }
+                .saas-brand-text {
+                    font-size: 1rem;
+                    font-weight: 800;
+                    color: #1E293B;
+                    font-family: 'Inter', sans-serif;
+                    letter-spacing: 0.05em;
+                }
+                .saas-nav {
+                    display: flex;
+                    align-items: center;
+                    gap: 1.2rem;
+                }
+                .saas-nav-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.35rem;
+                    font-size: 0.88rem;
+                    font-weight: 600;
+                    color: #64748B;
+                    text-decoration: none;
+                    padding: 0.45rem 0.75rem;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    position: relative;
+                    user-select: none;
+                }
+                .saas-nav-item:hover {
+                    color: #1E293B;
+                    background-color: #E2E8F0;
+                }
+                .saas-nav-item.active {
+                    color: #7048E8 !important;
+                    background-color: #E2E8F0;
+                }
+                .saas-nav-item.dashboard-item {
+                    color: #7048E8;
+                }
+                .saas-nav-item.dashboard-item i {
+                    color: #7048E8;
+                }
+                .saas-dropdown-wrapper {
+                    position: absolute;
+                    top: 100%;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    z-index: 1000;
+                    display: none;
+                    padding-top: 0.5rem;
+                }
+                .saas-nav-item.has-dropdown:hover .saas-dropdown-wrapper,
+                .saas-dropdown-wrapper:hover {
+                    display: block;
+                }
+                .saas-dropdown-menu {
+                    background: #FFFFFF;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03), 0 12px 24px -4px rgba(0, 0, 0, 0.08);
+                    display: flex;
+                    overflow: hidden;
+                    min-width: 420px;
+                }
+                .saas-dropdown-col {
+                    padding: 0.75rem;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.25rem;
+                    width: 50%;
+                    box-sizing: border-box;
+                }
+                .saas-dropdown-col.left-col {
+                    border-right: 1px solid #F1F5F9;
+                }
+                .saas-dropdown-link {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    padding: 0.5rem 0.75rem;
+                    border-radius: 6px;
+                    color: #475569;
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                    text-decoration: none;
+                    transition: all 0.2s;
+                    cursor: pointer;
+                    user-select: none;
+                }
+                .saas-dropdown-link:hover {
+                    background-color: #F8FAFC;
+                }
+                .saas-dropdown-link.prop-list-link i {
+                    color: #64748B;
+                }
+                .saas-dropdown-link.prop-new-link {
+                    color: #7048E8;
+                }
+                .saas-dropdown-link.prop-new-link i {
+                    color: #7048E8;
+                }
+                .saas-dropdown-link.client-link i,
+                .saas-dropdown-link.contact-link i {
+                    color: #0F766E; /* sharp teal/dark green */
+                }
+                .saas-dropdown-link.active {
+                    background-color: #F1F5F9;
+                }
+                .saas-dropdown-link.prop-new-link.active {
+                    background-color: #F3E8FF;
+                }
+                .saas-right-section {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                }
+                .saas-avatar-btn {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    background-color: #E2E8F0;
+                    color: #475569;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: 700;
+                    font-size: 0.85rem;
+                    cursor: pointer;
+                    border: none;
+                    user-select: none;
+                }
+                .saas-settings-btn {
+                    background: none;
+                    border: none;
+                    color: #64748B;
+                    font-size: 1.25rem;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0.25rem;
+                    border-radius: 6px;
+                    transition: all 0.2s;
+                }
+                .saas-settings-btn:hover {
+                    color: #1E293B;
+                    background-color: #E2E8F0;
+                }
+            </style>
+
+            <!-- NOVO CABEÇALHO SAAS -->
+            <div class="saas-header">
+                <!-- Lado Esquerdo: Logo da Empresa -->
+                <div class="saas-brand" onclick="switchPropostaTab('lista')">
+                    <i class="ph ph-squares-four saas-logo-icon"></i>
+                    <span class="saas-brand-text">SOLUTIONS CORP</span>
+                </div>
+
+                <!-- Centro: Navegação Principal -->
+                <div class="saas-nav">
+                    <div class="saas-nav-item dashboard-item" id="tab-prop-dashboard" onclick="window.switchTabDashboard()">
+                        <i class="ph ph-squares-four"></i> Dashboard
+                    </div>
+                    <div class="saas-nav-item" id="tab-prop-vendas" onclick="window.switchTabVendas()">
+                        <i class="ph ph-shopping-cart"></i> Vendas
+                    </div>
+                    <div class="saas-nav-item has-dropdown" id="tab-prop-propostas-drop">
+                        <i class="ph ph-file-text"></i> Propostas <i class="ph ph-caret-down" style="font-size:0.7rem; opacity:0.7;"></i>
+                        <!-- Menu Dropdown -->
+                        <div class="saas-dropdown-wrapper">
+                            <div class="saas-dropdown-menu">
+                                <!-- Coluna Esquerda: Propostas -->
+                                <div class="saas-dropdown-col left-col">
+                                    <a class="saas-dropdown-link prop-list-link" data-tab="lista" onclick="switchPropostaTab('lista')">
+                                        <i class="ph ph-list-bullets"></i> Lista de Propostas
+                                    </a>
+                                    <a class="saas-dropdown-link prop-new-link" data-tab="form" onclick="abrirFormProposta(null)">
+                                        <i class="ph ph-pencil-simple"></i> Nova Proposta
+                                    </a>
+                                </div>
+                                <!-- Coluna Direita: Clientes e Contatos -->
+                                <div class="saas-dropdown-col">
+                                    <a class="saas-dropdown-link client-link" data-tab="cadastro-cliente" onclick="switchPropostaTab('cadastro-cliente')">
+                                        <i class="ph ph-user-plus"></i> Cadastro de Clientes
+                                    </a>
+                                    <a class="saas-dropdown-link contact-link" data-tab="cadastro-contatos" onclick="switchPropostaTab('cadastro-contatos')">
+                                        <i class="ph ph-identification-card"></i> Cadastro de Contatos
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="saas-nav-item has-dropdown" id="tab-prop-clientes-drop">
+                        <i class="ph ph-users"></i> Clientes <i class="ph ph-caret-down" style="font-size:0.7rem; opacity:0.7;"></i>
+                        <!-- Menu Dropdown -->
+                        <div class="saas-dropdown-wrapper">
+                            <div class="saas-dropdown-menu">
+                                <!-- Coluna Esquerda: Propostas -->
+                                <div class="saas-dropdown-col left-col">
+                                    <a class="saas-dropdown-link prop-list-link" data-tab="lista" onclick="switchPropostaTab('lista')">
+                                        <i class="ph ph-list-bullets"></i> Lista de Propostas
+                                    </a>
+                                    <a class="saas-dropdown-link prop-new-link" data-tab="form" onclick="abrirFormProposta(null)">
+                                        <i class="ph ph-pencil-simple"></i> Nova Proposta
+                                    </a>
+                                </div>
+                                <!-- Coluna Direita: Clientes e Contatos -->
+                                <div class="saas-dropdown-col">
+                                    <a class="saas-dropdown-link client-link" data-tab="cadastro-cliente" onclick="switchPropostaTab('cadastro-cliente')">
+                                        <i class="ph ph-user-plus"></i> Cadastro de Clientes
+                                    </a>
+                                    <a class="saas-dropdown-link contact-link" data-tab="cadastro-contatos" onclick="switchPropostaTab('cadastro-contatos')">
+                                        <i class="ph ph-identification-card"></i> Cadastro de Contatos
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lado Direito: Perfil do Usuário -->
+                <div class="saas-right-section">
+                    <button class="saas-avatar-btn" title="Perfil do Usuário">J</button>
+                    <button class="saas-settings-btn" title="Configurações"><i class="ph ph-gear"></i></button>
+                </div>
             </div>
 
             <!-- VIEW: LISTA -->
@@ -184,6 +419,36 @@ function renderTelaPropostas() {
     }
 }
 
+window.switchTabDashboard = function() {
+    document.querySelectorAll('.saas-nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    const dash = document.getElementById('tab-prop-dashboard');
+    if (dash) dash.classList.add('active');
+    
+    Swal.fire({
+        title: 'Dashboard',
+        text: 'Módulo do Dashboard Comercial em desenvolvimento.',
+        icon: 'info',
+        confirmButtonColor: '#7048E8'
+    });
+};
+
+window.switchTabVendas = function() {
+    document.querySelectorAll('.saas-nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    const vendas = document.getElementById('tab-prop-vendas');
+    if (vendas) vendas.classList.add('active');
+    
+    Swal.fire({
+        title: 'Vendas',
+        text: 'Módulo de Vendas em desenvolvimento.',
+        icon: 'info',
+        confirmButtonColor: '#7048E8'
+    });
+};
+
 window.switchPropostaTab = function(tab) {
     _currentPropostaTab = tab;
     
@@ -191,12 +456,8 @@ window.switchPropostaTab = function(tab) {
     const viewForm = document.getElementById('prop-view-form');
     const viewCadastroCliente = document.getElementById('prop-view-cadastro-cliente');
     const viewCadastroContatos = document.getElementById('prop-view-cadastro-contatos');
-    const tabLista = document.getElementById('tab-prop-lista');
-    const tabForm = document.getElementById('tab-prop-form');
-    const tabCadastroCliente = document.getElementById('tab-prop-cadastro-cliente');
-    const tabCadastroContatos = document.getElementById('tab-prop-cadastro-contatos');
 
-    if (viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && tabLista && tabForm && tabCadastroCliente && tabCadastroContatos) {
+    if (viewLista && viewForm && viewCadastroCliente && viewCadastroContatos) {
         if (tab === 'form' && viewForm.innerHTML.trim() === '') {
             _renderFormPropostaInt();
         }
@@ -212,21 +473,39 @@ window.switchPropostaTab = function(tab) {
         viewCadastroCliente.style.display = tab === 'cadastro-cliente' ? 'block' : 'none';
         viewCadastroContatos.style.display = tab === 'cadastro-contatos' ? 'block' : 'none';
 
-        tabLista.style.borderBottom = tab === 'lista' ? '2px solid #7048e8' : 'transparent';
-        tabLista.style.color = tab === 'lista' ? '#7048e8' : '#64748b';
+        // Update active class in SaaS Header
+        document.querySelectorAll('.saas-nav-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        document.querySelectorAll('.saas-dropdown-link').forEach(link => {
+            link.classList.remove('active');
+        });
 
-        tabForm.style.borderBottom = tab === 'form' ? '2px solid #7048e8' : 'transparent';
-        tabForm.style.color = tab === 'form' ? '#7048e8' : '#64748b';
-        if (tab === 'form') {
-            const span = document.getElementById('tab-prop-form-text');
-            if (span) span.innerText = _propostasEditandoId ? 'Editar Proposta' : 'Nova Proposta';
+        if (tab === 'lista') {
+            const navItem = document.getElementById('tab-prop-propostas-drop');
+            if (navItem) navItem.classList.add('active');
+            document.querySelectorAll('.saas-dropdown-link[data-tab="lista"]').forEach(link => {
+                link.classList.add('active');
+            });
+        } else if (tab === 'form') {
+            const navItem = document.getElementById('tab-prop-propostas-drop');
+            if (navItem) navItem.classList.add('active');
+            document.querySelectorAll('.saas-dropdown-link[data-tab="form"]').forEach(link => {
+                link.classList.add('active');
+            });
+        } else if (tab === 'cadastro-cliente') {
+            const navItem = document.getElementById('tab-prop-clientes-drop');
+            if (navItem) navItem.classList.add('active');
+            document.querySelectorAll('.saas-dropdown-link[data-tab="cadastro-cliente"]').forEach(link => {
+                link.classList.add('active');
+            });
+        } else if (tab === 'cadastro-contatos') {
+            const navItem = document.getElementById('tab-prop-clientes-drop');
+            if (navItem) navItem.classList.add('active');
+            document.querySelectorAll('.saas-dropdown-link[data-tab="cadastro-contatos"]').forEach(link => {
+                link.classList.add('active');
+            });
         }
-
-        tabCadastroCliente.style.borderBottom = tab === 'cadastro-cliente' ? '2px solid #7048e8' : 'transparent';
-        tabCadastroCliente.style.color = tab === 'cadastro-cliente' ? '#7048e8' : '#64748b';
-
-        tabCadastroContatos.style.borderBottom = tab === 'cadastro-contatos' ? '2px solid #7048e8' : 'transparent';
-        tabCadastroContatos.style.color = tab === 'cadastro-contatos' ? '#7048e8' : '#64748b';
     } else {
         renderTelaPropostas();
     }
