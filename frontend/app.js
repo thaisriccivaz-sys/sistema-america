@@ -1347,7 +1347,6 @@ window.filtrarListaCargos = function (query) {
     });
 };
 
-// Filtra as linhas da tabela de departamentos pelo texto digitado
 window.filtrarListaDepartamentos = function (query) {
     const q = (query || '').toLowerCase().trim();
     document.querySelectorAll('#table-departamentos tr').forEach(row => {
