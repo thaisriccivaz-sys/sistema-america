@@ -5853,6 +5853,24 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         })() : '';
     }
 
+    let timestampsHtml = '';
+    if (tabId === 'Advertências' && isSaved) {
+        const fmtDt = (iso) => {
+            if(!iso) return '';
+            const d = new Date(iso);
+            return d.toLocaleDateString('pt-BR') + ' - ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) + 'hs';
+        };
+        if (existingDoc.data_assinatura_testemunhas) {
+            timestampsHtml += `<div style="font-size:0.75rem; color:#64748b; margin-top:4px;"><strong>Assinatura Testemunhas:</strong> ${fmtDt(existingDoc.data_assinatura_testemunhas)}</div>`;
+        }
+        if (existingDoc.data_assinatura_colaborador) {
+            timestampsHtml += `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;"><strong>Assinatura Colaborador:</strong> ${fmtDt(existingDoc.data_assinatura_colaborador)}</div>`;
+        }
+        if (existingDoc.atestado_contab_enviado_em) {
+            timestampsHtml += `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;"><strong>Envio Contabilidade:</strong> ${fmtDt(existingDoc.atestado_contab_enviado_em)}</div>`;
+        }
+    }
+
     // Icone esquerdo: amarelo=criado, azul aviao=enviado, verde caneta=assinado
     const assinafyStatus = isSaved ? (existingDoc.assinafy_status || '') : '';
     const foiEnviado = isSaved && !!existingDoc.assinafy_sent_at;
@@ -5888,7 +5906,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         ${docBadge ? `<div>${docBadge}</div>` : ''}
                     </div>
                 </h4>
-                ${isSaved ? `<p style="margin:2px 0 0; font-size:0.82rem; color:#475569;">${displayFileName}</p>${subInfoLine}` : '<p>Pendente</p>'}
+                ${isSaved ? `<p style="margin:2px 0 0; font-size:0.82rem; color:#475569;">${displayFileName}</p>${timestampsHtml}${subInfoLine}` : '<p>Pendente</p>'}
             </div>
         </div>
     `;

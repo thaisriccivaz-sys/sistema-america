@@ -18727,7 +18727,7 @@ db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='treinamento_p
 // e o status de conclusão de cada treinamento
 app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res) => {
   const sqlColabs = `
-    SELECT id, nome_completo, departamento, cargo, status
+    SELECT id, nome_completo, departamento, cargo, status, foto_path, foto_base64
     FROM colaboradores
     WHERE status != 'Desligado'
     ORDER BY nome_completo ASC
@@ -18796,6 +18796,8 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
             nome_completo: c.nome_completo,
             departamento: c.departamento,
             cargo: c.cargo,
+            foto_path: c.foto_path,
+            foto_base64: c.foto_base64,
             treinamentos: treinamentosComStatus,
             total: treinamentosComStatus.length,
             concluidos: treinamentosComStatus.filter(t => t.concluido).length
