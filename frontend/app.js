@@ -15317,7 +15317,12 @@ window._carregarAuditoria = async function () {
             return `
             <tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:12px 16px;">${dtFormatada}</td>
-                <td style="padding:12px 16px;font-weight:500;">${aud.tipo_documento}<br><small style="color:#64748b;">${aud.detalhes || ''}</small></td>
+                <td style="padding:12px 16px;font-weight:500;display:flex;align-items:center;gap:8px;">
+        <div>
+            ${aud.tipo_documento}<br><small style="color:#64748b;">${aud.detalhes || ''}</small>
+        </div>
+        ${(aud.tipo_documento === 'Entrega de EPI' && aud.documento_id) ? `<button onclick="window.verComprovanteEntrega(${aud.documento_id})" title="Ver Comprovante" style="background:none;border:none;color:#3b82f6;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;padding:2px;"><i class="ph ph-eye"></i></button>` : (aud.tipo_documento !== 'Entrega de EPI' && aud.documento_id) ? `<button onclick="window.open('${API_URL}/documentos/download/${aud.documento_id}?token=${currentToken}', '_blank')" title="Ver Documento" style="background:none;border:none;color:#3b82f6;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;padding:2px;"><i class="ph ph-eye"></i></button>` : ''}
+    </td>
                 <td style="padding:12px 16px;">${aud.colaborador_nome}</td>
                 <td style="padding:12px 16px;font-family:monospace;font-size:0.85em;">${aud.ip || '-'}</td>
                 <td style="padding:12px 16px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${aud.dispositivo}">${aud.dispositivo || '-'}</td>
