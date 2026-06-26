@@ -18522,13 +18522,6 @@ app.delete('/api/treinamentos/:id', authenticateToken, async (req, res) => {
 
 // ── GET /api/treinamentos/:id/anexos — Lista anexos ──────────────────────────
 app.get('/api/treinamentos/:id/anexos', authenticateToken, (req, res) => {
-  const sqlColabs = `
-    SELECT c.id, c.nome_completo, c.departamento, c.cargo, c.status, c.foto_path, c.foto_base64, d.tipo AS departamento_tipo
-    FROM colaboradores c
-    LEFT JOIN departamentos d ON c.departamento = d.nome
-    WHERE c.status != 'Desligado'
-    ORDER BY c.nome_completo ASC
-  `;
   db.all(
     `SELECT * FROM treinamento_anexos WHERE treinamento_id = ? ORDER BY enviado_em DESC`,
     [req.params.id],
@@ -18734,10 +18727,12 @@ db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='treinamento_p
 // e o status de conclusão de cada treinamento
 app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res) => {
   const sqlColabs = `
-    SELECT id, nome_completo, departamento, cargo, status, foto_path, foto_base64
-    FROM colaboradores
-    WHERE status != 'Desligado'
-    ORDER BY nome_completo ASC
+    SELECT c.id, c.nome_completo, c.departamento, c.cargo, c.status, c.foto_path, c.foto_base64,
+           d.tipo AS departamento_tipo
+    FROM colaboradores c
+    LEFT JOIN departamentos d ON c.departamento = d.nome
+    WHERE c.status != 'Desligado'
+    ORDER BY c.nome_completo ASC
   `;
   const sqlTrein = `
     SELECT id, nome, descricao, departamento, capa_url, validade_dias, IFNULL(tipo, 'treinamento') AS tipo
@@ -18868,7 +18863,8 @@ app.delete('/api/treinamento-presenca/:treinamentoId/:colaboradorId', authentica
 
 app.get('/api/treinamento-presenca/auditoria/:id', authenticateToken, (req, res) => {
     db.get(
-        `SELECT tp.*, c.nome_completo as colaborador_nome, t.nome as treinamento_nome, t.tipo as treinamento_tipo
+        `SELECT tp.*, c.nome_completo as colaborador_nome, t.nome as treinamento_nome, t.tipo as treinamento_tipo,
+                t.capa_url, tp.instrutor_nome
          FROM treinamento_presenca tp
          LEFT JOIN colaboradores c ON tp.colaborador_id = c.id
          LEFT JOIN treinamentos t ON tp.treinamento_id = t.id
