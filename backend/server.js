@@ -9466,16 +9466,19 @@ app.get('/api/epi-entregas/:id', authenticateToken, (req, res) => {
             // Agrupa itens repetidos
             const contagem = {};
             epis.forEach(nome => { contagem[nome] = (contagem[nome] || 0) + 1; });
-            res.json({
-                id: row.id,
-                ficha_id: row.ficha_id,
-                colaborador_id: row.colaborador_id,
-                colaborador_nome: row.colaborador_nome,
-                data_entrega: row.data_entrega,
-                grupo: row.grupo,
-                registrado_por: row.registrado_por,
-                epis: Object.entries(contagem).map(([nome, qty]) => ({ nome, qty })),
-                assinatura_base64: row.assinatura_base64 || null
+            db.get(`SELECT selfie_base64 FROM epi_selfies WHERE colaborador_id = ? ORDER BY criado_em DESC LIMIT 1`, [row.colaborador_id], (err2, selfieRow) => {
+                res.json({
+                    id: row.id,
+                    ficha_id: row.ficha_id,
+                    colaborador_id: row.colaborador_id,
+                    colaborador_nome: row.colaborador_nome,
+                    data_entrega: row.data_entrega,
+                    grupo: row.grupo,
+                    registrado_por: row.registrado_por,
+                    epis: Object.entries(contagem).map(([nome, qty]) => ({ nome, qty })),
+                    assinatura_base64: row.assinatura_base64 || null,
+                    selfie_base64: selfieRow ? selfieRow.selfie_base64 : null
+                });
             });
         }
     );

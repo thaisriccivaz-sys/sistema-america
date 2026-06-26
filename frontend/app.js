@@ -14931,9 +14931,20 @@ window._assinNextStep = async function () {
                 window._assinSelfieStream.getTracks().forEach(t => t.stop());
                 window._assinSelfieStream = null;
             }
-            window._assinSelfieStream = await navigator.mediaDevices.getUserMedia({video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false});
             const video = document.getElementById('epi-assin-selfie-video');
-            if (video) { video.srcObject = window._assinSelfieStream; video.style.display = 'block'; video.play().catch(e=>console.error(e)); }
+            if (video) {
+                video.pause();
+                video.srcObject = null;
+                video.load();
+            }
+            window._assinSelfieStream = await navigator.mediaDevices.getUserMedia({video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false});
+            if (video) { 
+                video.srcObject = window._assinSelfieStream; 
+                video.style.display = 'block'; 
+                video.onloadedmetadata = () => {
+                    video.play().catch(e=>console.error('[EPI Selfie] Erro no play:', e));
+                };
+            }
             document.getElementById('epi-assin-selfie-canvas').style.display = 'none';
             const btnTirar = document.getElementById('btn-epi-assin-tirar');
             if (btnTirar) btnTirar.style.display = 'flex';
