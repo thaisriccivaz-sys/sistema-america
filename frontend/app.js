@@ -15387,7 +15387,206 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-// PRONTUÁRIO TABS SEARCH FILTER
+// ==========================================
+// SEARCH & BOOKMARKS LOGIC
+// ==========================================
+
+window._pageBookmarks = JSON.parse(localStorage.getItem('pageBookmarks') || '[]');
+
+function getNormalizedPageSearchData() {
+    const pages = [];
+    for (const [key, obj] of Object.entries(BREADCRUMB_MAP)) {
+        const parts = obj.path.split('→').map(p => p.trim());
+        const rootPath = parts[0];
+
+        let targetKey = key;
+        let rootCode = obj.code;
+
+        // Se a tela for interna (sem código), redireciona o clique para a root (a raiz, ex: Colaboradores)
+        if (!obj.code) {
+            const rootEntry = Object.entries(BREADCRUMB_MAP).find(([k, v]) => v.path === rootPath && v.code);
+            if (rootEntry) {
+                targetKey = rootEntry[0];
+                rootCode = rootEntry[1].code;
+            } else {
+                // Algumas rotas raízes podem variar os nomes, tentar deduções cruas:
+                if (rootPath.includes('Colaboradores')) {
+                    targetKey = 'colaboradores'; rootCode = 'RHCL00';
+                } else if (rootPath.includes('EPI')) {
+                    targetKey = 'ficha-epi'; rootCode = 'RHEPI01';
+                }
+            }
+        }
+
+        pages.push({ key: targetKey, name: obj.path, code: rootCode });
+    }
+    return pages;
+}
+
+window.handlePageSearch = function (q) {
+    const resDiv = document.getElementById('page-search-results');
+    if (!resDiv) return;
+    q = (q || '').toLowerCase().trim();
+    if (!q) { resDiv.style.display = 'none'; return; }
+
+    const all = getNormalizedPageSearchData();
+    const filtered = all.filter(p => p.name.toLowerCase().includes(q) || (p.code && p.code.toLowerCase().includes(q)));
+
+    if (filtered.length === 0) {
+        resDiv.innerHTML = '<div style="padding:10px; color:#64748b; font-size:0.85rem;">Nenhuma página encontrada.</div>';
+    } else {
+        resDiv.innerHTML = filtered.map(p => {
+            const tMeta = getTabMeta(p.key) || { color: '#64748b', icon: 'ph-browsers', title: p.name };
+            const color = tMeta.color || '#f503c5';
+
+            let menuName = 'RH';
+            let menuIcon = 'ph-users';
+            if (color === '#d9480f') { menuName = 'Diretoria'; menuIcon = 'ph-crown'; }
+            else if (color === '#2d9e5f' || color === '#1e3a5f') { menuName = 'Logística'; menuIcon = 'ph-truck'; }
+            else if (color === '#1971c2') { menuName = 'Financeiro'; menuIcon = 'ph-currency-dollar'; }
+            else if (color === '#7048e8') { menuName = 'Comercial'; menuIcon = 'ph-handshake'; }
+            else if (color === '#e67700') { menuName = 'Administrativo'; menuIcon = 'ph-gear'; }
+
+            let screenName = tMeta.title || p.name;
+            if (p.key.startsWith('tab:')) screenName = 'Prontuário: ' + (p.key.replace('tab:', '') || screenName);
+
+            return `
+            <div onclick="abrirAbaOuNavegar('${p.key}')" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'" style="padding:10px 14px; cursor:pointer; border-bottom:1px solid #f1f5f9; font-size:0.85rem; display:flex; align-items:center; gap:8px; color:${color}; font-weight:600;">
+                <i class="ph ${menuIcon}" style="font-size:1.1rem;"></i>
+                <span>${menuName}</span>
+                <span style="color:#cbd5e1; margin:0 4px;">-</span>
+                <i class="ph ${tMeta.icon || 'ph-browsers'}" style="font-size:1.1rem;"></i>
+                <span>${screenName}</span>
+            </div>
+            `;
+        }).join('');
+    }
+    resDiv.style.display = 'block';
+};
+
+window.abrirAbaOuNavegar = function (key) {
+    if (key.startsWith('tab:')) {
+        const tabName = key.replace('tab:', '');
+        const li = document.querySelector(`#tabs-list li[data-tab="${tabName}"]`);
+        if (li) {
+            // Se estivermos fora do prontuário, não rola assim direto sem abrir o colab. 
+            // Mas vamos assumir que o usuário só favorita as abas quando está num colaborador
+            renderTabContent(tabName, li.textContent.trim());
+        }
+    } else {
+        navigateTo(key);
+    }
+    document.getElementById('page-search-results').style.display = 'none';
+};
+
+window.toggleBookmarkCurrentPage = function () {
+    if (!window.currentBreadcrumbKey) return;
+    const idx = window._pageBookmarks.indexOf(window.currentBreadcrumbKey);
+    if (idx >= 0) {
+        window._pageBookmarks.splice(idx, 1);
+    } else {
+        window._pageBookmarks.push(window.currentBreadcrumbKey);
+    }
+    localStorage.setItem('pageBookmarks', JSON.stringify(window._pageBookmarks));
+    renderBookmarks();
+};
+
+window.renderBookmarks = function () {
+    const list = document.getElementById('bookmarks-list');
+    const starBtn = document.getElementById('btn-star-page');
+    if (!list || !starBtn) return;
+
+    // Update star button state (filled or outline)
+    if (window._pageBookmarks.includes(window.currentBreadcrumbKey)) {
+        starBtn.innerHTML = '<i class="ph-fill ph-star"></i>';
+    } else {
+        starBtn.innerHTML = '<i class="ph ph-star"></i>';
+    }
+
+    list.innerHTML = window._pageBookmarks.map(key => {
+        const obj = BREADCRUMB_MAP[key];
+        if (!obj) return ''; // entrada não mapeada - ignorar com segurança
+
+        // Ignorar tabs ou caminhos com setas, a menos que seja usuarios-permissoes ou form-usuario
+        if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario') || key.startsWith('tab:')) return '';
+
+        // Detecta a cor certa com base no TAB_META
+        const tabMeta = TAB_META[key];
+        let btnColor = tabMeta ? tabMeta.color : '#f503c5';
+        if (!tabMeta) {
+            if (obj.path.includes('Diretoria')) btnColor = '#d9480f';
+        }
+
+        let btnLabel = obj.path;
+        if (key === 'usuarios-permissoes' || key === 'form-usuario') {
+            btnLabel = 'Usuários';
+        }
+        if (key === 'pagamentos-massa') {
+            btnLabel = 'Docs. em Massa';
+        }
+        if (key === 'recibos') {
+            btnLabel = 'Recibos';
+        }
+
+        return `<button onclick="abrirAbaOuNavegar('${key}')" style="background:${btnColor}; color:white; border:none; border-radius:16px; padding:4px 12px; font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; box-shadow:0 2px 4px rgba(0,0,0,0.2); transition:transform 0.2s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">${btnLabel}</button>`;
+    }).join('');
+};
+
+// Hook renderBookmarks inside navigateTo and renderTabContent
+const _oldNavigateTo = window.navigateTo;
+window.navigateTo = function (viewId, pushState) {
+    _oldNavigateTo.call(window, viewId, pushState);
+    if (typeof renderBookmarks === 'function') renderBookmarks();
+};
+const _oldRenderTabContent = window.renderTabContent;
+window.renderTabContent = function (tabId, tabName, force) {
+    if (_oldRenderTabContent) _oldRenderTabContent.call(window, tabId, tabName, force);
+    if (typeof renderBookmarks === 'function') renderBookmarks();
+};
+
+// Start hooks
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(renderBookmarks, 500);
+});
+
+// ==========================================
+// SIDEBAR TOGGLE
+// ==========================================
+window._sidebarCollapsed = false;
+
+window.toggleSidebar = function () {
+    const sidebar = document.getElementById('app-sidebar');
+    const wrapper = document.querySelector('.main-wrapper');
+    const icon = document.getElementById('sidebar-toggle-icon');
+    if (!sidebar) return;
+    window._sidebarCollapsed = !window._sidebarCollapsed;
+    sidebar.classList.toggle('collapsed', window._sidebarCollapsed);
+    wrapper && wrapper.classList.toggle('sidebar-collapsed', window._sidebarCollapsed);
+    if (icon) {
+        icon.className = window._sidebarCollapsed ? 'ph ph-sidebar-simple-duotone' : 'ph ph-sidebar-simple';
+    }
+    localStorage.setItem('sidebarCollapsed', window._sidebarCollapsed ? '1' : '0');
+};
+
+// Restore sidebar state on load
+(function () {
+    const saved = localStorage.getItem('sidebarCollapsed');
+    if (saved === '1') {
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const sidebar = document.getElementById('app-sidebar');
+                const wrapper = document.querySelector('.main-wrapper');
+                const icon = document.getElementById('sidebar-toggle-icon');
+                if (sidebar) sidebar.classList.add('collapsed');
+                if (wrapper) wrapper.classList.add('sidebar-collapsed');
+                if (icon) icon.className = 'ph ph-sidebar-simple-duotone';
+                window._sidebarCollapsed = true;
+            }, 100);
+        });
+    }
+})();
+
+\n\n// PRONTUÁRIO TABS SEARCH FILTER
 // ==========================================
 window.filterTabsList = function(q) {
     q = (q || '').toLowerCase().trim();
@@ -15429,7 +15628,7 @@ window.carregarStatusCertificado = async function (customBannerId = null) {
     const btnGerenciar = isDiretoria
         ? `<button onclick="navigateTo('certificado-digital')"
                style="border:none;background:rgba(22,163,74,0.15);color:#166534;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;flex-shrink:0;">
-               <i class="ph ph-arrow-square-out"></i> Diretoria ÔåÆ Certificado
+               <i class="ph ph-arrow-square-out"></i> Diretoria → Certificado
            </button>`
         : '';
 
@@ -15438,7 +15637,7 @@ window.carregarStatusCertificado = async function (customBannerId = null) {
                style="border:none;background:#fef3c7;color:#92400e;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;flex-shrink:0;">
                <i class="ph ph-arrow-square-out"></i> Configurar na Diretoria
            </button>`
-        : `<span style="font-size:0.76rem;opacity:0.75;white-space:nowrap;">Configure em Diretoria ÔåÆ Certificado Digital</span>`;
+        : `<span style="font-size:0.76rem;opacity:0.75;white-space:nowrap;">Configure em Diretoria → Certificado Digital</span>`;
 
     try {
         const data = await apiGet('/certificado-digital/status');
@@ -15467,7 +15666,7 @@ window.carregarStatusCertificado = async function (customBannerId = null) {
                     <div style="font-weight:700;">Assinatura Digital não configurada</div>
                     <div style="font-size:0.76rem;margin-top:2px;opacity:0.85;">
                         Os documentos serão enviados <b>sem assinatura digital</b>.
-                        ${isDiretoria ? 'Configure o certificado .pfx na Diretoria.' : 'Solicite ├á Diretoria para configurar o certificado digital.'}
+                        ${isDiretoria ? 'Configure o certificado .pfx na Diretoria.' : 'Solicite à Diretoria para configurar o certificado digital.'}
                     </div>
                 </div>
                 ${btnConfigurar}`;
@@ -16049,7 +16248,7 @@ window.filtrarAssinaturas = function () {
                 viewBtn = `<button onclick="window.openSignedDocPopup(${d.id}, '${nomeEsc}', event)" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button>`;
             }
         } else if (d.assinafy_id) {
-            // Qualquer status não-assinado com assinafy_id ÔåÆ pode reenviar
+            // Qualquer status não-assinado com assinafy_id → pode reenviar
             viewBtn = `<button onclick="window.reenviarAssinatura(${d.id}, '${d.source}', this)" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Copiar link ou Enviar WhatsApp"><i class="ph ph-paper-plane-right"></i> Reenviar</button>`;
         }
 
@@ -16166,7 +16365,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
           <!-- Corpo scrollável -->
           <div style="flex:1;overflow:auto;padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1.25rem;">
 
-            <!-- ETAPA 1: Tipo de Documento (OBRIGAT├ôRIO primeiro) -->
+            <!-- ETAPA 1: Tipo de Documento (OBRIGATÓRIO primeiro) -->
             <div id="pm-upload-section" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.5rem;">
               <h3 style="margin:0 0 1rem;font-size:0.95rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:0.5rem;">
                 <span style="background:#f503c5;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">1</span>
@@ -16216,12 +16415,12 @@ window.reenviarAssinatura = async function (id, source, btn) {
                 <h4 style="margin:0 0 1rem; color:#334155; font-size:0.95rem;">Anexar Holerites (Opcional)</h4>
                 
                 <div style="margin-bottom:1rem;">
-                  <label style="font-size:0.8rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Holerite Adiantamento (PDF ├Ünico)</label>
+                  <label style="font-size:0.8rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Holerite Adiantamento (PDF Único)</label>
                   <input id="pm-file-adiantamento" type="file" accept=".pdf" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
                 </div>
 
                 <div style="margin-bottom:1.5rem;">
-                  <label style="font-size:0.8rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Holerite Salário/Pagamento (PDF ├Ünico)</label>
+                  <label style="font-size:0.8rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Holerite Salário/Pagamento (PDF Único)</label>
                   <input id="pm-file-pagamento" type="file" accept=".pdf" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
                 </div>
 
@@ -16306,7 +16505,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">HOLERITE</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#16a34a;">SALVO</th>
                        <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#a21caf;">ENVIADO</th>
-                      <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">A├ç├òES</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">AÇÕES</th>
                      </tr>
                   </thead>
                   <tbody id="pm-tbody"></tbody>
@@ -16574,7 +16773,7 @@ window.reenviarAssinatura = async function (id, source, btn) {
                             return;
                         }
                     }
-                    // Se confirmButtonText (true) ÔåÆ itensSalvar = todos (já está assim)
+                    // Se confirmButtonText (true) → itensSalvar = todos (já está assim)
                     document.getElementById('pm-processing').style.display = 'block';
                     document.getElementById('pm-processing').innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i> Salvando holerites nos colaboradores...';
                 }
@@ -17335,7 +17534,7 @@ setInterval(() => {
     }
 }, 500);
 
-// === INJE├ç├âO ROBUSTA DE BOT├òES DE HIST├ôRICO ===
+// === INJEÇÃO ROBUSTA DE BOTÕES DE HISTÓRICO ===
 (function _injectHistoryButtons() {
 
     function makeBtn(onclickFn) {
@@ -17421,7 +17620,7 @@ setInterval(() => {
     }, 800);
 })();
 
-// ===== SISTEMA DE TOAST: NOTIFICA├ç├òES DE DOCUMENTOS ASSINADOS (ADMISS├âO) =====
+// ===== SISTEMA DE TOAST: NOTIFICAÇÕES DE DOCUMENTOS ASSINADOS (ADMISSÃO) =====
 (function () {
     // Container de toasts
     function getToastContainer() {
@@ -17586,7 +17785,7 @@ setInterval(() => {
 
 })();
 
-// --- GEST├âO DE INTEGRA├ç├âO ---
+// --- GESTÃO DE INTEGRAÇÃO ---
 window.startIntegracao = function (val) {
     if (val) {
         document.getElementById('integracao-workflow').style.display = 'block';
@@ -17822,7 +18021,7 @@ window.renderEnvioContabilidadeLog = function () {
         const dt = new Date(enviada_em.endsWith('Z') ? enviada_em : enviada_em + 'Z');
         const dia = dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const hora = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        dataFormatada = `${dia} ├ás ${hora}`;
+        dataFormatada = `${dia} às ${hora}`;
     } catch (e) { }
 
     if (dataEl) dataEl.textContent = dataFormatada;
@@ -17842,7 +18041,7 @@ window.renderEnvioContabilidadeLog = function () {
 
 
 // ============================================================
-// PASSO 2 ADMISS├âO — SANTANDER (Pedido de Abertura de Conta)
+// PASSO 2 ADMISSÃO — SANTANDER (Pedido de Abertura de Conta)
 // ============================================================
 // Helper: atualiza UI do Step 2 Santander (usada ao gerar e ao voltar ao passo)
 window._updateSantanderStepUI = function (dataSantander) {
@@ -17981,7 +18180,7 @@ window.gerarFichaSantander = async function () {
   <p class="body-text">Prezado (a)</p>
   <p class="body-text">Escolhemos o Santander como nosso parceiro para o processamento do pagamento do seu salário.</p>
   <p class="body-text">Conforme determinam as Resoluções n┬║ 3.402 e 3.424/06, do Conselho Monetário Nacional, seu salário será creditado em uma conta de registro, denominada 'conta salário', que não é movimentável por cheque, não admite créditos de outras naturezas que não salariais e possui serviços limitados.</p>
-  <p class="body-text">Você também poderá aproveitar as vantagens de ter uma <b>CONTA SAL├üRIO</b> e transferir automaticamente o seu salário, possibilitando assim fazer uso de diversos outros serviços e condições diferenciadas oferecidas pelo Santander, que acreditamos que tenham um valor diferenciado para você. Para conhecer as vantagens de uma conta salário compareça a uma agência até a data da sua admissão e apresente o original e uma cópia simples (frente e verso) dos documentos abaixo indicados:</p>
+  <p class="body-text">Você também poderá aproveitar as vantagens de ter uma <b>CONTA SALÁRIO</b> e transferir automaticamente o seu salário, possibilitando assim fazer uso de diversos outros serviços e condições diferenciadas oferecidas pelo Santander, que acreditamos que tenham um valor diferenciado para você. Para conhecer as vantagens de uma conta salário compareça a uma agência até a data da sua admissão e apresente o original e uma cópia simples (frente e verso) dos documentos abaixo indicados:</p>
 
   <ul class="docs">
     <li>Esta carta;</li>
@@ -18032,7 +18231,7 @@ window.gerarFichaSantander = async function () {
 
   <!-- Anexo 3 (Rodapé e Quadro) -->
   <div style="font-size: 7.5pt; margin-top: 10px; text-align: justify; line-height: 1.2;">
-    *Exceto nos casos de pedidos de reposição formulados pelo cliente decorrentes de perda, roubo, danificação ou outros motivos não imputáveis ao Banco. ** Serviços gratuitos: duas consultas ao saldo de sua conta, dois extratos dos últimos 30 dias, um DOC/TED pelo valor total do crédito e cinco saques (por evento de crédito). A utilização acima desses limites ou de quaisquer outros serviços estará sujeita ├á cobrança de tarifas.
+    *Exceto nos casos de pedidos de reposição formulados pelo cliente decorrentes de perda, roubo, danificação ou outros motivos não imputáveis ao Banco. ** Serviços gratuitos: duas consultas ao saldo de sua conta, dois extratos dos últimos 30 dias, um DOC/TED pelo valor total do crédito e cinco saques (por evento de crédito). A utilização acima desses limites ou de quaisquer outros serviços estará sujeita à cobrança de tarifas.
   </div>
 
   <div style="border: 2px solid #000; margin-top: 10px; page-break-inside: avoid;">
@@ -18236,7 +18435,7 @@ window.irAoProntuarioDigital = async function (tabName) {
     }
 };
 
-// Funçao mockup caso n├▓o exista _recalculateAdmissaoFinalProg
+// Funçao mockup caso não exista _recalculateAdmissaoFinalProg
 if (typeof window._recalculateAdmissaoFinalProg !== 'function') {
     window._recalculateAdmissaoFinalProg = function () {
         const bar = document.getElementById('admissao-progress-bar');
@@ -18268,7 +18467,7 @@ window.renderMultasMotoristaTab = async function (container) {
     // Aviso informativo
     const aviso = document.createElement('div');
     aviso.style = 'background:#f0f9ff;border:1px solid #7dd3fc;border-radius:10px;padding:0.85rem 1.1rem;display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;font-size:0.85rem;color:#0369a1;';
-    aviso.innerHTML = '<i class="ph ph-info" style="font-size:1.2rem;flex-shrink:0;"></i><span>Para cadastrar uma nova multa, acesse o menu <strong>Logística ÔåÆ Multas</strong> e atribua o motorista ao registrar a infração.</span>';
+    aviso.innerHTML = '<i class="ph ph-info" style="font-size:1.2rem;flex-shrink:0;"></i><span>Para cadastrar uma nova multa, acesse o menu <strong>Logística → Multas</strong> e atribua o motorista ao registrar a infração.</span>';
 
     let multas = [];
     try {
@@ -18349,7 +18548,7 @@ window.renderMultasMotoristaTab = async function (container) {
                             🚦 AIT: ${m.numero_ait || '—'}
                             ${m.placa ? `<span style="margin-left:8px;font-size:0.8rem;font-weight:600;color:#64748b;background:#f1f5f9;padding:1px 8px;border-radius:10px;">${m.placa}</span>` : ''}
                         </div>
-                        <div style="font-size:0.78rem;color:#94a3b8;margin-top:2px;">${dataFmt}${m.hora_infracao ? ' ├ás ' + m.hora_infracao : ''}</div>
+                        <div style="font-size:0.78rem;color:#94a3b8;margin-top:2px;">${dataFmt}${m.hora_infracao ? ' às ' + m.hora_infracao : ''}</div>
                     </div>
                 </div>
                 <span style="background:${bgStatus};color:#0f172a;font-weight:700;font-size:0.75rem;padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${m.status || '—'}</span>
@@ -18523,7 +18722,7 @@ window.abrirFormNovaMulta = function (colabId, container) {
         <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:680px;max-height:90vh;overflow-y:auto;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
                 <h3 style="margin:0;color:#1e293b;font-size:1.1rem;"><i class="ph ph-traffic-sign" style="color:#f503c5;"></i> Nova Multa de Trânsito</h3>
-                <button onclick="document.getElementById('modal-nova-multa').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#64748b;">├ù</button>
+                <button onclick="document.getElementById('modal-nova-multa').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#64748b;">×</button>
             </div>
 
             <div style="border:2px dashed #e2e8f0;border-radius:10px;padding:1.5rem;text-align:center;margin-bottom:1.5rem;cursor:pointer;background:#f8fafc;" id="multa-upload-area">
@@ -18580,7 +18779,7 @@ window.abrirPopupIniciarProcesso = function (m, colabId) {
         <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
                 <h3 style="margin:0;color:#1e293b;font-size:1.1rem;">⚖️ Iniciar Processo — Multa ${m.codigo_infracao || ''}</h3>
-                <button onclick="document.getElementById('modal-iniciar-processo').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#64748b;">├ù</button>
+                <button onclick="document.getElementById('modal-iniciar-processo').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#64748b;">×</button>
             </div>
 
             <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">⚖️ Forma de Resolução</h4>
@@ -18617,9 +18816,9 @@ window.confirmarIniciarProcesso = async function (multaId, colabId) {
     if (!window._multaTipoSelecionado) {
         alert('Selecione a forma de resolução antes de continuar.'); return;
     }
-    // Valida se há colaborador vinculado ├á multa
+    // Valida se há colaborador vinculado à multa
     if (!colabId || colabId === 'undefined' || colabId === 'null' || String(colabId) === 'undefined') {
-        alert('ÔÜá´©Å Esta multa não possui motorista vinculado.\n\nPara iniciar o processo, primeiro vincule um motorista pela opção "Gerenciar Multa" ÔåÆ "+ Adicionar Motorista".'); 
+        alert('ÔÜá´©Å Esta multa não possui motorista vinculado.\n\nPara iniciar o processo, primeiro vincule um motorista pela opção "Gerenciar Multa" → "+ Adicionar Motorista".'); 
         return;
     }
 
@@ -18691,7 +18890,7 @@ window.abrirModalTestemunhas = async function (m, colabId) {
             <button onclick="document.getElementById('modal-testemunhas-multa').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;">Fechar</button>
         </div>
         <div style="flex:1;display:flex;overflow:hidden;">
-            <!-- Documento ├á esquerda -->
+            <!-- Documento à esquerda -->
             <div style="flex:1;overflow-y:auto;background:#f1f5f9;padding:1rem;" id="doc-preview-testemunhas">
                 <div style="color:#64748b;text-align:center;padding:2rem;">Carregando documento...</div>
             </div>
