@@ -86,7 +86,7 @@ function renderTelaPropostas() {
                     padding: 0.6rem 1.5rem;
                     border-radius: 8px;
                     border: 1px solid #E2E8F0;
-                    margin-bottom: 1.5rem;
+                    margin-bottom: 0.5rem;
                     font-family: 'Inter', sans-serif;
                     box-shadow: 0 1px 3px rgba(0,0,0,0.02);
                 }
