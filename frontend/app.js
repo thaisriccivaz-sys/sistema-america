@@ -14524,6 +14524,212 @@ async function renderFichaEpiTab(container) {
 // Expõe como window.renderFichaEpiTab para compatibilidade com módulos externos
 window.renderFichaEpiTab = renderFichaEpiTab;
 
+// ============================================================
+// FLUXO DE ASSINATURA DE ENTREGA DE EPI — funções restauradas
+// ============================================================
+
+window.gerarFichaEpiManualProntuario = async function (templateId) {
+    if (!confirm('Deseja gerar a Ficha de EPI para esse colaborador usando o template padrão vinculado a este cargo?')) return;
+    const colabId = viewedColaborador?.id;
+    if (!colabId) return;
+    const template = window._epiProntuarioData?.templates?.find(t => t.id === templateId);
+    if (!template) return alert('Template inválido.');
+    const payload = { template_id: template.id, grupo: template.grupo, snapshot_epis: template.epis || [], snapshot_termo: template.termo_texto || '', snapshot_rodape: template.rodape_texto || '' };
+    const btn = event.currentTarget;
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...'; btn.disabled = true;
+    try {
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/epi-fichas`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!res.ok) throw new Error('Erro na resposta do servidor.');
+        renderTabContent('Ficha de EPI', 'Ficha de EPI');
+    } catch (err) { console.error(err); alert('Ocorreu um erro ao gerar a ficha ativa.'); btn.innerHTML = oldHtml; btn.disabled = false; }
+};
+
+window.abrirAssinaturaEpi = async function (fichaId) {
+    const { fichas, colabId } = window._epiProntuarioData || {};
+    const ficha = (fichas || []).find(f => f.id === fichaId);
+    if (!ficha) return;
+    const epis = ficha.snapshot_epis || [];
+    const termo = ficha.snapshot_termo || '';
+    const old = document.getElementById('epi-assinatura-overlay');
+    if (old) old.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'epi-assinatura-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99990;background:rgba(15,23,42,0.92);display:flex;flex-direction:column;overflow:hidden;';
+    overlay.innerHTML = `
+        <div style="background:#1e3a5f;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+            <div style="display:flex;align-items:center;gap:0.75rem;"><i class="ph ph-shield-check" style="color:#60a5fa;font-size:1.3rem;"></i><span style="color:#f1f5f9;font-weight:700;font-size:0.97rem;">Registrar Entrega de EPI — ${ficha.grupo}</span></div>
+            <button onclick="document.getElementById('epi-assinatura-overlay').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;">×</button>
+        </div>
+        <div id="epi-assin-body" style="flex:1;overflow-y:auto;padding:1.5rem 2rem;">
+            <div id="epi-step-1">
+                <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
+                    <div><label style="font-size:0.82rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data de Entrega</label><input type="date" id="epi-data-entrega" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:0.9rem;color:#0f172a;outline:none;"></div>
+                    <div style="flex:1;min-width:200px;"><label style="font-size:0.82rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Buscar EPI</label><input type="text" id="epi-filtro-input" placeholder="Filtrar EPIs..." oninput="window._renderEpiGrid(this.value)" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:0.9rem;color:#0f172a;outline:none;box-sizing:border-box;"></div>
+                </div>
+                <p style="font-size:0.82rem;color:#64748b;margin:0 0 0.75rem;">Ajuste a <strong>quantidade</strong> desejada de cada EPI:</p>
+                <div id="epi-lista-botoes" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;"></div>
+                <p id="epi-select-warn" style="color:#dc2626;font-size:0.85rem;margin:0.75rem 0 0;display:none;">&#9888; Defina quantidade > 0 em pelo menos um EPI.</p>
+            </div>
+            <div id="epi-step-2" style="display:none; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <div style="display:flex;flex-direction:column;min-width:0;">
+                    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem;"><p style="font-size:0.85rem;font-weight:700;color:#166534;margin:0 0 6px;">EPIs para entrega em <strong id="epi-data-display"></strong>:</p><ul id="epi-lista-selecionada" style="margin:0;padding-left:1.25rem;font-size:0.85rem;color:#15803d;"></ul></div>
+                    <p style="font-size:0.85rem;font-weight:700;color:#374151;margin:0 0 6px;">Termo de Responsabilidade:</p>
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.9rem;font-size:0.82rem;color:#374151;overflow-y:auto;line-height:1.6;white-space:pre-wrap;flex:1;">${termo}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;min-width:0;">
+                    <p style="font-size:0.95rem;font-weight:700;color:#0f172a;margin:0 0 6px;"><i class="ph ph-pen" style="color:#1e3a5f;"></i> Assinatura do Colaborador:</p>
+                    <p style="font-size:0.8rem;color:#64748b;margin:0 0 8px;">Assine abaixo. Será aplicada em todos os itens entregues.</p>
+                    <div style="border:2px dashed #94a3b8;border-radius:10px;background:#fafafa;position:relative;flex:1;display:flex;">
+                        <canvas id="epi-signature-canvas" width="900" height="450" style="width:100%;height:100%;min-height:220px;border-radius:8px;touch-action:none;cursor:crosshair;display:block;"></canvas>
+                        <button onclick="window._limparAssinatura()" style="position:absolute;top:8px;right:8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:4px 12px;font-size:0.78rem;color:#475569;cursor:pointer;">Limpar</button>
+                    </div>
+                    <p id="epi-assin-warn" style="color:#dc2626;font-size:0.82rem;margin:0.5rem 0 0;display:none;">A assinatura é obrigatória.</p>
+                </div>
+            </div>
+            <div id="epi-step-3" style="display:none;text-align:center;padding:4rem 1rem;">
+                <i class="ph ph-check-circle" style="font-size:5rem;color:#16a34a;display:block;margin-bottom:1rem;"></i>
+                <p style="font-weight:700;font-size:1.2rem;color:#15803d;margin:0 0 6px;">Entrega registrada com sucesso!</p>
+                <p style="font-size:0.9rem;color:#64748b;">EPIs e assinatura salvos na ficha.</p>
+            </div>
+        </div>
+        <div id="epi-assin-footer" style="border-top:1px solid #e2e8f0;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;flex-shrink:0;">
+            <button id="btn-assin-back" onclick="window._assinStep(1)" style="display:none;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.65rem 1.5rem;font-weight:600;font-size:0.9rem;cursor:pointer;color:#475569;"><i class="ph ph-arrow-left"></i> Voltar</button>
+            <div></div>
+            <button id="btn-assin-next" onclick="window._assinNextStep()" class="btn btn-primary" style="padding:0.65rem 2rem;font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:8px;">Próximo <i class="ph ph-arrow-right"></i></button>
+        </div>`;
+    document.body.appendChild(overlay);
+    window._assinCurrentStep = 1; window._assinFichaId = fichaId; window._assinColabId = colabId; window._assinEpisDisponiveis = epis; window._assinQtds = {};
+    setTimeout(() => { window._initSignatureCanvas(); const today = new Date(); const di = document.getElementById('epi-data-entrega'); if (di) { di.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'); } window._renderEpiGrid(''); }, 100);
+};
+
+window._renderEpiGrid = function (filtro) {
+    const epis = window._assinEpisDisponiveis || [];
+    const c2 = document.getElementById('epi-lista-botoes');
+    if (!c2) return;
+    const f = (filtro || '').toLowerCase().trim();
+    const filtered = f ? epis.filter(e => e.toLowerCase().includes(f)) : epis;
+    c2.innerHTML = '';
+    filtered.forEach(epi => {
+        const qty = window._assinQtds[epi] || 0;
+        const card = document.createElement('div'); card.setAttribute('data-epi-card', epi);
+        card.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.65rem 1rem;border:2px solid '+(qty>0?'#16a34a':'#e2e8f0')+';border-radius:10px;background:'+(qty>0?'#f0fdf4':'#fff')+';box-shadow:0 1px 3px rgba(0,0,0,0.06);';
+        const lbl = document.createElement('span'); lbl.style.cssText = 'font-size:0.88rem;color:#0f172a;font-weight:600;flex:1;margin-right:0.5rem;line-height:1.3;'; lbl.textContent = epi;
+        const ctrl = document.createElement('div'); ctrl.style.cssText = 'display:flex;align-items:center;gap:6px;flex-shrink:0;';
+        const btnM = document.createElement('button'); btnM.textContent = '−'; btnM.style.cssText = 'background:'+(qty>0?'#1e3a5f':'#e2e8f0')+';color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+        btnM.addEventListener('click', () => window._setEpiQty(epi, Math.max(0, (window._assinQtds[epi]||0)-1)));
+        const inp = document.createElement('input'); inp.type='number'; inp.min='0'; inp.value=qty; inp.style.cssText='width:48px;text-align:center;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px;font-size:0.95rem;font-weight:700;color:#0f172a;';
+        inp.addEventListener('input', () => window._setEpiQty(epi, Math.max(0, parseInt(inp.value)||0)));
+        const btnP = document.createElement('button'); btnP.textContent = '+'; btnP.style.cssText = 'background:#1e3a5f;color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+        btnP.addEventListener('click', () => window._setEpiQty(epi, (window._assinQtds[epi]||0)+1));
+        ctrl.appendChild(btnM); ctrl.appendChild(inp); ctrl.appendChild(btnP); card.appendChild(lbl); card.appendChild(ctrl); c2.appendChild(card);
+    });
+};
+
+window._requiresSize = function(epi) { const e=epi.toUpperCase(); if(['CAMISETA','POLO','CALÇA','BLUSA','JAQUETA','COLETE','BLUSAO','BLUSÃO','UNIFORME'].some(k=>e.includes(k))) return 'roupa'; if(e.includes('BOTA')) return 'bota'; return false; };
+
+window._setEpiQty = async function (epi, qty) {
+    const prevQty = (window._assinQtds||{})[epi]||0;
+    if (qty>prevQty && prevQty===0 && window._requiresSize(epi)) {
+        const tipoSize=window._requiresSize(epi); const opcoes=tipoSize==='bota'?['33','34','35','36','37','38','39','40','41','42','43','44','45','46']:['PP','P','M','G','GG','XG','XXG'];
+        const {value:tamanho}=await Swal.fire({title:'Qual tamanho?',html:`<p style="color:#475569;font-size:0.9rem;">Selecione o tamanho para <strong>${epi}</strong>:</p><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px;">${opcoes.map(o=>`<button type="button" class="swal-size-btn" data-size="${o}" onclick="document.querySelectorAll('.swal-size-btn').forEach(b=>b.style.background='#f1f5f9');this.style.background='#1e3a5f';this.style.color='#fff';document.getElementById('swal-size-val').value='${o}'" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-weight:700;font-size:0.9rem;cursor:pointer;background:#f1f5f9;">${o}</button>`).join('')}</div><input type="hidden" id="swal-size-val" value="">`,showCancelButton:true,confirmButtonText:'Confirmar',cancelButtonText:'Pular',confirmButtonColor:'#1e3a5f',preConfirm:()=>document.getElementById('swal-size-val').value||null,didOpen:()=>{const c=document.querySelector('.swal2-container');if(c)c.style.zIndex='999999';}});
+        if(tamanho){const nomeComTamanho=`${epi} (TAM ${tamanho})`;if(!window._assinEpisDisponiveis.includes(nomeComTamanho))window._assinEpisDisponiveis.push(nomeComTamanho);window._assinQtds[nomeComTamanho]=qty;window._renderEpiGrid(document.getElementById('epi-filtro-input')?.value||'');return;}
+    }
+    if(!window._assinQtds)window._assinQtds={};
+    window._assinQtds[epi]=qty;
+    const card=document.querySelector(`[data-epi-card="${CSS.escape(epi)}"]`);
+    if(card){card.style.border=qty>0?'2px solid #16a34a':'2px solid #e2e8f0';card.style.background=qty>0?'#f0fdf4':'#fff';const inp=card.querySelector('input[type="number"]');if(inp)inp.value=qty;const btnM=card.querySelectorAll('button')[0];if(btnM)btnM.style.background=qty>0?'#1e3a5f':'#e2e8f0';}
+};
+
+window._assinStep = function(step) {
+    const s1=document.getElementById('epi-step-1'),s2=document.getElementById('epi-step-2'),s3=document.getElementById('epi-step-3');
+    const back=document.getElementById('btn-assin-back'),next=document.getElementById('btn-assin-next'),footer=document.getElementById('epi-assin-footer');
+    if(s1)s1.style.display=step===1?'':'none'; if(s2)s2.style.display=step===2?'grid':'none'; if(s3)s3.style.display=step===3?'':'none';
+    if(back)back.style.display=step===2?'':'none';
+    if(next){if(step===1){next.style.display='';next.innerHTML='Próximo <i class="ph ph-arrow-right"></i>';next.disabled=false;}else if(step===2){next.style.display='';next.innerHTML='<i class="ph ph-check"></i> Confirmar Entrega';next.disabled=false;}else{next.style.display='none';}}
+    if(footer)footer.style.display=step===3?'none':'';
+    window._assinCurrentStep=step;
+    if(step===2)setTimeout(()=>window._initSignatureCanvas(),80);
+};
+
+window._assinNextStep = async function () {
+    const step=window._assinCurrentStep||1;
+    if(step===1){
+        const sel=Object.entries(window._assinQtds||{}).filter(([,q])=>q>0);
+        if(sel.length===0){const w=document.getElementById('epi-select-warn');if(w){w.style.display='';setTimeout(()=>w.style.display='none',3000);}return;}
+        const di=document.getElementById('epi-data-entrega'); const dataVal=di?di.value:''; const dataDisplay=document.getElementById('epi-data-display');
+        if(dataDisplay&&dataVal){const[y,m,d]=dataVal.split('-');dataDisplay.textContent=`${d}/${m}/${y}`;}
+        const lista=document.getElementById('epi-lista-selecionada'); if(lista)lista.innerHTML=sel.map(([nome,qty])=>`<li>${nome}${qty>1?` <strong>(×${qty})</strong>`:''}</li>`).join('');
+        window._assinStep(2); return;
+    }
+    if(step===2){
+        const w2=document.getElementById('epi-assin-warn');
+        if(!window._assinaturaTemConteudo()){if(w2){w2.style.display='';setTimeout(()=>w2.style.display='none',3000);}return;}
+        if(w2)w2.style.display='none';
+        const btnNext=document.getElementById('btn-assin-next'); if(btnNext){btnNext.disabled=true;btnNext.innerHTML='<i class="ph ph-spinner ph-spin"></i> Salvando...';}
+        try {
+            const canvas=document.getElementById('epi-signature-canvas'); const assinaturaBase64=canvas?canvas.toDataURL('image/png'):'';
+            const di=document.getElementById('epi-data-entrega'); const dataVal=di?di.value:new Date().toISOString().split('T')[0]; const[y,m,d]=dataVal.split('-'); const dataFormatada=`${d}/${m}/${y}`;
+            const episSelecionados=[]; Object.entries(window._assinQtds||{}).forEach(([nome,qty])=>{for(let i=0;i<qty;i++)episSelecionados.push(nome);});
+            const controller=new AbortController(); const timeout=setTimeout(()=>controller.abort(),30000);
+            const res=await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`,{method:'POST',headers:{'Authorization':`Bearer ${currentToken}`,'Content-Type':'application/json'},body:JSON.stringify({data_entrega:dataFormatada,epis_entregues:episSelecionados,assinatura_base64:assinaturaBase64,colaborador_id:window._assinColabId,registrado_por:currentUser?.nome||currentUser?.email||'Sistema'}),signal:controller.signal});
+            clearTimeout(timeout);
+            if(!res.ok){const errJson=await res.json().catch(()=>({}));throw new Error(errJson.error||`Erro HTTP ${res.status}`);}
+            window._assinStep(3);
+            (async()=>{try{const{fichas:ff,colabId:cid,templates}=window._epiProntuarioData||{};const fich=(ff||[]).find(f=>f.id===window._assinFichaId);if(fich&&cid){if(typeof ensureHeaderLogo==='function')await ensureHeaderLogo().catch(()=>{});const tpl=(templates||[]).find(t=>t.grupo===fich.grupo)||fich;const{jsPDF}=window.jspdf;const todasEntregas=await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`,{headers:{'Authorization':'Bearer '+currentToken}}).then(r=>r.json()).catch(()=>[]);const linhasFull=[];(todasEntregas||[]).forEach(e=>{const epis=e.epis_entregues||[];if(epis.length===0){linhasFull.push({data:e.data_entrega||'',descricao:'',qtd:1,assinatura_base64:e.assinatura_base64});}else{const grp={};epis.forEach(nome=>{grp[nome]=(grp[nome]||0)+1;});Object.entries(grp).forEach(([nome,qty])=>{linhasFull.push({data:e.data_entrega||'',descricao:nome,qtd:qty,assinatura_base64:e.assinatura_base64});});}});const doc=window.gerarDocEpi(tpl,viewedColaborador||{},jsPDF,linhasFull);const pdfB64=doc.output('datauristring');await fetch(API_URL+'/epi-fichas/'+window._assinFichaId+'/save-onedrive',{method:'POST',headers:{'Authorization':'Bearer '+currentToken,'Content-Type':'application/json'},body:JSON.stringify({pdf_base64:pdfB64,colaborador_id:cid})}).catch(e2=>console.warn('[save-onedrive]',e2));}}catch(se){console.warn('[save-onedrive]',se);}})();
+            setTimeout(()=>{const old=document.getElementById('epi-assinatura-overlay');if(old)old.remove();window.previewFichaEpi(window._assinFichaId);const activeTab=document.querySelector('#tabs-list li.active');if(activeTab)renderTabContent(activeTab.dataset.tab,activeTab.textContent,true);},2000);
+        } catch(err){
+            const btnNext=document.getElementById('btn-assin-next');if(btnNext){btnNext.disabled=false;btnNext.innerHTML='<i class="ph ph-check"></i> Confirmar Entrega';}
+            const msg=err.name==='AbortError'?'O servidor demorou muito para responder (30s). Verifique se o servidor está online e tente novamente.':'Erro ao salvar entrega: '+err.message;
+            Swal.fire({icon:'error',title:'Falha ao salvar',text:msg,confirmButtonColor:'#e67700',didOpen:()=>{const c=document.querySelector('.swal2-container');if(c)c.style.zIndex='999999';}});
+        }
+        return;
+    }
+    if(step===3){const old=document.getElementById('epi-assinatura-overlay');if(old)old.remove();}
+};
+
+window._initSignatureCanvas = function () {
+    const canvas=document.getElementById('epi-signature-canvas'); if(!canvas)return;
+    const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.strokeStyle='#1e3a5f'; ctx.lineWidth=4; ctx.lineCap='round'; ctx.lineJoin='round';
+    let drawing=false,lastX=0,lastY=0;
+    const getPos=(e)=>{const rect=canvas.getBoundingClientRect();const scaleX=canvas.width/rect.width;const scaleY=canvas.height/rect.height;if(e.touches)return{x:(e.touches[0].clientX-rect.left)*scaleX,y:(e.touches[0].clientY-rect.top)*scaleY};return{x:(e.clientX-rect.left)*scaleX,y:(e.clientY-rect.top)*scaleY};};
+    canvas.onmousedown=canvas.ontouchstart=(e)=>{e.preventDefault();drawing=true;const p=getPos(e);lastX=p.x;lastY=p.y;};
+    canvas.onmousemove=canvas.ontouchmove=(e)=>{e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y;};
+    canvas.onmouseup=canvas.ontouchend=()=>{drawing=false;}; canvas.onmouseleave=()=>{drawing=false;};
+};
+window._limparAssinatura=function(){const c=document.getElementById('epi-signature-canvas');if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);};
+window._assinaturaTemConteudo=function(){const c=document.getElementById('epi-signature-canvas');if(!c)return false;const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;for(let i=3;i<d.length;i+=4)if(d[i]>0)return true;return false;};
+
+window.gerarNovaFichaEpi = async function () {
+    const{templates,fichaAtiva,colabId,templateDoColab}=window._epiProntuarioData||{};
+    if(!templates||!colabId)return; const template=templateDoColab||templates[0];
+    if(!template){alert('Nenhum template de EPI encontrado para o departamento deste colaborador.');return;}
+    if(fichaAtiva){const ok=confirm(`Já existe uma ficha ativa (${fichaAtiva.grupo}). Deseja fechar a atual e criar nova?`);if(!ok)return;}
+    const res=await fetch(`${API_URL}/colaboradores/${colabId}/epi-fichas`,{method:'POST',headers:{'Authorization':`Bearer ${currentToken}`,'Content-Type':'application/json'},body:JSON.stringify({template_id:template.id,grupo:template.grupo,snapshot_epis:template.epis,snapshot_termo:template.termo_texto,snapshot_rodape:template.rodape_texto})});
+    const created=await res.json(); if(!created.id){alert('Erro ao criar ficha.');return;}
+    const activeTab=document.querySelector('#tabs-list li.active'); if(activeTab)renderTabContent(activeTab.dataset.tab,activeTab.textContent,true);
+    if(created.id)setTimeout(()=>{window.previewFichaEpi(created.id);},500);
+};
+
+window.previewFichaEpi = async function (fichaId) {
+    const{fichas,templates}=window._epiProntuarioData||{};
+    const ficha=(fichas||[]).find(f=>f.id===fichaId); if(!ficha){alert('Ficha nao encontrada.');return;}
+    let linhasFilled=[];
+    try{const entregas=await apiGet('/epi-fichas/'+fichaId+'/entregas');(entregas||[]).forEach(e=>{const epis=e.epis_entregues||[];if(epis.length===0){linhasFilled.push({data:e.data_entrega||'',descricao:'',qtd:1,assinatura_base64:e.assinatura_base64});}else{const grp={};epis.forEach(nome=>{grp[nome]=(grp[nome]||0)+1;});Object.entries(grp).forEach(([nome,qty])=>{linhasFilled.push({data:e.data_entrega||'',descricao:nome,qtd:qty,assinatura_base64:e.assinatura_base64});});}});}catch(err){console.warn('Erro entregas:',err);}
+    const template=(templates||[]).find(t=>t.grupo===ficha.grupo)||{epis:ficha.snapshot_epis||[],termo_texto:ficha.snapshot_termo,rodape_texto:ficha.snapshot_rodape,grupo:ficha.grupo};
+    if(typeof ensureHeaderLogo==='function')await ensureHeaderLogo().catch(()=>{});
+    const{jsPDF}=window.jspdf; const doc=window.gerarDocEpi(template,viewedColaborador||{},jsPDF,linhasFilled);
+    const pdfBytes=doc.output('arraybuffer'); const blob=new Blob([pdfBytes],{type:'application/pdf'}); const blobUrl=URL.createObjectURL(blob);
+    const old=document.getElementById('epi-preview-overlay'); if(old){old._blobUrl&&URL.revokeObjectURL(old._blobUrl);old.remove();}
+    window.closeEpiPreviewOverlay=function(){const o=document.getElementById('epi-preview-overlay');if(o){if(o._blobUrl)URL.revokeObjectURL(o._blobUrl);o.remove();}};
+    const ov=document.createElement('div'); ov.id='epi-preview-overlay'; ov._blobUrl=blobUrl;
+    ov.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.92);display:flex;flex-direction:column;align-items:stretch;padding:1rem;gap:0.75rem;';
+    const nomeArq=`FichaEPI_${(ficha.grupo||'EPI').replace(/\s+/g,'_')}.pdf`;
+    const header=document.createElement('div'); header.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:0 0.5rem;flex-shrink:0;';
+    header.innerHTML=`<p style="margin:0;color:#f1f5f9;font-weight:700;font-size:1rem;">Ficha de EPI &mdash; ${ficha.grupo}${ficha.status==='ativa'?'<span style="color:#86efac;margin-left:8px;">&#9679; Ativa</span>':''}</p><div style="display:flex;gap:8px;align-items:center;"><a href="${blobUrl}" download="${nomeArq}" style="background:#1e3a5f;color:#fff;border:none;padding:6px 16px;border-radius:8px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;text-decoration:none;"><i class="ph ph-download"></i> Baixar</a><button onclick="window.closeEpiPreviewOverlay()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;">&times;</button></div>`;
+    ov.appendChild(header); const iframe=document.createElement('iframe'); iframe.src=blobUrl; iframe.style.cssText='flex:1;border:none;border-radius:8px;background:#fff;'; ov.appendChild(iframe); document.body.appendChild(ov);
+};
+
 window._excluirEpiEntrega = async function(id, nome, btnEl, ficha_id) {
     if (!confirm(`Deseja realmente excluir o EPI "${nome}" da ficha?`)) return;
     const senha = prompt('Digite a senha para autorizar a exclusão:');
