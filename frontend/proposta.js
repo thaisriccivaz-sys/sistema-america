@@ -76,8 +76,6 @@ function renderTelaPropostas() {
     container.innerHTML = `
         <div style="max-width:1400px; margin:0 auto;">
 
-
-
             <!-- STYLE PARA A NAVBAR SAAS -->
             <style>
                 .saas-header {
@@ -99,27 +97,28 @@ function renderTelaPropostas() {
                     cursor: pointer;
                     user-select: none;
                 }
-                .saas-logo-icon {
-                    font-size: 1.6rem;
-                    color: #475569;
+                .saas-logo-img {
+                    height: 28px;
+                    width: auto;
+                    object-fit: contain;
                 }
                 .saas-brand-text {
                     font-size: 1rem;
                     font-weight: 800;
                     color: #1E293B;
                     font-family: 'Inter', sans-serif;
-                    letter-spacing: 0.05em;
+                    letter-spacing: 0.03em;
                 }
                 .saas-nav {
                     display: flex;
                     align-items: center;
-                    gap: 1.2rem;
+                    gap: 0.8rem;
                 }
                 .saas-nav-item {
                     display: flex;
                     align-items: center;
                     gap: 0.35rem;
-                    font-size: 0.88rem;
+                    font-size: 0.85rem;
                     font-weight: 600;
                     color: #64748B;
                     text-decoration: none;
@@ -127,7 +126,6 @@ function renderTelaPropostas() {
                     border-radius: 6px;
                     cursor: pointer;
                     transition: all 0.2s;
-                    position: relative;
                     user-select: none;
                 }
                 .saas-nav-item:hover {
@@ -137,81 +135,6 @@ function renderTelaPropostas() {
                 .saas-nav-item.active {
                     color: #7048E8 !important;
                     background-color: #E2E8F0;
-                }
-                .saas-nav-item.dashboard-item {
-                    color: #7048E8;
-                }
-                .saas-nav-item.dashboard-item i {
-                    color: #7048E8;
-                }
-                .saas-dropdown-wrapper {
-                    position: absolute;
-                    top: 100%;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    z-index: 1000;
-                    display: none;
-                    padding-top: 0.5rem;
-                }
-                .saas-nav-item.has-dropdown:hover .saas-dropdown-wrapper,
-                .saas-dropdown-wrapper:hover {
-                    display: block;
-                }
-                .saas-dropdown-menu {
-                    background: #FFFFFF;
-                    border: 1px solid #E2E8F0;
-                    border-radius: 8px;
-                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03), 0 12px 24px -4px rgba(0, 0, 0, 0.08);
-                    display: flex;
-                    overflow: hidden;
-                    min-width: 420px;
-                }
-                .saas-dropdown-col {
-                    padding: 0.75rem;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.25rem;
-                    width: 50%;
-                    box-sizing: border-box;
-                }
-                .saas-dropdown-col.left-col {
-                    border-right: 1px solid #F1F5F9;
-                }
-                .saas-dropdown-link {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    padding: 0.5rem 0.75rem;
-                    border-radius: 6px;
-                    color: #475569;
-                    font-size: 0.8rem;
-                    font-weight: 600;
-                    text-decoration: none;
-                    transition: all 0.2s;
-                    cursor: pointer;
-                    user-select: none;
-                }
-                .saas-dropdown-link:hover {
-                    background-color: #F8FAFC;
-                }
-                .saas-dropdown-link.prop-list-link i {
-                    color: #64748B;
-                }
-                .saas-dropdown-link.prop-new-link {
-                    color: #7048E8;
-                }
-                .saas-dropdown-link.prop-new-link i {
-                    color: #7048E8;
-                }
-                .saas-dropdown-link.client-link i,
-                .saas-dropdown-link.contact-link i {
-                    color: #0F766E; /* sharp teal/dark green */
-                }
-                .saas-dropdown-link.active {
-                    background-color: #F1F5F9;
-                }
-                .saas-dropdown-link.prop-new-link.active {
-                    background-color: #F3E8FF;
                 }
                 .saas-right-section {
                     display: flex;
@@ -231,7 +154,6 @@ function renderTelaPropostas() {
                     font-size: 0.85rem;
                     cursor: pointer;
                     border: none;
-                    user-select: none;
                 }
                 .saas-settings-btn {
                     background: none;
@@ -241,14 +163,8 @@ function renderTelaPropostas() {
                     cursor: pointer;
                     display: flex;
                     align-items: center;
-                    justify-content: center;
                     padding: 0.25rem;
                     border-radius: 6px;
-                    transition: all 0.2s;
-                }
-                .saas-settings-btn:hover {
-                    color: #1E293B;
-                    background-color: #E2E8F0;
                 }
             </style>
 
@@ -256,69 +172,23 @@ function renderTelaPropostas() {
             <div class="saas-header">
                 <!-- Lado Esquerdo: Logo da Empresa -->
                 <div class="saas-brand" onclick="switchPropostaTab('lista')">
-                    <i class="ph ph-squares-four saas-logo-icon"></i>
-                    <span class="saas-brand-text">SOLUTIONS CORP</span>
+                    <img src="logo.png" alt="America Rental" class="saas-logo-img">
+                    <span class="saas-brand-text">America Rental</span>
                 </div>
 
                 <!-- Centro: Navegação Principal -->
                 <div class="saas-nav">
-                    <div class="saas-nav-item dashboard-item" id="tab-prop-dashboard" onclick="window.switchTabDashboard()">
-                        <i class="ph ph-squares-four"></i> Dashboard
+                    <div class="saas-nav-item" id="tab-prop-lista" onclick="switchPropostaTab('lista')">
+                        <i class="ph ph-list-bullets"></i> Lista de Propostas
                     </div>
-                    <div class="saas-nav-item" id="tab-prop-vendas" onclick="window.switchTabVendas()">
-                        <i class="ph ph-shopping-cart"></i> Vendas
+                    <div class="saas-nav-item" id="tab-prop-form" onclick="abrirFormProposta(null)">
+                        <i class="ph ph-pencil-simple"></i> Nova Proposta
                     </div>
-                    <div class="saas-nav-item has-dropdown" id="tab-prop-propostas-drop">
-                        <i class="ph ph-file-text"></i> Propostas <i class="ph ph-caret-down" style="font-size:0.7rem; opacity:0.7;"></i>
-                        <!-- Menu Dropdown -->
-                        <div class="saas-dropdown-wrapper">
-                            <div class="saas-dropdown-menu">
-                                <!-- Coluna Esquerda: Propostas -->
-                                <div class="saas-dropdown-col left-col">
-                                    <a class="saas-dropdown-link prop-list-link" data-tab="lista" onclick="switchPropostaTab('lista')">
-                                        <i class="ph ph-list-bullets"></i> Lista de Propostas
-                                    </a>
-                                    <a class="saas-dropdown-link prop-new-link" data-tab="form" onclick="abrirFormProposta(null)">
-                                        <i class="ph ph-pencil-simple"></i> Nova Proposta
-                                    </a>
-                                </div>
-                                <!-- Coluna Direita: Clientes e Contatos -->
-                                <div class="saas-dropdown-col">
-                                    <a class="saas-dropdown-link client-link" data-tab="cadastro-cliente" onclick="switchPropostaTab('cadastro-cliente')">
-                                        <i class="ph ph-user-plus"></i> Cadastro de Clientes
-                                    </a>
-                                    <a class="saas-dropdown-link contact-link" data-tab="cadastro-contatos" onclick="switchPropostaTab('cadastro-contatos')">
-                                        <i class="ph ph-identification-card"></i> Cadastro de Contatos
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="saas-nav-item" id="tab-prop-cadastro-cliente" onclick="switchPropostaTab('cadastro-cliente')">
+                        <i class="ph ph-user-plus"></i> Cadastro de Clientes
                     </div>
-                    <div class="saas-nav-item has-dropdown" id="tab-prop-clientes-drop">
-                        <i class="ph ph-users"></i> Clientes <i class="ph ph-caret-down" style="font-size:0.7rem; opacity:0.7;"></i>
-                        <!-- Menu Dropdown -->
-                        <div class="saas-dropdown-wrapper">
-                            <div class="saas-dropdown-menu">
-                                <!-- Coluna Esquerda: Propostas -->
-                                <div class="saas-dropdown-col left-col">
-                                    <a class="saas-dropdown-link prop-list-link" data-tab="lista" onclick="switchPropostaTab('lista')">
-                                        <i class="ph ph-list-bullets"></i> Lista de Propostas
-                                    </a>
-                                    <a class="saas-dropdown-link prop-new-link" data-tab="form" onclick="abrirFormProposta(null)">
-                                        <i class="ph ph-pencil-simple"></i> Nova Proposta
-                                    </a>
-                                </div>
-                                <!-- Coluna Direita: Clientes e Contatos -->
-                                <div class="saas-dropdown-col">
-                                    <a class="saas-dropdown-link client-link" data-tab="cadastro-cliente" onclick="switchPropostaTab('cadastro-cliente')">
-                                        <i class="ph ph-user-plus"></i> Cadastro de Clientes
-                                    </a>
-                                    <a class="saas-dropdown-link contact-link" data-tab="cadastro-contatos" onclick="switchPropostaTab('cadastro-contatos')">
-                                        <i class="ph ph-identification-card"></i> Cadastro de Contatos
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="saas-nav-item" id="tab-prop-cadastro-contatos" onclick="switchPropostaTab('cadastro-contatos')">
+                        <i class="ph ph-identification-card"></i> Cadastro de Contatos
                     </div>
                 </div>
 
@@ -419,36 +289,6 @@ function renderTelaPropostas() {
     }
 }
 
-window.switchTabDashboard = function() {
-    document.querySelectorAll('.saas-nav-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    const dash = document.getElementById('tab-prop-dashboard');
-    if (dash) dash.classList.add('active');
-    
-    Swal.fire({
-        title: 'Dashboard',
-        text: 'Módulo do Dashboard Comercial em desenvolvimento.',
-        icon: 'info',
-        confirmButtonColor: '#7048E8'
-    });
-};
-
-window.switchTabVendas = function() {
-    document.querySelectorAll('.saas-nav-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    const vendas = document.getElementById('tab-prop-vendas');
-    if (vendas) vendas.classList.add('active');
-    
-    Swal.fire({
-        title: 'Vendas',
-        text: 'Módulo de Vendas em desenvolvimento.',
-        icon: 'info',
-        confirmButtonColor: '#7048E8'
-    });
-};
-
 window.switchPropostaTab = function(tab) {
     _currentPropostaTab = tab;
     
@@ -456,8 +296,12 @@ window.switchPropostaTab = function(tab) {
     const viewForm = document.getElementById('prop-view-form');
     const viewCadastroCliente = document.getElementById('prop-view-cadastro-cliente');
     const viewCadastroContatos = document.getElementById('prop-view-cadastro-contatos');
+    const tabLista = document.getElementById('tab-prop-lista');
+    const tabForm = document.getElementById('tab-prop-form');
+    const tabCadastroCliente = document.getElementById('tab-prop-cadastro-cliente');
+    const tabCadastroContatos = document.getElementById('tab-prop-cadastro-contatos');
 
-    if (viewLista && viewForm && viewCadastroCliente && viewCadastroContatos) {
+    if (viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && tabLista && tabForm && tabCadastroCliente && tabCadastroContatos) {
         if (tab === 'form' && viewForm.innerHTML.trim() === '') {
             _renderFormPropostaInt();
         }
@@ -477,35 +321,11 @@ window.switchPropostaTab = function(tab) {
         document.querySelectorAll('.saas-nav-item').forEach(item => {
             item.classList.remove('active');
         });
-        document.querySelectorAll('.saas-dropdown-link').forEach(link => {
-            link.classList.remove('active');
-        });
 
-        if (tab === 'lista') {
-            const navItem = document.getElementById('tab-prop-propostas-drop');
-            if (navItem) navItem.classList.add('active');
-            document.querySelectorAll('.saas-dropdown-link[data-tab="lista"]').forEach(link => {
-                link.classList.add('active');
-            });
-        } else if (tab === 'form') {
-            const navItem = document.getElementById('tab-prop-propostas-drop');
-            if (navItem) navItem.classList.add('active');
-            document.querySelectorAll('.saas-dropdown-link[data-tab="form"]').forEach(link => {
-                link.classList.add('active');
-            });
-        } else if (tab === 'cadastro-cliente') {
-            const navItem = document.getElementById('tab-prop-clientes-drop');
-            if (navItem) navItem.classList.add('active');
-            document.querySelectorAll('.saas-dropdown-link[data-tab="cadastro-cliente"]').forEach(link => {
-                link.classList.add('active');
-            });
-        } else if (tab === 'cadastro-contatos') {
-            const navItem = document.getElementById('tab-prop-clientes-drop');
-            if (navItem) navItem.classList.add('active');
-            document.querySelectorAll('.saas-dropdown-link[data-tab="cadastro-contatos"]').forEach(link => {
-                link.classList.add('active');
-            });
-        }
+        if (tab === 'lista') tabLista.classList.add('active');
+        else if (tab === 'form') tabForm.classList.add('active');
+        else if (tab === 'cadastro-cliente') tabCadastroCliente.classList.add('active');
+        else if (tab === 'cadastro-contatos') tabCadastroContatos.classList.add('active');
     } else {
         renderTelaPropostas();
     }
