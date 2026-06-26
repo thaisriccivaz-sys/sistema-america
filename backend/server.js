@@ -18796,28 +18796,40 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
         .update((assinatura_base64 || '') + colaborador_id + treinamento_id + now)
         .digest('hex');
 
-      // Buscar nome do colaborador
+      // Buscar nome do colaborador E nome/tipo do treinamento em paralelo
       db.get(`SELECT nome_completo FROM colaboradores WHERE id = ?`, [colaborador_id], (errC, colab) => {
         const colabNome = colab ? colab.nome_completo : 'Desconhecido';
 
-        // Registrar na assinaturas_auditoria
-        db.run(
-          `INSERT INTO assinaturas_auditoria
-             (documento_id, document_type, colaborador_id, colaborador_nome,
-              gps_lat, gps_lon, dispositivo, ip_address, hash_assinatura)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [presencaId, 'Lista de Presença', colaborador_id, colabNome,
-           gps_lat || null, gps_lon || null, dispositivo || null, ip, hash],
-          (errA) => {
-            if (errA) console.error('[PRESENÇA-AUDITORIA] Erro ao registrar auditoria:', errA.message);
-            else console.log(`[PRESENÇA-AUDITORIA] Auditoria registrada para colaborador ${colaborador_id} / treinamento ${treinamento_id}`);
+        db.get(`SELECT nome, IFNULL(tipo, 'treinamento') AS tipo FROM treinamentos WHERE id = ?`, [treinamento_id], (errT, trein) => {
+          // Monta label do documento: "Palestra: Junho - Gestão de Estresse"
+          let docLabel = 'Lista de Presença';
+          if (trein) {
+            const tipoCapitalized = trein.tipo
+              ? trein.tipo.charAt(0).toUpperCase() + trein.tipo.slice(1)
+              : 'Treinamento';
+            docLabel = `${tipoCapitalized}: ${trein.nome}`;
           }
-        );
+
+          // Registrar na assinaturas_auditoria
+          db.run(
+            `INSERT INTO assinaturas_auditoria
+               (documento_id, document_type, colaborador_id, colaborador_nome,
+                gps_lat, gps_lon, dispositivo, ip_address, hash_assinatura)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [presencaId, docLabel, colaborador_id, colabNome,
+             gps_lat || null, gps_lon || null, dispositivo || null, ip, hash],
+            (errA) => {
+              if (errA) console.error('[PRESENÇA-AUDITORIA] Erro ao registrar auditoria:', errA.message);
+              else console.log(`[PRESENÇA-AUDITORIA] Auditoria registrada: "${docLabel}" para ${colabNome}`);
+            }
+          );
+        });
       });
     } catch (e) {
       console.error('[PRESENÇA-AUDITORIA] Erro inesperado:', e.message);
     }
   };
+
 
   // Verificar se já existe registro para esse par (colaborador + treinamento)
   // A tabela tem UNIQUE(treinamento_id, usuario_id) — usamos isso para o UPSERT

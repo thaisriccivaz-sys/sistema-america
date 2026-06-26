@@ -14597,7 +14597,7 @@ window._carregarAuditoria = async function () {
         tbody.innerHTML = r.map(aud => `
             <tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:12px 16px;">${new Date(aud.data_hora).toLocaleString('pt-BR')}</td>
-                <td style="padding:12px 16px;font-weight:500;">${aud.tipo_documento} (ID ${aud.documento_id})<br><small style="color:#64748b;">${aud.detalhes || ''}</small></td>
+                <td style="padding:12px 16px;font-weight:500;">${aud.tipo_documento}<br><small style="color:#64748b;">${aud.detalhes || ''}</small></td>
                 <td style="padding:12px 16px;">${aud.colaborador_nome}</td>
                 <td style="padding:12px 16px;font-family:monospace;font-size:0.85em;">${aud.ip || '-'}</td>
                 <td style="padding:12px 16px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${aud.dispositivo}">${aud.dispositivo || '-'}</td>
