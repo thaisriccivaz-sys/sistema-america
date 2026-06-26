@@ -89,6 +89,9 @@ function renderTelaPropostas() {
                     margin-bottom: 0.5rem;
                     font-family: 'Inter', sans-serif;
                     box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+                    position: sticky;
+                    top: 98px;
+                    z-index: 998;
                 }
                 .saas-brand {
                     display: flex;
