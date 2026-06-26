@@ -18812,6 +18812,19 @@ app.get('/api/treinamento-presenca/historico/:colaboradorId', authenticateToken,
 
 // ── POST /api/treinamento-presenca/assinar ────────────────────────────────────
 // Registra presença com assinatura digital e selfie
+
+// DELETE signature based on colaborador_id
+app.delete('/api/treinamento-presenca/:treinamentoId/:colaboradorId', authenticateToken, (req, res) => {
+  db.run(
+    `DELETE FROM treinamento_presenca WHERE treinamento_id = ? AND colaborador_id = ?`,
+    [req.params.treinamentoId, req.params.colaboradorId],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ ok: true, changes: this.changes });
+    }
+  );
+});
+
 app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
   const {
     colaborador_id, treinamento_id, assinatura_base64, selfie_base64, instrutor_nome,

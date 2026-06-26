@@ -183,6 +183,11 @@
                             <i class="ph ph-eye"></i>
                         </button>
                         ${btnPesquisa}
+                        <button onclick="window._excluirAssinaturaTreinamento(${c.id},${t.id},'${(c.nome_completo||'').replace(/'/g,"\\'")}', '${(t.nome||'').replace(/'/g,"\\'")}')"
+                            title="Excluir assinatura"
+                            style="background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:3px;width:100%;margin-top:4px;">
+                            <i class="ph ph-trash"></i>
+                        </button>
                     </div>
                 </div>`;
             } else if (t.vencido) {
@@ -1192,3 +1197,34 @@
     };
 
 })();
+
+
+window._excluirAssinaturaTreinamento = async function(colabId, treinId, nomeColab, nomeTrein) {
+    if (!await Swal.fire({
+        title: 'Excluir assinatura?',
+        text: `Deseja realmente excluir a assinatura de ${nomeColab} para "${nomeTrein}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Sim, excluir',
+        cancelButtonText: 'Cancelar'
+    }).then(r => r.isConfirmed)) return;
+
+    try {
+        const r = await fetch((window.API_URL || '') + `/treinamento-presenca/${treinId}/${colabId}`, {
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer ' + (localStorage.getItem('erp_token') || '') }
+        });
+        if (!r.ok) throw new Error('Erro ao excluir assinatura');
+        
+        Swal.fire({icon:'success',title:'Excluído!',showConfirmButton:false,timer:1500});
+        
+        // Atualiza a tela recarregando os dados (simula clique no botão Atualizar)
+        const btnRender = document.querySelector('button[onclick="window.initPresencaTreinamento()"]');
+        if (btnRender) btnRender.click();
+        else window.initPresencaTreinamento();
+    } catch(e) {
+        Swal.fire({icon:'error',title:'Erro',text:e.message});
+    }
+};
+
