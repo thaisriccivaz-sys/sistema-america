@@ -6,6 +6,7 @@
     // ── Estado ────────────────────────────────────────────────────────────────
     let _dados = [];
     let _filtroDepto = '';
+    let _filtroTipoDepto = '';
     let _filtroBusca = '';
     let _assinCtx = null;
     let _assinDesenhando = false;
@@ -70,7 +71,7 @@
             const h1 = view.querySelector('h1');
             const p = view.querySelector('p');
             if (tipoAtual === 'terapia') {
-                if (h1) h1.textContent = 'Terapia - Presença';
+                if (h1) h1.textContent = 'Palestras listas';
                 if (p) p.textContent = 'Visualize e registre a presença em terapias por colaborador.';
             } else {
                 if (h1) h1.textContent = 'Treinamentos - Presença';
@@ -112,9 +113,11 @@
 
         const busca = (_filtroBusca || '').toLowerCase().trim();
         const depto = _filtroDepto;
+        const tipoDepto = _filtroTipoDepto;
 
         let lista = _dados;
         if (depto) lista = lista.filter(c => c.departamento === depto);
+        if (tipoDepto) lista = lista.filter(c => c.departamento_tipo === tipoDepto);
         if (busca) lista = lista.filter(c =>
             (c.nome_completo || '').toLowerCase().includes(busca) ||
             (c.cargo || '').toLowerCase().includes(busca)
@@ -952,7 +955,7 @@
                 </div>` : ''}
                 ${_selfieBase64 ? `<div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:10px;">
                     <p style="margin:0;background:#f1f5f9;padding:6px 10px;font-size:0.72rem;font-weight:600;color:#64748b;">SELFIE</p>
-                    <img src="${_selfieBase64}" style="width:100%;max-height:140px;object-fit:cover;" />
+                    <img src="${_selfieBase64}" style="width:100%;max-height:140px;object-fit:contain;" />
                 </div>` : ''}
             </div>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
@@ -1064,6 +1067,10 @@
     };
 
     // ── Filtros ───────────────────────────────────────────────────────────────
+    window.filtrarPresencaTipoDepto = function (val) {
+        _filtroTipoDepto = val;
+        renderizar();
+    };
     window.filtrarPresencaDepto = function (val) {
         _filtroDepto = val;
         renderizar();

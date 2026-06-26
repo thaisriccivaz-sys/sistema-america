@@ -18522,6 +18522,13 @@ app.delete('/api/treinamentos/:id', authenticateToken, async (req, res) => {
 
 // ── GET /api/treinamentos/:id/anexos — Lista anexos ──────────────────────────
 app.get('/api/treinamentos/:id/anexos', authenticateToken, (req, res) => {
+  const sqlColabs = `
+    SELECT c.id, c.nome_completo, c.departamento, c.cargo, c.status, c.foto_path, c.foto_base64, d.tipo AS departamento_tipo
+    FROM colaboradores c
+    LEFT JOIN departamentos d ON c.departamento = d.nome
+    WHERE c.status != 'Desligado'
+    ORDER BY c.nome_completo ASC
+  `;
   db.all(
     `SELECT * FROM treinamento_anexos WHERE treinamento_id = ? ORDER BY enviado_em DESC`,
     [req.params.id],

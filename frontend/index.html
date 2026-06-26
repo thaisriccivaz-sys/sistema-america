@@ -4660,6 +4660,14 @@
                     <option value="">Todos os departamentos</option>
                 </select>
             </div>
+            <div style="flex:1;min-width:150px;">
+                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Tipo de Depto</label>
+                <select id="pres-filtro-tipo-depto" class="form-control" style="width:100%;" onchange="window.filtrarPresencaTipoDepto(this.value)">
+                    <option value="">Todos os tipos</option>
+                    <option value="Administrativo">Administrativo</option>
+                    <option value="Operacional">Operacional</option>
+                </select>
+            </div>
             <div style="flex:2;min-width:200px;">
                 <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Buscar colaborador</label>
                 <input type="search" id="pres-filtro-busca" class="form-control" style="width:100%;" placeholder="Nome ou cargo..." oninput="window.filtrarPresencaBusca(this.value)" autocomplete="off">
