@@ -6241,7 +6241,9 @@ function renderPagamentosTab(container, tabId, docs) {
     container.innerHTML = selectorHtml;
 
     // Injetar status do certificado digital
-    window.carregarStatusCertificado('cert-digital-banner-pagamentos');
+    if (typeof window.carregarStatusCertificado === 'function') {
+        if (typeof window.carregarStatusCertificado === 'function') { window.carregarStatusCertificado('cert-digital-banner-pagamentos'); }
+    }
 
     const date = new Date();
     const yEl = document.getElementById('pag_year');
@@ -6368,7 +6370,7 @@ window.renderASOTab = function (container, filteredDocs) {
     `;
     container.innerHTML = selectorHtml;
     // Injetar status do certificado digital
-    window.carregarStatusCertificado('cert-digital-banner-aso');
+    if (typeof window.carregarStatusCertificado === 'function') { window.carregarStatusCertificado('cert-digital-banner-aso'); }
     renderASOAno();
 }
 
@@ -14676,7 +14678,11 @@ window.abrirAssinaturaEpi = async function (fichaId) {
     if (!ficha) return;
     const epis = ficha.snapshot_epis || [];
     const termo = ficha.snapshot_termo || '';
-    if (window._assinSelfieStream) { window._assinSelfieStream.getTracks().forEach(t=>t.stop()); window._assinSelfieStream = null; } const old = document.getElementById('epi-assinatura-overlay'); if (old) old.remove();
+    // Encerrar câmera anterior e limpar estado de selfie ANTES de abrir novo overlay
+    if (window._assinSelfieStream) { window._assinSelfieStream.getTracks().forEach(t=>t.stop()); window._assinSelfieStream = null; }
+    window._assinSelfieBase64 = null;
+    window._assinSelfieTs = null;
+    const old = document.getElementById('epi-assinatura-overlay'); if (old) old.remove();
     const overlay = document.createElement('div');
     overlay.id = 'epi-assinatura-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99990;background:rgba(15,23,42,0.92);display:flex;flex-direction:column;overflow:hidden;';
@@ -14773,7 +14779,7 @@ window.abrirAssinaturaEpi = async function (fichaId) {
             <button id="btn-assin-next" onclick="window._assinNextStep()" class="btn btn-primary" style="padding:0.65rem 2rem;font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:8px;">Próximo <i class="ph ph-arrow-right"></i></button>
         </div>`;
     document.body.appendChild(overlay);
-    window._assinCurrentStep = 1; window._assinFichaId = fichaId; window._assinColabId = colabId; window._assinEpisDisponiveis = epis; window._assinQtds = {};
+    window._assinCurrentStep = 1; window._assinFichaId = fichaId; window._assinColabId = colabId; window._assinEpisDisponiveis = epis; window._assinQtds = {}; window._assinSelfieBase64 = null; window._assinSelfieTs = null; window._assinBase64 = null;
     setTimeout(() => { window._initSignatureCanvas(); const today = new Date(); const di = document.getElementById('epi-data-entrega'); if (di) { di.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'); } window._renderEpiGrid(''); }, 100);
 };
 
@@ -14872,7 +14878,14 @@ window._assinStep = function(step) {
     window._assinCurrentStep=step;
     
     if (step === 'selfie') {
-        if (!window._assinSelfieBase64) window._epiAssinIniciarCamera();
+        // Sempre reiniciar a câmera ao entrar no passo de selfie
+        // Garante que a câmera abre mesmo na 2ª, 3ª... entrega seguida
+        window._assinSelfieBase64 = null;
+        window._assinSelfieTs = null;
+        // Limpar thumb box se visível
+        const thumbBox = document.getElementById('epi-assin-selfie-thumb-box');
+        if (thumbBox) thumbBox.style.display = 'none';
+        window._epiAssinIniciarCamera();
     }
     if (step === 2) {
         setTimeout(()=>window._initSignatureCanvas(),80);
@@ -14908,7 +14921,7 @@ window._assinNextStep = async function () {
             const di=document.getElementById('epi-data-entrega'); const dataVal=di?di.value:new Date().toISOString().split('T')[0]; const[y,m,d]=dataVal.split('-'); const dataFormatada=`${d}/${m}/${y}`;
             const episSelecionados=[]; Object.entries(window._assinQtds||{}).forEach(([nome,qty])=>{for(let i=0;i<qty;i++)episSelecionados.push(nome);});
             const controller=new AbortController(); const timeout=setTimeout(()=>controller.abort(),30000);
-            const res=await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`,{method:'POST',headers:{'Authorization':`Bearer ${currentToken}`,'Content-Type':'application/json'},body:JSON.stringify({data_entrega:dataFormatada,epis_entregues:episSelecionados,assinatura_base64:assinaturaBase64,colaborador_id:window._assinColabId,registrado_por:currentUser?.nome||currentUser?.email||'Sistema', gps_lat:window._currentGpsLat||'', gps_lon:window._currentGpsLon||''}),signal:controller.signal});
+            const res=await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`,{method:'POST',headers:{'Authorization':`Bearer ${currentToken}`,'Content-Type':'application/json'},body:JSON.stringify({data_entrega:dataFormatada,epis_entregues:episSelecionados,assinatura_base64:assinaturaBase64,selfie_base64:window._assinSelfieBase64||null,colaborador_id:window._assinColabId,registrado_por:currentUser?.nome||currentUser?.email||'Sistema', gps_lat:window._currentGpsLat||'', gps_lon:window._currentGpsLon||''}),signal:controller.signal});
 
             if (res.ok && window._assinSelfieBase64) {
                  try {
@@ -14927,7 +14940,7 @@ window._assinNextStep = async function () {
             clearTimeout(timeout);
             if(!res.ok){const errJson=await res.json().catch(()=>({}));throw new Error(errJson.error||`Erro HTTP ${res.status}`);}
             window._assinStep(3);
-            (async()=>{try{const{fichas:ff,colabId:cid,templates}=window._epiProntuarioData||{};const fich=(ff||[]).find(f=>f.id===window._assinFichaId);if(fich&&cid){if(typeof ensureHeaderLogo==='function')await ensureHeaderLogo().catch(()=>{});const tpl=(templates||[]).find(t=>t.grupo===fich.grupo)||fich;const{jsPDF}=window.jspdf;const todasEntregas=await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`,{headers:{'Authorization':'Bearer '+currentToken}}).then(r=>r.json()).catch(()=>[]);const linhasFull=[];(todasEntregas||[]).forEach(e=>{const epis=e.epis_entregues||[];if(epis.length===0){linhasFull.push({data:e.data_entrega||'',descricao:'',qtd:1,assinatura_base64:e.assinatura_base64});}else{const grp={};epis.forEach(nome=>{grp[nome]=(grp[nome]||0)+1;});Object.entries(grp).forEach(([nome,qty])=>{linhasFull.push({data:e.data_entrega||'',descricao:nome,qtd:qty,assinatura_base64:e.assinatura_base64});});}});const doc=window.gerarDocEpi(tpl,viewedColaborador||{},jsPDF,linhasFull);const pdfB64=doc.output('datauristring');await fetch(API_URL+'/epi-fichas/'+window._assinFichaId+'/save-onedrive',{method:'POST',headers:{'Authorization':'Bearer '+currentToken,'Content-Type':'application/json'},body:JSON.stringify({pdf_base64:pdfB64,colaborador_id:cid})}).catch(e2=>console.warn('[save-onedrive]',e2));}}catch(se){console.warn('[save-onedrive]',se);}})();
+            (async()=>{try{const{fichas:ff,colabId:cid,templates}=window._epiProntuarioData||{};const fich=(ff||[]).find(f=>f.id===window._assinFichaId);if(fich&&cid){if(typeof ensureHeaderLogo==='function')await ensureHeaderLogo().catch(()=>{});const tpl=(templates||[]).find(t=>t.grupo===fich.grupo)||fich;const{jsPDF}=window.jspdf;const todasEntregas=await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`,{headers:{'Authorization':'Bearer '+currentToken}}).then(r=>r.json()).catch(()=>[]);const linhasFull=[];(todasEntregas||[]).forEach(e=>{const epis=e.epis_entregues||[];if(epis.length===0){linhasFull.push({data:e.data_entrega||'',descricao:'',qtd:1,assinatura_base64:e.assinatura_base64, selfie_base64:e.selfie_base64||null});}else{const grp={};epis.forEach(nome=>{grp[nome]=(grp[nome]||0)+1;});Object.entries(grp).forEach(([nome,qty])=>{linhasFull.push({data:e.data_entrega||'',descricao:nome,qtd:qty,assinatura_base64:e.assinatura_base64, selfie_base64:e.selfie_base64||null});});}});const doc=window.gerarDocEpi(tpl,viewedColaborador||{},jsPDF,linhasFull);const pdfB64=doc.output('datauristring');await fetch(API_URL+'/epi-fichas/'+window._assinFichaId+'/save-onedrive',{method:'POST',headers:{'Authorization':'Bearer '+currentToken,'Content-Type':'application/json'},body:JSON.stringify({pdf_base64:pdfB64,colaborador_id:cid})}).catch(e2=>console.warn('[save-onedrive]',e2));}}catch(se){console.warn('[save-onedrive]',se);}})();
             setTimeout(()=>{const old=document.getElementById('epi-assinatura-overlay');if(old)old.remove();window.previewFichaEpi(window._assinFichaId);const activeTab=document.querySelector('#tabs-list li.active');if(activeTab)renderTabContent(activeTab.dataset.tab,activeTab.textContent,true);},2000);
         } catch(err){
             const btnNext=document.getElementById('btn-assin-next');if(btnNext){btnNext.disabled=false;btnNext.innerHTML='<i class="ph ph-check"></i> Confirmar Entrega';}
@@ -14956,9 +14969,7 @@ window._assinNextStep = async function () {
             if (video) { 
                 video.srcObject = window._assinSelfieStream; 
                 video.style.display = 'block'; 
-                video.onloadedmetadata = () => {
-                    video.play().catch(e=>console.error('[EPI Selfie] Erro no play:', e));
-                };
+                video.play().catch(e=>console.error('[EPI Selfie] Erro no play:', e));
             }
             document.getElementById('epi-assin-selfie-canvas').style.display = 'none';
             const btnTirar = document.getElementById('btn-epi-assin-tirar');
@@ -15014,16 +15025,7 @@ window._assinNextStep = async function () {
 
     window._epiAssinRefazerFoto = function() {
         window._assinSelfieBase64 = null; window._assinSelfieTs = null;
-        const video = document.getElementById('epi-assin-selfie-video'); const canvas = document.getElementById('epi-assin-selfie-canvas');
-        if (video) video.style.display = 'block'; if (canvas) canvas.style.display = 'none';
-        const btnTirar = document.getElementById('btn-epi-assin-tirar');
-        if (btnTirar) btnTirar.style.display = 'flex';
-        const btnRefazer = document.getElementById('btn-epi-assin-refazer');
-        if (btnRefazer) btnRefazer.style.display = 'none';
-        const btnConfirm = document.getElementById('btn-epi-assin-confirmar');
-        if (btnConfirm) btnConfirm.style.display = 'none';
-        const statusEl = document.getElementById('epi-assin-selfie-status');
-        if (statusEl) statusEl.textContent = 'Câmera pronta. Posicione o rosto do colaborador.';
+        window._epiAssinIniciarCamera();
     };
 
     window._epiAssinConfirmarFoto = function() {
@@ -15136,12 +15138,12 @@ window._excluirEpiEntrega = async function(id, nome, btnEl, ficha_id) {
                         (todasEntregas || []).forEach(ent => {
                             const epis = ent.epis_entregues || [];
                             if (epis.length === 0) {
-                                linhasFull.push({ data: ent.data_entrega || '', descricao: '', qtd: 1, assinatura_base64: ent.assinatura_base64 });
+                                linhasFull.push({ data: ent.data_entrega || '', descricao: '', qtd: 1, assinatura_base64: ent.assinatura_base64, selfie_base64: ent.selfie_base64||null });
                             } else {
                                 const grp = {};
                                 epis.forEach(n => { grp[n] = (grp[n] || 0) + 1; });
                                 Object.entries(grp).forEach(([n, qty]) => {
-                                    linhasFull.push({ data: ent.data_entrega || '', descricao: n, qtd: qty, assinatura_base64: ent.assinatura_base64 });
+                                    linhasFull.push({ data: ent.data_entrega || '', descricao: n, qtd: qty, assinatura_base64: ent.assinatura_base64, selfie_base64: ent.selfie_base64||null });
                                 });
                             }
                         });
@@ -15357,7 +15359,7 @@ window._carregarAuditoria = async function () {
     <td style="padding:12px 16px;text-align:center;">
         ${(aud.tipo_documento && aud.tipo_documento.startsWith('Entrega de EPI') && aud.documento_id) 
             ? `<button onclick="window.verComprovanteEntrega(${aud.documento_id})" title="Ver Comprovante" style="background:#e0f2fe;border:none;color:#0369a1;cursor:pointer;font-size:1.2rem;display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);"><i class="ph ph-eye"></i></button>` 
-            : (aud.tipo_documento && !aud.tipo_documento.startsWith('Entrega de EPI') && aud.documento_id) 
+            : (aud.tipo_documento && !aud.tipo_documento.startsWith('Entrega de EPI') && !aud.tipo_documento.startsWith('Treinamento') && !aud.tipo_documento.startsWith('Terapia') && !aud.tipo_documento.startsWith('Palestra') && !aud.tipo_documento.startsWith('Lista de Presença') && aud.documento_id) 
             ? `<button onclick="window.open('${API_URL}/documentos/download/${aud.documento_id}?token=${currentToken}', '_blank')" title="Ver Documento" style="background:#e0f2fe;border:none;color:#0369a1;cursor:pointer;font-size:1.2rem;display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);"><i class="ph ph-eye"></i></button>` 
             : ''}
     </td>
@@ -15400,3 +15402,5 @@ window.filterTabsList = function(q) {
         }
     });
 };
+
+
