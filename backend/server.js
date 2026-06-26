@@ -11536,6 +11536,7 @@ app.get('/api/assinaturas-auditoria', authenticateToken, (req, res) => {
             gps_lat,
             gps_lon,
             hash_assinatura AS hash_pdf,
+            pesquisa_respondida_em,
             NULL AS detalhes
          FROM assinaturas_auditoria
          ORDER BY data_assinatura DESC
@@ -18481,6 +18482,14 @@ app.post('/api/public/pesquisa-treinamento/:token', (req, res) => {
           }
       })();
 
+      // Atualizar trilha de auditoria com data de resposta
+      db.run(
+        `UPDATE assinaturas_auditoria SET pesquisa_respondida_em = CURRENT_TIMESTAMP
+          WHERE pesquisa_token = ? AND pesquisa_respondida_em IS NULL`,
+        [token],
+        (errUpd) => { if (errUpd) console.error('[PESQUISA] Erro ao atualizar trilha:', errUpd.message); }
+      );
+
       res.json({ ok: true, message: 'Pesquisa salva com sucesso!' });
     }
   );
@@ -18900,13 +18909,13 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
       const hash = crypto.createHash('sha256')
         .update((assinatura_base64 || '') + colaborador_id + treinamento_id + now)
         .digest('hex');
+      const surveyToken = crypto.randomBytes(16).toString('hex');
 
-      // Buscar nome do colaborador E nome/tipo do treinamento em paralelo
-      db.get(`SELECT nome_completo FROM colaboradores WHERE id = ?`, [colaborador_id], (errC, colab) => {
+      // Buscar nome, email do colaborador + nome/tipo do treinamento
+      db.get(`SELECT nome_completo, email FROM colaboradores WHERE id = ?`, [colaborador_id], (errC, colab) => {
         const colabNome = colab ? colab.nome_completo : 'Desconhecido';
 
         db.get(`SELECT nome, IFNULL(tipo, 'treinamento') AS tipo FROM treinamentos WHERE id = ?`, [treinamento_id], (errT, trein) => {
-          // Monta label do documento: "Palestra: Junho - Gestão de Estresse"
           let docLabel = 'Lista de Presença';
           if (trein) {
             const tipoCapitalized = trein.tipo
@@ -18914,18 +18923,57 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
               : 'Treinamento';
             docLabel = `${tipoCapitalized}: ${trein.nome}`;
           }
+          const treinNome = trein ? trein.nome : docLabel;
 
-          // Registrar na assinaturas_auditoria
+          // Registrar na assinaturas_auditoria (com token da pesquisa)
           db.run(
             `INSERT INTO assinaturas_auditoria
                (documento_id, document_type, colaborador_id, colaborador_nome,
-                gps_lat, gps_lon, dispositivo, ip_address, hash_assinatura)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                gps_lat, gps_lon, dispositivo, ip_address, hash_assinatura, pesquisa_token)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [presencaId, docLabel, colaborador_id, colabNome,
-             gps_lat || null, gps_lon || null, dispositivo || null, ip, hash],
+             gps_lat || null, gps_lon || null, dispositivo || null, ip, hash, surveyToken],
             (errA) => {
-              if (errA) console.error('[PRESENÇA-AUDITORIA] Erro ao registrar auditoria:', errA.message);
-              else console.log(`[PRESENÇA-AUDITORIA] Auditoria registrada: "${docLabel}" para ${colabNome}`);
+              if (errA) {
+                console.error('[PRESENÇA-AUDITORIA] Erro ao registrar auditoria:', errA.message);
+              } else {
+                console.log(`[PRESENÇA-AUDITORIA] Auditoria registrada: "${docLabel}" para ${colabNome}`);
+
+                // Verificar se já existe token de pesquisa para este par
+                db.get(`SELECT id, token, respondido_em FROM treinamento_pesquisa_respostas WHERE treinamento_id = ? AND colaborador_id = ? LIMIT 1`,
+                  [treinamento_id, colaborador_id],
+                  (errP, existing) => {
+                    const finalToken = existing ? existing.token : surveyToken;
+
+                    const sendSurveyEmail = () => {
+                      if (!colab || !colab.email || !colab.email.includes('@')) return;
+                      const baseUrl = process.env.BASE_URL || 'https://sistema-america.onrender.com';
+                      const link = `${baseUrl}/pesquisa-treinamento.html?token=${finalToken}`;
+                      const nomeFirst = colabNome.split(' ')[0];
+                      const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                      sendMailHelper({
+                        to: colab.email.trim(),
+                        subject: `Pesquisa de Satisfação — ${treinNome}`,
+                        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;"><div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div><div style="padding:1.5rem 2rem;"><h2 style="color:#0e7490;margin-top:0;">Pesquisa de Satisfação</h2><p>Olá <strong>${nomeFirst}</strong>,</p><p>Agradecemos sua participação em <strong>${treinNome}</strong>!</p><p>Reserve 1 minuto para responder nossa pesquisa de satisfação — sua opinião é muito importante para nós!</p><div style="text-align:center;margin:30px 0;"><a href="${link}" style="background-color:#0e7490;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;font-size:16px;">Responder Pesquisa</a></div><p style="color:#666;font-size:12px;">Se o botão não funcionar, cole este link:<br><a href="${link}" style="color:#0e7490;">${link}</a></p><hr style="border:none;border-top:1px solid #eee;margin:25px 0;"><p style="color:#999;font-size:11px;">Este é um e-mail automático, por favor não responda.</p></div></div>`,
+                        attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
+                      }).then(() => console.log(`[PRESENÇA-EMAIL] Pesquisa enviada para ${colab.email}`))
+                        .catch(e => console.error(`[PRESENÇA-EMAIL] Erro ao enviar:`, e.message));
+                    };
+
+                    if (!existing) {
+                      db.run(`INSERT INTO treinamento_pesquisa_respostas (treinamento_id, colaborador_id, token) VALUES (?, ?, ?)`,
+                        [treinamento_id, colaborador_id, surveyToken],
+                        (errIns) => {
+                          if (errIns) console.error('[PRESENÇA-PESQUISA] Erro ao criar token:', errIns.message);
+                          else sendSurveyEmail();
+                        }
+                      );
+                    } else if (!existing.respondido_em) {
+                      sendSurveyEmail();
+                    }
+                  }
+                );
+              }
             }
           );
         });
@@ -19031,6 +19079,10 @@ app.get('/api/treinamento-presenca/:colaboradorId/:treinamentoId', authenticateT
 });
 
 
+
+// ── Migration: Add pesquisa columns to assinaturas_auditoria ──────────────
+try { db.run(`ALTER TABLE assinaturas_auditoria ADD COLUMN pesquisa_token TEXT`); } catch(_) {}
+try { db.run(`ALTER TABLE assinaturas_auditoria ADD COLUMN pesquisa_respondida_em DATETIME`); } catch(_) {}
 
 app.listen(PORT, () => {
 

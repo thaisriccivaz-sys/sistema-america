@@ -180,17 +180,8 @@
                         <div style="font-size:0.72rem;color:#10b981;">Concluído em ${fmtData(t.data_conclusao)}${valStr}${respStr}</div>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;min-width:38px;">
-                        <button onclick="window._verDocTreinamento(${c.id},${t.id},'${(c.nome_completo||'').replace(/'/g,"\\'")}')"
-                            title="Ver documento assinado"
-                            style="background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:3px;width:100%;">
-                            <i class="ph ph-eye"></i>
-                        </button>
+                        <button onclick="window._verDocTreinamento(${c.id},${t.id},'${(c.nome_completo||'').replace(/'/g,\"\\'\")}')" title="Ver documento assinado" style="background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:3px;width:100%;"><i class="ph ph-eye"></i></button>
                         ${btnPesquisa}
-                        <button onclick="window._excluirAssinaturaTreinamento(${c.id},${t.id},'${(c.nome_completo||'').replace(/'/g,"\\'")}', '${(t.nome||'').replace(/'/g,"\\'")}')"
-                            title="Excluir assinatura"
-                            style="background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:3px;width:100%;margin-top:4px;">
-                            <i class="ph ph-trash"></i>
-                        </button>
                     </div>
                 </div>`;
             } else if (t.vencido) {

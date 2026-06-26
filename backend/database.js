@@ -184,6 +184,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     dispositivo TEXT,
                     ip_address TEXT,
                     hash_assinatura TEXT,
+                    pesquisa_token TEXT,
+                    pesquisa_respondida_em DATETIME,
                     data_assinatura DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             `);
