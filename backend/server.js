@@ -18820,19 +18820,24 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
   };
 
   // Verificar se já existe registro para esse par (colaborador + treinamento)
+  // A tabela tem UNIQUE(treinamento_id, usuario_id) — usamos isso para o UPSERT
   db.get(
-    `SELECT id FROM treinamento_presenca WHERE treinamento_id = ? AND colaborador_id = ?`,
-    [treinamento_id, colaborador_id],
+    `SELECT id FROM treinamento_presenca
+     WHERE treinamento_id = ?
+       AND (colaborador_id = ? OR (usuario_id = ? AND colaborador_id IS NULL))
+     LIMIT 1`,
+    [treinamento_id, colaborador_id, usuarioId],
     (err, existing) => {
       if (err) return res.status(500).json({ error: err.message });
 
       if (existing) {
-        // Atualiza registro existente
+        // Atualiza registro existente — garante que colaborador_id está preenchido
         db.run(
           `UPDATE treinamento_presenca
-           SET assinatura_base64 = ?, selfie_base64 = ?, data_conclusao = ?, instrutor_nome = ?
-           WHERE treinamento_id = ? AND colaborador_id = ?`,
-          [assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, treinamento_id, colaborador_id],
+           SET colaborador_id = ?, assinatura_base64 = ?, selfie_base64 = ?,
+               data_conclusao = ?, instrutor_nome = ?
+           WHERE id = ?`,
+          [colaborador_id, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, existing.id],
           function(err2) {
             if (err2) return res.status(500).json({ error: err2.message });
             registrarAuditoria(existing.id);
@@ -18840,7 +18845,7 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
           }
         );
       } else {
-        // Insere novo registro
+        // Insere novo registro usando INSERT OR REPLACE para lidar com a UNIQUE constraint
         db.run(
           `INSERT INTO treinamento_presenca
              (treinamento_id, colaborador_id, usuario_id, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome)
@@ -18848,15 +18853,15 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
           [treinamento_id, colaborador_id, usuarioId, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome],
           function(err2) {
             if (err2) {
-              // Fallback: se falhou (UNIQUE constraint), faz UPDATE
+              // UNIQUE conflict em (treinamento_id, usuario_id): atualiza pelo usuario_id
               db.run(
                 `UPDATE treinamento_presenca
-                 SET assinatura_base64 = ?, selfie_base64 = ?, data_conclusao = ?, instrutor_nome = ?
-                 WHERE treinamento_id = ? AND colaborador_id = ?`,
-                [assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, treinamento_id, colaborador_id],
+                 SET colaborador_id = ?, assinatura_base64 = ?, selfie_base64 = ?,
+                     data_conclusao = ?, instrutor_nome = ?
+                 WHERE treinamento_id = ? AND usuario_id = ?`,
+                [colaborador_id, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, treinamento_id, usuarioId],
                 function(err3) {
                   if (err3) return res.status(500).json({ error: err3.message });
-                  // Buscar id do registro para auditoria
                   db.get(
                     `SELECT id FROM treinamento_presenca WHERE treinamento_id = ? AND colaborador_id = ?`,
                     [treinamento_id, colaborador_id],
@@ -18874,6 +18879,7 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
       }
     }
   );
+
 });
 
 
