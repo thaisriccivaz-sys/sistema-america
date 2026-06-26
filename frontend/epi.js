@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // MÓDULO DE FICHA DE EPI - v3
 // ============================================================
 
@@ -122,6 +122,181 @@ window.initEpiModule = function() {
     loadEpiTemplates();
     loadDeptList();
     ensureHeaderLogo();
+};
+
+// ============================================================
+// FICHA DE EPI NO PRONTUÁRIO DO COLABORADOR
+// Chamada por app.js → renderTabContent → 'Ficha de EPI'
+// ============================================================
+window.renderFichaEpiTab = async function(container) {
+    if (!container) return;
+    if (!window.viewedColaborador) {
+        container.innerHTML = '<div style="padding:2rem;color:#94a3b8;text-align:center;">Colaborador não identificado.</div>';
+        return;
+    }
+    const colab = window.viewedColaborador;
+    const colabId = colab.id;
+
+    container.innerHTML = `<div style="padding:2rem;text-align:center;color:#94a3b8;"><i class="ph ph-spinner" style="font-size:2rem;animation:spin 1s linear infinite;display:block;margin-bottom:8px;"></i>Carregando ficha de EPI...</div>`;
+
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || '';
+        const [fichasRes, templatesRes] = await Promise.all([
+            fetch(`/api/colaboradores/${colabId}/epi-fichas`, { headers: { Authorization: 'Bearer ' + token } }),
+            fetch(`/api/epi-templates`, { headers: { Authorization: 'Bearer ' + token } })
+        ]);
+        const fichas = fichasRes.ok ? await fichasRes.json() : [];
+        const templates = templatesRes.ok ? await templatesRes.json() : [];
+
+        const fichaAtiva = fichas.find(f => f.status === 'ativa');
+        const fichasFechadas = fichas.filter(f => f.status !== 'ativa');
+
+        // Encontra melhor template para este colaborador
+        const dept  = (colab.departamento || '').trim().toLowerCase();
+        const cargo = (colab.cargo || '').trim().toLowerCase();
+        let bestTemplate = null, bestScore = 0;
+        templates.forEach(t => {
+            const list = (t.departamentos || []).map(d => d.trim().toLowerCase());
+            const gLow = (t.grupo || '').trim().toLowerCase();
+            let s = 0;
+            if (cargo && list.includes(cargo)) s = Math.max(s, 100);
+            if (cargo && gLow === cargo)       s = Math.max(s, 90);
+            if (dept  && list.includes(dept))  s = Math.max(s, 50);
+            if (dept  && gLow === dept)         s = Math.max(s, 40);
+            if (s > bestScore) { bestScore = s; bestTemplate = t; }
+        });
+
+        const statusBadge = (f) => f.status === 'ativa'
+            ? `<span style="background:#dcfce7;color:#15803d;padding:2px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;">✓ Ativa</span>`
+            : `<span style="background:#f1f5f9;color:#64748b;padding:2px 10px;border-radius:20px;font-size:0.78rem;font-weight:600;">Fechada</span>`;
+
+        const fichaCard = (f, isAtiva) => `
+            <div style="background:#fff;border-radius:12px;border:1.5px solid ${isAtiva ? '#86efac' : '#e2e8f0'};padding:1rem 1.2rem;margin-bottom:0.75rem;">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:0.6rem;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <i class="ph ph-shield-check" style="color:${isAtiva ? '#16a34a' : '#94a3b8'};font-size:1.2rem;"></i>
+                        <strong style="color:#1e293b;font-size:0.95rem;">${f.grupo || 'EPI'}</strong>
+                        ${statusBadge(f)}
+                    </div>
+                    <div style="font-size:0.78rem;color:#94a3b8;">
+                        ${f.created_at ? 'Criada: ' + new Date(f.created_at).toLocaleDateString('pt-BR') : ''}
+                        ${f.fechada_em ? ' · Fechada: ' + new Date(f.fechada_em).toLocaleDateString('pt-BR') : ''}
+                    </div>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                    ${(f.snapshot_epis || []).map(item => `
+                        <span style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:3px 8px;font-size:0.78rem;color:#15803d;">${typeof item === 'object' ? (item.nome || item.epi || JSON.stringify(item)) : item}</span>
+                    `).join('')}
+                </div>
+                ${isAtiva ? `
+                <div style="margin-top:0.75rem;display:flex;gap:8px;">
+                    <button onclick="window._verFichaEpiPDF(${f.id}, ${colabId})" style="background:#0e7490;color:#fff;border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:5px;">
+                        <i class="ph ph-file-pdf"></i> Ver/Baixar PDF
+                    </button>
+                </div>` : ''}
+            </div>`;
+
+        container.innerHTML = `
+        <div style="padding:1.5rem 1rem;">
+            <!-- Header -->
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:1.25rem;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="background:#dcfce7;border-radius:10px;padding:10px;">
+                        <i class="ph ph-shield-check" style="font-size:1.5rem;color:#16a34a;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0;font-size:1rem;font-weight:700;color:#1e293b;">Ficha de EPI</h3>
+                        <p style="margin:0;font-size:0.8rem;color:#64748b;">${colab.nome_completo || ''} · ${colab.cargo || ''}</p>
+                    </div>
+                </div>
+                ${bestTemplate ? `
+                <button onclick="window._criarFichaEpi(${colabId}, ${bestTemplate.id})" style="background:#16a34a;color:#fff;border:none;border-radius:10px;padding:9px 18px;cursor:pointer;font-weight:700;font-size:0.85rem;display:flex;align-items:center;gap:6px;box-shadow:0 2px 10px rgba(22,163,74,0.25);">
+                    <i class="ph ph-plus-circle"></i> Nova Ficha de EPI
+                </button>` : ''}
+            </div>
+
+            <!-- Ficha Ativa -->
+            ${fichaAtiva
+                ? `<div style="margin-bottom:1rem;"><p style="font-size:0.8rem;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">Ficha Ativa</p>${fichaCard(fichaAtiva, true)}</div>`
+                : `<div style="background:#fefce8;border:1.5px dashed #fde68a;border-radius:12px;padding:1.25rem;text-align:center;margin-bottom:1rem;">
+                    <i class="ph ph-warning" style="font-size:2rem;color:#d97706;display:block;margin-bottom:8px;"></i>
+                    <p style="margin:0;color:#92400e;font-weight:600;font-size:0.9rem;">Nenhuma ficha de EPI ativa.</p>
+                    <p style="margin:4px 0 0;color:#a16207;font-size:0.82rem;">Clique em "Nova Ficha de EPI" para criar.</p>
+                   </div>`
+            }
+
+            <!-- Histórico -->
+            ${fichasFechadas.length > 0 ? `
+            <div>
+                <p style="font-size:0.8rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">Histórico (${fichasFechadas.length} ficha${fichasFechadas.length > 1 ? 's' : ''} fechada${fichasFechadas.length > 1 ? 's' : ''})</p>
+                ${fichasFechadas.map(f => fichaCard(f, false)).join('')}
+            </div>` : ''}
+
+            ${fichas.length === 0 && !bestTemplate ? `
+            <div style="text-align:center;color:#94a3b8;padding:1rem;">
+                <i class="ph ph-shield-slash" style="font-size:2rem;display:block;margin-bottom:8px;"></i>
+                Nenhum template de EPI configurado para este cargo/departamento.
+            </div>` : ''}
+        </div>`;
+
+    } catch (e) {
+        container.innerHTML = `<div style="padding:2rem;color:#dc2626;text-align:center;"><i class="ph ph-warning-circle"></i> Erro ao carregar ficha de EPI: ${e.message}</div>`;
+    }
+};
+
+// Cria nova ficha de EPI para colaborador (chamada pelo botão na aba)
+window._criarFichaEpi = async function(colabId, templateId) {
+    if (!colabId || !templateId) return;
+    const token = window.currentToken || localStorage.getItem('erp_token') || '';
+    const t = epiTemplates.find(x => x.id === templateId);
+    if (!t) { showToast && showToast('Template não encontrado.', 'error'); return; }
+    try {
+        const res = await fetch(`/api/colaboradores/${colabId}/epi-fichas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+            body: JSON.stringify({
+                template_id: t.id,
+                grupo: t.grupo,
+                snapshot_epis: t.epis || [],
+                snapshot_termo: t.termo_texto || '',
+                snapshot_rodape: t.rodape_texto || ''
+            })
+        });
+        if (!res.ok) throw new Error('Erro ao criar ficha');
+        if (typeof showToast === 'function') showToast('Ficha de EPI criada com sucesso!', 'success');
+        // Recarrega a aba
+        const container = document.querySelector('.prontuario-tab-content');
+        if (container) window.renderFichaEpiTab(container);
+    } catch (e) {
+        if (typeof showToast === 'function') showToast('Erro: ' + e.message, 'error');
+    }
+};
+
+// Visualiza PDF da ficha
+window._verFichaEpiPDF = async function(fichaId, colabId) {
+    const token = window.currentToken || localStorage.getItem('erp_token') || '';
+    try {
+        const res = await fetch(`/api/epi-fichas/${fichaId}/entregas`, { headers: { Authorization: 'Bearer ' + token } });
+        const entregas = res.ok ? await res.json() : [];
+        // Busca dados do colaborador
+        const colabRes = await fetch(`/api/colaboradores/${colabId}`, { headers: { Authorization: 'Bearer ' + token } });
+        const colab = colabRes.ok ? await colabRes.json() : window.viewedColaborador;
+        // Busca dados da ficha
+        const fichasRes = await fetch(`/api/colaboradores/${colabId}/epi-fichas`, { headers: { Authorization: 'Bearer ' + token } });
+        const fichas = fichasRes.ok ? await fichasRes.json() : [];
+        const ficha = fichas.find(f => f.id === fichaId);
+        if (!ficha) { if (typeof showToast === 'function') showToast('Ficha não encontrada.', 'error'); return; }
+        // Gera PDF usando a função existente
+        if (typeof window.gerarEpiPDF === 'function') {
+            await window.gerarEpiPDF(colab, ficha, entregas);
+        } else if (typeof window.generateEpiPDF === 'function') {
+            await window.generateEpiPDF(colab, ficha, entregas);
+        } else {
+            if (typeof showToast === 'function') showToast('Módulo de PDF de EPI não carregado.', 'error');
+        }
+    } catch (e) {
+        if (typeof showToast === 'function') showToast('Erro ao gerar PDF: ' + e.message, 'error');
+    }
 };
 
 // Restaura Ajudante se tiver sido editado incorretamente (chamado manualmente se necessário)

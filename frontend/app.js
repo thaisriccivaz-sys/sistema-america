@@ -5313,7 +5313,11 @@ window.renderTabContent = function (tabId, tabTitle, preventScroll = false) {
     } else if (tabId === 'Advertências') {
         renderAdvertenciasTab(listContainer, filteredDocs);
     } else if (tabId === 'Ficha de EPI') {
-        renderFichaEpiTab(listContainer);
+        if (typeof window.renderFichaEpiTab === 'function') {
+            window.renderFichaEpiTab(listContainer);
+        } else {
+            listContainer.innerHTML = '<div style="padding:2rem;color:#94a3b8;text-align:center;"><i class="ph ph-shield-slash" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Módulo de EPI não carregado. Tente recarregar a página.</div>';
+        }
     } else if (tabId === '01_FICHA_CADASTRAL') {
         // Usa a MESMA lista ordenada do Passo 3 da Admissão para garantir espelhamento
         const _ec = (viewedColaborador && viewedColaborador.estado_civil || '').toLowerCase();
