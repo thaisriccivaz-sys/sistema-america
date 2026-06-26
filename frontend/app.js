@@ -14408,6 +14408,13 @@ async function renderFichaEpiTab(container) {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     let tabelaHtml = '';
     if (todasEntregas && todasEntregas.length > 0) {
+        // Ordena entregas da mais recente para a mais antiga
+        todasEntregas.sort((a, b) => {
+            const dateA = parseDateEntrega(a.data_entrega) || new Date(0);
+            const dateB = parseDateEntrega(b.data_entrega) || new Date(0);
+            return dateB - dateA;
+        });
+
         const linhas = todasEntregas.map(e => {
             const dataObj = parseDateEntrega(e.data_entrega);
             const diasAtras = dataObj ? Math.floor((hoje - dataObj) / (1000 * 60 * 60 * 24)) : null;
@@ -14426,12 +14433,11 @@ async function renderFichaEpiTab(container) {
                     <td style="padding:0.55rem 0.85rem;font-size:0.8rem;color:#64748b;">${e.registrado_por || '—'}</td>
                     <td style="padding:0.35rem 0.6rem;text-align:center;">
                         <button
-                            onclick="window._excluirEpiEntrega(${e.id}, '${(e.epi_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', this, ${e.ficha_id})"
-                            title="Excluir este EPI da ficha"
-                            style="background:none;border:1.5px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.78rem;display:inline-flex;align-items:center;gap:3px;transition:all .15s;"
-                            onmouseover="this.style.background='#fef2f2'"
-                            onmouseout="this.style.background='none'">
-                            <i class="ph ph-trash" style="font-size:0.85rem;"></i>
+                            onclick="window.previewFichaEpi(${e.ficha_id})"
+                            title="Ver Comprovante de Entrega"
+                            class="btn btn-secondary btn-sm"
+                            style="height:32px;display:inline-flex;align-items:center;gap:4px;padding:3px 8px;">
+                            <i class="ph ph-eye"></i>
                         </button>
                     </td>
                 </tr>`;
