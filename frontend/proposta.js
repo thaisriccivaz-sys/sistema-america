@@ -76,17 +76,7 @@ function renderTelaPropostas() {
     container.innerHTML = `
         <div style="max-width:1400px; margin:0 auto;">
 
-            <!-- Cabeçalho -->
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:1rem;">
-                <div>
-                    <h2 style="margin:0; color:#1e293b; font-size:1.4rem; font-weight:700; display:flex; align-items:center; gap:0.5rem;">
-                        <i class="ph ph-file-text" style="color:#7048e8;"></i> Propostas Comerciais
-                    </h2>
-                    <p style="margin:0.25rem 0 0; color:#64748b; font-size:0.88rem;">
-                        Gerencie as propostas de locação da América Rental
-                    </p>
-                </div>
-            </div>
+
 
             <!-- ABAS INTERNAS -->
             <div style="display:flex; gap:1rem; border-bottom:1px solid #e2e8f0; margin-bottom:1.5rem;">
