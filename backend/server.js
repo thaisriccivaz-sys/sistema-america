@@ -18690,6 +18690,38 @@ console.log('[TREINAMENTO] Módulo de treinamentos carregado.');
   });
 });
 
+
+// ── MIGRAÇÃO: Remover UNIQUE(treinamento_id, usuario_id) que apagava registros de outros colaboradores
+db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='treinamento_presenca'", (err, row) => {
+    if (row && row.sql.includes('UNIQUE(treinamento_id, usuario_id)')) {
+        console.log('[PRESENÇA] Iniciando migração para corrigir UNIQUE constraint...');
+        db.serialize(() => {
+            db.run('BEGIN TRANSACTION');
+            db.run(`CREATE TABLE treinamento_presenca_v2 (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                treinamento_id INTEGER NOT NULL REFERENCES treinamentos(id) ON DELETE CASCADE,
+                usuario_id     INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
+                colaborador_id INTEGER REFERENCES colaboradores(id) ON DELETE CASCADE,
+                instrutor_id   INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                data_presenca  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                assinatura_base64 TEXT,
+                selfie_base64 TEXT,
+                data_conclusao TEXT,
+                instrutor_nome TEXT,
+                UNIQUE(treinamento_id, colaborador_id)
+            )`);
+            db.run(`INSERT OR REPLACE INTO treinamento_presenca_v2 (id, treinamento_id, usuario_id, colaborador_id, instrutor_id, data_presenca, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome)
+                    SELECT id, treinamento_id, usuario_id, colaborador_id, instrutor_id, data_presenca, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome FROM treinamento_presenca`);
+            db.run(`DROP TABLE treinamento_presenca`);
+            db.run(`ALTER TABLE treinamento_presenca_v2 RENAME TO treinamento_presenca`);
+            db.run('COMMIT', (err) => {
+                if (err) console.error('[PRESENÇA] Erro na migração de constraint:', err.message);
+                else console.log('[PRESENÇA] Migração de constraint concluída com sucesso!');
+            });
+        });
+    }
+});
+
 // ── GET /api/treinamento-presenca/colaboradores ──────────────────────────────
 // Retorna lista de colaboradores com seus treinamentos aplicáveis (por depto)
 // e o status de conclusão de cada treinamento
