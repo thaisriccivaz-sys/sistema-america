@@ -15586,7 +15586,7 @@ window.toggleSidebar = function () {
     }
 })();
 
-\n\n// PRONTUÁRIO TABS SEARCH FILTER
+// PRONTUÁRIO TABS SEARCH FILTER
 // ==========================================
 window.filterTabsList = function(q) {
     q = (q || '').toLowerCase().trim();
