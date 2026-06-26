@@ -220,7 +220,12 @@
         return `<div style="background:#fff;border-radius:14px;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.05);overflow:hidden;display:flex;flex-direction:column;">
             <!-- Cabeçalho do card -->
             <div style="background:${bgHeader};padding:14px 16px;display:flex;align-items:center;gap:12px;transition:background 0.3s ease;">
-                <div style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff;flex-shrink:0;">${iniciais}</div>
+                <div style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff;flex-shrink:0;overflow:hidden;position:relative;">
+                    <img src="${API_URL}/colaboradores/foto/${c.id}?token=${currentToken}" 
+                         style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;" 
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" alt="Foto"/>
+                    <div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${iniciais}</div>
+                </div>
                 <div style="flex:1;min-width:0;">
                     <div style="color:#fff;font-weight:700;font-size:0.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${c.nome_completo}">${c.nome_completo}</div>
                     <div style="color:rgba(255,255,255,0.8);font-size:0.75rem;">${c.cargo || ''} ${c.departamento ? '· ' + c.departamento : ''}</div>
