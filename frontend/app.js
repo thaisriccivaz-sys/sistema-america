@@ -14433,13 +14433,14 @@ async function renderFichaEpiTab(container) {
                     <td style="padding:0.55rem 0.85rem;font-size:0.8rem;color:#64748b;">${e.registrado_por || '—'}</td>
                     <td style="padding:0.35rem 0.6rem;text-align:center;">
                         <button
-                            onclick="window.previewFichaEpi(${e.ficha_id})"
-                            title="Ver Comprovante de Entrega"
+                            onclick="window.verComprovanteEntrega(${e.id})"
+                            title="Ver Comprovante desta Entrega (EPIs + Assinatura)"
                             class="btn btn-secondary btn-sm"
                             style="height:32px;display:inline-flex;align-items:center;gap:4px;padding:3px 8px;">
                             <i class="ph ph-eye"></i>
                         </button>
                     </td>
+
                 </tr>`;
         }).join('');
 
@@ -14529,6 +14530,113 @@ async function renderFichaEpiTab(container) {
 }
 // Expõe como window.renderFichaEpiTab para compatibilidade com módulos externos
 window.renderFichaEpiTab = renderFichaEpiTab;
+
+// ============================================================
+// COMPROVANTE DE ENTREGA INDIVIDUAL (Histórico de EPIs)
+// ============================================================
+window.verComprovanteEntrega = async function (entregaId) {
+    // Remove modal anterior se existir
+    const existingModal = document.getElementById('modal-comprovante-entrega-epi');
+    if (existingModal) existingModal.remove();
+
+    // Modal de loading
+    const modal = document.createElement('div');
+    modal.id = 'modal-comprovante-entrega-epi';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    modal.innerHTML = `<div style="background:#fff;border-radius:16px;padding:2rem;min-width:300px;text-align:center;color:#64748b;">
+        <i class="ph ph-spinner ph-spin" style="font-size:2rem;display:block;margin-bottom:8px;"></i> Carregando comprovante...
+    </div>`;
+    document.body.appendChild(modal);
+
+    try {
+        const data = await apiGet(`/epi-entregas/${entregaId}`);
+        if (!data || data.error) throw new Error(data?.error || 'Entrega não encontrada');
+
+        const episHtml = (data.epis || []).map(ep => `
+            <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:6px 12px;font-size:0.9rem;color:#0f172a;">${ep.nome}</td>
+                <td style="padding:6px 12px;text-align:center;">
+                    <span style="background:#e0f2fe;color:#0369a1;font-weight:700;font-size:0.82rem;padding:2px 10px;border-radius:999px;">${ep.qty}</span>
+                </td>
+            </tr>`).join('');
+
+        const assinaturaHtml = data.assinatura_base64
+            ? `<div style="margin-top:1.5rem;">
+                <p style="font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Assinatura do Colaborador</p>
+                <div style="border:1.5px solid #e2e8f0;border-radius:10px;padding:8px;background:#f8fafc;display:inline-block;">
+                    <img src="${data.assinatura_base64}" style="max-width:340px;max-height:140px;border-radius:6px;" alt="Assinatura"/>
+                </div>
+               </div>`
+            : `<p style="color:#94a3b8;font-size:0.85rem;margin-top:1rem;"><i class="ph ph-signature"></i> Assinatura não disponível para esta entrega.</p>`;
+
+        modal.innerHTML = `
+        <div style="background:#fff;border-radius:16px;padding:0;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+            <!-- Header -->
+            <div style="background:linear-gradient(135deg,#1e3a5f,#2563eb);border-radius:16px 16px 0 0;padding:1.2rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <i class="ph ph-shield-checkered" style="color:#93c5fd;font-size:1.4rem;"></i>
+                    <div>
+                        <h3 style="margin:0;color:#fff;font-size:1rem;font-weight:700;">Comprovante de Entrega de EPI</h3>
+                        <p style="margin:0;color:#93c5fd;font-size:0.78rem;">${data.grupo || ''}</p>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('modal-comprovante-entrega-epi').remove()"
+                    style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">✕</button>
+            </div>
+
+            <!-- Info badges -->
+            <div style="padding:1rem 1.5rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;flex-wrap:wrap;gap:0.75rem;">
+                <div style="display:flex;align-items:center;gap:5px;font-size:0.8rem;color:#475569;">
+                    <i class="ph ph-user" style="color:#3b82f6;"></i>
+                    <strong>${data.colaborador_nome || viewedColaborador?.nome_completo || '—'}</strong>
+                </div>
+                <div style="display:flex;align-items:center;gap:5px;font-size:0.8rem;color:#475569;">
+                    <i class="ph ph-calendar" style="color:#3b82f6;"></i>
+                    ${data.data_entrega || '—'}
+                </div>
+                <div style="display:flex;align-items:center;gap:5px;font-size:0.8rem;color:#475569;">
+                    <i class="ph ph-user-check" style="color:#3b82f6;"></i>
+                    Registrado por: <strong>${data.registrado_por || '—'}</strong>
+                </div>
+            </div>
+
+            <!-- Body -->
+            <div style="padding:1.5rem;">
+                <!-- Lista de EPIs -->
+                <p style="font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">EPIs Entregues</p>
+                <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:0;">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead>
+                            <tr style="background:#f8fafc;">
+                                <th style="padding:7px 12px;text-align:left;font-size:0.75rem;color:#64748b;font-weight:700;text-transform:uppercase;">EPI</th>
+                                <th style="padding:7px 12px;text-align:center;font-size:0.75rem;color:#64748b;font-weight:700;text-transform:uppercase;width:60px;">Qtd</th>
+                            </tr>
+                        </thead>
+                        <tbody>${episHtml || '<tr><td colspan="2" style="padding:12px;color:#94a3b8;text-align:center;">Nenhum EPI registrado</td></tr>'}</tbody>
+                    </table>
+                </div>
+
+                <!-- Assinatura -->
+                <div style="text-align:center;">${assinaturaHtml}</div>
+            </div>
+
+            <!-- Footer -->
+            <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;text-align:right;">
+                <button onclick="document.getElementById('modal-comprovante-entrega-epi').remove()"
+                    style="background:#e2e8f0;color:#475569;border:none;border-radius:8px;padding:8px 20px;cursor:pointer;font-weight:600;font-size:0.9rem;">Fechar</button>
+            </div>
+        </div>`;
+
+    } catch (err) {
+        modal.innerHTML = `<div style="background:#fff;border-radius:16px;padding:2rem;max-width:400px;text-align:center;">
+            <i class="ph ph-warning-circle" style="color:#dc2626;font-size:2rem;display:block;margin-bottom:8px;"></i>
+            <p style="color:#dc2626;font-weight:600;">Erro ao carregar comprovante</p>
+            <p style="color:#64748b;font-size:0.85rem;">${err.message}</p>
+            <button onclick="document.getElementById('modal-comprovante-entrega-epi').remove()"
+                style="background:#e2e8f0;color:#475569;border:none;border-radius:8px;padding:8px 20px;margin-top:12px;cursor:pointer;">Fechar</button>
+        </div>`;
+    }
+};
 
 // ============================================================
 // FLUXO DE ASSINATURA DE ENTREGA DE EPI — funções restauradas

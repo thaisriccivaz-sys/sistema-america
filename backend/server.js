@@ -9448,6 +9448,40 @@ app.get('/api/epi-selfie/:colaborador_id', authenticateToken, (req, res) => {
     );
 });
 
+// GET: buscar dados completos de uma entrega de EPI (assinatura + EPIs)
+app.get('/api/epi-entregas/:id', authenticateToken, (req, res) => {
+    db.get(
+        `SELECT ee.id, ee.ficha_id, ee.colaborador_id, ee.data_entrega,
+                ee.epis_entregues, ee.assinatura_base64, ee.registrado_por,
+                ef.grupo,
+                c.nome_completo AS colaborador_nome
+         FROM epi_entregas ee
+         JOIN colaborador_epi_fichas ef ON ef.id = ee.ficha_id
+         LEFT JOIN colaboradores c ON c.id = ee.colaborador_id
+         WHERE ee.id = ?`,
+        [req.params.id],
+        (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!row) return res.status(404).json({ error: 'Entrega não encontrada.' });
+            const epis = JSON.parse(row.epis_entregues || '[]');
+            // Agrupa itens repetidos
+            const contagem = {};
+            epis.forEach(nome => { contagem[nome] = (contagem[nome] || 0) + 1; });
+            res.json({
+                id: row.id,
+                ficha_id: row.ficha_id,
+                colaborador_id: row.colaborador_id,
+                colaborador_nome: row.colaborador_nome,
+                data_entrega: row.data_entrega,
+                grupo: row.grupo,
+                registrado_por: row.registrado_por,
+                epis: Object.entries(contagem).map(([nome, qty]) => ({ nome, qty })),
+                assinatura_base64: row.assinatura_base64 || null
+            });
+        }
+    );
+});
+
 // POST: registrar entrega assinada de EPIs
 app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
     const fichaId = req.params.id;
