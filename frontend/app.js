@@ -14925,6 +14925,95 @@ window._assinNextStep = async function () {
     if(step===3){const old=document.getElementById('epi-assinatura-overlay');if(old)old.remove();}
 };
 
+    window._epiAssinIniciarCamera = async function() {
+        const statusEl = document.getElementById('epi-assin-selfie-status');
+        try {
+            window._assinSelfieStream = await navigator.mediaDevices.getUserMedia({video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false});
+            const video = document.getElementById('epi-assin-selfie-video');
+            if (video) { video.srcObject = window._assinSelfieStream; video.style.display = 'block'; }
+            document.getElementById('epi-assin-selfie-canvas').style.display = 'none';
+            const btnTirar = document.getElementById('btn-epi-assin-tirar');
+            if (btnTirar) btnTirar.style.display = 'flex';
+            const btnRefazer = document.getElementById('btn-epi-assin-refazer');
+            if (btnRefazer) btnRefazer.style.display = 'none';
+            const btnConfirm = document.getElementById('btn-epi-assin-confirmar');
+            if (btnConfirm) btnConfirm.style.display = 'none';
+            if (statusEl) statusEl.textContent = 'Câmera pronta. Posicione o rosto do colaborador.';
+        } catch(err) {
+            console.error('[EPI Selfie]', err);
+            if (statusEl) statusEl.innerHTML = '<span style="color:#dc2626;"><i class="ph ph-warning"></i> Câmera não acessível. Verifique as permissões.</span>';
+            const btnTirar = document.getElementById('btn-epi-assin-tirar');
+            if (btnTirar) btnTirar.style.display = 'none';
+        }
+    };
+
+    window._epiAssinTirarFoto = function() {
+        const video = document.getElementById('epi-assin-selfie-video');
+        const canvas = document.getElementById('epi-assin-selfie-canvas');
+        if (!video || !window._assinSelfieStream) return;
+        canvas.width = video.videoWidth || 640; canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext('2d');
+        ctx.save(); ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        
+        window._assinSelfieTs = new Date();
+        const dtStr = window._assinSelfieTs.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+        const entregadorNome = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.nome || currentUser.username || 'Usuário') : 'Usuário';
+        const overlayH = 56;
+        ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(0, canvas.height - overlayH, canvas.width, overlayH);
+        ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 13px Arial'; ctx.fillText('Entregue por: ' + entregadorNome, 8, canvas.height - overlayH + 16);
+        ctx.fillStyle = '#e2e8f0'; ctx.font = '12px Arial'; ctx.fillText('Colaborador: ' + (window.viewedColaborador?.nome_completo || ''), 8, canvas.height - overlayH + 32);
+        ctx.fillStyle = '#94a3b8'; ctx.font = '11px Arial'; ctx.fillText(dtStr, 8, canvas.height - overlayH + 48);
+        
+        if (window._currentGpsLat && window._currentGpsLon) {
+             ctx.fillStyle = '#94a3b8'; ctx.font = '10px Arial'; ctx.fillText('GPS: ' + window._currentGpsLat + ', ' + window._currentGpsLon, 200, canvas.height - overlayH + 48);
+        }
+        
+        window._assinSelfieBase64 = canvas.toDataURL('image/jpeg', 0.88);
+        video.style.display = 'none'; canvas.style.display = 'block';
+        const btnTirar = document.getElementById('btn-epi-assin-tirar');
+        if (btnTirar) btnTirar.style.display = 'none';
+        const btnRefazer = document.getElementById('btn-epi-assin-refazer');
+        if (btnRefazer) btnRefazer.style.display = 'flex';
+        const btnConfirm = document.getElementById('btn-epi-assin-confirmar');
+        if (btnConfirm) btnConfirm.style.display = 'flex';
+        const statusEl = document.getElementById('epi-assin-selfie-status');
+        if (statusEl) statusEl.innerHTML = '<span style="color:#16a34a;"><i class="ph ph-check-circle"></i> Foto tirada! Confirme ou refaça.</span>';
+    };
+
+    window._epiAssinRefazerFoto = function() {
+        window._assinSelfieBase64 = null; window._assinSelfieTs = null;
+        const video = document.getElementById('epi-assin-selfie-video'); const canvas = document.getElementById('epi-assin-selfie-canvas');
+        if (video) video.style.display = 'block'; if (canvas) canvas.style.display = 'none';
+        const btnTirar = document.getElementById('btn-epi-assin-tirar');
+        if (btnTirar) btnTirar.style.display = 'flex';
+        const btnRefazer = document.getElementById('btn-epi-assin-refazer');
+        if (btnRefazer) btnRefazer.style.display = 'none';
+        const btnConfirm = document.getElementById('btn-epi-assin-confirmar');
+        if (btnConfirm) btnConfirm.style.display = 'none';
+        const statusEl = document.getElementById('epi-assin-selfie-status');
+        if (statusEl) statusEl.textContent = 'Câmera pronta. Posicione o rosto do colaborador.';
+    };
+
+    window._epiAssinConfirmarFoto = function() {
+        if (!window._assinSelfieBase64) return;
+        if (window._assinSelfieStream) { window._assinSelfieStream.getTracks().forEach(t => t.stop()); window._assinSelfieStream = null; }
+        const srcC = document.getElementById('epi-assin-selfie-canvas');
+        const thumb = document.getElementById('epi-assin-selfie-thumb');
+        if (srcC && thumb) {
+            const tctx = thumb.getContext('2d'); thumb.width = srcC.width; thumb.height = srcC.height;
+            tctx.drawImage(srcC, 0, 0);
+        }
+        const thumbBox = document.getElementById('epi-assin-selfie-thumb-box');
+        if (thumbBox) thumbBox.style.display = 'flex';
+        const thumbDt = document.getElementById('epi-assin-selfie-thumb-dt');
+        if (thumbDt && window._assinSelfieTs) {
+            thumbDt.textContent = window._assinSelfieTs.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        }
+        window._assinStep(2);
+    };
+
 window._initSignatureCanvas = function () {
     const canvas=document.getElementById('epi-signature-canvas'); if(!canvas)return;
     const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.strokeStyle='#1e3a5f'; ctx.lineWidth=4; ctx.lineCap='round'; ctx.lineJoin='round';
