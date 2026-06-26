@@ -89,9 +89,6 @@ function renderTelaPropostas() {
                     margin-bottom: 0.5rem;
                     font-family: 'Inter', sans-serif;
                     box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-                    position: sticky;
-                    top: 98px;
-                    z-index: 998;
                 }
                 .saas-brand {
                     display: flex;
@@ -471,10 +468,10 @@ function _renderFormPropostaInt() {
     const vn = (campo, def='0') => prop ? (prop[campo] ?? def) : def;
 
     container.innerHTML = `
-        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:hidden; margin:0 auto; border: 1px solid #e2e8f0;">
+        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0;">
 
             <!-- Toolbar -->
-            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem;">
+            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:98px; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
                 
                 <!-- Badge Lado Esquerdo -->
                 <div style="background:#2e58a6; color:white; padding:0.45rem 0.9rem; border-radius:6px; font-weight:700; font-size:0.86rem; display:flex; align-items:center; gap:0.4rem; font-family:'Inter', sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
