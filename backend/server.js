@@ -11485,10 +11485,28 @@ db.run(`CREATE TABLE IF NOT EXISTS dissidios (
 
 // GET /api/assinaturas-auditoria — retorna a trilha de auditoria jurídica (GPS, IP, Hash)
 app.get('/api/assinaturas-auditoria', authenticateToken, (req, res) => {
-    db.all('SELECT * FROM assinatura_auditoria ORDER BY data_hora DESC', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+    db.all(
+        `SELECT
+            id,
+            data_assinatura AS data_hora,
+            document_type AS tipo_documento,
+            documento_id,
+            colaborador_nome,
+            ip_address AS ip,
+            dispositivo,
+            gps_lat,
+            gps_lon,
+            hash_assinatura AS hash_pdf,
+            NULL AS detalhes
+         FROM assinaturas_auditoria
+         ORDER BY data_assinatura DESC
+         LIMIT 500`,
+        [],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows || []);
+        }
+    );
 });
 
 // Seed: valor padrão do VR (R$35,00) se não existir
@@ -18756,17 +18774,52 @@ app.get('/api/treinamento-presenca/historico/:colaboradorId', authenticateToken,
 // ── POST /api/treinamento-presenca/assinar ────────────────────────────────────
 // Registra presença com assinatura digital e selfie
 app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
-  const { colaborador_id, treinamento_id, assinatura_base64, selfie_base64, instrutor_nome } = req.body;
+  const {
+    colaborador_id, treinamento_id, assinatura_base64, selfie_base64, instrutor_nome,
+    gps_lat, gps_lon, dispositivo
+  } = req.body;
+
   if (!colaborador_id || !treinamento_id) {
     return res.status(400).json({ error: 'colaborador_id e treinamento_id são obrigatórios' });
   }
 
   const now = new Date().toISOString();
   const instrutorNome = instrutor_nome || req.user?.username || req.user?.nome || '';
-  // Usar o id do usuario logado como usuario_id para satisfazer a constraint NOT NULL
   const usuarioId = req.user?.id || 0;
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
 
-  // Primeiro verifica se já existe registro para esse par (colaborador + treinamento)
+  // Função auxiliar: registra na trilha de auditoria após sucesso
+  const registrarAuditoria = (presencaId) => {
+    try {
+      const crypto = require('crypto');
+      const hash = crypto.createHash('sha256')
+        .update((assinatura_base64 || '') + colaborador_id + treinamento_id + now)
+        .digest('hex');
+
+      // Buscar nome do colaborador
+      db.get(`SELECT nome_completo FROM colaboradores WHERE id = ?`, [colaborador_id], (errC, colab) => {
+        const colabNome = colab ? colab.nome_completo : 'Desconhecido';
+
+        // Registrar na assinaturas_auditoria
+        db.run(
+          `INSERT INTO assinaturas_auditoria
+             (documento_id, document_type, colaborador_id, colaborador_nome,
+              gps_lat, gps_lon, dispositivo, ip_address, hash_assinatura)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [presencaId, 'Lista de Presença', colaborador_id, colabNome,
+           gps_lat || null, gps_lon || null, dispositivo || null, ip, hash],
+          (errA) => {
+            if (errA) console.error('[PRESENÇA-AUDITORIA] Erro ao registrar auditoria:', errA.message);
+            else console.log(`[PRESENÇA-AUDITORIA] Auditoria registrada para colaborador ${colaborador_id} / treinamento ${treinamento_id}`);
+          }
+        );
+      });
+    } catch (e) {
+      console.error('[PRESENÇA-AUDITORIA] Erro inesperado:', e.message);
+    }
+  };
+
+  // Verificar se já existe registro para esse par (colaborador + treinamento)
   db.get(
     `SELECT id FROM treinamento_presenca WHERE treinamento_id = ? AND colaborador_id = ?`,
     [treinamento_id, colaborador_id],
@@ -18782,11 +18835,12 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
           [assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, treinamento_id, colaborador_id],
           function(err2) {
             if (err2) return res.status(500).json({ error: err2.message });
+            registrarAuditoria(existing.id);
             res.json({ ok: true, updated: true, data_conclusao: now });
           }
         );
       } else {
-        // Insere novo registro usando usuario_id do usuário logado (satisfaz NOT NULL)
+        // Insere novo registro
         db.run(
           `INSERT INTO treinamento_presenca
              (treinamento_id, colaborador_id, usuario_id, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome)
@@ -18794,7 +18848,7 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
           [treinamento_id, colaborador_id, usuarioId, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome],
           function(err2) {
             if (err2) {
-              // Fallback: se falhou (pode ser UNIQUE constraint), faz UPDATE
+              // Fallback: se falhou (UNIQUE constraint), faz UPDATE
               db.run(
                 `UPDATE treinamento_presenca
                  SET assinatura_base64 = ?, selfie_base64 = ?, data_conclusao = ?, instrutor_nome = ?
@@ -18802,10 +18856,17 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
                 [assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, treinamento_id, colaborador_id],
                 function(err3) {
                   if (err3) return res.status(500).json({ error: err3.message });
+                  // Buscar id do registro para auditoria
+                  db.get(
+                    `SELECT id FROM treinamento_presenca WHERE treinamento_id = ? AND colaborador_id = ?`,
+                    [treinamento_id, colaborador_id],
+                    (errId, row) => { if (row) registrarAuditoria(row.id); }
+                  );
                   res.json({ ok: true, updated: true, data_conclusao: now });
                 }
               );
             } else {
+              registrarAuditoria(this.lastID);
               res.json({ ok: true, id: this.lastID, data_conclusao: now });
             }
           }
@@ -18814,6 +18875,7 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
     }
   );
 });
+
 
 // ── GET /api/treinamento-presenca/registro/:colaboradorId/:treinamentoId ───────
 // Busca registro completo (assinatura + selfie) para exibição pós-assinatura
