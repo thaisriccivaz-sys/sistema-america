@@ -14560,14 +14560,25 @@ window.verComprovanteEntrega = async function (entregaId) {
                 </td>
             </tr>`).join('');
 
+        
         const assinaturaHtml = data.assinatura_base64
-            ? `<div style="margin-top:1.5rem;">
-                <p style="font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Assinatura do Colaborador</p>
-                <div style="border:1.5px solid #e2e8f0;border-radius:10px;padding:8px;background:#f8fafc;display:inline-block;">
-                    <img src="${data.assinatura_base64}" style="max-width:340px;max-height:140px;border-radius:6px;" alt="Assinatura"/>
+            ? `<div style="margin-top:1.5rem;display:flex;gap:1.5rem;justify-content:center;flex-wrap:wrap;">
+                <div style="text-align:center;">
+                    <p style="font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Assinatura do Colaborador</p>
+                    <div style="border:1.5px solid #e2e8f0;border-radius:10px;padding:8px;background:#f8fafc;display:inline-block;">
+                        <img src="${data.assinatura_base64}" style="max-width:340px;max-height:140px;border-radius:6px;" alt="Assinatura"/>
+                    </div>
                 </div>
+                ${data.selfie_base64 ? `
+                <div style="text-align:center;">
+                    <p style="font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Selfie da Entrega</p>
+                    <div style="border:1.5px solid #e2e8f0;border-radius:10px;padding:4px;background:#f8fafc;display:inline-block;">
+                        <img src="${data.selfie_base64}" style="max-width:200px;max-height:140px;border-radius:6px;object-fit:cover;" alt="Selfie"/>
+                    </div>
+                </div>` : ''}
                </div>`
             : `<p style="color:#94a3b8;font-size:0.85rem;margin-top:1rem;"><i class="ph ph-signature"></i> Assinatura não disponível para esta entrega.</p>`;
+
 
         modal.innerHTML = `
         <div style="background:#fff;border-radius:16px;padding:0;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);">
@@ -14685,10 +14696,60 @@ window.abrirAssinaturaEpi = async function (fichaId) {
                 <div id="epi-lista-botoes" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;"></div>
                 <p id="epi-select-warn" style="color:#dc2626;font-size:0.85rem;margin:0.75rem 0 0;display:none;">&#9888; Defina quantidade > 0 em pelo menos um EPI.</p>
             </div>
-            <div id="epi-step-2" style="display:none; grid-template-columns: 1fr 1fr; gap: 2rem;">
+            
+            <!-- PASSO SELFIE -->
+            <div id="epiov-step-selfie" style="display:none;max-width:520px;margin:0 auto;">
+                <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#eff6ff;border-radius:10px;border-left:4px solid #2563eb;margin-bottom:1.25rem;">
+                    <i class="ph ph-camera" style="font-size:1.5rem;color:#2563eb;"></i>
+                    <div>
+                        <div style="font-weight:700;font-size:0.95rem;color:#1e40af;">Passo 2 de 4 &mdash; Selfie do Colaborador</div>
+                        <div style="font-size:0.8rem;color:#3b82f6;">Posicione o rosto do colaborador e clique em "Tirar Foto"</div>
+                    </div>
+                </div>
+
+                <div style="position:relative;border-radius:12px;overflow:hidden;background:#0f172a;aspect-ratio:4/3;">
+                    <video id="epi-assin-selfie-video" autoplay playsinline muted
+                           style="width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1);"></video>
+                    <canvas id="epi-assin-selfie-canvas"
+                            style="display:none;width:100%;height:100%;object-fit:cover;"></canvas>
+                    <div style="position:absolute;bottom:0;left:0;right:0;padding:8px 10px;background:linear-gradient(transparent,rgba(0,0,0,0.8));pointer-events:none;">
+                        <div id="epi-assin-selfie-info1" style="font-size:0.72rem;color:#fbbf24;font-weight:600;margin-bottom:2px;"></div>
+                        <div id="epi-assin-selfie-info2" style="font-size:0.7rem;color:#e2e8f0;"></div>
+                        <div id="epi-assin-selfie-dt" style="font-size:0.65rem;color:#94a3b8;"></div>
+                    </div>
+                </div>
+
+                <div id="epi-assin-selfie-status" style="font-size:0.8rem;color:#6b7280;text-align:center;margin:0.6rem 0;"></div>
+
+                <div style="display:flex;flex-direction:column;gap:0.6rem;margin-top:0.5rem;">
+                    <button id="btn-epi-assin-tirar" type="button" onclick="window._epiAssinTirarFoto()"
+                            style="padding:0.75rem;background:#2563eb;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                        <i class="ph ph-camera"></i> Tirar Foto
+                    </button>
+                    <button id="btn-epi-assin-refazer" type="button" onclick="window._epiAssinRefazerFoto()"
+                            style="padding:0.65rem;background:#f1f5f9;color:#374151;border:1px solid #e2e8f0;border-radius:10px;font-weight:600;font-size:0.85rem;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;">
+                        <i class="ph ph-arrow-counter-clockwise"></i> Refazer Foto
+                    </button>
+                    <button id="btn-epi-assin-confirmar" type="button" onclick="window._epiAssinConfirmarFoto()"
+                            style="padding:0.75rem;background:#16a34a;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 6px -1px rgba(22,163,74,0.3);">
+                        <i class="ph ph-check-circle"></i> Confirmar e Assinar
+                    </button>
+                </div>
+            </div>
+
+<div id="epi-step-2" style="display:none; grid-template-columns: 1fr 1fr; gap: 2rem;">
                 <div style="display:flex;flex-direction:column;min-width:0;">
                     <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem;"><p style="font-size:0.85rem;font-weight:700;color:#166534;margin:0 0 6px;">EPIs para entrega em <strong id="epi-data-display"></strong>:</p><ul id="epi-lista-selecionada" style="margin:0;padding-left:1.25rem;font-size:0.85rem;color:#15803d;"></ul></div>
-                    <p style="font-size:0.85rem;font-weight:700;color:#374151;margin:0 0 6px;">Termo de Responsabilidade:</p>
+                    
+                    <!-- Selfie thumbnail -->
+                    <div id="epi-assin-selfie-thumb-box" style="display:none;border-radius:8px;border:2px solid #bbf7d0;background:#f0fdf4;padding:8px;display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+                        <canvas id="epi-assin-selfie-thumb" style="width:64px;height:48px;border-radius:6px;flex-shrink:0;"></canvas>
+                        <div style="font-size:0.78rem;color:#166534;">
+                            <div style="font-weight:700;"><i class="ph ph-shield-check"></i> Selfie registrada</div>
+                            <div id="epi-assin-selfie-thumb-dt" style="color:#4ade80;font-size:0.7rem;"></div>
+                        </div>
+                    </div>
+<p style="font-size:0.85rem;font-weight:700;color:#374151;margin:0 0 6px;">Termo de Responsabilidade:</p>
                     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.9rem;font-size:0.82rem;color:#374151;overflow-y:auto;line-height:1.6;white-space:pre-wrap;flex:1;">${termo}</div>
                 </div>
                 <div style="display:flex;flex-direction:column;min-width:0;">
@@ -14708,7 +14769,7 @@ window.abrirAssinaturaEpi = async function (fichaId) {
             </div>
         </div>
         <div id="epi-assin-footer" style="border-top:1px solid #e2e8f0;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;flex-shrink:0;">
-            <button id="btn-assin-back" onclick="window._assinStep(1)" style="display:none;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.65rem 1.5rem;font-weight:600;font-size:0.9rem;cursor:pointer;color:#475569;"><i class="ph ph-arrow-left"></i> Voltar</button>
+            <button id="btn-assin-back" onclick="window._assinBackStep()" style="display:none;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.65rem 1.5rem;font-weight:600;font-size:0.9rem;cursor:pointer;color:#475569;"><i class="ph ph-arrow-left"></i> Voltar</button>
             <div></div>
             <button id="btn-assin-next" onclick="window._assinNextStep()" class="btn btn-primary" style="padding:0.65rem 2rem;font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:8px;">Próximo <i class="ph ph-arrow-right"></i></button>
         </div>`;
@@ -14756,14 +14817,52 @@ window._setEpiQty = async function (epi, qty) {
 };
 
 window._assinStep = function(step) {
-    const s1=document.getElementById('epi-step-1'),s2=document.getElementById('epi-step-2'),s3=document.getElementById('epi-step-3');
-    const back=document.getElementById('btn-assin-back'),next=document.getElementById('btn-assin-next'),footer=document.getElementById('epi-assin-footer');
-    if(s1)s1.style.display=step===1?'':'none'; if(s2)s2.style.display=step===2?'grid':'none'; if(s3)s3.style.display=step===3?'':'none';
-    if(back)back.style.display=step===2?'':'none';
-    if(next){if(step===1){next.style.display='';next.innerHTML='Próximo <i class="ph ph-arrow-right"></i>';next.disabled=false;}else if(step===2){next.style.display='';next.innerHTML='<i class="ph ph-check"></i> Confirmar Entrega';next.disabled=false;}else{next.style.display='none';}}
-    if(footer)footer.style.display=step===3?'none':'';
+    const s1=document.getElementById('epi-step-1'), selfie=document.getElementById('epiov-step-selfie'), s2=document.getElementById('epi-step-2'), s3=document.getElementById('epi-step-3');
+    const back=document.getElementById('btn-assin-back'), next=document.getElementById('btn-assin-next'), footer=document.getElementById('epi-assin-footer');
+    
+    if(window._assinSelfieStream && step !== 'selfie') {
+        window._assinSelfieStream.getTracks().forEach(t=>t.stop());
+        window._assinSelfieStream=null;
+    }
+
+    if(s1)s1.style.display=step===1?'':'none';
+    if(selfie)selfie.style.display=step==='selfie'?'block':'none';
+    if(s2)s2.style.display=step===2?'grid':'none';
+    if(s3)s3.style.display=step===3?'':'none';
+    
+    if(back)back.style.display=(step==='selfie' || step===2)?'':'none';
+    if(next){
+        if(step===1){next.style.display='';next.innerHTML='Próximo <i class="ph ph-arrow-right"></i>';next.disabled=false;}
+        else if(step==='selfie'){next.style.display='none';} // hides next on selfie because "confirmar" button does it
+        else if(step===2){next.style.display='';next.innerHTML='<i class="ph ph-check"></i> Confirmar Entrega';next.disabled=false;}
+        else{next.style.display='none';}
+    }
+    if(footer)footer.style.display=step===3||step==='selfie'?'none':''; // actually on selfie we hide the footer because the selfie buttons are inside the div
+
+    // update step badges
+    ['1','selfie','2','3'].forEach((s, i) => {
+        const badge = document.getElementById('step-badge-' + s);
+        const ind = document.getElementById('step-ind-' + s);
+        if (!badge || !ind) return;
+        let active = step === s || (step === parseInt(s));
+        let done = false;
+        if (step === 'selfie' && i < 1) done = true;
+        if (step === 2 && i < 2) done = true;
+        if (step === 3 && i < 3) done = true;
+
+        badge.style.background = done ? '#16a34a' : active ? '#1e3a5f' : '#cbd5e1';
+        if (done) badge.innerHTML = '&#10003;';
+        ind.style.color = (done || active) ? (done ? '#16a34a' : '#1e3a5f') : '#94a3b8';
+    });
+
     window._assinCurrentStep=step;
-    if(step===2)setTimeout(()=>window._initSignatureCanvas(),80);
+    
+    if (step === 'selfie') {
+        if (!window._assinSelfieBase64) window._epiAssinIniciarCamera();
+    }
+    if (step === 2) {
+        setTimeout(()=>window._initSignatureCanvas(),80);
+    }
 };
 
 window._assinNextStep = async function () {
@@ -14773,8 +14872,17 @@ window._assinNextStep = async function () {
         if(sel.length===0){const w=document.getElementById('epi-select-warn');if(w){w.style.display='';setTimeout(()=>w.style.display='none',3000);}return;}
         const di=document.getElementById('epi-data-entrega'); const dataVal=di?di.value:''; const dataDisplay=document.getElementById('epi-data-display');
         if(dataDisplay&&dataVal){const[y,m,d]=dataVal.split('-');dataDisplay.textContent=`${d}/${m}/${y}`;}
-        const lista=document.getElementById('epi-lista-selecionada'); if(lista)lista.innerHTML=sel.map(([nome,qty])=>`<li>${nome}${qty>1?` <strong>(×${qty})</strong>`:''}</li>`).join('');
-        window._assinStep(2); return;
+        const lista=document.getElementById('epi-lista-selecionada'); if(lista)lista.innerHTML=sel.map(([nome,qty])=>`<li>${nome}${qty>1?` <strong>(×${qty})</strong>`:``}</li>`).join('');
+        
+        // Try to capture GPS in background for later
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => { window._currentGpsLat = position.coords.latitude; window._currentGpsLon = position.coords.longitude; },
+                () => { window._currentGpsLat = null; window._currentGpsLon = null; },
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+            );
+        }
+        window._assinStep('selfie'); return;
     }
     if(step===2){
         const w2=document.getElementById('epi-assin-warn');
@@ -14786,7 +14894,22 @@ window._assinNextStep = async function () {
             const di=document.getElementById('epi-data-entrega'); const dataVal=di?di.value:new Date().toISOString().split('T')[0]; const[y,m,d]=dataVal.split('-'); const dataFormatada=`${d}/${m}/${y}`;
             const episSelecionados=[]; Object.entries(window._assinQtds||{}).forEach(([nome,qty])=>{for(let i=0;i<qty;i++)episSelecionados.push(nome);});
             const controller=new AbortController(); const timeout=setTimeout(()=>controller.abort(),30000);
-            const res=await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`,{method:'POST',headers:{'Authorization':`Bearer ${currentToken}`,'Content-Type':'application/json'},body:JSON.stringify({data_entrega:dataFormatada,epis_entregues:episSelecionados,assinatura_base64:assinaturaBase64,colaborador_id:window._assinColabId,registrado_por:currentUser?.nome||currentUser?.email||'Sistema'}),signal:controller.signal});
+            const res=await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`,{method:'POST',headers:{'Authorization':`Bearer ${currentToken}`,'Content-Type':'application/json'},body:JSON.stringify({data_entrega:dataFormatada,epis_entregues:episSelecionados,assinatura_base64:assinaturaBase64,colaborador_id:window._assinColabId,registrado_por:currentUser?.nome||currentUser?.email||'Sistema', gps_lat:window._currentGpsLat||'', gps_lon:window._currentGpsLon||''}),signal:controller.signal});
+
+            if (res.ok && window._assinSelfieBase64) {
+                 try {
+                     await fetch(`${API_URL}/epi-selfie`, {
+                         method: 'POST',
+                         headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+                         body: JSON.stringify({
+                             colaborador_id: window._assinColabId,
+                             selfie_base64: window._assinSelfieBase64,
+                             registrado_por: currentUser?.nome||currentUser?.email||'Sistema',
+                             timestamp: window._assinSelfieTs ? window._assinSelfieTs.toISOString() : new Date().toISOString()
+                         })
+                     });
+                 } catch(selfieErr) { console.error('[EPI Selfie]', selfieErr); }
+            }
             clearTimeout(timeout);
             if(!res.ok){const errJson=await res.json().catch(()=>({}));throw new Error(errJson.error||`Erro HTTP ${res.status}`);}
             window._assinStep(3);
@@ -15101,7 +15224,7 @@ window._carregarAuditoria = async function () {
         tbody.innerHTML = r.map(aud => {
             // Converte timestamp para horário de Brasília (UTC-3)
             const dtFormatada = aud.data_hora
-                ? new Date(aud.data_hora).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+                ? new Date(aud.data_hora.replace(' ', 'T') + (aud.data_hora.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
                 : '-';
             return `
             <tr style="border-bottom:1px solid #e2e8f0;">
