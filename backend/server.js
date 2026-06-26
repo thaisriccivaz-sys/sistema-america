@@ -477,6 +477,14 @@ db.run("DELETE FROM cargos WHERE nome = 'teste' OR nome = 'Teste'", (err) => {
 
 // MIGRATION: Limpar duplicatas de geradores — executado em sequência garantida
 db.serialize(() => {
+db.run(`CREATE TABLE IF NOT EXISTS epi_selfies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    colaborador_id INTEGER NOT NULL,
+    selfie_base64 TEXT NOT NULL,
+    registrado_por TEXT,
+    timestamp TEXT,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
     // 1. Renomear ORDEM DE SERVIÇO NR01 (maiúsculo) para caixa mista
     db.run("UPDATE geradores SET nome = 'Ordem de Servi\u00e7o NR01' WHERE nome LIKE 'ORDEM%NR01' OR nome LIKE 'ORDEM%NR 01'", (err) => {
         if (err) console.error('Erro ao renomear NR01 maiúsculo:', err);

@@ -14927,6 +14927,10 @@ window._assinNextStep = async function () {
     window._epiAssinIniciarCamera = async function() {
         const statusEl = document.getElementById('epi-assin-selfie-status');
         try {
+            if (window._assinSelfieStream) {
+                window._assinSelfieStream.getTracks().forEach(t => t.stop());
+                window._assinSelfieStream = null;
+            }
             window._assinSelfieStream = await navigator.mediaDevices.getUserMedia({video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false});
             const video = document.getElementById('epi-assin-selfie-video');
             if (video) { video.srcObject = window._assinSelfieStream; video.style.display = 'block'; video.play().catch(e=>console.error(e)); }
@@ -14970,6 +14974,7 @@ window._assinNextStep = async function () {
         }
         
         window._assinSelfieBase64 = canvas.toDataURL('image/jpeg', 0.88);
+        if (window._assinSelfieStream) { window._assinSelfieStream.getTracks().forEach(t => t.stop()); window._assinSelfieStream = null; }
         video.style.display = 'none'; canvas.style.display = 'block';
         const btnTirar = document.getElementById('btn-epi-assin-tirar');
         if (btnTirar) btnTirar.style.display = 'none';
@@ -15317,17 +15322,19 @@ window._carregarAuditoria = async function () {
             return `
             <tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:12px 16px;">${dtFormatada}</td>
-                <td style="padding:12px 16px;font-weight:500;display:flex;align-items:center;gap:8px;">
-        <div>
-            ${aud.tipo_documento}<br><small style="color:#64748b;">${aud.detalhes || ''}</small>
-        </div>
-        ${(aud.tipo_documento === 'Entrega de EPI' && aud.documento_id) ? `<button onclick="window.verComprovanteEntrega(${aud.documento_id})" title="Ver Comprovante" style="background:none;border:none;color:#3b82f6;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;padding:2px;"><i class="ph ph-eye"></i></button>` : (aud.tipo_documento !== 'Entrega de EPI' && aud.documento_id) ? `<button onclick="window.open('${API_URL}/documentos/download/${aud.documento_id}?token=${currentToken}', '_blank')" title="Ver Documento" style="background:none;border:none;color:#3b82f6;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;padding:2px;"><i class="ph ph-eye"></i></button>` : ''}
-    </td>
+                <td style="padding:12px 16px;font-weight:500;font-size:0.75rem;line-height:1.3;max-width:400px;">${aud.tipo_documento}<br><small style="color:#64748b;font-size:0.7rem;">${aud.detalhes || ''}</small></td>
                 <td style="padding:12px 16px;">${aud.colaborador_nome}</td>
                 <td style="padding:12px 16px;font-family:monospace;font-size:0.85em;">${aud.ip || '-'}</td>
                 <td style="padding:12px 16px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${aud.dispositivo}">${aud.dispositivo || '-'}</td>
                 <td style="padding:12px 16px;">${aud.gps_lat ? `<a href="https://maps.google.com/?q=${aud.gps_lat},${aud.gps_lon}" target="_blank" style="color:#0ea5e9;text-decoration:none;"><i class="ph ph-map-pin"></i> Ver no Mapa</a>` : '-'}</td>
                 <td style="padding:12px 16px;font-family:monospace;font-size:0.8em;word-break:break-all;max-width:250px;">${aud.hash_pdf || '-'}</td>
+    <td style="padding:12px 16px;text-align:center;">
+        ${(aud.tipo_documento && aud.tipo_documento.startsWith('Entrega de EPI') && aud.documento_id) 
+            ? `<button onclick="window.verComprovanteEntrega(${aud.documento_id})" title="Ver Comprovante" style="background:#e0f2fe;border:none;color:#0369a1;cursor:pointer;font-size:1.2rem;display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);"><i class="ph ph-eye"></i></button>` 
+            : (aud.tipo_documento && !aud.tipo_documento.startsWith('Entrega de EPI') && aud.documento_id) 
+            ? `<button onclick="window.open('${API_URL}/documentos/download/${aud.documento_id}?token=${currentToken}', '_blank')" title="Ver Documento" style="background:#e0f2fe;border:none;color:#0369a1;cursor:pointer;font-size:1.2rem;display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);"><i class="ph ph-eye"></i></button>` 
+            : ''}
+    </td>
             </tr>`;
         }).join('');
 
