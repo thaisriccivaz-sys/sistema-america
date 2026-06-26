@@ -9462,24 +9462,27 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
             const entregaId = this.lastID;
 
-            // --- Auditoria Jurídica de Assinatura ---
+            // --- Auditoria Jurídica de Assinatura (tabela correta: assinaturas_auditoria) ---
             try {
                 const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
                 const { dispositivo, gps_lat, gps_lon } = req.body;
-                
-                // Como não geramos o PDF aqui, geramos o hash com base nos dados brutos que atestam a entrega
-                const payloadHash = JSON.stringify({
-                    colaborador_id,
-                    epis_entregues,
-                    assinatura_base64,
-                    data_entrega
-                });
+                const payloadHash = JSON.stringify({ colaborador_id, epis_entregues, assinatura_base64, data_entrega });
                 const hashDocumento = require('crypto').createHash('sha256').update(payloadHash).digest('hex');
 
-                db.run(
-                    `INSERT INTO assinatura_auditoria (tipo_documento, documento_id, colaborador_nome, ip, dispositivo, gps_lat, gps_lon, hash_pdf, detalhes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    ['EPI', entregaId, `ID ${colaborador_id}`, ip, dispositivo || req.headers['user-agent'], gps_lat || '', gps_lon || '', hashDocumento, JSON.stringify(epis_entregues)]
-                );
+                // Busca o nome real do colaborador antes de inserir
+                db.get(`SELECT nome_completo FROM colaboradores WHERE id = ?`, [colaborador_id], (errC, colabRow) => {
+                    const colabNome = colabRow ? colabRow.nome_completo : `ID ${colaborador_id}`;
+                    const episLabel = Array.isArray(epis_entregues)
+                        ? epis_entregues.slice(0, 3).join(', ') + (epis_entregues.length > 3 ? ` (+${epis_entregues.length - 3})` : '')
+                        : String(epis_entregues);
+                    const docLabel = `Entrega de EPI: ${episLabel}`;
+
+                    db.run(
+                        `INSERT INTO assinaturas_auditoria (documento_id, document_type, colaborador_id, colaborador_nome, gps_lat, gps_lon, dispositivo, ip_address, hash_assinatura) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [entregaId, docLabel, colaborador_id || null, colabNome, gps_lat || null, gps_lon || null, dispositivo || req.headers['user-agent'] || null, ip, hashDocumento],
+                        (errA) => { if (errA) console.error('[AUDITORIA EPI] Erro ao inserir na auditoria:', errA.message); }
+                    );
+                });
             } catch (errAudit) {
                 console.error('[AUDITORIA EPI] Erro ao salvar log de assinatura:', errAudit);
             }

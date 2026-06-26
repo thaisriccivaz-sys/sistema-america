@@ -14990,17 +14990,23 @@ window._carregarAuditoria = async function () {
             return;
         }
 
-        tbody.innerHTML = r.map(aud => `
+        tbody.innerHTML = r.map(aud => {
+            // Converte timestamp para horário de Brasília (UTC-3)
+            const dtFormatada = aud.data_hora
+                ? new Date(aud.data_hora).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+                : '-';
+            return `
             <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:12px 16px;">${new Date(aud.data_hora).toLocaleString('pt-BR')}</td>
+                <td style="padding:12px 16px;">${dtFormatada}</td>
                 <td style="padding:12px 16px;font-weight:500;">${aud.tipo_documento}<br><small style="color:#64748b;">${aud.detalhes || ''}</small></td>
                 <td style="padding:12px 16px;">${aud.colaborador_nome}</td>
                 <td style="padding:12px 16px;font-family:monospace;font-size:0.85em;">${aud.ip || '-'}</td>
                 <td style="padding:12px 16px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${aud.dispositivo}">${aud.dispositivo || '-'}</td>
                 <td style="padding:12px 16px;">${aud.gps_lat ? `<a href="https://maps.google.com/?q=${aud.gps_lat},${aud.gps_lon}" target="_blank" style="color:#0ea5e9;text-decoration:none;"><i class="ph ph-map-pin"></i> Ver no Mapa</a>` : '-'}</td>
                 <td style="padding:12px 16px;font-family:monospace;font-size:0.8em;word-break:break-all;max-width:250px;">${aud.hash_pdf || '-'}</td>
-            </tr>
-        `).join('');
+            </tr>`;
+        }).join('');
+
 
 
     } catch (e) {
