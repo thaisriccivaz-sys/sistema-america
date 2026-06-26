@@ -468,7 +468,7 @@ function _renderFormPropostaInt() {
     const vn = (campo, def='0') => prop ? (prop[campo] ?? def) : def;
 
     container.innerHTML = `
-        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:hidden; margin:auto; border: 1px solid #e2e8f0;">
+        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:hidden; margin:0 auto; border: 1px solid #e2e8f0;">
 
             <!-- Toolbar -->
             <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem;">
@@ -1548,7 +1548,7 @@ function _renderCadastroClienteInt() {
     const hoje = new Date().toISOString().split('T')[0];
     
     container.innerHTML = `
-        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:hidden; margin:auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif;">
+        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:hidden; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif;">
             
             <!-- Barra de Ferramentas (Toolbar Azul/Roxa da imagem) -->
             <div style="background:#3b5bdb; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">
@@ -2573,7 +2573,7 @@ function _renderCadastroContatosInt() {
                 border-radius: 12px;
                 box-shadow: 0 4px 20px rgba(0,0,0,0.06);
                 overflow: hidden;
-                margin: auto;
+                margin: 0 auto;
                 border: 1px solid #e2e8f0;
                 font-family: 'Inter', sans-serif;
             }
