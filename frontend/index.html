@@ -1674,24 +1674,26 @@
                                                 onkeyup="mascaraMoeda(this); atualizarVTSeSelecionado();"
                                                 placeholder="R$ 0,00">
                                         </div>
-                                        <div class="input-group">
-                                            <label>Meio de Transporte</label>
-                                            <select id="colab-meio-transporte"
-                                                onchange="toggleTransporteValor(this.value)">
-                                                <option value="" selected disabled>Selecionar</option>
-                                                <option value="Vale Transporte (VT)">Vale Transporte (VT)</option>
-                                                <option value="Vale Combustível (VC)">Vale Combustível (VC)</option>
-                                                <option value="Outros">Outros</option>
-                                            </select>
-                                        </div>
-                                        <div class="input-group" id="group-valor-transporte" style="display:none;">
-                                            <label>Valor do Transporte (R$)</label>
-                                            <input type="text" id="colab-valor-transporte" onkeyup="mascaraMoeda(this)"
-                                                placeholder="R$ 0,00">
-                                        </div>
-                                        <div class="input-group" id="group-placa-transporte" style="display:none;">
-                                            <label>Placa do Veículo</label>
-                                            <input type="text" id="colab-transporte-placa" placeholder="EX: ABC-1234" maxlength="8">
+                                        <div class="span-2" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                                            <div class="input-group" style="margin-bottom: 0;">
+                                                <label>Meio de Transporte</label>
+                                                <select id="colab-meio-transporte"
+                                                    onchange="toggleTransporteValor(this.value)">
+                                                    <option value="" selected disabled>Selecionar</option>
+                                                    <option value="Vale Transporte (VT)">Vale Transporte (VT)</option>
+                                                    <option value="Vale Combustível (VC)">Vale Combustível (VC)</option>
+                                                    <option value="Outros">Outros</option>
+                                                </select>
+                                            </div>
+                                            <div class="input-group" id="group-valor-transporte" style="display:none; margin-bottom: 0;">
+                                                <label>Valor do Transporte (R$)</label>
+                                                <input type="text" id="colab-valor-transporte" onkeyup="mascaraMoeda(this)"
+                                                    placeholder="R$ 0,00">
+                                            </div>
+                                            <div class="input-group" id="group-placa-transporte" style="display:none; margin-bottom: 0;">
+                                                <label>Placa do Veículo</label>
+                                                <input type="text" id="colab-transporte-placa" placeholder="EX: ABC-1234" maxlength="8">
+                                            </div>
                                         </div>
                                         <div class="input-group">
                                             <label
