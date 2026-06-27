@@ -19084,6 +19084,85 @@ app.get('/api/treinamento-presenca/:colaboradorId/:treinamentoId', authenticateT
 try { db.run(`ALTER TABLE assinaturas_auditoria ADD COLUMN pesquisa_token TEXT`); } catch(_) {}
 try { db.run(`ALTER TABLE assinaturas_auditoria ADD COLUMN pesquisa_respondida_em DATETIME`); } catch(_) {}
 
+
+// ── Job: Migração Assíncrona de Imagens Base64 para Cloudflare R2 ───────────
+async function syncBase64ToR2() {
+    if (!r2 || !r2.isReady()) return;
+    
+    // 1. Treinamentos (Selfie e Assinatura)
+    db.all(`SELECT id, selfie_base64, assinatura_base64 FROM treinamento_presenca_v2 WHERE (selfie_base64 LIKE 'data:image/%' OR assinatura_base64 LIKE 'data:image/%') LIMIT 15`, async (err, rows) => {
+        if (err || !rows) return;
+        for (const row of rows) {
+            let updated = false;
+            let newSelfie = row.selfie_base64;
+            let newAssin = row.assinatura_base64;
+            
+            try {
+                if (newSelfie && newSelfie.startsWith('data:image/')) {
+                    const match = newSelfie.match(/^data:(image\/\w+);base64,(.+)$/);
+                    if (match) {
+                        const mime = match[1];
+                        const buffer = Buffer.from(match[2], 'base64');
+                        const ext = mime.split('/')[1] || 'png';
+                        const key = `treinamentos/${row.id}/selfie_${Date.now()}.${ext}`;
+                        newSelfie = await r2.uploadToR2(key, buffer, mime);
+                        updated = true;
+                    }
+                }
+                
+                if (newAssin && newAssin.startsWith('data:image/')) {
+                    const match = newAssin.match(/^data:(image\/\w+);base64,(.+)$/);
+                    if (match) {
+                        const mime = match[1];
+                        const buffer = Buffer.from(match[2], 'base64');
+                        const ext = mime.split('/')[1] || 'png';
+                        const key = `treinamentos/${row.id}/assinatura_${Date.now()}.${ext}`;
+                        newAssin = await r2.uploadToR2(key, buffer, mime);
+                        updated = true;
+                    }
+                }
+                
+                if (updated) {
+                    db.run(`UPDATE treinamento_presenca_v2 SET selfie_base64 = ?, assinatura_base64 = ? WHERE id = ?`, [newSelfie, newAssin, row.id], (uErr) => {
+                        if (!uErr) console.log(`[R2 Sync] Treinamento_presenca_v2 ID ${row.id} migrado para R2.`);
+                    });
+                }
+            } catch (e) {
+                console.error(`[R2 Sync] Erro ao migrar treinamento ID ${row.id}:`, e.message);
+            }
+        }
+    });
+
+    // 2. EPIs (Selfie)
+    db.all(`SELECT id, selfie_base64 FROM epi_selfies WHERE selfie_base64 LIKE 'data:image/%' LIMIT 15`, async (err, rows) => {
+        if (err || !rows) return;
+        for (const row of rows) {
+            try {
+                const match = row.selfie_base64.match(/^data:(image\/\w+);base64,(.+)$/);
+                if (match) {
+                    const mime = match[1];
+                    const buffer = Buffer.from(match[2], 'base64');
+                    const ext = mime.split('/')[1] || 'png';
+                    const key = `epi_selfies/${row.id}/selfie_${Date.now()}.${ext}`;
+                    const url = await r2.uploadToR2(key, buffer, mime);
+                    
+                    db.run(`UPDATE epi_selfies SET selfie_base64 = ? WHERE id = ?`, [url, row.id], (uErr) => {
+                        if (!uErr) console.log(`[R2 Sync] epi_selfies ID ${row.id} migrado para R2.`);
+                    });
+                }
+            } catch (e) {
+                console.error(`[R2 Sync] Erro ao migrar epi_selfies ID ${row.id}:`, e.message);
+            }
+        }
+    });
+}
+
+// Rodar a cada 5 minutos
+setInterval(syncBase64ToR2, 5 * 60 * 1000);
+// E 10 segundos após a inicialização do servidor
+setTimeout(syncBase64ToR2, 10000);
+// ────────────────────────────────────────────────────────────────────────────
+
 app.listen(PORT, () => {
 
     console.log(`Servidor rodando na porta ${PORT}`);

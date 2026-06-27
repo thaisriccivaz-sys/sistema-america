@@ -14603,7 +14603,7 @@ window.verComprovantePresenca = async function (presencaId) {
                     <div style="text-align:center;">
                         <p style="font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Selfie da Presença</p>
                         <div style="border:1.5px solid #e2e8f0;border-radius:10px;padding:4px;background:#f8fafc;display:inline-block;">
-                            <img src="${data.selfie_base64}" style="max-width:200px;max-height:200px;border-radius:6px;object-fit:contain;" alt="Selfie"/>
+                            <img src="${data.selfie_base64}" style="max-width:200px;max-height:200px;border-radius:6px;object-fit:contain;cursor:pointer;" alt="Selfie" onclick="window.open(this.src, '_blank')" title="Clique para ampliar"/>
                         </div>
                     </div>` : ''}
                    </div>`
@@ -14664,7 +14664,7 @@ window.verComprovantePresenca = async function (presencaId) {
                 <div style="text-align:center;">
                     <p style="font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Selfie da Presença</p>
                     <div style="border:1.5px solid #e2e8f0;border-radius:10px;padding:4px;background:#f8fafc;display:inline-block;">
-                        <img src="${data.selfie_base64}" style="max-width:200px;max-height:140px;border-radius:6px;object-fit:cover;" alt="Selfie"/>
+                        <img src="${data.selfie_base64}" style="max-width:200px;max-height:140px;border-radius:6px;object-fit:cover;cursor:pointer;" alt="Selfie" onclick="window.open(this.src, '_blank')" title="Clique para ampliar"/>
                     </div>
                 </div>` : ''}
                </div>`
@@ -14764,7 +14764,7 @@ window.verComprovanteEntrega = async function (entregaId) {
                 <div style="text-align:center;">
                     <p style="font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Selfie da Entrega</p>
                     <div style="border:1.5px solid #e2e8f0;border-radius:10px;padding:4px;background:#f8fafc;display:inline-block;">
-                        <img src="${data.selfie_base64}" style="max-width:200px;max-height:140px;border-radius:6px;object-fit:cover;" alt="Selfie"/>
+                        <img src="${data.selfie_base64}" style="max-width:200px;max-height:140px;border-radius:6px;object-fit:cover;cursor:pointer;" alt="Selfie" onclick="window.open(this.src, '_blank')" title="Clique para ampliar"/>
                     </div>
                 </div>` : ''}
                </div>`

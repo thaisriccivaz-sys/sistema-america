@@ -401,12 +401,12 @@
                 <div style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;">
                     ${data.assinatura ? `<div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
                         <p style="margin:0;background:#f1f5f9;padding:8px 12px;font-size:0.68rem;font-weight:700;color:#64748b;letter-spacing:.06em;">ASSINATURA DIGITAL</p>
-                        <img src="${data.assinatura}" style="width:100%;object-fit:contain;display:block;" />
+                        <img src="${data.assinatura}" style="width:100%;object-fit:contain;display:block;cursor:pointer;" onclick="window.open(this.src, '_blank')" title="Clique para ampliar" />
                     </div>` : '<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:16px 0;">Sem assinatura registrada</p>'}
 
                     ${data.selfie ? `<div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
                         <p style="margin:0;background:#f1f5f9;padding:8px 12px;font-size:0.68rem;font-weight:700;color:#64748b;letter-spacing:.06em;">SELFIE DE CONFIRMAÇÃO</p>
-                        <img src="${data.selfie}" style="width:100%;object-fit:contain;display:block;" />
+                        <img src="${data.selfie}" style="width:100%;object-fit:contain;display:block;cursor:pointer;" onclick="window.open(this.src, '_blank')" title="Clique para ampliar" />
                     </div>` : ''}
                     <div style="height:4px;"></div>
                 </div>
