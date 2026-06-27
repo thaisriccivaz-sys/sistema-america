@@ -67,7 +67,7 @@ window.renderEstoqueTable = async function() {
             });
         }
 
-        // Filtra por permissões de endereço e categoria
+        // Filtra por permissões de endereço
         if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
             const hasAnyEndPerm = Object.keys(window.activeUserPerms).some(k => k.startsWith('estoque-endereco:') && window.activeUserPerms[k]);
             if (hasAnyEndPerm) {
@@ -75,17 +75,9 @@ window.renderEstoqueTable = async function() {
                     const saldos = saldosMap[item.id] || [];
                     if (saldos.length > 0) {
                         const saldosPermitidos = saldos.filter(s => window.activeUserPerms['estoque-endereco:' + s.endereco_id]);
-                        if (saldosPermitidos.length === 0) return false;
+                        if (saldosPermitidos.length === 0) return false; // Hide completely Se não tiver nenhum endereço permitido
                     }
                     return true;
-                });
-            }
-
-            const hasAnyCatPerm = Object.keys(window.activeUserPerms).some(k => k.startsWith('estoque-categoria:') && window.activeUserPerms[k]);
-            if (hasAnyCatPerm) {
-                data = data.filter(item => {
-                    if (!item.categoria) return false;
-                    return !!window.activeUserPerms['estoque-categoria:' + item.categoria];
                 });
             }
         }
@@ -720,26 +712,8 @@ window.renderEstoqueHistorico = async function() {
             table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Nenhuma movimentação registrada.</td></tr>';
             return;
         }
-
-        let filteredData = data;
-        if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
-            const hasAnyCatPerm = Object.keys(window.activeUserPerms).some(k => k.startsWith('estoque-categoria:') && window.activeUserPerms[k]);
-            if (hasAnyCatPerm) {
-                filteredData = filteredData.filter(h => {
-                    const item = window._estoqueCache[h.estoque_id];
-                    if (!item || !item.categoria) return false;
-                    return !!window.activeUserPerms['estoque-categoria:' + item.categoria];
-                });
-            }
-        }
-
-        if (filteredData.length === 0) {
-            table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Nenhuma movimentação registrada para suas permissões.</td></tr>';
-            return;
-        }
-
         table.innerHTML = "";
-        filteredData.forEach(h => {
+        data.forEach(h => {
             const tr = document.createElement("tr");
             let raw = h.data_hora || "";
             if (raw && !raw.includes("T")) raw = raw.replace(" ","T") + "Z";

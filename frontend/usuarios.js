@@ -109,32 +109,6 @@ window.initUsuariosPermissoes = async function() {
         console.warn('[PERMISSOES] Erro ao carregar enderecos do estoque:', e);
     }
 
-    // Adicionar Categorias do Estoque nas Permissões
-    const ESTOQUE_CATEGORIAS = [
-        'EPI', 'Uniforme', 'Itens de Escritório', 'Peças para Sanitários', 'Produtos Químicos',
-        'Limpeza e Higiene', 'Ferramentas', 'Elétrica', 'Hidráulica', 'Ferragens e Fixadores',
-        'Pintura e Acabamento', 'Lubrificantes e Fluidos', 'Peças Automotivas', 'Pneus e Borracharia',
-        'Informática e Eletrônicos', 'Descartáveis', 'Embalagens', 'Utilidades Gerais', 'Outros'
-    ];
-
-    ESTOQUE_CATEGORIAS.forEach(cat => {
-        const idTela = 'estoque-categoria:' + cat;
-        if (!TELAS_SISTEMA.find(t => t.pagina_id === idTela)) {
-            TELAS_SISTEMA.push({ modulo: 'Administrativo', pagina_id: idTela, pagina_nome: cat, icone: 'ph-tag' });
-        }
-    });
-
-    const modAdminCat = MENU_HIERARQUIA.find(m => m.modulo === 'Administrativo');
-    if (modAdminCat) {
-        let grupoCat = modAdminCat.grupos.find(g => g.titulo === 'Controle de Estoque (Categorias)');
-        if (!grupoCat) {
-            grupoCat = { titulo: 'Controle de Estoque (Categorias)', expandable: true, telas: [] };
-            modAdminCat.grupos.push(grupoCat);
-        }
-        grupoCat.telas = ESTOQUE_CATEGORIAS.map(c => 'estoque-categoria:' + c);
-    }
-
-
     await Promise.all([carregarUsuariosLista(), carregarGruposLista()]);
 };
 
