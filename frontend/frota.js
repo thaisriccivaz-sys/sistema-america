@@ -10,19 +10,28 @@ function getRodizio(placa){
     if(['9','0'].includes(c)) return 'Sexta-feira';
     return 'N/D';
 }
-function alertaPlaca(placa,exercicio){
-  const hoje=new Date();
-  const anoVencimento = parseInt(exercicio) + 1;
-  const mesVencimento = getMesVenc(placa);
-  if(!mesVencimento||!anoVencimento) return null;
-  
-  if ((hoje.getFullYear() > anoVencimento) || (hoje.getFullYear() === anoVencimento && hoje.getMonth() + 1 > mesVencimento)) {
-      return 'expirado';
-  }
-  if (hoje.getFullYear() === anoVencimento && hoje.getMonth() + 1 === mesVencimento) {
-      return 'vencendo';
-  }
-  return 'ok';
+function alertaPlaca(placa, exercicio) {
+    if (!exercicio) return null;
+    const mesVencimento = getMesVenc(placa);
+    if (!mesVencimento) return null;
+    
+    const anoVencimento = parseInt(exercicio) + 1;
+    const dtVenc = new Date(anoVencimento, mesVencimento, 0, 23, 59, 59);
+    
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+    dtVenc.setHours(0,0,0,0);
+    
+    const msPorDia = 24 * 60 * 60 * 1000;
+    const diffDias = Math.floor((dtVenc.getTime() - hoje.getTime()) / msPorDia);
+    
+    if (diffDias < 0) {
+        return 'expirado';
+    }
+    if (diffDias <= 30) {
+        return 'vencendo';
+    }
+    return 'ok';
 }
 async function extrairCRLV(file){
   return new Promise(resolve=>{
@@ -625,7 +634,12 @@ window.abrirModalFrota=async function(id){
   const inp=(id,val,ph,type)=>`<input id="${id}" value="${val||''}" placeholder="${ph||''}" type="${type||'text'}" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;transition:0.2s;" onfocus="this.style.borderColor='#2d9e5f';this.style.boxShadow='0 0 0 3px rgba(45,158,95,0.1)'" onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'">`;
   const lbl=t=>`<label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">${t}</label>`;
   const alerta=alertaPlaca(v.placa,v.exercicio);
-  const alertaHtml=alerta&&id?`<div style="background:#fef2f2;border-left:4px solid #ef4444;padding:0.75rem 1rem;margin-bottom:1.5rem;color:#b91c1c;font-weight:600;font-size:0.85rem;border-radius:4px;">⚠️ CRLV vencido ou a vencer — atualize o documento para regularizar a situação no sistema.</div>`:'';
+  let alertaHtml = '';
+  if (alerta === 'expirado') {
+      alertaHtml = `<div style="background:#fef2f2;border-left:4px solid #ef4444;padding:0.75rem 1rem;margin-bottom:1.5rem;color:#b91c1c;font-weight:600;font-size:0.85rem;border-radius:4px;">⚠️ CRLV vencido (passou da data-limite) — atualize o documento para regularizar a situação no sistema.</div>`;
+  } else if (alerta === 'vencendo') {
+      alertaHtml = `<div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:0.75rem 1rem;margin-bottom:1.5rem;color:#b45309;font-weight:600;font-size:0.85rem;border-radius:4px;">⚠️ CRLV a vencer (menos de 30 dias) — providencie a atualização.</div>`;
+  }
   
   const placeholderFoto = window._frotaImgB64 || 'https://via.placeholder.com/400x250/e2e8f0/94a3b8?text=Sem+Foto';
 
