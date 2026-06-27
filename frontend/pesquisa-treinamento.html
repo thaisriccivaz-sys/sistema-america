@@ -277,14 +277,14 @@
 
                 if (p.tipo === 'texto') {
                     html += `
-                        <textarea class="textarea-response" name="pergunta_${p.id}" placeholder="Sua resposta..." required></textarea>
+                        <textarea class="textarea-response" name="pergunta_${p.id}" placeholder="Sua resposta..."></textarea>
                     </div>`;
                 } else {
                     html += `
                         <div class="rating-group">
                             ${[1, 2, 3, 4, 5].map(nota => `
                                 <div class="rating-option">
-                                    <input type="radio" id="p${p.id}_n${nota}" name="pergunta_${p.id}" value="${nota}" required>
+                                    <input type="radio" id="p${p.id}_n${nota}" name="pergunta_${p.id}" value="${nota}">
                                     <label for="p${p.id}_n${nota}" data-val="${nota}">${nota}</label>
                                 </div>
                             `).join('')}

@@ -820,6 +820,12 @@
     window.abrirModalEditarTreinamento = function (id) {
         const t = _cache.find(x => x.id === id);
         if (!t) return;
+        
+        const titleEl = document.getElementById('modal-editar-treinamento-title');
+        if (titleEl) {
+            const tipoText = (t.tipo === 'palestra') ? 'Palestra' : ((t.tipo === 'terapia') ? 'Terapia' : 'Treinamento');
+            titleEl.innerHTML = `<i class="ph ph-pencil-simple"></i> Editar ${tipoText}`;
+        }
 
         el('editar-treinamento-id').value   = t.id;
         el('editar-treinamento-nome').value = t.nome || '';
