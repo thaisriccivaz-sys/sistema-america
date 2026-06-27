@@ -969,7 +969,7 @@ window.abrirModalGlobalSaida = () => window.abrirModalGlobalMovimentacao('saida'
         const cont = document.getElementById('estoque-placas-list');
         cont.innerHTML = '<div style="color:#64748b;font-size:0.9rem;">Carregando veículos...</div>';
         apiGet('/frota/veiculos').then(res => {
-            window._veiculosParaEstoque = res.sort((a,b) => (a.placa||'').localeCompare(b.placa||''));
+            window._veiculosParaEstoque = [{ placa: 'Outros' }].concat(res.sort((a,b) => (a.placa||'').localeCompare(b.placa||'')));
             _renderPlacasCheckboxes();
         }).catch(e => {
             cont.innerHTML = '<div style="color:#ef4444;font-size:0.9rem;">Erro ao carregar veículos.</div>';

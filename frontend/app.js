@@ -1961,17 +1961,15 @@ async function loadFaculdadeCursosDropdown() {
 }
 
 window.toggleTransporteValor = function (val) {
-    const group = document.getElementById('group-valor-transporte');
-    const input = document.getElementById('colab-valor-transporte');
-    if (group) {
-        // Mostrar se for VT ou VC
+    const groupValor = document.getElementById('group-valor-transporte');
+    const groupPlaca = document.getElementById('group-placa-transporte');
+    const inputValor = document.getElementById('colab-valor-transporte');
+    if (groupValor) {
         if (val === 'Vale Transporte (VT)' || val === 'Vale Combustível (VC)') {
-            group.style.display = 'block';
-            // Se for VT, definir valor diário fixo
+            groupValor.style.display = 'block';
             if (val === 'Vale Transporte (VT)') {
-                if (input) input.value = 'R$ 6,20';
-                // Atualiza o label com dica visual
-                const lbl = group.querySelector('label');
+                if (inputValor) inputValor.value = 'R$ 6,20';
+                const lbl = groupValor.querySelector('label');
                 if (lbl && !lbl.querySelector('.vt-hint')) {
                     const hint = document.createElement('small');
                     hint.className = 'vt-hint';
@@ -3881,6 +3879,9 @@ window.editColaborador = async function (id) {
         if (document.getElementById('colab-meio-transporte')) {
             document.getElementById('colab-meio-transporte').value = c.meio_transporte || '';
             if (typeof toggleTransporteValor === 'function') toggleTransporteValor(c.meio_transporte);
+        }
+        if (document.getElementById('colab-transporte-placa')) {
+            document.getElementById('colab-transporte-placa').value = c.transporte_placa || '';
         }
         if (document.getElementById('colab-valor-transporte')) {
             const valT = c.valor_transporte ? parseFloat(c.valor_transporte).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '';
