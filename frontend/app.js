@@ -1965,6 +1965,7 @@ window.toggleTransporteValor = function (val) {
     const groupPlaca = document.getElementById('group-placa-transporte');
     const inputValor = document.getElementById('colab-valor-transporte');
     if (groupValor) {
+        groupValor.style.visibility = 'visible';
         if (val === 'Vale Transporte (VT)' || val === 'Vale Combustível (VC)') {
             groupValor.style.display = 'block';
             if (val === 'Vale Transporte (VT)') {
@@ -1985,9 +1986,12 @@ window.toggleTransporteValor = function (val) {
                 if (groupPlaca) groupPlaca.style.display = 'block';
             }
         } else {
-            groupValor.style.display = 'none';
+            groupValor.style.display = 'block';
+            groupValor.style.visibility = 'hidden';
             if (inputValor) inputValor.value = '';
-            if (groupPlaca) groupPlaca.style.display = 'none';
+            if (groupPlaca) {
+                groupPlaca.style.display = 'none';
+            }
             const lbl = groupValor.querySelector('label');
             const hint = lbl && lbl.querySelector('.vt-hint');
             if (hint) hint.remove();

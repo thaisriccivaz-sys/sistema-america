@@ -26,7 +26,7 @@
     <script src="mtr.js" defer></script>
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js" defer></script>
-    <script src="estoque.js?v=202606240055" defer></script>
+    <script src="estoque.js?v=202606272300" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=1780956700456" defer></script>
     <style>.swal2-container { z-index: 99999 !important; }</style>
@@ -3193,6 +3193,10 @@
                                     <option value="">Todos</option>
                                     <option value="minimo">Estoque Mínimo</option>
                                 </select>
+                            </div>
+                            <div style="flex: 1; min-width: 200px;">
+                                <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Placa</label>
+                                <input type="text" id="filtro-estoque-placa" class="form-control" style="width: 100%;" onkeyup="window.renderEstoqueTable()" placeholder="Buscar placa...">
                             </div>
                             <div style="flex: 1; min-width: 200px;">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Tipo</label>
