@@ -220,7 +220,13 @@ window.renderEstoqueTable = async function() {
                             
                     // Categoria
                     rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;' + (linhasEndereco.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
-                                item.categoria +
+                                (item.categoria || '-') +
+                            '</td>';
+
+                    // Placas
+                    const hasPlacas = item.placas_vinculadas && item.placas_vinculadas.trim().length > 0;
+                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle; max-width:200px; overflow:hidden; text-overflow:ellipsis;' + (linhasEndereco.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                                (hasPlacas ? (window.formatarPlacas(item.placas_vinculadas) || '<span style="color:#94a3b8;font-style:italic;">-</span>') : '<span style="color:#94a3b8;font-style:italic;">-</span>') +
                             '</td>';
                 }
                 
