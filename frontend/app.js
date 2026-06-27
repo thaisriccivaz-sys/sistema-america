@@ -15465,13 +15465,14 @@ window._carregarAuditoria = async function () {
                 <td style="padding:12px 16px;">${dtFormatada}</td>
                 <td style="padding:12px 16px;font-weight:500;font-size:0.75rem;line-height:1.3;max-width:250px;white-space:normal;word-break:break-word;line-height:1.4;">${aud.tipo_documento}<br><small style="color:#64748b;font-size:0.7rem;">${aud.detalhes || ''}</small></td>
                 <td style="padding:12px 16px;">${aud.colaborador_nome}</td>
-<td style="padding:12px 16px;text-align:center;">
+                <td style="padding:12px 16px;text-align:center;">
                   ${aud.pesquisa_respondida_em
                     ? `<span style="display:inline-flex;align-items:center;gap:5px;background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:999px;font-size:0.76rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle"></i>${new Date(aud.pesquisa_respondida_em.replace(' ','T')+(aud.pesquisa_respondida_em.includes('Z')?'':'Z')).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}</span>`
                     : (aud.tipo_documento && (aud.tipo_documento.startsWith('Treinamento') || aud.tipo_documento.startsWith('Terapia') || aud.tipo_documento.startsWith('Palestra') || aud.tipo_documento.startsWith('Lista de Presença'))
                         ? `<span style="color:#94a3b8;font-size:0.76rem;">Aguardando</span>`
                         : `<span style="color:#e2e8f0;font-size:0.76rem;">—</span>`)}
                 </td>
+
 <td style="padding:12px 16px;font-family:monospace;font-size:0.85em;">${aud.ip || '-'}</td>
                 <td style="padding:12px 16px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${aud.dispositivo}">${aud.dispositivo || '-'}</td>
                 <td style="padding:12px 16px;">${aud.gps_lat ? `<a href="https://maps.google.com/?q=${aud.gps_lat},${aud.gps_lon}" target="_blank" style="color:#0ea5e9;text-decoration:none;"><i class="ph ph-map-pin"></i> Ver no Mapa</a>` : '-'}</td>
@@ -15479,7 +15480,9 @@ window._carregarAuditoria = async function () {
     <td style="padding:12px 16px;text-align:center;">
         ${(aud.tipo_documento && aud.tipo_documento.startsWith('Entrega de EPI') && aud.documento_id) 
             ? `<button onclick="window.verComprovanteEntrega(${aud.documento_id})" title="Ver Comprovante" style="background:#e0f2fe;border:none;color:#0369a1;cursor:pointer;font-size:1.2rem;display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);"><i class="ph ph-eye"></i></button>` 
-            : (aud.tipo_documento && !aud.tipo_documento.startsWith('Entrega de EPI') && !aud.tipo_documento.startsWith('Treinamento') && !aud.tipo_documento.startsWith('Terapia') && !aud.tipo_documento.startsWith('Palestra') && !aud.tipo_documento.startsWith('Lista de Presença') && aud.documento_id) 
+            : (aud.tipo_documento && (aud.tipo_documento.startsWith('Treinamento') || aud.tipo_documento.startsWith('Terapia') || aud.tipo_documento.startsWith('Palestra') || aud.tipo_documento.startsWith('Lista de Presença')) && aud.documento_id)
+            ? `<button onclick="window.verComprovantePresenca(${aud.documento_id})" title="Ver Comprovante" style="background:#e0f2fe;border:none;color:#0369a1;cursor:pointer;font-size:1.2rem;display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);"><i class="ph ph-eye"></i></button>`
+            : (aud.tipo_documento && aud.documento_id) 
             ? `<button onclick="window.open('${API_URL}/documentos/download/${aud.documento_id}?token=${currentToken}', '_blank')" title="Ver Documento" style="background:#e0f2fe;border:none;color:#0369a1;cursor:pointer;font-size:1.2rem;display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);"><i class="ph ph-eye"></i></button>` 
             : ''}
     </td>
