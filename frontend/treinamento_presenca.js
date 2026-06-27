@@ -182,6 +182,7 @@
                     <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;min-width:38px;">
                         <button onclick="window._verDocTreinamento(${c.id},${t.id},'${(c.nome_completo||'').replace(/'/g,"\\'")}')" title="Ver documento assinado" style="background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:3px;width:100%;"><i class="ph ph-eye"></i></button>
                         ${btnPesquisa}
+                        <button onclick="window._excluirAssinaturaTreinamento(${c.id}, ${t.id})" title="Excluir presença" style="background:#fee2e2;color:#ef4444;border:1.5px solid #fecaca;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:100%;"><i class="ph ph-trash"></i></button>
                     </div>
                 </div>`;
             } else if (t.vencido) {
