@@ -150,8 +150,7 @@ window.renderEstoqueTable = async function() {
 
             // ── Botões de ação (apenas na primeira linha do produto) ──
             const acoesBtns =
-                '<button class="btn btn-sm" onclick="window.abrirModalBaixaEstoque(window._estoqueCache[' + item.id + '])" title="Baixa Manual" style="background:#fff3e6;color:#e67700;border:1px solid #fed7aa;padding:4px 8px;border-radius:4px;margin-right:2px;"><i class="ph ph-minus"></i></button>' +
-                '<button class="btn btn-sm" onclick="window.ajustarEstoqueRapido(' + item.id + ',' + item.quantidade_atual + ',1)" title="Entrada Rápida" style="background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;padding:4px 8px;border-radius:4px;"><i class="ph ph-plus"></i></button>' +
+                
                 '<button class="btn btn-sm btn-secondary" onclick="window.editarEstoque(window._estoqueCache[' + item.id + '])" title="Editar" style="margin-left:4px;"><i class="ph ph-pencil-simple"></i></button>' +
                 '<button class="btn btn-sm" onclick="window.excluirEstoque(' + item.id + ')" style="background:#fee2e2;color:#ef4444;border:none;margin-left:4px;"><i class="ph ph-trash"></i></button>';
 
@@ -402,6 +401,12 @@ window.abrirModalEstoque = async function() {
     window._renderLinhasEndereco();
     document.getElementById("modal-estoque-title").innerHTML = '<i class="ph ph-package"></i> Adicionar Item de Estoque';
     document.getElementById("modal-estoque").style.display = "flex";
+    
+    // Esconder/limpar placas ao abrir para novo item
+    window.togglePlacasEstoque(document.getElementById("estoque-cat").value);
+    document.querySelectorAll('.estoque-placa-chk').forEach(el => el.checked = false);
+    if(document.getElementById('estoque-placas-todas')) document.getElementById('estoque-placas-todas').checked = false;
+
     // Foco no campo nome
     setTimeout(() => { const n = document.getElementById("estoque-nome"); if(n) n.focus(); }, 200);
 };
@@ -416,7 +421,18 @@ window.editarEstoque = async function(item) {
     await _carregarEnderecos();
     document.getElementById("estoque-id").value   = item.id;
     document.getElementById("estoque-nome").value = item.nome;
-    document.getElementById("estoque-cat").value  = item.categoria;
+    document.getElementById("estoque-cat").value  = item.categoria || '';
+    window.togglePlacasEstoque(item.categoria);
+    if (window._veiculosParaEstoque) {
+        _renderPlacasCheckboxes((item.placas_vinculadas || '').split(',').map(s=>s.trim()).filter(Boolean));
+    } else if (item.categoria === 'Peças Automotivas' || item.categoria === 'Pneus e Borracharia') {
+        // Vai carregar assincronamente e precisa selecionar as placas do item
+        const origCb = _renderPlacasCheckboxes;
+        _renderPlacasCheckboxes = function() {
+            origCb((item.placas_vinculadas || '').split(',').map(s=>s.trim()).filter(Boolean));
+            _renderPlacasCheckboxes = origCb; // restore
+        };
+    }
     document.getElementById("estoque-qtd").value  = item.quantidade_atual;
     document.getElementById("estoque-min").value  = item.quantidade_minima;
     document.getElementById("estoque-max").value  = item.quantidade_maxima;
@@ -493,7 +509,8 @@ window.salvarEstoque = async function(e) {
         quantidade_atual:  qtdAtual,
         quantidade_minima: parseInt(document.getElementById("estoque-min").value) || 0,
         quantidade_maxima: parseInt(document.getElementById("estoque-max").value) || 0,
-        foto_base64:       document.getElementById("estoque-foto-base64").value
+        foto_base64:       document.getElementById("estoque-foto-base64").value,
+        placas_vinculadas: Array.from(document.querySelectorAll('.estoque-placa-chk:checked')).map(el => el.value).join(',')
     };
     const token  = window.currentToken || localStorage.getItem("erp_token") || localStorage.getItem("token");
     const url    = id ? API_URL + "/estoque/" + id : API_URL + "/estoque";
@@ -926,3 +943,71 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
 
 window.abrirModalGlobalEntrada = () => window.abrirModalGlobalMovimentacao('entrada');
 window.abrirModalGlobalSaida = () => window.abrirModalGlobalMovimentacao('saida');
+
+
+    window.formatarPlacas = function(placas) {
+        if (!placas) return '';
+        const list = placas.split(',').map(p => p.trim()).filter(Boolean);
+        if (!list.length) return '';
+        return list.map(p => `<span style="color:#94a3b8;font-size:0.85rem;margin-right:4px;border:1px solid #e2e8f0;padding:2px 4px;border-radius:4px;">${p}</span>`).join('');
+    };
+
+    window.togglePlacasEstoque = function(cat) {
+        const c = document.getElementById('estoque-placas-container');
+        if (cat === 'Peças Automotivas' || cat === 'Pneus e Borracharia') {
+            c.style.display = 'block';
+            if (!window._veiculosParaEstoque) {
+                _fetchVeiculosEstoque();
+            }
+        } else {
+            c.style.display = 'none';
+        }
+    };
+
+    window._veiculosParaEstoque = null;
+    function _fetchVeiculosEstoque() {
+        const cont = document.getElementById('estoque-placas-list');
+        cont.innerHTML = '<div style="color:#64748b;font-size:0.9rem;">Carregando veículos...</div>';
+        apiGet('/frota/veiculos').then(res => {
+            window._veiculosParaEstoque = res.sort((a,b) => (a.placa||'').localeCompare(b.placa||''));
+            _renderPlacasCheckboxes();
+        }).catch(e => {
+            cont.innerHTML = '<div style="color:#ef4444;font-size:0.9rem;">Erro ao carregar veículos.</div>';
+        });
+    }
+
+    function _renderPlacasCheckboxes(selectedPlacas = []) {
+        const cont = document.getElementById('estoque-placas-list');
+        if (!window._veiculosParaEstoque) return;
+        
+        let html = `
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;border-bottom:1px solid #f1f5f9;margin-bottom:4px;">
+                <input type="checkbox" id="estoque-placas-todas" onchange="window.toggleTodasPlacasEstoque(this.checked)" ${window._veiculosParaEstoque.every(v => selectedPlacas.includes(v.placa)) ? 'checked' : ''}>
+                <span style="font-weight:600;">Selecionar Todos</span>
+            </label>
+        `;
+        
+        window._veiculosParaEstoque.forEach(v => {
+            if (!v.placa) return;
+            const chk = selectedPlacas.includes(v.placa) ? 'checked' : '';
+            html += `
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0;">
+                    <input type="checkbox" class="estoque-placa-chk" value="${v.placa}" ${chk} onchange="window.verificarTodasPlacasEstoque()">
+                    <span>${v.placa} ${v.modelo ? ' - '+v.modelo : ''}</span>
+                </label>
+            `;
+        });
+        cont.innerHTML = html;
+    }
+
+    window.toggleTodasPlacasEstoque = function(checked) {
+        document.querySelectorAll('.estoque-placa-chk').forEach(el => el.checked = checked);
+    };
+    
+    window.verificarTodasPlacasEstoque = function() {
+        const all = Array.from(document.querySelectorAll('.estoque-placa-chk'));
+        const todas = document.getElementById('estoque-placas-todas');
+        if (todas && all.length > 0) {
+            todas.checked = all.every(el => el.checked);
+        }
+    };

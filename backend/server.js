@@ -17467,7 +17467,7 @@ app.get('/api/estoque/historico', authenticateToken, (req, res) => {
 // Adicionar Item
 app.post('/api/estoque', authenticateToken, async (req, res) => {
     try {
-        const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64 } = req.body;
+        const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas } = req.body;
         const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
         // Upload da foto para R2 se disponível
@@ -17495,8 +17495,8 @@ app.post('/api/estoque', authenticateToken, async (req, res) => {
         }
 
         db.run(
-            'INSERT INTO estoque (nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, foto_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [nome, departamento, categoria, quantidade_atual || 0, quantidade_minima || 0, quantidade_maxima || 0, foto_b64_salvar || null, foto_url || null],
+            'INSERT INTO estoque (nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, foto_url, placas_vinculadas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [nome, departamento, categoria, quantidade_atual || 0, quantidade_minima || 0, quantidade_maxima || 0, foto_b64_salvar || null, foto_url || null, placas_vinculadas || null],
             function(err) {
                 if (err) return res.status(500).json({ error: err.message });
                 const newItemId = this.lastID;
@@ -17522,7 +17522,7 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
     let oldRow;
     try {
         const id = req.params.id;
-        const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64 } = req.body;
+        const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas } = req.body;
         const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
         // Obter dados antigos
@@ -17558,8 +17558,8 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
 
         await new Promise((resolve, reject) => {
             db.run(
-                'UPDATE estoque SET nome = ?, departamento = ?, categoria = ?, quantidade_atual = ?, quantidade_minima = ?, quantidade_maxima = ?, foto_base64 = ?, foto_url = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
-                [nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_b64_salvar, foto_url, id],
+                'UPDATE estoque SET nome = ?, departamento = ?, categoria = ?, quantidade_atual = ?, quantidade_minima = ?, quantidade_maxima = ?, foto_base64 = ?, foto_url = ?, placas_vinculadas = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
+                [nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_b64_salvar, foto_url, placas_vinculadas || null, id],
                 function(err) { if (err) reject(err); else resolve(this); }
             );
         });

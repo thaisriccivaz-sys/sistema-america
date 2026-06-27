@@ -3165,6 +3165,21 @@
                                     <option value="EPI">EPI</option>
                                     <option value="Uniforme">Uniforme</option>
                                     <option value="Itens de Escritório">Itens de Escritório</option>
+                                    <option value="Peças para Sanitários">Peças para Sanitários</option>
+                                    <option value="Produtos Químicos">Produtos Químicos</option>
+                                    <option value="Limpeza e Higiene">Limpeza e Higiene</option>
+                                    <option value="Ferramentas">Ferramentas</option>
+                                    <option value="Elétrica">Elétrica</option>
+                                    <option value="Hidráulica">Hidráulica</option>
+                                    <option value="Ferragens e Fixadores">Ferragens e Fixadores</option>
+                                    <option value="Pintura e Acabamento">Pintura e Acabamento</option>
+                                    <option value="Lubrificantes e Fluidos">Lubrificantes e Fluidos</option>
+                                    <option value="Peças Automotivas">Peças Automotivas</option>
+                                    <option value="Pneus e Borracharia">Pneus e Borracharia</option>
+                                    <option value="Informática e Eletrônicos">Informática e Eletrônicos</option>
+                                    <option value="Descartáveis">Descartáveis</option>
+                                    <option value="Embalagens">Embalagens</option>
+                                    <option value="Utilidades Gerais">Utilidades Gerais</option>
                                     <option value="Outros">Outros</option>
                                 </select>
                             </div>
@@ -3193,6 +3208,7 @@
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Nome <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
                                         
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Catg. <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Placas <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Qt. Atual <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Min/Máx <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
                                         <th style="white-space:nowrap;"><i class="ph ph-map-pin" style="color:#1d4ed8;"></i> Endereços <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
@@ -3200,7 +3216,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="table-estoque">
-                                    <tr><td colspan="6" style="text-align:center;color:#64748b;">Carregando...</td></tr>
+                                    <tr><td colspan="7" style="text-align:center;color:#64748b;">Carregando...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3259,13 +3275,33 @@
                                     </div>
                                     <div style="margin-bottom:1rem;">
                                         <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Categoria *</label>
-                                        <select id="estoque-cat" required class="form-control" style="width: 100%;">
-                                            <option value="EPI">EPI</option>
-                                            <option value="Uniforme">Uniforme</option>
-                                            <option value="Itens de Escritório">Itens de Escritório</option>
-                                            <option value="Outros">Outros</option>
+                                        <select id="estoque-cat" required class="form-control" style="width: 100%;" onchange="window.togglePlacasEstoque(this.value)">
+                                        <option value="EPI">EPI</option>
+                                        <option value="Uniforme">Uniforme</option>
+                                        <option value="Itens de Escritório">Itens de Escritório</option>
+                                        <option value="Peças para Sanitários">Peças para Sanitários</option>
+                                        <option value="Produtos Químicos">Produtos Químicos</option>
+                                        <option value="Limpeza e Higiene">Limpeza e Higiene</option>
+                                        <option value="Ferramentas">Ferramentas</option>
+                                        <option value="Elétrica">Elétrica</option>
+                                        <option value="Hidráulica">Hidráulica</option>
+                                        <option value="Ferragens e Fixadores">Ferragens e Fixadores</option>
+                                        <option value="Pintura e Acabamento">Pintura e Acabamento</option>
+                                        <option value="Lubrificantes e Fluidos">Lubrificantes e Fluidos</option>
+                                        <option value="Peças Automotivas">Peças Automotivas</option>
+                                        <option value="Pneus e Borracharia">Pneus e Borracharia</option>
+                                        <option value="Informática e Eletrônicos">Informática e Eletrônicos</option>
+                                        <option value="Descartáveis">Descartáveis</option>
+                                        <option value="Embalagens">Embalagens</option>
+                                        <option value="Utilidades Gerais">Utilidades Gerais</option>
+                                        <option value="Outros">Outros</option>
                                         </select>
                                     </div>
+                                    <div id="estoque-placas-container" style="display:none; margin-bottom:1rem;">
+                                        <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Placas Vinculadas</label>
+                                        <div id="estoque-placas-list" style="width:100%;max-height:130px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.95rem;padding:10px 14px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:8px;">
+                                            <div style="color:#64748b;font-size:0.9rem;">Carregando...</div>
+                                        </div>
                                     <!-- Campos globais de Qtd/Mín/Máx removidos — controle é por endereço -->
                                     <input type="hidden" id="estoque-qtd" value="0">
                                     <input type="hidden" id="estoque-min" value="0">
