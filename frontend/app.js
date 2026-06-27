@@ -1977,17 +1977,18 @@ window.toggleTransporteValor = function (val) {
                     hint.textContent = '(Valor Diário Fixo)';
                     lbl.appendChild(hint);
                 }
+                if (groupPlaca) groupPlaca.style.display = 'none';
             } else {
-                // Para VC, remove hint se existir
-                const lbl = group.querySelector('label');
+                const lbl = groupValor.querySelector('label');
                 const hint = lbl && lbl.querySelector('.vt-hint');
                 if (hint) hint.remove();
+                if (groupPlaca) groupPlaca.style.display = 'block';
             }
         } else {
-            group.style.display = 'none';
-            if (input) input.value = '';
-            // Remove hint se existir
-            const lbl = group && group.querySelector('label');
+            groupValor.style.display = 'none';
+            if (inputValor) inputValor.value = '';
+            if (groupPlaca) groupPlaca.style.display = 'none';
+            const lbl = groupValor.querySelector('label');
             const hint = lbl && lbl.querySelector('.vt-hint');
             if (hint) hint.remove();
         }
