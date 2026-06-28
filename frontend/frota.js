@@ -178,9 +178,10 @@ function renderCardsFrota() {
       t = (t || '').toLowerCase();
       if (t === 'utilitário' || t === 'utilitario') return 1;
       if (t === 'caminhonete') return 2;
-      if (t === 'caminhão' || t === 'caminhao' || t === 'caminhão tanque' || t === 'caminhao tanque') return 3;
-      if (t === 'carretinha') return 4;
-      return 5;
+      if (t === 'caminhão' || t === 'caminhao') return 3;
+      if (t === 'caminhão tanque' || t === 'caminhao tanque') return 4;
+      if (t === 'carretinha') return 5;
+      return 6;
   };
 
   rows.sort((a,b) => {
