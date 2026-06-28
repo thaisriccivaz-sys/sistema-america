@@ -174,11 +174,20 @@ function renderCardsFrota() {
     return true;
   });
 
+  const typeWeight = (t) => {
+      t = (t || '').toLowerCase();
+      if (t === 'utilitário' || t === 'utilitario') return 1;
+      if (t === 'caminhonete') return 2;
+      if (t === 'caminhão' || t === 'caminhao' || t === 'caminhão tanque' || t === 'caminhao tanque') return 3;
+      if (t === 'carretinha') return 4;
+      return 5;
+  };
+
   rows.sort((a,b) => {
-      const expA = alertaPlaca(a.placa, a.exercicio) === 'expirado' ? 1 : 0;
-      const expB = alertaPlaca(b.placa, b.exercicio) === 'expirado' ? 1 : 0;
-      if (expA !== expB) return expB - expA;
-      return (a.placa||'').localeCompare(b.placa||'');
+      const wA = typeWeight(a.tipo_veiculo);
+      const wB = typeWeight(b.tipo_veiculo);
+      if (wA !== wB) return wA - wB;
+      return (a.placa || '').localeCompare(b.placa || '');
   });
 
   const ct = document.getElementById('frota-contador');
