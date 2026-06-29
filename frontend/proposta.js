@@ -52,6 +52,21 @@ let _empresaSelecionadaCodigo = null;
 
 /* ── Inicialização ──────────────────────────────────────────────────── */
 async function inicializarPropostas() {
+    // Redireciona o alert nativo do navegador para o SweetAlert2 com layout unificado
+    const originalAlert = window.alert;
+    window.alert = function(msg) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Aviso',
+                text: msg,
+                icon: 'warning',
+                confirmButtonText: 'Ok'
+            });
+        } else {
+            originalAlert(msg);
+        }
+    };
+
     await carregarPropostas();
     renderTelaPropostas();
 }
@@ -78,6 +93,51 @@ function renderTelaPropostas() {
 
             <!-- STYLE PARA A NAVBAR SAAS -->
             <style>
+                /* Estilização personalizada para as caixas de mensagem (SweetAlert2) */
+                .swal2-popup {
+                    font-family: 'Inter', sans-serif !important;
+                    border-radius: 14px !important;
+                    padding: 1.5rem !important;
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
+                }
+                .swal2-title {
+                    font-size: 1.25rem !important;
+                    font-weight: 700 !important;
+                    color: #1e293b !important;
+                }
+                .swal2-html-container {
+                    font-size: 0.9rem !important;
+                    color: #475569 !important;
+                    line-height: 1.5 !important;
+                }
+                .swal2-actions {
+                    gap: 0.5rem !important;
+                }
+                .swal2-confirm {
+                    background-color: #2e58a6 !important;
+                    color: white !important;
+                    border-radius: 6px !important;
+                    padding: 0.55rem 1.25rem !important;
+                    font-size: 0.85rem !important;
+                    font-weight: 600 !important;
+                    box-shadow: none !important;
+                }
+                .swal2-confirm:hover {
+                    background-color: #1a3e80 !important;
+                }
+                .swal2-cancel {
+                    background-color: #dc2626 !important;
+                    color: white !important;
+                    border-radius: 6px !important;
+                    padding: 0.55rem 1.25rem !important;
+                    font-size: 0.85rem !important;
+                    font-weight: 600 !important;
+                    box-shadow: none !important;
+                }
+                .swal2-cancel:hover {
+                    background-color: #b91c1c !important;
+                }
+
                 .saas-header {
                     display: flex;
                     align-items: center;
