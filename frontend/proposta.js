@@ -1548,40 +1548,101 @@ function _renderCadastroClienteInt() {
     const hoje = new Date().toISOString().split('T')[0];
     
     container.innerHTML = `
-        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:hidden; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif;">
+        <style>
+            #form-cadastro-cliente input:not([type="checkbox"]),
+            #form-cadastro-cliente select {
+                padding: 0.55rem 0.75rem !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 6px !important;
+                font-size: 0.85rem !important;
+                background: #fff !important;
+                color: #1e293b !important;
+                outline: none !important;
+                transition: all 0.2s !important;
+                box-sizing: border-box !important;
+                width: 100% !important;
+                height: 38px !important;
+            }
+            #form-cadastro-cliente input:not([type="checkbox"]):focus,
+            #form-cadastro-cliente select:focus {
+                border-color: #3b82f6 !important;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+            }
+            #form-cadastro-cliente input[readonly] {
+                background: #f1f5f9 !important;
+                color: #64748b !important;
+                cursor: not-allowed !important;
+            }
+            #form-cadastro-cliente button {
+                border-radius: 6px !important;
+                height: 38px !important;
+                box-sizing: border-box !important;
+                transition: all 0.2s !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+            #form-cadastro-cliente button[title="Buscar Cliente"],
+            #form-cadastro-cliente button[id="btn-busca-cnpj"],
+            #form-cadastro-cliente button[title="Buscar CEP"] {
+                background-color: #16a34a !important;
+            }
+            #form-cadastro-cliente button[title="Buscar Cliente"]:hover,
+            #form-cadastro-cliente button[id="btn-busca-cnpj"]:hover,
+            #form-cadastro-cliente button[title="Buscar CEP"]:hover {
+                background-color: #15803d !important;
+            }
+            #form-cadastro-cliente button[title="Limpar/Novo"] {
+                background-color: #475569 !important;
+            }
+            #form-cadastro-cliente button[title="Limpar/Novo"]:hover {
+                background-color: #334155 !important;
+            }
+        </style>
+        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif;">
             
-            <!-- Barra de Ferramentas (Toolbar Azul/Roxa da imagem) -->
-            <div style="background:#3b5bdb; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">
-                <button onclick="recarregarCliente()" style="background:#4c6ef5;color:white;border:none;padding:0.5rem 1rem;border-radius:5px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;transition:background 0.2s;" onmouseover="this.style.background='#3b5bdb'" onmouseout="this.style.background='#4c6ef5'">
-                    <i class="ph ph-arrows-counter-clockwise"></i> Recarregar
-                </button>
-                <button onclick="salvarCliente()" style="background:#4c6ef5;color:white;border:none;padding:0.5rem 1rem;border-radius:5px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;transition:background 0.2s;" onmouseover="this.style.background='#3b5bdb'" onmouseout="this.style.background='#4c6ef5'">
-                    <i class="ph ph-check-square-offset"></i> Processar
-                </button>
-                <button onclick="excluirCliente()" style="background:#4c6ef5;color:white;border:none;padding:0.5rem 1rem;border-radius:5px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;transition:background 0.2s;" onmouseover="this.style.background='#3b5bdb'" onmouseout="this.style.background='#4c6ef5'">
-                    <i class="ph ph-trash"></i> Excluir
-                </button>
-                <button onclick="verificarCliente()" style="background:#4c6ef5;color:white;border:none;padding:0.5rem 1rem;border-radius:5px;cursor:pointer;font-weight:600;font-size:0.84rem;display:flex;align-items:center;gap:5px;transition:background 0.2s;" onmouseover="this.style.background='#3b5bdb'" onmouseout="this.style.background='#4c6ef5'">
-                    <i class="ph ph-shield-check"></i> Verificar
-                </button>
+            <!-- Toolbar -->
+            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:98px; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
+                
+                <!-- Badge Lado Esquerdo -->
+                <div style="background:#2e58a6; color:white; padding:0.45rem 0.9rem; border-radius:6px; font-weight:700; font-size:0.86rem; display:flex; align-items:center; gap:0.4rem; font-family:'Inter', sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <i class="ph ph-user-focus" style="font-size:1.15rem;"></i>
+                    Cadastro de Clientes
+                </div>
+
+                <!-- Botões de Ação (Lado Direito) -->
+                <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                    <button onclick="recarregarCliente()" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                        <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
+                    </button>
+
+                    <!-- Spacer -->
+                    <div style="width: 4px;"></div>
+
+                    <button onclick="salvarCliente()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
+                        <i class="ph ph-check" style="font-size:1rem;"></i> Processar
+                    </button>
+                    <button onclick="excluirCliente()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
+                        <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
+                    </button>
+                    <button onclick="verificarCliente()" style="background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
+                        <i class="ph ph-shield-check" style="font-size:1rem;"></i> Verificar
+                    </button>
+                </div>
             </div>
 
             <!-- Corpo da Tela -->
             <div style="padding:1.5rem; overflow-y:auto; max-height:80vh;">
                 
-                <!-- Cabeçalho Roxo da Tela -->
-                <div style="display:flex; justify-content:space-between; align-items:center; background:#7048e8; padding:0.6rem 1.2rem; border-radius:8px 8px 0 0; color:white; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
-                    <div style="font-weight:bold; font-size:1.05rem; display:flex; align-items:center; gap:0.5rem;">
-                        <i class="ph ph-user-focus"></i> Cadastro de Cliente
+                <!-- Info bar at the top of form body -->
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#f0f7ff; border:1px solid #c2e0ff; padding:0.6rem 1.2rem; border-radius:6px; margin-bottom:1rem; font-size:0.85rem; color:#1e40af; flex-wrap:wrap; gap:0.5rem;">
+                    <div style="font-weight:600; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-info" style="font-size:1.1rem;"></i>
+                        Pesquise pelo CNPJ para completar o cadastro.
                     </div>
-                    <div style="display:flex; align-items:center; gap:0.8rem; font-size:0.85rem;">
-                        <span style="background:rgba(255,255,255,0.2); padding:0.35rem 0.75rem; border-radius:5px; font-weight:600;">
-                            Pesquise pelo CNPJ para completar o cadastro.
-                        </span>
-                        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600;">
-                            <input type="checkbox" id="cli-inativo" style="accent-color:#7048e8;"> Inativo?
-                        </label>
-                    </div>
+                    <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#1e293b;">
+                        <input type="checkbox" id="cli-inativo" style="accent-color:#3b82f6;"> Inativo?
+                    </label>
                 </div>
 
                 <form id="form-cadastro-cliente" onsubmit="return false;" style="margin-bottom:1.5rem;">
@@ -2570,9 +2631,9 @@ function _renderCadastroContatosInt() {
             .cc-container {
                 background: #fff;
                 width: 100%;
-                border-radius: 12px;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-                overflow: hidden;
+                border-radius: 14px;
+                box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+                overflow: visible;
                 margin: 0 auto;
                 border: 1px solid #e2e8f0;
                 font-family: 'Inter', sans-serif;
@@ -2580,64 +2641,17 @@ function _renderCadastroContatosInt() {
             .cc-toolbar {
                 background: #f8fafc;
                 border-bottom: 1px solid #e2e8f0;
-                padding: 0.75rem 1.5rem;
-                display: flex;
-                gap: 0.75rem;
-                flex-wrap: wrap;
-                align-items: center;
-            }
-            .cc-toolbar-btn {
-                display: inline-flex;
-                align-items: center;
-                gap: 0.5rem;
-                background: #fff;
-                border: 1px solid #cbd5e1;
-                color: #334155;
-                padding: 0.5rem 1.1rem;
-                border-radius: 6px;
-                font-weight: 600;
-                font-size: 0.85rem;
-                cursor: pointer;
-                transition: all 0.2s;
-            }
-            .cc-toolbar-btn:hover {
-                background: #f1f5f9;
-                border-color: #94a3b8;
-            }
-            .cc-toolbar-btn.primary {
-                background: #7048e8;
-                color: #fff;
-                border-color: #7048e8;
-            }
-            .cc-toolbar-btn.primary:hover {
-                background: #5f3dc4;
-            }
-            .cc-toolbar-btn.danger {
-                background: #ffe3e3;
-                color: #e03131;
-                border-color: #ffc9c9;
-            }
-            .cc-toolbar-btn.danger:hover {
-                background: #fa5252;
-                color: #fff;
-                border-color: #fa5252;
-            }
-            .cc-ribbon {
-                background: linear-gradient(135deg, #7048e8, #5f3dc4);
-                color: #fff;
-                padding: 0.75rem 1.5rem;
+                padding: 0.65rem 1.5rem;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
                 flex-wrap: wrap;
-                gap: 1rem;
-            }
-            .cc-ribbon-title {
-                font-size: 1.1rem;
-                font-weight: 700;
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
+                gap: 0.6rem;
+                position: sticky;
+                top: 98px;
+                z-index: 997;
+                border-top-left-radius: 14px;
+                border-top-right-radius: 14px;
             }
             .cc-ribbon-checkboxes {
                 display: flex;
@@ -2654,7 +2668,7 @@ function _renderCadastroContatosInt() {
                 cursor: pointer;
             }
             .cc-ribbon-checkboxes input[type="checkbox"] {
-                accent-color: #fff;
+                accent-color: #3b82f6;
                 width: 1rem;
                 height: 1rem;
                 cursor: pointer;
@@ -2716,7 +2730,7 @@ function _renderCadastroContatosInt() {
                 letter-spacing: 0.02em;
             }
             .cc-input, .cc-select {
-                padding: 0.5rem 0.75rem;
+                padding: 0.55rem 0.75rem;
                 border: 1px solid #cbd5e1;
                 border-radius: 6px;
                 font-size: 0.85rem;
@@ -2729,8 +2743,8 @@ function _renderCadastroContatosInt() {
                 height: 38px;
             }
             .cc-input:focus, .cc-select:focus {
-                border-color: #7048e8;
-                box-shadow: 0 0 0 3px rgba(112, 72, 232, 0.15);
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
             }
             .cc-input[readonly] {
                 background: #f1f5f9;
@@ -2743,7 +2757,7 @@ function _renderCadastroContatosInt() {
                 width: 100%;
             }
             .cc-btn-addon {
-                background: #7048e8;
+                background: #16a34a;
                 color: #fff;
                 border: none;
                 padding: 0.5rem 0.75rem;
@@ -2758,7 +2772,7 @@ function _renderCadastroContatosInt() {
                 box-sizing: border-box;
             }
             .cc-btn-addon:hover {
-                background: #5f3dc4;
+                background: #15803d;
             }
             .cc-btn-addon.secondary {
                 background: #475569;
@@ -2789,46 +2803,64 @@ function _renderCadastroContatosInt() {
         <div class="cc-container">
             <!-- Barra de Ferramentas -->
             <div class="cc-toolbar">
-                <button onclick="recarregarContato()" class="cc-toolbar-btn">
-                    <i class="ph ph-arrows-counter-clockwise"></i> Recarregar
-                </button>
-                <button onclick="limparFormContato()" class="cc-toolbar-btn">
-                    <i class="ph ph-plus"></i> Novo
-                </button>
-                <button onclick="salvarContato()" class="cc-toolbar-btn primary">
-                    <i class="ph ph-floppy-disk"></i> Salvar
-                </button>
-                <button onclick="excluirContato()" class="cc-toolbar-btn danger">
-                    <i class="ph ph-trash"></i> Excluir
-                </button>
+                <!-- Badge Lado Esquerdo -->
+                <div style="background:#2e58a6; color:white; padding:0.45rem 0.9rem; border-radius:6px; font-weight:700; font-size:0.86rem; display:flex; align-items:center; gap:0.4rem; font-family:'Inter', sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <i class="ph ph-identification-card" style="font-size:1.15rem;"></i>
+                    Cadastro de Contatos
+                </div>
+
+                <!-- Botões de Ação (Lado Direito) -->
+                <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                    <button onclick="recarregarContato()" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                        <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
+                    </button>
+
+                    <!-- Spacer -->
+                    <div style="width: 4px;"></div>
+
+                    <button onclick="limparFormContato()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" onfocus="this.blur()">
+                        <i class="ph ph-file-text" style="font-size:1rem;"></i> Novo
+                    </button>
+                    <button onclick="salvarContato()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
+                        <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
+                    </button>
+                    <button onclick="excluirContato()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
+                        <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
+                    </button>
+                </div>
             </div>
 
-            <!-- Cabeçalho Roxo da Tela -->
-            <div class="cc-ribbon">
-                <div class="cc-ribbon-title">
-                    <i class="ph ph-user-focus"></i> Cadastro de Contatos
-                </div>
-                <div class="cc-ribbon-checkboxes">
-                    <label>
-                        <input type="checkbox" id="con-email-nfe"> Envio NFe
-                    </label>
-                    <label>
-                        <input type="checkbox" id="con-email-cobranca"> Cobrança
-                    </label>
-                    <label>
-                        <input type="checkbox" id="con-email-os"> OS
-                    </label>
-                    <label>
-                        <input type="checkbox" id="con-email-contrato"> Contrato
-                    </label>
-                    <label>
-                        <input type="checkbox" id="con-inativo"> Inativo
-                    </label>
+            <!-- Corpo da Tela -->
+            <div class="cc-form-body" style="padding-bottom: 0;">
+                
+                <!-- Checkboxes info bar at the top of form body -->
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#f0f7ff; border:1px solid #c2e0ff; padding:0.6rem 1.2rem; border-radius:6px; margin-bottom:1rem; font-size:0.85rem; color:#1e40af; flex-wrap:wrap; gap:0.5rem;">
+                    <div style="font-weight:600; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-info" style="font-size:1.1rem;"></i>
+                        Configure as notificações de e-mail e status do contato.
+                    </div>
+                    <div class="cc-ribbon-checkboxes" style="color:#1e293b;">
+                        <label>
+                            <input type="checkbox" id="con-email-nfe"> Envio NFe
+                        </label>
+                        <label>
+                            <input type="checkbox" id="con-email-cobranca"> Cobrança
+                        </label>
+                        <label>
+                            <input type="checkbox" id="con-email-os"> OS
+                        </label>
+                        <label>
+                            <input type="checkbox" id="con-email-contrato"> Contrato
+                        </label>
+                        <label style="margin-left:8px; border-left:1px solid #cbd5e1; padding-left:12px;">
+                            <input type="checkbox" id="con-inativo"> Inativo
+                        </label>
+                    </div>
                 </div>
             </div>
 
             <!-- Formulário -->
-            <div class="cc-form-body">
+            <div class="cc-form-body" style="padding-top: 0.5rem;">
                 <form id="form-cadastro-contatos" onsubmit="return false;">
                     
                     <!-- SEÇÃO: DADOS DO CONTATO -->
