@@ -17815,7 +17815,7 @@ setInterval(() => {
             </div>
             <button onclick="this.closest('[data-toast-item]')?.remove()"
                 style="background:none;border:none;color:#64748b;cursor:pointer;font-size:1.1rem;padding:0 0 0 4px;flex-shrink:0;pointer-events:all;line-height:1;"
-                title="Fechar">Ô£ò</button>
+                title="Fechar"><i class="ph ph-x"></i></button>
         `;
         // Inject animation keyframes once
         if (!document.getElementById('toast-anim-style')) {
