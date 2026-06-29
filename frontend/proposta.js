@@ -226,6 +226,53 @@ function renderTelaPropostas() {
                     padding: 0.25rem;
                     border-radius: 6px;
                 }
+
+                /* Regras de Uniformização de Fontes (Baseadas em Cadastro de Contatos) */
+                #view-comercial-proposta,
+                #view-comercial-proposta input,
+                #view-comercial-proposta select,
+                #view-comercial-proposta button,
+                #view-comercial-proposta textarea,
+                #view-comercial-proposta table,
+                #view-comercial-proposta label {
+                    font-family: 'Inter', sans-serif !important;
+                }
+
+                /* Rótulos dos Campos (Labels) */
+                .prop-lbl {
+                    font-size: 0.75rem !important;
+                    font-weight: 700 !important;
+                    color: #64748b !important;
+                    text-transform: uppercase !important;
+                    letter-spacing: 0.02em !important;
+                    display: block !important;
+                    margin-bottom: 0.25rem !important;
+                }
+
+                /* Títulos de Seção */
+                #form-proposta h4 {
+                    font-size: 0.9rem !important;
+                    font-weight: 800 !important;
+                    color: #475569 !important;
+                    text-transform: uppercase !important;
+                    letter-spacing: 0.05em !important;
+                    border-bottom: 2px solid #e2e8f0 !important;
+                    padding-bottom: 0.4rem !important;
+                    margin: 1.5rem 0 1rem 0 !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    gap: 0.5rem !important;
+                }
+
+                /* Tamanho de Fonte e Cor de Inputs, Selects e Textareas */
+                #form-proposta input,
+                #form-proposta select,
+                #form-proposta textarea,
+                #form-cadastro-cliente input:not([type="checkbox"]),
+                #form-cadastro-cliente select {
+                    font-size: 0.85rem !important;
+                    color: #1e293b !important;
+                }
             </style>
 
             <!-- NOVO CABEÇALHO SAAS -->
