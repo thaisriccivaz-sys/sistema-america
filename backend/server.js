@@ -17189,12 +17189,15 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque (
     quantidade_maxima INTEGER DEFAULT 0,
     foto_base64     TEXT,
     foto_url        TEXT,
+    placas_vinculadas TEXT,
     criado_em       DATETIME DEFAULT CURRENT_TIMESTAMP,
     atualizado_em   DATETIME DEFAULT CURRENT_TIMESTAMP
 )`, (err) => { if (err && !err.message.includes('already exists')) console.error('[ESTOQUE] Erro ao criar tabela:', err.message); });
 
 // Migration: adicionar coluna foto_url se nao existir (upgrade de banco antigo)
 db.run("ALTER TABLE estoque ADD COLUMN foto_url TEXT", (err) => { /* ignorar se ja existe */ });
+// Migration: adicionar coluna placas_vinculadas se nao existir
+db.run("ALTER TABLE estoque ADD COLUMN placas_vinculadas TEXT", (err) => { /* ignorar se ja existe */ });
 
 db.run(`CREATE TABLE IF NOT EXISTS estoque_historico (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
