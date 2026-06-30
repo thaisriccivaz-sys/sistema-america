@@ -2003,7 +2003,7 @@ function _renderCadastroClienteInt() {
                                     <span>dias posterior ao Vencimento</span>
                                 </div>
                                 <div style="display:flex; gap:0.5rem; align-items:center;">
-                                    <button onclick="abrirModalPesquisaContato()" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                                    <button onclick="abrirModalPesquisaContatoCliente()" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                                         <i class="ph ph-magnifying-glass" style="font-size:1rem;"></i> Pesquisar Contato
                                     </button>
                                     <button onclick="encaminharNovoContato()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
@@ -2481,7 +2481,7 @@ window.encaminharNovoContato = async function() {
     await window.carregarEmpresaSelecionada(_clienteEditandoId);
 };
 
-window.abrirModalPesquisaContato = function() {
+window.abrirModalPesquisaContatoCliente = function() {
     if (!_clienteEditandoId) {
         Swal.fire({
             title: 'Aviso',
@@ -3532,27 +3532,32 @@ window.abrirModalPesquisaContato = async function() {
         Swal.fire({
             title: 'Pesquisar Contato',
             html: `
-                <input type="text" id="swal-busca-contato" oninput="filtrarContatosTabela()" placeholder="Digite para filtrar..." style="width:100%; padding:0.5rem; margin-bottom:1rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.875rem; box-sizing:border-box;">
-                <div style="max-height:300px; overflow-y:auto;">
-                    <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
-                        <thead>
-                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1;">
-                                <th style="padding:0.5rem; text-align:left;">Código</th>
-                                <th style="padding:0.5rem; text-align:left;">Nome</th>
-                                <th style="padding:0.5rem; text-align:left;">E-mail</th>
-                                <th style="padding:0.5rem; text-align:left;">Celular</th>
-                                <th style="padding:0.5rem; text-align:left;">Empresa</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${rowsHtml}
-                        </tbody>
-                    </table>
+                <div style="text-align:left; font-family:'Inter', sans-serif; height:320px; display:flex; flex-direction:column;">
+                    <input type="text" id="swal-busca-contato" oninput="filtrarContatosTabela()" placeholder="Digite para filtrar..." style="width:100%; padding:0.5rem; margin-bottom:1rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.875rem; box-sizing:border-box; flex-shrink:0;">
+                    <div style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                            <thead>
+                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1;">
+                                    <th style="padding:0.5rem; text-align:left;">Código</th>
+                                    <th style="padding:0.5rem; text-align:left;">Nome</th>
+                                    <th style="padding:0.5rem; text-align:left;">E-mail</th>
+                                    <th style="padding:0.5rem; text-align:left;">Celular</th>
+                                    <th style="padding:0.5rem; text-align:left;">Empresa</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             `,
             showConfirmButton: false,
             showCancelButton: true,
-            cancelButtonText: 'Fechar'
+            cancelButtonText: 'Fechar',
+            customClass: {
+                popup: 'custom-swal-height'
+            }
         });
     } catch (e) {
         console.error(e);
