@@ -16399,6 +16399,41 @@ window.filtrarAssinaturas = function () {
     }).join('');
 };
 
+window.syncAssinatura = async function (id, source, btn) {
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+    btn.disabled = true;
+
+    try {
+        const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/assinaturas/sync`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, source })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            btn.innerHTML = `<i class="ph ph-check-circle"></i>`;
+            if (data.newStatus !== data.oldStatus) {
+                if (typeof showToast !== 'undefined') showToast(`Status atualizado para: ${data.newStatus}`, 'success');
+                if (window.loadAssinaturasDigitais) window.loadAssinaturasDigitais();
+            } else {
+                if (typeof showToast !== 'undefined') showToast('Status já está atualizado.', 'info');
+                setTimeout(() => { btn.innerHTML = oldHtml; btn.disabled = false; }, 1500);
+            }
+        } else {
+            alert(data.error || 'Erro ao sincronizar.');
+            btn.innerHTML = oldHtml; 
+            btn.disabled = false;
+        }
+    } catch (e) {
+        alert('Erro: ' + e.message);
+        btn.innerHTML = oldHtml; 
+        btn.disabled = false;
+    }
+};
+
 window.reenviarAssinatura = async function (id, source, btn) {
     const oldHtml = btn.innerHTML;
     btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';

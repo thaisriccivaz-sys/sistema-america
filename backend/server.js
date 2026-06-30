@@ -1730,6 +1730,63 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
     }
 });
 
+// Endpoint: Sincronizar Status de Assinatura com Assinafy
+app.post('/api/assinaturas/sync', authenticateToken, async (req, res) => {
+    const { id, source } = req.body;
+    try {
+        const table = source === 'documento' ? 'documentos' : 'admissao_assinaturas';
+        
+        const doc = await new Promise((resolve, reject) =>
+            db.get(`SELECT assinafy_id, assinafy_status FROM ${table} WHERE id=?`, [id], (err, r) => err ? reject(err) : resolve(r))
+        );
+        if (!doc || !doc.assinafy_id) return res.status(404).json({ error: 'Assinatura vinculada não encontrada.' });
+
+        const https = require('https');
+        const docInfo = await new Promise((resolve, reject) => {
+            const r = https.request({
+                hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET',
+                headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
+            }, resp => {
+                const chunks = [];
+                resp.on('data', c => chunks.push(c));
+                resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch (e) { resolve(null); } });
+            });
+            r.on('error', reject); r.end();
+        });
+
+        if (docInfo && (docInfo.data || docInfo.id)) {
+            const d = docInfo.data || docInfo;
+            const pStatus = (d.status || '').toLowerCase();
+            let newStatus = doc.assinafy_status;
+            
+            if (pStatus === 'certificated') newStatus = 'Assinado';
+            else if (['completed', 'pending', 'waiting_signatures'].includes(pStatus)) newStatus = 'Aguardando';
+            else if (pStatus === 'error') newStatus = 'Falha';
+            
+            if (newStatus !== doc.assinafy_status) {
+                let sql = `UPDATE ${table} SET assinafy_status = ?`;
+                let params = [newStatus];
+                if (newStatus === 'Assinado') {
+                    if (source === 'documento') {
+                        sql += `, assinafy_signed_at = CURRENT_TIMESTAMP`;
+                    } else {
+                        sql += `, assinado_em = CURRENT_TIMESTAMP`;
+                    }
+                }
+                sql += ` WHERE id = ?`;
+                params.push(id);
+                
+                await new Promise((resolve, reject) => db.run(sql, params, err => err ? reject(err) : resolve()));
+                return res.json({ success: true, oldStatus: doc.assinafy_status, newStatus });
+            }
+            return res.json({ success: true, message: 'Status já está atualizado.', oldStatus: doc.assinafy_status, newStatus });
+        }
+        res.status(400).json({ error: 'Não foi possível detectar o status do documento na nuvem.' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Endpoint: Limpar todos os registros de teste de assinaturas
 app.delete('/api/assinaturas/limpar-testes', authenticateToken, async (req, res) => {
     try {
