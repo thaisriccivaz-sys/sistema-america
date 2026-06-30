@@ -2503,10 +2503,13 @@ window.abrirModalPesquisaContatoCliente = async function() {
     const rawCnpj = cnpjInput ? cnpjInput.value : '';
     const cleanCnpj = rawCnpj.replace(/\D/g, '');
 
-    if (!cleanCnpj) {
+    const razaoInput = document.getElementById('cli-razao-social');
+    const rawRazao = razaoInput ? razaoInput.value.trim().toLowerCase() : '';
+
+    if (!cleanCnpj && !rawRazao) {
         Swal.fire({
             title: 'Aviso',
-            text: 'Por favor, digite o CPF/CNPJ no campo correspondente antes de pesquisar contatos.',
+            text: 'Por favor, digite o CPF/CNPJ ou a Razão Social do cliente antes de pesquisar contatos.',
             icon: 'warning',
             confirmButtonColor: '#3b82f6',
             confirmButtonText: 'Ok'
@@ -2516,13 +2519,27 @@ window.abrirModalPesquisaContatoCliente = async function() {
 
     try {
         const clientes = await apiGet('/clientes');
-        const client = clientes.find(c => c.cpf_cnpj && c.cpf_cnpj.replace(/\D/g, '') === cleanCnpj);
+        let client;
+
+        if (cleanCnpj) {
+            client = clientes.find(c => c.cpf_cnpj && c.cpf_cnpj.replace(/\D/g, '') === cleanCnpj);
+        }
+
+        if (!client && rawRazao) {
+            client = clientes.find(c => c.nome_razao_social && c.nome_razao_social.trim().toLowerCase().includes(rawRazao));
+        }
 
         if (client) {
             await window.carregarClienteParaEdicao(client.id);
         } else {
-            _clienteContatos = [];
-            _renderTabelaContatos();
+            Swal.fire({
+                title: 'Aviso',
+                text: 'Nenhum cliente cadastrado com este CNPJ ou Razão Social foi encontrado no banco de dados. Para pesquisar contatos, certifique-se de que o cliente já esteja cadastrado.',
+                icon: 'warning',
+                confirmButtonColor: '#3b82f6',
+                confirmButtonText: 'Ok'
+            });
+            return;
         }
 
         Swal.fire({
