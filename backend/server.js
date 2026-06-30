@@ -21135,6 +21135,61 @@ app.get('/api/clientes/:id', authenticateToken, (req, res) => {
   });
 });
 
+// GET /api/clientes/:clienteId/enderecos - Listar endereços de entrega do cliente
+app.get('/api/clientes/:clienteId/enderecos', authenticateToken, (req, res) => {
+  const clienteId = req.params.clienteId;
+  db.all('SELECT * FROM clientes_enderecos_entrega WHERE cliente_id = ? ORDER BY sequencia ASC', [clienteId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// POST /api/clientes/:clienteId/enderecos - Salvar ou atualizar endereço de entrega do cliente
+app.post('/api/clientes/:clienteId/enderecos', authenticateToken, (req, res) => {
+  const clienteId = req.params.clienteId;
+  const d = req.body;
+  
+  if (!d.sequencia) {
+    return res.status(400).json({ error: 'A sequência do endereço é obrigatória.' });
+  }
+
+  db.run(`INSERT INTO clientes_enderecos_entrega (
+    cliente_id, sequencia, nome_local, cpf_cnpj, inscricao_estadual, cep,
+    endereco, numero, complemento, bairro, uf, municipio, contato, telefone, ramal
+  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  ON CONFLICT(cliente_id, sequencia) DO UPDATE SET
+    nome_local=excluded.nome_local,
+    cpf_cnpj=excluded.cpf_cnpj,
+    inscricao_estadual=excluded.inscricao_estadual,
+    cep=excluded.cep,
+    endereco=excluded.endereco,
+    numero=excluded.numero,
+    complemento=excluded.complemento,
+    bairro=excluded.bairro,
+    uf=excluded.uf,
+    municipio=excluded.municipio,
+    contato=excluded.contato,
+    telefone=excluded.telefone,
+    ramal=excluded.ramal`,
+  [
+    clienteId, d.sequencia, d.nome_local, d.cpf_cnpj, d.inscricao_estadual, d.cep,
+    d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio, d.contato, d.telefone, d.ramal
+  ], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, id: this.lastID || d.id });
+  });
+});
+
+// DELETE /api/clientes/:clienteId/enderecos/:id - Excluir endereço de entrega do cliente
+app.delete('/api/clientes/:clienteId/enderecos/:id', authenticateToken, (req, res) => {
+  const { clienteId, id } = req.params;
+  db.run('DELETE FROM clientes_enderecos_entrega WHERE cliente_id = ? AND id = ?', [clienteId, id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Endereço não encontrado.' });
+    res.json({ success: true });
+  });
+});
+
 // POST /api/clientes - Criar novo cliente
 app.post('/api/clientes', authenticateToken, (req, res) => {
   const d = req.body;

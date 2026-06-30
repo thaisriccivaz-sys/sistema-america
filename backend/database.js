@@ -158,6 +158,30 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `);
 
+            // Tabela de Endereços de Entrega/Instalação de Clientes (América Rental)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS clientes_enderecos_entrega (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cliente_id INTEGER NOT NULL,
+                    sequencia INTEGER NOT NULL,
+                    nome_local TEXT,
+                    cpf_cnpj TEXT,
+                    inscricao_estadual TEXT,
+                    cep TEXT,
+                    endereco TEXT,
+                    numero TEXT,
+                    complemento TEXT,
+                    bairro TEXT,
+                    uf TEXT,
+                    municipio TEXT,
+                    contato TEXT,
+                    telefone TEXT,
+                    ramal TEXT,
+                    UNIQUE(cliente_id, sequencia),
+                    FOREIGN KEY(cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+                )
+            `);
+
             // Tabela de Propostas Comerciais (América Rental)
             db.run(`
                 CREATE TABLE IF NOT EXISTS propostas (
