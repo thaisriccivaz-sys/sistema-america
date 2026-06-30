@@ -1988,39 +1988,44 @@ function _renderCadastroClienteInt() {
                             
                             <!-- Controles de e-mail e botão novo contato -->
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
-                                <div style="display:flex; align-items:center; gap:8px; font-weight:600;">
+                                <div style="display:flex; align-items:center; gap:8px; font-weight:600; font-family:'Inter', sans-serif; font-size:0.85rem; color:#475569;">
                                     <span>Dados para Envio de E-Mail Cobranças: Enviar com</span>
-                                    <input type="number" id="cli-email-cob-antecedencia" value="5" style="width:45px; text-align:center; padding:3px; border:1px solid #cbd5e1; border-radius:4px;">
+                                    <input type="number" id="cli-email-cob-antecedencia" value="5" style="width:45px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:6px; height:30px; box-sizing:border-box; outline:none; font-family:'Inter', sans-serif;">
                                     <span>dias de antecedência e</span>
-                                    <input type="number" id="cli-email-cob-posterior" value="5" style="width:45px; text-align:center; padding:3px; border:1px solid #cbd5e1; border-radius:4px;">
+                                    <input type="number" id="cli-email-cob-posterior" value="5" style="width:45px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:6px; height:30px; box-sizing:border-box; outline:none; font-family:'Inter', sans-serif;">
                                     <span>dias posterior ao Vencimento</span>
                                 </div>
-                                <button onclick="abrirModalNovoContato()" style="background:#007bff; color:white; border:none; padding:0.45rem 1rem; border-radius:4px; font-weight:bold; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px;">
-                                    <i class="ph ph-plus-bold"></i> Novo Contato
-                                </button>
+                                <div style="display:flex; gap:0.5rem; align-items:center;">
+                                    <button onclick="abrirModalPesquisaContato()" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                                        <i class="ph ph-magnifying-glass" style="font-size:1rem;"></i> Pesquisar Contato
+                                    </button>
+                                    <button onclick="encaminharNovoContato()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                                        <i class="ph ph-plus-bold" style="font-size:1rem;"></i> Novo Contato
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- Tabela de contatos cadastrados -->
-                            <div style="background:#fff; border-radius:8px; border:1px solid #e2e8f0; overflow-x:auto;">
-                                <table style="width:100%; border-collapse:collapse; font-size:0.8rem; min-width:1200px;">
+                            <div style="background:#fff; border-radius:10px; border:1px solid #e2e8f0; overflow-x:auto; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                                <table style="width:100%; border-collapse:collapse; font-size:0.82rem; min-width:1200px; font-family:'Inter', sans-serif;">
                                     <thead>
-                                        <tr style="background:#007bff; color:white; text-align:left;">
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Identificação</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Nome</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Departamento</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Celular</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Telefone/Ramal</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">E-mail</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Dono</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Cargo</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Situação</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Recebe E-mail de NFe - XML e Danfe</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Recebe E-mail de Cobrança e Boleto</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Recebe E-mail de Situação de OS</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Recebe E-mail de Situação de Contrato</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Origem</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600;">Inativo</th>
-                                            <th style="padding:0.5rem; border-bottom:1px solid #e2e8f0; font-weight:600; text-align:center;">Ações</th>
+                                        <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; text-align:left;">
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Identificação</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Nome</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Departamento</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Celular</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Telefone/Ramal</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">E-mail</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Dono</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Cargo</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Situação</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">NFe</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Cobrança</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">OS</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Contrato</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Origem</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Inativo</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; text-align:center;">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody id="cli-contatos-tbody">
@@ -2429,26 +2434,122 @@ window._renderTabelaContatos = function() {
     
     tbody.innerHTML = _clienteContatos.map((c, idx) => `
         <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-            <td style="padding:0.5rem; color:#475569;">${c.identificacao}</td>
-            <td style="padding:0.5rem; color:#1e293b; font-weight:600;">${c.nome}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.departamento || '—'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.celular || '—'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.telefone_ramal || '—'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.email}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.dono || '—'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.cargo || '—'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.situacao || '—'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.nfe || 'Não'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.cobranca || 'Não'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.os || 'Não'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.contrato || 'Não'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.origem || '—'}</td>
-            <td style="padding:0.5rem; color:#475569;">${c.inativo || 'Não'}</td>
-            <td style="padding:0.5rem; text-align:center;">
-                <button onclick="removerContato(${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:3px 6px; border-radius:4px; cursor:pointer;" title="Remover Contato"><i class="ph ph-trash"></i></button>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.identificacao || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#1e293b; font-weight:600;">${c.nome}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.departamento || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.celular || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.telefone_ramal || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.email || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.dono || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.cargo || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.situacao || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.nfe || 'Não'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.cobranca || 'Não'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.os || 'Não'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.contrato || 'Não'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.origem || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.inativo || 'Não'}</td>
+            <td style="padding:0.75rem 1rem; text-align:center;">
+                <button onclick="removerContato(${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fa5252'; this.style.color='#fff';" onmouseout="this.style.background='#ffe3e3'; this.style.color='#e03131';" title="Remover Contato">
+                    <i class="ph ph-trash" style="font-size:0.95rem;"></i>
+                </button>
             </td>
         </tr>
     `).join('');
+};
+
+window.encaminharNovoContato = async function() {
+    if (!_clienteEditandoId) {
+        Swal.fire({
+            title: 'Aviso',
+            text: 'Por favor, salve o cliente primeiro para poder cadastrar contatos vinculados a ele na aba de contatos.',
+            icon: 'warning',
+            confirmButtonColor: '#3b82f6',
+            confirmButtonText: 'Ok'
+        });
+        return;
+    }
+    window.limparFormContato();
+    window.switchPropostaTab('cadastro-contatos');
+    await window.carregarEmpresaSelecionada(_clienteEditandoId);
+};
+
+window.abrirModalPesquisaContato = function() {
+    if (!_clienteEditandoId) {
+        Swal.fire({
+            title: 'Aviso',
+            text: 'Nenhum cliente selecionado ou salvo no momento.',
+            icon: 'warning',
+            confirmButtonColor: '#3b82f6',
+            confirmButtonText: 'Ok'
+        });
+        return;
+    }
+
+    Swal.fire({
+        title: '<div style="font-size:1.15rem; font-weight:700; color:#1e293b; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px;"><i class="ph ph-magnifying-glass"></i> Pesquisar Contatos do Cliente</div>',
+        html: `
+            <div style="text-align:left; font-family:'Inter', sans-serif;">
+                <input type="text" id="modal-search-contato" placeholder="Digite parte do nome para buscar..." style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; margin-bottom:12px; box-sizing:border-box; outline:none; height:38px;" oninput="window.filtrarContatosModal(this.value)">
+                <div id="modal-contatos-grid-container" style="max-height:300px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;"></div>
+            </div>
+        `,
+        showConfirmButton: true,
+        confirmButtonText: 'Fechar',
+        confirmButtonColor: '#3b82f6',
+        width: '800px',
+        didOpen: () => {
+            window.filtrarContatosModal('');
+            const input = document.getElementById('modal-search-contato');
+            if (input) input.focus();
+        }
+    });
+};
+
+window.filtrarContatosModal = function(term = '') {
+    const container = document.getElementById('modal-contatos-grid-container');
+    if (!container) return;
+
+    const filtered = _clienteContatos.filter(c => 
+        (c.nome && c.nome.toLowerCase().includes(term.toLowerCase())) ||
+        (c.identificacao && c.identificacao.toString().includes(term)) ||
+        (c.departamento && c.departamento.toLowerCase().includes(term.toLowerCase())) ||
+        (c.email && c.email.toLowerCase().includes(term.toLowerCase()))
+    );
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div style="padding:1.5rem; text-align:center; color:#64748b; font-family:'Inter', sans-serif;">
+                Nenhum contato encontrado para o termo pesquisado.
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = `
+        <table style="width:100%; border-collapse:collapse; font-size:0.82rem; font-family:'Inter', sans-serif; text-align:left;">
+            <thead>
+                <tr style="background:#f8fafc; color:#475569; border-bottom:2px solid #e2e8f0;">
+                    <th style="padding:0.65rem 1rem; font-weight:700;">Identificação</th>
+                    <th style="padding:0.65rem 1rem; font-weight:700;">Nome</th>
+                    <th style="padding:0.65rem 1rem; font-weight:700;">Departamento</th>
+                    <th style="padding:0.65rem 1rem; font-weight:700;">Celular</th>
+                    <th style="padding:0.65rem 1rem; font-weight:700;">E-mail</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${filtered.map(c => `
+                    <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                        <td style="padding:0.65rem 1rem; color:#475569;">${c.identificacao || '—'}</td>
+                        <td style="padding:0.65rem 1rem; color:#1e293b; font-weight:600;">${c.nome}</td>
+                        <td style="padding:0.65rem 1rem; color:#475569;">${c.departamento || '—'}</td>
+                        <td style="padding:0.65rem 1rem; color:#475569;">${c.celular || '—'}</td>
+                        <td style="padding:0.65rem 1rem; color:#475569;">${c.email || '—'}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
 };
 
 window.removerContato = function(idx) {
