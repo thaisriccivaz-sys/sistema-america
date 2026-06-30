@@ -2489,16 +2489,18 @@ window.abrirModalPesquisaContato = function() {
     Swal.fire({
         title: '<div style="font-size:1.15rem; font-weight:700; color:#1e293b; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px;"><i class="ph ph-magnifying-glass"></i> Pesquisar Contatos do Cliente</div>',
         html: `
-            <div style="text-align:left; font-family:'Inter', sans-serif;">
-                <input type="text" id="modal-search-contato" placeholder="Digite parte do nome para buscar..." style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; margin-bottom:12px; box-sizing:border-box; outline:none; height:38px;" oninput="window.filtrarContatosModal(this.value)">
-                <div id="modal-contatos-grid-container" style="max-height:300px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;"></div>
+            <div style="text-align:left; font-family:'Inter', sans-serif; height:330px; display:flex; flex-direction:column;">
+                <input type="text" id="modal-search-contato" placeholder="Digite parte do nome para buscar..." style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; margin-bottom:12px; box-sizing:border-box; outline:none; height:38px; flex-shrink:0;" oninput="window.filtrarContatosModal(this.value)">
+                <div id="modal-contatos-grid-container" style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;"></div>
             </div>
         `,
         showConfirmButton: true,
         confirmButtonText: 'Fechar',
         confirmButtonColor: '#3b82f6',
-        width: '800px',
+        width: '700px',
         didOpen: () => {
+            const popup = Swal.getPopup();
+            if (popup) popup.style.height = '500px';
             window.filtrarContatosModal('');
             const input = document.getElementById('modal-search-contato');
             if (input) input.focus();
