@@ -2470,10 +2470,22 @@ window.encaminharNovoContato = async function() {
     const rawCnpj = cnpjInput ? cnpjInput.value : '';
     const cleanCnpj = rawCnpj.replace(/\D/g, '');
 
-    if (!_clienteEditandoId && cleanCnpj) {
+    const razaoInput = document.getElementById('cli-razao-social');
+    const rawRazao = razaoInput ? razaoInput.value.trim().toLowerCase() : '';
+
+    if (!_clienteEditandoId && (cleanCnpj || rawRazao)) {
         try {
             const clientes = await apiGet('/clientes');
-            const client = clientes.find(c => c.cpf_cnpj && c.cpf_cnpj.replace(/\D/g, '') === cleanCnpj);
+            let client;
+
+            if (cleanCnpj) {
+                client = clientes.find(c => c.cpf_cnpj && c.cpf_cnpj.replace(/\D/g, '') === cleanCnpj);
+            }
+
+            if (!client && rawRazao) {
+                client = clientes.find(c => c.nome_razao_social && c.nome_razao_social.trim().toLowerCase().includes(rawRazao));
+            }
+
             if (client) {
                 await window.carregarClienteParaEdicao(client.id);
             }
