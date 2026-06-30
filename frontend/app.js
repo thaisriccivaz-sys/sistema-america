@@ -4325,6 +4325,7 @@ if (formColab) {
             escala_ciclo_inicio: document.getElementById('colab-escala-ciclo-inicio') ? (document.getElementById('colab-escala-ciclo-inicio').value || null) : null,
             meio_transporte: document.getElementById('colab-meio-transporte') ? document.getElementById('colab-meio-transporte').value : null,
             valor_transporte: document.getElementById('colab-valor-transporte') ? document.getElementById('colab-valor-transporte').value : null,
+            transporte_placa: document.getElementById('colab-transporte-placa') ? document.getElementById('colab-transporte-placa').value : null,
             alergias: document.getElementById('colab-alergias') ? document.getElementById('colab-alergias').value : null,
             faculdade_participa: document.querySelector('input[name="faculdade_participa"]:checked')?.value || 'Não',
             faculdade_curso_id: document.getElementById('colab-faculdade-curso') ? document.getElementById('colab-faculdade-curso').value : null,
