@@ -16378,15 +16378,18 @@ window.filtrarAssinaturas = function () {
                 viewBtn = `<button onclick="window.openSignedDocPopup(${d.id}, '${nomeEsc}', event)" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button>`;
             }
         } else if (d.assinafy_id) {
-            // Qualquer status não-assinado com assinafy_id → pode reenviar
-            viewBtn = `<button onclick="window.reenviarAssinatura(${d.id}, '${d.source}', this)" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Copiar link ou Enviar WhatsApp"><i class="ph ph-paper-plane-right"></i> Reenviar</button>`;
+            // Qualquer status não-assinado com assinafy_id → pode reenviar e sincronizar
+            viewBtn = `<div style="display:flex;gap:4px;justify-content:center;">
+                <button onclick="window.syncAssinatura(${d.id}, '${d.source}', this)" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Sincronizar com Assinafy"><i class="ph ph-arrows-clockwise"></i></button>
+                <button onclick="window.reenviarAssinatura(${d.id}, '${d.source}', this)" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Reenviar"><i class="ph ph-paper-plane-right"></i></button>
+            </div>`;
         }
 
         return `
         <tr style="border-bottom:1px solid #f1f5f9;transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
             <td style="padding:0.75rem 1rem;">
                 <div style="font-weight:600;color:#1e293b;">${d.colaborador_nome || '—'}</div>
-                <div style="font-size:0.75rem;color:#94a3b8;">${d.colaborador_cargo || ''} ${d.colaborador_departamento ? '┬À ' + d.colaborador_departamento : ''}</div>
+                <div style="font-size:0.75rem;color:#94a3b8;">${d.colaborador_cargo || ''}${d.colaborador_departamento && d.colaborador_cargo !== d.colaborador_departamento ? ' · ' + d.colaborador_departamento : ''}</div>
             </td>
             <td style="padding:0.75rem 1rem;">
                 <div style="font-weight:600;color:#334155;">${d.nome_documento || '—'}</div>
