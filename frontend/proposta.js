@@ -925,6 +925,7 @@ window.fecharFormProposta = function() {
 /* ── Redirecionamentos e Pesquisas de Clientes / Contatos na Proposta ── */
 let _redirectAfterClientSave = false;
 let _redirectAfterContactSave = false;
+let _redirectAfterContactSaveToClient = false;
 
 window.pesquisarClienteProposta = async function() {
     const query = document.getElementById('prop-cliente').value.trim();
@@ -2506,6 +2507,7 @@ window.encaminharNovoContato = async function() {
     }
 
     window.limparFormContato();
+    _redirectAfterContactSaveToClient = true;
     window.switchPropostaTab('cadastro-contatos');
     await window.carregarEmpresaSelecionada(_clienteEditandoId);
 };
@@ -4042,7 +4044,13 @@ window.salvarContato = async function() {
                 mostrarToastSucesso(_contatoEditandoId ? 'Contato atualizado com sucesso!' : 'Contato cadastrado com sucesso!');
             }
 
-            if (_redirectAfterContactSave) {
+            if (_redirectAfterContactSaveToClient) {
+                _redirectAfterContactSaveToClient = false;
+                if (resolvedId) {
+                    await window.carregarClienteParaEdicao(resolvedId);
+                }
+                window.switchPropostaTab('cadastro-cliente');
+            } else if (_redirectAfterContactSave) {
                 _redirectAfterContactSave = false;
                 const propContatoInput = document.getElementById('prop-contato');
                 if (propContatoInput) propContatoInput.value = conNome;
