@@ -2466,26 +2466,47 @@ window._renderTabelaContatos = function() {
 };
 
 window.encaminharNovoContato = async function() {
+    const cnpjInput = document.getElementById('cli-cpf-cnpj');
+    const rawCnpj = cnpjInput ? cnpjInput.value : '';
+    const cleanCnpj = rawCnpj.replace(/\D/g, '');
+
+    if (!_clienteEditandoId && cleanCnpj) {
+        try {
+            const clientes = await apiGet('/clientes');
+            const client = clientes.find(c => c.cpf_cnpj && c.cpf_cnpj.replace(/\D/g, '') === cleanCnpj);
+            if (client) {
+                await window.carregarClienteParaEdicao(client.id);
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
     if (!_clienteEditandoId) {
         Swal.fire({
             title: 'Aviso',
-            text: 'Por favor, salve o cliente primeiro para poder cadastrar contatos vinculados a ele na aba de contatos.',
+            text: 'Por favor, preencha e salve o cliente primeiro para poder cadastrar contatos vinculados a ele.',
             icon: 'warning',
             confirmButtonColor: '#3b82f6',
             confirmButtonText: 'Ok'
         });
         return;
     }
+
     window.limparFormContato();
     window.switchPropostaTab('cadastro-contatos');
     await window.carregarEmpresaSelecionada(_clienteEditandoId);
 };
 
-window.abrirModalPesquisaContatoCliente = function() {
-    if (!_clienteEditandoId) {
+window.abrirModalPesquisaContatoCliente = async function() {
+    const cnpjInput = document.getElementById('cli-cpf-cnpj');
+    const rawCnpj = cnpjInput ? cnpjInput.value : '';
+    const cleanCnpj = rawCnpj.replace(/\D/g, '');
+
+    if (!cleanCnpj) {
         Swal.fire({
             title: 'Aviso',
-            text: 'Nenhum cliente selecionado ou salvo no momento.',
+            text: 'Por favor, digite o CPF/CNPJ no campo correspondente antes de pesquisar contatos.',
             icon: 'warning',
             confirmButtonColor: '#3b82f6',
             confirmButtonText: 'Ok'
@@ -2493,26 +2514,41 @@ window.abrirModalPesquisaContatoCliente = function() {
         return;
     }
 
-    Swal.fire({
-        title: '<div style="font-size:1.15rem; font-weight:700; color:#1e293b; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px;"><i class="ph ph-magnifying-glass"></i> Pesquisar Contatos do Cliente</div>',
-        html: `
-            <div style="text-align:left; font-family:'Inter', sans-serif; height:320px; display:flex; flex-direction:column;">
-                <input type="text" id="modal-search-contato" placeholder="Digite parte do nome para buscar..." style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; margin-bottom:12px; box-sizing:border-box; outline:none; height:38px; flex-shrink:0;" oninput="window.filtrarContatosModal(this.value)">
-                <div id="modal-contatos-grid-container" style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;"></div>
-            </div>
-        `,
-        showConfirmButton: true,
-        confirmButtonText: 'Fechar',
-        confirmButtonColor: '#3b82f6',
-        customClass: {
-            popup: 'custom-swal-height'
-        },
-        didOpen: () => {
-            window.filtrarContatosModal('');
-            const input = document.getElementById('modal-search-contato');
-            if (input) input.focus();
+    try {
+        const clientes = await apiGet('/clientes');
+        const client = clientes.find(c => c.cpf_cnpj && c.cpf_cnpj.replace(/\D/g, '') === cleanCnpj);
+
+        if (client) {
+            await window.carregarClienteParaEdicao(client.id);
+        } else {
+            _clienteContatos = [];
+            _renderTabelaContatos();
         }
-    });
+
+        Swal.fire({
+            title: '<div style="font-size:1.15rem; font-weight:700; color:#1e293b; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px;"><i class="ph ph-magnifying-glass"></i> Pesquisar Contatos do Cliente</div>',
+            html: `
+                <div style="text-align:left; font-family:'Inter', sans-serif; height:320px; display:flex; flex-direction:column;">
+                    <input type="text" id="modal-search-contato" placeholder="Digite parte do nome para buscar..." style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; margin-bottom:12px; box-sizing:border-box; outline:none; height:38px; flex-shrink:0;" oninput="window.filtrarContatosModal(this.value)">
+                    <div id="modal-contatos-grid-container" style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;"></div>
+                </div>
+            `,
+            showConfirmButton: true,
+            confirmButtonText: 'Fechar',
+            confirmButtonColor: '#3b82f6',
+            customClass: {
+                popup: 'custom-swal-height'
+            },
+            didOpen: () => {
+                window.filtrarContatosModal('');
+                const input = document.getElementById('modal-search-contato');
+                if (input) input.focus();
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        Swal.fire('Erro', 'Não foi possível buscar os contatos: ' + err.message, 'error');
+    }
 };
 
 window.filtrarContatosModal = function(term = '') {
