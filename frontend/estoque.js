@@ -198,7 +198,7 @@ window.renderEstoqueTable = async function() {
                 if (!s) {
                     endCell = '<span style="color:#94a3b8;font-size:0.78rem;font-style:italic;">Sem endereço</span>';
                 } else {
-                    endCell = '<span style="display:inline-flex;align-items:center;gap:4px;background:' + (lowEnd ? '#fef2f2' : '#eff6ff') + ';color:' + (lowEnd ? '#ef4444' : '#1d4ed8') + ';border:1px solid ' + (lowEnd ? '#fca5a5' : '#bfdbfe') + ';border-radius:6px;padding:3px 10px;font-size:0.8rem;font-weight:600;">' +
+                    endCell = '<span style="display:inline-flex;align-items:center;gap:4px;background:' + (lowEnd ? '#fef2f2' : '#eff6ff') + ';color:' + (lowEnd ? '#ef4444' : '#1d4ed8') + ';border:1px solid ' + (lowEnd ? '#fca5a5' : '#bfdbfe') + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
                         s.nome +
                         (lowEnd ? ' <i class="ph ph-warning" style="color:#ef4444;font-size:0.78rem;"></i>' : '') +
                         '</span>';
