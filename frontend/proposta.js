@@ -927,6 +927,103 @@ let _redirectAfterClientSave = false;
 let _redirectAfterContactSave = false;
 let _redirectAfterContactSaveToClient = false;
 
+window.selecionarContatoParaCliente = async function(contatoJsonStr) {
+    const c = JSON.parse(decodeURIComponent(contatoJsonStr));
+    
+    // Check if already in _clienteContatos
+    const exists = _clienteContatos.some(exist => 
+        exist.nome === c.nome || 
+        (exist.identificacao && exist.identificacao == c.codigo)
+    );
+    
+    if (exists) {
+        Swal.fire({
+            title: 'Aviso',
+            text: 'Este contato já está na lista deste cliente.',
+            icon: 'info',
+            confirmButtonColor: '#3b82f6',
+            confirmButtonText: 'Ok'
+        });
+        return;
+    }
+
+    const mapped = {
+        id: c.id,
+        identificacao: c.codigo || '',
+        nome: c.nome || '',
+        departamento: c.departamento || '',
+        celular: c.celular || '',
+        telefone_ramal: c.telefone ? (c.ramal ? `${c.telefone} Ramal ${c.ramal}` : c.telefone) : '',
+        email: c.email || '',
+        dono: c.representante || '',
+        cargo: c.cargo || '',
+        situacao: c.inativo === 1 ? 'Inativo' : 'Ativo',
+        nfe: c.email_nfe === 1 ? 'Sim' : 'Não',
+        cobranca: c.email_cobranca === 1 ? 'Sim' : 'Não',
+        os: c.email_os === 1 ? 'Sim' : 'Não',
+        contrato: c.email_contrato === 1 ? 'Sim' : 'Não',
+        origem: c.origem || '',
+        inativo: c.inativo === 1 ? 'Sim' : 'Não'
+    };
+
+    _clienteContatos.push(mapped);
+    _renderTabelaContatos();
+
+    // If client is already saved, link in database too
+    if (_clienteEditandoId) {
+        try {
+            const payload = {
+                id: c.id,
+                codigo: c.codigo,
+                nome: c.nome,
+                tipo: c.tipo || '',
+                representante: c.representante || '',
+                departamento: c.departamento || '',
+                cargo: c.cargo || '',
+                origem: c.origem || '',
+                influenciador: c.influenciador || '',
+                classificacao: c.classificacao || '',
+                data_nascimento: c.data_nascimento || '',
+                ramo_atividade: c.ramo_atividade || '',
+                regiao: c.regiao || '',
+                sexo: c.sexo || '',
+                celular: c.celular || '',
+                telefone: c.telefone || '',
+                ramal: c.ramal || '',
+                nextel: c.nextel || '',
+                email: c.email || '',
+                outra_comunicacao: c.outra_comunicacao || '',
+                inativo: c.inativo || 0,
+                email_cobranca: c.email_cobranca || 0,
+                email_nfe: c.email_nfe || 0,
+                email_os: c.email_os || 0,
+                email_contrato: c.email_contrato || 0,
+                empresa_cliente: {
+                    id: _clienteEditandoId,
+                    cpf_cnpj: document.getElementById('cli-cpf-cnpj').value,
+                    nome_razao_social: document.getElementById('cli-razao-social').value
+                }
+            };
+            await apiPut(`/contatos/${c.id}`, payload);
+        } catch (err) {
+            console.error('Erro ao atualizar cliente_id do contato:', err);
+        }
+    }
+
+    Swal.close();
+    if (typeof mostrarToastSucesso === 'function') {
+        mostrarToastSucesso('Contato adicionado ao cliente com sucesso!');
+    }
+};
+
+window.editarContatoDeCliente = async function(id) {
+    if (!id) return;
+    window.limparFormContato();
+    _redirectAfterContactSaveToClient = true;
+    window.switchPropostaTab('cadastro-contatos');
+    await window.carregarContatoParaEdicao(id);
+};
+
 window.pesquisarClienteProposta = async function() {
     const query = document.getElementById('prop-cliente').value.trim();
     if (!query) {
@@ -2478,7 +2575,7 @@ window._renderTabelaContatos = function() {
     }
     
     tbody.innerHTML = _clienteContatos.map((c, idx) => `
-        <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+        <tr ondblclick="if (${c.id || 0}) window.editarContatoDeCliente(${c.id || 0})" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Duplo clique para editar contato">
             <td style="padding:0.75rem 1rem; color:#475569;">${c.identificacao || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#1e293b; font-weight:600;">${c.nome}</td>
             <td style="padding:0.75rem 1rem; color:#475569;">${c.departamento || '—'}</td>
@@ -2593,11 +2690,16 @@ window.abrirModalPesquisaContatoCliente = async function() {
             return;
         }
 
+        // Fetch all contacts to allow searching and selecting
+        const allContatos = await apiGet('/contatos') || [];
+        window._modalAllContatos = allContatos;
+
         Swal.fire({
             title: '<div style="font-size:1.15rem; font-weight:700; color:#1e293b; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px;"><i class="ph ph-magnifying-glass"></i> Pesquisar Contatos do Cliente</div>',
             html: `
                 <div style="text-align:left; font-family:'Inter', sans-serif; height:320px; display:flex; flex-direction:column;">
-                    <input type="text" id="modal-search-contato" placeholder="Digite parte do nome para buscar..." style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; margin-bottom:12px; box-sizing:border-box; outline:none; height:38px; flex-shrink:0;" oninput="window.filtrarContatosModal(this.value)">
+                    <div style="font-size:0.75rem; color:#64748b; margin-bottom:8px;">* Dê um duplo clique na linha para adicionar o contato ao cliente atual.</div>
+                    <input type="text" id="modal-search-contato" placeholder="Digite parte do nome, empresa ou e-mail para buscar..." style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; margin-bottom:12px; box-sizing:border-box; outline:none; height:38px; flex-shrink:0;" oninput="window.filtrarContatosModal(this.value)">
                     <div id="modal-contatos-grid-container" style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;"></div>
                 </div>
             `,
@@ -2623,11 +2725,13 @@ window.filtrarContatosModal = function(term = '') {
     const container = document.getElementById('modal-contatos-grid-container');
     if (!container) return;
 
-    const filtered = _clienteContatos.filter(c => 
+    const sourceList = window._modalAllContatos || [];
+    const filtered = sourceList.filter(c => 
         (c.nome && c.nome.toLowerCase().includes(term.toLowerCase())) ||
-        (c.identificacao && c.identificacao.toString().includes(term)) ||
+        (c.codigo && c.codigo.toString().includes(term)) ||
         (c.departamento && c.departamento.toLowerCase().includes(term.toLowerCase())) ||
-        (c.email && c.email.toLowerCase().includes(term.toLowerCase()))
+        (c.email && c.email.toLowerCase().includes(term.toLowerCase())) ||
+        (c.cliente_nome && c.cliente_nome.toLowerCase().includes(term.toLowerCase()))
     );
 
     if (filtered.length === 0) {
@@ -2643,21 +2747,23 @@ window.filtrarContatosModal = function(term = '') {
         <table style="width:100%; border-collapse:collapse; font-size:0.82rem; font-family:'Inter', sans-serif; text-align:left;">
             <thead>
                 <tr style="background:#f8fafc; color:#475569; border-bottom:2px solid #e2e8f0;">
-                    <th style="padding:0.65rem 1rem; font-weight:700;">Identificação</th>
+                    <th style="padding:0.65rem 1rem; font-weight:700;">Cód</th>
                     <th style="padding:0.65rem 1rem; font-weight:700;">Nome</th>
                     <th style="padding:0.65rem 1rem; font-weight:700;">Departamento</th>
                     <th style="padding:0.65rem 1rem; font-weight:700;">Celular</th>
                     <th style="padding:0.65rem 1rem; font-weight:700;">E-mail</th>
+                    <th style="padding:0.65rem 1rem; font-weight:700;">Empresa Atual</th>
                 </tr>
             </thead>
             <tbody>
                 ${filtered.map(c => `
-                    <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                        <td style="padding:0.65rem 1rem; color:#475569;">${c.identificacao || '—'}</td>
+                    <tr ondblclick="window.selecionarContatoParaCliente('${encodeURIComponent(JSON.stringify(c))}')" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Duplo clique para adicionar ao cliente">
+                        <td style="padding:0.65rem 1rem; color:#475569;">${c.codigo || '—'}</td>
                         <td style="padding:0.65rem 1rem; color:#1e293b; font-weight:600;">${c.nome}</td>
                         <td style="padding:0.65rem 1rem; color:#475569;">${c.departamento || '—'}</td>
                         <td style="padding:0.65rem 1rem; color:#475569;">${c.celular || '—'}</td>
                         <td style="padding:0.65rem 1rem; color:#475569;">${c.email || '—'}</td>
+                        <td style="padding:0.65rem 1rem; color:#475569;">${c.cliente_nome || '—'}</td>
                     </tr>
                 `).join('')}
             </tbody>
