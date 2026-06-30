@@ -2361,11 +2361,48 @@ window.carregarClienteParaEdicao = async function(id) {
         document.getElementById('cli-celular-ddi').value = c.celular_ddi || '+55 (BRASIL)';
         document.getElementById('cli-celular').value = c.celular || '';
 
-        // Carregar contatos e acordeões
+        // Carregar contatos e acordeões com mesclagem da tabela contatos
         try {
-            _clienteContatos = JSON.parse(c.contatos || '[]');
+            const allContatos = await apiGet('/contatos') || [];
+            const clientContatos = allContatos.filter(con => con.cliente_id === c.id);
+            const mappedContatos = clientContatos.map(con => ({
+                id: con.id,
+                identificacao: con.codigo || '',
+                nome: con.nome || '',
+                departamento: con.departamento || '',
+                celular: con.celular || '',
+                telefone_ramal: con.telefone ? (con.ramal ? `${con.telefone} Ramal ${con.ramal}` : con.telefone) : '',
+                email: con.email || '',
+                dono: con.representante || '',
+                cargo: con.cargo || '',
+                situacao: con.inativo === 1 ? 'Inativo' : 'Ativo',
+                nfe: con.email_nfe === 1 ? 'Sim' : 'Não',
+                cobranca: con.email_cobranca === 1 ? 'Sim' : 'Não',
+                os: con.email_os === 1 ? 'Sim' : 'Não',
+                contrato: con.email_contrato === 1 ? 'Sim' : 'Não',
+                origem: con.origem || '',
+                inativo: con.inativo === 1 ? 'Sim' : 'Não'
+            }));
+
+            let jsonContatos = [];
+            try {
+                jsonContatos = JSON.parse(c.contatos || '[]');
+            } catch(e) {}
+
+            const merged = [...mappedContatos];
+            jsonContatos.forEach(jc => {
+                if (jc && jc.nome && !merged.some(dc => dc.nome.toLowerCase() === jc.nome.toLowerCase())) {
+                    merged.push(jc);
+                }
+            });
+            _clienteContatos = merged;
         } catch(e) {
-            _clienteContatos = [];
+            console.error('Erro ao carregar contatos da tabela:', e);
+            try {
+                _clienteContatos = JSON.parse(c.contatos || '[]');
+            } catch(err) {
+                _clienteContatos = [];
+            }
         }
         _renderTabelaContatos();
 
