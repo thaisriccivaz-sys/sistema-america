@@ -1552,6 +1552,50 @@ db.run("PRAGMA foreign_keys = ON;");
                 itens.forEach(([nome, descricao, km]) => {
                     db.run('INSERT OR IGNORE INTO frota_plano_preventivo (nome, descricao, intervalo_km) VALUES (?,?,?)', [nome, descricao, km]);
                 });
+
+                // Seed de Cliente de Teste e Contato de Teste
+                db.get("SELECT COUNT(*) as count FROM clientes", [], (err, row) => {
+                    if (!err && row && row.count === 0) {
+                        console.log('[SEED] Inserindo cliente e contato de teste...');
+                        const testContacts = [
+                            {
+                                identificacao: '14801',
+                                nome: 'TESTE',
+                                departamento: 'TI',
+                                celular: '(11) 99999-9999',
+                                telefone_ramal: '(11) 5555-5555 Ramal 12',
+                                email: 'teste@teste.com.br',
+                                dono: 'Sistema',
+                                cargo: 'Analista',
+                                situacao: 'Ativo',
+                                nfe: 'Sim',
+                                cobranca: 'Sim',
+                                os: 'Sim',
+                                contrato: 'Sim',
+                                origem: 'Importado',
+                                inativo: 'Não'
+                            }
+                        ];
+                        
+                        db.run(`INSERT OR IGNORE INTO clientes (
+                            codigo, data_cadastro, cpf_cnpj, nome_razao_social, nome_fantasia,
+                            cep, endereco, numero, bairro, uf, municipio, pais, contatos
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+                            1001, '2026-06-30', '12345678000199', 'LATICINIOS BELA VISTA S.A.', 'Bela Vista',
+                            '74000000', 'Rodovia GO-020', 'KM 12', 'Zona Rural', 'GO', 'Goiânia', 'Brasil',
+                            JSON.stringify(testContacts)
+                        ], function(err) {
+                            if (!err) {
+                                const clienteId = this.lastID;
+                                db.run(`INSERT OR IGNORE INTO contatos (
+                                    codigo, nome, email, celular, cliente_id, departamento, cargo, situacao, inativo
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+                                    14801, 'TESTE', 'teste@teste.com.br', '(11) 99999-9999', clienteId, 'TI', 'Analista', 'Ativo', 0
+                                ]);
+                            }
+                        });
+                    }
+                });
             });
 
             // Migration: adicionar coluna km_atual e em_manutencao nos veículos
