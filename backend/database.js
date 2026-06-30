@@ -305,7 +305,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 'escala_tipo', 'escala_folgas',
                 'horario_entrada', 'horario_saida', 'intervalo_entrada', 'intervalo_saida',
                 'sabado_entrada', 'sabado_saida',
-                'meio_transporte', 'valor_transporte',
+                'meio_transporte', 'valor_transporte', 'transporte_placa',
                 'faculdade_participa', 'faculdade_curso_id', 'faculdade_data_inicio', 'faculdade_data_termino',
                 'academia_participa', 'academia_data_inicio',
                 'terapia_participa', 'terapia_data_inicio',
