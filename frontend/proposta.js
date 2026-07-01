@@ -4356,17 +4356,17 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                     gap: 0.75rem 1rem;
                 }
                 .cc-grid-modal-row1 {
-                    grid-template-columns: 80px 2fr 1fr 1fr;
+                    grid-template-columns: 1.2fr 3.5fr 2fr 2fr;
                 }
                 .cc-grid-modal-row2 {
-                    grid-template-columns: 140px 2fr 100px 1.5fr;
+                    grid-template-columns: 1.5fr 4.2fr 1.1fr 3.2fr;
                     align-items: end;
                 }
                 .cc-grid-modal-row3 {
-                    grid-template-columns: 2fr 80px 2fr;
+                    grid-template-columns: 4.5fr 1fr 4.5fr;
                 }
                 .cc-grid-modal-row4 {
-                    grid-template-columns: 2fr 2fr 1fr;
+                    grid-template-columns: 4fr 4fr 2fr;
                 }
                 @media (max-width: 992px) {
                     .cc-grid-modal-row1, .cc-grid-modal-row2, .cc-grid-modal-row3, .cc-grid-modal-row4 {
@@ -4378,6 +4378,15 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                     .cc-grid-modal-row1, .cc-grid-modal-row2, .cc-grid-modal-row3, .cc-grid-modal-row4 {
                         grid-template-columns: 1fr !important;
                     }
+                }
+                .prop-lbl-modal {
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    color: #475569;
+                    text-transform: uppercase;
+                    letter-spacing: 0.04em;
+                    display: block;
+                    margin-bottom: 5px;
                 }
             </style>
 
@@ -4392,18 +4401,18 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
 
                     <!-- Botões de Ação (Lado Direito) -->
                     <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
-                        <button type="button" onclick="window.modalCarregarEnderecos(window._modalSelectedClienteId)" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                        <button type="button" onclick="window.modalCarregarEnderecos(window._modalSelectedClienteId)" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:38px; height:38px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                             <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
                         </button>
 
                         <!-- Spacer -->
                         <div style="width: 4px;"></div>
 
-                        <button type="button" onclick="window.modalNovoEndereco()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-                            <i class="ph ph-file-text" style="font-size:1rem;"></i> Novo
+                        <button type="button" onclick="window.modalNovoEndereco()" style="background:#3b82f6; color:white; border:none; padding:0 1rem; border-radius:6px; height:38px; cursor:pointer; font-weight:600; font-size:0.85rem; display:inline-flex; align-items:center; gap:6px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                            <i class="ph ph-file-text" style="font-size:1.1rem;"></i> Novo
                         </button>
-                        <button type="button" onclick="window.modalSalvarEndereco()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-                            <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
+                        <button type="button" onclick="window.modalSalvarEndereco()" style="background:#16a34a; color:white; border:none; padding:0 1rem; border-radius:6px; height:38px; cursor:pointer; font-weight:600; font-size:0.85rem; display:inline-flex; align-items:center; gap:6px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                            <i class="ph ph-check" style="font-size:1.15rem;"></i> Salvar
                         </button>
                     </div>
                 </div>
@@ -4416,22 +4425,22 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                     </div>
                     <div class="cc-grid-modal cc-grid-modal-row1" style="margin-bottom: 1.5rem;">
                         <div>
-                            <label class="prop-lbl">Código</label>
+                            <label class="prop-lbl-modal">Código</label>
                             <div style="display:flex; gap:0.35rem;">
                                 <input type="text" id="modal-cli-codigo" readonly class="cc-input-modal" style="text-align:center;">
-                                <button type="button" onclick="window.modalBuscarCliente()" style="background:#475569; color:#fff; border:none; padding:0 0.75rem; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'" title="Buscar Cliente"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                                <button type="button" onclick="window.modalBuscarCliente()" style="background:#334155; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar Cliente"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
                             </div>
                         </div>
                         <div>
-                            <label class="prop-lbl">Razão Social</label>
+                            <label class="prop-lbl-modal">Razão Social</label>
                             <input type="text" id="modal-cli-razao" readonly class="cc-input-modal">
                         </div>
                         <div>
-                            <label class="prop-lbl">Nome Fantasia</label>
+                            <label class="prop-lbl-modal">Nome Fantasia</label>
                             <input type="text" id="modal-cli-fantasia" readonly class="cc-input-modal">
                         </div>
                         <div>
-                            <label class="prop-lbl">Data de Cadastro</label>
+                            <label class="prop-lbl-modal">Data de Cadastro</label>
                             <input type="text" id="modal-cli-data" readonly class="cc-input-modal" style="text-align:center;">
                         </div>
                     </div>
@@ -4442,71 +4451,71 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                     </div>
                     <div class="cc-grid-modal cc-grid-modal-row1" style="margin-bottom: 0.75rem;">
                         <div>
-                            <label class="prop-lbl">Seq.</label>
+                            <label class="prop-lbl-modal">Seq.</label>
                             <input type="text" id="modal-end-seq" readonly value="1" class="cc-input-modal" style="text-align:center; font-weight:bold;">
                         </div>
                         <div>
-                            <label class="prop-lbl">Nome do Local *</label>
+                            <label class="prop-lbl-modal">Nome do Local *</label>
                             <input type="text" id="modal-end-nome" class="cc-input-modal" placeholder="Ex: FILIAL CAMPINAS">
                         </div>
                         <div>
-                            <label class="prop-lbl">CPF/CNPJ</label>
+                            <label class="prop-lbl-modal">CPF/CNPJ</label>
                             <input type="text" id="modal-end-cnpj" class="cc-input-modal">
                         </div>
                         <div>
-                            <label class="prop-lbl">Inscrição Estadual</label>
+                            <label class="prop-lbl-modal">Inscrição Estadual</label>
                             <input type="text" id="modal-end-ie" class="cc-input-modal">
                         </div>
                     </div>
 
                     <div class="cc-grid-modal cc-grid-modal-row2" style="margin-bottom: 0.75rem;">
                         <div>
-                            <label class="prop-lbl">CEP *</label>
+                            <label class="prop-lbl-modal">CEP *</label>
                             <div style="display:flex; gap:0.35rem;">
                                 <input type="text" id="modal-end-cep" class="cc-input-modal" placeholder="00000-000">
-                                <button type="button" onclick="window.modalBuscarCEP()" style="background:#475569; color:#fff; border:none; padding:0 0.75rem; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                                <button type="button" onclick="window.modalBuscarCEP()" style="background:#334155; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
                             </div>
                         </div>
                         <div>
-                            <label class="prop-lbl">Endereço *</label>
+                            <label class="prop-lbl-modal">Endereço *</label>
                             <input type="text" id="modal-end-rua" class="cc-input-modal">
                         </div>
                         <div>
-                            <label class="prop-lbl">Número *</label>
+                            <label class="prop-lbl-modal">Número *</label>
                             <input type="text" id="modal-end-num" class="cc-input-modal">
                         </div>
                         <div>
-                            <label class="prop-lbl">Complemento</label>
+                            <label class="prop-lbl-modal">Complemento</label>
                             <input type="text" id="modal-end-comp" class="cc-input-modal">
                         </div>
                     </div>
 
                     <div class="cc-grid-modal cc-grid-modal-row3" style="margin-bottom: 0.75rem;">
                         <div>
-                            <label class="prop-lbl">Bairro *</label>
+                            <label class="prop-lbl-modal">Bairro *</label>
                             <input type="text" id="modal-end-bairro" class="cc-input-modal">
                         </div>
                         <div>
-                            <label class="prop-lbl">UF *</label>
+                            <label class="prop-lbl-modal">UF *</label>
                             <input type="text" id="modal-end-uf" maxlength="2" class="cc-input-modal" style="text-align:center; text-transform:uppercase;">
                         </div>
                         <div>
-                            <label class="prop-lbl">Município *</label>
+                            <label class="prop-lbl-modal">Município *</label>
                             <input type="text" id="modal-end-cidade" class="cc-input-modal">
                         </div>
                     </div>
 
                     <div class="cc-grid-modal cc-grid-modal-row4" style="margin-bottom: 1.5rem;">
                         <div>
-                            <label class="prop-lbl">Contato</label>
+                            <label class="prop-lbl-modal">Contato</label>
                             <input type="text" id="modal-end-contato" class="cc-input-modal">
                         </div>
                         <div>
-                            <label class="prop-lbl">Telefone</label>
+                            <label class="prop-lbl-modal">Telefone</label>
                             <input type="text" id="modal-end-fone" class="cc-input-modal">
                         </div>
                         <div>
-                            <label class="prop-lbl">Ramal</label>
+                            <label class="prop-lbl-modal">Ramal</label>
                             <input type="text" id="modal-end-ramal" class="cc-input-modal">
                         </div>
                     </div>
@@ -4559,9 +4568,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
             }
         }
     });
-};
-
-window.modalCarregarEnderecos = async function(clienteId) {
+};window.modalCarregarEnderecos = async function(clienteId) {
     try {
         const res = await apiGet(`/clientes/${clienteId}/enderecos`) || [];
         window._modalEnderecos = res;
@@ -4941,17 +4948,17 @@ function _renderEnderecosInt() {
                 gap: 0.75rem 1rem;
             }
             .cc-grid-end-row1 {
-                grid-template-columns: 80px 2fr 1fr 1fr;
+                grid-template-columns: 1.2fr 3.5fr 2fr 2fr;
             }
             .cc-grid-end-row2 {
-                grid-template-columns: 140px 2fr 100px 1.5fr;
+                grid-template-columns: 1.5fr 4.2fr 1.1fr 3.2fr;
                 align-items: end;
             }
             .cc-grid-end-row3 {
-                grid-template-columns: 2fr 80px 2fr;
+                grid-template-columns: 4.5fr 1fr 4.5fr;
             }
             .cc-grid-end-row4 {
-                grid-template-columns: 2fr 2fr 1fr;
+                grid-template-columns: 4fr 4fr 2fr;
             }
             @media (max-width: 992px) {
                 .cc-grid-end-row1, .cc-grid-end-row2, .cc-grid-end-row3, .cc-grid-end-row4 {
@@ -4963,6 +4970,15 @@ function _renderEnderecosInt() {
                 .cc-grid-end-row1, .cc-grid-end-row2, .cc-grid-end-row3, .cc-grid-end-row4 {
                     grid-template-columns: 1fr !important;
                 }
+            }
+            .prop-lbl-end {
+                font-size: 0.75rem;
+                font-weight: 700;
+                color: #475569;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                display: block;
+                margin-bottom: 5px;
             }
         </style>
 
@@ -4977,18 +4993,18 @@ function _renderEnderecosInt() {
 
                 <!-- Botões de Ação (Lado Direito) -->
                 <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
-                    <button type="button" onclick="window.pageCarregarEnderecos(window._pageSelectedClienteId)" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                    <button type="button" onclick="window.pageCarregarEnderecos(window._pageSelectedClienteId)" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:38px; height:38px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                         <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
                     </button>
 
                     <!-- Spacer -->
                     <div style="width: 4px;"></div>
 
-                    <button type="button" onclick="window.pageNovoEndereco()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-                        <i class="ph ph-file-text" style="font-size:1rem;"></i> Novo
+                    <button type="button" onclick="window.pageNovoEndereco()" style="background:#3b82f6; color:white; border:none; padding:0 1rem; border-radius:6px; height:38px; cursor:pointer; font-weight:600; font-size:0.85rem; display:inline-flex; align-items:center; gap:6px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                        <i class="ph ph-file-text" style="font-size:1.1rem;"></i> Novo
                     </button>
-                    <button type="button" onclick="window.pageSalvarEndereco()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-                        <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
+                    <button type="button" onclick="window.pageSalvarEndereco()" style="background:#16a34a; color:white; border:none; padding:0 1rem; border-radius:6px; height:38px; cursor:pointer; font-weight:600; font-size:0.85rem; display:inline-flex; align-items:center; gap:6px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                        <i class="ph ph-check" style="font-size:1.15rem;"></i> Salvar
                     </button>
                 </div>
             </div>
@@ -5001,22 +5017,22 @@ function _renderEnderecosInt() {
                 </div>
                 <div class="cc-grid cc-grid-end-row1" style="margin-bottom: 1.5rem;">
                     <div>
-                        <label class="prop-lbl">Código</label>
+                        <label class="prop-lbl-end">Código</label>
                         <div style="display:flex; gap:0.35rem;">
                             <input type="text" id="page-cli-codigo" readonly class="cc-input-end" style="text-align:center;">
-                            <button type="button" onclick="window.pageBuscarCliente()" style="background:#475569; color:#fff; border:none; padding:0 0.75rem; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'" title="Buscar Cliente"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                            <button type="button" onclick="window.pageBuscarCliente()" style="background:#334155; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar Cliente"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
                         </div>
                     </div>
                     <div>
-                        <label class="prop-lbl">Razão Social</label>
+                        <label class="prop-lbl-end">Razão Social</label>
                         <input type="text" id="page-cli-razao" readonly class="cc-input-end">
                     </div>
                     <div>
-                        <label class="prop-lbl">Nome Fantasia</label>
+                        <label class="prop-lbl-end">Nome Fantasia</label>
                         <input type="text" id="page-cli-fantasia" readonly class="cc-input-end">
                     </div>
                     <div>
-                        <label class="prop-lbl">Data de Cadastro</label>
+                        <label class="prop-lbl-end">Data de Cadastro</label>
                         <input type="text" id="page-cli-data" readonly class="cc-input-end" style="text-align:center;">
                     </div>
                 </div>
@@ -5027,71 +5043,71 @@ function _renderEnderecosInt() {
                 </div>
                 <div class="cc-grid cc-grid-end-row1" style="margin-bottom: 0.75rem;">
                     <div>
-                        <label class="prop-lbl">Seq.</label>
+                        <label class="prop-lbl-end">Seq.</label>
                         <input type="text" id="page-end-seq" readonly value="1" class="cc-input-end" style="text-align:center; font-weight:bold;">
                     </div>
                     <div>
-                        <label class="prop-lbl">Nome do Local *</label>
+                        <label class="prop-lbl-end">Nome do Local *</label>
                         <input type="text" id="page-end-nome" class="cc-input-end" placeholder="Ex: FILIAL CAMPINAS">
                     </div>
                     <div>
-                        <label class="prop-lbl">CPF/CNPJ</label>
+                        <label class="prop-lbl-end">CPF/CNPJ</label>
                         <input type="text" id="page-end-cnpj" class="cc-input-end">
                     </div>
                     <div>
-                        <label class="prop-lbl">Inscrição Estadual</label>
+                        <label class="prop-lbl-end">Inscrição Estadual</label>
                         <input type="text" id="page-end-ie" class="cc-input-end">
                     </div>
                 </div>
 
                 <div class="cc-grid cc-grid-end-row2" style="margin-bottom: 0.75rem;">
                     <div>
-                        <label class="prop-lbl">CEP *</label>
+                        <label class="prop-lbl-end">CEP *</label>
                         <div style="display:flex; gap:0.35rem;">
                             <input type="text" id="page-end-cep" class="cc-input-end" placeholder="00000-000">
-                            <button type="button" onclick="window.pageBuscarCEP()" style="background:#475569; color:#fff; border:none; padding:0 0.75rem; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                            <button type="button" onclick="window.pageBuscarCEP()" style="background:#334155; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
                         </div>
                     </div>
                     <div>
-                        <label class="prop-lbl">Endereço *</label>
+                        <label class="prop-lbl-end">Endereço *</label>
                         <input type="text" id="page-end-rua" class="cc-input-end">
                     </div>
                     <div>
-                        <label class="prop-lbl">Número *</label>
+                        <label class="prop-lbl-end">Número *</label>
                         <input type="text" id="page-end-num" class="cc-input-end">
                     </div>
                     <div>
-                        <label class="prop-lbl">Complemento</label>
+                        <label class="prop-lbl-end">Complemento</label>
                         <input type="text" id="page-end-comp" class="cc-input-end">
                     </div>
                 </div>
 
                 <div class="cc-grid cc-grid-end-row3" style="margin-bottom: 0.75rem;">
                     <div>
-                        <label class="prop-lbl">Bairro *</label>
+                        <label class="prop-lbl-end">Bairro *</label>
                         <input type="text" id="page-end-bairro" class="cc-input-end">
                     </div>
                     <div>
-                        <label class="prop-lbl">UF *</label>
+                        <label class="prop-lbl-end">UF *</label>
                         <input type="text" id="page-end-uf" maxlength="2" class="cc-input-end" style="text-align:center; text-transform:uppercase;">
                     </div>
                     <div>
-                        <label class="prop-lbl">Município *</label>
+                        <label class="prop-lbl-end">Município *</label>
                         <input type="text" id="page-end-cidade" class="cc-input-end">
                     </div>
                 </div>
 
                 <div class="cc-grid cc-grid-end-row4" style="margin-bottom: 1.5rem;">
                     <div>
-                        <label class="prop-lbl">Contato</label>
+                        <label class="prop-lbl-end">Contato</label>
                         <input type="text" id="page-end-contato" class="cc-input-end">
                     </div>
                     <div>
-                        <label class="prop-lbl">Telefone</label>
+                        <label class="prop-lbl-end">Telefone</label>
                         <input type="text" id="page-end-fone" class="cc-input-end">
                     </div>
                     <div>
-                        <label class="prop-lbl">Ramal</label>
+                        <label class="prop-lbl-end">Ramal</label>
                         <input type="text" id="page-end-ramal" class="cc-input-end">
                     </div>
                 </div>
@@ -5151,9 +5167,7 @@ function _renderEnderecosInt() {
     } else {
         window.pageRenderEnderecos();
     }
-}
-
-window.pageCarregarEnderecos = async function(clienteId) {
+}window.pageCarregarEnderecos = async function(clienteId) {
     try {
         const res = await apiGet(`/clientes/${clienteId}/enderecos`) || [];
         window._pageEnderecos = res;
