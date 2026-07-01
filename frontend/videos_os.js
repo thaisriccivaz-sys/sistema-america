@@ -24,6 +24,29 @@ const TELA_VIDEOS_OS = `
             <label style="font-size:0.75rem; font-weight:700; color:#64748b;">Serviço</label>
             <input type="text" id="vidos-filtro-servico" placeholder="Ex: VAC, Bomb" style="border:1px solid #cbd5e1; border-radius:6px; padding:6px 10px; font-size:0.85rem;" onkeypress="if(event.key==='Enter') vidosCarregar()">
         </div>
+
+        <div style="display:flex; flex-direction:column; gap:4px; flex:2; min-width:180px;">
+            <label style="font-size:0.75rem; font-weight:700; color:#64748b;">Endereço</label>
+            <input type="text" id="vidos-filtro-endereco" placeholder="Endereço" style="border:1px solid #cbd5e1; border-radius:6px; padding:6px 10px; font-size:0.85rem;" onkeypress="if(event.key==='Enter') vidosCarregar()">
+        </div>
+        
+        <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:120px;">
+            <label style="font-size:0.75rem; font-weight:700; color:#64748b;">Tipo</label>
+            <select id="vidos-filtro-tipo" style="border:1px solid #cbd5e1; border-radius:6px; padding:6px 10px; font-size:0.85rem;" onchange="vidosCarregar()">
+                <option value="">Todos</option>
+                <option value="obra">Obra</option>
+                <option value="evento">Evento</option>
+            </select>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:120px;">
+            <label style="font-size:0.75rem; font-weight:700; color:#64748b;">Turno</label>
+            <select id="vidos-filtro-turno" style="border:1px solid #cbd5e1; border-radius:6px; padding:6px 10px; font-size:0.85rem;" onchange="vidosCarregar()">
+                <option value="">Todos</option>
+                <option value="diurno">Diurno</option>
+                <option value="noturno">Noturno</option>
+            </select>
+        </div>
         
         <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:130px;">
             <label style="font-size:0.75rem; font-weight:700; color:#64748b;">De</label>
@@ -89,14 +112,18 @@ async function vidosCarregar() {
         const qCli = (document.getElementById('vidos-filtro-cliente')?.value || '').trim();
         const qCont = (document.getElementById('vidos-filtro-contrato')?.value || '').trim();
         const qServ = (document.getElementById('vidos-filtro-servico')?.value || '').trim();
+        const qEnd = (document.getElementById('vidos-filtro-endereco')?.value || '').trim();
+        const qTipo = (document.getElementById('vidos-filtro-tipo')?.value || '').trim();
+        const qTurno = (document.getElementById('vidos-filtro-turno')?.value || '').trim();
         const qDe = (document.getElementById('vidos-filtro-data-de')?.value || '').trim();
         const qAte = (document.getElementById('vidos-filtro-data-ate')?.value || '').trim();
         
         const params = new URLSearchParams();
-        if (qOs) params.append('q', qOs);
+        if (qOs) params.append('os', qOs);
         if (qCli) params.append('cliente', qCli);
         if (qCont) params.append('contrato', qCont);
         if (qServ) params.append('servico', qServ);
+        if (qEnd) params.append('endereco', qEnd);
         if (qDe) params.append('dataDe', qDe);
         if (qAte) params.append('dataAte', qAte);
         
@@ -112,7 +139,19 @@ async function vidosCarregar() {
         // Concatena todas as OSs do objeto retornado pelo pipeline
         for (const status in data) {
             if (Array.isArray(data[status])) {
-                todasOs = todasOs.concat(data[status]);
+                let statusOs = data[status];
+                
+                // Filtro Tipo (Obra/Evento)
+                if (qTipo) {
+                    statusOs = statusOs.filter(item => (item.tipo_servico || '').toLowerCase().includes(qTipo.toLowerCase()));
+                }
+                
+                // Filtro Turno
+                if (qTurno) {
+                    statusOs = statusOs.filter(item => (item.turno || '').toLowerCase() === qTurno.toLowerCase());
+                }
+                
+                todasOs = todasOs.concat(statusOs);
             }
         }
         
