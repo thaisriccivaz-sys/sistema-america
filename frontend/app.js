@@ -16493,8 +16493,9 @@ window.atualizarTodasAssinaturas = async function (btn) {
             let updatedCount = 0;
             const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
 
-            // Usaremos Promise.all para enviar as requisições em paralelo
-            const syncPromises = pendentes.map(async (d) => {
+            // Usaremos um loop for..of para enviar as requisições em sequência (evitando Rate Limit do Assinafy)
+            let errorsCount = 0;
+            for (const d of pendentes) {
                 try {
                     const res = await fetch(`${API_URL}/assinaturas/sync`, {
                         method: 'POST',
@@ -16504,18 +16505,21 @@ window.atualizarTodasAssinaturas = async function (btn) {
                     const data = await res.json();
                     if (res.ok && data.success && data.newStatus !== data.oldStatus) {
                         updatedCount++;
+                    } else if (!res.ok) {
+                        errorsCount++;
                     }
                 } catch (e) {
                     console.error("Erro ao sincronizar documento " + d.id, e);
+                    errorsCount++;
                 }
-            });
-
-            await Promise.all(syncPromises);
+            }
 
             if (updatedCount > 0) {
                 if (typeof showToast !== 'undefined') showToast(`${updatedCount} documento(s) atualizado(s) com sucesso!`, 'success');
                 // Recarregar a lista novamente para exibir os novos status
                 await window.loadAssinaturasDigitais();
+            } else if (errorsCount > 0) {
+                if (typeof showToast !== 'undefined') showToast(`A varredura terminou, mas houveram erros de comunicação com a API.`, 'warning');
             } else {
                 if (typeof showToast !== 'undefined') showToast('Todos os documentos pendentes já estão com o status atualizado.', 'info');
             }
