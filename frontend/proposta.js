@@ -4880,10 +4880,11 @@ function _renderEnderecosInt() {
             .cc-container-end {
                 background: #fff;
                 width: 100%;
-                border-radius: 14px;
-                box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-                overflow: visible;
-                margin: 0 auto;
+                max-width: 1100px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+                overflow: hidden;
+                margin: 2rem auto;
                 border: 1px solid #e2e8f0;
                 font-family: 'Inter', sans-serif;
             }
@@ -4896,14 +4897,13 @@ function _renderEnderecosInt() {
                 align-items: center;
                 flex-wrap: wrap;
                 gap: 0.6rem;
-                position: sticky;
-                top: 98px;
-                z-index: 997;
-                border-top-left-radius: 14px;
-                border-top-right-radius: 14px;
+                border-top-left-radius: 12px;
+                border-top-right-radius: 12px;
             }
             .cc-form-body-end {
                 padding: 1.5rem;
+                max-height: 600px;
+                overflow-y: auto;
             }
             .cc-section-title-end {
                 font-size: 0.9rem;
@@ -5167,7 +5167,8 @@ function _renderEnderecosInt() {
     } else {
         window.pageRenderEnderecos();
     }
-}window.pageCarregarEnderecos = async function(clienteId) {
+}
+window.pageCarregarEnderecos = async function(clienteId) {
     try {
         const res = await apiGet(`/clientes/${clienteId}/enderecos`) || [];
         window._pageEnderecos = res;
