@@ -808,13 +808,17 @@ function _renderTabela() {
         const anoAnt = mesAt === 1 ? anoAt - 1 : anoAt;
         const obsAnterior = (window._recibosObservacoes || []).find(o => o.colaborador_id == c.id && o.mes == mesAnt && o.ano == anoAnt);
 
+        const mesesArr = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
         let tooltipObs = '';
-        if (obsAtual) {
+        if (obsAtual && obsAnterior) {
             nomeCor = '#ef4444'; // Vermelho (tem observação no mês atual)
-            tooltipObs = obsAtual.observacao.replace(/"/g, '&quot;');
+            tooltipObs = `${mesesArr[mesAnt-1]}: ${obsAnterior.observacao.replace(/"/g, '&quot;')}\n${mesesArr[mesAt-1]}: ${obsAtual.observacao.replace(/"/g, '&quot;')}`;
+        } else if (obsAtual) {
+            nomeCor = '#ef4444'; // Vermelho (tem observação no mês atual)
+            tooltipObs = `${mesesArr[mesAt-1]}: ${obsAtual.observacao.replace(/"/g, '&quot;')}`;
         } else if (obsAnterior) {
             nomeCor = '#eab308'; // Amarelo (tem observação no mês anterior)
-            tooltipObs = obsAnterior.observacao.replace(/"/g, '&quot;');
+            tooltipObs = `${mesesArr[mesAnt-1]}: ${obsAnterior.observacao.replace(/"/g, '&quot;')}`;
         }
 
         const btnObs = `<button onclick="window.abrirModalObservacao(${c.id}, '${nomeCompleto.replace(/'/g, "\\'")}')" 
@@ -3151,6 +3155,7 @@ window.abrirModalObservacao = function(colabId, colabNome) {
             </div>
             <div style="padding:15px 20px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:10px;">
                 <button onclick="document.getElementById('modal-obs-recibo').style.display='none'" style="padding:8px 15px;border:1px solid #cbd5e1;background:#fff;border-radius:6px;cursor:pointer;font-weight:600;color:#64748b;">Cancelar</button>
+                ${obsAtual ? `<button onclick="if(confirm('Deseja realmente excluir esta observação?')) { document.getElementById('obs-texto').value = ''; window.salvarObservacao(${colabId}, ${mes}, ${ano}); }" style="padding:8px 15px;border:none;background:#ef4444;color:#fff;border-radius:6px;cursor:pointer;font-weight:600;"><i class="ph ph-trash"></i> Excluir</button>` : ''}
                 <button onclick="window.salvarObservacao(${colabId}, ${mes}, ${ano})" style="padding:8px 15px;border:none;background:#2563eb;color:#fff;border-radius:6px;cursor:pointer;font-weight:600;">Salvar Observação</button>
             </div>
         </div>
