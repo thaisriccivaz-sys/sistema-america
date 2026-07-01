@@ -900,6 +900,31 @@ function rrAbrirLinkVideo() {
     });
 }
 
+function rrCopiarLinkVideo() {
+    const display = document.getElementById('rr-video-link-display');
+    const hidden  = document.getElementById('rr-input-video');
+    const linkParaCopiar = display?.dataset.shortLink || hidden?.value || '';
+    if (!linkParaCopiar) {
+        mostrarToastAviso('Nenhum link disponível para copiar.');
+        return;
+    }
+    
+    let links = [];
+    try { links = JSON.parse(linkParaCopiar); }
+    catch(e) { links = linkParaCopiar.split(',').filter(Boolean); }
+    if (!Array.isArray(links)) links = [links];
+    
+    if (links.length > 0) {
+        let fullLink = links[links.length - 1]; // Copy the latest one
+        if (!fullLink.startsWith('http')) fullLink = window.location.origin + fullLink;
+        navigator.clipboard.writeText(fullLink).then(() => {
+            mostrarToastAviso('✅ Link copiado!');
+        }).catch(() => {
+            mostrarToastAviso('❌ Erro ao copiar link.');
+        });
+    }
+}
+
 async function rrExcluirLinkVideo() {
     if (!confirm('Deseja excluir o vídeo desta OS? Esta ação não pode ser desfeita.')) return;
     const osNum = document.getElementById('rr-input-os')?.value?.trim() || '';
@@ -4017,6 +4042,7 @@ function renderRotaRedonda() {
                             <span id="rr-video-link-display" style="display:none;align-items:center;gap:4px;font-size:0.7rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;padding:2px 6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                                 <i class="ph ph-film-strip" style="color:#3b82f6;"></i>
                                 <a id="rr-video-link-anchor" href="#" target="_blank" style="color:#1d4ed8;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;"></a>
+                                <button id="btn-copiar-link-video" onclick="rrCopiarLinkVideo()" title="Copiar link" style="background:none;border:none;cursor:pointer;padding:0;color:#10b981;display:flex;align-items:center;"><i class="ph ph-copy" style="font-size:0.85rem;"></i></button>
                                 <button id="btn-abrir-link-video" onclick="rrAbrirLinkVideo()" title="Abrir vídeo" style="background:none;border:none;cursor:pointer;padding:0;color:#3b82f6;display:flex;align-items:center;"><i class="ph ph-arrow-square-out" style="font-size:0.85rem;"></i></button>
                                 <button id="btn-excluir-link-video" onclick="rrExcluirLinkVideo()" title="Excluir vídeo" style="background:none;border:none;cursor:pointer;padding:0;color:#ef4444;display:flex;align-items:center;"><i class="ph ph-trash" style="font-size:0.85rem;"></i></button>
                             </span>

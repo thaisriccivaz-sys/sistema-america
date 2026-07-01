@@ -13057,38 +13057,37 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
     const shortCode = gerarShortCode();
 
     try {
-        // Upload to Cloudinary
-        const result = await cloudinary.uploader.upload(req.file.path, {
-            resource_type: "video",
-            folder: "os_videos"
-        });
+        if (!r2 || !r2.isReady()) throw new Error('R2 Storage não configurado.');
+        const fileExt = path.extname(req.file.originalname).replace('.', '') || 'mp4';
+        const r2Key = `os_videos/${numero_os || os_id || 'avulso'}/${Date.now()}_${shortCode}.${fileExt}`;
+        const publicUrl = await r2.uploadToR2(r2Key, req.file.path, req.file.mimetype);
 
         // Delete the temporary file from local disk
         fs.unlinkSync(req.file.path);
 
-        const cloudinaryUrl = result.secure_url;
-        const handleResponse = () => res.json({ ok: true, token, short_code: shortCode, link: cloudinaryUrl, short_link: cloudinaryUrl, nome: req.file.originalname });
+        const shortLinkUrl = `${req.protocol}://${req.get('host')}/v/${shortCode}`;
+        const handleResponse = () => res.json({ ok: true, token, short_code: shortCode, link: publicUrl, short_link: shortLinkUrl, nome: req.file.originalname });
 
         // Save reference in os_videos (optional, but good for tracking)
         db.run(
             `INSERT INTO os_videos (token, short_code, os_id, numero_os, nome_original, mime_type, tamanho, caminho_arquivo)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [token, shortCode, os_id || null, numero_os || null, req.file.originalname, req.file.mimetype, req.file.size, cloudinaryUrl],
+            [token, shortCode, os_id || null, numero_os || null, req.file.originalname, req.file.mimetype, req.file.size, publicUrl],
             function (err) {
                 if (err) console.error('[OS Videos] Erro ao registrar vídeo no banco:', err.message);
 
                 if (numero_os) {
                     db.get('SELECT link_video FROM os_logistica WHERE numero_os = ?', [numero_os], (errSelect, row) => {
-                        let newLinks = [cloudinaryUrl];
+                        let newLinks = [publicUrl];
                         if (row && row.link_video) {
                             try {
                                 const parsed = JSON.parse(row.link_video);
-                                if (Array.isArray(parsed)) newLinks = [...parsed, cloudinaryUrl];
-                                else newLinks = [row.link_video, cloudinaryUrl];
+                                if (Array.isArray(parsed)) newLinks = [...parsed, publicUrl];
+                                else newLinks = [row.link_video, publicUrl];
                             } catch (e) {
                                 if (row.link_video.trim() !== '') {
                                     newLinks = row.link_video.split(',').map(s => s.trim()).filter(Boolean);
-                                    newLinks.push(cloudinaryUrl);
+                                    newLinks.push(publicUrl);
                                 }
                             }
                         }
@@ -13096,16 +13095,16 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
                     });
                 } else if (os_id) {
                     db.get('SELECT link_video FROM os_logistica WHERE id = ?', [os_id], (errSelect, row) => {
-                        let newLinks = [cloudinaryUrl];
+                        let newLinks = [publicUrl];
                         if (row && row.link_video) {
                             try {
                                 const parsed = JSON.parse(row.link_video);
-                                if (Array.isArray(parsed)) newLinks = [...parsed, cloudinaryUrl];
-                                else newLinks = [row.link_video, cloudinaryUrl];
+                                if (Array.isArray(parsed)) newLinks = [...parsed, publicUrl];
+                                else newLinks = [row.link_video, publicUrl];
                             } catch (e) {
                                 if (row.link_video.trim() !== '') {
                                     newLinks = row.link_video.split(',').map(s => s.trim()).filter(Boolean);
-                                    newLinks.push(cloudinaryUrl);
+                                    newLinks.push(publicUrl);
                                 }
                             }
                         }
@@ -13129,9 +13128,14 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
 app.get('/v/:code', (req, res) => {
     const code = (req.params.code || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
     if (!code) return res.status(400).send('Código inválido.');
-    db.get(`SELECT token FROM os_videos WHERE short_code = ?`, [code], (err, row) => {
+    db.get(`SELECT token, caminho_arquivo FROM os_videos WHERE short_code = ?`, [code], (err, row) => {
         if (err || !row) return res.status(404).send('Vídeo não encontrado.');
-        res.redirect(302, `/api/video/${row.token}`);
+        
+        if (row.caminho_arquivo && row.caminho_arquivo.startsWith('http')) {
+            res.redirect(302, row.caminho_arquivo);
+        } else {
+            res.redirect(302, `/api/video/${row.token}`);
+        }
     });
 });
 
