@@ -16271,7 +16271,7 @@ window.loadAssinaturasDigitais = async function () {
                     style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
                     <option value="">Todos os status</option>
                     <option value="Assinado">✅ Assinado</option>
-                    <option value="Pendente">ÔÅ│ Aguardando</option>
+                    <option value="Pendente">&#x23F3; Aguardando</option>
                 </select>
                 <select id="ass-filter-tipo" onchange="window.filtrarAssinaturas()"
                     style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
