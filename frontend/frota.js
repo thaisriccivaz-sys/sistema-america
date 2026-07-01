@@ -226,10 +226,17 @@ function renderCardsFrota() {
         placaColor = '#d97706';
     }
 
-    // Card background: amarelo quando houver alerta de manutenção preventiva
+    // Card background: cinza quando em manutenção, amarelo quando houver alerta de manutenção preventiva
     const alertaManutStatus = statusManut.alerta_manutencao || 'ok';
-    const cardBg = emManutencao ? '#fff5f5' : (alertaManutStatus === 'vencida' || alertaManutStatus === 'proxima' || manutPreventivaPendente) ? '#fffbeb' : '#fff';
-    const cardBorder = emManutencao ? '2px solid #fca5a5' : (alertaManutStatus === 'vencida' || alertaManutStatus === 'proxima' || manutPreventivaPendente) ? '2px solid #fcd34d' : '1px solid #e2e8f0';
+    const cardBg = emManutencao ? '#f1f5f9' : (alertaManutStatus === 'vencida' || alertaManutStatus === 'proxima' || manutPreventivaPendente) ? '#fffbeb' : '#fff';
+    const cardBorder = emManutencao ? '2px solid #cbd5e1' : (alertaManutStatus === 'vencida' || alertaManutStatus === 'proxima' || manutPreventivaPendente) ? '2px solid #fcd34d' : '1px solid #e2e8f0';
+
+    const manutRibbon = emManutencao ? `
+        <div style="position:absolute;top:0;left:0;width:0;height:0;border-top:60px solid #64748b;border-right:60px solid transparent;z-index:2;"></div>
+        <div style="position:absolute;top:8px;left:6px;z-index:3;color:#fff;font-size:1.1rem;transform:rotate(-45deg);width:30px;text-align:center;">
+            <i class="ph ph-wrench"></i>
+        </div>
+    ` : '';
 
     const placeholder = 'https://via.placeholder.com/400x250/e2e8f0/94a3b8?text=Sem+Foto';
     const foto = v.foto_base64 || placeholder;
@@ -239,6 +246,7 @@ function renderCardsFrota() {
     return `
     <div style="background:${cardBg};border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.08);overflow:hidden;border:${cardBorder};position:relative;display:flex;flex-direction:column;transition:transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 20px rgba(0,0,0,0.12)';" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';">
         
+        ${manutRibbon}
         <div style="position:absolute;top:0;right:0;width:0;height:0;border-top:60px solid ${borderColor};border-left:60px solid transparent;z-index:2;"></div>
         <div style="position:absolute;top:8px;right:6px;z-index:3;color:${textColor};font-size:0.9rem;font-weight:900;transform:rotate(45deg);letter-spacing:1px;width:30px;text-align:center;">
             ${statusLabel}
@@ -305,6 +313,7 @@ function renderCardsFrota() {
                 ${v.tipo_veiculo||'VEÍCULO'}
             </div>
             <div style="display:flex;gap:4px;">
+                <button onclick="window.toggleManutencaoFrota(${v.id}, ${v.em_manutencao ? 0 : 1})" style="background:${v.em_manutencao ? '#64748b' : '#94a3b8'};color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="${v.em_manutencao ? 'Retirar da Manutenção' : 'Colocar em Manutenção'}"><i class="ph ph-wrench"></i></button>
                 ${v.crlv_filename ? `<button onclick="window.visualizarCRLV(${v.id})" style="background:#0891b2;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Visualizar CRLV"><i class="ph ph-file-pdf"></i></button>` : `<button disabled style="background:#e2e8f0;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:not-allowed;" title="Sem CRLV"><i class="ph ph-file-pdf"></i></button>`}
                 <button onclick="window.abrirModalFrota(${v.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Editar"><i class="ph ph-pencil"></i></button>
                 <button onclick="window.excluirVeiculoFrota(${v.id},'${v.placa}')" style="background:#dc2626;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Excluir"><i class="ph ph-trash"></i></button>
@@ -313,6 +322,26 @@ function renderCardsFrota() {
     </div>
     `;
   }).join('');
+}
+
+window.toggleManutencaoFrota = async function(vid, novoStatus) {
+    if (!confirm(`Deseja ${novoStatus ? 'colocar este veículo em manutenção' : 'retirar este veículo da manutenção'}?`)) return;
+    try {
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch(`/api/frota/veiculos/${vid}/toggle-manutencao`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ status: novoStatus })
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Erro ao alterar status.');
+        }
+        mostrarToastAviso('✅ Status de manutenção atualizado!');
+        carregarFrota();
+    } catch (e) {
+        mostrarToastAviso('❌ Erro: ' + e.message);
+    }
 }
 
 window.salvarKmCard = async function(vid) {

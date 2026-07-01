@@ -663,7 +663,7 @@ window.rrImportarPlanilha = async function(input) {
             const list = await resFrota.json();
             list.forEach(item => {
                 const placaNorm = (item.placa || '').replace(/[-\s]/g, '').toUpperCase();
-                frotaMap[placaNorm] = { carga: parseInt(item.capacidade_carga) || 0, temCadastro: item.capacidade_carga !== null && item.capacidade_carga !== '' };
+                frotaMap[placaNorm] = { carga: parseInt(item.capacidade_carga) || 0, temCadastro: item.capacidade_carga !== null && item.capacidade_carga !== '', em_manutencao: item.em_manutencao };
             });
         }
         if (resColab.ok) {
@@ -681,11 +681,12 @@ window.rrImportarPlanilha = async function(input) {
         v._fotoMotorista = fotoMap[(v.motorista || '').toLowerCase().trim()] || null;
         v._fotoAjudante  = fotoMap[(v.ajudante  || '').toLowerCase().trim()] || null;
 
-        // Capacidade
+        // Capacidade e Manutenção
         const placaNorm = (v.veiculo || '').split(' ')[0].replace(/[-\s]/g, '').toUpperCase();
         const info = frotaMap[placaNorm];
         v._maxCarga = info ? info.carga : null;
         v._temCadastroCarga = info ? info.temCadastro : false;
+        v._em_manutencao = info ? info.em_manutencao : 0;
     });
 
     // --- INSIGHT 1: CAPACIDADE DE CARGA ---
@@ -814,6 +815,8 @@ function _rrRenderCorpo() {
         const nLines = (colB.match(/\n/g) || []).length + 2;
         const h      = Math.max(120, nLines * 20);
         
+        const manutAviso = v._em_manutencao ? `<div style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.75rem;font-weight:700;color:#64748b;display:flex;align-items:center;gap:6px;margin-bottom:8px;"><i class="ph ph-wrench" style="font-size:1rem;"></i> VEÍCULO EM MANUTENÇÃO</div>` : '';
+        
         // Helper de avatar (foto ou inicial) — cor diferente para motorista e ajudante
         const _avatarMot = (foto, nome) => foto
             ? `<img src="${foto}" title="${nome||''}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:3px solid #1d4ed8;box-shadow:0 0 0 1px #93c5fd;">`
@@ -909,6 +912,7 @@ function _rrRenderCorpo() {
 
         return `
         <div style="background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:16px;overflow:hidden;border:1px solid #e2e8f0;">
+            ${manutAviso}
             <div style="background:#2d9e5f;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                 <div style="display:flex;flex-direction:column;gap:8px;">
                     <div style="display:flex;align-items:center;gap:8px;">
