@@ -14045,6 +14045,15 @@ app.put('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
     });
 });
 
+// PUT - alternar status de manutenção
+app.put('/api/frota/veiculos/:id/toggle-manutencao', authenticateToken, (req, res) => {
+    const { status } = req.body;
+    db.run('UPDATE frota_veiculos SET em_manutencao=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [status ? 1 : 0, req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true, message: 'Status de manutenção atualizado' });
+    });
+});
+
 // DELETE - excluir veículo
 app.delete('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM frota_veiculos WHERE id = ?', [req.params.id], function (err) {
