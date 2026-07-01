@@ -546,7 +546,7 @@ const BREADCRUMB_MAP = {
     'logistica-frota-resumo': { path: 'Resumo de Frota', code: 'LOG002' },
     'logistica-pipeline': { path: 'Logística → Rota Redonda → Pipeline OS', code: 'LOG003' },
     'logistica-resumo-rota': { path: 'Logística → Rota Redonda → Resumo da Rota', code: 'LOG003B' },
-    'logistica-videos-os': { path: 'Logística → Rota Redonda → Vídeos OS', code: 'LOG003V' },
+    'logistica-videos-os': { path: 'Logística → Rota Redonda → Observações OS', code: 'LOG003V' },
     'logistica-multas': { path: 'Multas', code: 'LOG004' },
     'logistica-multas-monaco': { path: 'Multas Mônaco', code: 'LOG012' },
     'logistica-equipes': { path: 'Equipes', code: 'LOG013' },
@@ -779,7 +779,7 @@ const TAB_META = {
     'logistica-resumo-rota': { color: '#2d9e5f', icon: 'ph-list-bullets', title: 'Resumo de Rota' },
     'logistica-frota-resumo': { color: '#1e3a5f', icon: 'ph-truck', title: 'Resumo de Frota' },
     'logistica-pipeline': { color: '#2d9e5f', icon: 'ph-kanban', title: 'Pipeline' },
-    'logistica-videos-os': { color: '#2d9e5f', icon: 'ph-video-camera', title: 'Vídeos OS' },
+    'logistica-videos-os': { color: '#2d9e5f', icon: 'ph-video-camera', title: 'Observações OS' },
     'logistica-entregas': { color: '#2d9e5f', icon: 'ph-package', title: 'Entregas' },
     'logistica-multas': { color: '#2d9e5f', icon: 'ph-receipt', title: 'Multas' },
     'logistica-multas-monaco': { color: '#dc2626', icon: 'ph-car', title: 'Multas Mônaco' },
@@ -15675,8 +15675,8 @@ window.renderBookmarks = function () {
         const obj = BREADCRUMB_MAP[key];
         if (!obj) return ''; // entrada não mapeada - ignorar com segurança
 
-        // Ignorar tabs ou caminhos com setas, a menos que seja usuarios-permissoes ou form-usuario
-        if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario') || key.startsWith('tab:')) return '';
+        // Ignorar tabs ou caminhos com setas, a menos que seja exceções
+        if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario' && key !== 'logistica-videos-os' && key !== 'logistica-rota-redonda' && key !== 'logistica-pipeline' && key !== 'logistica-resumo-rota') || key.startsWith('tab:')) return '';
 
         // Detecta a cor certa com base no TAB_META
         const tabMeta = TAB_META[key];

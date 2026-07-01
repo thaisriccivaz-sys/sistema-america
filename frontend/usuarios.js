@@ -35,7 +35,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Logística', pagina_id: 'logistica-dashboard',    pagina_nome: 'Dashboard Logística', icone: 'ph-chart-bar' },
     { modulo: 'Logística', pagina_id: 'logistica-pipeline',     pagina_nome: 'Pipeline OS',   icone: 'ph-kanban' },
     { modulo: 'Logística', pagina_id: 'logistica-rota-redonda', pagina_nome: 'OS', icone: 'ph-clipboard-text' },
-    { modulo: 'Logística', pagina_id: 'logistica-videos-os',  pagina_nome: 'Vídeos OS', icone: 'ph-video-camera' },
+    { modulo: 'Logística', pagina_id: 'logistica-videos-os',  pagina_nome: 'Observações OS', icone: 'ph-video-camera' },
     { modulo: 'Logística', pagina_id: 'logistica-resumo-rota',  pagina_nome: 'Resumo de Rota', icone: 'ph-list-numbers' },
     { modulo: 'Logística', pagina_id: 'logistica-frota',        pagina_nome: 'Frota',         icone: 'ph-truck' },
     { modulo: 'Logística', pagina_id: 'logistica-multas',       pagina_nome: 'Multas',         icone: 'ph-receipt' },
