@@ -240,8 +240,8 @@ async function vidosFazerUpload(input, osId, numeroOs) {
     
     const formData = new FormData();
     formData.append('video', file);
+    formData.append('os_id', osId);
     if (numeroOs) formData.append('numero_os', numeroOs);
-    else formData.append('os_id', osId);
     
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
