@@ -4754,141 +4754,255 @@ function _renderEnderecosInt() {
     if (!container) return;
 
     container.innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:16px; font-family:'Inter', sans-serif;">
-            <!-- Toolbar superior unificada -->
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#1e293b; padding:0.75rem 1.25rem; border-top-left-radius:12px; border-top-right-radius:12px;">
-                <div style="background:#7c3aed; color:white; padding:0.45rem 1rem; border-radius:6px; font-weight:700; font-size:0.83rem; display:flex; align-items:center; gap:6px; letter-spacing:0.02em;">
-                    <i class="ph ph-map-pin" style="font-size:1.1rem;"></i> Clientes - Endereços Entrega
+        <style>
+            .cc-container-end {
+                background: #fff;
+                width: 100%;
+                border-radius: 14px;
+                box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+                overflow: visible;
+                margin: 0 auto;
+                border: 1px solid #e2e8f0;
+                font-family: 'Inter', sans-serif;
+            }
+            .cc-toolbar-end {
+                background: #f8fafc;
+                border-bottom: 1px solid #e2e8f0;
+                padding: 0.65rem 1.5rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 0.6rem;
+                position: sticky;
+                top: 98px;
+                z-index: 997;
+                border-top-left-radius: 14px;
+                border-top-right-radius: 14px;
+            }
+            .cc-form-body-end {
+                padding: 1.5rem;
+            }
+            .cc-section-title-end {
+                font-size: 0.9rem;
+                font-weight: 800;
+                color: #475569;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                border-bottom: 2px solid #e2e8f0;
+                padding-bottom: 0.4rem;
+                margin: 1.5rem 0 1rem 0;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .cc-section-title-end.first {
+                margin-top: 0;
+            }
+            .cc-input-end, .cc-select-end {
+                padding: 0.55rem 0.75rem;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                background: #fff;
+                color: #1e293b;
+                outline: none;
+                transition: all 0.2s;
+                box-sizing: border-box;
+                width: 100%;
+                height: 38px;
+            }
+            .cc-input-end:focus, .cc-select-end:focus {
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+            }
+            .cc-input-end[readonly] {
+                background: #f1f5f9;
+                color: #64748b;
+                cursor: not-allowed;
+            }
+            .cc-grid-end {
+                display: grid;
+                gap: 0.75rem 1rem;
+            }
+            .cc-grid-end-row1 {
+                grid-template-columns: 80px 2fr 1fr 1fr;
+            }
+            .cc-grid-end-row2 {
+                grid-template-columns: 140px 2fr 100px 1.5fr;
+                align-items: end;
+            }
+            .cc-grid-end-row3 {
+                grid-template-columns: 2fr 80px 2fr;
+            }
+            .cc-grid-end-row4 {
+                grid-template-columns: 2fr 2fr 1fr;
+            }
+            @media (max-width: 992px) {
+                .cc-grid-end-row1, .cc-grid-end-row2, .cc-grid-end-row3, .cc-grid-end-row4 {
+                    grid-template-columns: 1fr 1fr !important;
+                    align-items: stretch !important;
+                }
+            }
+            @media (max-width: 576px) {
+                .cc-grid-end-row1, .cc-grid-end-row2, .cc-grid-end-row3, .cc-grid-end-row4 {
+                    grid-template-columns: 1fr !important;
+                }
+            }
+        </style>
+
+        <div class="cc-container-end">
+            <!-- Barra de Ferramentas -->
+            <div class="cc-toolbar-end">
+                <!-- Badge Lado Esquerdo -->
+                <div style="background:#2e58a6; color:white; padding:0.45rem 0.9rem; border-radius:6px; font-weight:700; font-size:0.86rem; display:flex; align-items:center; gap:0.4rem; font-family:'Inter', sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <i class="ph ph-map-pin" style="font-size:1.15rem;"></i>
+                    Clientes - Endereços Entrega
                 </div>
-                <div style="display:flex; gap:8px;">
-                    <button type="button" onclick="window.pageNovoEndereco()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:0.15s; outline:none;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-                        <i class="ph ph-plus-bold" style="font-size:1rem;"></i> Novo Endereço
+
+                <!-- Botões de Ação (Lado Direito) -->
+                <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                    <button type="button" onclick="window.pageCarregarEnderecos(window._pageSelectedClienteId)" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                        <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
                     </button>
-                    <button type="button" onclick="window.pageSalvarEndereco()" style="background:#10b981; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:0.15s; outline:none;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
-                        <i class="ph ph-floppy-disk" style="font-size:1rem;"></i> Salvar Endereço
+
+                    <!-- Spacer -->
+                    <div style="width: 4px;"></div>
+
+                    <button type="button" onclick="window.pageNovoEndereco()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                        <i class="ph ph-file-text" style="font-size:1rem;"></i> Novo
+                    </button>
+                    <button type="button" onclick="window.pageSalvarEndereco()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                        <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
                 </div>
             </div>
 
-            <!-- Corpo da Página -->
-            <div style="padding:16px; display:flex; flex-direction:column; gap:16px; background:#f1f5f9; border-bottom-left-radius:12px; border-bottom-right-radius:12px; border:1px solid #e2e8f0; border-top:none;">
-                <!-- Painel de Dados do Cliente -->
-                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; display:grid; grid-template-columns: 100px 2fr 2fr 120px; gap:12px; align-items:end; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+            <!-- Corpo da Tela -->
+            <div class="cc-form-body-end">
+                <!-- Seção 1: Cliente -->
+                <div class="cc-section-title-end first">
+                    <i class="ph ph-user"></i> Dados do Cliente
+                </div>
+                <div class="cc-grid cc-grid-end-row1" style="margin-bottom: 1.5rem;">
                     <div>
-                        <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Código</label>
-                        <div style="display:flex; gap:6px;">
-                            <input type="text" id="page-cli-codigo" readonly style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#f1f5f9; color:#475569; height:38px; box-sizing:border-box; outline:none; text-align:center;">
-                            <button type="button" onclick="window.pageBuscarCliente()" style="background:#cbd5e1; color:#334155; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; height:38px; transition:0.15s; outline:none;" onmouseover="this.style.background='#94a3b8'" onmouseout="this.style.background='#cbd5e1'" title="Buscar Cliente"><i class="ph ph-magnifying-glass" style="font-size:1.15rem;"></i></button>
+                        <label class="prop-lbl">Código</label>
+                        <div style="display:flex; gap:0.35rem;">
+                            <input type="text" id="page-cli-codigo" readonly class="cc-input-end" style="text-align:center;">
+                            <button type="button" onclick="window.pageBuscarCliente()" style="background:#475569; color:#fff; border:none; padding:0 0.75rem; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'" title="Buscar Cliente"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
                         </div>
                     </div>
                     <div>
-                        <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Razão Social</label>
-                        <input type="text" id="page-cli-razao" readonly style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#f1f5f9; color:#475569; height:38px; box-sizing:border-box; outline:none;">
+                        <label class="prop-lbl">Razão Social</label>
+                        <input type="text" id="page-cli-razao" readonly class="cc-input-end">
                     </div>
                     <div>
-                        <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Nome Fantasia</label>
-                        <input type="text" id="page-cli-fantasia" readonly style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#f1f5f9; color:#475569; height:38px; box-sizing:border-box; outline:none;">
+                        <label class="prop-lbl">Nome Fantasia</label>
+                        <input type="text" id="page-cli-fantasia" readonly class="cc-input-end">
                     </div>
                     <div>
-                        <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Data Cad.</label>
-                        <input type="text" id="page-cli-data" readonly style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#f1f5f9; color:#475569; height:38px; box-sizing:border-box; text-align:center; outline:none;">
+                        <label class="prop-lbl">Data de Cadastro</label>
+                        <input type="text" id="page-cli-data" readonly class="cc-input-end" style="text-align:center;">
                     </div>
                 </div>
 
-                <!-- Painel de Cadastro de Endereço -->
-                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:18px; display:flex; flex-direction:column; gap:12px; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                    <div style="display:grid; grid-template-columns: 80px 2fr 1fr 1fr; gap:12px;">
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Seq.</label>
-                            <input type="text" id="page-end-seq" readonly value="1" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#f1f5f9; color:#475569; height:38px; box-sizing:border-box; text-align:center; font-weight:bold; outline:none;">
-                        </div>
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Nome do Local *</label>
-                            <input type="text" id="page-end-nome" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';" placeholder="Ex: FILIAL CAMPINAS">
-                        </div>
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">CPF/CNPJ</label>
-                            <input type="text" id="page-end-cnpj" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
-                        </div>
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Inscr. Estadual</label>
-                            <input type="text" id="page-end-ie" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
-                        </div>
+                <!-- Seção 2: Cadastro de Endereço -->
+                <div class="cc-section-title-end">
+                    <i class="ph ph-map-pin"></i> Detalhes do Endereço de Entrega
+                </div>
+                <div class="cc-grid cc-grid-end-row1" style="margin-bottom: 0.75rem;">
+                    <div>
+                        <label class="prop-lbl">Seq.</label>
+                        <input type="text" id="page-end-seq" readonly value="1" class="cc-input-end" style="text-align:center; font-weight:bold;">
                     </div>
-                    
-                    <div style="display:grid; grid-template-columns: 140px 2fr 100px 1.5fr; gap:12px; align-items:end;">
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">CEP *</label>
-                            <div style="display:flex; gap:6px;">
-                                <input type="text" id="page-end-cep" style="flex:1; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';" placeholder="00000-000">
-                                <button type="button" onclick="window.pageBuscarCEP()" style="background:#cbd5e1; color:#334155; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; height:38px; transition:0.15s; outline:none;" onmouseover="this.style.background='#94a3b8'" onmouseout="this.style.background='#cbd5e1'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:1.15rem;"></i></button>
-                            </div>
-                        </div>
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Endereço *</label>
-                            <input type="text" id="page-end-rua" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
-                        </div>
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Número *</label>
-                            <input type="text" id="page-end-num" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
-                        </div>
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Complemento</label>
-                            <input type="text" id="page-end-comp" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
-                        </div>
+                    <div>
+                        <label class="prop-lbl">Nome do Local *</label>
+                        <input type="text" id="page-end-nome" class="cc-input-end" placeholder="Ex: FILIAL CAMPINAS">
                     </div>
-
-                    <div style="display:grid; grid-template-columns: 2fr 80px 2fr; gap:12px;">
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Bairro *</label>
-                            <input type="text" id="page-end-bairro" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
-                        </div>
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">UF *</label>
-                            <input type="text" id="page-end-uf" maxlength="2" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; text-align:center; text-transform:uppercase; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
-                        </div>
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Município *</label>
-                            <input type="text" id="page-end-cidade" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
-                        </div>
+                    <div>
+                        <label class="prop-lbl">CPF/CNPJ</label>
+                        <input type="text" id="page-end-cnpj" class="cc-input-end">
                     </div>
-
-                    <div style="display:grid; grid-template-columns: 2fr 2fr 1fr; gap:12px;">
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Contato</label>
-                            <input type="text" id="page-end-contato" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
-                        </div>
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Telefone</label>
-                            <input type="text" id="page-end-fone" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
-                        </div>
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Ramal</label>
-                            <input type="text" id="page-end-ramal" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
-                        </div>
+                    <div>
+                        <label class="prop-lbl">Inscrição Estadual</label>
+                        <input type="text" id="page-end-ie" class="cc-input-end">
                     </div>
                 </div>
 
-                <!-- Tabela de Endereços Cadastrados -->
-                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:8px; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                    <label style="font-size:0.85rem; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:2px; display:block;">Endereços Cadastrados</label>
-                    <div style="font-size:0.75rem; color:#64748b; margin-bottom:4px;">* Clique em uma linha para editar/excluir.</div>
-                    <div style="max-height:220px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
-                        <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
-                            <thead>
-                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
-                                    <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:40px; text-align:center; position:sticky; top:0; background:#f8fafc; z-index:1;">#</th>
-                                    <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:200px; position:sticky; top:0; background:#f8fafc; z-index:1;">Nome</th>
-                                    <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; position:sticky; top:0; background:#f8fafc; z-index:1;">Endereço</th>
-                                    <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:150px; position:sticky; top:0; background:#f8fafc; z-index:1;">Município / UF</th>
-                                    <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:60px; text-align:center; position:sticky; top:0; background:#f8fafc; z-index:1;">Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody id="page-end-tbody">
-                                <!-- Endereços renderizados dinamicamente -->
-                            </tbody>
-                        </table>
+                <div class="cc-grid cc-grid-end-row2" style="margin-bottom: 0.75rem;">
+                    <div>
+                        <label class="prop-lbl">CEP *</label>
+                        <div style="display:flex; gap:0.35rem;">
+                            <input type="text" id="page-end-cep" class="cc-input-end" placeholder="00000-000">
+                            <button type="button" onclick="window.pageBuscarCEP()" style="background:#475569; color:#fff; border:none; padding:0 0.75rem; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                        </div>
                     </div>
+                    <div>
+                        <label class="prop-lbl">Endereço *</label>
+                        <input type="text" id="page-end-rua" class="cc-input-end">
+                    </div>
+                    <div>
+                        <label class="prop-lbl">Número *</label>
+                        <input type="text" id="page-end-num" class="cc-input-end">
+                    </div>
+                    <div>
+                        <label class="prop-lbl">Complemento</label>
+                        <input type="text" id="page-end-comp" class="cc-input-end">
+                    </div>
+                </div>
+
+                <div class="cc-grid cc-grid-end-row3" style="margin-bottom: 0.75rem;">
+                    <div>
+                        <label class="prop-lbl">Bairro *</label>
+                        <input type="text" id="page-end-bairro" class="cc-input-end">
+                    </div>
+                    <div>
+                        <label class="prop-lbl">UF *</label>
+                        <input type="text" id="page-end-uf" maxlength="2" class="cc-input-end" style="text-align:center; text-transform:uppercase;">
+                    </div>
+                    <div>
+                        <label class="prop-lbl">Município *</label>
+                        <input type="text" id="page-end-cidade" class="cc-input-end">
+                    </div>
+                </div>
+
+                <div class="cc-grid cc-grid-end-row4" style="margin-bottom: 1.5rem;">
+                    <div>
+                        <label class="prop-lbl">Contato</label>
+                        <input type="text" id="page-end-contato" class="cc-input-end">
+                    </div>
+                    <div>
+                        <label class="prop-lbl">Telefone</label>
+                        <input type="text" id="page-end-fone" class="cc-input-end">
+                    </div>
+                    <div>
+                        <label class="prop-lbl">Ramal</label>
+                        <input type="text" id="page-end-ramal" class="cc-input-end">
+                    </div>
+                </div>
+
+                <!-- Seção 3: Tabela de Endereços -->
+                <div class="cc-section-title-end">
+                    <i class="ph ph-list-bullets"></i> Endereços Cadastrados
+                </div>
+                <div style="font-size:0.75rem; color:#64748b; margin-bottom:0.5rem; font-family:'Inter', sans-serif;">
+                    * Clique em uma linha da tabela abaixo para carregar os dados para edição ou exclusão.
+                </div>
+                <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; background:#fff; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.83rem; text-align:left; font-family:'Inter', sans-serif;">
+                        <thead>
+                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
+                                <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:50px; text-align:center;">#</th>
+                                <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:200px;">Nome</th>
+                                <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b;">Endereço</th>
+                                <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:150px;">Município / UF</th>
+                                <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:80px; text-align:center;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="page-end-tbody">
+                            <!-- Endereços renderizados dinamicamente -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
