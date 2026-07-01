@@ -319,6 +319,9 @@ function renderTelaPropostas() {
                     <div class="saas-nav-item" id="tab-prop-cadastro-contatos" onclick="switchPropostaTab('cadastro-contatos')">
                         <i class="ph ph-identification-card"></i> Cadastro de Contatos
                     </div>
+                    <div class="saas-nav-item" id="tab-prop-enderecos" onclick="switchPropostaTab('enderecos')">
+                        <i class="ph ph-map-pin"></i> Endereços
+                    </div>
                 </div>
 
                 <!-- Lado Direito: Perfil do Usuário -->
@@ -406,6 +409,9 @@ function renderTelaPropostas() {
             <!-- VIEW: CADASTRO CONTATOS -->
             <div id="prop-view-cadastro-contatos" style="display:${_currentPropostaTab === 'cadastro-contatos' ? 'block' : 'none'};"></div>
 
+            <!-- VIEW: ENDEREÇOS ENTREGA -->
+            <div id="prop-view-enderecos" style="display:${_currentPropostaTab === 'enderecos' ? 'block' : 'none'};"></div>
+
         </div>
     `;
 
@@ -415,6 +421,8 @@ function renderTelaPropostas() {
         _renderCadastroClienteInt();
     } else if (_currentPropostaTab === 'cadastro-contatos') {
         _renderCadastroContatosInt();
+    } else if (_currentPropostaTab === 'enderecos') {
+        _renderEnderecosInt();
     }
 }
 
@@ -425,12 +433,14 @@ window.switchPropostaTab = function(tab) {
     const viewForm = document.getElementById('prop-view-form');
     const viewCadastroCliente = document.getElementById('prop-view-cadastro-cliente');
     const viewCadastroContatos = document.getElementById('prop-view-cadastro-contatos');
+    const viewEnderecos = document.getElementById('prop-view-enderecos');
     const tabLista = document.getElementById('tab-prop-lista');
     const tabForm = document.getElementById('tab-prop-form');
     const tabCadastroCliente = document.getElementById('tab-prop-cadastro-cliente');
     const tabCadastroContatos = document.getElementById('tab-prop-cadastro-contatos');
+    const tabEnderecos = document.getElementById('tab-prop-enderecos');
 
-    if (viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && tabLista && tabForm && tabCadastroCliente && tabCadastroContatos) {
+    if (viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && viewEnderecos && tabLista && tabForm && tabCadastroCliente && tabCadastroContatos && tabEnderecos) {
         if (tab === 'form' && viewForm.innerHTML.trim() === '') {
             _renderFormPropostaInt();
         }
@@ -440,11 +450,15 @@ window.switchPropostaTab = function(tab) {
         if (tab === 'cadastro-contatos' && viewCadastroContatos.innerHTML.trim() === '') {
             _renderCadastroContatosInt();
         }
+        if (tab === 'enderecos' && viewEnderecos.innerHTML.trim() === '') {
+            _renderEnderecosInt();
+        }
 
         viewLista.style.display = tab === 'lista' ? 'block' : 'none';
         viewForm.style.display = tab === 'form' ? 'block' : 'none';
         viewCadastroCliente.style.display = tab === 'cadastro-cliente' ? 'block' : 'none';
         viewCadastroContatos.style.display = tab === 'cadastro-contatos' ? 'block' : 'none';
+        viewEnderecos.style.display = tab === 'enderecos' ? 'block' : 'none';
 
         // Update active class in SaaS Header
         document.querySelectorAll('.saas-nav-item').forEach(item => {
@@ -455,6 +469,7 @@ window.switchPropostaTab = function(tab) {
         else if (tab === 'form') tabForm.classList.add('active');
         else if (tab === 'cadastro-cliente') tabCadastroCliente.classList.add('active');
         else if (tab === 'cadastro-contatos') tabCadastroContatos.classList.add('active');
+        else if (tab === 'enderecos') tabEnderecos.classList.add('active');
     } else {
         renderTelaPropostas();
     }
@@ -4732,6 +4747,476 @@ window.modalSelecionarEndereco = function(idx) {
     }
 
     Swal.close();
+};
+
+function _renderEnderecosInt() {
+    const container = document.getElementById('prop-view-enderecos');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:16px; font-family:'Inter', sans-serif;">
+            <!-- Toolbar superior unificada -->
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#1e293b; padding:0.75rem 1.25rem; border-top-left-radius:12px; border-top-right-radius:12px;">
+                <div style="background:#7c3aed; color:white; padding:0.45rem 1rem; border-radius:6px; font-weight:700; font-size:0.83rem; display:flex; align-items:center; gap:6px; letter-spacing:0.02em;">
+                    <i class="ph ph-map-pin" style="font-size:1.1rem;"></i> Clientes - Endereços Entrega
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button type="button" onclick="window.pageNovoEndereco()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:0.15s; outline:none;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                        <i class="ph ph-plus-bold" style="font-size:1rem;"></i> Novo Endereço
+                    </button>
+                    <button type="button" onclick="window.pageSalvarEndereco()" style="background:#10b981; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:0.15s; outline:none;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
+                        <i class="ph ph-floppy-disk" style="font-size:1rem;"></i> Salvar Endereço
+                    </button>
+                </div>
+            </div>
+
+            <!-- Corpo da Página -->
+            <div style="padding:16px; display:flex; flex-direction:column; gap:16px; background:#f1f5f9; border-bottom-left-radius:12px; border-bottom-right-radius:12px; border:1px solid #e2e8f0; border-top:none;">
+                <!-- Painel de Dados do Cliente -->
+                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; display:grid; grid-template-columns: 100px 2fr 2fr 120px; gap:12px; align-items:end; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                    <div>
+                        <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Código</label>
+                        <div style="display:flex; gap:6px;">
+                            <input type="text" id="page-cli-codigo" readonly style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#f1f5f9; color:#475569; height:38px; box-sizing:border-box; outline:none; text-align:center;">
+                            <button type="button" onclick="window.pageBuscarCliente()" style="background:#cbd5e1; color:#334155; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; height:38px; transition:0.15s; outline:none;" onmouseover="this.style.background='#94a3b8'" onmouseout="this.style.background='#cbd5e1'" title="Buscar Cliente"><i class="ph ph-magnifying-glass" style="font-size:1.15rem;"></i></button>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Razão Social</label>
+                        <input type="text" id="page-cli-razao" readonly style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#f1f5f9; color:#475569; height:38px; box-sizing:border-box; outline:none;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Nome Fantasia</label>
+                        <input type="text" id="page-cli-fantasia" readonly style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#f1f5f9; color:#475569; height:38px; box-sizing:border-box; outline:none;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Data Cad.</label>
+                        <input type="text" id="page-cli-data" readonly style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#f1f5f9; color:#475569; height:38px; box-sizing:border-box; text-align:center; outline:none;">
+                    </div>
+                </div>
+
+                <!-- Painel de Cadastro de Endereço -->
+                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:18px; display:flex; flex-direction:column; gap:12px; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                    <div style="display:grid; grid-template-columns: 80px 2fr 1fr 1fr; gap:12px;">
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Seq.</label>
+                            <input type="text" id="page-end-seq" readonly value="1" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#f1f5f9; color:#475569; height:38px; box-sizing:border-box; text-align:center; font-weight:bold; outline:none;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Nome do Local *</label>
+                            <input type="text" id="page-end-nome" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';" placeholder="Ex: FILIAL CAMPINAS">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">CPF/CNPJ</label>
+                            <input type="text" id="page-end-cnpj" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Inscr. Estadual</label>
+                            <input type="text" id="page-end-ie" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                        </div>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns: 140px 2fr 100px 1.5fr; gap:12px; align-items:end;">
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">CEP *</label>
+                            <div style="display:flex; gap:6px;">
+                                <input type="text" id="page-end-cep" style="flex:1; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';" placeholder="00000-000">
+                                <button type="button" onclick="window.pageBuscarCEP()" style="background:#cbd5e1; color:#334155; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; height:38px; transition:0.15s; outline:none;" onmouseover="this.style.background='#94a3b8'" onmouseout="this.style.background='#cbd5e1'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:1.15rem;"></i></button>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Endereço *</label>
+                            <input type="text" id="page-end-rua" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Número *</label>
+                            <input type="text" id="page-end-num" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Complemento</label>
+                            <input type="text" id="page-end-comp" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 2fr 80px 2fr; gap:12px;">
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Bairro *</label>
+                            <input type="text" id="page-end-bairro" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">UF *</label>
+                            <input type="text" id="page-end-uf" maxlength="2" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; text-align:center; text-transform:uppercase; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Município *</label>
+                            <input type="text" id="page-end-cidade" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 2fr 2fr 1fr; gap:12px;">
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Contato</label>
+                            <input type="text" id="page-end-contato" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Telefone</label>
+                            <input type="text" id="page-end-fone" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Ramal</label>
+                            <input type="text" id="page-end-ramal" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabela de Endereços Cadastrados -->
+                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:8px; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                    <label style="font-size:0.85rem; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:2px; display:block;">Endereços Cadastrados</label>
+                    <div style="font-size:0.75rem; color:#64748b; margin-bottom:4px;">* Clique em uma linha para editar/excluir.</div>
+                    <div style="max-height:220px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
+                            <thead>
+                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
+                                    <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:40px; text-align:center; position:sticky; top:0; background:#f8fafc; z-index:1;">#</th>
+                                    <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:200px; position:sticky; top:0; background:#f8fafc; z-index:1;">Nome</th>
+                                    <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; position:sticky; top:0; background:#f8fafc; z-index:1;">Endereço</th>
+                                    <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:150px; position:sticky; top:0; background:#f8fafc; z-index:1;">Município / UF</th>
+                                    <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:60px; text-align:center; position:sticky; top:0; background:#f8fafc; z-index:1;">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="page-end-tbody">
+                                <!-- Endereços renderizados dinamicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Initialize state
+    window._pageSelectedClienteId = null;
+    window._pageEnderecos = [];
+    window._pageEnderecoEditandoId = null;
+
+    const propClienteInput = document.getElementById('prop-cliente');
+    const clientName = propClienteInput ? propClienteInput.value.trim() : '';
+
+    if (clientName) {
+        apiGet('/clientes').then(clientes => {
+            const matchedClient = (clientes || []).find(c => c.nome_razao_social && c.nome_razao_social.trim() === clientName);
+            if (matchedClient) {
+                window._pageSelectedClienteId = matchedClient.id;
+                document.getElementById('page-cli-codigo').value = matchedClient.codigo || '';
+                document.getElementById('page-cli-razao').value = matchedClient.nome_razao_social || '';
+                document.getElementById('page-cli-fantasia').value = matchedClient.nome_fantasia || '';
+                document.getElementById('page-cli-data').value = matchedClient.data_cadastro ? matchedClient.data_cadastro.split('-').reverse().join('/') : '';
+                window.pageCarregarEnderecos(matchedClient.id);
+            } else {
+                window.pageRenderEnderecos();
+            }
+        }).catch(err => {
+            console.error(err);
+            window.pageRenderEnderecos();
+        });
+    } else {
+        window.pageRenderEnderecos();
+    }
+}
+
+window.pageCarregarEnderecos = async function(clienteId) {
+    try {
+        const res = await apiGet(`/clientes/${clienteId}/enderecos`) || [];
+        window._pageEnderecos = res;
+        window.pageRenderEnderecos();
+        window.pageNovoEndereco();
+    } catch(err) {
+        console.error(err);
+    }
+};
+
+window.pageRenderEnderecos = function() {
+    const tbody = document.getElementById('page-end-tbody');
+    if (!tbody) return;
+
+    if (!window._pageEnderecos || window._pageEnderecos.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="padding:1rem; text-align:center; color:#94a3b8;">
+                    Nenhum endereço de entrega cadastrado.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = window._pageEnderecos.map((e, idx) => `
+        <tr onclick="window.pageCarregarEnderecoForm(${idx})" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+            <td style="padding:10px 12px; text-align:center; color:#475569; font-weight:bold;">${e.sequencia}</td>
+            <td style="padding:10px 12px; color:#1e293b; font-weight:600;">${e.nome_local || '—'}</td>
+            <td style="padding:10px 12px; color:#475569;">${e.endereco || ''}${e.numero ? ', ' + e.numero : ''}${e.bairro ? ' - ' + e.bairro : ''}</td>
+            <td style="padding:10px 12px; color:#475569;">${e.municipio || ''} / ${e.uf || ''}</td>
+            <td style="padding:10px 12px; text-align:center;">
+                <button type="button" onclick="event.stopPropagation(); window.pageExcluirEndereco(${idx})" style="background:#fee2e2; color:#ef4444; border:none; padding:6px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none;" onmouseover="this.style.background='#ef4444'; this.style.color='#fff';" onmouseout="this.style.background='#fee2e2'; this.style.color='#ef4444';" title="Excluir Endereço">
+                    <i class="ph ph-trash" style="font-size:0.9rem;"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+};
+
+window.pageCarregarEnderecoForm = function(idx) {
+    const e = window._pageEnderecos[idx];
+    if (!e) return;
+
+    window._pageEnderecoEditandoId = e.id;
+    document.getElementById('page-end-seq').value = e.sequencia || '1';
+    document.getElementById('page-end-nome').value = e.nome_local || '';
+    document.getElementById('page-end-cnpj').value = e.cpf_cnpj || '';
+    document.getElementById('page-end-ie').value = e.inscricao_estadual || '';
+    document.getElementById('page-end-cep').value = e.cep || '';
+    document.getElementById('page-end-rua').value = e.endereco || '';
+    document.getElementById('page-end-num').value = e.numero || '';
+    document.getElementById('page-end-comp').value = e.complemento || '';
+    document.getElementById('page-end-bairro').value = e.bairro || '';
+    document.getElementById('page-end-uf').value = e.uf || '';
+    document.getElementById('page-end-cidade').value = e.municipio || '';
+    document.getElementById('page-end-contato').value = e.contato || '';
+    document.getElementById('page-end-fone').value = e.telefone || '';
+    document.getElementById('page-end-ramal').value = e.ramal || '';
+};
+
+window.pageNovoEndereco = function() {
+    window._pageEnderecoEditandoId = null;
+    let nextSeq = 1;
+    if (window._pageEnderecos && window._pageEnderecos.length > 0) {
+        nextSeq = Math.max(...window._pageEnderecos.map(e => e.sequencia || 0)) + 1;
+    }
+
+    document.getElementById('page-end-seq').value = nextSeq;
+    document.getElementById('page-end-nome').value = '';
+    document.getElementById('page-end-cnpj').value = '';
+    document.getElementById('page-end-ie').value = '';
+    document.getElementById('page-end-cep').value = '';
+    document.getElementById('page-end-rua').value = '';
+    document.getElementById('page-end-num').value = '';
+    document.getElementById('page-end-comp').value = '';
+    document.getElementById('page-end-bairro').value = '';
+    document.getElementById('page-end-uf').value = '';
+    document.getElementById('page-end-cidade').value = '';
+    document.getElementById('page-end-contato').value = '';
+    document.getElementById('page-end-fone').value = '';
+    document.getElementById('page-end-ramal').value = '';
+};
+
+window.pageSalvarEndereco = async function() {
+    if (!window._pageSelectedClienteId) {
+        Swal.fire('Aviso', 'Selecione um cliente primeiro.', 'warning');
+        return;
+    }
+
+    const seqVal = parseInt(document.getElementById('page-end-seq').value);
+    const nomeVal = document.getElementById('page-end-nome').value.trim();
+    const cepVal = document.getElementById('page-end-cep').value.trim();
+    const ruaVal = document.getElementById('page-end-rua').value.trim();
+    const numVal = document.getElementById('page-end-num').value.trim();
+    const bairroVal = document.getElementById('page-end-bairro').value.trim();
+    const ufVal = document.getElementById('page-end-uf').value.trim().toUpperCase();
+    const cidadeVal = document.getElementById('page-end-cidade').value.trim();
+
+    if (!nomeVal) {
+        alert('Por favor, preencha o Nome do Local.');
+        return;
+    }
+    if (!cepVal) {
+        alert('Por favor, preencha o CEP.');
+        return;
+    }
+    if (!ruaVal) {
+        alert('Por favor, preencha o Endereço.');
+        return;
+    }
+    if (!numVal) {
+        alert('Por favor, preencha o Número.');
+        return;
+    }
+    if (!bairroVal) {
+        alert('Por favor, preencha o Bairro.');
+        return;
+    }
+    if (!ufVal) {
+        alert('Por favor, preencha a UF.');
+        return;
+    }
+    if (!cidadeVal) {
+        alert('Por favor, preencha o Município.');
+        return;
+    }
+
+    const payload = {
+        id: window._pageEnderecoEditandoId,
+        sequencia: seqVal,
+        nome_local: nomeVal,
+        cpf_cnpj: document.getElementById('page-end-cnpj').value.trim(),
+        inscricao_estadual: document.getElementById('page-end-ie').value.trim(),
+        cep: cepVal,
+        endereco: ruaVal,
+        numero: numVal,
+        complemento: document.getElementById('page-end-comp').value.trim(),
+        bairro: bairroVal,
+        uf: ufVal,
+        municipio: cidadeVal,
+        contato: document.getElementById('page-end-contato').value.trim(),
+        telefone: document.getElementById('page-end-fone').value.trim(),
+        ramal: document.getElementById('page-end-ramal').value.trim()
+    };
+
+    try {
+        const res = await apiPost(`/clientes/${window._pageSelectedClienteId}/enderecos`, payload);
+        if (res && res.success) {
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Endereço salvo com sucesso!');
+            }
+            window.pageCarregarEnderecos(window._pageSelectedClienteId);
+        }
+    } catch(err) {
+        console.error(err);
+        alert('Erro ao salvar endereço: ' + err.message);
+    }
+};
+
+window.pageExcluirEndereco = async function(idx) {
+    const e = window._pageEnderecos[idx];
+    if (!e) return;
+
+    if (!confirm(`Deseja realmente excluir o endereço "${e.nome_local}"?`)) {
+        return;
+    }
+
+    try {
+        const res = await apiDelete(`/clientes/${window._pageSelectedClienteId}/enderecos/${e.id}`);
+        if (res && res.success) {
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Endereço excluído com sucesso!');
+            }
+            window.pageCarregarEnderecos(window._pageSelectedClienteId);
+        }
+    } catch(err) {
+        console.error(err);
+        alert('Erro ao excluir endereço: ' + err.message);
+    }
+};
+
+window.pageBuscarCEP = async function() {
+    const cepRaw = document.getElementById('page-end-cep')?.value || '';
+    const cep = cepRaw.replace(/\D/g, '');
+    if (cep.length !== 8) {
+        alert('Por favor, informe um CEP válido com 8 dígitos.');
+        return;
+    }
+
+    try {
+        const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        if (!res.ok) throw new Error('CEP não encontrado.');
+        const data = await res.json();
+        if (data.erro) throw new Error('CEP inexistente.');
+
+        document.getElementById('page-end-rua').value = data.logradouro || '';
+        document.getElementById('page-end-bairro').value = data.bairro || '';
+        document.getElementById('page-end-uf').value = data.uf || '';
+        document.getElementById('page-end-cidade').value = data.localidade || '';
+
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Endereço importado com sucesso!');
+        }
+    } catch(e) {
+        console.error(e);
+        alert('Erro ao buscar CEP: ' + e.message);
+    }
+};
+
+window.pageBuscarCliente = async function() {
+    try {
+        const clientes = await apiGet('/clientes') || [];
+        if (clientes.length === 0) {
+            Swal.fire('Aviso', 'Nenhum cliente cadastrado.', 'info');
+            return;
+        }
+
+        const rowsHtml = clientes.map(c => `
+            <tr onclick="window.pageSelecionarClienteBusca('${encodeURIComponent(JSON.stringify(c))}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                <td style="padding:0.5rem; text-align:center; font-weight:bold; color:#2e58a6;">${c.codigo}</td>
+                <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${c.nome_razao_social}</td>
+                <td style="padding:0.5rem; text-align:left; color:#475569;">${c.cpf_cnpj || '—'}</td>
+            </tr>
+        `).join('');
+
+        Swal.fire({
+            title: '',
+            html: `
+                <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; padding:0; border-radius:12px; overflow:hidden;">
+                    <div style="font-size:1.05rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:12px 16px; background:#f8fafc; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-user-focus" style="color:#7c3aed; font-size:1.2rem;"></i> Selecionar Cliente
+                    </div>
+                    <div style="padding:16px; display:flex; flex-direction:column; gap:10px; background:#f1f5f9;">
+                        <input type="text" id="page-submodal-search-cliente" placeholder="Filtrar por nome..." style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#cbd5e1'" oninput="window.pageSubmodalFiltrarClientes(this.value)">
+                        <div style="height:220px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
+                                <thead>
+                                    <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; text-align:center; width:60px; position:sticky; top:0; background:#f8fafc; z-index:1;">Cód</th>
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; position:sticky; top:0; background:#f8fafc; z-index:1;">Razão Social</th>
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:120px; position:sticky; top:0; background:#f8fafc; z-index:1;">CNPJ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="page-submodal-cliente-tbody">
+                                    ${rowsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `,
+            showConfirmButton: false,
+            width: '500px',
+            customClass: {
+                popup: 'custom-swal-padding-zero'
+            }
+        });
+
+        window.pageSubmodalFiltrarClientes = function(term) {
+            const tbody = document.getElementById('page-submodal-cliente-tbody');
+            if (!tbody) return;
+            const query = term.toLowerCase();
+            const filtered = clientes.filter(c => 
+                (c.nome_razao_social && c.nome_razao_social.toLowerCase().includes(query)) ||
+                (c.codigo && c.codigo.toString().includes(query)) ||
+                (c.cpf_cnpj && c.cpf_cnpj.includes(query))
+            );
+            tbody.innerHTML = filtered.map(c => `
+                <tr onclick="window.pageSelecionarClienteBusca('${encodeURIComponent(JSON.stringify(c))}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                    <td style="padding:0.5rem; text-align:center; font-weight:bold; color:#2e58a6;">${c.codigo}</td>
+                    <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${c.nome_razao_social}</td>
+                    <td style="padding:0.5rem; text-align:left; color:#475569;">${c.cpf_cnpj || '—'}</td>
+                </tr>
+            `).join('');
+        };
+
+        window.pageSelecionarClienteBusca = function(jsonStr) {
+            const c = JSON.parse(decodeURIComponent(jsonStr));
+            window._pageSelectedClienteId = c.id;
+            
+            document.getElementById('page-cli-codigo').value = c.codigo || '';
+            document.getElementById('page-cli-razao').value = c.nome_razao_social || '';
+            document.getElementById('page-cli-fantasia').value = c.nome_fantasia || '';
+            document.getElementById('page-cli-data').value = c.data_cadastro ? c.data_cadastro.split('-').reverse().join('/') : '';
+            
+            window.pageCarregarEnderecos(c.id);
+            Swal.close();
+        };
+    } catch(err) {
+        console.error(err);
+    }
 };
 
 console.log('[PROPOSTAS] Módulo frontend de proposta carregado.');

@@ -798,6 +798,7 @@ const TAB_META = {
     // Comercial - Roxo
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
     'comercial-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Proposta' },
+    'comercial-enderecos': { color: '#7048e8', icon: 'ph-map-pin', title: 'Endereço' },
     'comercial-em-breve': { color: '#7048e8', icon: 'ph-handshake', title: 'Comercial' },
     // Administrativo - Amarelo
     'admin-em-breve': { color: '#e67700', icon: 'ph-gear', title: 'Administrativo' },
@@ -947,6 +948,16 @@ window.closeAppTab = function (tabId) {
 // navigateTo: abre uma aba ÚNICA por target (telas de lista/config).
 // Para colaborador/prontuário, use openColaboradorTab / openProntuarioTab.
 function navigateTo(target) {
+    if (target === 'comercial-enderecos') {
+        navigateTo('comercial-proposta');
+        if (typeof window.switchPropostaTab === 'function') {
+            window.switchPropostaTab('enderecos');
+        }
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        const targetNavObj = document.querySelector(`[data-target="comercial-enderecos"]`);
+        if (targetNavObj) targetNavObj.classList.add('active');
+        return;
+    }
     if (target !== 'login') {
         const meta = getTabMeta(target);
         // Telas simples: apenas uma aba por target
