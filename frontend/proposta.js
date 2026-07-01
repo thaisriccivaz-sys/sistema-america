@@ -4880,11 +4880,10 @@ function _renderEnderecosInt() {
             .cc-container-end {
                 background: #fff;
                 width: 100%;
-                max-width: 1100px;
-                border-radius: 12px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-                overflow: hidden;
-                margin: 2rem auto;
+                border-radius: 14px;
+                box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+                overflow: visible;
+                margin: 0 auto;
                 border: 1px solid #e2e8f0;
                 font-family: 'Inter', sans-serif;
             }
@@ -4897,13 +4896,14 @@ function _renderEnderecosInt() {
                 align-items: center;
                 flex-wrap: wrap;
                 gap: 0.6rem;
-                border-top-left-radius: 12px;
-                border-top-right-radius: 12px;
+                position: sticky;
+                top: 98px;
+                z-index: 997;
+                border-top-left-radius: 14px;
+                border-top-right-radius: 14px;
             }
             .cc-form-body-end {
                 padding: 1.5rem;
-                max-height: 600px;
-                overflow-y: auto;
             }
             .cc-section-title-end {
                 font-size: 0.9rem;
@@ -5015,7 +5015,7 @@ function _renderEnderecosInt() {
                 <div class="cc-section-title-end first">
                     <i class="ph ph-user"></i> Dados do Cliente
                 </div>
-                <div class="cc-grid cc-grid-end-row1" style="margin-bottom: 1.5rem;">
+                <div class="cc-grid-end cc-grid-end-row1" style="margin-bottom: 1.5rem;">
                     <div>
                         <label class="prop-lbl-end">Código</label>
                         <div style="display:flex; gap:0.35rem;">
@@ -5041,7 +5041,7 @@ function _renderEnderecosInt() {
                 <div class="cc-section-title-end">
                     <i class="ph ph-map-pin"></i> Detalhes do Endereço de Entrega
                 </div>
-                <div class="cc-grid cc-grid-end-row1" style="margin-bottom: 0.75rem;">
+                <div class="cc-grid-end cc-grid-end-row1" style="margin-bottom: 0.75rem;">
                     <div>
                         <label class="prop-lbl-end">Seq.</label>
                         <input type="text" id="page-end-seq" readonly value="1" class="cc-input-end" style="text-align:center; font-weight:bold;">
@@ -5060,7 +5060,7 @@ function _renderEnderecosInt() {
                     </div>
                 </div>
 
-                <div class="cc-grid cc-grid-end-row2" style="margin-bottom: 0.75rem;">
+                <div class="cc-grid-end cc-grid-end-row2" style="margin-bottom: 0.75rem;">
                     <div>
                         <label class="prop-lbl-end">CEP *</label>
                         <div style="display:flex; gap:0.35rem;">
@@ -5082,7 +5082,7 @@ function _renderEnderecosInt() {
                     </div>
                 </div>
 
-                <div class="cc-grid cc-grid-end-row3" style="margin-bottom: 0.75rem;">
+                <div class="cc-grid-end cc-grid-end-row3" style="margin-bottom: 0.75rem;">
                     <div>
                         <label class="prop-lbl-end">Bairro *</label>
                         <input type="text" id="page-end-bairro" class="cc-input-end">
@@ -5097,7 +5097,7 @@ function _renderEnderecosInt() {
                     </div>
                 </div>
 
-                <div class="cc-grid cc-grid-end-row4" style="margin-bottom: 1.5rem;">
+                <div class="cc-grid-end cc-grid-end-row4" style="margin-bottom: 1.5rem;">
                     <div>
                         <label class="prop-lbl-end">Contato</label>
                         <input type="text" id="page-end-contato" class="cc-input-end">
