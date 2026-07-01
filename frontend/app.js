@@ -16273,6 +16273,12 @@ window.loadAssinaturasDigitais = async function () {
                     <option value="Assinado">✅ Assinado</option>
                     <option value="Pendente">&#x23F3; Aguardando</option>
                 </select>
+                <select id="ass-filter-situacao" onchange="window.filtrarAssinaturas()"
+                    style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
+                    <option value="Ativos">Apenas Ativos</option>
+                    <option value="Desligados">Apenas Desligados</option>
+                    <option value="">Todos</option>
+                </select>
                 <select id="ass-filter-tipo" onchange="window.filtrarAssinaturas()"
                     style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
                     <option value="">Todos os documentos</option>
@@ -16333,6 +16339,7 @@ window.filtrarAssinaturas = function () {
     const filterColab = (document.getElementById('ass-filter-colab')?.value || '').toLowerCase();
     const filterStatus = document.getElementById('ass-filter-status')?.value || '';
     const filterTipo = document.getElementById('ass-filter-tipo')?.value || '';
+    const filterSituacao = document.getElementById('ass-filter-situacao')?.value || 'Ativos';
     const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
 
     const filtered = dados.filter(d => {
@@ -16341,7 +16348,13 @@ window.filtrarAssinaturas = function () {
         const matchStatus = !filterStatus ||
             (filterStatus === 'Pendente' ? d.assinafy_status !== 'Assinado' : d.assinafy_status === filterStatus);
         const matchTipo = !filterTipo || d.nome_documento === filterTipo;
-        return matchSearch && matchColab && matchStatus && matchTipo;
+        
+        const isDesligado = (d.colaborador_status || '').toLowerCase() === 'desligado';
+        let matchSituacao = true;
+        if (filterSituacao === 'Ativos') matchSituacao = !isDesligado;
+        else if (filterSituacao === 'Desligados') matchSituacao = isDesligado;
+        
+        return matchSearch && matchColab && matchStatus && matchTipo && matchSituacao;
     });
 
     const label = document.getElementById('ass-count-label');

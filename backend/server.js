@@ -1829,6 +1829,7 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
                    c.nome_completo AS colaborador_nome,
                    c.departamento  AS colaborador_departamento,
                    c.cargo         AS colaborador_cargo,
+                   c.status        AS colaborador_status,
                    'admissao'      AS source
             FROM admissao_assinaturas aa
             LEFT JOIN colaboradores c ON c.id = aa.colaborador_id
@@ -1842,6 +1843,7 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
                    c.nome_completo AS colaborador_nome,
                    c.departamento  AS colaborador_departamento,
                    c.cargo         AS colaborador_cargo,
+                   c.status        AS colaborador_status,
                    'documento'     AS source
             FROM documentos d
             LEFT JOIN colaboradores c ON c.id = d.colaborador_id
