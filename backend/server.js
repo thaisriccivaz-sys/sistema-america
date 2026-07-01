@@ -13065,6 +13065,7 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
         // Delete the temporary file from local disk
         fs.unlinkSync(req.file.path);
 
+        const relativeShortLink = `/v/${shortCode}`;
         const shortLinkUrl = `${req.protocol}://${req.get('host')}/v/${shortCode}`;
         const handleResponse = () => res.json({ ok: true, token, short_code: shortCode, link: publicUrl, short_link: shortLinkUrl, nome: req.file.originalname });
 
@@ -13078,16 +13079,16 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
 
                 if (numero_os) {
                     db.get('SELECT link_video FROM os_logistica WHERE numero_os = ?', [numero_os], (errSelect, row) => {
-                        let newLinks = [publicUrl];
+                        let newLinks = [relativeShortLink];
                         if (row && row.link_video) {
                             try {
                                 const parsed = JSON.parse(row.link_video);
-                                if (Array.isArray(parsed)) newLinks = [...parsed, publicUrl];
-                                else newLinks = [row.link_video, publicUrl];
+                                if (Array.isArray(parsed)) newLinks = [...parsed, relativeShortLink];
+                                else newLinks = [row.link_video, relativeShortLink];
                             } catch (e) {
                                 if (row.link_video.trim() !== '') {
                                     newLinks = row.link_video.split(',').map(s => s.trim()).filter(Boolean);
-                                    newLinks.push(publicUrl);
+                                    newLinks.push(relativeShortLink);
                                 }
                             }
                         }
@@ -13095,16 +13096,16 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
                     });
                 } else if (os_id) {
                     db.get('SELECT link_video FROM os_logistica WHERE id = ?', [os_id], (errSelect, row) => {
-                        let newLinks = [publicUrl];
+                        let newLinks = [relativeShortLink];
                         if (row && row.link_video) {
                             try {
                                 const parsed = JSON.parse(row.link_video);
-                                if (Array.isArray(parsed)) newLinks = [...parsed, publicUrl];
-                                else newLinks = [row.link_video, publicUrl];
+                                if (Array.isArray(parsed)) newLinks = [...parsed, relativeShortLink];
+                                else newLinks = [row.link_video, relativeShortLink];
                             } catch (e) {
                                 if (row.link_video.trim() !== '') {
                                     newLinks = row.link_video.split(',').map(s => s.trim()).filter(Boolean);
-                                    newLinks.push(publicUrl);
+                                    newLinks.push(relativeShortLink);
                                 }
                             }
                         }
