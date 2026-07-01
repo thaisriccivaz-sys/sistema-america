@@ -506,10 +506,10 @@ window.switchPropostaTab = function(tab) {
         });
 
         if (tab === 'lista') {
-            if (tabLista) tabLista.classList.add('active');
+            document.querySelectorAll('#tab-prop-lista').forEach(el => el.classList.add('active'));
         } else {
             // Keep parent dropdown trigger active as indicator
-            if (tabLista) tabLista.classList.add('active');
+            document.querySelectorAll('#tab-prop-lista').forEach(el => el.classList.add('active'));
             
             if (tab === 'form' && tabForm) tabForm.classList.add('active');
             else if (tab === 'cadastro-cliente' && tabCadastroCliente) tabCadastroCliente.classList.add('active');
@@ -663,10 +663,25 @@ function _renderFormPropostaInt() {
             <!-- Toolbar -->
             <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:98px; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
                 
-                <!-- Badge Lado Esquerdo -->
-                <div style="background:#2e58a6; color:white; padding:0.45rem 0.9rem; border-radius:6px; font-weight:700; font-size:0.86rem; display:flex; align-items:center; gap:0.4rem; font-family:'Inter', sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <i class="ph ph-presentation-chart" style="font-size:1.15rem;"></i>
-                    Proposta de Locação
+                <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
+                <div class="saas-dropdown-container">
+                    <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
+                        <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
+                    </div>
+                    <div class="saas-dropdown-menu">
+                        <div class="saas-dropdown-item" onclick="abrirFormProposta(null); event.stopPropagation();">
+                            <i class="ph ph-pencil-simple"></i> Nova Proposta
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
+                            <i class="ph ph-user-plus"></i> Cadastro de Clientes
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                            <i class="ph ph-identification-card"></i> Cadastro de Contatos
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
+                            <i class="ph ph-map-pin"></i> Endereços
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Botões de Ação (Lado Direito) -->
