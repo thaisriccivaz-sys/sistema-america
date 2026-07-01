@@ -269,13 +269,11 @@ async function vidosFazerUpload(input, osId, numeroOs) {
     }
 }
 
-
-
 window.vidosExcluirVideo = async function(osId, link) {
-    if (!await confirmarAcao('Tem certeza que deseja excluir este vídeo?')) return;
+    if (!await confirmarAcao('Tem certeza que deseja excluir este vÃ­deo?')) return;
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-        const resp = await fetch(/api/logistica/os-id//link-video?link=, {
+        const resp = await fetch(`/api/logistica/os-id/${osId}/link-video?link=${encodeURIComponent(link)}`, {
             method: 'DELETE',
             headers: { 'Authorization': 'Bearer ' + token }
         });
@@ -283,10 +281,9 @@ window.vidosExcluirVideo = async function(osId, link) {
             const txt = await resp.text();
             throw new Error(txt);
         }
-        mostrarToastAviso('? Vídeo excluído com sucesso!');
+        mostrarToastAviso('âœ… VÃ­deo excluÃ­do com sucesso!');
         vidosCarregar();
     } catch(e) {
         mostrarModalAviso('Erro ao excluir', e.message, 'error');
     }
 }
-
