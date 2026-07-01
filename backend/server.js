@@ -1671,6 +1671,12 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
             });
             if (docInfo && docInfo.data) {
                 const d = docInfo.data;
+                const sRaw = String(d.status || d.status_id || '').toLowerCase();
+                const isSigned = sRaw.includes('certificat') || sRaw === '4';
+                if (isSigned) {
+                    pollAdmissaoAssinaturas().catch(e => console.error(e));
+                    return res.status(400).json({ error: 'Este documento já foi assinado! Sincronizando sistema... Atualize a página.' });
+                }
                 signLink = d.sign_url || d.signUrl || (d.signers && d.signers[0] && (d.signers[0].sign_url || d.signers[0].url));
             }
         }
@@ -2003,6 +2009,38 @@ app.post('/api/assinafy/upload', async (req, res) => {
     }
 
     try {
+        // --- TRAVA DE SEGURANÇA: VERIFICAR SE JÁ ESTÁ ASSINADO NO ASSINAFY ANTES DE GERAR NOVO ---
+        const docExistente = await new Promise((res, rej) => db.get('SELECT assinafy_id, assinafy_status, signed_file_path FROM documentos WHERE id = ?', [document_id], (err, row) => err ? rej(err) : res(row)));
+        
+        if (docExistente && docExistente.assinafy_id) {
+            if (docExistente.assinafy_status === 'Assinado' || docExistente.signed_file_path) {
+                return res.status(400).json({ sucesso: false, error: 'Este documento já foi assinado!' });
+            }
+            
+            const https = require('https');
+            const assinafyStatusInfo = await new Promise((resolve) => {
+                const r = https.request({
+                    hostname: 'api.assinafy.com.br', path: `/v1/documents/${docExistente.assinafy_id}`, method: 'GET',
+                    headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
+                }, resp => {
+                    const chunks = [];
+                    resp.on('data', c => chunks.push(c));
+                    resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e) { resolve(null); } });
+                });
+                r.on('error', () => resolve(null)); r.setTimeout(5000, () => r.destroy()); r.end();
+            });
+            
+            if (assinafyStatusInfo && assinafyStatusInfo.data) {
+                const sRaw = String(assinafyStatusInfo.data.status || assinafyStatusInfo.data.status_id || '').toLowerCase();
+                const isSigned = sRaw.includes('certificat') || sRaw === '4';
+                if (isSigned) {
+                    pollAdmissaoAssinaturas().catch(e => console.error(e));
+                    return res.status(400).json({ sucesso: false, error: 'Este documento já foi assinado! O sistema está sendo sincronizado agora. Atualize a página em alguns instantes.' });
+                }
+            }
+        }
+        // --- FIM DA TRAVA ---
+
         // Marca como pendente provisoriamente
         db.run("UPDATE documentos SET assinafy_status = 'Pendente', assinafy_sent_at = CURRENT_TIMESTAMP WHERE id = ?", [document_id]);
 
