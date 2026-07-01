@@ -342,32 +342,24 @@ function renderTelaPropostas() {
             </style>
 
             <!-- NOVO CABEÇALHO SAAS -->
-            <div class="saas-header">
-                <!-- Lado Esquerdo: Logo da Empresa -->
-                <div class="saas-brand" onclick="switchPropostaTab('lista')">
-                    <img src="logo.png" alt="America Rental" class="saas-logo-img">
-                    <span class="saas-brand-text">America Rental</span>
-                </div>
-
-                <!-- Centro: Navegação Principal -->
-                <div class="saas-nav">
-                    <div class="saas-dropdown-container">
-                        <div class="saas-nav-item" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
-                            <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
+            <div class="saas-header" style="justify-content: space-between;">
+                <!-- Lado Esquerdo: Dropdown de Navegação Principal -->
+                <div class="saas-dropdown-container">
+                    <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
+                        <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
+                    </div>
+                    <div class="saas-dropdown-menu">
+                        <div class="saas-dropdown-item" id="tab-prop-form" onclick="abrirFormProposta(null); event.stopPropagation();">
+                            <i class="ph ph-pencil-simple"></i> Nova Proposta
                         </div>
-                        <div class="saas-dropdown-menu">
-                            <div class="saas-dropdown-item" id="tab-prop-form" onclick="abrirFormProposta(null); event.stopPropagation();">
-                                <i class="ph ph-pencil-simple"></i> Nova Proposta
-                            </div>
-                            <div class="saas-dropdown-item" id="tab-prop-cadastro-cliente" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
-                                <i class="ph ph-user-plus"></i> Cadastro de Clientes
-                            </div>
-                            <div class="saas-dropdown-item" id="tab-prop-cadastro-contatos" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
-                                <i class="ph ph-identification-card"></i> Cadastro de Contatos
-                            </div>
-                            <div class="saas-dropdown-item" id="tab-prop-enderecos" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
-                                <i class="ph ph-map-pin"></i> Endereços
-                            </div>
+                        <div class="saas-dropdown-item" id="tab-prop-cadastro-cliente" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
+                            <i class="ph ph-user-plus"></i> Cadastro de Clientes
+                        </div>
+                        <div class="saas-dropdown-item" id="tab-prop-cadastro-contatos" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                            <i class="ph ph-identification-card"></i> Cadastro de Contatos
+                        </div>
+                        <div class="saas-dropdown-item" id="tab-prop-enderecos" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
+                            <i class="ph ph-map-pin"></i> Endereços
                         </div>
                     </div>
                 </div>
