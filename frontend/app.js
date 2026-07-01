@@ -14048,6 +14048,8 @@ let _epiSelfieTimestamp = null;
 window._fecharModalAssinaturaColab = function () {
     document.getElementById('modal-assinatura-colaborador').style.display = 'none';
     _epiPararCamera();
+    document.body.classList.remove('force-landscape-selfie');
+    if (screen.orientation && screen.orientation.unlock) { screen.orientation.unlock(); }
 };
 
 function _epiPararCamera() {
@@ -14180,6 +14182,9 @@ window._epiConfirmarFotoIrParaAssinatura = function () {
 };
 
 window.abrirModalAssinaturaColaborador = async function (docId) {
+    document.body.classList.add('force-landscape-selfie');
+    if (screen.orientation && screen.orientation.lock) { screen.orientation.lock('landscape').catch(e=>{}); }
+    
     currentDocIdForColab = docId;
     _epiSelfieBase64 = null;
     _epiSelfieTimestamp = null;
@@ -14822,6 +14827,9 @@ window.abrirAssinaturaEpi = async function (fichaId) {
     const { fichas, colabId } = window._epiProntuarioData || {};
     const ficha = (fichas || []).find(f => f.id === fichaId);
     if (!ficha) return;
+    
+    document.body.classList.add('force-landscape-selfie');
+    if (screen.orientation && screen.orientation.lock) { screen.orientation.lock('landscape').catch(e=>{}); }
     const epis = ficha.snapshot_epis || [];
     const termo = ficha.snapshot_termo || '';
     // Encerrar câmera anterior e limpar estado de selfie ANTES de abrir novo overlay
@@ -14835,7 +14843,7 @@ window.abrirAssinaturaEpi = async function (fichaId) {
     overlay.innerHTML = `
         <div style="background:#1e3a5f;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
             <div style="display:flex;align-items:center;gap:0.75rem;"><i class="ph ph-shield-check" style="color:#60a5fa;font-size:1.3rem;"></i><span style="color:#f1f5f9;font-weight:700;font-size:0.97rem;">Registrar Entrega de EPI — ${ficha.grupo}</span></div>
-            <button onclick="if(window._assinSelfieStream){window._assinSelfieStream.getTracks().forEach(t=>t.stop());window._assinSelfieStream=null;}document.getElementById('epi-assinatura-overlay').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;">×</button>
+            <button onclick="if(window._assinSelfieStream){window._assinSelfieStream.getTracks().forEach(t=>t.stop());window._assinSelfieStream=null;}document.getElementById('epi-assinatura-overlay').remove(); document.body.classList.remove('force-landscape-selfie'); if(screen.orientation && screen.orientation.unlock) { screen.orientation.unlock(); }" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;">×</button>
         </div>
         <div id="epi-assin-body" style="flex:1;overflow-y:auto;padding:1.5rem 2rem;">
             <div id="epi-step-1">

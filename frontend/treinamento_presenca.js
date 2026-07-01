@@ -473,6 +473,8 @@
         if (fsAssinEl) fsAssinEl.style.display = 'none';
         _pararCamera();
         _assinTreinamento = null;
+        document.body.classList.remove('force-landscape-selfie');
+        if (screen.orientation && screen.orientation.unlock) { screen.orientation.unlock(); }
     }
     window.fecharModalAssinaturaTreinamento = _fecharModal;
 
@@ -570,6 +572,9 @@
         const { colaborador: c, treinamento: t } = _assinTreinamento;
         const instrutor = getInstrutorNome();
 
+        document.body.classList.add('force-landscape-selfie');
+        if (screen.orientation && screen.orientation.lock) { screen.orientation.lock('landscape').catch(e=>{}); }
+
         let ov = document.getElementById('pres-assinatura-fs');
         if (!ov) {
             ov = document.createElement('div');
@@ -606,7 +611,7 @@
                     <i class="ph ph-eraser"></i> Limpar
                 </button>
                 <div style="display:flex;gap:8px;">
-                    <button onclick="document.getElementById('pres-assinatura-fs').style.display='none';" style="background:#f1f5f9;color:#475569;border:none;border-radius:8px;padding:10px 18px;cursor:pointer;font-weight:600;">
+                    <button onclick="document.getElementById('pres-assinatura-fs').style.display='none'; document.body.classList.remove('force-landscape-selfie'); if (screen.orientation && screen.orientation.unlock) { screen.orientation.unlock(); }" style="background:#f1f5f9;color:#475569;border:none;border-radius:8px;padding:10px 18px;cursor:pointer;font-weight:600;">
                         Voltar
                     </button>
                     <button onclick="window._confirmarAssinaturaFS()" style="background:linear-gradient(135deg,#0e7490,#06b6d4);color:#fff;border:none;border-radius:8px;padding:10px 22px;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 3px 12px rgba(14,116,144,0.35);">

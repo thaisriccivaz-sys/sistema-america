@@ -5604,7 +5604,26 @@
                 transform: rotate(360deg);
             }
         }
-    </style>
+      /* Bloqueio de orientação para selfie e assinaturas */
+    @media screen and (orientation: portrait) and (max-width: 992px) {
+      body.force-landscape-selfie::after {
+        content: "Por favor, vire seu celular ou tablet na horizontal (deitado) para assinar e capturar a selfie de forma correta.";
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(8px);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 3rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+        z-index: 99999999;
+      }
+    }
+  </style>
     <!-- ══════════════════════════════════════════════════════════════ -->
     <!-- MODAL: EDITAR TREINAMENTO                                      -->
     <!-- ══════════════════════════════════════════════════════════════ -->
