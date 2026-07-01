@@ -15686,6 +15686,9 @@ window.renderBookmarks = function () {
         }
 
         let btnLabel = obj.path;
+        if (btnLabel.includes('→')) {
+            btnLabel = btnLabel.split('→').pop().trim();
+        }
         if (key === 'usuarios-permissoes' || key === 'form-usuario') {
             btnLabel = 'Usuários';
         }
