@@ -353,8 +353,9 @@ function renderTelaPropostas() {
             </style>
 
             <!-- VIEW: LISTA -->
-            <div id="prop-view-lista" style="display:${_currentPropostaTab === 'lista' ? 'block' : 'none'};">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <div id="prop-view-lista" style="display:${_currentPropostaTab === 'lista' ? 'block' : 'none'}; font-family:'Inter', sans-serif; background:#f8fafc; padding:1.5rem; border-radius:14px; min-height:800px;">
+                <!-- Header (Toolbar style) -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; background:#fff; padding:0.8rem 1.2rem; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                     <!-- Lado Esquerdo: Dropdown de Navegação Principal -->
                     <div class="saas-dropdown-container">
                         <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
@@ -375,192 +376,302 @@ function renderTelaPropostas() {
                             </div>
                         </div>
                     </div>
-
-                    <button onclick="abrirFormProposta(null)" style="
-                        background:linear-gradient(135deg,#7048e8,#9775fa);
-                        color:white; border:none; padding:0.65rem 1.3rem;
-                        border-radius:8px; cursor:pointer; font-weight:600;
-                        display:flex; align-items:center; gap:0.5rem;
-                        font-size:0.9rem; box-shadow:0 4px 12px rgba(112,72,232,0.35);
-                        transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'"
-                        onmouseout="this.style.transform='translateY(0)'">
-                        <i class="ph ph-plus-circle"></i> Nova Proposta
-                    </button>
-                </div>
-
-                <!-- Cards de resumo -->
-                <div id="prop-cards-resumo" style="display:flex; gap:1.2rem; margin-bottom:1.5rem; flex-wrap:wrap;">
-                    ${_renderCardsResumoProp()}
-                </div>
-
-                <!-- Filtros -->
-                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0.9rem 1.1rem; margin-bottom:1.2rem;">
-                    <div style="display:flex; flex-wrap:wrap; gap:0.6rem; align-items:center;">
-                        <input id="prop-filtro-texto" type="text" placeholder="🔍 Buscar por cliente, código, tipo..."
-                            oninput="filtrarPropostas()"
-                            value="testesistema"
-                            style="flex:2; min-width:200px; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
-                        <select id="prop-filtro-fase" onchange="filtrarPropostas()"
-                            style="flex:1; min-width:160px; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
-                            <option value="">Todas as Fases</option>
-                            ${PROP_FASES.map(f => `<option value="${f}">${f}</option>`).join('')}
-                        </select>
-                        <input id="prop-filtro-de" type="date" title="Período de" onchange="filtrarPropostas()"
-                            style="flex:0 0 auto; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
-                        <input id="prop-filtro-ate" type="date" title="Período até" onchange="filtrarPropostas()"
-                            style="flex:0 0 auto; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
-                    </div>
-                </div>
-
-                <!-- Seção de Visualização Central (Gráficos) -->
-                <div id="prop-charts-container" style="display:flex; gap:1.2rem; margin-bottom:1.5rem; flex-wrap:wrap;">
-                    <!-- Gráfico Esquerdo: Colunas Empilhadas -->
-                    <div style="flex:1; min-width:320px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                        <h4 style="margin:0 0 1rem 0; font-size:0.88rem; font-weight:700; color:#334155; font-family:'Inter', sans-serif;">Propostas por Atendente</h4>
-                        <div style="display:flex; justify-content:space-between; height:200px; position:relative; padding-left:45px; padding-bottom:20px; margin-top:0.5rem; font-family:'Inter', sans-serif;">
-                            <!-- Grid Y-axis Labels -->
-                            <div style="position:absolute; left:0; top:0; bottom:20px; width:40px; display:flex; flex-direction:column; justify-content:space-between; align-items:flex-end; font-size:0.7rem; color:#64748b; padding-right:6px;">
-                                <span>450.000</span>
-                                <span>388.900</span>
-                                <span>302.900</span>
-                                <span>245.000</span>
-                                <span>215.900</span>
-                                <span>10.990</span>
-                                <span>0</span>
-                            </div>
-                            
-                            <!-- Grid Horizontal Lines -->
-                            <div style="position:absolute; left:45px; right:0; top:0; bottom:20px; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none;">
-                                <div style="border-top:1px dashed #e2e8f0; height:0;"></div>
-                                <div style="border-top:1px dashed #e2e8f0; height:0;"></div>
-                                <div style="border-top:1px dashed #e2e8f0; height:0;"></div>
-                                <div style="border-top:1px dashed #e2e8f0; height:0;"></div>
-                                <div style="border-top:1px dashed #e2e8f0; height:0;"></div>
-                                <div style="border-top:1px dashed #e2e8f0; height:0;"></div>
-                                <div style="border-top:1px solid #cbd5e1; height:0;"></div>
-                            </div>
-                            
-                            <!-- Columns container -->
-                            <div style="display:flex; justify-content:space-around; align-items:flex-end; width:100%; height:100%; position:relative; z-index:1;">
-                                <!-- Coluna 1: Ana Silva -->
-                                <div style="display:flex; flex-direction:column; align-items:center; width:60px;">
-                                    <div style="width:24px; height:160px; display:flex; flex-direction:column-reverse; border-radius:3px; overflow:hidden;">
-                                        <div style="height:45%; background:#3b82f6;" title="Aprovado: R$ 405k"></div>
-                                        <div style="height:35%; background:#f97316;" title="Pending: R$ 315k"></div>
-                                        <div style="height:20%; background:#ef4444;" title="Lost: R$ 180k"></div>
-                                    </div>
-                                    <span style="font-size:0.73rem; color:#475569; font-weight:600; margin-top:6px; white-space:nowrap;">Ana Silva</span>
-                                </div>
-                                <!-- Coluna 2: João Costa -->
-                                <div style="display:flex; flex-direction:column; align-items:center; width:60px;">
-                                    <div style="width:24px; height:160px; display:flex; flex-direction:column-reverse; border-radius:3px; overflow:hidden;">
-                                        <div style="height:35%; background:#3b82f6;" title="Aprovado: R$ 315k"></div>
-                                        <div style="height:45%; background:#f97316;" title="Pending: R$ 405k"></div>
-                                        <div style="height:20%; background:#ef4444;" title="Lost: R$ 180k"></div>
-                                    </div>
-                                    <span style="font-size:0.73rem; color:#475569; font-weight:600; margin-top:6px; white-space:nowrap;">João Costa</span>
-                                </div>
-                                <!-- Coluna 3: Bia Santos -->
-                                <div style="display:flex; flex-direction:column; align-items:center; width:60px;">
-                                    <div style="width:24px; height:160px; display:flex; flex-direction:column-reverse; border-radius:3px; overflow:hidden;">
-                                        <div style="height:20%; background:#3b82f6;" title="Aprovado: R$ 180k"></div>
-                                        <div style="height:35%; background:#f97316;" title="Pending: R$ 315k"></div>
-                                        <div style="height:45%; background:#ef4444;" title="Lost: R$ 405k"></div>
-                                    </div>
-                                    <span style="font-size:0.73rem; color:#475569; font-weight:600; margin-top:6px; white-space:nowrap;">Bia Santos</span>
-                                </div>
-                            </div>
-                            
-                            <!-- Legend (Float right) -->
-                            <div style="position:absolute; right:10px; top:10px; display:flex; flex-direction:column; gap:4px; font-size:0.68rem; background:rgba(255,255,255,0.9); padding:5px; border-radius:4px; border:1px solid #e2e8f0; z-index:2;">
-                                <div style="display:flex; align-items:center; gap:4px;">
-                                    <span style="width:8px; height:8px; background:#3b82f6; display:inline-block; border-radius:1px;"></span>
-                                    <span>Aprovado</span>
-                                </div>
-                                <div style="display:flex; align-items:center; gap:4px;">
-                                    <span style="width:8px; height:8px; background:#f97316; display:inline-block; border-radius:1px;"></span>
-                                    <span>Pending</span>
-                                </div>
-                                <div style="display:flex; align-items:center; gap:4px;">
-                                    <span style="width:8px; height:8px; background:#ef4444; display:inline-block; border-radius:1px;"></span>
-                                    <span>Lost</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     
-                    <!-- Gráfico Direito: Setores/Pizza -->
-                    <div style="flex:1; min-width:320px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
-                        <h4 style="margin:0 0 1rem 0; font-size:0.88rem; font-weight:700; color:#334155; font-family:'Inter', sans-serif;">Distribuição de Propostas por Fase Atual</h4>
-                        <div style="display:flex; justify-content:center; align-items:center; flex:1; position:relative; min-height:180px;">
-                            <!-- SVG Pie Chart -->
-                            <svg width="220" height="180" viewBox="0 0 220 180" style="overflow:visible; font-family:'Inter', sans-serif;">
-                                <!-- Slices of circle r=45, cx=110, cy=90. Circumference = 282.74 -->
-                                <!-- 40% (Análise Inicial, color blue #3b82f6): dasharray 113.1 282.74, offset 0 -->
-                                <circle cx="110" cy="90" r="45" fill="none" stroke="#3b82f6" stroke-width="32" stroke-dasharray="113.1 282.74" stroke-dashoffset="0" transform="rotate(-90 110 90)"/>
-                                
-                                <!-- 35% (Negociação Final, color red/orange #f97316): dasharray 99.0 282.74, offset -113.1 -->
-                                <circle cx="110" cy="90" r="45" fill="none" stroke="#f97316" stroke-width="32" stroke-dasharray="99.0 282.74" stroke-dashoffset="-113.1" transform="rotate(-90 110 90)"/>
-                                
-                                <!-- 25% (Aguardando Aprovação, color green #10b981): dasharray 70.7 282.74, offset -212.1 -->
-                                <circle cx="110" cy="90" r="45" fill="none" stroke="#10b981" stroke-width="32" stroke-dasharray="70.7 282.74" stroke-dashoffset="-212.1" transform="rotate(-90 110 90)"/>
-                                
-                                <!-- Leaders & Labels -->
-                                <!-- Top-Right: Análise Inicial 40% -->
-                                <polyline points="140,55 165,35 190,35" fill="none" stroke="#64748b" stroke-width="1"/>
-                                <text x="195" y="38" font-size="9" fill="#1e293b" font-weight="600">Análise Inicial (40%)</text>
-                                
-                                <!-- Right: Negociação Final 35% -->
-                                <polyline points="145,115 168,125 185,125" fill="none" stroke="#64748b" stroke-width="1"/>
-                                <text x="190" y="128" font-size="9" fill="#1e293b" font-weight="600">Negociação Final (35%)</text>
-                                
-                                <!-- Bottom-Left: Aguardando Aprovação 25% -->
-                                <polyline points="75,100 50,115 20,115" fill="none" stroke="#64748b" stroke-width="1"/>
-                                <text x="15" y="128" font-size="9" fill="#1e293b" font-weight="600" text-anchor="start">Aguardando Aprovação (25%)</text>
-                            </svg>
+                    <!-- Lado Direito: Profile area -->
+                    <div style="display:flex; align-items:center; gap:1.2rem;">
+                        <i class="ph ph-magnifying-glass" style="font-size:1.25rem; color:#64748b; cursor:pointer;"></i>
+                        <div style="position:relative; cursor:pointer;">
+                            <i class="ph ph-bell" style="font-size:1.25rem; color:#64748b;"></i>
+                            <span style="position:absolute; top:-2px; right:-2px; width:8px; height:8px; background:#ef4444; border-radius:50%; border:2px solid #fff;"></span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:0.6rem; border-left:1px solid #e2e8f0; padding-left:1.2rem;">
+                            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&h=100&q=80" alt="Jennifer Lo" style="width:34px; height:34px; border-radius:50%; object-fit:cover; border:1px solid #cbd5e1;">
+                            <div style="display:flex; flex-direction:column; line-height:1.2;">
+                                <span style="font-size:0.83rem; font-weight:700; color:#1e293b;">Jennifer Lo</span>
+                                <span style="font-size:0.68rem; color:#64748b; font-weight:500;">Administrator</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Tabela -->
-                <div style="background:#fff; border-radius:10px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                    <div style="overflow-x:auto;">
-                        <table style="width:100%; border-collapse:collapse; font-size:0.87rem; min-width:900px;">
-                            <thead>
-                                <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
-                                    <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569; white-space:nowrap;">Código</th>
-                                    <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569;">Cliente</th>
-                                    <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569;">Tipo</th>
-                                    <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569;">Fase</th>
-                                    <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569; white-space:nowrap;">Valor</th>
-                                    <th style="padding:0.9rem 1rem; text-align:center; font-weight:700; color:#475569; white-space:nowrap;">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="prop-tbody">
-                                ${_renderLinhasPropostas(_propostasData)}
-                            </tbody>
-                        </table>
+                <!-- Main Grid Layout -->
+                <div style="display:grid; grid-template-columns: 2.8fr 1.2fr; gap:1.5rem; align-items:start;">
+                    
+                    <!-- Coluna da Esquerda (Main Content) -->
+                    <div style="display:flex; flex-direction:column; gap:1.5rem;">
+                        
+                        <!-- Top Banner -->
+                        <div style="background:linear-gradient(135deg, #1e293b, #0f172a); border-radius:14px; padding:1.8rem 2.2rem; color:white; position:relative; overflow:hidden; border:1px solid #334155; box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+                            <!-- Geometric background SVG design matching the image -->
+                            <svg style="position:absolute; right:0; top:0; height:100%; width:50%; opacity:0.18; pointer-events:none;" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                <path d="M50,0 L100,50 L50,100 Z" fill="none" stroke="#f97316" stroke-width="4"/>
+                                <path d="M60,-10 L110,40 L60,90 Z" fill="none" stroke="#fb923c" stroke-width="2"/>
+                                <circle cx="80" cy="30" r="15" fill="none" stroke="#fff" stroke-width="1"/>
+                            </svg>
+                            <div style="position:relative; z-index:1; max-width:65%;">
+                                <h2 style="margin:0 0 0.5rem 0; font-size:1.35rem; font-weight:800; line-height:1.3; color:#f8fafc; font-family:'Inter', sans-serif;">
+                                    Create a promotional campaign to attract more customers.
+                                </h2>
+                                <p style="margin:0; font-size:0.85rem; color:#94a3b8; line-height:1.5;">
+                                    Gerencie suas propostas comerciais de forma ágil com nossa nova interface integrada de alta performance.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- KPI Cards Row -->
+                        <div id="prop-cards-resumo" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:1rem;">
+                            ${_renderCardsResumoProp()}
+                        </div>
+
+                        <!-- Sales Overview Area Chart -->
+                        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                                <h3 style="margin:0; font-size:0.95rem; font-weight:800; color:#1e293b;">Sales Overview</h3>
+                                <span style="font-size:0.75rem; color:#64748b; font-weight:600; background:#f1f5f9; padding:4px 10px; border-radius:20px;">Ano de 2026</span>
+                            </div>
+                            <div style="position:relative; height:240px; margin-top:1rem;">
+                                <!-- Area Chart SVG -->
+                                <svg width="100%" height="240" viewBox="0 0 800 240" preserveAspectRatio="none" style="overflow: visible;">
+                                    <defs>
+                                        <linearGradient id="chart-grad" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stop-color="#f97316" stop-opacity="0.4"/>
+                                            <stop offset="100%" stop-color="#f97316" stop-opacity="0.0"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <!-- Gridlines -->
+                                    <g stroke="#f1f5f9" stroke-width="1">
+                                        <line x1="40" y1="20" x2="780" y2="20"/>
+                                        <line x1="40" y1="60" x2="780" y2="60"/>
+                                        <line x1="40" y1="100" x2="780" y2="100"/>
+                                        <line x1="40" y1="140" x2="780" y2="140"/>
+                                        <line x1="40" y1="180" x2="780" y2="180"/>
+                                    </g>
+                                    <line x1="40" y1="200" x2="780" y2="200" stroke="#e2e8f0" stroke-width="1.5"/>
+                                    
+                                    <!-- Y Labels -->
+                                    <g fill="#94a3b8" font-size="9" text-anchor="end">
+                                        <text x="30" y="23">1200</text>
+                                        <text x="30" y="63">1000</text>
+                                        <text x="30" y="103">800</text>
+                                        <text x="30" y="143">600</text>
+                                        <text x="30" y="183">400</text>
+                                        <text x="30" y="203">0</text>
+                                    </g>
+                                    
+                                    <!-- X Labels -->
+                                    <g fill="#64748b" font-size="10" text-anchor="middle" font-weight="600">
+                                        <text x="50" y="218">Jan</text>
+                                        <text x="130" y="218">Feb</text>
+                                        <text x="210" y="218">Mar</text>
+                                        <text x="290" y="218">Apr</text>
+                                        <text x="370" y="218">Jun</text>
+                                        <text x="450" y="218">Jul</text>
+                                        <text x="530" y="218">Aug</text>
+                                        <text x="610" y="218">Sep</text>
+                                        <text x="690" y="218">Nov</text>
+                                        <text x="770" y="218">Dec</text>
+                                    </g>
+                                    
+                                    <!-- Area Fill -->
+                                    <path d="M 50,170 C 90,130 110,130 130,140 C 170,160 190,150 210,130 C 250,90 270,100 290,120 C 330,160 350,150 370,130 C 410,90 430,90 450,105 C 490,135 510,120 530,110 C 570,90 590,95 610,100 C 650,110 670,120 690,100 C 730,60 750,70 770,90 L 770,200 L 50,200 Z" fill="url(#chart-grad)"/>
+                                    
+                                    <!-- Curve Line -->
+                                    <path d="M 50,170 C 90,130 110,130 130,140 C 170,160 190,150 210,130 C 250,90 270,100 290,120 C 330,160 350,150 370,130 C 410,90 430,90 450,105 C 490,135 510,120 530,110 C 570,90 590,95 610,100 C 650,110 670,120 690,100 C 730,60 750,70 770,90" fill="none" stroke="#f97316" stroke-width="3.5" stroke-linecap="round"/>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- Top Selling Products Table -->
+                        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
+                                <h3 style="margin:0; font-size:0.95rem; font-weight:800; color:#1e293b;">Top Selling Products</h3>
+                                <div style="display:flex; gap:0.5rem;">
+                                    <button style="background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:0.4rem 0.8rem; font-size:0.75rem; color:#475569; font-weight:600; cursor:pointer;"><i class="ph ph-funnel"></i></button>
+                                    <button style="background:#0f172a; border:none; border-radius:6px; padding:0.4rem 0.8rem; font-size:0.75rem; color:#fff; font-weight:600; cursor:pointer;"><i class="ph ph-download-simple"></i> Download</button>
+                                </div>
+                            </div>
+                            <div style="overflow-x:auto;">
+                                <table style="width:100%; border-collapse:collapse; font-size:0.83rem; text-align:left;">
+                                    <thead>
+                                        <tr style="border-bottom:1px solid #e2e8f0; color:#64748b;">
+                                            <th style="padding:0.75rem 0.5rem; font-weight:700;">Product Name</th>
+                                            <th style="padding:0.75rem 0.5rem; font-weight:700;">Price</th>
+                                            <th style="padding:0.75rem 0.5rem; font-weight:700;">Category</th>
+                                            <th style="padding:0.75rem 0.5rem; font-weight:700; text-align:center;">Quantity</th>
+                                            <th style="padding:0.75rem 0.5rem; font-weight:700; text-align:right;">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody style="color:#1e293b;">
+                                        <tr style="border-bottom:1px solid #f1f5f9;">
+                                            <td style="padding:0.75rem 0.5rem; font-weight:700; display:flex; align-items:center; gap:0.5rem;">
+                                                <span style="font-size:1.1rem;">👕</span> Crop Tee
+                                            </td>
+                                            <td style="padding:0.75rem 0.5rem; font-weight:600;">$50.00</td>
+                                            <td style="padding:0.75rem 0.5rem; color:#64748b;">Auher</td>
+                                            <td style="padding:0.75rem 0.5rem; text-align:center; font-weight:600;">10</td>
+                                            <td style="padding:0.75rem 0.5rem; text-align:right; font-weight:700;">$200.00</td>
+                                        </tr>
+                                        <tr style="border-bottom:1px solid #f1f5f9;">
+                                            <td style="padding:0.75rem 0.5rem; font-weight:700; display:flex; align-items:center; gap:0.5rem;">
+                                                <span style="font-size:1.1rem;">👗</span> Button Skirt
+                                            </td>
+                                            <td style="padding:0.75rem 0.5rem; font-weight:600;">$30.00</td>
+                                            <td style="padding:0.75rem 0.5rem; color:#64748b;">Auner</td>
+                                            <td style="padding:0.75rem 0.5rem; text-align:center; font-weight:600;">20</td>
+                                            <td style="padding:0.75rem 0.5rem; text-align:right; font-weight:700;">$200.00</td>
+                                        </tr>
+                                        <tr style="border-bottom:1px solid #f1f5f9;">
+                                            <td style="padding:0.75rem 0.5rem; font-weight:700; display:flex; align-items:center; gap:0.5rem;">
+                                                <span style="font-size:1.1rem;">🧥</span> Denim Jacket
+                                            </td>
+                                            <td style="padding:0.75rem 0.5rem; font-weight:600;">$25.70</td>
+                                            <td style="padding:0.75rem 0.5rem; color:#64748b;">Denim Jacket</td>
+                                            <td style="padding:0.75rem 0.5rem; text-align:center; font-weight:600;">10</td>
+                                            <td style="padding:0.75rem 0.5rem; text-align:right; font-weight:700;">$160.00</td>
+                                        </tr>
+                                        <tr style="border-bottom:1px solid #f1f5f9;">
+                                            <td style="padding:0.75rem 0.5rem; font-weight:700; display:flex; align-items:center; gap:0.5rem;">
+                                                <span style="font-size:1.1rem;">👖</span> Blue Overall
+                                            </td>
+                                            <td style="padding:0.75rem 0.5rem; font-weight:600;">$42.00</td>
+                                            <td style="padding:0.75rem 0.5rem; color:#64748b;">Auner</td>
+                                            <td style="padding:0.75rem 0.5rem; text-align:center; font-weight:600;">10</td>
+                                            <td style="padding:0.75rem 0.5rem; text-align:right; font-weight:700;">$130.00</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Coluna da Direita (Side Panels) -->
+                    <div style="display:flex; flex-direction:column; gap:1.5rem;">
+                        
+                        <!-- Mini Dark Banners Stack -->
+                        <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                            <div style="background:linear-gradient(135deg, #1e293b, #0f172a); border-radius:12px; padding:1rem 1.2rem; color:white; border:1px solid #334155; position:relative; overflow:hidden;">
+                                <h4 style="margin:0 0 2px 0; font-size:0.78rem; font-weight:800; color:#f8fafc;">Create a promotional</h4>
+                                <p style="margin:0; font-size:0.68rem; color:#94a3b8;">campaign to attract more customers.</p>
+                            </div>
+                            <div style="background:linear-gradient(135deg, #1e293b, #0f172a); border-radius:12px; padding:1rem 1.2rem; color:white; border:1px solid #334155; position:relative; overflow:hidden;">
+                                <h4 style="margin:0 0 2px 0; font-size:0.78rem; font-weight:800; color:#f8fafc;">Expand your catalog</h4>
+                                <p style="margin:0; font-size:0.68rem; color:#94a3b8;">to boost customer interest.</p>
+                            </div>
+                        </div>
+
+                        <!-- Sales by Country -->
+                        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.2rem 1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                            <h3 style="margin:0 0 1.2rem 0; font-size:0.92rem; font-weight:800; color:#1e293b;">Sales by Country</h3>
+                            <div style="display:flex; flex-direction:column; gap:0.85rem;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; font-size:0.8rem;">
+                                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                                        <span style="font-size:1.2rem; border-radius:50%; overflow:hidden;">🇦🇷</span>
+                                        <div style="display:flex; flex-direction:column; line-height:1.2;">
+                                            <span style="font-weight:700; color:#1e293b;">Argentina</span>
+                                            <span style="font-size:0.68rem; color:#64748b;">Products products</span>
+                                        </div>
+                                    </div>
+                                    <div style="text-align:right; line-height:1.2;">
+                                        <div style="font-weight:700; color:#1e293b;">135</div>
+                                        <div style="font-size:0.68rem; color:#64748b; font-weight:600;">2.00x</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; align-items:center; justify-content:space-between; font-size:0.8rem;">
+                                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                                        <span style="font-size:1.2rem; border-radius:50%; overflow:hidden;">🇩🇪</span>
+                                        <div style="display:flex; flex-direction:column; line-height:1.2;">
+                                            <span style="font-weight:700; color:#1e293b;">Germany</span>
+                                            <span style="font-size:0.68rem; color:#64748b;">Products products</span>
+                                        </div>
+                                    </div>
+                                    <div style="text-align:right; line-height:1.2;">
+                                        <div style="font-weight:700; color:#1e293b;">35</div>
+                                        <div style="font-size:0.68rem; color:#64748b; font-weight:600;">1.79x</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; align-items:center; justify-content:space-between; font-size:0.8rem;">
+                                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                                        <span style="font-size:1.2rem; border-radius:50%; overflow:hidden;">🇨🇳</span>
+                                        <div style="display:flex; flex-direction:column; line-height:1.2;">
+                                            <span style="font-weight:700; color:#1e293b;">China</span>
+                                            <span style="font-size:0.68rem; color:#64748b;">Products products</span>
+                                        </div>
+                                    </div>
+                                    <div style="text-align:right; line-height:1.2;">
+                                        <div style="font-weight:700; color:#1e293b;">90</div>
+                                        <div style="font-size:0.68rem; color:#64748b; font-weight:600;">4.75x</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; align-items:center; justify-content:space-between; font-size:0.8rem;">
+                                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                                        <span style="font-size:1.2rem; border-radius:50%; overflow:hidden;">🇺🇸</span>
+                                        <div style="display:flex; flex-direction:column; line-height:1.2;">
+                                            <span style="font-weight:700; color:#1e293b;">America</span>
+                                            <span style="font-size:0.68rem; color:#64748b;">Products products</span>
+                                        </div>
+                                    </div>
+                                    <div style="text-align:right; line-height:1.2;">
+                                        <div style="font-weight:700; color:#1e293b;">42</div>
+                                        <div style="font-size:0.68rem; color:#64748b; font-weight:600;">3.05x</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; align-items:center; justify-content:space-between; font-size:0.8rem;">
+                                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                                        <span style="font-size:1.2rem; border-radius:50%; overflow:hidden;">🇪🇺</span>
+                                        <div style="display:flex; flex-direction:column; line-height:1.2;">
+                                            <span style="font-weight:700; color:#1e293b;">Europe</span>
+                                            <span style="font-size:0.68rem; color:#64748b;">Products products</span>
+                                        </div>
+                                    </div>
+                                    <div style="text-align:right; line-height:1.2;">
+                                        <div style="font-weight:700; color:#1e293b;">26</div>
+                                        <div style="font-size:0.68rem; color:#64748b; font-weight:600;">4.75x</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; align-items:center; justify-content:space-between; font-size:0.8rem;">
+                                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                                        <span style="font-size:1.2rem; border-radius:50%; overflow:hidden;">🇨🇦</span>
+                                        <div style="display:flex; flex-direction:column; line-height:1.2;">
+                                            <span style="font-weight:700; color:#1e293b;">Canada</span>
+                                            <span style="font-size:0.68rem; color:#64748b;">Products products</span>
+                                        </div>
+                                    </div>
+                                    <div style="text-align:right; line-height:1.2;">
+                                        <div style="font-weight:700; color:#1e293b;">44</div>
+                                        <div style="font-size:0.68rem; color:#64748b; font-weight:600;">4.86x</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Monthly Target -->
+                        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.2rem 1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; gap:1.2rem;">
+                            <h3 style="margin:0; font-size:0.92rem; font-weight:800; color:#1e293b;">Monthly Target</h3>
+                            <div style="position:relative; width:120px; height:120px; margin:0 auto;">
+                                <svg width="120" height="120" viewBox="0 0 120 120" style="transform: rotate(-90deg);">
+                                    <circle cx="60" cy="60" r="45" fill="none" stroke="#f1f5f9" stroke-width="12"/>
+                                    <circle cx="60" cy="60" r="45" fill="none" stroke="url(#donut-grad)" stroke-width="12" stroke-dasharray="192.6 282.74" stroke-linecap="round"/>
+                                    <defs>
+                                        <linearGradient id="donut-grad" x1="0" y1="0" x2="1" y2="1">
+                                            <stop offset="0%" stop-color="#f97316"/>
+                                            <stop offset="100%" stop-color="#fb923c"/>
+                                        </linearGradient>
+                                    </defs>
+                                </svg>
+                                <div style="position:absolute; top:0; left:0; right:0; bottom:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                                    <span style="font-size:1.15rem; font-weight:800; color:#1e293b; font-family:'Inter', sans-serif;">68.12%</span>
+                                    <span style="font-size:0.7rem; font-weight:700; color:#22c55e; background:#f0fdf4; padding:2px 6px; border-radius:10px; margin-top:2px;">+20%</span>
+                                </div>
+                            </div>
+                            <button style="background:#1e293b; border:none; border-radius:8px; color:white; padding:0.6rem; font-size:0.83rem; font-weight:700; cursor:pointer; width:100%; text-align:center; transition:background 0.15s;" onmouseover="this.style.background='#0f172a'" onmouseout="this.style.background='#1e293b'">
+                                Boost Sales
+                            </button>
+                        </div>
+
                     </div>
                 </div>
-
-                <!-- Rodapé da Tabela: Paginação e Contagem -->
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1rem; font-family:'Inter', sans-serif;">
-                    <div></div>
-                    <div style="display:flex; align-items:center; gap:0.25rem;">
-                        <button disabled style="background:#f1f5f9; color:#94a3b8; border:1px solid #e2e8f0; padding:0.35rem 0.7rem; border-radius:6px; font-size:0.8rem; cursor:not-allowed; font-weight:500;">Anterior</button>
-                        <button style="background:#7048e8; color:white; border:none; padding:0.35rem 0.7rem; border-radius:6px; font-size:0.8rem; cursor:pointer; font-weight:600;">1</button>
-                        <button style="background:#fff; color:#475569; border:1px solid #e2e8f0; padding:0.35rem 0.7rem; border-radius:6px; font-size:0.8rem; cursor:pointer; font-weight:500;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">2</button>
-                        <button style="background:#fff; color:#475569; border:1px solid #e2e8f0; padding:0.35rem 0.7rem; border-radius:6px; font-size:0.8rem; cursor:pointer; font-weight:500;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">3</button>
-                        <span style="color:#94a3b8; padding:0 0.25rem;">...</span>
-                        <button style="background:#fff; color:#475569; border:1px solid #e2e8f0; padding:0.35rem 0.7rem; border-radius:6px; font-size:0.8rem; cursor:pointer; font-weight:500;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">Próximo</button>
-                    </div>
-                    <div id="prop-count" style="font-size:0.82rem; color:#64748b; font-weight:500;">
-                        ${139 + _propostasData.length} proposta(s) encontrada(s)
-                    </div>
-                </div>
-            </div>
-
-            <!-- VIEW: FORMULÁRIO -->
+            </div>            <!-- VIEW: FORMULÁRIO -->
             <div id="prop-view-form" style="display:${_currentPropostaTab === 'form' ? 'block' : 'none'};"></div>
 
             <!-- VIEW: CADASTRO CLIENTE -->
@@ -642,58 +753,18 @@ window.switchPropostaTab = function(tab) {
 };
 
 function _renderCardsResumoProp() {
-    const total = _propostasData.length;
-    const aprovadas = _propostasData.filter(p => p.fase_negociacao === 'Aprovada').length;
-    const emNeg = _propostasData.filter(p => ['Em Negociação','Proposta Enviada','Em Elaboração','Aguardando Aprovação'].includes(p.fase_negociacao)).length;
-    const convertidas = _propostasData.filter(p => p.fase_negociacao === 'Convertida em OS').length;
-
-    // Use offsets to match the user's requested numbers (150, 35, 15, 10) dynamically
-    const totalVal = 139 + total;
-    const emNegVal = 26 + emNeg;
-    const aprovadasVal = 14 + aprovadas;
-    const convertidasVal = 9 + convertidas;
-
     const cards = [
-        {
-            label: 'Total', val: totalVal, trend: '+(15%)', trendColor: '#22c55e', icon: 'ph-file-text',
-            bg: '#f5f3ff', text: '#6d28d9', border: '#ddd6fe',
-            sparkline: '<path d="M0,15 L11,13 L22,16 L33,8 L44,2" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
-        },
-        {
-            label: 'Em Andamento', val: emNegVal, trend: '', trendColor: '#94a3b8', icon: 'ph-arrows-left-right',
-            bg: '#fff7ed', text: '#c2410c', border: '#fed7aa',
-            sparkline: '<path d="M0,11 Q11,15 22,9 T44,12 T55,8" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
-        },
-        {
-            label: 'Aprovadas', val: aprovadasVal, trend: '+(5%)', trendColor: '#22c55e', icon: 'ph-check-circle',
-            bg: '#f0fdf4', text: '#166534', border: '#bbf7d0',
-            sparkline: '<path d="M0,13 L11,15 L22,10 L33,12 L44,3" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
-        },
-        {
-            label: 'Convertidas em OS', val: convertidasVal, trend: '', trendColor: '#94a3b8', icon: 'ph-clipboard-text',
-            bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe',
-            sparkline: '<path d="M0,12 Q11,16 22,10 T44,13 T55,9" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
-        }
+        { label: 'Total Sales', val: '16,328', trend: '+2.9%', trendColor: '#22c55e', bg: '#fff', text: '#64748b' },
+        { label: 'Total Order', val: '1,321', trend: '+9.5%', trendColor: '#ea580c', bg: '#fff', text: '#64748b' },
+        { label: 'Customer Count', val: '4,108', trend: '+4.5%', trendColor: '#22c55e', bg: '#fff', text: '#64748b' },
+        { label: 'Product Returns', val: '2,156', trend: '+2.5%', trendColor: '#ef4444', bg: '#fff', text: '#64748b' }
     ];
-
     return cards.map(c => `
-        <div style="flex:1; min-width:200px; background:${c.bg}; border:1px solid ${c.border}; border-radius:12px; padding:1.2rem 1.5rem; display:flex; align-items:center; justify-content:space-between; box-shadow:0 4px 6px -1px rgba(0,0,0,0.01), 0 2px 4px -1px rgba(0,0,0,0.01);">
-            <div style="display:flex; align-items:center; gap:0.95rem;">
-                <div style="width:42px; height:42px; background:white; border-radius:10px; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-                    <i class="ph ${c.icon}" style="font-size:1.35rem; color:${c.text};"></i>
-                </div>
-                <div>
-                    <div style="font-size:0.78rem; font-weight:600; color:#64748b; margin-bottom:1px;">${c.label}</div>
-                    <div style="font-size:1.65rem; font-weight:800; color:#1e293b; line-height:1.1;">
-                        ${c.val}
-                        ${c.trend ? `<span style="font-size:0.75rem; font-weight:700; color:${c.trendColor}; margin-left:3px; vertical-align:middle;">${c.trend}</span>` : ''}
-                    </div>
-                </div>
-            </div>
-            <div style="display:flex; align-items:flex-end; height:100%;">
-                <svg width="55" height="18" style="overflow:visible; opacity:0.85;">
-                    ${c.sparkline}
-                </svg>
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1.2rem; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+            <div style="font-size:0.78rem; font-weight:600; color:#64748b; margin-bottom:0.4rem;">${c.label}</div>
+            <div style="display:flex; align-items:baseline; gap:0.4rem;">
+                <span style="font-size:1.35rem; font-weight:800; color:#1e293b; line-height:1;">${c.val}</span>
+                <span style="font-size:0.75rem; font-weight:700; color:${c.trendColor};">${c.trend}</span>
             </div>
         </div>
     `).join('');
