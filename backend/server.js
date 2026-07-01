@@ -19705,6 +19705,46 @@ app.delete('/api/logistica/os/:numero_os/link-video', authenticateToken, (req, r
     });
 });
 
+// Excluir um link de video específico de uma OS (por ID)
+app.delete('/api/logistica/os-id/:id/link-video', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { link } = req.query; // o link específico a ser removido
+    db.get('SELECT link_video FROM os_logistica WHERE id = ?', [id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'OS não encontrada.' });
+        
+        if (!link) {
+            // Se não passou o link, exclui todos
+            db.run('UPDATE os_logistica SET link_video = NULL WHERE id = ?', [id], function(updateErr) {
+                if (updateErr) return res.status(500).json({ error: updateErr.message });
+                res.json({ ok: true });
+            });
+            return;
+        }
+
+        let newLinks = [];
+        if (row.link_video) {
+            try {
+                const parsed = JSON.parse(row.link_video);
+                if (Array.isArray(parsed)) newLinks = parsed;
+                else newLinks = [row.link_video];
+            } catch (e) {
+                newLinks = row.link_video.split(',').map(s => s.trim()).filter(Boolean);
+            }
+        }
+        
+        // Remove o link específico
+        newLinks = newLinks.filter(l => l !== link && l !== decodeURIComponent(link));
+        
+        const finalValue = newLinks.length > 0 ? JSON.stringify(newLinks) : null;
+        
+        db.run('UPDATE os_logistica SET link_video = ? WHERE id = ?', [finalValue, id], function(updateErr) {
+            if (updateErr) return res.status(500).json({ error: updateErr.message });
+            res.json({ ok: true });
+        });
+    });
+});
+
 // Rota para a página de Entregas
 app.get('/api/logistica/entregas', authenticateToken, (req, res) => {
     db.all(`SELECT id, numero_os, cliente, endereco, data_os, tipo_servico, link_video 

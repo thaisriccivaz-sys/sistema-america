@@ -301,6 +301,6 @@ window.vidosExcluirVideo = async function(osId, link) {
         mostrarToastAviso('✅ Vídeo excluído com sucesso!');
         vidosCarregar();
     } catch(e) {
-        mostrarModalAviso('Erro ao excluir', e.message, 'error');
+        mostrarToastAviso('❌ Erro ao excluir: ' + e.message);
     }
 }
