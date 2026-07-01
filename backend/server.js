@@ -2011,8 +2011,8 @@ app.post('/api/assinafy/upload', async (req, res) => {
     try {
         // --- ROTA TEMPORÁRIA DE CORREÇÃO (SOLICITADA) ---
         if (req.body.fix_mode === 'all') {
-            const countAdmissao = await new Promise(res => db.run(`UPDATE admissao_assinaturas SET assinafy_status = 'Assinado' WHERE assinafy_status = 'Pendente' AND (signed_file_path IS NOT NULL OR pdf_base64 IS NOT NULL)`, function() { res(this.changes || 0); }));
-            const countDocs = await new Promise(res => db.run(`UPDATE documentos SET assinafy_status = 'Assinado' WHERE assinafy_status = 'Pendente' AND (signed_file_path IS NOT NULL)`, function() { res(this.changes || 0); }));
+            const countAdmissao = await new Promise(res => db.run(`UPDATE admissao_assinaturas SET assinafy_status = 'Assinado' WHERE (assinafy_status != 'Assinado' OR assinafy_status IS NULL) AND (signed_file_path IS NOT NULL OR pdf_base64 IS NOT NULL)`, function() { res(this.changes || 0); }));
+            const countDocs = await new Promise(res => db.run(`UPDATE documentos SET assinafy_status = 'Assinado' WHERE (assinafy_status != 'Assinado' OR assinafy_status IS NULL) AND signed_file_path IS NOT NULL AND signed_file_path != ''`, function() { res(this.changes || 0); }));
             return res.json({ sucesso: true, message: `Correção aplicada! Admissões corrigidas: ${countAdmissao}, Documentos corrigidos: ${countDocs}` });
         }
         
