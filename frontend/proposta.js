@@ -218,6 +218,50 @@ function renderTelaPropostas() {
                     color: #7048E8 !important;
                     background-color: #E2E8F0;
                 }
+                .saas-dropdown-container {
+                    position: relative;
+                    display: inline-block;
+                }
+                .saas-dropdown-menu {
+                    display: none;
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    background-color: #ffffff;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 8px;
+                    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+                    min-width: 200px;
+                    z-index: 1000;
+                    padding: 0.35rem;
+                    margin-top: 0.25rem;
+                }
+                .saas-dropdown-container:hover .saas-dropdown-menu {
+                    display: block;
+                }
+                .saas-dropdown-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-size: 0.85rem;
+                    font-weight: 600;
+                    color: #64748B;
+                    text-decoration: none;
+                    padding: 0.5rem 0.75rem;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    user-select: none;
+                    white-space: nowrap;
+                }
+                .saas-dropdown-item:hover {
+                    color: #1E293B;
+                    background-color: #F1F5F9;
+                }
+                .saas-dropdown-item.active {
+                    color: #7048E8 !important;
+                    background-color: #F1F5F9;
+                }
                 .saas-right-section {
                     display: flex;
                     align-items: center;
@@ -307,20 +351,24 @@ function renderTelaPropostas() {
 
                 <!-- Centro: Navegação Principal -->
                 <div class="saas-nav">
-                    <div class="saas-nav-item" id="tab-prop-lista" onclick="switchPropostaTab('lista')">
-                        <i class="ph ph-list-bullets"></i> Lista de Propostas
-                    </div>
-                    <div class="saas-nav-item" id="tab-prop-form" onclick="abrirFormProposta(null)">
-                        <i class="ph ph-pencil-simple"></i> Nova Proposta
-                    </div>
-                    <div class="saas-nav-item" id="tab-prop-cadastro-cliente" onclick="switchPropostaTab('cadastro-cliente')">
-                        <i class="ph ph-user-plus"></i> Cadastro de Clientes
-                    </div>
-                    <div class="saas-nav-item" id="tab-prop-cadastro-contatos" onclick="switchPropostaTab('cadastro-contatos')">
-                        <i class="ph ph-identification-card"></i> Cadastro de Contatos
-                    </div>
-                    <div class="saas-nav-item" id="tab-prop-enderecos" onclick="switchPropostaTab('enderecos')">
-                        <i class="ph ph-map-pin"></i> Endereços
+                    <div class="saas-dropdown-container">
+                        <div class="saas-nav-item" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
+                            <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
+                        </div>
+                        <div class="saas-dropdown-menu">
+                            <div class="saas-dropdown-item" id="tab-prop-form" onclick="abrirFormProposta(null); event.stopPropagation();">
+                                <i class="ph ph-pencil-simple"></i> Nova Proposta
+                            </div>
+                            <div class="saas-dropdown-item" id="tab-prop-cadastro-cliente" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
+                                <i class="ph ph-user-plus"></i> Cadastro de Clientes
+                            </div>
+                            <div class="saas-dropdown-item" id="tab-prop-cadastro-contatos" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                                <i class="ph ph-identification-card"></i> Cadastro de Contatos
+                            </div>
+                            <div class="saas-dropdown-item" id="tab-prop-enderecos" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
+                                <i class="ph ph-map-pin"></i> Endereços
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -461,15 +509,21 @@ window.switchPropostaTab = function(tab) {
         viewEnderecos.style.display = tab === 'enderecos' ? 'block' : 'none';
 
         // Update active class in SaaS Header
-        document.querySelectorAll('.saas-nav-item').forEach(item => {
+        document.querySelectorAll('.saas-nav-item, .saas-dropdown-item').forEach(item => {
             item.classList.remove('active');
         });
 
-        if (tab === 'lista') tabLista.classList.add('active');
-        else if (tab === 'form') tabForm.classList.add('active');
-        else if (tab === 'cadastro-cliente') tabCadastroCliente.classList.add('active');
-        else if (tab === 'cadastro-contatos') tabCadastroContatos.classList.add('active');
-        else if (tab === 'enderecos') tabEnderecos.classList.add('active');
+        if (tab === 'lista') {
+            if (tabLista) tabLista.classList.add('active');
+        } else {
+            // Keep parent dropdown trigger active as indicator
+            if (tabLista) tabLista.classList.add('active');
+            
+            if (tab === 'form' && tabForm) tabForm.classList.add('active');
+            else if (tab === 'cadastro-cliente' && tabCadastroCliente) tabCadastroCliente.classList.add('active');
+            else if (tab === 'cadastro-contatos' && tabCadastroContatos) tabCadastroContatos.classList.add('active');
+            else if (tab === 'enderecos' && tabEnderecos) tabEnderecos.classList.add('active');
+        }
     } else {
         renderTelaPropostas();
     }
