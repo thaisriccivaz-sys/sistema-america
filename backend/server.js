@@ -20598,6 +20598,35 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
         console.log('[PROPOSTAS] Alerta ao alterar tabela (pode já existir a coluna):', errAlter.message);
       }
     });
+    
+    // Seed automático de propostas se a tabela estiver vazia
+    db.get("SELECT COUNT(*) as count FROM propostas", [], (err, rowCount) => {
+        if (!err && rowCount && rowCount.count === 0) {
+            console.log('[PROPOSTAS] Populando propostas comerciais iniciais...');
+            const seedData = [
+                ['PR2026/001', 'CAMPINAS', 'Novo', 'Ana Silva', '2026-06-15', '2026-06-20', 'Aprovada', 'Padrão', 'Auto Peças Ltda.', 'Carlos Souza', '2026-07-01', '2026-07-31', 30, '30 dias', 'Ana Silva', 'FOB', 'FOB', 150, 150, 'Proposta inicial aprovada.', 895.00, 'Diretoria', 'CT2026/001'],
+                ['PR2026/002', 'SÃO PAULO', 'Renovação', 'João Costa', '2026-06-16', '2026-06-22', 'Em Negociação', 'Padrão', 'Mão Certa Locações', 'Marcos Lima', '2026-07-05', '2026-08-04', 30, '15 dias', 'João Costa', 'CIF', 'CIF', 200, 200, 'Aguardando retorno.', 1500.00, 'Diretoria', ''],
+                ['PR2026/003', 'VALINHOS', 'Novo', 'Bia Santos', '2026-06-17', '2026-06-25', 'Convertida em OS', 'Padrão', 'TechGng Solocians', 'Roberto Alves', '2026-07-10', '2026-08-09', 30, 'Faturado', 'Bia Santos', 'FOB', 'FOB', 100, 100, 'Gerado OS.', 12300.00, 'Diretoria', 'CT2026/002'],
+                ['PR2026/004', 'VINHEDO', 'Novo', 'Ana Silva', '2026-06-18', '2026-06-28', 'Em Negociação', 'Padrão', 'Anolva Preal', 'Juliana Dias', '2026-07-15', '2026-08-14', 30, 'Boleto', 'Ana Silva', 'CIF', 'CIF', 180, 180, 'Enviado por e-mail.', 12390.90, 'Diretoria', ''],
+                ['PR2026/005', 'JUNDIAÍ', 'Renovação', 'João Costa', '2026-06-19', '2026-06-29', 'Aguardando Aprovação', 'Padrão', 'Aguardando Final', 'Lucas Martins', '2026-07-20', '2026-08-19', 30, 'Faturado', 'João Costa', 'FOB', 'FOB', 0, 0, 'Análise.', 12300.00, 'Diretoria', ''],
+                ['PR2026/006', 'SUMARÉ', 'Novo', 'Bia Santos', '2026-06-20', '2026-06-30', 'Em Negociação', 'Padrão', 'Aua Clta', 'Felipe Santos', '2026-07-22', '2026-08-21', 30, '30 dias', 'Bia Santos', 'CIF', 'CIF', 120, 120, 'Negociando.', 12390.90, 'Diretoria', ''],
+                ['PR2026/007', 'HORTOLÂNDIA', 'Novo', 'Ana Silva', '2026-06-21', '2026-07-02', 'Perdida', 'Padrão', 'Ave Cifts', 'Amanda Lima', '2026-07-25', '2026-08-24', 30, 'Boleto', 'Ana Silva', 'FOB', 'FOB', 130, 130, 'Recusado.', 12390.90, 'Diretoria', ''],
+                ['PR2026/008', 'PAULÍNIA', 'Novo', 'João Costa', '2026-06-22', '2026-07-05', 'Em Negociação', 'Padrão', 'Avs Cikta', 'Gabriel Costa', '2026-07-28', '2026-08-27', 30, '15 dias', 'João Costa', 'CIF', 'CIF', 160, 160, 'Negociação.', 12380.90, 'Diretoria', ''],
+                ['PR2026/009', 'INDAIATUBA', 'Novo', 'Bia Santos', '2026-06-23', '2026-07-06', 'Em Negociação', 'Padrão', 'Aurlia Custi', 'Patrícia Rocha', '2026-08-01', '2026-08-31', 30, 'Boleto', 'Bia Santos', 'FOB', 'FOB', 150, 150, 'Crédito.', 15300.00, 'Diretoria', ''],
+                ['PR2026/010', 'SALTO', 'Novo', 'Ana Silva', '2026-06-24', '2026-07-08', 'Em Negociação', 'Padrão', 'Aule Cacto', 'Fernanda Silveira', '2026-08-05', '2026-09-04', 30, 'Faturado', 'Ana Silva', 'CIF', 'CIF', 140, 140, 'Andamento.', 13300.00, 'Diretoria', ''],
+                ['PR2026/011', 'ITU', 'Novo', 'Bia Santos', '2026-06-25', '2026-07-10', 'Em Negociação', 'Padrão', 'TechCon-Fund', 'Maurício Souza', '2026-08-10', '2026-09-08', 30, 'Boleto', 'Bia Santos', 'FOB', 'FOB', 170, 170, 'Negociação.', 13360.80, 'Diretoria', '']
+            ];
+            const stmt = db.prepare(`INSERT INTO propostas (
+                codigo, local, tipo, atendente, data_cadastro, previsao_fechamento,
+                fase_negociacao, modelo_impressao, cliente_nome, contato_nome,
+                periodo_inicio, periodo_fim, dias_contrato, condicao_pagamento,
+                representante, transportadora, tipo_frete, valor_frete_ida,
+                valor_frete_volta, observacoes, valor_total, criado_por, contrato
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+            seedData.forEach(rowVal => stmt.run(rowVal));
+            stmt.finalize();
+        }
+    });
   }
 });
 

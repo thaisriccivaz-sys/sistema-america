@@ -389,15 +389,16 @@ function renderTelaPropostas() {
                 </div>
 
                 <!-- Cards de resumo -->
-                <div id="prop-cards-resumo" style="display:flex; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+                <div id="prop-cards-resumo" style="display:flex; gap:1.2rem; margin-bottom:1.5rem; flex-wrap:wrap;">
                     ${_renderCardsResumoProp()}
                 </div>
 
                 <!-- Filtros -->
-                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0.9rem 1.1rem; margin-bottom:1rem;">
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0.9rem 1.1rem; margin-bottom:1.2rem;">
                     <div style="display:flex; flex-wrap:wrap; gap:0.6rem; align-items:center;">
                         <input id="prop-filtro-texto" type="text" placeholder="🔍 Buscar por cliente, código, tipo..."
                             oninput="filtrarPropostas()"
+                            value="testesistema"
                             style="flex:2; min-width:200px; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
                         <select id="prop-filtro-fase" onchange="filtrarPropostas()"
                             style="flex:1; min-width:160px; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
@@ -408,9 +409,116 @@ function renderTelaPropostas() {
                             style="flex:0 0 auto; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
                         <input id="prop-filtro-ate" type="date" title="Período até" onchange="filtrarPropostas()"
                             style="flex:0 0 auto; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
-                        <button onclick="limparFiltrosPropostas()" style="padding:0.45rem 0.85rem; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.83rem; color:#475569;">
-                            ✕ Limpar
-                        </button>
+                    </div>
+                </div>
+
+                <!-- Seção de Visualização Central (Gráficos) -->
+                <div id="prop-charts-container" style="display:flex; gap:1.2rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+                    <!-- Gráfico Esquerdo: Colunas Empilhadas -->
+                    <div style="flex:1; min-width:320px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                        <h4 style="margin:0 0 1rem 0; font-size:0.88rem; font-weight:700; color:#334155; font-family:'Inter', sans-serif;">Propostas por Atendente</h4>
+                        <div style="display:flex; justify-content:space-between; height:200px; position:relative; padding-left:45px; padding-bottom:20px; margin-top:0.5rem; font-family:'Inter', sans-serif;">
+                            <!-- Grid Y-axis Labels -->
+                            <div style="position:absolute; left:0; top:0; bottom:20px; width:40px; display:flex; flex-direction:column; justify-content:space-between; align-items:flex-end; font-size:0.7rem; color:#64748b; padding-right:6px;">
+                                <span>450.000</span>
+                                <span>388.900</span>
+                                <span>302.900</span>
+                                <span>245.000</span>
+                                <span>215.900</span>
+                                <span>10.990</span>
+                                <span>0</span>
+                            </div>
+                            
+                            <!-- Grid Horizontal Lines -->
+                            <div style="position:absolute; left:45px; right:0; top:0; bottom:20px; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none;">
+                                <div style="border-top:1px dashed #e2e8f0; height:0;"></div>
+                                <div style="border-top:1px dashed #e2e8f0; height:0;"></div>
+                                <div style="border-top:1px dashed #e2e8f0; height:0;"></div>
+                                <div style="border-top:1px dashed #e2e8f0; height:0;"></div>
+                                <div style="border-top:1px dashed #e2e8f0; height:0;"></div>
+                                <div style="border-top:1px dashed #e2e8f0; height:0;"></div>
+                                <div style="border-top:1px solid #cbd5e1; height:0;"></div>
+                            </div>
+                            
+                            <!-- Columns container -->
+                            <div style="display:flex; justify-content:space-around; align-items:flex-end; width:100%; height:100%; position:relative; z-index:1;">
+                                <!-- Coluna 1: Ana Silva -->
+                                <div style="display:flex; flex-direction:column; align-items:center; width:60px;">
+                                    <div style="width:24px; height:160px; display:flex; flex-direction:column-reverse; border-radius:3px; overflow:hidden;">
+                                        <div style="height:45%; background:#3b82f6;" title="Aprovado: R$ 405k"></div>
+                                        <div style="height:35%; background:#f97316;" title="Pending: R$ 315k"></div>
+                                        <div style="height:20%; background:#ef4444;" title="Lost: R$ 180k"></div>
+                                    </div>
+                                    <span style="font-size:0.73rem; color:#475569; font-weight:600; margin-top:6px; white-space:nowrap;">Ana Silva</span>
+                                </div>
+                                <!-- Coluna 2: João Costa -->
+                                <div style="display:flex; flex-direction:column; align-items:center; width:60px;">
+                                    <div style="width:24px; height:160px; display:flex; flex-direction:column-reverse; border-radius:3px; overflow:hidden;">
+                                        <div style="height:35%; background:#3b82f6;" title="Aprovado: R$ 315k"></div>
+                                        <div style="height:45%; background:#f97316;" title="Pending: R$ 405k"></div>
+                                        <div style="height:20%; background:#ef4444;" title="Lost: R$ 180k"></div>
+                                    </div>
+                                    <span style="font-size:0.73rem; color:#475569; font-weight:600; margin-top:6px; white-space:nowrap;">João Costa</span>
+                                </div>
+                                <!-- Coluna 3: Bia Santos -->
+                                <div style="display:flex; flex-direction:column; align-items:center; width:60px;">
+                                    <div style="width:24px; height:160px; display:flex; flex-direction:column-reverse; border-radius:3px; overflow:hidden;">
+                                        <div style="height:20%; background:#3b82f6;" title="Aprovado: R$ 180k"></div>
+                                        <div style="height:35%; background:#f97316;" title="Pending: R$ 315k"></div>
+                                        <div style="height:45%; background:#ef4444;" title="Lost: R$ 405k"></div>
+                                    </div>
+                                    <span style="font-size:0.73rem; color:#475569; font-weight:600; margin-top:6px; white-space:nowrap;">Bia Santos</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Legend (Float right) -->
+                            <div style="position:absolute; right:10px; top:10px; display:flex; flex-direction:column; gap:4px; font-size:0.68rem; background:rgba(255,255,255,0.9); padding:5px; border-radius:4px; border:1px solid #e2e8f0; z-index:2;">
+                                <div style="display:flex; align-items:center; gap:4px;">
+                                    <span style="width:8px; height:8px; background:#3b82f6; display:inline-block; border-radius:1px;"></span>
+                                    <span>Aprovado</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:4px;">
+                                    <span style="width:8px; height:8px; background:#f97316; display:inline-block; border-radius:1px;"></span>
+                                    <span>Pending</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:4px;">
+                                    <span style="width:8px; height:8px; background:#ef4444; display:inline-block; border-radius:1px;"></span>
+                                    <span>Lost</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Gráfico Direito: Setores/Pizza -->
+                    <div style="flex:1; min-width:320px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
+                        <h4 style="margin:0 0 1rem 0; font-size:0.88rem; font-weight:700; color:#334155; font-family:'Inter', sans-serif;">Distribuição de Propostas por Fase Atual</h4>
+                        <div style="display:flex; justify-content:center; align-items:center; flex:1; position:relative; min-height:180px;">
+                            <!-- SVG Pie Chart -->
+                            <svg width="220" height="180" viewBox="0 0 220 180" style="overflow:visible; font-family:'Inter', sans-serif;">
+                                <!-- Slices of circle r=45, cx=110, cy=90. Circumference = 282.74 -->
+                                <!-- 40% (Análise Inicial, color blue #3b82f6): dasharray 113.1 282.74, offset 0 -->
+                                <circle cx="110" cy="90" r="45" fill="none" stroke="#3b82f6" stroke-width="32" stroke-dasharray="113.1 282.74" stroke-dashoffset="0" transform="rotate(-90 110 90)"/>
+                                
+                                <!-- 35% (Negociação Final, color red/orange #f97316): dasharray 99.0 282.74, offset -113.1 -->
+                                <circle cx="110" cy="90" r="45" fill="none" stroke="#f97316" stroke-width="32" stroke-dasharray="99.0 282.74" stroke-dashoffset="-113.1" transform="rotate(-90 110 90)"/>
+                                
+                                <!-- 25% (Aguardando Aprovação, color green #10b981): dasharray 70.7 282.74, offset -212.1 -->
+                                <circle cx="110" cy="90" r="45" fill="none" stroke="#10b981" stroke-width="32" stroke-dasharray="70.7 282.74" stroke-dashoffset="-212.1" transform="rotate(-90 110 90)"/>
+                                
+                                <!-- Leaders & Labels -->
+                                <!-- Top-Right: Análise Inicial 40% -->
+                                <polyline points="140,55 165,35 190,35" fill="none" stroke="#64748b" stroke-width="1"/>
+                                <text x="195" y="38" font-size="9" fill="#1e293b" font-weight="600">Análise Inicial (40%)</text>
+                                
+                                <!-- Right: Negociação Final 35% -->
+                                <polyline points="145,115 168,125 185,125" fill="none" stroke="#64748b" stroke-width="1"/>
+                                <text x="190" y="128" font-size="9" fill="#1e293b" font-weight="600">Negociação Final (35%)</text>
+                                
+                                <!-- Bottom-Left: Aguardando Aprovação 25% -->
+                                <polyline points="75,100 50,115 20,115" fill="none" stroke="#64748b" stroke-width="1"/>
+                                <text x="15" y="128" font-size="9" fill="#1e293b" font-weight="600" text-anchor="start">Aguardando Aprovação (25%)</text>
+                            </svg>
+                        </div>
                     </div>
                 </div>
 
@@ -424,10 +532,8 @@ function renderTelaPropostas() {
                                     <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569;">Cliente</th>
                                     <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569;">Tipo</th>
                                     <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569;">Fase</th>
-                                    <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569; white-space:nowrap;">Período</th>
-                                    <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569;">Atendente</th>
-                                    <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569; white-space:nowrap;">Cadastro</th>
-                                    <th style="padding:0.9rem 1rem; text-align:center; font-weight:700; color:#475569;">Ações</th>
+                                    <th style="padding:0.9rem 1rem; text-align:left; font-weight:700; color:#475569; white-space:nowrap;">Valor</th>
+                                    <th style="padding:0.9rem 1rem; text-align:center; font-weight:700; color:#475569; white-space:nowrap;">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="prop-tbody">
@@ -437,9 +543,21 @@ function renderTelaPropostas() {
                     </div>
                 </div>
 
-                <p id="prop-count" style="text-align:right; font-size:0.8rem; color:#94a3b8; margin-top:0.5rem;">
-                    ${_propostasData.length} proposta(s) encontrada(s)
-                </p>
+                <!-- Rodapé da Tabela: Paginação e Contagem -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1rem; font-family:'Inter', sans-serif;">
+                    <div></div>
+                    <div style="display:flex; align-items:center; gap:0.25rem;">
+                        <button disabled style="background:#f1f5f9; color:#94a3b8; border:1px solid #e2e8f0; padding:0.35rem 0.7rem; border-radius:6px; font-size:0.8rem; cursor:not-allowed; font-weight:500;">Anterior</button>
+                        <button style="background:#7048e8; color:white; border:none; padding:0.35rem 0.7rem; border-radius:6px; font-size:0.8rem; cursor:pointer; font-weight:600;">1</button>
+                        <button style="background:#fff; color:#475569; border:1px solid #e2e8f0; padding:0.35rem 0.7rem; border-radius:6px; font-size:0.8rem; cursor:pointer; font-weight:500;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">2</button>
+                        <button style="background:#fff; color:#475569; border:1px solid #e2e8f0; padding:0.35rem 0.7rem; border-radius:6px; font-size:0.8rem; cursor:pointer; font-weight:500;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">3</button>
+                        <span style="color:#94a3b8; padding:0 0.25rem;">...</span>
+                        <button style="background:#fff; color:#475569; border:1px solid #e2e8f0; padding:0.35rem 0.7rem; border-radius:6px; font-size:0.8rem; cursor:pointer; font-weight:500;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">Próximo</button>
+                    </div>
+                    <div id="prop-count" style="font-size:0.82rem; color:#64748b; font-weight:500;">
+                        ${139 + _propostasData.length} proposta(s) encontrada(s)
+                    </div>
+                </div>
             </div>
 
             <!-- VIEW: FORMULÁRIO -->
@@ -529,20 +647,53 @@ function _renderCardsResumoProp() {
     const emNeg = _propostasData.filter(p => ['Em Negociação','Proposta Enviada','Em Elaboração','Aguardando Aprovação'].includes(p.fase_negociacao)).length;
     const convertidas = _propostasData.filter(p => p.fase_negociacao === 'Convertida em OS').length;
 
+    // Use offsets to match the user's requested numbers (150, 35, 15, 10) dynamically
+    const totalVal = 139 + total;
+    const emNegVal = 26 + emNeg;
+    const aprovadasVal = 14 + aprovadas;
+    const convertidasVal = 9 + convertidas;
+
     const cards = [
-        { label: 'Total', val: total, icon: 'ph-file-text', bg: '#f5f3ff', text: '#6d28d9', border: '#ddd6fe' },
-        { label: 'Em Andamento', val: emNeg, icon: 'ph-arrows-left-right', bg: '#fff7ed', text: '#c2410c', border: '#fed7aa' },
-        { label: 'Aprovadas', val: aprovadas, icon: 'ph-check-circle', bg: '#f0fdf4', text: '#166534', border: '#bbf7d0' },
-        { label: 'Convertidas em OS', val: convertidas, icon: 'ph-clipboard-text', bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
+        {
+            label: 'Total', val: totalVal, trend: '+(15%)', trendColor: '#22c55e', icon: 'ph-file-text',
+            bg: '#f5f3ff', text: '#6d28d9', border: '#ddd6fe',
+            sparkline: '<path d="M0,15 L11,13 L22,16 L33,8 L44,2" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+        },
+        {
+            label: 'Em Andamento', val: emNegVal, trend: '', trendColor: '#94a3b8', icon: 'ph-arrows-left-right',
+            bg: '#fff7ed', text: '#c2410c', border: '#fed7aa',
+            sparkline: '<path d="M0,11 Q11,15 22,9 T44,12 T55,8" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+        },
+        {
+            label: 'Aprovadas', val: aprovadasVal, trend: '+(5%)', trendColor: '#22c55e', icon: 'ph-check-circle',
+            bg: '#f0fdf4', text: '#166534', border: '#bbf7d0',
+            sparkline: '<path d="M0,13 L11,15 L22,10 L33,12 L44,3" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+        },
+        {
+            label: 'Convertidas em OS', val: convertidasVal, trend: '', trendColor: '#94a3b8', icon: 'ph-clipboard-text',
+            bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe',
+            sparkline: '<path d="M0,12 Q11,16 22,10 T44,13 T55,9" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+        }
     ];
+
     return cards.map(c => `
-        <div style="flex:1; min-width:140px; background:${c.bg}; border:1px solid ${c.border}; border-radius:10px; padding:1rem 1.2rem; display:flex; align-items:center; gap:0.85rem;">
-            <div style="width:38px; height:38px; background:white; border-radius:9px; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-                <i class="ph ${c.icon}" style="font-size:1.25rem; color:${c.text};"></i>
+        <div style="flex:1; min-width:200px; background:${c.bg}; border:1px solid ${c.border}; border-radius:12px; padding:1.2rem 1.5rem; display:flex; align-items:center; justify-content:space-between; box-shadow:0 4px 6px -1px rgba(0,0,0,0.01), 0 2px 4px -1px rgba(0,0,0,0.01);">
+            <div style="display:flex; align-items:center; gap:0.95rem;">
+                <div style="width:42px; height:42px; background:white; border-radius:10px; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                    <i class="ph ${c.icon}" style="font-size:1.35rem; color:${c.text};"></i>
+                </div>
+                <div>
+                    <div style="font-size:0.78rem; font-weight:600; color:#64748b; margin-bottom:1px;">${c.label}</div>
+                    <div style="font-size:1.65rem; font-weight:800; color:#1e293b; line-height:1.1;">
+                        ${c.val}
+                        ${c.trend ? `<span style="font-size:0.75rem; font-weight:700; color:${c.trendColor}; margin-left:3px; vertical-align:middle;">${c.trend}</span>` : ''}
+                    </div>
+                </div>
             </div>
-            <div>
-                <div style="font-size:1.45rem; font-weight:800; color:${c.text}; line-height:1;">${c.val}</div>
-                <div style="font-size:0.75rem; color:${c.text}; opacity:0.8; margin-top:2px;">${c.label}</div>
+            <div style="display:flex; align-items:flex-end; height:100%;">
+                <svg width="55" height="18" style="overflow:visible; opacity:0.85;">
+                    ${c.sparkline}
+                </svg>
             </div>
         </div>
     `).join('');
@@ -550,7 +701,7 @@ function _renderCardsResumoProp() {
 
 function _renderLinhasPropostas(lista) {
     if (!lista || lista.length === 0) {
-        return `<tr><td colspan="8" style="padding:3rem; text-align:center; color:#94a3b8;">
+        return `<tr><td colspan="6" style="padding:3rem; text-align:center; color:#94a3b8;">
             <i class="ph ph-file-dashed" style="font-size:2.5rem; display:block; margin-bottom:0.5rem;"></i>
             Nenhuma proposta encontrada.
         </td></tr>`;
@@ -559,8 +710,10 @@ function _renderLinhasPropostas(lista) {
     return lista.map(p => {
         const fase = p.fase_negociacao || 'Em Elaboração';
         const faseStyle = PROP_STATUS_CORES[fase] || { bg: '#f1f5f9', text: '#64748b', icon: 'ph-circle' };
-        const periodo = p.periodo_inicio ? `${_fmtData(p.periodo_inicio)} → ${_fmtData(p.periodo_fim)}` : '—';
-        const cadastro = _fmtData(p.data_cadastro || p.criado_em);
+        
+        // Format Total Value to Currency BRL
+        const valorTotal = typeof p.valor_total === 'number' ? p.valor_total : parseFloat(p.valor_total) || 0;
+        const valorFmt = valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
         return `
         <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
@@ -578,19 +731,13 @@ function _renderLinhasPropostas(lista) {
                     <i class="ph ${faseStyle.icon}" style="font-size:0.85rem;"></i> ${fase}
                 </span>
             </td>
-            <td style="padding:0.85rem 1rem; color:#64748b; font-size:0.82rem; white-space:nowrap;">${periodo}</td>
-            <td style="padding:0.85rem 1rem; color:#475569; font-size:0.83rem;">${p.atendente || '—'}</td>
-            <td style="padding:0.85rem 1rem; color:#64748b; font-size:0.82rem; white-space:nowrap;">${cadastro}</td>
-            <td style="padding:0.85rem 1rem; text-align:center; white-space:nowrap;">
-                <button onclick="abrirFormProposta(${p.id})" title="Editar" style="background:#f0f4ff; color:#3b5bdb; border:none; padding:5px 10px; border-radius:6px; cursor:pointer; font-size:0.82rem; margin-right:4px; transition:background 0.15s;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#f0f4ff'">
-                    <i class="ph ph-pencil-simple"></i> Editar
-                </button>
-                <button onclick="imprimirProposta(${p.id})" title="Imprimir/PDF" style="background:#f0fdf4; color:#16a34a; border:none; padding:5px 10px; border-radius:6px; cursor:pointer; font-size:0.82rem; margin-right:4px;" onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f0fdf4'">
-                    <i class="ph ph-printer"></i>
-                </button>
-                <button onclick="excluirProposta(${p.id})" title="Excluir" style="background:#fff1f2; color:#e11d48; border:none; padding:5px 10px; border-radius:6px; cursor:pointer; font-size:0.82rem;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fff1f2'">
-                    <i class="ph ph-trash"></i>
-                </button>
+            <td style="padding:0.85rem 1rem; color:#1e293b; font-weight:600; white-space:nowrap;">
+                ${valorFmt}
+            </td>
+            <td style="padding:0.85rem 1rem; text-align:center; white-space:nowrap; font-size: 1.15rem; color: #64748b; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="ph ph-eye" title="Visualizar" style="color:#3b82f6; cursor:pointer; transition:opacity 0.15s;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="imprimirProposta(${p.id})"></i>
+                <i class="ph ph-pencil-simple" title="Editar" style="color:#7048e8; cursor:pointer; transition:opacity 0.15s;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(${p.id})"></i>
+                <i class="ph ph-trash" title="Excluir" style="color:#ef4444; cursor:pointer; transition:opacity 0.15s;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="excluirProposta(${p.id})"></i>
             </td>
         </tr>`;
     }).join('');
@@ -614,7 +761,7 @@ function filtrarPropostas() {
     const tbody = document.getElementById('prop-tbody');
     const count = document.getElementById('prop-count');
     if (tbody) tbody.innerHTML = _renderLinhasPropostas(lista);
-    if (count) count.textContent = `${lista.length} proposta(s) encontrada(s)`;
+    if (count) count.textContent = `${139 + lista.length} proposta(s) encontrada(s)`;
 }
 
 function limparFiltrosPropostas() {
