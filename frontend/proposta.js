@@ -356,7 +356,7 @@ function renderTelaPropostas() {
             <div id="prop-view-lista" style="display:${_currentPropostaTab === 'lista' ? 'block' : 'none'}; font-family:'Inter', sans-serif; background:#f8fafc; padding:1px 1.5rem 1.5rem 1.5rem; border-radius:14px; min-height:800px; box-sizing:border-box;">
                 
                 <!-- Top Toolbar Header -->
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1px; margin-bottom:1px; background:#fff; padding:0.8rem 1.2rem; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:-10px; margin-bottom:1px; background:#fff; padding:0.8rem 1.2rem; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                     <!-- Lado Esquerdo: Dropdown de Navegação Principal -->
                     <div class="saas-dropdown-container">
                         <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
