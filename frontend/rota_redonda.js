@@ -868,9 +868,11 @@ async function rrFazerUploadVideo(input) {
     if (btn) btn.disabled = true;
 
     const osId = document.getElementById('rr-input-os')?.value?.trim() || '';
+    const realId = (typeof osState !== 'undefined' && osState.loadedId) ? osState.loadedId : '';
     const formData = new FormData();
     formData.append('video', file);
     formData.append('numero_os', osId);
+    if (realId) formData.append('os_id', realId);
 
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';

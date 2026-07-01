@@ -73,20 +73,21 @@ function renderEntregasTable() {
             <td>
                 <label class="btn btn-primary btn-sm" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;margin:0;">
                     <i class="ph ph-upload-simple"></i> Anexar
-                    <input type="file" style="display:none;" onchange="uploadAnexoEntrega(this, '${e.numero_os}')">
+                    <input type="file" style="display:none;" onchange="uploadAnexoEntrega(this, '${e.numero_os}', '${e.id}')">
                 </label>
             </td>
         </tr>`;
     }).join('');
 }
 
-async function uploadAnexoEntrega(input, numero_os) {
+async function uploadAnexoEntrega(input, numero_os, os_id) {
     const file = input.files[0];
     if (!file) return;
     
     const formData = new FormData();
     formData.append('video', file);
     formData.append('numero_os', numero_os);
+    if (os_id) formData.append('os_id', os_id);
 
     try {
         mostrarToastAviso('Enviando anexo...');
