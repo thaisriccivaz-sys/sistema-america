@@ -838,12 +838,23 @@ function rrExibirLinkVideo(linkLongo, linkCurto) {
     // short_link fica em data-short para o botão de copia
     if (display) display.dataset.shortLink = linkCurto || linkLongo;
     if (display && anchor) {
-        const fullShort = (linkCurto || linkLongo).startsWith('http')
-            ? (linkCurto || linkLongo)
-            : window.location.origin + (linkCurto || linkLongo);
+        let linkToUse = linkCurto || linkLongo;
+        let links = [];
+        try { links = JSON.parse(linkToUse); }
+        catch(e) { links = linkToUse.split(',').filter(Boolean); }
+        if (!Array.isArray(links)) links = [links];
+        
+        let fullShort = '#';
+        if (links.length > 0) {
+            let lastLink = links[links.length - 1];
+            fullShort = lastLink.startsWith('http')
+                ? lastLink
+                : window.location.origin + (lastLink.startsWith('/') ? lastLink : '/' + lastLink);
+        }
+
         anchor.href  = fullShort;
         anchor.textContent = '📸 Vídeo do local';
-        anchor.title = fullShort;
+        anchor.title = fullShort !== '#' ? fullShort : '';
         display.style.display = 'inline-flex';
     }
 }
