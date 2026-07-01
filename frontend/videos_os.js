@@ -208,8 +208,10 @@ async function vidosCarregar() {
                     <div style="display:flex; align-items:center; gap:6px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:4px; padding:3px 6px;">
                         <i class="ph ph-film-strip" style="color:#3b82f6;"></i>
                         <a href="${fullLink}" target="_blank" style="color:#1d4ed8; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px; font-size:0.75rem;" title="${fullLink}">${fullLink.replace('https://', '').replace('http://', '')}</a>
-                        <button onclick="navigator.clipboard.writeText('${fullLink}').then(()=>mostrarToastAviso('✅ Link copiado!'))" title="Copiar link" style="background:none; border:none; cursor:pointer; color:#10b981; padding:0; display:flex; align-items:center;"><i class="ph ph-copy" style="font-size:0.9rem;"></i></button>
-                        <button onclick="vidosExcluirVideo(${os.id}, '${l}')" title="Excluir vídeo" style="background:none; border:none; cursor:pointer; color:#ef4444; padding:0; display:flex; align-items:center; margin-left:auto;"><i class="ph ph-trash" style="font-size:0.9rem;"></i></button>
+                        <div style="margin-left:auto; display:flex; gap:8px;">
+                            <button onclick="navigator.clipboard.writeText('${fullLink}').then(()=>mostrarToastAviso('✅ Link copiado!'))" title="Copiar link" style="background:none; border:none; cursor:pointer; color:#10b981; padding:0; display:flex; align-items:center;"><i class="ph ph-copy" style="font-size:1rem;"></i></button>
+                            <button onclick="vidosExcluirVideo(${os.id}, '${l}')" title="Excluir vídeo" style="background:none; border:none; cursor:pointer; color:#ef4444; padding:0; display:flex; align-items:center;"><i class="ph ph-trash" style="font-size:1rem;"></i></button>
+                        </div>
                     </div>
                 `;
             });
