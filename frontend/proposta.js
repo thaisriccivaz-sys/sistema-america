@@ -218,6 +218,17 @@ function renderTelaPropostas() {
                     color: #7048E8 !important;
                     background-color: #E2E8F0;
                 }
+                #tab-prop-lista.active {
+                    background-color: #2e58a6 !important;
+                    color: #ffffff !important;
+                }
+                #tab-prop-lista.active i {
+                    color: #ffffff !important;
+                }
+                #tab-prop-lista.active:hover {
+                    background-color: #1e3d75 !important;
+                    color: #ffffff !important;
+                }
                 .saas-dropdown-container {
                     position: relative;
                     display: inline-block;
