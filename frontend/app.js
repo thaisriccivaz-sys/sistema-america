@@ -16470,6 +16470,70 @@ window.reenviarAssinatura = async function (id, source, btn) {
     }
 };
 
+window.atualizarTodasAssinaturas = async function (btn) {
+    const icon = btn.querySelector('i');
+    if (icon) {
+        icon.classList.remove('ph-arrow-clockwise');
+        icon.classList.add('ph-spinner', 'ph-spin');
+    }
+    btn.disabled = true;
+
+    try {
+        // Recarregar os dados para pegar a lista mais atualizada
+        await window.loadAssinaturasDigitais();
+
+        const dados = window._assinaturasData || [];
+        const pendentes = dados.filter(d => d.assinafy_status !== 'Assinado' && d.assinafy_id);
+
+        if (pendentes.length > 0) {
+            if (typeof showToast !== 'undefined') {
+                showToast(`Verificando ${pendentes.length} documento(s) pendente(s)...`, 'info');
+            }
+
+            let updatedCount = 0;
+            const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+
+            // Usaremos Promise.all para enviar as requisições em paralelo
+            const syncPromises = pendentes.map(async (d) => {
+                try {
+                    const res = await fetch(`${API_URL}/assinaturas/sync`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: d.id, source: d.source })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success && data.newStatus !== data.oldStatus) {
+                        updatedCount++;
+                    }
+                } catch (e) {
+                    console.error("Erro ao sincronizar documento " + d.id, e);
+                }
+            });
+
+            await Promise.all(syncPromises);
+
+            if (updatedCount > 0) {
+                if (typeof showToast !== 'undefined') showToast(`${updatedCount} documento(s) atualizado(s) com sucesso!`, 'success');
+                // Recarregar a lista novamente para exibir os novos status
+                await window.loadAssinaturasDigitais();
+            } else {
+                if (typeof showToast !== 'undefined') showToast('Todos os documentos pendentes já estão com o status atualizado.', 'info');
+            }
+        } else {
+            if (typeof showToast !== 'undefined') showToast('Nenhum documento pendente para verificar.', 'info');
+        }
+    } catch (e) {
+        console.error("Erro na varredura de atualizações", e);
+        alert('Erro ao tentar atualizar todas as assinaturas: ' + e.message);
+    } finally {
+        if (icon) {
+            icon.classList.remove('ph-spinner', 'ph-spin');
+            icon.classList.add('ph-arrow-clockwise');
+        }
+        btn.disabled = false;
+    }
+};
+
 // Registrar navegação para a tela de assinaturas
 (function () {
     const origNavigate = window.navigateTo;

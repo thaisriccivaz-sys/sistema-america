@@ -6458,6 +6458,15 @@ db.run(`CREATE TABLE IF NOT EXISTS assinatura_auditoria (
     detalhes TEXT
 )`);
 
+db.run(`CREATE TABLE IF NOT EXISTS recibos_observacoes (
+    colaborador_id INTEGER,
+    mes INTEGER,
+    ano INTEGER,
+    observacao TEXT,
+    PRIMARY KEY (colaborador_id, mes, ano)
+)`);
+
+
 db.run(`CREATE TABLE IF NOT EXISTS admissao_assinaturas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     colaborador_id INTEGER NOT NULL,
@@ -6475,6 +6484,53 @@ db.run(`CREATE TABLE IF NOT EXISTS admissao_assinaturas (
 // ═══════════════════════════════════════════════════════════════════════════════
 // HISTÓRICO DE RECIBOS GERADOS E ANEXAÇÃO (DOCS EM MASSA)
 // ═══════════════════════════════════════════════════════════════════════════════
+
+// GET: Recupera as observações do mês e do mês anterior
+app.get('/api/recibos/observacoes/:mes/:ano', authenticateToken, (req, res) => {
+    const mes = parseInt(req.params.mes, 10);
+    const ano = parseInt(req.params.ano, 10);
+    
+    let mesAnt = mes - 1;
+    let anoAnt = ano;
+    if (mesAnt === 0) {
+        mesAnt = 12;
+        anoAnt = ano - 1;
+    }
+
+    db.all(`SELECT * FROM recibos_observacoes WHERE (mes = ? AND ano = ?) OR (mes = ? AND ano = ?)`,
+        [mes, ano, mesAnt, anoAnt],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows || []);
+        }
+    );
+});
+
+// POST: Salva ou atualiza a observação
+app.post('/api/recibos/observacoes', authenticateToken, (req, res) => {
+    const { colaborador_id, mes, ano, observacao } = req.body;
+    if (!colaborador_id || !mes || !ano) return res.status(400).json({ error: 'Faltam dados obrigatórios' });
+
+    if (!observacao || observacao.trim() === '') {
+        db.run(`DELETE FROM recibos_observacoes WHERE colaborador_id = ? AND mes = ? AND ano = ?`, 
+            [colaborador_id, mes, ano], 
+            (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ ok: true, message: 'Observação removida' });
+            }
+        );
+    } else {
+        db.run(`INSERT INTO recibos_observacoes (colaborador_id, mes, ano, observacao) 
+                VALUES (?, ?, ?, ?) 
+                ON CONFLICT(colaborador_id, mes, ano) DO UPDATE SET observacao = excluded.observacao`,
+            [colaborador_id, mes, ano, observacao.trim()],
+            (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ ok: true, message: 'Observação salva' });
+            }
+        );
+    }
+});
 
 // GET: Recupera histórico de recibos gerados no mês e ano
 app.get('/api/recibos/historico/:mes/:ano', authenticateToken, (req, res) => {
@@ -9200,6 +9256,7 @@ app.use('/files', express.static(path.join(__dirname, '..', '..')));
 // ====================================================================
 // EPI TEMPLATES - CRUD
 // ====================================================================
+
 app.get('/api/epi-templates', authenticateToken, (req, res) => {
     db.all('SELECT * FROM epi_templates ORDER BY grupo', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });

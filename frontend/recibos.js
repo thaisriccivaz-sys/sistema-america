@@ -800,7 +800,28 @@ function _renderTabela() {
         const tipo = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
         
         const temFeriasJanela = window._temFeriasJanela ? window._temFeriasJanela(c, anoAt, mesAt) : false;
-        const nomeCor = '#1e293b'; // Default text color for everyone
+        let nomeCor = '#1e293b'; // Default text color for everyone
+        
+        // --- Lógica de observações ---
+        const obsAtual = (window._recibosObservacoes || []).find(o => o.colaborador_id == c.id && o.mes == mesAt && o.ano == anoAt);
+        const mesAnt = mesAt === 1 ? 12 : mesAt - 1;
+        const anoAnt = mesAt === 1 ? anoAt - 1 : anoAt;
+        const obsAnterior = (window._recibosObservacoes || []).find(o => o.colaborador_id == c.id && o.mes == mesAnt && o.ano == anoAnt);
+
+        let tooltipObs = '';
+        if (obsAtual) {
+            nomeCor = '#ef4444'; // Vermelho (tem observação no mês atual)
+            tooltipObs = obsAtual.observacao.replace(/"/g, '&quot;');
+        } else if (obsAnterior) {
+            nomeCor = '#eab308'; // Amarelo (tem observação no mês anterior)
+            tooltipObs = obsAnterior.observacao.replace(/"/g, '&quot;');
+        }
+
+        const btnObs = `<button onclick="window.abrirModalObservacao(${c.id}, '${nomeCompleto.replace(/'/g, "\\'")}')" 
+            title="${tooltipObs}"
+            style="background:transparent;border:1px solid ${nomeCor};border-radius:4px;color:${nomeCor};cursor:pointer;padding:0 4px;font-size:0.8rem;margin-left:5px;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;">
+            <i class="ph ph-plus"></i>
+        </button>`;
 
         const tipoBadge = tipo === 'Operacional'
             ? `<span style="font-size:.72rem;background:#fef3c7;color:#92400e;padding:2px 9px;border-radius:10px;font-weight:600;">OP</span>`
@@ -844,7 +865,7 @@ function _renderTabela() {
               onchange="window.toggleReciboColab(${c.id},this.checked)">
           </td>
           <td style="padding:.55rem 1rem;max-width:280px;">
-            <div style="font-weight:600;color:${nomeCor};font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${nomeCompleto}">${nome}</div>
+            <div style="font-weight:600;color:${nomeCor};font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${nomeCompleto}">${nome} ${btnObs}</div>
             <div style="font-size:.74rem;color:#94a3b8;">CPF: ${c.cpf||'—'}</div>
           </td>
           <td style="padding:.55rem 1rem;">
@@ -1789,6 +1810,20 @@ window.carregarHistoricoRecibos = async function () {
     
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        
+        // Buscar observações
+        try {
+            const resObs = await fetch(`${API_URL}/recibos/observacoes/${mes}/${ano}`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (resObs.ok) {
+                window._recibosObservacoes = await resObs.json();
+            } else {
+                window._recibosObservacoes = [];
+            }
+        } catch(e) {
+            window._recibosObservacoes = [];
+            console.warn('Erro ao carregar observações:', e);
+        }
+
         const res = await fetch(`${API_URL}/recibos/historico/${mes}/${ano}`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (res.ok) {
             const hist = await res.json();
@@ -3087,5 +3122,66 @@ window._toggleJustExterno = function(colabId, date, rowId) {
         s.faltas = Math.max(0, s._faltasBase - extCount);
         const inp = document.getElementById('faltas-inp-' + colabId);
         if (inp) { inp.value = s.faltas; inp.style.color = s.faltas > 0 ? '#ef4444' : '#94a3b8'; }
+    }
+};
+
+window.abrirModalObservacao = function(colabId, colabNome) {
+    const mes = parseInt(document.getElementById('rec-mes')?.value || new Date().getMonth()+1);
+    const ano = parseInt(document.getElementById('rec-ano')?.value || new Date().getFullYear());
+    
+    const obsAtual = (window._recibosObservacoes || []).find(o => o.colaborador_id == colabId && o.mes == mes && o.ano == ano);
+    
+    let modal = document.getElementById('modal-obs-recibo');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-obs-recibo';
+        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+        document.body.appendChild(modal);
+    }
+    
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:12px;width:400px;max-width:90%;box-shadow:0 10px 25px rgba(0,0,0,0.2);overflow:hidden;">
+            <div style="padding:15px 20px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;">
+                <h3 style="margin:0;font-size:1.1rem;color:#0f172a;font-weight:700;">Observação (${mes}/${ano})</h3>
+                <button onclick="document.getElementById('modal-obs-recibo').style.display='none'" style="background:none;border:none;font-size:1.5rem;color:#94a3b8;cursor:pointer;padding:0;">&times;</button>
+            </div>
+            <div style="padding:20px;">
+                <p style="margin:0 0 10px 0;font-size:0.9rem;color:#64748b;">Colaborador: <strong>${colabNome}</strong></p>
+                <textarea id="obs-texto" rows="4" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;font-family:inherit;resize:vertical;outline:none;" placeholder="Digite a observação...">${obsAtual ? obsAtual.observacao : ''}</textarea>
+            </div>
+            <div style="padding:15px 20px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:10px;">
+                <button onclick="document.getElementById('modal-obs-recibo').style.display='none'" style="padding:8px 15px;border:1px solid #cbd5e1;background:#fff;border-radius:6px;cursor:pointer;font-weight:600;color:#64748b;">Cancelar</button>
+                <button onclick="window.salvarObservacao(${colabId}, ${mes}, ${ano})" style="padding:8px 15px;border:none;background:#2563eb;color:#fff;border-radius:6px;cursor:pointer;font-weight:600;">Salvar Observação</button>
+            </div>
+        </div>
+    `;
+    modal.style.display = 'flex';
+};
+
+window.salvarObservacao = async function(colabId, mes, ano) {
+    const texto = document.getElementById('obs-texto').value;
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    
+    try {
+        const res = await fetch(`${API_URL}/recibos/observacoes`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ colaborador_id: colabId, mes, ano, observacao: texto })
+        });
+        
+        if (res.ok) {
+            document.getElementById('modal-obs-recibo').style.display = 'none';
+            if (typeof showToast !== 'undefined') showToast('Observação salva com sucesso', 'success');
+            // Recarrega os dados
+            await window.carregarHistoricoRecibos();
+            if (typeof window.renderRecibosTable === 'function') {
+                window.renderRecibosTable(); // re-render para atualizar as cores
+            }
+        } else {
+            const data = await res.json();
+            alert('Erro ao salvar: ' + (data.error || 'Desconhecido'));
+        }
+    } catch(e) {
+        alert('Erro de conexão: ' + e.message);
     }
 };
