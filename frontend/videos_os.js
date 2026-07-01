@@ -192,6 +192,7 @@ async function vidosCarregar() {
                         <i class="ph ph-film-strip" style="color:#3b82f6;"></i>
                         <a href="${fullLink}" target="_blank" style="color:#1d4ed8; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px; font-size:0.75rem;" title="${fullLink}">${fullLink.replace('https://', '').replace('http://', '')}</a>
                         <button onclick="navigator.clipboard.writeText('${fullLink}').then(()=>mostrarToastAviso('âœ… Link copiado!'))" title="Copiar link" style="background:none; border:none; cursor:pointer; color:#10b981; padding:0; display:flex; align-items:center;"><i class="ph ph-copy" style="font-size:0.9rem;"></i></button>
+                        <button onclick="vidosExcluirVideo(${os.id}, '${l}')" title="Excluir vÃ­deo" style="background:none; border:none; cursor:pointer; color:#ef4444; padding:0; display:flex; align-items:center; margin-left:auto;"><i class="ph ph-trash" style="font-size:0.9rem;"></i></button>
                     </div>
                 `;
             });
@@ -268,4 +269,24 @@ async function vidosFazerUpload(input, osId, numeroOs) {
     }
 }
 
+
+
+window.vidosExcluirVideo = async function(osId, link) {
+    if (!await confirmarAcao('Tem certeza que deseja excluir este vídeo?')) return;
+    try {
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const resp = await fetch(/api/logistica/os-id//link-video?link=, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!resp.ok) {
+            const txt = await resp.text();
+            throw new Error(txt);
+        }
+        mostrarToastAviso('? Vídeo excluído com sucesso!');
+        vidosCarregar();
+    } catch(e) {
+        mostrarModalAviso('Erro ao excluir', e.message, 'error');
+    }
+}
 

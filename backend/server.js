@@ -13077,24 +13077,7 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
             function (err) {
                 if (err) console.error('[OS Videos] Erro ao registrar vídeo no banco:', err.message);
 
-                if (numero_os) {
-                    db.get('SELECT link_video FROM os_logistica WHERE numero_os = ?', [numero_os], (errSelect, row) => {
-                        let newLinks = [relativeShortLink];
-                        if (row && row.link_video) {
-                            try {
-                                const parsed = JSON.parse(row.link_video);
-                                if (Array.isArray(parsed)) newLinks = [...parsed, relativeShortLink];
-                                else newLinks = [row.link_video, relativeShortLink];
-                            } catch (e) {
-                                if (row.link_video.trim() !== '') {
-                                    newLinks = row.link_video.split(',').map(s => s.trim()).filter(Boolean);
-                                    newLinks.push(relativeShortLink);
-                                }
-                            }
-                        }
-                        db.run('UPDATE os_logistica SET link_video = ? WHERE numero_os = ?', [JSON.stringify(newLinks), numero_os], handleResponse);
-                    });
-                } else if (os_id) {
+                if (os_id) {
                     db.get('SELECT link_video FROM os_logistica WHERE id = ?', [os_id], (errSelect, row) => {
                         let newLinks = [relativeShortLink];
                         if (row && row.link_video) {
@@ -13110,6 +13093,23 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
                             }
                         }
                         db.run('UPDATE os_logistica SET link_video = ? WHERE id = ?', [JSON.stringify(newLinks), os_id], handleResponse);
+                    });
+                } else if (numero_os) {
+                    db.get('SELECT link_video FROM os_logistica WHERE numero_os = ?', [numero_os], (errSelect, row) => {
+                        let newLinks = [relativeShortLink];
+                        if (row && row.link_video) {
+                            try {
+                                const parsed = JSON.parse(row.link_video);
+                                if (Array.isArray(parsed)) newLinks = [...parsed, relativeShortLink];
+                                else newLinks = [row.link_video, relativeShortLink];
+                            } catch (e) {
+                                if (row.link_video.trim() !== '') {
+                                    newLinks = row.link_video.split(',').map(s => s.trim()).filter(Boolean);
+                                    newLinks.push(relativeShortLink);
+                                }
+                            }
+                        }
+                        db.run('UPDATE os_logistica SET link_video = ? WHERE numero_os = ?', [JSON.stringify(newLinks), numero_os], handleResponse);
                     });
                 } else {
                     handleResponse();
