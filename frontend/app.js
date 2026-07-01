@@ -712,11 +712,10 @@ function updateBreadcrumb(key) {
         scrollerBtn.style.backgroundColor = pageColor;
     }
 
-    // Mostra a estrela APENAS se for tela de menu principal ou telas base (sem setas '→', exceto Diretoria)
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -1047,6 +1046,8 @@ function navigateTo(target) {
         if (typeof renderFrotaResumo === 'function') setTimeout(() => renderFrotaResumo(), 80);
     } else if (target === 'logistica-pipeline') {
         if (typeof renderPipelinePage === 'function') setTimeout(() => renderPipelinePage(), 80);
+    } else if (target === 'logistica-videos-os') {
+        if (typeof window.vidosInit === 'function') setTimeout(() => window.vidosInit(), 80);
     } else if (target === 'logistica-resumo-rota') {
         if (typeof window.renderResumoRota === 'function') setTimeout(() => window.renderResumoRota(), 80);
     } else if (target === 'logistica-multas') {

@@ -60,7 +60,7 @@ const TELA_VIDEOS_OS = `
 </div>
 `;
 
-function vidosInit() {
+window.vidosInit = function() {
     const container = document.getElementById('videos-os-container');
     if (container) {
         container.innerHTML = TELA_VIDEOS_OS;
@@ -106,13 +106,13 @@ async function vidosCarregar() {
         });
         const data = await resp.json();
         
-        if (!data || !data.ok) throw new Error(data.error || 'Erro ao carregar OSs');
+        if (!data) throw new Error('Erro ao carregar OSs');
         
         let todasOs = [];
         // Concatena todas as OSs do objeto retornado pelo pipeline
-        for (const status in data.resultados) {
-            if (Array.isArray(data.resultados[status])) {
-                todasOs = todasOs.concat(data.resultados[status]);
+        for (const status in data) {
+            if (Array.isArray(data[status])) {
+                todasOs = todasOs.concat(data[status]);
             }
         }
         
@@ -229,13 +229,4 @@ async function vidosFazerUpload(input, osId, numeroOs) {
     }
 }
 
-// Intercepta a navegação (se disponível no momento da carga)
-if (typeof window.navigateTo === 'function') {
-    const orgNavigateTo = window.navigateTo;
-    window.navigateTo = function(target) {
-        orgNavigateTo(target);
-        if (target === 'logistica-videos-os') {
-            vidosInit();
-        }
-    };
-}
+
