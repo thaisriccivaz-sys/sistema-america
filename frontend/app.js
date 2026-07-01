@@ -16380,7 +16380,8 @@ window.filtrarAssinaturas = function () {
         } else if (d.assinafy_id) {
             // Qualquer status não-assinado com assinafy_id → pode reenviar e sincronizar
             viewBtn = `<div style="display:flex;gap:4px;justify-content:center;">
-                <button onclick="window.syncAssinatura(${d.id}, '${d.source}', this)" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Sincronizar com Assinafy"><i class="ph ph-arrows-clockwise"></i></button>
+                <!-- Botão azul de sync ocultado conforme solicitação, agora usa-se o rosa no topo -->
+                <button onclick="window.syncAssinatura(${d.id}, '${d.source}', this)" style="display:none; background:#0284c7;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;align-items:center;gap:4px;" title="Sincronizar com Assinafy"><i class="ph ph-arrows-clockwise"></i></button>
                 <button onclick="window.reenviarAssinatura(${d.id}, '${d.source}', this)" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Reenviar"><i class="ph ph-paper-plane-right"></i></button>
             </div>`;
         }
