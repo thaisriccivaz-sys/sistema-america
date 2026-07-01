@@ -22,7 +22,9 @@ const TELA_VIDEOS_OS = `
         
         <div style="display:flex; flex-direction:column; gap:4px; flex:2; min-width:180px;">
             <label style="font-size:0.75rem; font-weight:700; color:#64748b;">Serviço</label>
-            <input type="text" id="vidos-filtro-servico" placeholder="Ex: VAC, Bomb" style="border:1px solid #cbd5e1; border-radius:6px; padding:6px 10px; font-size:0.85rem;" onkeypress="if(event.key==='Enter') vidosCarregar()">
+            <select id="vidos-filtro-servico" style="border:1px solid #cbd5e1; border-radius:6px; padding:6px 10px; font-size:0.85rem;" onchange="vidosCarregar()">
+                <option value="">Todos</option>
+            </select>
         </div>
 
         <div style="display:flex; flex-direction:column; gap:4px; flex:2; min-width:180px;">
@@ -87,6 +89,16 @@ window.vidosInit = function() {
     const container = document.getElementById('videos-os-container');
     if (container) {
         container.innerHTML = TELA_VIDEOS_OS;
+        // Popula os tipos de serviço
+        const selServ = document.getElementById('vidos-filtro-servico');
+        if (selServ && typeof TIPOS_SERVICO_OS !== 'undefined') {
+            TIPOS_SERVICO_OS.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t;
+                opt.textContent = t;
+                selServ.appendChild(opt);
+            });
+        }
         
         // Define as datas padrão (últimos 7 dias a próximos 7 dias)
         const dDe = new Date();
@@ -140,6 +152,11 @@ async function vidosCarregar() {
         for (const status in data) {
             if (Array.isArray(data[status])) {
                 let statusOs = data[status];
+                
+                // Filtro Serviço
+                if (qServ) {
+                    statusOs = statusOs.filter(item => (item.tipo_servico || '').toLowerCase().includes(qServ.toLowerCase()));
+                }
                 
                 // Filtro Tipo (Obra/Evento)
                 if (qTipo) {
@@ -270,7 +287,7 @@ async function vidosFazerUpload(input, osId, numeroOs) {
 }
 
 window.vidosExcluirVideo = async function(osId, link) {
-    if (!await confirmarAcao('Tem certeza que deseja excluir este vídeo?')) return;
+    if (!confirm('Tem certeza que deseja excluir esta observação/vídeo?')) return;
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
         const resp = await fetch(`/api/logistica/os-id/${osId}/link-video?link=${encodeURIComponent(link)}`, {
