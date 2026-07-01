@@ -341,39 +341,30 @@ function renderTelaPropostas() {
                 }
             </style>
 
-            <!-- NOVO CABEÇALHO SAAS -->
-            <div class="saas-header" style="justify-content: space-between;">
-                <!-- Lado Esquerdo: Dropdown de Navegação Principal -->
-                <div class="saas-dropdown-container">
-                    <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
-                        <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
-                    </div>
-                    <div class="saas-dropdown-menu">
-                        <div class="saas-dropdown-item" id="tab-prop-form" onclick="abrirFormProposta(null); event.stopPropagation();">
-                            <i class="ph ph-pencil-simple"></i> Nova Proposta
-                        </div>
-                        <div class="saas-dropdown-item" id="tab-prop-cadastro-cliente" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
-                            <i class="ph ph-user-plus"></i> Cadastro de Clientes
-                        </div>
-                        <div class="saas-dropdown-item" id="tab-prop-cadastro-contatos" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
-                            <i class="ph ph-identification-card"></i> Cadastro de Contatos
-                        </div>
-                        <div class="saas-dropdown-item" id="tab-prop-enderecos" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
-                            <i class="ph ph-map-pin"></i> Endereços
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Lado Direito: Perfil do Usuário -->
-                <div class="saas-right-section">
-                    <button class="saas-avatar-btn" title="Perfil do Usuário">J</button>
-                    <button class="saas-settings-btn" title="Configurações"><i class="ph ph-gear"></i></button>
-                </div>
-            </div>
-
             <!-- VIEW: LISTA -->
             <div id="prop-view-lista" style="display:${_currentPropostaTab === 'lista' ? 'block' : 'none'};">
-                <div style="display:flex; justify-content:flex-end; margin-bottom:1rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                    <!-- Lado Esquerdo: Dropdown de Navegação Principal -->
+                    <div class="saas-dropdown-container">
+                        <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
+                            <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
+                        </div>
+                        <div class="saas-dropdown-menu">
+                            <div class="saas-dropdown-item" id="tab-prop-form" onclick="abrirFormProposta(null); event.stopPropagation();">
+                                <i class="ph ph-pencil-simple"></i> Nova Proposta
+                            </div>
+                            <div class="saas-dropdown-item" id="tab-prop-cadastro-cliente" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
+                                <i class="ph ph-user-plus"></i> Cadastro de Clientes
+                            </div>
+                            <div class="saas-dropdown-item" id="tab-prop-cadastro-contatos" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                                <i class="ph ph-identification-card"></i> Cadastro de Contatos
+                            </div>
+                            <div class="saas-dropdown-item" id="tab-prop-enderecos" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
+                                <i class="ph ph-map-pin"></i> Endereços
+                            </div>
+                        </div>
+                    </div>
+
                     <button onclick="abrirFormProposta(null)" style="
                         background:linear-gradient(135deg,#7048e8,#9775fa);
                         color:white; border:none; padding:0.65rem 1.3rem;
