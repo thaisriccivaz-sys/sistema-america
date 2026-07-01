@@ -145,6 +145,21 @@ function renderTelaPropostas() {
                     flex-direction: column !important;
                 }
 
+                .custom-swal-height-large {
+                    width: 1100px !important;
+                    height: 700px !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    padding: 0 !important;
+                    border-radius: 12px !important;
+                    overflow: hidden !important;
+                }
+                .custom-swal-padding-zero {
+                    padding: 0 !important;
+                    border-radius: 12px !important;
+                    overflow: hidden !important;
+                }
+
                 .saas-header {
                     display: flex;
                     align-items: center;
@@ -4254,135 +4269,143 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
     }
 
     Swal.fire({
-        title: '<div style="font-size:1.15rem; font-weight:700; color:#1e293b; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px;"><i class="ph ph-map-pin"></i> Clientes - Endereços Entrega</div>',
+        title: '',
         html: `
-            <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; gap:12px; max-height: 70vh; overflow-y: auto; padding: 4px;">
-                <!-- Toolbar superior -->
-                <div style="display:flex; justify-content:flex-end; gap:8px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
-                    <button type="button" onclick="window.modalNovoEndereco()" style="background:#0284c7; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:0.15s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0284c7'">
-                        <i class="ph ph-plus-bold"></i> Novo Endereço
-                    </button>
-                    <button type="button" onclick="window.modalSalvarEndereco()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-                        <i class="ph ph-floppy-disk"></i> Salvar Endereço
-                    </button>
-                </div>
-
-                <!-- Painel de Dados do Cliente -->
-                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; display:grid; grid-template-columns: 85px 2fr 2fr 100px; gap:10px; align-items:end;">
-                    <div>
-                        <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Código</label>
-                        <div style="display:flex; gap:4px;">
-                            <input type="text" id="modal-cli-codigo" readonly style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#e2e8f0; height:32px; box-sizing:border-box; outline:none; text-align:center;">
-                            <button type="button" onclick="window.modalBuscarCliente()" style="background:#cbd5e1; border:none; padding:0 6px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; height:32px;" title="Buscar Cliente"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
-                        </div>
+            <div style="display:flex; flex-direction:column; height:100%; font-family:'Inter', sans-serif;">
+                <!-- Header / Toolbar superior unificada -->
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#1e293b; padding:0.75rem 1.25rem; border-top-left-radius:12px; border-top-right-radius:12px;">
+                    <div style="background:#7c3aed; color:white; padding:0.45rem 1rem; border-radius:6px; font-weight:700; font-size:0.83rem; display:flex; align-items:center; gap:6px; letter-spacing:0.02em;">
+                        <i class="ph ph-map-pin" style="font-size:1.1rem;"></i> Clientes - Endereços Entrega
                     </div>
-                    <div>
-                        <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Razão Social</label>
-                        <input type="text" id="modal-cli-razao" readonly style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#e2e8f0; height:32px; box-sizing:border-box;">
-                    </div>
-                    <div>
-                        <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Nome Fantasia</label>
-                        <input type="text" id="modal-cli-fantasia" readonly style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#e2e8f0; height:32px; box-sizing:border-box;">
-                    </div>
-                    <div>
-                        <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Data Cad.</label>
-                        <input type="text" id="modal-cli-data" readonly style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#e2e8f0; height:32px; box-sizing:border-box; text-align:center;">
+                    <div style="display:flex; gap:8px;">
+                        <button type="button" onclick="window.modalNovoEndereco()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:0.15s; outline:none;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                            <i class="ph ph-plus-bold" style="font-size:1rem;"></i> Novo Endereço
+                        </button>
+                        <button type="button" onclick="window.modalSalvarEndereco()" style="background:#10b981; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:0.15s; outline:none;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
+                            <i class="ph ph-floppy-disk" style="font-size:1rem;"></i> Salvar Endereço
+                        </button>
                     </div>
                 </div>
 
-                <!-- Painel de Cadastro de Endereço -->
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:10px;">
-                    <div style="display:grid; grid-template-columns: 80px 2fr 1fr 1fr; gap:10px;">
+                <!-- Corpo do Modal -->
+                <div style="padding:16px; display:flex; flex-direction:column; gap:16px; overflow-y:auto; flex:1; text-align:left; background:#f1f5f9; height: 630px; box-sizing: border-box;">
+                    <!-- Painel de Dados do Cliente -->
+                    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; display:grid; grid-template-columns: 100px 2fr 2fr 120px; gap:12px; align-items:end; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                         <div>
-                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Seq.</label>
-                            <input type="text" id="modal-end-seq" readonly value="1" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#e2e8f0; height:32px; box-sizing:border-box; text-align:center; font-weight:bold;">
-                        </div>
-                        <div>
-                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Nome do Local *</label>
-                            <input type="text" id="modal-end-nome" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; height:32px; box-sizing:border-box;" placeholder="Ex: FILIAL CAMPINAS">
-                        </div>
-                        <div>
-                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">CPF/CNPJ</label>
-                            <input type="text" id="modal-end-cnpj" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; height:32px; box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Inscr. Estadual</label>
-                            <input type="text" id="modal-end-ie" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; height:32px; box-sizing:border-box;">
-                        </div>
-                    </div>
-                    
-                    <div style="display:grid; grid-template-columns: 120px 2fr 100px 1.5fr; gap:10px; align-items:end;">
-                        <div>
-                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">CEP *</label>
-                            <div style="display:flex; gap:4px;">
-                                <input type="text" id="modal-end-cep" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; height:32px; box-sizing:border-box;" placeholder="00000-000">
-                                <button type="button" onclick="window.modalBuscarCEP()" style="background:#cbd5e1; border:none; padding:0 6px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; height:32px;" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Código</label>
+                            <div style="display:flex; gap:6px;">
+                                <input type="text" id="modal-cli-codigo" readonly style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#f1f5f9; color:#475569; height:38px; box-sizing:border-box; outline:none; text-align:center;">
+                                <button type="button" onclick="window.modalBuscarCliente()" style="background:#cbd5e1; color:#334155; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; height:38px; transition:0.15s; outline:none;" onmouseover="this.style.background='#94a3b8'" onmouseout="this.style.background='#cbd5e1'" title="Buscar Cliente"><i class="ph ph-magnifying-glass" style="font-size:1.15rem;"></i></button>
                             </div>
                         </div>
                         <div>
-                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Endereço *</label>
-                            <input type="text" id="modal-end-rua" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; height:32px; box-sizing:border-box;">
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Razão Social</label>
+                            <input type="text" id="modal-cli-razao" readonly style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#f1f5f9; color:#475569; height:38px; box-sizing:border-box; outline:none;">
                         </div>
                         <div>
-                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Número *</label>
-                            <input type="text" id="modal-end-num" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; height:32px; box-sizing:border-box;">
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Nome Fantasia</label>
+                            <input type="text" id="modal-cli-fantasia" readonly style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#f1f5f9; color:#475569; height:38px; box-sizing:border-box; outline:none;">
                         </div>
                         <div>
-                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Complemento</label>
-                            <input type="text" id="modal-end-comp" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; height:32px; box-sizing:border-box;">
+                            <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Data Cad.</label>
+                            <input type="text" id="modal-cli-data" readonly style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#f1f5f9; color:#475569; height:38px; box-sizing:border-box; text-align:center; outline:none;">
                         </div>
                     </div>
 
-                    <div style="display:grid; grid-template-columns: 2fr 80px 2fr; gap:10px;">
-                        <div>
-                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Bairro *</label>
-                            <input type="text" id="modal-end-bairro" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; height:32px; box-sizing:border-box;">
+                    <!-- Painel de Cadastro de Endereço -->
+                    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:18px; display:flex; flex-direction:column; gap:12px; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                        <div style="display:grid; grid-template-columns: 80px 2fr 1fr 1fr; gap:12px;">
+                            <div>
+                                <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Seq.</label>
+                                <input type="text" id="modal-end-seq" readonly value="1" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#f1f5f9; color:#475569; height:38px; box-sizing:border-box; text-align:center; font-weight:bold; outline:none;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Nome do Local *</label>
+                                <input type="text" id="modal-end-nome" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';" placeholder="Ex: FILIAL CAMPINAS">
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">CPF/CNPJ</label>
+                                <input type="text" id="modal-end-cnpj" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Inscr. Estadual</label>
+                                <input type="text" id="modal-end-ie" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                            </div>
                         </div>
-                        <div>
-                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">UF *</label>
-                            <input type="text" id="modal-end-uf" maxlength="2" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; height:32px; box-sizing:border-box; text-align:center; text-transform:uppercase;">
+                        
+                        <div style="display:grid; grid-template-columns: 140px 2fr 100px 1.5fr; gap:12px; align-items:end;">
+                            <div>
+                                <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">CEP *</label>
+                                <div style="display:flex; gap:6px;">
+                                    <input type="text" id="modal-end-cep" style="flex:1; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';" placeholder="00000-000">
+                                    <button type="button" onclick="window.modalBuscarCEP()" style="background:#cbd5e1; color:#334155; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; height:38px; transition:0.15s; outline:none;" onmouseover="this.style.background='#94a3b8'" onmouseout="this.style.background='#cbd5e1'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:1.15rem;"></i></button>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Endereço *</label>
+                                <input type="text" id="modal-end-rua" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Número *</label>
+                                <input type="text" id="modal-end-num" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Complemento</label>
+                                <input type="text" id="modal-end-comp" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                            </div>
                         </div>
-                        <div>
-                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Município *</label>
-                            <input type="text" id="modal-end-cidade" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; height:32px; box-sizing:border-box;">
+
+                        <div style="display:grid; grid-template-columns: 2fr 80px 2fr; gap:12px;">
+                            <div>
+                                <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Bairro *</label>
+                                <input type="text" id="modal-end-bairro" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">UF *</label>
+                                <input type="text" id="modal-end-uf" maxlength="2" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; text-align:center; text-transform:uppercase; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Município *</label>
+                                <input type="text" id="modal-end-cidade" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                            </div>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns: 2fr 2fr 1fr; gap:12px;">
+                            <div>
+                                <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Contato</label>
+                                <input type="text" id="modal-end-contato" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Telefone</label>
+                                <input type="text" id="modal-end-fone" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">Ramal</label>
+                                <input type="text" id="modal-end-ramal" style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                            </div>
                         </div>
                     </div>
 
-                    <div style="display:grid; grid-template-columns: 2fr 2fr 1fr; gap:10px;">
-                        <div>
-                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Contato</label>
-                            <input type="text" id="modal-end-contato" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; height:32px; box-sizing:border-box;">
+                    <!-- Tabela de Endereços Cadastrados -->
+                    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:8px; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                        <label style="font-size:0.85rem; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:2px; display:block;">Endereços Cadastrados</label>
+                        <div style="font-size:0.75rem; color:#64748b; margin-bottom:4px;">* Clique em uma linha para editar/excluir. Dê um duplo clique para selecionar e fechar.</div>
+                        <div style="max-height:160px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
+                                <thead>
+                                    <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:40px; text-align:center; position:sticky; top:0; background:#f8fafc; z-index:1;">#</th>
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:200px; position:sticky; top:0; background:#f8fafc; z-index:1;">Nome</th>
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; position:sticky; top:0; background:#f8fafc; z-index:1;">Endereço</th>
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:150px; position:sticky; top:0; background:#f8fafc; z-index:1;">Município / UF</th>
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:60px; text-align:center; position:sticky; top:0; background:#f8fafc; z-index:1;">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modal-end-tbody">
+                                    <!-- Endereços renderizados dinamicamente -->
+                                </tbody>
+                            </table>
                         </div>
-                        <div>
-                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Telefone</label>
-                            <input type="text" id="modal-end-fone" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; height:32px; box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Ramal</label>
-                            <input type="text" id="modal-end-ramal" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; height:32px; box-sizing:border-box;">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tabela de Endereços Cadastrados -->
-                <div>
-                    <label style="font-size:0.85rem; font-weight:700; color:#475569; display:block; margin-bottom:6px;">Endereços Cadastrados</label>
-                    <div style="font-size:0.75rem; color:#64748b; margin-bottom:8px;">* Clique em uma linha para editar/excluir. Dê um duplo clique para selecionar e fechar.</div>
-                    <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; background:#fff;">
-                        <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
-                            <thead>
-                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
-                                    <th style="padding:8px 12px; font-weight:700; width:40px; text-align:center;">#</th>
-                                    <th style="padding:8px 12px; font-weight:700; width:200px;">Nome</th>
-                                    <th style="padding:8px 12px; font-weight:700;">Endereço</th>
-                                    <th style="padding:8px 12px; font-weight:700; width:150px;">Município / UF</th>
-                                    <th style="padding:8px 12px; font-weight:700; width:60px; text-align:center;">Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody id="modal-end-tbody">
-                                <!-- Endereços renderizados dinamicamente -->
-                            </tbody>
-                        </table>
                     </div>
                 </div>
             </div>
@@ -4408,9 +4431,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
             }
         }
     });
-};
-
-window.modalCarregarEnderecos = async function(clienteId) {
+};window.modalCarregarEnderecos = async function(clienteId) {
     try {
         const res = await apiGet(`/clientes/${clienteId}/enderecos`) || [];
         window._modalEnderecos = res;
@@ -4438,12 +4459,12 @@ window.modalRenderEnderecos = function() {
 
     tbody.innerHTML = window._modalEnderecos.map((e, idx) => `
         <tr onclick="window.modalCarregarEnderecoForm(${idx})" ondblclick="window.modalSelecionarEndereco(${idx})" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-            <td style="padding:8px 12px; text-align:center; color:#475569; font-weight:bold;">${e.sequencia}</td>
-            <td style="padding:8px 12px; color:#1e293b; font-weight:600;">${e.nome_local || '—'}</td>
-            <td style="padding:8px 12px; color:#475569;">${e.endereco || ''}${e.numero ? ', ' + e.numero : ''}${e.bairro ? ' - ' + e.bairro : ''}</td>
-            <td style="padding:8px 12px; color:#475569;">${e.municipio || ''} / ${e.uf || ''}</td>
-            <td style="padding:8px 12px; text-align:center;">
-                <button type="button" onclick="event.stopPropagation(); window.modalExcluirEndereco(${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s;" onmouseover="this.style.background='#fa5252'; this.style.color='#fff';" onmouseout="this.style.background='#ffe3e3'; this.style.color='#e03131';" title="Excluir Endereço">
+            <td style="padding:10px 12px; text-align:center; color:#475569; font-weight:bold;">${e.sequencia}</td>
+            <td style="padding:10px 12px; color:#1e293b; font-weight:600;">${e.nome_local || '—'}</td>
+            <td style="padding:10px 12px; color:#475569;">${e.endereco || ''}${e.numero ? ', ' + e.numero : ''}${e.bairro ? ' - ' + e.bairro : ''}</td>
+            <td style="padding:10px 12px; color:#475569;">${e.municipio || ''} / ${e.uf || ''}</td>
+            <td style="padding:10px 12px; text-align:center;">
+                <button type="button" onclick="event.stopPropagation(); window.modalExcluirEndereco(${idx})" style="background:#fee2e2; color:#ef4444; border:none; padding:6px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none;" onmouseover="this.style.background='#ef4444'; this.style.color='#fff';" onmouseout="this.style.background='#fee2e2'; this.style.color='#ef4444';" title="Excluir Endereço">
                     <i class="ph ph-trash" style="font-size:0.9rem;"></i>
                 </button>
             </td>
@@ -4638,28 +4659,38 @@ window.modalBuscarCliente = async function() {
         `).join('');
 
         Swal.fire({
-            title: 'Selecionar Cliente',
+            title: '',
             html: `
-                <div style="text-align:left; font-family:'Inter', sans-serif; height:280px; display:flex; flex-direction:column;">
-                    <input type="text" id="submodal-search-cliente" placeholder="Filtrar por nome..." style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; margin-bottom:8px; box-sizing:border-box; outline:none;" oninput="window.submodalFiltrarClientes(this.value)">
-                    <div style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
-                        <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
-                            <thead>
-                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1;">
-                                    <th style="padding:6px; text-align:center; width:60px;">Cód</th>
-                                    <th style="padding:6px;">Razão Social</th>
-                                    <th style="padding:6px; width:120px;">CNPJ</th>
-                                </tr>
-                            </thead>
-                            <tbody id="submodal-cliente-tbody">
-                                ${rowsHtml}
-                            </tbody>
-                        </table>
+                <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; padding:0; border-radius:12px; overflow:hidden;">
+                    <!-- Title Bar -->
+                    <div style="font-size:1.05rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:12px 16px; background:#f8fafc; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-user-focus" style="color:#7c3aed; font-size:1.2rem;"></i> Selecionar Cliente
+                    </div>
+                    <!-- Body Content -->
+                    <div style="padding:16px; display:flex; flex-direction:column; gap:10px; background:#f1f5f9;">
+                        <input type="text" id="submodal-search-cliente" placeholder="Filtrar por nome..." style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#cbd5e1'" oninput="window.submodalFiltrarClientes(this.value)">
+                        <div style="height:220px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
+                                <thead>
+                                    <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; text-align:center; width:60px; position:sticky; top:0; background:#f8fafc; z-index:1;">Cód</th>
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; position:sticky; top:0; background:#f8fafc; z-index:1;">Razão Social</th>
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:120px; position:sticky; top:0; background:#f8fafc; z-index:1;">CNPJ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="submodal-cliente-tbody">
+                                    ${rowsHtml}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             `,
             showConfirmButton: false,
-            width: '500px'
+            width: '500px',
+            customClass: {
+                popup: 'custom-swal-padding-zero'
+            }
         });
 
         window.submodalFiltrarClientes = function(term) {
