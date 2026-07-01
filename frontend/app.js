@@ -2631,13 +2631,28 @@ async function loadDashboard() {
         try {
             const cols = await apiGet('/colaboradores');
             tbAniver.innerHTML = '';
-            if (!cols || cols.length === 0) {
-                tbAniver.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;font-style:italic;">Nenhum aniversariante.</td></tr>';
+            window._aniversariantesCols = cols;
+            window.mesAtualAniversariantes = new Date().getMonth() + 1;
+            window.renderAniversariantes = function() {
+                const tbAniver = document.getElementById('dash-table-aniversariantes');
+                if (!tbAniver) return;
+                
                 const titAniv = document.getElementById('titulo-aniversariantes');
-                if (titAniv) titAniv.innerHTML = '0';
-            } else {
-                const mesAtual = new Date().getMonth() + 1;
-                const aniversariantes = cols.filter(c => {
+                const mesLabel = document.getElementById('mes-aniversariantes');
+                const mesesNomes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+                
+                if (mesLabel) {
+                    mesLabel.innerText = mesesNomes[window.mesAtualAniversariantes - 1];
+                }
+
+                tbAniver.innerHTML = '';
+                if (!window._aniversariantesCols || window._aniversariantesCols.length === 0) {
+                    tbAniver.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;font-style:italic;">Nenhum aniversariante.</td></tr>';
+                    if (titAniv) titAniv.innerHTML = '0';
+                    return;
+                }
+
+                const aniversariantes = window._aniversariantesCols.filter(c => {
                     if (c.status === 'Desligado') return false;
                     if (!c.data_nascimento) return false;
                     let dt = null;
@@ -2651,7 +2666,7 @@ async function loadDashboard() {
                         dt = new Date(c.data_nascimento);
                     }
                     if (isNaN(dt.getTime())) return false;
-                    return dt.getMonth() + 1 === mesAtual;
+                    return dt.getMonth() + 1 === window.mesAtualAniversariantes;
                 });
                 
                 aniversariantes.sort((a,b) => {
@@ -2665,10 +2680,8 @@ async function loadDashboard() {
 
                 if (aniversariantes.length === 0) {
                     tbAniver.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;font-style:italic;">Nenhum aniversariante neste mês.</td></tr>';
-                    const titAniv = document.getElementById('titulo-aniversariantes');
                     if (titAniv) titAniv.innerHTML = '0';
                 } else {
-                    const titAniv = document.getElementById('titulo-aniversariantes');
                     if (titAniv) titAniv.innerHTML = aniversariantes.length;
                     aniversariantes.forEach(c => {
                         const getFormatData = dtStr => {
@@ -2694,7 +2707,20 @@ async function loadDashboard() {
                         `;
                     });
                 }
-            }
+            };
+
+            window.mudarMesAniversariantes = function(delta) {
+                if (typeof window.mesAtualAniversariantes === 'undefined') {
+                    window.mesAtualAniversariantes = new Date().getMonth() + 1;
+                }
+                window.mesAtualAniversariantes += delta;
+                if (window.mesAtualAniversariantes > 12) window.mesAtualAniversariantes = 1;
+                if (window.mesAtualAniversariantes < 1) window.mesAtualAniversariantes = 12;
+                window.renderAniversariantes();
+            };
+
+            // Chamada inicial
+            window.renderAniversariantes();
         } catch(e) {
             if (tbAniver) tbAniver.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;font-style:italic;">Erro ao carregar aniversariantes.</td></tr>';
         }
