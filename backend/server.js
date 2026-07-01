@@ -6924,15 +6924,22 @@ app.post('/api/pagamentos-massa/processar', authenticateToken, multer({ storage:
             if (resAd && resAd.resultado) {
                 resAd.resultado.forEach(r => {
                     if (r.colaborador_id) {
-                        colabsMap[r.colaborador_id] = { ...r, paginaAdiantamento: r.pagina };
+                        if (!colabsMap[r.colaborador_id]) colabsMap[r.colaborador_id] = { ...r, paginaAdiantamento: [] };
+                        if (!Array.isArray(colabsMap[r.colaborador_id].paginaAdiantamento)) {
+                            colabsMap[r.colaborador_id].paginaAdiantamento = colabsMap[r.colaborador_id].paginaAdiantamento ? [colabsMap[r.colaborador_id].paginaAdiantamento] : [];
+                        }
+                        colabsMap[r.colaborador_id].paginaAdiantamento.push(r.pagina);
                     }
                 });
             }
             if (resPg && resPg.resultado) {
                 resPg.resultado.forEach(r => {
                     if (r.colaborador_id) {
-                        if (!colabsMap[r.colaborador_id]) colabsMap[r.colaborador_id] = { ...r };
-                        colabsMap[r.colaborador_id].paginaPagamento = r.pagina;
+                        if (!colabsMap[r.colaborador_id]) colabsMap[r.colaborador_id] = { ...r, paginaPagamento: [] };
+                        if (!Array.isArray(colabsMap[r.colaborador_id].paginaPagamento)) {
+                            colabsMap[r.colaborador_id].paginaPagamento = colabsMap[r.colaborador_id].paginaPagamento ? [colabsMap[r.colaborador_id].paginaPagamento] : [];
+                        }
+                        colabsMap[r.colaborador_id].paginaPagamento.push(r.pagina);
                     }
                 });
             }
@@ -6942,8 +6949,21 @@ app.post('/api/pagamentos-massa/processar', authenticateToken, multer({ storage:
         } else {
             const file = files.find(f => f.fieldname === 'pdf');
             if (!file) return res.status(400).json({ error: 'Nenhum PDF enviado' });
-            const resultado = await pagamentosMassa.processarPDF(file.buffer, tipoDocumento);
-            res.json({ ok: true, ...resultado });
+            const docRes = await pagamentosMassa.processarPDF(file.buffer, tipoDocumento);
+            
+            const colabsMap = {};
+            if (docRes && docRes.resultado) {
+                docRes.resultado.forEach(r => {
+                    if (r.colaborador_id) {
+                        if (!colabsMap[r.colaborador_id]) colabsMap[r.colaborador_id] = { ...r, pagina: [] };
+                        if (!Array.isArray(colabsMap[r.colaborador_id].pagina)) {
+                            colabsMap[r.colaborador_id].pagina = colabsMap[r.colaborador_id].pagina ? [colabsMap[r.colaborador_id].pagina] : [];
+                        }
+                        colabsMap[r.colaborador_id].pagina.push(r.pagina);
+                    }
+                });
+            }
+            res.json({ ok: true, totalPaginas: docRes.totalPaginas, resultado: Object.values(colabsMap), totalColaboradores: docRes.totalColaboradores });
         }
     } catch (e) {
         console.error('[PAGAMENTOS-MASSA] Erro ao processar PDF:', e.message);
@@ -7053,19 +7073,19 @@ app.post('/api/pagamentos-massa/preview-merge', async (req, res) => {
         // Merge Adiantamento if provided
         if (pdfAdiantamento && paginaAdiantamento) {
             const bufAd = Buffer.from(pdfAdiantamento, 'base64');
-            const bufExtraidaAd = await pagamentosMassa.extrairPagina(bufAd, parseInt(paginaAdiantamento), true);
+            const bufExtraidaAd = await pagamentosMassa.extrairPagina(bufAd, paginaAdiantamento, true);
             const adPdfDoc = await PDFDocument.load(bufExtraidaAd);
-            const [adPage] = await basePdfDoc.copyPages(adPdfDoc, [0]);
-            basePdfDoc.addPage(adPage);
+            const adPages = await basePdfDoc.copyPages(adPdfDoc, adPdfDoc.getPageIndices());
+            adPages.forEach(p => basePdfDoc.addPage(p));
         }
 
         // Merge Pagamento if provided
         if (pdfPagamento && paginaPagamento) {
             const bufPg = Buffer.from(pdfPagamento, 'base64');
-            const bufExtraidaPg = await pagamentosMassa.extrairPagina(bufPg, parseInt(paginaPagamento), true);
+            const bufExtraidaPg = await pagamentosMassa.extrairPagina(bufPg, paginaPagamento, true);
             const pgPdfDoc = await PDFDocument.load(bufExtraidaPg);
-            const [pgPage] = await basePdfDoc.copyPages(pgPdfDoc, [0]);
-            basePdfDoc.addPage(pgPage);
+            const pgPages = await basePdfDoc.copyPages(pgPdfDoc, pgPdfDoc.getPageIndices());
+            pgPages.forEach(p => basePdfDoc.addPage(p));
         }
 
         const mergedPdfBytes = await basePdfDoc.save();
@@ -7205,14 +7225,14 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                         if (bufAd && item.paginaAdiantamento) {
                             const bufExtraidaAd = await pagamentosMassa.extrairPagina(bufAd, item.paginaAdiantamento, true);
                             const adPdfDoc = await PDFDocument.load(bufExtraidaAd);
-                            const [adPage] = await basePdfDoc.copyPages(adPdfDoc, [0]);
-                            basePdfDoc.addPage(adPage);
+                            const adPages = await basePdfDoc.copyPages(adPdfDoc, adPdfDoc.getPageIndices());
+                            adPages.forEach(p => basePdfDoc.addPage(p));
                         }
                         if (bufPg && item.paginaPagamento) {
                             const bufExtraidaPg = await pagamentosMassa.extrairPagina(bufPg, item.paginaPagamento, true);
                             const pgPdfDoc = await PDFDocument.load(bufExtraidaPg);
-                            const [pgPage] = await basePdfDoc.copyPages(pgPdfDoc, [0]);
-                            basePdfDoc.addPage(pgPage);
+                            const pgPages = await basePdfDoc.copyPages(pgPdfDoc, pgPdfDoc.getPageIndices());
+                            pgPages.forEach(p => basePdfDoc.addPage(p));
                         }
 
                         const mergedPdfBytes = await basePdfDoc.save();

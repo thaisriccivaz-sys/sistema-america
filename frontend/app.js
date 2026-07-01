@@ -16104,7 +16104,7 @@ window.carregarCertificadoView = async function () {
                     <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:0.82rem;">
                         <span style="opacity:0.7;">Titular:</span> <b>${data.cn || 'N/A'}</b>
                         <span style="opacity:0.7;">Organização:</span> <span>${data.org || 'N/A'}</span>
-                        <span style="opacity:0.7;">Validade:</span> <b style="color:${isDateNear(data.validade) ? '#dc2626' : '#166534'}">${data.validade || 'N/A'} ${isDateNear(data.validade) ? 'ÔÜá´©Å Próximo do vencimento!' : ''}</b>
+                        <span style="opacity:0.7;">Validade:</span> <b style="color:${isDateNear(data.validade) ? '#dc2626' : '#166534'}">${data.validade || 'N/A'} ${isDateNear(data.validade) ? '⚠️ Próximo do vencimento!' : ''}</b>
                         <span style="opacity:0.7;">Serial:</span> <span style="font-family:monospace;">${(data.serial || '').slice(-12)}</span>
                     </div>
                 </div>`;
@@ -16113,7 +16113,7 @@ window.carregarCertificadoView = async function () {
         } else {
             const isErro = data.configurado && !data.ok;
             const titulo = isErro ? 'Problema no Certificado Atual' : 'Nenhum certificado configurado';
-            const subtitulo = isErro ? `ÔÜá´©Å ${data.erro || 'Falha ao ler o certificado (senha inválida ou arquivo corrompido).'}` : (data.motivo || 'Configure o arquivo .pfx ao lado para ativar a assinatura automática.');
+            const subtitulo = isErro ? `⚠️ ${data.erro || 'Falha ao ler o certificado (senha inválida ou arquivo corrompido).'}` : (data.motivo || 'Configure o arquivo .pfx ao lado para ativar a assinatura automática.');
 
             statusEl.style.cssText = `padding:1rem;border-radius:10px;background:#fffbeb;border:1.5px solid ${isErro ? '#fca5a5' : '#fcd34d'};font-size:0.88rem;color:${isErro ? '#dc2626' : '#92400e'};display:flex;align-items:center;gap:0.75rem;min-height:70px;`;
             statusEl.innerHTML = `
@@ -16671,7 +16671,7 @@ window.atualizarTodasAssinaturas = async function (btn) {
                     style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
                 </div>
                 <div style="flex:2;min-width:200px;">
-                  <label style="font-size:0.75rem;font-weight:700;color:#86198f;display:block;margin-bottom:4px;">ÔÜá´©Å Tipo de Documento <span style="color:#ef4444;">*</span></label>
+                  <label style="font-size:0.75rem;font-weight:700;color:#86198f;display:block;margin-bottom:4px;">⚠️ Tipo de Documento <span style="color:#ef4444;">*</span></label>
                   <select id="pm-tipo-doc" onchange="window._pmOnTipoChange()" style="width:100%;padding:0.5rem;border:2px solid #f9a8d4;border-radius:8px;font-size:0.85rem;background:#fff;font-weight:600;">
                     <option value="">-- Selecione o tipo antes de anexar --</option>
                     <option value="Pagamentos">Pagamentos</option>
@@ -18234,7 +18234,7 @@ window.enviarFichaContabilidade = async function (btn) {
         if (pct < 100) allComplete = false;
     });
     if (!allComplete) {
-        const ok = confirm('ÔÜá´©Å Atenção! Ainda existem passos não concluídos (não estão em 100%).\n\nDeseja continuar mesmo assim e enviar os documentos para a Contabilidade?');
+        const ok = confirm('⚠️ Atenção! Ainda existem passos não concluídos (não estão em 100%).\n\nDeseja continuar mesmo assim e enviar os documentos para a Contabilidade?');
         if (!ok) return;
     }
 
@@ -19102,7 +19102,7 @@ window.confirmarIniciarProcesso = async function (multaId, colabId) {
     }
     // Valida se há colaborador vinculado à multa
     if (!colabId || colabId === 'undefined' || colabId === 'null' || String(colabId) === 'undefined') {
-        alert('ÔÜá´©Å Esta multa não possui motorista vinculado.\n\nPara iniciar o processo, primeiro vincule um motorista pela opção "Gerenciar Multa" → "+ Adicionar Motorista".'); 
+        alert('⚠️ Esta multa não possui motorista vinculado.\n\nPara iniciar o processo, primeiro vincule um motorista pela opção "Gerenciar Multa" → "+ Adicionar Motorista".'); 
         return;
     }
 
@@ -19513,7 +19513,7 @@ window.processarNotificacaoMulta = async function (input, colabId) {
         loader.textContent = '✅ Dados extraídos! Confira e corrija se necessário.';
         loader.style.color = '#10b981';
     } catch (e) {
-        loader.textContent = `ÔÜá´©Å Falha ao extrair: ${e.message || 'Preencha manualmente.'}`;
+        loader.textContent = `⚠️ Falha ao extrair: ${e.message || 'Preencha manualmente.'}`;
         loader.style.color = '#ef4444';
         document.getElementById('multa-dados').style.display = 'block';
     }
