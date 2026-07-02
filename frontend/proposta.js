@@ -89,7 +89,7 @@ function renderTelaPropostas() {
     const hoje = new Date().toLocaleDateString('pt-BR');
 
     container.innerHTML = `
-        <div style="max-width:1400px; margin:0 auto;">
+        <div style="max-width:100%; margin:0 auto;">
 
             <!-- STYLE PARA A NAVBAR SAAS -->
             <style>
@@ -353,7 +353,7 @@ function renderTelaPropostas() {
             </style>
 
             <!-- VIEW: LISTA -->
-            <div id="prop-view-lista" style="display:${_currentPropostaTab === 'lista' ? 'block' : 'none'}; font-family:'Inter', sans-serif; background:#f8fafc; padding:1px 1.5rem 1.5rem 1.5rem; border-radius:14px; min-height:800px; box-sizing:border-box;">
+            <div id="prop-view-lista" style="display:${_currentPropostaTab === 'lista' ? 'block' : 'none'}; font-family:'Inter', sans-serif; background:#f8fafc; padding:1px 0.75rem 0.75rem 0.75rem; border-radius:14px; min-height:800px; box-sizing:border-box;">
                 
                 <!-- Top Toolbar Header -->
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:-10px; margin-bottom:1px; background:#fff; padding:0.8rem 1.2rem; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.02); position:sticky; top:0; z-index:997;">
@@ -391,9 +391,9 @@ function renderTelaPropostas() {
                 </div>
 
                 <!-- 1. Top Section (Critical Operations & Alarms KPI Cards) -->
-                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:1.2rem; margin-bottom:1.5rem;">
+                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:0.75rem; margin-bottom:1rem;">
                     <!-- Card 1: Manutenção Crítica (Alerta Laranja) -->
-                    <div style="background:linear-gradient(135deg, #f97316, #ea580c); color:white; border-radius:12px; padding:1.2rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 15px rgba(234,88,12,0.15);">
+                    <div style="background:linear-gradient(135deg, #f97316, #ea580c); color:white; border-radius:12px; padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 15px rgba(234,88,12,0.15);">
                         <div>
                             <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.02em; opacity:0.9;">Manutenção Crítica - 7 Dias</div>
                             <div style="font-size:1.85rem; font-weight:900; margin-top:0.25rem;">15</div>
@@ -405,7 +405,7 @@ function renderTelaPropostas() {
                     </div>
                     
                     <!-- Card 2: Taxa de Ocupação de Ativos (Azul) -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1.2rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                         <div>
                             <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.02em;">Taxa Ocupação de Ativos</div>
                             <div style="font-size:1.85rem; font-weight:900; color:#1e293b; margin-top:0.25rem; display:flex; align-items:center; gap:0.35rem;">
@@ -417,7 +417,7 @@ function renderTelaPropostas() {
                     </div>
                     
                     <!-- Card 3: SLA de Serviços - Cumprimento (Verde) -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1.2rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                         <div>
                             <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.02em;">SLA de Serviços - Cumprimento</div>
                             <div style="font-size:1.85rem; font-weight:900; color:#1e293b; margin-top:0.25rem;">96.2%</div>
@@ -426,7 +426,7 @@ function renderTelaPropostas() {
                     </div>
                     
                     <!-- Card 4: Inadimplência Atual (Vermelho/Rosa) -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1.2rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                         <div>
                             <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.02em;">Inadimplência Atual</div>
                             <div style="font-size:1.85rem; font-weight:900; color:#1e293b; margin-top:0.25rem; display:flex; align-items:center; gap:0.35rem;">
@@ -439,9 +439,9 @@ function renderTelaPropostas() {
                 </div>
 
                 <!-- 2. Middle-Top Section (Commercial Performance) -->
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; margin-bottom:1.5rem;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
                     <!-- Widget Esquerdo: Funil de Vendas -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
                         <h3 style="margin:0 0 1.2rem 0; font-size:0.9rem; font-weight:800; color:#1e293b;">Funil de Vendas: Proposta -> Contrato</h3>
                         <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; gap:0.6rem; min-height:220px; padding:0.5rem 0;">
                             <!-- Stage 1 -->
@@ -468,7 +468,7 @@ function renderTelaPropostas() {
                     </div>
                     
                     <!-- Widget Direito: Velocidade de Venda -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
                         <h3 style="margin:0 0 1.2rem 0; font-size:0.9rem; font-weight:800; color:#1e293b;">Velocidade de Venda (Média de Dias)</h3>
                         <div style="display:flex; flex-direction:column; justify-content:center; flex:1; gap:0.95rem; min-height:220px; font-size:0.8rem; font-family:'Inter', sans-serif;">
                             <!-- Segment 1: Diamante -->
@@ -516,9 +516,9 @@ function renderTelaPropostas() {
                 </div>
 
                 <!-- 3. Middle-Bottom Section (Active Operations & Revenue) -->
-                <div style="display:grid; grid-template-columns: 1.1fr 0.9fr; gap:1.5rem; margin-bottom:1.5rem;">
+                <div style="display:grid; grid-template-columns: 1.1fr 0.9fr; gap:1rem; margin-bottom:1rem;">
                     <!-- Line Chart: Receita vs Custo Operacional -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
                             <h3 style="margin:0; font-size:0.9rem; font-weight:800; color:#1e293b;">Receita vs. Custo Operacional (Últimos 6 Meses)</h3>
                             <div style="display:flex; gap:0.6rem; font-size:0.72rem; font-weight:700;">
@@ -574,7 +574,7 @@ function renderTelaPropostas() {
                     </div>
                     
                     <!-- Stacked Bar Chart: Receita por Categoria de Ativo -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
                             <h3 style="margin:0; font-size:0.9rem; font-weight:800; color:#1e293b;">Receita por Categoria de Ativo (Mensal)</h3>
                             <div style="display:flex; flex-direction:column; gap:2px; font-size:0.65rem; background:rgba(255,255,255,0.9); padding:4px; border-radius:4px; border:1px solid #e2e8f0;">
@@ -624,88 +624,88 @@ function renderTelaPropostas() {
                 </div>
 
                 <!-- 4. Bottom Section (Detailed Operational Table) -->
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:1.5rem;">
-                    <h3 style="margin:0 1.2rem 1.2rem 0; font-size:0.95rem; font-weight:800; color:#1e293b;">Ordens de Serviço e Status de Ativos (Próximos Vencimentos)</h3>
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:1rem;">
+                    <h3 style="margin:0 0 1rem 0; font-size:0.95rem; font-weight:800; color:#1e293b;">Ordens de Serviço e Status de Ativos (Próximos Vencimentos)</h3>
                     <div style="overflow-x:auto;">
                         <table style="width:100%; border-collapse:collapse; font-size:0.83rem; text-align:left;">
                             <thead>
                                 <tr style="border-bottom:2px solid #e2e8f0; background:#f8fafc; color:#475569;">
-                                    <th style="padding:0.9rem 1rem; font-weight:700; white-space:nowrap;">ID OS</th>
-                                    <th style="padding:0.9rem 1rem; font-weight:700;">Cliente</th>
-                                    <th style="padding:0.9rem 1rem; font-weight:700;">Ativo Principal</th>
-                                    <th style="padding:0.9rem 1rem; font-weight:700; white-space:nowrap;">Início</th>
-                                    <th style="padding:0.9rem 1rem; font-weight:700; white-space:nowrap;">Fim</th>
-                                    <th style="padding:0.9rem 1rem; font-weight:700;">Status</th>
-                                    <th style="padding:0.9rem 1rem; font-weight:700; text-align:center; white-space:nowrap;">Ações</th>
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700; white-space:nowrap;">ID OS</th>
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">Cliente</th>
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">Ativo Principal</th>
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700; white-space:nowrap;">Início</th>
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700; white-space:nowrap;">Fim</th>
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">Status</th>
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700; text-align:center; white-space:nowrap;">Ações</th>
                                 </tr>
                             </thead>
                             <tbody style="color:#1e293b;">
                                 <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                                    <td style="padding:0.85rem 1rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1024</td>
-                                    <td style="padding:0.85rem 1rem; font-weight:600;">Construtora Rio</td>
-                                    <td style="padding:0.85rem 1rem; color:#475569;">Escavadeira Komatsu A1</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">10/01/2024</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">17/01/2024</td>
-                                    <td style="padding:0.85rem 1rem;">
+                                    <td style="padding:0.6rem 0.75rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1024</td>
+                                    <td style="padding:0.6rem 0.75rem; font-weight:600;">Construtora Rio</td>
+                                    <td style="padding:0.6rem 0.75rem; color:#475569;">Escavadeira Komatsu A1</td>
+                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">10/01/2024</td>
+                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">17/01/2024</td>
+                                    <td style="padding:0.6rem 0.75rem;">
                                         <span style="background:#fef3c7; color:#d97706; padding:3px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;"><i class="ph ph-clock" style="vertical-align:middle;"></i> Em Aluguel (Ativo)</span>
                                     </td>
-                                    <td style="padding:0.85rem 1rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
+                                    <td style="padding:0.6rem 0.75rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
                                         <i class="ph ph-eye" title="Ver Proposta" style="color:#3b82f6; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(1)"></i>
                                         <i class="ph ph-file-text" title="Gerar Nota" style="color:#10b981; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1"></i>
                                     </td>
                                 </tr>
                                 <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                                    <td style="padding:0.85rem 1rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1025</td>
-                                    <td style="padding:0.85rem 1rem; font-weight:600;">Engenharia Tech</td>
-                                    <td style="padding:0.85rem 1rem; color:#475569;">Serviço Técnico Manutenção</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">15/01/2024</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">15/01/2024</td>
-                                    <td style="padding:0.85rem 1rem;">
+                                    <td style="padding:0.6rem 0.75rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1025</td>
+                                    <td style="padding:0.6rem 0.75rem; font-weight:600;">Engenharia Tech</td>
+                                    <td style="padding:0.6rem 0.75rem; color:#475569;">Serviço Técnico Manutenção</td>
+                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">15/01/2024</td>
+                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">15/01/2024</td>
+                                    <td style="padding:0.6rem 0.75rem;">
                                         <span style="background:#dcfce7; color:#16a34a; padding:3px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;"><i class="ph ph-check-circle" style="vertical-align:middle;"></i> Concluído</span>
                                     </td>
-                                    <td style="padding:0.85rem 1rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
+                                    <td style="padding:0.6rem 0.75rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
                                         <i class="ph ph-eye" title="Visualizar" style="color:#3b82f6; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(2)"></i>
                                         <i class="ph ph-receipt" title="Faturar" style="color:#7048e8; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1"></i>
                                     </td>
                                 </tr>
                                 <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                                    <td style="padding:0.85rem 1rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1026</td>
-                                    <td style="padding:0.85rem 1rem; font-weight:600;">Mineração Vale</td>
-                                    <td style="padding:0.85rem 1rem; color:#475569;">Gerador 500kVA Cat</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">18/01/2024</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">18/02/2024</td>
-                                    <td style="padding:0.85rem 1rem;">
+                                    <td style="padding:0.6rem 0.75rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1026</td>
+                                    <td style="padding:0.6rem 0.75rem; font-weight:600;">Mineração Vale</td>
+                                    <td style="padding:0.6rem 0.75rem; color:#475569;">Gerador 500kVA Cat</td>
+                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">18/01/2024</td>
+                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">18/02/2024</td>
+                                    <td style="padding:0.6rem 0.75rem;">
                                         <span style="background:#fef3c7; color:#d97706; padding:3px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;"><i class="ph ph-clock" style="vertical-align:middle;"></i> Em Aluguel (Ativo)</span>
                                     </td>
-                                    <td style="padding:0.85rem 1rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
+                                    <td style="padding:0.6rem 0.75rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
                                         <i class="ph ph-eye" title="Visualizar" style="color:#3b82f6; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(3)"></i>
                                         <i class="ph ph-file-text" title="Gerar Nota" style="color:#10b981; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1"></i>
                                     </td>
                                 </tr>
                                 <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                                    <td style="padding:0.85rem 1rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1027</td>
-                                    <td style="padding:0.85rem 1rem; font-weight:600;">Infraestrutura BR</td>
-                                    <td style="padding:0.85rem 1rem; color:#475569;">Plataforma Articulada JLG</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">22/01/2024</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">29/01/2024</td>
-                                    <td style="padding:0.85rem 1rem;">
+                                    <td style="padding:0.6rem 0.75rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1027</td>
+                                    <td style="padding:0.6rem 0.75rem; font-weight:600;">Infraestrutura BR</td>
+                                    <td style="padding:0.6rem 0.75rem; color:#475569;">Plataforma Articulada JLG</td>
+                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">22/01/2024</td>
+                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">29/01/2024</td>
+                                    <td style="padding:0.6rem 0.75rem;">
                                         <span style="background:#fee2e2; color:#ef4444; padding:3px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;"><i class="ph ph-warning-circle" style="vertical-align:middle;"></i> Manutenção Pendente</span>
                                     </td>
-                                    <td style="padding:0.85rem 1rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
+                                    <td style="padding:0.6rem 0.75rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
                                         <i class="ph ph-eye" title="Visualizar" style="color:#3b82f6; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(4)"></i>
                                         <i class="ph ph-wrench" title="Gerar Chamado" style="color:#ea580c; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1"></i>
                                     </td>
                                 </tr>
                                 <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                                    <td style="padding:0.85rem 1rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1028</td>
-                                    <td style="padding:0.85rem 1rem; font-weight:600;">Logística Express</td>
-                                    <td style="padding:0.85rem 1rem; color:#475569;">Empilhadeira Hyster 2.5</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">25/01/2024</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">25/02/2024</td>
-                                    <td style="padding:0.85rem 1rem;">
+                                    <td style="padding:0.6rem 0.75rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1028</td>
+                                    <td style="padding:0.6rem 0.75rem; font-weight:600;">Logística Express</td>
+                                    <td style="padding:0.6rem 0.75rem; color:#475569;">Empilhadeira Hyster 2.5</td>
+                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">25/01/2024</td>
+                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">25/02/2024</td>
+                                    <td style="padding:0.6rem 0.75rem;">
                                         <span style="background:#dcfce7; color:#16a34a; padding:3px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;"><i class="ph ph-check-circle" style="vertical-align:middle;"></i> Concluído</span>
                                     </td>
-                                    <td style="padding:0.85rem 1rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
+                                    <td style="padding:0.6rem 0.75rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
                                         <i class="ph ph-eye" title="Visualizar" style="color:#3b82f6; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(5)"></i>
                                         <i class="ph ph-receipt" title="Faturar" style="color:#7048e8; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1"></i>
                                     </td>
@@ -836,24 +836,24 @@ function _renderLinhasPropostas(lista) {
 
         return `
         <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-            <td style="padding:0.85rem 1rem; font-weight:700; color:#7048e8; white-space:nowrap;">
+            <td style="padding:0.6rem 0.75rem; font-weight:700; color:#7048e8; white-space:nowrap;">
                 ${p.codigo || '—'}
             </td>
-            <td style="padding:0.85rem 1rem; color:#1e293b; font-weight:600; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${p.cliente_nome||''}">
+            <td style="padding:0.6rem 0.75rem; color:#1e293b; font-weight:600; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${p.cliente_nome||''}">
                 ${p.cliente_nome || '<span style="color:#94a3b8">—</span>'}
             </td>
-            <td style="padding:0.85rem 1rem; color:#475569; font-size:0.83rem; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${p.tipo||''}">
+            <td style="padding:0.6rem 0.75rem; color:#475569; font-size:0.83rem; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${p.tipo||''}">
                 ${p.tipo || '—'}
             </td>
-            <td style="padding:0.85rem 1rem;">
+            <td style="padding:0.6rem 0.75rem;">
                 <span style="background:${faseStyle.bg}; color:${faseStyle.text}; padding:3px 10px; border-radius:12px; font-size:0.78rem; font-weight:600; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;">
                     <i class="ph ${faseStyle.icon}" style="font-size:0.85rem;"></i> ${fase}
                 </span>
             </td>
-            <td style="padding:0.85rem 1rem; color:#1e293b; font-weight:600; white-space:nowrap;">
+            <td style="padding:0.6rem 0.75rem; color:#1e293b; font-weight:600; white-space:nowrap;">
                 ${valorFmt}
             </td>
-            <td style="padding:0.85rem 1rem; text-align:center; white-space:nowrap; font-size: 1.15rem; color: #64748b; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <td style="padding:0.6rem 0.75rem; text-align:center; white-space:nowrap; font-size: 1.15rem; color: #64748b; display: flex; align-items: center; justify-content: center; gap: 8px;">
                 <i class="ph ph-eye" title="Visualizar" style="color:#3b82f6; cursor:pointer; transition:opacity 0.15s;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="imprimirProposta(${p.id})"></i>
                 <i class="ph ph-pencil-simple" title="Editar" style="color:#7048e8; cursor:pointer; transition:opacity 0.15s;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(${p.id})"></i>
                 <i class="ph ph-trash" title="Excluir" style="color:#ef4444; cursor:pointer; transition:opacity 0.15s;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="excluirProposta(${p.id})"></i>
