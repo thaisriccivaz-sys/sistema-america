@@ -273,6 +273,11 @@ function renderCardsFrota() {
             </div>
             
             <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
+                <span style="font-weight:600;color:#94a3b8;">Ano Modelo:</span>
+                <span style="font-weight:700;color:#1e293b;">${v.ano_modelo||'N/D'}</span>
+            </div>
+            
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
                 <span style="font-weight:600;color:#94a3b8;">Exercício:</span>
                 <span style="font-weight:700;color:${alerta==='expirado'?'#dc2626':(alerta==='vencendo'?'#d97706':'#1e293b')};">${v.exercicio||'N/D'} ${alerta==='vencendo'?'(Vencendo)':''}</span>
             </div>
