@@ -9,7 +9,7 @@ let _multasSortDir = 'desc'; // mais novo primeiro por padrão
 // - VENCIDA (diff <= 0): texto vermelho, SEM ícone ⚠️
 // - PRÓXIMA (1-10 dias): texto amarelo, COM ícone ⚠️
 // - Normal: texto padrão sem destaque
-function _dataLimiteBadge(dl) {
+function _dataLimiteBadge(dl, motivo = '') {
     if (!dl) return '—';
     let fmt = '';
     let isoDateForDiff = '';
@@ -26,6 +26,13 @@ function _dataLimiteBadge(dl) {
         fmt = `${d}/${m}/${y}`;
         isoDateForDiff = dl + 'T12:00:00';
     }
+
+    const mot = (motivo || '').toLowerCase();
+    const isNaoIdentificacao = mot.includes('nao id') || mot.includes('não id') || mot.includes('nic');
+    if (isNaoIdentificacao) {
+        return `<span style="color:#2563eb; font-weight:700; white-space:nowrap;" title="Multa por Não Identificação">↔️ ${fmt}</span>`;
+    }
+
     const diff = Math.ceil((new Date(isoDateForDiff) - new Date()) / 86400000);
     if (!isNaN(diff)) {
         if (diff <= 0) {
@@ -239,7 +246,7 @@ function _buildMultaRow(m) {
                 ${m.status_updated_at ? `<div style="color:#64748b; font-size:0.8rem; font-weight:400; white-space:nowrap;">${m.status_updated_at}</div>` : ''}
             </td>
             <td style="padding:1rem;">${_statusMonacoBadge(m)}</td>
-            <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite)}</td>
+            <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite, m.motivo)}</td>
             <td style="padding:1rem; text-align:center; min-width:140px; white-space:nowrap;">
                 ${btnEditar}${btnAssinar}${olhoAzul}${olhoVerde}${btnDoc}${btnTermo}${btnLink}${btnExcluir}
             </td>
