@@ -270,11 +270,15 @@
                     <div style="min-width:0;">
                         <div style="display:flex;align-items:center;gap:8px;">
                             <span style="font-weight:600;color:#0f172a;font-size:0.93rem;">${t.nome}</span>
-                            <span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:600;white-space:normal;max-width:350px;">${t.departamento && t.departamento.includes('Todos') ? 'Todos' : (t.departamento || 'Todos')}</span>
-                            ${isArquivado ? `<span style="background:#f1f5f9;color:#64748b;font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:999px;">ARQUIVADO</span>` : ''}
+                            ${isArquivado ? `<span style="background:#fef2f2;color:#ef4444;border:1px solid #fca5a5;font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:999px;">ARQUIVADO</span>` : ''}
                         </div>
                         ${desc}
-                        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">${pills || '<span style="color:#94a3b8;font-size:0.72rem;">Sem arquivos</span>'}</div>
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px;">
+                            <div title="${t.departamento || 'Todos'}" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;padding:3px 8px;border-radius:12px;font-size:0.72rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;cursor:help;">
+                                👷‍♂️ Setor
+                            </div>
+                            <div style="display:flex;gap:4px;flex-wrap:wrap;">${pills || '<span style="color:#94a3b8;font-size:0.72rem;">Sem arquivos</span>'}</div>
+                        </div>
                     </div>
                 </div>
             </td>
@@ -299,12 +303,6 @@
                         <i class="ph ph-pencil-simple"></i>
                     </button>
                     ${arquivarBtn}
-                    <button onclick="window.excluirTreinamento(${t.id},'${nomeSafe}')"
-                        style="background:#fef2f2;color:#be123c;border:1.5px solid #fecdd3;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:4px;transition:all .15s;"
-                        onmouseover="this.style.background='#ffe4e6'" onmouseout="this.style.background='#fef2f2'"
-                        title="Excluir">
-                        <i class="ph ph-trash"></i>
-                    </button>
                 </div>
             </td>
         </tr>`;
