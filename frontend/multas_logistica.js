@@ -64,9 +64,9 @@ function _statusMonacoBadge(m) {
 
 // Helper: cor do badge Status RH
 function _statusRHColor(status) {
-    if (status === 'Conferência') return '#fef08a';
-    if (status === 'Em Andamento')   return '#ff5c00';
-    if (status === 'Conferido')      return '#ff5c00'; // legado -> mesma cor de Em Andamento
+    if (status === 'Conferência') return '#ff5c00';
+    if (status === 'Em Andamento')   return '#fef08a';
+    if (status === 'Conferido')      return '#fef08a'; // legado -> mesma cor de Em Andamento
     if (status === 'Indicado')    return '#66f1c2';
     if (status === 'Multa NIC')   return '#fecaca';
     if (status === 'Id. Deferida') return '#009933';
