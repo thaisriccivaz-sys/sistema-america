@@ -422,6 +422,11 @@ function _buildRecibosLayout(mesAt, anoAt) {
       </div>
     </div>
     <div style="display:flex;gap:.5rem;">
+      <button id="btn-calcular-totais" onclick="window.calcularTotalRecibos()"
+        style="display:flex;align-items:center;gap:8px;padding:.65rem 1.4rem;background:#fefce8;color:#a16207;border:1px solid #fde047;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .2s;"
+        onmouseover="this.style.background='#fef9c3'" onmouseout="this.style.background='#fefce8'">
+        <i class="ph ph-calculator" style="font-size:1.1rem;"></i> Total
+      </button>
       <button id="btn-conferencia-ponto" onclick="window.baixarConferenciaPonto()"
         style="display:flex;align-items:center;gap:8px;padding:.65rem 1.4rem;background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .2s;"
         onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
@@ -1026,6 +1031,80 @@ window.toggleReciboColab = function (id, checked) {
 };
 
 // ─── Selecionar todos ─────────────────────────────────────────────────────────
+
+window.calcularTotalRecibos = function() {
+    let totalVR = 0;
+    let totalVT = 0;
+    let totalVC = 0;
+    
+    if (!_recibosFiltrados || !_recibosFiltrados.length) {
+        if(typeof mostrarToastAviso === 'function') mostrarToastAviso('Nenhum colaborador na lista para calcular totais.');
+        return;
+    }
+    
+    _recibosFiltrados.forEach(c => {
+        const inpVR = document.getElementById(`inp-valvr-${c.id}`);
+        const inpVT = document.getElementById(`inp-valvt-${c.id}`);
+        
+        let vr = 0;
+        let vt = 0;
+        let vc = 0;
+
+        if (inpVR) {
+            vr = parseFloat(inpVR.value) || 0;
+        }
+
+        if (inpVT) {
+            const val = parseFloat(inpVT.value) || 0;
+            const meio = (c.meio_transporte || '').toUpperCase();
+            if (meio === 'VC' || meio === 'VALE COMBUSTÍVEL') {
+                vc += val;
+            } else if (meio === 'VT' || meio === 'VALE TRANSPORTE') {
+                vt += val;
+            } else {
+                vt += val; 
+            }
+        }
+        
+        totalVR += vr;
+        totalVT += vt;
+        totalVC += vc;
+    });
+
+    const modalHtml = `
+    <div id="modal-totais-recibos" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+        <div style="background:#fff;border-radius:16px;width:90%;max-width:400px;box-shadow:0 10px 25px rgba(0,0,0,0.1);overflow:hidden;animation:slideUp .2s ease-out;">
+            <div style="background:linear-gradient(135deg,#a16207,#ca8a04);padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+                <h3 style="margin:0;color:#fff;font-size:1.1rem;display:flex;align-items:center;gap:8px;">
+                    <i class="ph ph-calculator"></i> Totais Calculados
+                </h3>
+                <button onclick="document.getElementById('modal-totais-recibos').remove()" style="background:transparent;border:none;color:#fff;cursor:pointer;font-size:1.2rem;"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="padding:1.5rem;">
+                <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e2e8f0;">
+                    <span style="font-weight:600;color:#475569;">Vale Refeição (VR)</span>
+                    <span style="font-weight:700;color:#064e3b;font-size:1.1rem;">R$ ${_recFmt(totalVR)}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e2e8f0;">
+                    <span style="font-weight:600;color:#475569;">Vale Transporte (VT)</span>
+                    <span style="font-weight:700;color:#1e3a5f;font-size:1.1rem;">R$ ${_recFmt(totalVT)}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e2e8f0;">
+                    <span style="font-weight:600;color:#475569;">Vale Combustível (VC)</span>
+                    <span style="font-weight:700;color:#92400e;font-size:1.1rem;">R$ ${_recFmt(totalVC)}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:10px 0;margin-top:0.5rem;background:#f8fafc;border-radius:8px;padding-left:10px;padding-right:10px;">
+                    <span style="font-weight:800;color:#0f172a;">TOTAL GERAL</span>
+                    <span style="font-weight:800;color:#2563eb;font-size:1.2rem;">R$ ${_recFmt(totalVR + totalVT + totalVC)}</span>
+                </div>
+            </div>
+            <div style="padding:1rem 1.5rem;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:right;">
+                <button onclick="document.getElementById('modal-totais-recibos').remove()" style="padding:0.6rem 1.5rem;background:#cbd5e1;color:#334155;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
 window.toggleSelectAllRecibos = function (checked) {
     _recibosFiltrados.forEach(c => {
         if (!_recibosSelecoes[c.id]) return;
