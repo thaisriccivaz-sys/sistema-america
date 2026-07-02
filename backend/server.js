@@ -465,6 +465,17 @@ db.run("ALTER TABLE multas_logistica ADD COLUMN data_limite TEXT", err => {
     if (err && !err.message.includes('duplicate column')) console.error('Migration data_limite multas_logistica:', err.message);
     else if (!err) console.log('[MIGRATION] Coluna data_limite adicionada em multas_logistica.');
 });
+// MIGRATION: Coluna status_updated_at
+db.run("ALTER TABLE multas_logistica ADD COLUMN status_updated_at TEXT", err => {
+    if (err && !err.message.includes('duplicate column')) console.error('Migration status_updated_at multas_logistica:', err.message);
+    else if (!err) console.log('[MIGRATION] Coluna status_updated_at adicionada em multas_logistica.');
+});
+
+function getNowBR() {
+    const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+    const pad = n => n.toString().padStart(2, '0');
+    return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} - ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 // MIGRATION REMOVIDA: O DELETE abaixo apagava todos os usuarios a cada restart do servidor.
 // Foi usado uma unica vez para limpar dados de teste. NAO REATIVAR.
@@ -5368,14 +5379,15 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
 
     // Se o AIT está na lista de multas antigas, força status 'Antiga'
     const finalStatus = isAitAntiga(numero_ait) ? 'Antiga' : (status || 'Conferência');
+    const statusUpdatedAt = getNowBR();
     // Captura usuário logado
     const createdById = req.user ? req.user.id : null;
     const createdByNome = req.user ? (req.user.nome || req.user.username || null) : null;
 
     db.run(
-        `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite, status, documento_nome, documento_base64, motorista_id, motorista_nome, parcelas, created_by_id, created_by_nome)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || 0, placa || null, local_infracao || null, data_limite || null, finalStatus, documento_nome, documento_base64, motorista_id || null, motorista_nome || null, parcelas || 1, createdById, createdByNome],
+        `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite, status, status_updated_at, documento_nome, documento_base64, motorista_id, motorista_nome, parcelas, created_by_id, created_by_nome)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || 0, placa || null, local_infracao || null, data_limite || null, finalStatus, statusUpdatedAt, documento_nome, documento_base64, motorista_id || null, motorista_nome || null, parcelas || 1, createdById, createdByNome],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, ok: true });
@@ -5449,11 +5461,14 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
             return res.status(403).json({ error: 'Esta multa já foi enviada ao RH e não pode ser editada (Multa NIC).' });
         }
 
+        const novoStatusUpdatedAt = (status && status !== oldData.status) ? getNowBR() : oldData.status_updated_at;
+
         db.run(
             `UPDATE multas_logistica SET
                 motorista_id = ?,
                 motorista_nome = ?,
                 status = ?,
+                status_updated_at = ?,
                 observacao = ?,
                 link_formulario = ?,
                 data_infracao = ?,
@@ -5472,6 +5487,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 motorista_id !== undefined ? (motorista_id === "" ? null : motorista_id) : oldData.motorista_id,
                 motorista_nome !== undefined ? (motorista_nome === "" ? null : motorista_nome) : oldData.motorista_nome,
                 status !== undefined ? status : oldData.status,
+                novoStatusUpdatedAt,
                 observacao !== undefined ? observacao : oldData.observacao,
                 link_formulario !== undefined ? link_formulario : oldData.link_formulario,
                 data_infracao !== undefined ? data_infracao : oldData.data_infracao,

@@ -66,7 +66,7 @@ function _statusMonacoBadge(m) {
 function _statusRHColor(status) {
     if (status === 'Conferência') return '#fef08a';
     if (status === 'Conferido')   return '#bfdbfe';
-    if (status === 'Indicado')    return '#bbf7d0';
+    if (status === 'Indicado')    return '#d3d3ff';
     if (status === 'Multa NIC')   return '#fecaca';
     if (status === 'Não Se Aplica') return '#cbd5e1';
     if (status === 'Antiga')      return '#e7e5e4';
@@ -99,9 +99,7 @@ function _buildMultaRow(m) {
     const olhoAzul  = docsExtrasList[0] ? `<button onclick="visualizarDocExtra(${m.id}, 0)" style="background:transparent; border:none; cursor:pointer; color:#3b82f6; margin-right:8px;" title="Visualizar Documento 1"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : '';
     const olhoVerde = docsExtrasList[1] ? `<button onclick="visualizarDocExtra(${m.id}, 1)" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento 2"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : '';
 
-    const btnEditar = (m.status === 'Multa NIC')
-        ? `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#64748b; margin-right:8px;" title="Visualizar"><i class="ph ph-magnifying-glass" style="font-size:1.2rem;"></i></button>`
-        : `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>`;
+    const btnEditar = `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>`;
 
     const btnExcluir = (m.status === 'Indicado' || m.status === 'Multa NIC') ? '' :
         `<button onclick="confirmarExcluirMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#ef4444;" title="Excluir"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>`;
@@ -125,7 +123,12 @@ function _buildMultaRow(m) {
             <td style="padding:1rem;">${dataInfracao}<br><span style="color:#64748b; font-size:0.8rem;">${m.hora_infracao || '—'}</span></td>
             <td style="padding:1rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${m.motivo || ''}">${m.motivo || '—'}</td>
             <td style="padding:1rem;">${motoristaHtml}</td>
-            <td style="padding:1rem;"><span style="background:${statusColor}; color:#0f172a; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">${m.status || '—'}</span></td>
+            <td style="padding:1rem;">
+                <div style="display:inline-block; margin-bottom:${m.status_updated_at ? '4px' : '0'};">
+                    <span style="background:${statusColor}; color:#0f172a; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">${m.status || '—'}</span>
+                </div>
+                ${m.status_updated_at ? `<div style="color:#64748b; font-size:0.8rem; font-weight:400; white-space:nowrap;">${m.status_updated_at}</div>` : ''}
+            </td>
             <td style="padding:1rem;">${_statusMonacoBadge(m)}</td>
             <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite)}</td>
             <td style="padding:1rem; text-align:center; min-width:140px; white-space:nowrap;">
@@ -784,7 +787,7 @@ async function salvarNovaMultaLogistica(e) {
 function abrirModalGerenciarMulta(id, focoMotorista = false) {
     const multa = multasLogistica.find(m => m.id === id);
     if (!multa) return;
-    const modoLeitura = (multa.status === 'Multa NIC');
+    const modoLeitura = false;
 
     document.getElementById('modal-gerenciar-multa')?.remove();
     const modal = document.createElement('div');
