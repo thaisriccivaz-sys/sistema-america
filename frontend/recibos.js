@@ -423,8 +423,8 @@ function _buildRecibosLayout(mesAt, anoAt) {
     </div>
     <div style="display:flex;gap:.5rem;">
       <button id="btn-calcular-totais" onclick="window.calcularTotalRecibos()"
-        style="display:flex;align-items:center;gap:8px;padding:.65rem 1.4rem;background:#fefce8;color:#a16207;border:1px solid #fde047;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .2s;"
-        onmouseover="this.style.background='#fef9c3'" onmouseout="this.style.background='#fefce8'">
+        style="display:flex;align-items:center;gap:8px;padding:.65rem 1.4rem;background:#dcfce7;color:#166534;border:1px solid #bbf7d0;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .2s;"
+        onmouseover="this.style.background='#bbf7d0'" onmouseout="this.style.background='#dcfce7'">
         <i class="ph ph-calculator" style="font-size:1.1rem;"></i> Total
       </button>
       <button id="btn-conferencia-ponto" onclick="window.baixarConferenciaPonto()"
