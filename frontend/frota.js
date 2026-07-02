@@ -204,8 +204,7 @@ function renderCardsFrota() {
     tb.innerHTML = rows.map(v => {
     const alerta = alertaPlaca(v.placa, v.exercicio);
     const statusManut = (window._frotaStatusManut || {})[v.id] || {};
-    const emManutencaoDB = (v.em_manutencao == 1 || v.em_manutencao === '1' || v.em_manutencao === true);
-    const emManutencao = statusManut.manutencoes_ativas > 0 || emManutencaoDB;
+    const emManutencao = (v.em_manutencao == 1 || v.em_manutencao === '1' || v.em_manutencao === true);
     const kPatterns = (window._manutDados || []).filter(m => m.veiculo_id === v.id && m.status === 'agendada' && m.km_proxima_manutencao && v.km_atual && (m.km_proxima_manutencao - v.km_atual) <= 1000);
     const manutPreventivaPendente = kPatterns.length > 0;
     
@@ -214,9 +213,7 @@ function renderCardsFrota() {
     let textColor = '#fff';
     let placaColor = '#2d9e5f';
     
-    if (emManutencao) {
-        borderColor = '#dc2626'; statusLabel = '\u26A0'; placaColor = '#dc2626';
-    } else if (alerta === 'expirado') {
+    if (alerta === 'expirado') {
         borderColor = '#dc2626';
         statusLabel = '\u2716';
         placaColor = '#dc2626';
@@ -319,10 +316,7 @@ function renderCardsFrota() {
                 ${v.tipo_veiculo||'VEÍCULO'}
             </div>
             <div style="display:flex;gap:4px;">
-                ${statusManut.manutencoes_ativas > 0 
-                    ? `<button onclick="alert('Este veículo possui uma Ordem de Manutenção em andamento. Conclua a ordem na aba \\'Manutenções\\' para remover este status.')" style="background:#dc2626;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;" title="Em Manutenção (Ordem Ativa)"><i class="ph ph-wrench"></i></button>`
-                    : `<button onclick="window.toggleManutencaoFrota(${v.id}, ${emManutencaoDB ? 0 : 1})" style="background:${emManutencaoDB ? '#64748b' : '#94a3b8'};color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="${emManutencaoDB ? 'Retirar da Manutenção' : 'Colocar em Manutenção'}"><i class="ph ph-wrench"></i></button>`
-                }
+                <button onclick="window.toggleManutencaoFrota(${v.id}, ${emManutencao ? 0 : 1})" style="background:${emManutencao ? '#64748b' : '#94a3b8'};color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="${emManutencao ? 'Retirar da Manutenção' : 'Colocar em Manutenção'}"><i class="ph ph-wrench"></i></button>
                 ${v.crlv_filename ? `<button onclick="window.visualizarCRLV(${v.id})" style="background:#0891b2;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Visualizar CRLV"><i class="ph ph-file-pdf"></i></button>` : `<button disabled style="background:#e2e8f0;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:not-allowed;" title="Sem CRLV"><i class="ph ph-file-pdf"></i></button>`}
                 <button onclick="window.abrirModalFrota(${v.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Editar"><i class="ph ph-pencil"></i></button>
                 <button onclick="window.excluirVeiculoFrota(${v.id},'${v.placa}')" style="background:#dc2626;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Excluir"><i class="ph ph-trash"></i></button>
