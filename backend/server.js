@@ -5530,8 +5530,8 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 if (errUpdate) return res.status(500).json({ error: errUpdate.message });
                 if (this.changes === 0) return res.status(404).json({ error: 'Multa não atualizada' });
 
-                // Envia email ao RH apenas quando o status MUDA para Indicado ou Multa NIC
-                if (status && (status === 'Indicado' || status === 'Multa NIC') && oldData.status !== status) {
+                // Envia email ao RH apenas quando o status MUDA para Indicado, Multa NIC ou Cobrada - Pz. Perdido
+                if (status && (status === 'Indicado' || status === 'Multa NIC' || status === 'Cobrada - Pz. Perdido') && oldData.status !== status) {
                     const finalMotorista = motorista_id || oldData.motorista_id;
                     const finalValor = valor_multa || oldData.valor_multa;
                     const finalData = data_infracao || oldData.data_infracao;
@@ -5545,6 +5545,38 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                         pontuacao: pontuacao || oldData.pontuacao,
                         data_limite: data_limite || oldData.data_limite,
                     };
+
+                    // Se for Cobrada - Pz. Perdido, anexa no prontuário criando registro na tabela multas
+                    if (status === 'Cobrada - Pz. Perdido' && finalMotorista && finalMotorista != -1) {
+                        const numericStr = (finalValor || '0').toString().replace(/[^\d,-]/g, '').replace(',', '.');
+                        const valorOriginal = parseFloat(numericStr) || 0;
+                        const pontuacaoInt = parseInt(multaExtra.pontuacao) || 0;
+                        const tipoRes = (multaExtra.motivo || 'Cobrada - Pz. Perdido').substring(0, 50);
+
+                        db.run(
+                            `INSERT INTO multas (colaborador_id, codigo_infracao, descricao_infracao, placa, veiculo, data_infracao, hora_infracao, local_infracao, numero_ait, pontuacao, valor_multa, tipo_resolucao, parcelas, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente')`,
+                            [
+                                finalMotorista, 
+                                'S/C', // codigo_infracao
+                                tipoRes, // descricao_infracao
+                                multaExtra.placa || '',
+                                '', // veiculo
+                                finalData || '',
+                                multaExtra.hora_infracao || '',
+                                multaExtra.local_infracao || '',
+                                finalAit || '',
+                                pontuacaoInt,
+                                valorOriginal,
+                                'nic', // Para forçar cobrança
+                                finalParcelas
+                            ],
+                            function(errInsert) {
+                                if (errInsert) console.error('[NotificarRHAuto] Erro ao anexar Cobrada - Pz Perdido no prontuário:', errInsert.message);
+                                else console.log(`[NotificarRHAuto] Multa anexada ao prontuário. ID=${this.lastID}`);
+                            }
+                        );
+                    }
+
                     notificarRHAuto(finalMotorista, status, finalParcelas, finalValor, finalData, finalAit, multaExtra)
                         .then((result) => { res.json({ ok: true, emailEnviado: true }); })
                         .catch(errEmail => { res.status(500).json({ error: 'Salvo, mas o e-mail não foi enviado: ' + errEmail.message }); });
