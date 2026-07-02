@@ -66,7 +66,7 @@ function _statusMonacoBadge(m) {
 function _statusRHColor(status) {
     if (status === 'Conferência') return '#fef08a';
     if (status === 'Conferido')   return '#bfdbfe';
-    if (status === 'Indicado')    return '#d3d3ff';
+    if (status === 'Indicado')    return '#66f1c2';
     if (status === 'Multa NIC')   return '#fecaca';
     if (status === 'Não Se Aplica') return '#cbd5e1';
     if (status === 'Antiga')      return '#e7e5e4';
