@@ -18431,6 +18431,12 @@ app.get('/api/treinamentos', authenticateToken, (req, res) => {
   });
 });
 
+app.get('/api/debug-treinamentos', (req, res) => {
+  db.all('SELECT * FROM treinamentos', (err, rows) => {
+    res.json({ count: rows ? rows.length : 0, error: err ? err.message : null, rows: rows });
+  });
+});
+
 // ── POST /api/treinamentos — Cria treinamento ─────────────────────────────────
 app.post('/api/treinamentos', authenticateToken, (req, res) => {
   const { nome, descricao, departamento, capa_url, validade_dias, pesquisa_perguntas, tipo = 'treinamento' } = req.body || {};
