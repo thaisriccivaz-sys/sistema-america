@@ -18985,7 +18985,6 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
            d.tipo AS departamento_tipo
     FROM colaboradores c
     LEFT JOIN departamentos d ON c.departamento = d.nome
-    WHERE c.status != 'Desligado'
     ORDER BY c.nome_completo ASC
   `;
   const sqlTrein = `

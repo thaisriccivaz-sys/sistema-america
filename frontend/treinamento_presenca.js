@@ -117,7 +117,13 @@
 
         let lista = _dados;
         if (depto) lista = lista.filter(c => c.departamento === depto);
-        if (tipoDepto) lista = lista.filter(c => c.departamento_tipo === tipoDepto);
+        
+        if (tipoDepto === 'Desligados') {
+            lista = lista.filter(c => c.status === 'Desligado');
+        } else {
+            lista = lista.filter(c => c.status !== 'Desligado');
+            if (tipoDepto) lista = lista.filter(c => c.departamento_tipo === tipoDepto);
+        }
         if (busca) lista = lista.filter(c =>
             (c.nome_completo || '').toLowerCase().includes(busca) ||
             (c.cargo || '').toLowerCase().includes(busca)
