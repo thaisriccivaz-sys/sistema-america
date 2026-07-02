@@ -722,9 +722,9 @@
                         onmouseover="this.style.background='#0891b2'" onmouseout="this.style.background='#0e7490'">
                         <i class="ph ph-arrow-square-out"></i> Abrir
                     </button>
-                    <!-- botão de excluir material ocultado a pedido do usuário -->
+                    <!-- Botão de excluir material habilitado -->
                     <button onclick="window.excluirAnexoTrein(${a.id},${treinId})"
-                        style="display:none; background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:5px;padding:4px 8px;
+                        style="display:flex; background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:5px;padding:4px 8px;
                         font-size:0.72rem;cursor:pointer;align-items:center;"
                         onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'">
                         <i class="ph ph-trash"></i>
