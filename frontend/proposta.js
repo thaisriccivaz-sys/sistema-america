@@ -40,7 +40,7 @@ const PROP_STATUS_CORES = {
 
 let _propostasData = [];
 let _propostasEditandoId = null;
-let _currentPropostaTab = 'lista'; // 'lista', 'form' ou 'cadastro-cliente'
+let _currentPropostaTab = 'form'; // 'lista', 'form' ou 'cadastro-cliente'
 let _clienteEditandoId = null;
 let _clienteContatos = [];
 let _clientesCache = [];
@@ -352,374 +352,7 @@ function renderTelaPropostas() {
                 }
             </style>
 
-            <!-- VIEW: LISTA -->
-            <div id="prop-view-lista" style="display:${_currentPropostaTab === 'lista' ? 'block' : 'none'}; font-family:'Inter', sans-serif; background:#f8fafc; padding:1px 1.5rem 1.5rem 1.5rem; border-radius:14px; min-height:800px; box-sizing:border-box;">
-                
-                <!-- Top Toolbar Header -->
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:-10px; margin-bottom:1px; background:#fff; padding:0.8rem 1.2rem; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                    <!-- Lado Esquerdo: Dropdown de Navegação Principal -->
-                    <div class="saas-dropdown-container">
-                        <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
-                            <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
-                        </div>
-                        <div class="saas-dropdown-menu">
-                            <div class="saas-dropdown-item" id="tab-prop-form" onclick="abrirFormProposta(null); event.stopPropagation();">
-                                <i class="ph ph-pencil-simple"></i> Nova Proposta
-                            </div>
-                            <div class="saas-dropdown-item" id="tab-prop-cadastro-cliente" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
-                                <i class="ph ph-user-plus"></i> Cadastro de Clientes
-                            </div>
-                            <div class="saas-dropdown-item" id="tab-prop-cadastro-contatos" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
-                                <i class="ph ph-identification-card"></i> Cadastro de Contatos
-                            </div>
-                            <div class="saas-dropdown-item" id="tab-prop-enderecos" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
-                                <i class="ph ph-map-pin"></i> Endereços
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button onclick="abrirFormProposta(null)" style="
-                        background:linear-gradient(135deg,#7048e8,#9775fa);
-                        color:white; border:none; padding:0.6rem 1.2rem;
-                        border-radius:8px; cursor:pointer; font-weight:600;
-                        display:flex; align-items:center; gap:0.5rem;
-                        font-size:0.88rem; box-shadow:0 4px 12px rgba(112,72,232,0.25);
-                        transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'"
-                        onmouseout="this.style.transform='translateY(0)'">
-                        <i class="ph ph-plus-circle"></i> Nova Proposta
-                    </button>
-                </div>
-
-                <!-- 1. Top Section (Critical Operations & Alarms KPI Cards) -->
-                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:1.2rem; margin-bottom:1.5rem;">
-                    <!-- Card 1: Manutenção Crítica (Alerta Laranja) -->
-                    <div style="background:linear-gradient(135deg, #f97316, #ea580c); color:white; border-radius:12px; padding:1.2rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 15px rgba(234,88,12,0.15);">
-                        <div>
-                            <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.02em; opacity:0.9;">Manutenção Crítica - 7 Dias</div>
-                            <div style="font-size:1.85rem; font-weight:900; margin-top:0.25rem;">15</div>
-                        </div>
-                        <div style="display:flex; gap:0.5rem; font-size:1.6rem; opacity:0.9;">
-                            <i class="ph ph-wrench"></i>
-                            <i class="ph ph-calendar"></i>
-                        </div>
-                    </div>
-                    
-                    <!-- Card 2: Taxa de Ocupação de Ativos (Azul) -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1.2rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                        <div>
-                            <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.02em;">Taxa Ocupação de Ativos</div>
-                            <div style="font-size:1.85rem; font-weight:900; color:#1e293b; margin-top:0.25rem; display:flex; align-items:center; gap:0.35rem;">
-                                88.5%
-                                <span style="font-size:0.78rem; font-weight:700; color:#3b82f6;"><i class="ph ph-trend-up"></i> +1.2%</span>
-                            </div>
-                        </div>
-                        <i class="ph ph-package" style="font-size:1.65rem; color:#3b82f6; opacity:0.85;"></i>
-                    </div>
-                    
-                    <!-- Card 3: SLA de Serviços - Cumprimento (Verde) -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1.2rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                        <div>
-                            <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.02em;">SLA de Serviços - Cumprimento</div>
-                            <div style="font-size:1.85rem; font-weight:900; color:#1e293b; margin-top:0.25rem;">96.2%</div>
-                        </div>
-                        <i class="ph ph-check-circle" style="font-size:1.65rem; color:#10b981; opacity:0.85;"></i>
-                    </div>
-                    
-                    <!-- Card 4: Inadimplência Atual (Vermelho/Rosa) -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1.2rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                        <div>
-                            <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.02em;">Inadimplência Atual</div>
-                            <div style="font-size:1.85rem; font-weight:900; color:#1e293b; margin-top:0.25rem; display:flex; align-items:center; gap:0.35rem;">
-                                2.5%
-                                <span style="font-size:0.78rem; font-weight:700; color:#ef4444;"><i class="ph ph-trend-down"></i> -0.4%</span>
-                            </div>
-                        </div>
-                        <i class="ph ph-warning-circle" style="font-size:1.65rem; color:#ef4444; opacity:0.85;"></i>
-                    </div>
-                </div>
-
-                <!-- 2. Middle-Top Section (Commercial Performance) -->
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; margin-bottom:1.5rem;">
-                    <!-- Widget Esquerdo: Funil de Vendas -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
-                        <h3 style="margin:0 0 1.2rem 0; font-size:0.9rem; font-weight:800; color:#1e293b;">Funil de Vendas: Proposta -> Contrato</h3>
-                        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; gap:0.6rem; min-height:220px; padding:0.5rem 0;">
-                            <!-- Stage 1 -->
-                            <div style="width:100%; max-width:280px; background:linear-gradient(90deg, #3b82f6, #60a5fa); color:white; font-size:0.78rem; font-weight:700; padding:0.45rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(59,130,246,0.15);">
-                                <span style="padding-left:10px;">Lead</span>
-                                <span style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:4px;">150</span>
-                            </div>
-                            <!-- Stage 2 -->
-                            <div style="width:80%; max-width:284px; background:linear-gradient(90deg, #10b981, #34d399); color:white; font-size:0.78rem; font-weight:700; padding:0.45rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(16,185,129,0.15);">
-                                <span style="padding-left:10px;">Proposta Enviada</span>
-                                <span style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:4px;">120</span>
-                            </div>
-                            <!-- Stage 3 -->
-                            <div style="width:60%; max-width:284px; background:linear-gradient(90deg, #f59e0b, #fbbf24); color:white; font-size:0.78rem; font-weight:700; padding:0.45rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(245,158,11,0.15);">
-                                <span style="padding-left:10px;">Em Negociação</span>
-                                <span style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:4px;">85</span>
-                            </div>
-                            <!-- Stage 4 -->
-                            <div style="width:40%; max-width:284px; background:linear-gradient(90deg, #7048e8, #9775fa); color:white; font-size:0.78rem; font-weight:700; padding:0.45rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(112,72,232,0.15);">
-                                <span style="padding-left:10px;">Contrato Assinado</span>
-                                <span style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:4px;">60</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Widget Direito: Velocidade de Venda -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
-                        <h3 style="margin:0 0 1.2rem 0; font-size:0.9rem; font-weight:800; color:#1e293b;">Velocidade de Venda (Média de Dias)</h3>
-                        <div style="display:flex; flex-direction:column; justify-content:center; flex:1; gap:0.95rem; min-height:220px; font-size:0.8rem; font-family:'Inter', sans-serif;">
-                            <!-- Segment 1: Diamante -->
-                            <div style="display:flex; flex-direction:column; gap:3px;">
-                                <div style="display:flex; justify-content:space-between; font-weight:700; color:#475569;">
-                                    <span>💎 Diamante</span>
-                                    <span style="color:#1e293b;">15 dias</span>
-                                </div>
-                                <div style="background:#f1f5f9; border-radius:6px; height:12px; overflow:hidden;">
-                                    <div style="width:33.3%; background:linear-gradient(90deg, #3b82f6, #2563eb); height:100%; border-radius:6px;"></div>
-                                </div>
-                            </div>
-                            <!-- Segment 2: Ouro -->
-                            <div style="display:flex; flex-direction:column; gap:3px;">
-                                <div style="display:flex; justify-content:space-between; font-weight:700; color:#475569;">
-                                    <span>🥇 Ouro</span>
-                                    <span style="color:#1e293b;">22 dias</span>
-                                </div>
-                                <div style="background:#f1f5f9; border-radius:6px; height:12px; overflow:hidden;">
-                                    <div style="width:48.8%; background:linear-gradient(90deg, #f59e0b, #d97706); height:100%; border-radius:6px;"></div>
-                                </div>
-                            </div>
-                            <!-- Segment 3: Prata -->
-                            <div style="display:flex; flex-direction:column; gap:3px;">
-                                <div style="display:flex; justify-content:space-between; font-weight:700; color:#475569;">
-                                    <span>🥈 Prata</span>
-                                    <span style="color:#1e293b;">30 dias</span>
-                                </div>
-                                <div style="background:#f1f5f9; border-radius:6px; height:12px; overflow:hidden;">
-                                    <div style="width:66.6%; background:linear-gradient(90deg, #94a3b8, #64748b); height:100%; border-radius:6px;"></div>
-                                </div>
-                            </div>
-                            <!-- Segment 4: Bronze -->
-                            <div style="display:flex; flex-direction:column; gap:3px;">
-                                <div style="display:flex; justify-content:space-between; font-weight:700; color:#475569;">
-                                    <span>🥉 Bronze</span>
-                                    <span style="color:#1e293b;">45 dias</span>
-                                </div>
-                                <div style="background:#f1f5f9; border-radius:6px; height:12px; overflow:hidden;">
-                                    <div style="width:100%; background:linear-gradient(90deg, #b45309, #78350f); height:100%; border-radius:6px;"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 3. Middle-Bottom Section (Active Operations & Revenue) -->
-                <div style="display:grid; grid-template-columns: 1.1fr 0.9fr; gap:1.5rem; margin-bottom:1.5rem;">
-                    <!-- Line Chart: Receita vs Custo Operacional -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
-                            <h3 style="margin:0; font-size:0.9rem; font-weight:800; color:#1e293b;">Receita vs. Custo Operacional (Últimos 6 Meses)</h3>
-                            <div style="display:flex; gap:0.6rem; font-size:0.72rem; font-weight:700;">
-                                <div style="display:flex; align-items:center; gap:4px;">
-                                    <span style="width:8px; height:8px; background:#3b82f6; display:inline-block; border-radius:2px;"></span>
-                                    <span>Receita</span>
-                                </div>
-                                <div style="display:flex; align-items:center; gap:4px;">
-                                    <span style="width:8px; height:2px; background:#f97316; display:inline-block;"></span>
-                                    <span>Custo</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div style="position:relative; height:180px; margin-top:0.5rem; font-family:'Inter', sans-serif;">
-                            <svg width="100%" height="180" viewBox="0 0 500 180" preserveAspectRatio="none" style="overflow: visible;">
-                                <!-- Gridlines -->
-                                <g stroke="#f1f5f9" stroke-width="1">
-                                    <line x1="30" y1="20" x2="480" y2="20"/>
-                                    <line x1="30" y1="60" x2="480" y2="60"/>
-                                    <line x1="30" y1="100" x2="480" y2="100"/>
-                                    <line x1="30" y1="140" x2="480" y2="140"/>
-                                </g>
-                                <line x1="30" y1="160" x2="480" y2="160" stroke="#cbd5e1" stroke-width="1.5"/>
-                                
-                                <!-- Y Labels -->
-                                <g fill="#94a3b8" font-size="8" text-anchor="end">
-                                    <text x="22" y="23">1.2M</text>
-                                    <text x="22" y="63">900k</text>
-                                    <text x="22" y="103">600k</text>
-                                    <text x="22" y="143">300k</text>
-                                    <text x="22" y="163">0</text>
-                                </g>
-                                
-                                <!-- X Labels -->
-                                <g fill="#64748b" font-size="9" text-anchor="middle" font-weight="600">
-                                    <text x="40" y="174">Jul</text>
-                                    <text x="120" y="174">Ago</text>
-                                    <text x="200" y="174">Set</text>
-                                    <text x="280" y="174">Out</text>
-                                    <text x="360" y="174">Nov</text>
-                                    <text x="440" y="174">Dez</text>
-                                </g>
-                                
-                                <!-- Revenue Line (Blue) -->
-                                <path d="M 40,110 L 120,95 L 200,85 L 280,75 L 360,55 L 440,30" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                                <circle cx="440" cy="30" r="4" fill="#3b82f6"/>
-                                
-                                <!-- Cost Line (Orange Dashed) -->
-                                <path d="M 40,135 L 120,120 L 200,125 L 280,110 L 360,95 L 440,90" fill="none" stroke="#f97316" stroke-width="2" stroke-dasharray="4 4" stroke-linecap="round" stroke-linejoin="round"/>
-                                <circle cx="440" cy="90" r="4" fill="#f97316"/>
-                            </svg>
-                        </div>
-                    </div>
-                    
-                    <!-- Stacked Bar Chart: Receita por Categoria de Ativo -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
-                            <h3 style="margin:0; font-size:0.9rem; font-weight:800; color:#1e293b;">Receita por Categoria de Ativo (Mensal)</h3>
-                            <div style="display:flex; flex-direction:column; gap:2px; font-size:0.65rem; background:rgba(255,255,255,0.9); padding:4px; border-radius:4px; border:1px solid #e2e8f0;">
-                                <div style="display:flex; align-items:center; gap:4px;">
-                                    <span style="width:6px; height:6px; background:#3b82f6; display:inline-block; border-radius:1px;"></span>
-                                    <span>Eq. Pesado</span>
-                                </div>
-                                <div style="display:flex; align-items:center; gap:4px;">
-                                    <span style="width:6px; height:6px; background:#10b981; display:inline-block; border-radius:1px;"></span>
-                                    <span>Veíc. Leves</span>
-                                </div>
-                                <div style="display:flex; align-items:center; gap:4px;">
-                                    <span style="width:6px; height:6px; background:#f97316; display:inline-block; border-radius:1px;"></span>
-                                    <span>M.O. Técnica</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div style="position:relative; height:180px; margin-top:0.5rem; font-family:'Inter', sans-serif;">
-                            <div style="display:flex; justify-content:space-around; align-items:flex-end; height:140px; border-bottom:1px solid #cbd5e1; padding-bottom:5px;">
-                                <!-- Bar Out -->
-                                <div style="display:flex; flex-direction:column-reverse; width:34px; height:100%;">
-                                    <div style="height:45%; background:#3b82f6; border-radius:2px;" title="Eq. Pesado"></div>
-                                    <div style="height:30%; background:#10b981;" title="Veíc. Leves"></div>
-                                    <div style="height:25%; background:#f97316; border-top-left-radius:2px; border-top-right-radius:2px;" title="M.O. Técnica"></div>
-                                </div>
-                                <!-- Bar Nov -->
-                                <div style="display:flex; flex-direction:column-reverse; width:34px; height:120px;">
-                                    <div style="height:40%; background:#3b82f6; border-radius:2px;" title="Eq. Pesado"></div>
-                                    <div style="height:35%; background:#10b981;" title="Veíc. Leves"></div>
-                                    <div style="height:25%; background:#f97316; border-top-left-radius:2px; border-top-right-radius:2px;" title="M.O. Técnica"></div>
-                                </div>
-                                <!-- Bar Dez -->
-                                <div style="display:flex; flex-direction:column-reverse; width:34px; height:135px;">
-                                    <div style="height:50%; background:#3b82f6; border-radius:2px;" title="Eq. Pesado"></div>
-                                    <div style="height:30%; background:#10b981;" title="Veíc. Leves"></div>
-                                    <div style="height:20%; background:#f97316; border-top-left-radius:2px; border-top-right-radius:2px;" title="M.O. Técnica"></div>
-                                </div>
-                            </div>
-                            <!-- X Labels -->
-                            <div style="display:flex; justify-content:space-around; font-size:0.75rem; font-weight:700; color:#64748b; margin-top:8px;">
-                                <span style="width:34px; text-align:center;">Out</span>
-                                <span style="width:34px; text-align:center;">Nov</span>
-                                <span style="width:34px; text-align:center;">Dez</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 4. Bottom Section (Detailed Operational Table) -->
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:1.5rem;">
-                    <h3 style="margin:0 1.2rem 1.2rem 0; font-size:0.95rem; font-weight:800; color:#1e293b;">Ordens de Serviço e Status de Ativos (Próximos Vencimentos)</h3>
-                    <div style="overflow-x:auto;">
-                        <table style="width:100%; border-collapse:collapse; font-size:0.83rem; text-align:left;">
-                            <thead>
-                                <tr style="border-bottom:2px solid #e2e8f0; background:#f8fafc; color:#475569;">
-                                    <th style="padding:0.9rem 1rem; font-weight:700; white-space:nowrap;">ID OS</th>
-                                    <th style="padding:0.9rem 1rem; font-weight:700;">Cliente</th>
-                                    <th style="padding:0.9rem 1rem; font-weight:700;">Ativo Principal</th>
-                                    <th style="padding:0.9rem 1rem; font-weight:700; white-space:nowrap;">Início</th>
-                                    <th style="padding:0.9rem 1rem; font-weight:700; white-space:nowrap;">Fim</th>
-                                    <th style="padding:0.9rem 1rem; font-weight:700;">Status</th>
-                                    <th style="padding:0.9rem 1rem; font-weight:700; text-align:center; white-space:nowrap;">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody style="color:#1e293b;">
-                                <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                                    <td style="padding:0.85rem 1rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1024</td>
-                                    <td style="padding:0.85rem 1rem; font-weight:600;">Construtora Rio</td>
-                                    <td style="padding:0.85rem 1rem; color:#475569;">Escavadeira Komatsu A1</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">10/01/2024</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">17/01/2024</td>
-                                    <td style="padding:0.85rem 1rem;">
-                                        <span style="background:#fef3c7; color:#d97706; padding:3px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;"><i class="ph ph-clock" style="vertical-align:middle;"></i> Em Aluguel (Ativo)</span>
-                                    </td>
-                                    <td style="padding:0.85rem 1rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
-                                        <i class="ph ph-eye" title="Ver Proposta" style="color:#3b82f6; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(1)"></i>
-                                        <i class="ph ph-file-text" title="Gerar Nota" style="color:#10b981; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1"></i>
-                                    </td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                                    <td style="padding:0.85rem 1rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1025</td>
-                                    <td style="padding:0.85rem 1rem; font-weight:600;">Engenharia Tech</td>
-                                    <td style="padding:0.85rem 1rem; color:#475569;">Serviço Técnico Manutenção</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">15/01/2024</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">15/01/2024</td>
-                                    <td style="padding:0.85rem 1rem;">
-                                        <span style="background:#dcfce7; color:#16a34a; padding:3px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;"><i class="ph ph-check-circle" style="vertical-align:middle;"></i> Concluído</span>
-                                    </td>
-                                    <td style="padding:0.85rem 1rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
-                                        <i class="ph ph-eye" title="Visualizar" style="color:#3b82f6; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(2)"></i>
-                                        <i class="ph ph-receipt" title="Faturar" style="color:#7048e8; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1"></i>
-                                    </td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                                    <td style="padding:0.85rem 1rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1026</td>
-                                    <td style="padding:0.85rem 1rem; font-weight:600;">Mineração Vale</td>
-                                    <td style="padding:0.85rem 1rem; color:#475569;">Gerador 500kVA Cat</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">18/01/2024</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">18/02/2024</td>
-                                    <td style="padding:0.85rem 1rem;">
-                                        <span style="background:#fef3c7; color:#d97706; padding:3px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;"><i class="ph ph-clock" style="vertical-align:middle;"></i> Em Aluguel (Ativo)</span>
-                                    </td>
-                                    <td style="padding:0.85rem 1rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
-                                        <i class="ph ph-eye" title="Visualizar" style="color:#3b82f6; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(3)"></i>
-                                        <i class="ph ph-file-text" title="Gerar Nota" style="color:#10b981; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1"></i>
-                                    </td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                                    <td style="padding:0.85rem 1rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1027</td>
-                                    <td style="padding:0.85rem 1rem; font-weight:600;">Infraestrutura BR</td>
-                                    <td style="padding:0.85rem 1rem; color:#475569;">Plataforma Articulada JLG</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">22/01/2024</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">29/01/2024</td>
-                                    <td style="padding:0.85rem 1rem;">
-                                        <span style="background:#fee2e2; color:#ef4444; padding:3px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;"><i class="ph ph-warning-circle" style="vertical-align:middle;"></i> Manutenção Pendente</span>
-                                    </td>
-                                    <td style="padding:0.85rem 1rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
-                                        <i class="ph ph-eye" title="Visualizar" style="color:#3b82f6; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(4)"></i>
-                                        <i class="ph ph-wrench" title="Gerar Chamado" style="color:#ea580c; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1"></i>
-                                    </td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                                    <td style="padding:0.85rem 1rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1028</td>
-                                    <td style="padding:0.85rem 1rem; font-weight:600;">Logística Express</td>
-                                    <td style="padding:0.85rem 1rem; color:#475569;">Empilhadeira Hyster 2.5</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">25/01/2024</td>
-                                    <td style="padding:0.85rem 1rem; color:#64748b; white-space:nowrap;">25/02/2024</td>
-                                    <td style="padding:0.85rem 1rem;">
-                                        <span style="background:#dcfce7; color:#16a34a; padding:3px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;"><i class="ph ph-check-circle" style="vertical-align:middle;"></i> Concluído</span>
-                                    </td>
-                                    <td style="padding:0.85rem 1rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
-                                        <i class="ph ph-eye" title="Visualizar" style="color:#3b82f6; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(5)"></i>
-                                        <i class="ph ph-receipt" title="Faturar" style="color:#7048e8; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1"></i>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Footer Text -->
-                <div style="text-align:center; font-size:0.75rem; color:#94a3b8; font-weight:600; margin-top:2rem; letter-spacing:0.02em;">
-                    Monitoramento de Ativos & Performance Comercial - Relatório Gerencial
-                </div>
-            </div>            <!-- VIEW: FORMULÁRIO -->
+                        <!-- VIEW: FORMULÁRIO -->
             <div id="prop-view-form" style="display:${_currentPropostaTab === 'form' ? 'block' : 'none'};"></div>
 
             <!-- VIEW: CADASTRO CLIENTE -->
@@ -933,13 +566,10 @@ function _renderFormPropostaInt() {
                 
                 <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
                 <div class="saas-dropdown-container">
-                    <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
-                        <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
+                    <div class="saas-nav-item active" id="tab-prop-lista" style="display: flex; align-items: center; gap: 0.25rem;">
+                        <i class="ph ph-pencil-simple"></i> Nova Proposta <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
                     </div>
                     <div class="saas-dropdown-menu">
-                        <div class="saas-dropdown-item" onclick="abrirFormProposta(null); event.stopPropagation();">
-                            <i class="ph ph-pencil-simple"></i> Nova Proposta
-                        </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
                             <i class="ph ph-user-plus"></i> Cadastro de Clientes
                         </div>
@@ -1283,7 +913,7 @@ window.fecharFormProposta = function() {
     _propostasEditandoId = null;
     const viewForm = document.getElementById('prop-view-form');
     if (viewForm) viewForm.innerHTML = '';
-    window.switchPropostaTab('lista');
+    abrirFormProposta(null);
 };
 
 /* ── Redirecionamentos e Pesquisas de Clientes / Contatos na Proposta ── */
@@ -2182,15 +1812,12 @@ function _renderCadastroClienteInt() {
                 
                 <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
                 <div class="saas-dropdown-container">
-                    <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
-                        <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
+                    <div class="saas-nav-item active" id="tab-prop-lista" style="display: flex; align-items: center; gap: 0.25rem;">
+                        <i class="ph ph-user-plus"></i> Cadastro de Clientes <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
                     </div>
                     <div class="saas-dropdown-menu">
                         <div class="saas-dropdown-item" onclick="abrirFormProposta(null); event.stopPropagation();">
                             <i class="ph ph-pencil-simple"></i> Nova Proposta
-                        </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
-                            <i class="ph ph-user-plus"></i> Cadastro de Clientes
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
                             <i class="ph ph-identification-card"></i> Cadastro de Contatos
