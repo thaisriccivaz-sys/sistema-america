@@ -1056,10 +1056,10 @@ window.calcularTotalRecibos = function() {
 
         if (inpVT) {
             const val = parseFloat(inpVT.value) || 0;
-            const meio = (c.meio_transporte || '').toUpperCase();
-            if (meio === 'VC' || meio === 'VALE COMBUSTÍVEL') {
+            const meio = (c.meio_transporte || '').toLowerCase();
+            if (typeof _isVC === 'function' && _isVC(meio)) {
                 vc += val;
-            } else if (meio === 'VT' || meio === 'VALE TRANSPORTE') {
+            } else if (typeof _isVT === 'function' && _isVT(meio)) {
                 vt += val;
             } else {
                 vt += val; 
