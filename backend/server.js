@@ -18510,16 +18510,22 @@ app.put('/api/treinamentos/:id', authenticateToken, (req, res) => {
   );
 });
 
-// ── PUT /api/treinamentos/:id/arquivar — Alternar Arquivamento ─────────────────
+// ── PUT /api/treinamentos/:id/arquivar — Arquivar / Desarquivar ───────────────
 app.put('/api/treinamentos/:id/arquivar', authenticateToken, (req, res) => {
-  db.run(
-    `UPDATE treinamentos SET status = CASE WHEN IFNULL(status, 'ativo') = 'ativo' THEN 'arquivado' ELSE 'ativo' END WHERE id = ?`,
-    [req.params.id],
-    function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true });
-    }
-  );
+  const { acao } = req.body || {};
+  let sql;
+  if (acao === 'arquivar') {
+    sql = `UPDATE treinamentos SET status = 'arquivado' WHERE id = ?`;
+  } else if (acao === 'desarquivar') {
+    sql = `UPDATE treinamentos SET status = 'ativo' WHERE id = ?`;
+  } else {
+    // Toggle automático se ação não for especificada
+    sql = `UPDATE treinamentos SET status = CASE WHEN IFNULL(status, 'ativo') = 'ativo' THEN 'arquivado' ELSE 'ativo' END WHERE id = ?`;
+  }
+  db.run(sql, [req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
 });
 
 // ── GET /api/treinamentos/:id/pesquisa — Retorna perguntas da pesquisa ──────────

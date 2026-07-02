@@ -26,6 +26,8 @@
             headers: { Authorization: 'Bearer ' + tok(), ...(opts.headers || {}) }
         });
     }
+    // Expõe api internamente para funções que precisam de acesso externo ao escopo
+    window._apiTrein = api;
 
     function cat(mime, nome) {
         const m = (mime || '').toLowerCase();
@@ -1127,16 +1129,29 @@
 
     window._adicionarPerguntaPesquisaEditar = window.adicionarPerguntaTreinamento;
 
-})();
-
+    // ── Arquivar / Desarquivar Treinamento ────────────────────────────────────
     window.arquivarTreinamento = async function(id, acao) {
-        if(!confirm(\Tem certeza que deseja \ este material?\)) return;
+        const msg = acao === 'arquivar'
+            ? 'Arquivar este material? Ele sairá das listas e presenças, mas permanecerá no histórico dos colaboradores que já assinaram.'
+            : 'Desarquivar este material? Ele voltará a aparecer nas listas e presenças.';
+        if (!confirm(msg)) return;
         try {
-            const r = await api(\/treinamentos/\/arquivar\, { method: 'PUT' });
-            if(!r.ok) throw new Error('Falha ao alterar status');
-            window.carregarTreinamentos();
+            const r = await window._apiTrein('/treinamentos/' + id + '/arquivar', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ acao })
+            });
+            if (!r.ok) {
+                const e = await r.json().catch(() => ({}));
+                throw new Error(e.error || 'Falha ao alterar status do material');
+            }
+            window.renderTreinamentosTable();
         } catch(e) {
             alert(e.message);
         }
     };
 
+    // Alias carregarTreinamentos → renderTreinamentosTable
+    window.carregarTreinamentos = function() { return window.renderTreinamentosTable(); };
+
+})();
