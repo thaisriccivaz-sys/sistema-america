@@ -1412,10 +1412,14 @@ window.pesquisarClienteProposta = async function() {
 
     try {
         const clientes = await apiGet('/clientes');
-        const filtrados = clientes.filter(c => 
-            (c.nome_razao_social && c.nome_razao_social.toLowerCase().includes(query.toLowerCase())) ||
-            (c.codigo && c.codigo.toString() === query)
-        );
+        const queryClean = query.replace(/\D/g, '');
+        const filtrados = clientes.filter(c => {
+            const matchNome = c.nome_razao_social && c.nome_razao_social.toLowerCase().includes(query.toLowerCase());
+            const matchCodigo = c.codigo && c.codigo.toString() === query;
+            const matchCnpjRaw = c.cpf_cnpj && c.cpf_cnpj.toLowerCase().includes(query.toLowerCase());
+            const matchCnpjClean = c.cpf_cnpj && queryClean && c.cpf_cnpj.replace(/\D/g, '').includes(queryClean);
+            return matchNome || matchCodigo || matchCnpjRaw || matchCnpjClean;
+        });
 
         if (filtrados.length >= 1) {
             const rowsHtml = filtrados.map(c => `
