@@ -136,10 +136,10 @@
             const tabAtiva = document.querySelector('.app-top-tab.active');
             if (tabAtiva) {
                 const onclickText = tabAtiva.getAttribute('onclick') || '';
-                if (onclickText.includes('treinamento-materiais-terapia')) {
+                if (onclickText.indexOf('treinamento-materiais-terapia') !== -1) {
                     tipoAtual = 'terapia';
                     window._currentTreinamentoTipo = 'terapia';
-                } else if (onclickText.includes('treinamento-materiais')) {
+                } else if (onclickText.indexOf('treinamento-materiais') !== -1) {
                     tipoAtual = 'treinamento';
                     window._currentTreinamentoTipo = 'treinamento';
                 }
@@ -158,7 +158,7 @@
                 const p = view.querySelector('p');
                 const btnNovo = view.querySelector('button[onclick="window.abrirModalNovoTreinamento()"]');
                 if (tipoAtual === 'terapia') {
-                    if (h1) h1.textContent = 'Materiais de Palestras';
+                    if (h1) h1.textContent = 'Materiais para Palestras';
                     if (p) p.textContent = 'Gerencie palestras e materiais de terapia.';
                     if (btnNovo) btnNovo.innerHTML = '<i class="ph ph-plus-circle"></i> Criar Palestra';
                     el('filtro-treinamento-busca').placeholder = 'Buscar palestra...';
