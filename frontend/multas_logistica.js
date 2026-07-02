@@ -271,14 +271,7 @@ function renderMultasLogistica(container) {
                     <tbody id="multas-tbody">
     `;
 
-    const listaFiltrada = _aplicarFiltrosMultas(multasLogistica);
-
-    if (listaFiltrada.length === 0) {
-        html += `<tr><td colspan="9" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada.</td></tr>`;
-    } else {
-        html += listaFiltrada.map(m => _buildMultaRow(m)).join('');
-    }
-
+    // ── tbody vazio; o sort padrão será aplicado por filtrarMultasLogistica logo abaixo
     html += `
                     </tbody>
                 </table>
@@ -287,6 +280,23 @@ function renderMultasLogistica(container) {
     `;
 
     container.innerHTML = html;
+
+    // Aplica o sort padrão (data_limite asc) imediatamente após montar o HTML
+    filtrarMultasLogistica();
+
+    // Atualiza ícone do cabeçalho para refletir a coluna ativa
+    document.querySelectorAll('.multa-th-sort').forEach(th => {
+        const c = th.dataset.col;
+        const ico = th.querySelector('.sort-ico');
+        if (!ico) return;
+        if (c === _multasSortCol) {
+            ico.className = 'sort-ico ph ' + (_multasSortDir === 'asc' ? 'ph-arrow-up' : 'ph-arrow-down');
+            ico.style.color = '#2563eb';
+        } else {
+            ico.className = 'sort-ico ph ph-arrows-down-up';
+            ico.style.color = '#cbd5e1';
+        }
+    });
 }
 
 function _aplicarFiltrosMultas(lista) {
