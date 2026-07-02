@@ -471,6 +471,12 @@ db.run("ALTER TABLE multas_logistica ADD COLUMN status_updated_at TEXT", err => 
     else if (!err) console.log('[MIGRATION] Coluna status_updated_at adicionada em multas_logistica.');
 });
 
+// Migração de dados: renomeia status 'Conferido' para 'Em Andamento'
+db.run("UPDATE multas_logistica SET status = 'Em Andamento' WHERE status = 'Conferido'", function(err) {
+    if (err) console.error('[MIGRATION] Erro ao renomear Conferido -> Em Andamento:', err.message);
+    else if (this.changes > 0) console.log(`[MIGRATION] ${this.changes} multa(s) renomeada(s) de Conferido para Em Andamento.`);
+});
+
 function getNowBR() {
     const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
     const pad = n => n.toString().padStart(2, '0');
