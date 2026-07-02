@@ -14186,9 +14186,6 @@ window._epiConfirmarFotoIrParaAssinatura = function () {
 };
 
 window.abrirModalAssinaturaColaborador = async function (docId) {
-    document.body.classList.add('force-landscape-selfie');
-    if (screen.orientation && screen.orientation.lock) { screen.orientation.lock('landscape').catch(e=>{}); }
-    
     currentDocIdForColab = docId;
     _epiSelfieBase64 = null;
     _epiSelfieTimestamp = null;
@@ -14832,8 +14829,6 @@ window.abrirAssinaturaEpi = async function (fichaId) {
     const ficha = (fichas || []).find(f => f.id === fichaId);
     if (!ficha) return;
     
-    document.body.classList.add('force-landscape-selfie');
-    if (screen.orientation && screen.orientation.lock) { screen.orientation.lock('landscape').catch(e=>{}); }
     const epis = ficha.snapshot_epis || [];
     const termo = ficha.snapshot_termo || '';
     // Encerrar câmera anterior e limpar estado de selfie ANTES de abrir novo overlay

@@ -381,15 +381,15 @@
         }
         fs.style.cssText = 'position:fixed;inset:0;z-index:10001;background:#0f172a;display:flex;flex-direction:column;overflow:hidden;font-family:inherit;';
 
-        // Monta o painel esquerdo (capa) somente se tiver capa
+        // Layout vertical: imagem da capa em cima, dados em baixo (scroll)
         const capaPanel = data.capa ? `
-            <div style="flex:1;min-width:0;background:#000;display:flex;align-items:center;justify-content:center;border-right:1px solid rgba(255,255,255,0.08);">
-                <img src="${data.capa}" style="width:100%;height:100%;object-fit:contain;display:block;" />
+            <div style="flex-shrink:0;background:#000;display:flex;align-items:center;justify-content:center;max-height:55vh;overflow:hidden;">
+                <img src="${data.capa}" style="width:100%;height:auto;max-height:55vh;object-fit:contain;display:block;" />
             </div>` : '';
 
-        // Painel direito: dados + assinatura + selfie
+        // Painel de dados (assinatura + selfie + info) — ocupa o restante com scroll
         const rightPanel = `
-            <div style="${data.capa ? 'width:340px;min-width:260px;max-width:40%;' : 'flex:1;max-width:600px;margin:0 auto;'}background:#f8fafc;display:flex;flex-direction:column;overflow-y:auto;">
+            <div style="flex:1;background:#f8fafc;display:flex;flex-direction:column;overflow-y:auto;min-height:0;">
                 <!-- Cabeçalho interno -->
                 <div style="background:linear-gradient(135deg,#0e7490,#06b6d4);padding:14px 16px;flex-shrink:0;">
                     <p style="margin:0 0 2px;font-size:0.72rem;font-weight:700;color:rgba(255,255,255,0.7);letter-spacing:.06em;">DADOS DO REGISTRO</p>
@@ -402,12 +402,12 @@
                 <div style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;">
                     ${data.assinatura ? `<div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
                         <p style="margin:0;background:#f1f5f9;padding:8px 12px;font-size:0.68rem;font-weight:700;color:#64748b;letter-spacing:.06em;">ASSINATURA DIGITAL</p>
-                        <img src="${data.assinatura}" style="width:100%;object-fit:contain;display:block;cursor:pointer;" onclick="window.open(this.src, '_blank')" title="Clique para ampliar" />
+                        <img src="${data.assinatura}" style="width:100%;height:auto;object-fit:contain;display:block;cursor:pointer;" onclick="window.open(this.src, '_blank')" title="Clique para ampliar" />
                     </div>` : '<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:16px 0;">Sem assinatura registrada</p>'}
 
                     ${data.selfie ? `<div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
                         <p style="margin:0;background:#f1f5f9;padding:8px 12px;font-size:0.68rem;font-weight:700;color:#64748b;letter-spacing:.06em;">SELFIE DE CONFIRMAÇÃO</p>
-                        <img src="${data.selfie}" style="width:100%;object-fit:contain;display:block;cursor:pointer;" onclick="window.open(this.src, '_blank')" title="Clique para ampliar" />
+                        <img src="${data.selfie}" style="width:100%;height:auto;object-fit:contain;display:block;cursor:pointer;" onclick="window.open(this.src, '_blank')" title="Clique para ampliar" />
                     </div>` : ''}
                     <div style="height:4px;"></div>
                 </div>
@@ -426,8 +426,8 @@
                     <i class="ph ph-x"></i>
                 </button>
             </div>
-            <!-- Corpo split -->
-            <div style="flex:1;display:flex;overflow:hidden;">
+            <!-- Corpo vertical: capa em cima, dados em baixo -->
+            <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;">
                 ${capaPanel}
                 ${rightPanel}
             </div>`;
@@ -572,8 +572,7 @@
         const { colaborador: c, treinamento: t } = _assinTreinamento;
         const instrutor = getInstrutorNome();
 
-        document.body.classList.add('force-landscape-selfie');
-        if (screen.orientation && screen.orientation.lock) { screen.orientation.lock('landscape').catch(e=>{}); }
+        document.body.classList.remove('force-landscape-selfie'); // garante limpeza se necessário
 
         let ov = document.getElementById('pres-assinatura-fs');
         if (!ov) {

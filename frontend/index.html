@@ -5511,7 +5511,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=1782835731066"></script>
-    <script src="app.js?v=20260701v5"></script>
+    <script src="app.js?v=20260702v4"></script>
     <script src="frota_resumo.js?v=1778869020176"></script>
     <!-- Global Scroll-to-Top Button -->
     <button id="global-scroll-top" onclick="window.scrollTo({top:0, behavior:'smooth'})"
@@ -5620,26 +5620,8 @@
                 transform: rotate(360deg);
             }
         }
-      /* Bloqueio de orientação para selfie e assinaturas */
-    @media screen and (orientation: portrait) and (max-width: 992px) {
-      body.force-landscape-selfie::after {
-        content: "Por favor, vire seu celular ou tablet na horizontal (deitado) para assinar e capturar a selfie de forma correta.";
-        position: fixed;
-        inset: 0;
-        background: rgba(15, 23, 42, 0.95);
-        backdrop-filter: blur(8px);
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        padding: 3rem;
-        font-size: 1.5rem;
-        font-weight: 700;
-        z-index: 99999999;
-      }
-    }
-  </style>
+    /* Orientação livre — sem bloqueio de rotação */
+    </style>
     <!-- ══════════════════════════════════════════════════════════════ -->
     <!-- MODAL: EDITAR TREINAMENTO                                      -->
     <!-- ══════════════════════════════════════════════════════════════ -->
@@ -5747,7 +5729,7 @@
     </script>
     <script src="end-produto.js"></script>
     <script src="treinamento.js?v=20260702v3"></script>
-    <script src="treinamento_presenca.js?v=20260702v2"></script>
+    <script src="treinamento_presenca.js?v=20260702v3"></script>
 
     
     <!-- MODAL: ASSINATURA DE TREINAMENTO -->
