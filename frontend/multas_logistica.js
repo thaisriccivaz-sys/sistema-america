@@ -71,12 +71,12 @@ function _statusRHColor(status) {
     if (status === 'Multa NIC')   return '#fecaca';
     if (status === 'Id. Deferida') return '#009933';
     if (status === 'Id. Indeferida') return '#ff746c';
-    if (status === 'Recorrida') return '#0000ff';
-    if (status === 'Rec. Deferida') return '#65c8d0';
+    if (status === 'Recorrida') return '#65c8d0';
+    if (status === 'Rec. Deferida') return '#0000ff';
     if (status === 'Rec. Indeferida') return '#ff13f0';
     if (status === 'Não Se Aplica') return '#cbd5e1';
     if (status === 'Antiga')      return '#e7e5e4';
-    if (status === 'Cobrada - Pz. Perdido') return '#8b0000'; // Dark red
+    if (status === 'Cobrada - Pz. Perdido') return '#bb9469'; // Bege Dourado
     return '#e2e8f0';
 }
 
