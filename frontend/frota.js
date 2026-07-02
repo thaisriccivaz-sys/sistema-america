@@ -343,7 +343,7 @@ window.toggleManutencaoFrota = async function(vid, novoStatus) {
             throw new Error(err.error || 'Erro ao alterar status.');
         }
         mostrarToastAviso('✅ Status de manutenção atualizado!');
-        carregarFrota();
+        window.initFrotaVeiculos();
     } catch (e) {
         mostrarToastAviso('❌ Erro: ' + e.message);
     }
