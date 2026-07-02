@@ -274,9 +274,17 @@
                         </div>
                         ${desc}
                         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px;">
-                            <div title="${t.departamento || 'Todos'}" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;padding:3px 8px;border-radius:12px;font-size:0.72rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;cursor:help;">
-                                👷‍♂️ Setor
-                            </div>
+                            ${(() => {
+                                const deptStr = t.departamento || '';
+                                const deptList = deptStr ? deptStr.split(',').filter(d => d.trim()) : [];
+                                const isTodos = deptList.length === 0 || deptStr.toLowerCase() === 'todos';
+                                const deptText = isTodos ? 'Todos' : (deptList.length === 1 ? '1 setor' : `${deptList.length} setores`);
+                                const deptTitle = isTodos ? 'Todos os Departamentos' : deptList.join(', ');
+                                return `
+                                <div title="${deptTitle}" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;padding:3px 8px;border-radius:12px;font-size:0.72rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;cursor:help;">
+                                    👷‍♂️ ${deptText}
+                                </div>`;
+                            })()}
                             <div style="display:flex;gap:4px;flex-wrap:wrap;">${pills || '<span style="color:#94a3b8;font-size:0.72rem;">Sem arquivos</span>'}</div>
                         </div>
                     </div>
