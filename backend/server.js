@@ -20557,6 +20557,7 @@ app.get('/api/frota/force-seed', (req, res) => { const db = require('./database'
 db.run(`CREATE TABLE IF NOT EXISTS propostas (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   codigo TEXT UNIQUE,
+  contrato TEXT,
   local TEXT,
   tipo TEXT,
   atendente TEXT,
@@ -20589,7 +20590,44 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
   atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
 )`, (err) => {
   if (err) console.error('[PROPOSTAS] Erro ao criar tabela:', err.message);
-  else console.log('[PROPOSTAS] Tabela propostas OK.');
+  else {
+    console.log('[PROPOSTAS] Tabela propostas OK.');
+    // Garantir que a coluna contrato existe em bancos já criados
+    db.run("ALTER TABLE propostas ADD COLUMN contrato TEXT", (errAlter) => {
+      if (errAlter && !errAlter.message.includes('duplicate column name')) {
+        console.log('[PROPOSTAS] Alerta ao alterar tabela (pode já existir a coluna):', errAlter.message);
+      }
+    });
+    
+    // Seed automático de propostas se a tabela estiver vazia
+    db.get("SELECT COUNT(*) as count FROM propostas", [], (err, rowCount) => {
+        if (!err && rowCount && rowCount.count === 0) {
+            console.log('[PROPOSTAS] Populando propostas comerciais iniciais...');
+            const seedData = [
+                ['PR2026/001', 'CAMPINAS', 'Novo', 'Ana Silva', '2026-06-15', '2026-06-20', 'Aprovada', 'Padrão', 'Auto Peças Ltda.', 'Carlos Souza', '2026-07-01', '2026-07-31', 30, '30 dias', 'Ana Silva', 'FOB', 'FOB', 150, 150, 'Proposta inicial aprovada.', 895.00, 'Diretoria', 'CT2026/001'],
+                ['PR2026/002', 'SÃO PAULO', 'Renovação', 'João Costa', '2026-06-16', '2026-06-22', 'Em Negociação', 'Padrão', 'Mão Certa Locações', 'Marcos Lima', '2026-07-05', '2026-08-04', 30, '15 dias', 'João Costa', 'CIF', 'CIF', 200, 200, 'Aguardando retorno.', 1500.00, 'Diretoria', ''],
+                ['PR2026/003', 'VALINHOS', 'Novo', 'Bia Santos', '2026-06-17', '2026-06-25', 'Convertida em OS', 'Padrão', 'TechGng Solocians', 'Roberto Alves', '2026-07-10', '2026-08-09', 30, 'Faturado', 'Bia Santos', 'FOB', 'FOB', 100, 100, 'Gerado OS.', 12300.00, 'Diretoria', 'CT2026/002'],
+                ['PR2026/004', 'VINHEDO', 'Novo', 'Ana Silva', '2026-06-18', '2026-06-28', 'Em Negociação', 'Padrão', 'Anolva Preal', 'Juliana Dias', '2026-07-15', '2026-08-14', 30, 'Boleto', 'Ana Silva', 'CIF', 'CIF', 180, 180, 'Enviado por e-mail.', 12390.90, 'Diretoria', ''],
+                ['PR2026/005', 'JUNDIAÍ', 'Renovação', 'João Costa', '2026-06-19', '2026-06-29', 'Aguardando Aprovação', 'Padrão', 'Aguardando Final', 'Lucas Martins', '2026-07-20', '2026-08-19', 30, 'Faturado', 'João Costa', 'FOB', 'FOB', 0, 0, 'Análise.', 12300.00, 'Diretoria', ''],
+                ['PR2026/006', 'SUMARÉ', 'Novo', 'Bia Santos', '2026-06-20', '2026-06-30', 'Em Negociação', 'Padrão', 'Aua Clta', 'Felipe Santos', '2026-07-22', '2026-08-21', 30, '30 dias', 'Bia Santos', 'CIF', 'CIF', 120, 120, 'Negociando.', 12390.90, 'Diretoria', ''],
+                ['PR2026/007', 'HORTOLÂNDIA', 'Novo', 'Ana Silva', '2026-06-21', '2026-07-02', 'Perdida', 'Padrão', 'Ave Cifts', 'Amanda Lima', '2026-07-25', '2026-08-24', 30, 'Boleto', 'Ana Silva', 'FOB', 'FOB', 130, 130, 'Recusado.', 12390.90, 'Diretoria', ''],
+                ['PR2026/008', 'PAULÍNIA', 'Novo', 'João Costa', '2026-06-22', '2026-07-05', 'Em Negociação', 'Padrão', 'Avs Cikta', 'Gabriel Costa', '2026-07-28', '2026-08-27', 30, '15 dias', 'João Costa', 'CIF', 'CIF', 160, 160, 'Negociação.', 12380.90, 'Diretoria', ''],
+                ['PR2026/009', 'INDAIATUBA', 'Novo', 'Bia Santos', '2026-06-23', '2026-07-06', 'Em Negociação', 'Padrão', 'Aurlia Custi', 'Patrícia Rocha', '2026-08-01', '2026-08-31', 30, 'Boleto', 'Bia Santos', 'FOB', 'FOB', 150, 150, 'Crédito.', 15300.00, 'Diretoria', ''],
+                ['PR2026/010', 'SALTO', 'Novo', 'Ana Silva', '2026-06-24', '2026-07-08', 'Em Negociação', 'Padrão', 'Aule Cacto', 'Fernanda Silveira', '2026-08-05', '2026-09-04', 30, 'Faturado', 'Ana Silva', 'CIF', 'CIF', 140, 140, 'Andamento.', 13300.00, 'Diretoria', ''],
+                ['PR2026/011', 'ITU', 'Novo', 'Bia Santos', '2026-06-25', '2026-07-10', 'Em Negociação', 'Padrão', 'TechCon-Fund', 'Maurício Souza', '2026-08-10', '2026-09-08', 30, 'Boleto', 'Bia Santos', 'FOB', 'FOB', 170, 170, 'Negociação.', 13360.80, 'Diretoria', '']
+            ];
+            const stmt = db.prepare(`INSERT INTO propostas (
+                codigo, local, tipo, atendente, data_cadastro, previsao_fechamento,
+                fase_negociacao, modelo_impressao, cliente_nome, contato_nome,
+                periodo_inicio, periodo_fim, dias_contrato, condicao_pagamento,
+                representante, transportadora, tipo_frete, valor_frete_ida,
+                valor_frete_volta, observacoes, valor_total, criado_por, contrato
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+            seedData.forEach(rowVal => stmt.run(rowVal));
+            stmt.finalize();
+        }
+    });
+  }
 });
 
 // Gerar código único para proposta
@@ -20598,6 +20636,15 @@ function gerarCodigoProposta(cb) {
   db.get(`SELECT MAX(CAST(SUBSTR(codigo, 6) AS INTEGER)) as max_seq FROM propostas WHERE codigo LIKE 'PR${ano}%'`, [], (err, row) => {
     const seq = (row && row.max_seq ? row.max_seq : 0) + 1;
     cb(`PR${ano}${String(seq).padStart(4, '0')}`);
+  });
+}
+
+// Gerar código único para contrato
+function gerarCodigoContrato(cb) {
+  const ano = new Date().getFullYear();
+  db.get(`SELECT MAX(CAST(SUBSTR(contrato, 7) AS INTEGER)) as max_seq FROM propostas WHERE contrato LIKE 'CT${ano}%'`, [], (err, row) => {
+    const seq = (row && row.max_seq ? row.max_seq : 0) + 1;
+    cb(`CT${ano}${String(seq).padStart(4, '0')}`);
   });
 }
 
@@ -20618,64 +20665,301 @@ app.get('/api/propostas/:id', authenticateToken, (req, res) => {
   });
 });
 
+// GET /api/propostas/:id/logs - Buscar histórico de alterações de uma proposta
+app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
+  db.all("SELECT * FROM auditoria WHERE programa = 'Proposta' AND registro_id = ? ORDER BY data_hora DESC", [req.params.id], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
 // POST /api/propostas - Criar nova proposta
 app.post('/api/propostas', authenticateToken, (req, res) => {
   const d = req.body;
   gerarCodigoProposta((codigo) => {
-    const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
-    db.run(`INSERT INTO propostas (
-      codigo, local, tipo, atendente, data_cadastro, previsao_fechamento,
-      fase_negociacao, modelo_impressao, cliente_nome, contato_nome,
-      periodo_inicio, periodo_fim, hora_inicio, hora_fim, dias_contrato,
-      tabela_precos, endereco_instalacao, desconto_percent, desconto_reais,
-      condicao_pagamento, representante, transportadora, tipo_frete,
-      valor_frete_ida, valor_frete_volta, observacoes, valor_total,
-      status, criado_por, criado_em, atualizado_em
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    gerarCodigoContrato((contrato) => {
+      const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+      db.run(`INSERT INTO propostas (
+        codigo, contrato, local, tipo, atendente, data_cadastro, previsao_fechamento,
+        fase_negociacao, modelo_impressao, cliente_nome, contato_nome,
+        periodo_inicio, periodo_fim, hora_inicio, hora_fim, dias_contrato,
+        tabela_precos, endereco_instalacao, desconto_percent, desconto_reais,
+        condicao_pagamento, representante, transportadora, tipo_frete,
+        valor_frete_ida, valor_frete_volta, observacoes, valor_total,
+        status, criado_por, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
+        d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
+        d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
+        d.dias_contrato||0, d.tabela_precos, d.endereco_instalacao,
+        d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
+        d.representante, d.transportadora, d.tipo_frete,
+        d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
+        d.valor_total||0, d.status||'Ativa', d.criado_por, agora, agora
+      ], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Log de criação
+        const usuarioLog = req.user?.username || req.user?.nome || d.criado_por || 'unknown';
+        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Criação', '', ?, ?)`,
+          [usuarioLog, `Proposta criada com contrato ${contrato}`, this.lastID]);
+
+        res.json({ success: true, id: this.lastID, codigo, contrato });
+      });
+    });
+  });
+});
+
+// PUT /api/propostas/:id - Atualizar proposta com log comparativo
+app.put('/api/propostas/:id', authenticateToken, (req, res) => {
+  const d = req.body;
+  const proposalId = req.params.id;
+  const usuarioLog = req.user?.username || req.user?.nome || d.criado_por || 'unknown';
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  db.get('SELECT * FROM propostas WHERE id = ?', [proposalId], (err, oldRow) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!oldRow) return res.status(404).json({ error: 'Proposta não encontrada' });
+
+    db.run(`UPDATE propostas SET
+      local=?, tipo=?, atendente=?, data_cadastro=?, previsao_fechamento=?,
+      fase_negociacao=?, modelo_impressao=?, cliente_nome=?, contato_nome=?,
+      periodo_inicio=?, periodo_fim=?, hora_inicio=?, hora_fim=?, dias_contrato=?,
+      tabela_precos=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
+      condicao_pagamento=?, representante=?, transportadora=?, tipo_frete=?,
+      valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
+      status=?, atualizado_em=?
+      WHERE id=?`,
     [
-      codigo, d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
+      d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
       d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
       d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
       d.dias_contrato||0, d.tabela_precos, d.endereco_instalacao,
       d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
       d.representante, d.transportadora, d.tipo_frete,
       d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
-      d.valor_total||0, d.status||'Ativa', d.criado_por, agora, agora
-    ], function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true, id: this.lastID, codigo });
+      d.valor_total||0, d.status||'Ativa', agora, proposalId
+    ], function(errUpdate) {
+      if (errUpdate) return res.status(500).json({ error: errUpdate.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Proposta não encontrada' });
+
+      // Auditoria: comparar campos alterados
+      const fieldsToCompare = [
+        { field: 'local', label: 'Local' },
+        { field: 'tipo', label: 'Tipo' },
+        { field: 'atendente', label: 'Atendente' },
+        { field: 'data_cadastro', label: 'Data Cadastro' },
+        { field: 'previsao_fechamento', label: 'Previsão Fechamento' },
+        { field: 'fase_negociacao', label: 'Fase de Negociação' },
+        { field: 'modelo_impressao', label: 'Modelo de Impressão' },
+        { field: 'cliente_nome', label: 'Cliente' },
+        { field: 'contato_nome', label: 'Contato' },
+        { field: 'periodo_inicio', label: 'Período Início' },
+        { field: 'periodo_fim', label: 'Período Fim' },
+        { field: 'hora_inicio', label: 'Hora Início' },
+        { field: 'hora_fim', label: 'Hora Fim' },
+        { field: 'dias_contrato', label: 'Dias Contrato' },
+        { field: 'tabela_precos', label: 'Tabela de Preços' },
+        { field: 'endereco_instalacao', label: 'Endereço de Instalação' },
+        { field: 'desconto_percent', label: 'Desconto (%)' },
+        { field: 'desconto_reais', label: 'Desconto (R$)' },
+        { field: 'condicao_pagamento', label: 'Condição de Pagamento' },
+        { field: 'representante', label: 'Representante' },
+        { field: 'transportadora', label: 'Transportadora' },
+        { field: 'tipo_frete', label: 'Tipo de Frete' },
+        { field: 'valor_frete_ida', label: 'Frete Ida' },
+        { field: 'valor_frete_volta', label: 'Frete Volta' },
+        { field: 'observacoes', label: 'Observações' },
+        { field: 'valor_total', label: 'Valor Total' },
+        { field: 'status', label: 'Status' }
+      ];
+
+      fieldsToCompare.forEach(item => {
+        let oldVal = oldRow[item.field] !== null && oldRow[item.field] !== undefined ? String(oldRow[item.field]) : '';
+        let newVal = d[item.field] !== null && d[item.field] !== undefined ? String(d[item.field]) : '';
+        
+        // Tratar padrões
+        if (item.field === 'hora_inicio' || item.field === 'hora_fim') {
+          if (!newVal) newVal = '00:00';
+        }
+        if (['dias_contrato', 'desconto_percent', 'desconto_reais', 'valor_frete_ida', 'valor_frete_volta', 'valor_total'].includes(item.field)) {
+          if (!newVal) newVal = '0';
+          if (!oldVal) oldVal = '0';
+          if (parseFloat(oldVal) === parseFloat(newVal)) return;
+        }
+
+        if (oldVal !== newVal) {
+          db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', ?, ?, ?, ?)`,
+            [usuarioLog, item.label, oldVal, newVal, proposalId]);
+        }
+      });
+
+      res.json({ success: true });
     });
   });
 });
 
-// PUT /api/propostas/:id - Atualizar proposta
-app.put('/api/propostas/:id', authenticateToken, (req, res) => {
-  const d = req.body;
-  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
-  db.run(`UPDATE propostas SET
-    local=?, tipo=?, atendente=?, data_cadastro=?, previsao_fechamento=?,
-    fase_negociacao=?, modelo_impressao=?, cliente_nome=?, contato_nome=?,
-    periodo_inicio=?, periodo_fim=?, hora_inicio=?, hora_fim=?, dias_contrato=?,
-    tabela_precos=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
-    condicao_pagamento=?, representante=?, transportadora=?, tipo_frete=?,
-    valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
-    status=?, atualizado_em=?
-    WHERE id=?`,
-  [
-    d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
-    d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
-    d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
-    d.dias_contrato||0, d.tabela_precos, d.endereco_instalacao,
-    d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
-    d.representante, d.transportadora, d.tipo_frete,
-    d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
-    d.valor_total||0, d.status||'Ativa', agora, req.params.id
-  ], function(err) {
+// POST /api/propostas/:id/enviar-email - Enviar PDF da proposta por e-mail
+app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) => {
+  const { assunto, destinatarios, corpo } = req.body;
+  if (!destinatarios) return res.status(400).json({ error: 'Informe pelo menos um destinatário.' });
+
+  db.get('SELECT * FROM propostas WHERE id = ?', [req.params.id], async (err, p) => {
     if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Proposta não encontrada' });
-    res.json({ success: true });
+    if (!p) return res.status(404).json({ error: 'Proposta não encontrada' });
+
+    try {
+      // 1. Gerar HTML da Proposta
+      const proposalHtml = gerarHtmlProposta(p);
+
+      // 2. Gerar PDF com layout completo usando html-pdf-node
+      const htmlPdf = require('html-pdf-node');
+      const pdfBuffer = await htmlPdf.generatePdf(
+        { content: proposalHtml },
+        { format: 'A4', margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } }
+      );
+
+      // 3. Enviar e-mail usando sendMailHelper
+      const toList = destinatarios.replace(/;/g, ',');
+      await sendMailHelper({
+        to: toList,
+        subject: assunto || `Proposta Comercial ${p.codigo}`,
+        html: corpo || '<p>Segue em anexo a nossa proposta comercial.</p>',
+        attachments: [
+          {
+            filename: `Proposta_${p.codigo}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+          }
+        ]
+      });
+
+      // 4. Registrar auditoria do envio de e-mail
+      const loggedUser = req.user?.username || req.user?.nome || 'unknown';
+      db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Envio de E-mail', '', ?, ?)`,
+        [loggedUser, `Enviado para: ${toList}`, p.id]);
+
+      res.json({ success: true });
+    } catch (e) {
+      console.error('[PROPOSTAS] Erro ao enviar e-mail:', e);
+      res.status(500).json({ error: 'Erro ao gerar ou enviar e-mail: ' + e.message });
+    }
   });
 });
+
+// Helper: Função para renderizar HTML do PDF da proposta
+function gerarHtmlProposta(p) {
+  const fmtMoeda = (v) => 'R$ ' + Number(v||0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const fmtData = (s) => {
+    if (!s) return '—';
+    try {
+      const d = new Date(s + (s.length === 10 ? 'T12:00:00' : ''));
+      return d.toLocaleDateString('pt-BR');
+    } catch (e) { return s; }
+  };
+  return `<!DOCTYPE html><html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <title>Proposta ${p.codigo}</title>
+        <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: Arial, sans-serif; font-size: 10pt; color: #1e293b; background: #fff; padding: 15px; }
+            .header { background: #4c1d95; color: white; padding: 15px 20px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+            .header h1 { font-size: 14pt; margin-bottom: 3px; }
+            .header .sub { font-size: 9pt; opacity: 0.85; }
+            .badge { background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 15px; font-size: 9pt; font-weight: bold; }
+            .section { margin-bottom: 15px; }
+            .section h3 { font-size: 9pt; font-weight: 700; color: #6d28d9; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e0e7ff; padding-bottom: 4px; margin-bottom: 8px; }
+            .grid { display: flex; flex-wrap: wrap; margin: -4px; }
+            .col-2 { width: 50%; padding: 4px; }
+            .col-3 { width: 33.33%; padding: 4px; }
+            .col-4 { width: 25%; padding: 4px; }
+            .col-12 { width: 100%; padding: 4px; }
+            .field { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 4px; padding: 6px 8px; }
+            .field label { display: block; font-size: 7.5pt; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
+            .field span { font-size: 9.5pt; color: #1e293b; font-weight: 600; }
+            .valor-box { background: #4c1d95; color: white; border-radius: 6px; padding: 10px 15px; text-align: center; margin-top: 12px; }
+            .valor-box .label { font-size: 8pt; opacity: 0.8; margin-bottom: 2px; }
+            .valor-box .val { font-size: 18pt; font-weight: 800; }
+            .footer { border-top: 1px solid #e2e8f0; padding-top: 10px; margin-top: 15px; font-size: 8pt; color: #94a3b8; text-align: center; }
+            .obs { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 4px; padding: 8px 10px; font-size: 9pt; color: #78350f; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div>
+                <h1>📋 Proposta de Locação</h1>
+                <div class="sub">América Rental Equipamentos · ${fmtData(p.data_cadastro)}</div>
+            </div>
+            <div class="badge">${p.codigo || 'S/N'}</div>
+        </div>
+
+        <div class="section">
+            <h3>Informações Gerais</h3>
+            <div class="grid">
+                <div class="col-4"><div class="field"><label>Tipo</label><span>${p.tipo||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Fase</label><span>${p.fase_negociacao||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Atendente</label><span>${p.atendente||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Previsão Fechamento</label><span>${fmtData(p.previsao_fechamento)||'—'}</span></div></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Cliente</h3>
+            <div class="grid">
+                <div class="col-2"><div class="field"><label>Cliente</label><span>${p.cliente_nome||'—'}</span></div></div>
+                <div class="col-2"><div class="field"><label>Contato</label><span>${p.contato_nome||'—'}</span></div></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Período e Local</h3>
+            <div class="grid">
+                <div class="col-4"><div class="field"><label>Período Início</label><span>${fmtData(p.periodo_inicio)||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Período Fim</label><span>${fmtData(p.periodo_fim)||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Hora Início / Fim</label><span>${p.hora_inicio||'00:00'} — ${p.hora_fim||'00:00'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Dias de Contrato</label><span>${p.dias_contrato||0}</span></div></div>
+                <div class="col-12" style="margin-top:4px;"><div class="field"><label>Endereço de Instalação</label><span>${p.endereco_instalacao||'—'}</span></div></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Condições Comerciais</h3>
+            <div class="grid">
+                <div class="col-4"><div class="field"><label>Tabela de Preços</label><span>${p.tabela_precos||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Condição Pagamento</label><span>${p.condicao_pagamento||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Desconto (%)</label><span>${Number(p.desconto_percent||0).toFixed(2)}%</span></div></div>
+                <div class="col-4"><div class="field"><label>Desconto (R$)</label><span>${fmtMoeda(p.desconto_reais)}</span></div></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Representante e Frete</h3>
+            <div class="grid">
+                <div class="col-4"><div class="field"><label>Representante</label><span>${p.representante||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Transportadora</label><span>${p.transportadora||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Frete Ida</label><span>${fmtMoeda(p.valor_frete_ida)}</span></div></div>
+                <div class="col-4"><div class="field"><label>Frete Volta</label><span>${fmtMoeda(p.valor_frete_volta)}</span></div></div>
+            </div>
+        </div>
+
+        ${p.observacoes ? `
+        <div class="section">
+            <h3>Observações</h3>
+            <div class="obs">${p.observacoes}</div>
+        </div>` : ''}
+
+        <div class="valor-box">
+            <div class="label">VALOR TOTAL DA PROPOSTA</div>
+            <div class="val">${fmtMoeda(p.valor_total)}</div>
+        </div>
+
+        <div class="footer">
+            América Rental Equipamentos · Gerado em ${new Date().toLocaleDateString('pt-BR')}
+        </div>
+    </body></html>`;
+}
 
 // DELETE /api/propostas/:id - Excluir proposta
 app.delete('/api/propostas/:id', authenticateToken, (req, res) => {
@@ -20686,7 +20970,507 @@ app.delete('/api/propostas/:id', authenticateToken, (req, res) => {
   });
 });
 
+// ══════════════════════════════════════════════════════════════════════
+// MÓDULO: CADASTRO DE CLIENTES
+// ══════════════════════════════════════════════════════════════════════
+
+db.run(`CREATE TABLE IF NOT EXISTS clientes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  codigo INTEGER UNIQUE,
+  data_cadastro TEXT,
+  inativo INTEGER DEFAULT 0,
+  cpf_cnpj TEXT UNIQUE,
+  inscricao_estadual TEXT,
+  inscricao_municipal TEXT,
+  rg TEXT,
+  data_nascimento TEXT,
+  grupo_clientes TEXT,
+  cliente_centralizador TEXT,
+  nome_razao_social TEXT,
+  nome_fantasia TEXT,
+  cep TEXT,
+  endereco TEXT,
+  numero TEXT,
+  complemento TEXT,
+  bairro TEXT,
+  uf TEXT,
+  municipio TEXT,
+  pais TEXT,
+  telefone TEXT,
+  ramal TEXT,
+  telefone_2 TEXT,
+  ramal_2 TEXT,
+  fax TEXT,
+  website TEXT,
+  celular_ddi TEXT,
+  celular TEXT,
+  parametros TEXT,
+  fiscal TEXT,
+  contatos TEXT,
+  validacao_dados TEXT,
+  anexo_arquivos TEXT,
+  criado_por TEXT,
+  criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+  atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+)`, (err) => {
+  if (err) console.error('[CLIENTES] Erro ao criar tabela:', err.message);
+  else console.log('[CLIENTES] Tabela clientes OK.');
+});
+
+db.run(`CREATE TABLE IF NOT EXISTS contatos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  codigo INTEGER UNIQUE,
+  nome TEXT,
+  tipo TEXT,
+  representante TEXT,
+  departamento TEXT,
+  cargo TEXT,
+  origem TEXT,
+  influenciador TEXT,
+  classificacao TEXT,
+  data_nascimento TEXT,
+  ramo_atividade TEXT,
+  regiao TEXT,
+  sexo TEXT,
+  celular TEXT,
+  telefone TEXT,
+  ramal TEXT,
+  nextel TEXT,
+  email TEXT,
+  outra_comunicacao TEXT,
+  inativo INTEGER DEFAULT 0,
+  email_cobranca INTEGER DEFAULT 0,
+  email_nfe INTEGER DEFAULT 0,
+  email_os INTEGER DEFAULT 0,
+  email_contrato INTEGER DEFAULT 0,
+  cliente_id INTEGER,
+  criado_por TEXT,
+  criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+  atualizado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+  FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+)`, (err) => {
+  if (err) console.error('[CONTATOS] Erro ao criar tabela:', err.message);
+  else console.log('[CONTATOS] Tabela contatos OK.');
+});
+
+// Gerar código sequencial único para cliente
+function gerarCodigoCliente(cb) {
+  db.get(`SELECT MAX(codigo) as max_seq FROM clientes`, [], (err, row) => {
+    const seq = (row && row.max_seq ? row.max_seq : 6000) + 1;
+    cb(seq);
+  });
+}
+
+// Gerar código sequencial único para contato
+function gerarCodigoContato(cb) {
+  db.get(`SELECT MAX(codigo) as max_seq FROM contatos`, [], (err, row) => {
+    const seq = (row && row.max_seq ? row.max_seq : 14800) + 1;
+    cb(seq);
+  });
+}
+
+// Auxiliar para salvar ou atualizar empresa cliente a partir de contato
+function salvarOuAtualizarEmpresa(cliData, callback) {
+  if (!cliData) {
+    return callback(null, null);
+  }
+
+  const lookupId = cliData.id || null;
+  const lookupCodigo = cliData.codigo || null;
+  const cpfCnpj = cliData.cpf_cnpj || null;
+
+  if (!lookupId && !lookupCodigo && !cpfCnpj) {
+    return callback(null, null);
+  }
+
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  db.get('SELECT * FROM clientes WHERE id = ? OR codigo = ? OR (cpf_cnpj = ? AND ? IS NOT NULL)', 
+    [lookupId, lookupCodigo, cpfCnpj, cpfCnpj], (err, row) => {
+      if (err) return callback(err);
+
+      if (row) {
+        const idExistente = row.id;
+        
+        // Merge e preservação de campos para não apagar dados existentes no banco
+        const rSocial = cliData.nome_razao_social || row.nome_razao_social;
+        const cnpj = cliData.cpf_cnpj || row.cpf_cnpj;
+        const cep = cliData.cep || row.cep;
+        const endereco = cliData.endereco || row.endereco;
+        const numero = cliData.numero || row.numero;
+        const bairro = cliData.bairro || row.bairro;
+        const municipio = cliData.municipio || row.municipio;
+        const uf = cliData.uf || row.uf;
+        const tel = cliData.telefone || row.telefone;
+        const ramal = cliData.ramal || row.ramal;
+        const fax = cliData.fax || row.fax;
+        const tel2 = cliData.telefone_2 || row.telefone_2;
+        const ramal2 = cliData.ramal_2 || row.ramal_2;
+        const website = cliData.website || row.website;
+
+        db.run(`UPDATE clientes SET
+          nome_razao_social=?, cpf_cnpj=?, cep=?, endereco=?, numero=?, bairro=?,
+          municipio=?, uf=?, telefone=?, ramal=?, fax=?, telefone_2=?, ramal_2=?, website=?,
+          atualizado_em=?
+          WHERE id=?`,
+        [
+          rSocial, cnpj, cep, endereco, numero, bairro, municipio, uf, tel, ramal, fax, tel2, ramal2, website,
+          agora, idExistente
+        ], function(err2) {
+          if (err2) return callback(err2);
+          callback(null, idExistente);
+        });
+      } else {
+        // Se a empresa não existe no banco, CPF/CNPJ e Nome são obrigatórios para criá-la
+        if (!cpfCnpj || !cliData.nome_razao_social) {
+          return callback(new Error('CNPJ/CPF e Razão Social são obrigatórios para cadastrar um novo cliente.'));
+        }
+
+        gerarCodigoCliente((novoCodigo) => {
+          db.run(`INSERT INTO clientes (
+            codigo, data_cadastro, inativo, cpf_cnpj, nome_razao_social, cep, endereco,
+            numero, bairro, municipio, uf, telefone, ramal, fax, telefone_2, ramal_2, website,
+            criado_por, criado_em, atualizado_em
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          [
+            novoCodigo, agora.substring(0,10), 0, cpfCnpj, cliData.nome_razao_social,
+            cliData.cep || '', cliData.endereco || '', cliData.numero || '', cliData.bairro || '', cliData.municipio || '',
+            cliData.uf || '', cliData.telefone || '', cliData.ramal || '', cliData.fax || '', cliData.telefone_2 || '', cliData.ramal_2 || '',
+            cliData.website || '', cliData.criado_por || '', agora, agora
+          ], function(err2) {
+            if (err2) return callback(err2);
+            callback(null, this.lastID);
+          });
+        });
+      }
+    }
+  );
+}
+
+// GET /api/clientes - Listar todos os clientes
+app.get('/api/clientes', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM clientes ORDER BY criado_em DESC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// GET /api/clientes/:id - Buscar cliente por ID ou Código
+app.get('/api/clientes/:id', authenticateToken, (req, res) => {
+  db.get('SELECT * FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Cliente não encontrado' });
+    res.json(row);
+  });
+});
+
+// GET /api/clientes/:clienteId/enderecos - Listar endereços de entrega do cliente
+app.get('/api/clientes/:clienteId/enderecos', authenticateToken, (req, res) => {
+  const clienteId = req.params.clienteId;
+  db.all('SELECT * FROM clientes_enderecos_entrega WHERE cliente_id = ? ORDER BY sequencia ASC', [clienteId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// POST /api/clientes/:clienteId/enderecos - Salvar ou atualizar endereço de entrega do cliente
+app.post('/api/clientes/:clienteId/enderecos', authenticateToken, (req, res) => {
+  const clienteId = req.params.clienteId;
+  const d = req.body;
+  
+  if (!d.sequencia) {
+    return res.status(400).json({ error: 'A sequência do endereço é obrigatória.' });
+  }
+
+  db.run(`INSERT INTO clientes_enderecos_entrega (
+    cliente_id, sequencia, nome_local, cpf_cnpj, inscricao_estadual, cep,
+    endereco, numero, complemento, bairro, uf, municipio, contato, telefone, ramal
+  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  ON CONFLICT(cliente_id, sequencia) DO UPDATE SET
+    nome_local=excluded.nome_local,
+    cpf_cnpj=excluded.cpf_cnpj,
+    inscricao_estadual=excluded.inscricao_estadual,
+    cep=excluded.cep,
+    endereco=excluded.endereco,
+    numero=excluded.numero,
+    complemento=excluded.complemento,
+    bairro=excluded.bairro,
+    uf=excluded.uf,
+    municipio=excluded.municipio,
+    contato=excluded.contato,
+    telefone=excluded.telefone,
+    ramal=excluded.ramal`,
+  [
+    clienteId, d.sequencia, d.nome_local, d.cpf_cnpj, d.inscricao_estadual, d.cep,
+    d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio, d.contato, d.telefone, d.ramal
+  ], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, id: this.lastID || d.id });
+  });
+});
+
+// DELETE /api/clientes/:clienteId/enderecos/:id - Excluir endereço de entrega do cliente
+app.delete('/api/clientes/:clienteId/enderecos/:id', authenticateToken, (req, res) => {
+  const { clienteId, id } = req.params;
+  db.run('DELETE FROM clientes_enderecos_entrega WHERE cliente_id = ? AND id = ?', [clienteId, id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Endereço não encontrado.' });
+    res.json({ success: true });
+  });
+});
+
+// POST /api/clientes - Criar novo cliente
+app.post('/api/clientes', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  const insertClient = (codigo) => {
+    db.run(`INSERT INTO clientes (
+      codigo, data_cadastro, inativo, cpf_cnpj, inscricao_estadual, inscricao_municipal,
+      rg, data_nascimento, grupo_clientes, cliente_centralizador, nome_razao_social,
+      nome_fantasia, cep, endereco, numero, complemento, bairro, uf, municipio,
+      pais, telefone, ramal, telefone_2, ramal_2, fax, website, celular_ddi,
+      celular, parametros, fiscal, contatos, validacao_dados, anexo_arquivos,
+      criado_por, criado_em, atualizado_em
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [
+      codigo, d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
+      d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
+      d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
+      d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.celular_ddi,
+      d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
+      d.criado_por, agora, agora
+    ], function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE constraint failed: clientes.cpf_cnpj')) {
+          return res.status(400).json({ error: 'Já existe um cliente cadastrado com este CPF/CNPJ.' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ success: true, id: this.lastID, codigo });
+    });
+  };
+
+  if (d.codigo) {
+    insertClient(d.codigo);
+  } else {
+    gerarCodigoCliente((codigo) => {
+      insertClient(codigo);
+    });
+  }
+});
+
+// PUT /api/clientes/:id - Atualizar cliente
+app.put('/api/clientes/:id', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  db.run(`UPDATE clientes SET
+    data_cadastro=?, inativo=?, cpf_cnpj=?, inscricao_estadual=?, inscricao_municipal=?,
+    rg=?, data_nascimento=?, grupo_clientes=?, cliente_centralizador=?, nome_razao_social=?,
+    nome_fantasia=?, cep=?, endereco=?, numero=?, complemento=?, bairro=?, uf=?, municipio=?,
+    pais=?, telefone=?, ramal=?, telefone_2=?, ramal_2=?, fax=?, website=?, celular_ddi=?,
+    celular=?, parametros=?, fiscal=?, contatos=?, validacao_dados=?, anexo_arquivos=?,
+    atualizado_em=?
+    WHERE id=? OR codigo=?`,
+  [
+    d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
+    d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
+    d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
+    d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.celular_ddi,
+    d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
+    agora, req.params.id, req.params.id
+  ], function(err) {
+    if (err) {
+      if (err.message.includes('UNIQUE constraint failed: clientes.cpf_cnpj')) {
+        return res.status(400).json({ error: 'Já existe outro cliente cadastrado com este CPF/CNPJ.' });
+      }
+      return res.status(500).json({ error: err.message });
+    }
+    if (this.changes === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
+    res.json({ success: true });
+  });
+});
+
+// DELETE /api/clientes/:id - Excluir cliente
+app.delete('/api/clientes/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
+    res.json({ success: true });
+  });
+});
+
+// GET /api/consulta-cnpj/:cnpj - Proxy para consulta de CNPJ com IE (cnpj.ws e fallback BrasilAPI)
+app.get('/api/consulta-cnpj/:cnpj', authenticateToken, async (req, res) => {
+  const cnpj = req.params.cnpj.replace(/\D/g, '');
+  if (cnpj.length !== 14) {
+    return res.status(400).json({ error: 'CNPJ inválido. Deve conter 14 dígitos.' });
+  }
+
+  try {
+    // 1. Tentar cnpj.ws para obter Inscrição Estadual
+    const response = await fetch(`https://publica.cnpj.ws/cnpj/${cnpj}`);
+    if (response.ok) {
+      const data = await response.json();
+      return res.json({ source: 'cnpjws', data });
+    }
+
+    console.warn(`[CNPJ] Erro na API cnpj.ws (Status ${response.status}). Tentando fallback BrasilAPI...`);
+  } catch (err) {
+    console.error('[CNPJ] Falha ao conectar em cnpj.ws:', err.message);
+  }
+
+  // 2. Fallback para BrasilAPI
+  try {
+    const fallbackResponse = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+    if (fallbackResponse.ok) {
+      const data = await fallbackResponse.json();
+      return res.json({ source: 'brasilapi', data });
+    }
+    return res.status(fallbackResponse.status).json({ error: 'CNPJ não encontrado nas bases públicas de consulta.' });
+  } catch (err) {
+    console.error('[CNPJ] Falha ao conectar em BrasilAPI:', err.message);
+    return res.status(500).json({ error: 'Erro ao consultar APIs de CNPJ.' });
+  }
+});
+
+// GET /api/contatos - Listar todos os contatos
+app.get('/api/contatos', authenticateToken, (req, res) => {
+  db.all(`
+    SELECT c.*, cli.nome_razao_social as cliente_nome, cli.codigo as cliente_codigo
+    FROM contatos c
+    LEFT JOIN clientes cli ON c.cliente_id = cli.id
+    ORDER BY c.criado_em DESC
+  `, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// GET /api/contatos/:id/navegar/:direcao - Navegar para anterior ou próximo contato
+app.get('/api/contatos/:id/navegar/:direcao', authenticateToken, (req, res) => {
+  const currentId = req.params.id;
+  const direcao = req.params.direcao; // 'proximo' ou 'anterior'
+  
+  db.get('SELECT codigo FROM contatos WHERE id = ? OR codigo = ?', [currentId, currentId], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Contato atual não encontrado' });
+    
+    const currentCode = row.codigo;
+    let query, params;
+    
+    if (direcao === 'proximo') {
+      query = 'SELECT id, codigo FROM contatos WHERE codigo > ? ORDER BY codigo ASC LIMIT 1';
+      params = [currentCode];
+    } else {
+      query = 'SELECT id, codigo FROM contatos WHERE codigo < ? ORDER BY codigo DESC LIMIT 1';
+      params = [currentCode];
+    }
+    
+    db.get(query, params, (err2, nextRow) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+      if (!nextRow) return res.json({ endOfList: true });
+      res.json(nextRow);
+    });
+  });
+});
+
+// GET /api/contatos/:id - Buscar contato por ID ou Código
+app.get('/api/contatos/:id', authenticateToken, (req, res) => {
+  db.get(`
+    SELECT c.*, cli.nome_razao_social as cliente_nome, cli.codigo as cliente_codigo,
+           cli.cpf_cnpj, cli.cep, cli.endereco, cli.numero, cli.bairro, cli.municipio as cliente_cidade,
+           cli.uf, cli.telefone as cliente_telefone, cli.ramal as cliente_ramal, cli.fax as cliente_fax,
+           cli.telefone_2 as cliente_telefone2, cli.ramal_2 as cliente_ramal2, cli.website as cliente_site
+    FROM contatos c
+    LEFT JOIN clientes cli ON c.cliente_id = cli.id
+    WHERE c.id = ? OR c.codigo = ?
+  `, [req.params.id, req.params.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Contato não encontrado' });
+    res.json(row);
+  });
+});
+
+// POST /api/contatos - Criar novo contato
+app.post('/api/contatos', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  salvarOuAtualizarEmpresa(d.empresa_cliente, (err, clienteId) => {
+    if (err) return res.status(500).json({ error: 'Erro ao salvar empresa cliente: ' + err.message });
+
+    const insertContato = (codigo) => {
+      db.run(`INSERT INTO contatos (
+        codigo, nome, tipo, representante, departamento, cargo, origem, influenciador,
+        classificacao, data_nascimento, ramo_atividade, regiao, sexo, celular, telefone,
+        ramal, nextel, email, outra_comunicacao, inativo, email_cobranca, email_nfe,
+        email_os, email_contrato, cliente_id, criado_por, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        codigo, d.nome, d.tipo, d.representante, d.departamento, d.cargo, d.origem, d.influenciador,
+        d.classificacao, d.data_nascimento, d.ramo_atividade, d.regiao, d.sexo, d.celular, d.telefone,
+        d.ramal, d.nextel, d.email, d.outra_comunicacao, d.inativo||0, d.email_cobranca||0, d.email_nfe||0,
+        d.email_os||0, d.email_contrato||0, clienteId, d.criado_por, agora, agora
+      ], function(err2) {
+        if (err2) {
+          if (err2.message.includes('UNIQUE constraint failed: contatos.codigo')) {
+             return res.status(400).json({ error: 'Código de contato duplicado.' });
+          }
+          return res.status(500).json({ error: err2.message });
+        }
+        res.json({ success: true, id: this.lastID, codigo, cliente_id: clienteId });
+      });
+    };
+
+    if (d.codigo) {
+      insertContato(d.codigo);
+    } else {
+      gerarCodigoContato((codigo) => {
+        insertContato(codigo);
+      });
+    }
+  });
+});
+
+// PUT /api/contatos/:id - Atualizar contato
+app.put('/api/contatos/:id', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  salvarOuAtualizarEmpresa(d.empresa_cliente, (err, clienteId) => {
+    if (err) return res.status(500).json({ error: 'Erro ao salvar empresa cliente: ' + err.message });
+
+    db.run(`UPDATE contatos SET
+      nome=?, tipo=?, representante=?, departamento=?, cargo=?, origem=?, influenciador=?,
+      classificacao=?, data_nascimento=?, ramo_atividade=?, regiao=?, sexo=?, celular=?, telefone=?,
+      ramal=?, nextel=?, email=?, outra_comunicacao=?, inativo=?, email_cobranca=?, email_nfe=?,
+      email_os=?, email_contrato=?, cliente_id=?, atualizado_em=?
+      WHERE id=? OR codigo=?`,
+    [
+      d.nome, d.tipo, d.representante, d.departamento, d.cargo, d.origem, d.influenciador,
+      d.classificacao, d.data_nascimento, d.ramo_atividade, d.regiao, d.sexo, d.celular, d.telefone,
+      d.ramal, d.nextel, d.email, d.outra_comunicacao, d.inativo||0, d.email_cobranca||0, d.email_nfe||0,
+      d.email_os||0, d.email_contrato||0, clienteId, agora, req.params.id, req.params.id
+    ], function(err2) {
+      if (err2) return res.status(500).json({ error: err2.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Contato não encontrado' });
+      res.json({ success: true, cliente_id: clienteId });
+    });
+  });
+});
+
+// DELETE /api/contatos/:id - Excluir contato
+app.delete('/api/contatos/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM contatos WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Contato não encontrado' });
+    res.json({ success: true });
+  });
+});
+
 console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
+console.log('[CLIENTES] Módulo de cadastro de clientes carregado.');
 
 
 
