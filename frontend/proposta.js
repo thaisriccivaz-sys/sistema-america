@@ -991,7 +991,7 @@ function _renderFormPropostaInt() {
             </div>
 
             <!-- Corpo do formulário -->
-            <div style="padding:1.5rem; overflow-y:auto; max-height:78vh;">
+            <div style="padding:1.5rem;">
                 <form id="form-proposta" onsubmit="return false;">
 
                     <!-- Linha 1: Código, Tipo, Atendente -->
@@ -2223,7 +2223,7 @@ function _renderCadastroClienteInt() {
             </div>
 
             <!-- Corpo da Tela -->
-            <div style="padding:1.5rem; overflow-y:auto; max-height:80vh;">
+            <div style="padding:1.5rem;">
                 
                 <!-- Info bar at the top of form body -->
                 <div style="display:flex; justify-content:space-between; align-items:center; background:#f0f7ff; border:1px solid #c2e0ff; padding:0.6rem 1.2rem; border-radius:6px; margin-bottom:1rem; font-size:0.85rem; color:#1e40af; flex-wrap:wrap; gap:0.5rem;">
