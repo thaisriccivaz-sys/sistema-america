@@ -529,7 +529,12 @@
         const desc = (el('novo-treinamento-desc') || {}).value?.trim();
         const container = el('novo-treinamento-departamento');
         const checked = container ? Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value) : [];
-        const departamento = checked.length > 0 ? checked.join(', ') : 'Todos';
+        let departamento = 'Nenhum';
+        if (checked.includes('Todos')) {
+            departamento = 'Todos';
+        } else if (checked.length > 0) {
+            departamento = checked.join(', ');
+        }
         const validade_dias = parseInt((el('novo-treinamento-validade') || {}).value || '0', 10) || 0;
         if (!nome) { alert('Informe o nome do treinamento.'); return; }
 
@@ -881,7 +886,12 @@
         const desc = (el('editar-treinamento-desc') || {}).value?.trim();
         const deptSelect = el('editar-treinamento-departamento');
         const checked = deptSelect ? Array.from(deptSelect.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value) : [];
-        const departamento = checked.length > 0 ? checked.join(', ') : 'Todos';
+        let departamento = 'Nenhum';
+        if (checked.includes('Todos')) {
+            departamento = 'Todos';
+        } else if (checked.length > 0) {
+            departamento = checked.join(', ');
+        }
         if (!nome) { alert('Informe o nome do treinamento.'); return; }
 
         const btn = el('btn-salvar-edicao-treinamento');
