@@ -76,6 +76,7 @@ function _statusRHColor(status) {
     if (status === 'Rec. Indeferida') return '#ff13f0';
     if (status === 'Não Se Aplica') return '#cbd5e1';
     if (status === 'Antiga')      return '#e7e5e4';
+    if (status === 'Ex Colaborador') return '#94a3b8'; // Cinza um pouco mais escuro
     if (status === 'Cobrada - Pz. Perdido') return '#bb9469'; // Bege Dourado
     return '#e2e8f0';
 }
@@ -128,7 +129,7 @@ function _buildStatusDropdown(containerId, selectId, currentValue, opts, onchang
     const ALL_STATUS = [
         'Conferência','Em Andamento','Indicado','Multa NIC',
         'Id. Deferida','Id. Indeferida','Recorrida','Rec. Deferida','Rec. Indeferida',
-        'Cobrada - Pz. Perdido',
+        'Cobrada - Pz. Perdido', 'Ex Colaborador',
         'Não Se Aplica','Antiga'
     ];
     const list = opts || ALL_STATUS;
