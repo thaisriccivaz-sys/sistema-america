@@ -525,7 +525,7 @@
             ov.id = 'pres-capa-assinatura-fs';
             document.body.appendChild(ov);
         }
-        ov.style.cssText = 'position:fixed;inset:0;z-index:99990;background:#000;display:flex;flex-direction:column;align-items:stretch;overflow:hidden;';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:99990;background:#000;display:flex;flex-direction:column;align-items:stretch;overflow-y:auto;';
 
         ov.innerHTML = `
             <!-- Imagem da capa ocupa toda a tela -->
@@ -581,7 +581,7 @@
             ov.id = 'pres-assinatura-fs';
             document.body.appendChild(ov);
         }
-        ov.style.cssText = 'position:fixed;inset:0;z-index:99991;background:#f8fafc;display:flex;flex-direction:column;overflow:hidden;';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:99991;background:#f8fafc;display:flex;flex-direction:column;overflow-y:auto;';
 
         ov.innerHTML = `
             <!-- Header -->
@@ -599,7 +599,7 @@
                 <p style="margin:0;font-size:0.85rem;color:#64748b;"><i class="ph ph-pencil-line"></i> Assine com o dedo ou mouse no campo abaixo</p>
             </div>
             <!-- Canvas em fullscreen -->
-            <div style="flex:1;position:relative;background:#fafafa;display:flex;align-items:stretch;padding:12px;">
+            <div style="flex:1;position:relative;background:#fafafa;display:flex;align-items:stretch;padding:12px;min-height:200px;">
                 <div style="flex:1;border:2px dashed #cbd5e1;border-radius:12px;background:#fff;position:relative;overflow:hidden;">
                     <canvas id="pres-assin-fs-canvas" style="display:block;width:100%;height:100%;cursor:crosshair;touch-action:none;"></canvas>
                     <span style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-size:0.72rem;color:#cbd5e1;pointer-events:none;white-space:nowrap;">Assine aqui</span>

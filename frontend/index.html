@@ -4659,6 +4659,13 @@
                 <input type="search" id="filtro-treinamento-busca" class="form-control" placeholder="Buscar treinamento..." oninput="window.renderTreinamentosTable()" autocomplete="off"
                     style="padding-left:38px;border-radius:8px;border:1px solid #e2e8f0;">
             </div>
+            <div style="width:180px;">
+                <select id="filtro-treinamento-status" class="form-control" onchange="window.renderTreinamentosTable()" style="border-radius:8px;border:1px solid #e2e8f0;">
+                    <option value="ativo">Ativos</option>
+                    <option value="arquivado">Arquivados</option>
+                    <option value="todos">Todos</option>
+                </select>
+            </div>
             <div style="width:250px;">
                 <select id="filtro-treinamento-departamento" class="form-control" onchange="window.renderTreinamentosTable()" style="border-radius:8px;border:1px solid #e2e8f0;">
                     <option value="">Todos os Departamentos</option>
@@ -5745,7 +5752,7 @@
     
     <!-- MODAL: ASSINATURA DE TREINAMENTO -->
     <div id="modal-assinatura-treinamento" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9200;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto;">
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,0.25);overflow:hidden;margin:auto;">
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,0.25);overflow:hidden;margin:2rem auto;">
             <!-- Header -->
             <div style="background:linear-gradient(135deg,#0e7490,#06b6d4);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;">
                 <div>
