@@ -12984,6 +12984,8 @@ db.run(`CREATE TABLE IF NOT EXISTS os_logistica (
     variaveis TEXT,
     link_video TEXT,
     patrimonio TEXT,
+    manutencao_quinzenal INTEGER DEFAULT 0,
+    primeira_manutencao TEXT,
     status TEXT DEFAULT 'ativo',
     criado_em TEXT DEFAULT (datetime('now')),
     atualizado_em TEXT DEFAULT (datetime('now'))
@@ -12995,6 +12997,8 @@ db.run(`CREATE TABLE IF NOT EXISTS os_logistica (
         db.run("ALTER TABLE os_logistica ADD COLUMN habilidades TEXT", () => { });
         db.run("ALTER TABLE os_logistica ADD COLUMN variaveis TEXT", () => { });
         db.run("ALTER TABLE os_logistica ADD COLUMN patrimonio TEXT", () => { });
+        db.run("ALTER TABLE os_logistica ADD COLUMN manutencao_quinzenal INTEGER DEFAULT 0", () => { });
+        db.run("ALTER TABLE os_logistica ADD COLUMN primeira_manutencao TEXT", () => { });
     }
 });
 
@@ -13417,7 +13421,8 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
         numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
         contrato, data_os, responsavel, telefone, email, tipo_servico,
         hora_inicio, hora_fim, turno, dias_semana, produtos, observacoes,
-        observacoes_internas, habilidades, variaveis, link_video, patrimonio
+        observacoes_internas, habilidades, variaveis, link_video, patrimonio,
+        manutencao_quinzenal, primeira_manutencao
     } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
 
@@ -13448,8 +13453,8 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
             // Cliente OK (mesmo ou nova OS) — insere
             db.run(`INSERT INTO os_logistica (numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
                 contrato, data_os, responsavel, telefone, email, tipo_servico, hora_inicio, hora_fim,
-                turno, dias_semana, produtos, observacoes, observacoes_internas, habilidades, variaveis, link_video, patrimonio)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                turno, dias_semana, produtos, observacoes, observacoes_internas, habilidades, variaveis, link_video, patrimonio, manutencao_quinzenal, primeira_manutencao)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [numero_os, tipo_os, cliente, endereco, complemento, cep,
                     lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
                     contrato, data_os, responsavel, telefone, email, tipo_servico,
@@ -13459,7 +13464,7 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
                     observacoes, observacoes_internas,
                     typeof habilidades === 'object' ? JSON.stringify(habilidades) : habilidades,
                     typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
-                    link_video, patrimonio],
+                    link_video, patrimonio, manutencao_quinzenal ? 1 : 0, primeira_manutencao || null],
                 function (err) {
                     if (err) return res.status(500).json({ error: err.message });
                     const newId = this.lastID;
@@ -13480,7 +13485,8 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
         numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
         contrato, data_os, responsavel, telefone, email, tipo_servico,
         hora_inicio, hora_fim, turno, dias_semana, produtos, observacoes,
-        observacoes_internas, habilidades, variaveis, link_video, patrimonio
+        observacoes_internas, habilidades, variaveis, link_video, patrimonio,
+        manutencao_quinzenal, primeira_manutencao
     } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     const osId = req.params.id;
@@ -13494,6 +13500,7 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
             numero_os=?, tipo_os=?, cliente=?, endereco=?, complemento=?, cep=?, lat=?, lng=?,
             contrato=?, data_os=?, responsavel=?, telefone=?, email=?, tipo_servico=?, hora_inicio=?, hora_fim=?,
             turno=?, dias_semana=?, produtos=?, observacoes=?, observacoes_internas=?, habilidades=?, variaveis=?, link_video=?, patrimonio=?,
+            manutencao_quinzenal=?, primeira_manutencao=?,
             atualizado_em=datetime('now') WHERE id=?`,
             [numero_os, tipo_os, cliente, endereco, complemento, cep,
                 lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
@@ -13504,7 +13511,7 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
                 observacoes, observacoes_internas,
                 typeof habilidades === 'object' ? JSON.stringify(habilidades) : habilidades,
                 typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
-                link_video, patrimonio, osId],
+                link_video, patrimonio, manutencao_quinzenal ? 1 : 0, primeira_manutencao || null, osId],
             function (err) {
                 if (err) return res.status(500).json({ error: err.message });
 
@@ -13867,6 +13874,27 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
                 // Usar a data atual como fallback se for apenas busca por dia de semana
                 const limiteMax = dataAte || dataDe || new Date().toISOString().split('T')[0];
                 if (dataInicio && dataInicio > limiteMax) return false;
+
+                // Lógica de Manutenção Quinzenal (Semana sim, Semana não)
+                if (r.manutencao_quinzenal === 1 && r.primeira_manutencao) {
+                    const deStr = dataDe || new Date().toISOString().split('T')[0];
+                    const msPerDay = 24 * 60 * 60 * 1000;
+                    const startD = new Date(r.primeira_manutencao + 'T12:00:00');
+                    const checkD = new Date(deStr + 'T12:00:00');
+                    
+                    const dayStart = startD.getDay() || 7; // 1-7 (Seg-Dom)
+                    const startMonday = new Date(startD.getTime() - (dayStart - 1) * msPerDay);
+                    
+                    const dayCheck = checkD.getDay() || 7;
+                    const checkMonday = new Date(checkD.getTime() - (dayCheck - 1) * msPerDay);
+                    
+                    const diffWeeks = Math.round((checkMonday - startMonday) / (7 * msPerDay));
+                    
+                    // Se não estiver na mesma semana inicial (diff=0), nem em uma quinzena válida (diff=2, 4, 6...), filtra fora.
+                    if (diffWeeks < 0 || diffWeeks % 2 !== 0) {
+                        return false; 
+                    }
+                }
 
                 // Verifica se algum dia da semana da OS bate com o intervalo ou filtro explícito
                 let dias = [];

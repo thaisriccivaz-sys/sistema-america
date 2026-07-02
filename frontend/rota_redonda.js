@@ -1491,6 +1491,14 @@ function carregarRegistroNaTela(os) {
     const tsSearch = document.getElementById('rr-tipo-servico-search');
     if (tsSearch && os.tipo_servico) tsSearch.value = os.tipo_servico;
 
+    // Manutenção Quinzenal
+    const chkQuinzenal = document.getElementById('rr-chk-quinzenal');
+    if (chkQuinzenal) {
+        chkQuinzenal.checked = !!os.manutencao_quinzenal;
+        document.getElementById('rr-data-quinzenal-container').style.display = chkQuinzenal.checked ? 'flex' : 'none';
+    }
+    set('rr-input-primeira-manutencao', os.primeira_manutencao || '');
+
     // Data intencionalmente não preenchida ao abrir OS existente (usuário deve informar a data do atendimento)
     const dataEl = document.getElementById('rr-input-data');
     if (dataEl) dataEl.value = '';
@@ -2809,7 +2817,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 habilidades: habilidadesSelecionadas,
                 variaveis: variaveisSelecionadas,
                 link_video: document.getElementById('rr-input-video')?.value?.trim() || '',
+                manutencao_quinzenal: document.getElementById('rr-chk-quinzenal')?.checked ? 1 : 0,
+                primeira_manutencao: document.getElementById('rr-input-primeira-manutencao')?.value || ''
             };
+
+            // Validação de Manutenção Quinzenal
+            if (payload.manutencao_quinzenal && !payload.primeira_manutencao) {
+                mostrarToastAviso('Para Manutenção Quinzenal, preencha a Data da Primeira Manutenção.');
+                return;
+            }
 
             // Validação estrita de preenchimento
             if (payload.habilidades.includes('CARRETINHA') && !payload.observacoes) {
@@ -3991,6 +4007,18 @@ function renderRotaRedonda() {
                     
                     <div id="rr-sugestoes-dias-container" style="flex-basis: 100%; font-size: 0.75rem; padding: 2px 4px; display: none;"></div>
                     <input type="hidden" id="rr-chk-agenda-clicado" value="0">
+                </div>
+                
+                <!-- MANUTENÇÃO QUINZENAL -->
+                <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 0.5rem; background: #fffbeb; border: 1px solid #fde68a; padding: 6px 12px; border-radius: 4px;">
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; color: #b45309; cursor: pointer;">
+                        <input type="checkbox" id="rr-chk-quinzenal" onchange="document.getElementById('rr-data-quinzenal-container').style.display = this.checked ? 'flex' : 'none';">
+                        Manutenção Quinzenal
+                    </label>
+                    <div id="rr-data-quinzenal-container" style="display: none; align-items: center; gap: 6px;">
+                        <label style="font-size: 0.75rem; font-weight: 600; color: #b45309;">1ª Manutenção:</label>
+                        <input type="date" id="rr-input-primeira-manutencao" style="font-size: 0.75rem; padding: 2px 6px; border: 1px solid #fcd34d; border-radius: 4px; outline: none; color: #92400e; background: #fff;">
+                    </div>
                 </div>
 
                 <!-- TIPO SERVIÇO & HABILIDADES -->

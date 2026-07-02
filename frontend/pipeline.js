@@ -151,8 +151,10 @@ function pipelineRenderCard(os) {
 
 
     // Dias da semana: apenas para serviços RECORRENTES
-    const diasHtml = (isRec && dias.length) ? `
+    const badgeQuinzenal = os.manutencao_quinzenal ? `<span style="background:#b45309;color:white;border-radius:6px;padding:2px 8px;font-size:0.68rem;font-weight:700;" title="Primeira manutenção: ${os.primeira_manutencao || ''}"><i class="ph ph-calendar-blank"></i> Quinzenal</span>` : '';
+    const diasHtml = (isRec && (dias.length || badgeQuinzenal)) ? `
         <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">
+        ${badgeQuinzenal}
         ${dias.map(d => {
             const cor = pipelineGetDiaColor(d);
             return `<span style="background:${cor};color:white;border-radius:6px;padding:2px 8px;font-size:0.68rem;font-weight:700;">${d}</span>`;
