@@ -186,6 +186,7 @@
 
             const filtro = (el('filtro-treinamento-busca') || { value: '' }).value.toLowerCase();
             const deptoFiltro = (el('filtro-treinamento-departamento') || { value: '' }).value;
+            const statusFiltro = (el('filtro-treinamento-status') || { value: 'ativo' }).value;
             
             let lista = _cache;
             if (filtro) {
@@ -198,6 +199,9 @@
                     const deptosArr = t.departamento.split(',').map(d => d.trim());
                     return deptosArr.includes(deptoFiltro);
                 });
+            }
+            if (statusFiltro !== 'todos') {
+                lista = lista.filter(t => (t.status || 'ativo') === statusFiltro);
             }
 
             if (badge) badge.textContent = `${lista.length} ${tipoAtual === 'terapia' ? 'palestra' : 'treinamento'}${lista.length !== 1 ? 's' : ''}`;
@@ -251,6 +255,11 @@
         const data = t.criado_em ? new Date(t.criado_em).toLocaleDateString('pt-BR') : '—';
         const desc = t.descricao ? `<div style="font-size:0.77rem;color:#64748b;margin-top:1px;max-width:380px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.descricao}</div>` : '';
         const nomeSafe = (t.nome || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        
+        const isArquivado = t.status === 'arquivado';
+        const arquivarBtn = isArquivado 
+            ? `<button onclick="window.arquivarTreinamento(${t.id}, 'desarquivar')" title="Desarquivar" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:#0e7490;"><i class="ph ph-archive-box"></i></button>`
+            : `<button onclick="window.arquivarTreinamento(${t.id}, 'arquivar')" title="Arquivar" style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:#dc2626;"><i class="ph ph-archive"></i></button>`;
 
         return `<tr style="border-bottom:1px solid #f1f5f9;transition:background .15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
             <td style="padding:0.85rem 1rem;">
@@ -260,6 +269,7 @@
                         <div style="display:flex;align-items:center;gap:8px;">
                             <span style="font-weight:600;color:#0f172a;font-size:0.93rem;">${t.nome}</span>
                             <span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:600;white-space:normal;max-width:350px;">${t.departamento && t.departamento.includes('Todos') ? 'Todos' : (t.departamento || 'Todos')}</span>
+                            ${isArquivado ? `<span style="background:#f1f5f9;color:#64748b;font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:999px;">ARQUIVADO</span>` : ''}
                         </div>
                         ${desc}
                         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">${pills || '<span style="color:#94a3b8;font-size:0.72rem;">Sem arquivos</span>'}</div>
@@ -286,10 +296,11 @@
                         title="Editar nome e descrição">
                         <i class="ph ph-pencil-simple"></i>
                     </button>
+                    ${arquivarBtn}
                     <button onclick="window.excluirTreinamento(${t.id},'${nomeSafe}')"
-                        style="display:none;background:none;border:1.5px solid #fca5a5;color:#dc2626;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;align-items:center;"
-                        onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='none'"
-                        title="Excluir de forma persistente">
+                        style="background:#fef2f2;color:#be123c;border:1.5px solid #fecdd3;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:4px;transition:all .15s;"
+                        onmouseover="this.style.background='#ffe4e6'" onmouseout="this.style.background='#fef2f2'"
+                        title="Excluir">
                         <i class="ph ph-trash"></i>
                     </button>
                 </div>
@@ -1117,3 +1128,15 @@
     window._adicionarPerguntaPesquisaEditar = window.adicionarPerguntaTreinamento;
 
 })();
+
+    window.arquivarTreinamento = async function(id, acao) {
+        if(!confirm(\Tem certeza que deseja \ este material?\)) return;
+        try {
+            const r = await api(\/treinamentos/\/arquivar\, { method: 'PUT' });
+            if(!r.ok) throw new Error('Falha ao alterar status');
+            window.carregarTreinamentos();
+        } catch(e) {
+            alert(e.message);
+        }
+    };
+

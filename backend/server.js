@@ -18338,6 +18338,11 @@ db.run("ALTER TABLE treinamentos ADD COLUMN validade_dias INTEGER DEFAULT 0", (e
     console.error("Migração (treinamentos.validade_dias):", err.message);
   }
 });
+db.run("ALTER TABLE treinamentos ADD COLUMN status TEXT DEFAULT 'ativo'", (err) => {
+  if (err && !err.message.includes("duplicate column name")) {
+    console.error("Migração (treinamentos.status):", err.message);
+  }
+});
 
 db.run(`CREATE TABLE IF NOT EXISTS treinamento_presenca (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -18470,6 +18475,18 @@ app.put('/api/treinamentos/:id', authenticateToken, (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Treinamento não encontrado.' });
       res.json({ ok: true });
+    }
+  );
+});
+
+// ── PUT /api/treinamentos/:id/arquivar — Alternar Arquivamento ─────────────────
+app.put('/api/treinamentos/:id/arquivar', authenticateToken, (req, res) => {
+  db.run(
+    `UPDATE treinamentos SET status = CASE WHEN IFNULL(status, 'ativo') = 'ativo' THEN 'arquivado' ELSE 'ativo' END WHERE id = ?`,
+    [req.params.id],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
     }
   );
 });
@@ -18937,6 +18954,7 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
   const sqlTrein = `
     SELECT id, nome, descricao, departamento, capa_url, validade_dias, IFNULL(tipo, 'treinamento') AS tipo
     FROM treinamentos
+    WHERE IFNULL(status, 'ativo') = 'ativo'
     ORDER BY nome ASC
   `;
   const sqlPresencas = `
