@@ -99,7 +99,7 @@ function _buildMultaRow(m) {
     const olhoAzul  = docsExtrasList[0] ? `<button onclick="visualizarDocExtra(${m.id}, 0)" style="background:transparent; border:none; cursor:pointer; color:#3b82f6; margin-right:8px;" title="Visualizar Documento 1"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : '';
     const olhoVerde = docsExtrasList[1] ? `<button onclick="visualizarDocExtra(${m.id}, 1)" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento 2"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : '';
 
-    const btnEditar = (m.status === 'Indicado' || m.status === 'Multa NIC')
+    const btnEditar = (m.status === 'Multa NIC')
         ? `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#64748b; margin-right:8px;" title="Visualizar"><i class="ph ph-magnifying-glass" style="font-size:1.2rem;"></i></button>`
         : `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>`;
 
@@ -784,7 +784,7 @@ async function salvarNovaMultaLogistica(e) {
 function abrirModalGerenciarMulta(id, focoMotorista = false) {
     const multa = multasLogistica.find(m => m.id === id);
     if (!multa) return;
-    const modoLeitura = (multa.status === 'Indicado' || multa.status === 'Multa NIC');
+    const modoLeitura = (multa.status === 'Multa NIC');
 
     document.getElementById('modal-gerenciar-multa')?.remove();
     const modal = document.createElement('div');

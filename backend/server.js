@@ -5445,8 +5445,8 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM multas_logistica WHERE id = ?', [req.params.id], (err, oldData) => {
         if (err || !oldData) return res.status(404).json({ error: 'Multa não encontrada' });
 
-        if (oldData.status === 'Indicado' || oldData.status === 'Multa NIC') {
-            return res.status(403).json({ error: 'Esta multa já foi enviada ao RH e não pode ser editada.' });
+        if (oldData.status === 'Multa NIC') {
+            return res.status(403).json({ error: 'Esta multa já foi enviada ao RH e não pode ser editada (Multa NIC).' });
         }
 
         db.run(
@@ -5490,7 +5490,8 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 if (errUpdate) return res.status(500).json({ error: errUpdate.message });
                 if (this.changes === 0) return res.status(404).json({ error: 'Multa não atualizada' });
 
-                if (status && (status === 'Indicado' || status === 'Multa NIC')) {
+                // Envia email ao RH apenas quando o status MUDA para Indicado ou Multa NIC
+                if (status && (status === 'Indicado' || status === 'Multa NIC') && oldData.status !== status) {
                     const finalMotorista = motorista_id || oldData.motorista_id;
                     const finalValor = valor_multa || oldData.valor_multa;
                     const finalData = data_infracao || oldData.data_infracao;
