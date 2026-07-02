@@ -79,6 +79,106 @@ function _statusRHColor(status) {
     return '#e2e8f0';
 }
 
+// Determina se o texto do badge precisa de cor escura ou clara
+function _statusTextColor(bg) {
+    // cores escuras precisam de texto branco
+    const dark = ['#0000ff', '#009933', '#ff13f0'];
+    return dark.includes(bg.toLowerCase()) ? '#fff' : '#0f172a';
+}
+
+// Injeta CSS do dropdown customizado uma vez
+(function _injectStatusDropdownCSS() {
+    if (document.getElementById('status-dropdown-css')) return;
+    const style = document.createElement('style');
+    style.id = 'status-dropdown-css';
+    style.textContent = `
+        .custom-status-dropdown { position:relative; width:100%; }
+        .custom-status-dropdown .csd-trigger {
+            display:flex; align-items:center; gap:8px;
+            width:100%; padding:0.5rem 0.6rem; border:1px solid #cbd5e1; border-radius:4px;
+            background:#fff; cursor:pointer; user-select:none; box-sizing:border-box;
+        }
+        .custom-status-dropdown .csd-trigger:hover { border-color:#94a3b8; }
+        .custom-status-dropdown .csd-arrow { margin-left:auto; color:#64748b; font-size:0.8rem; }
+        .custom-status-dropdown .csd-list {
+            position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:99999;
+            background:#fff; border:1px solid #cbd5e1; border-radius:6px;
+            box-shadow:0 4px 16px rgba(0,0,0,0.12); padding:4px 0; display:none;
+            max-height:260px; overflow-y:auto;
+        }
+        .custom-status-dropdown.open .csd-list { display:block; }
+        .custom-status-dropdown .csd-item {
+            display:flex; align-items:center; gap:8px; padding:6px 10px;
+            cursor:pointer; font-size:0.88rem;
+        }
+        .custom-status-dropdown .csd-item:hover { background:#f1f5f9; }
+        .custom-status-dropdown .csd-badge {
+            display:inline-block; padding:3px 10px; border-radius:12px;
+            font-size:0.8rem; font-weight:700; white-space:nowrap;
+        }
+    `;
+    document.head.appendChild(style);
+})();
+
+// Cria um dropdown customizado de status com badges coloridos
+// selectId: id do <select> oculto que mantém o valor real
+// containerId: id do wrapper div
+function _buildStatusDropdown(containerId, selectId, currentValue, opts, onchange) {
+    const ALL_STATUS = [
+        'Conferência','Em Andamento','Indicado','Multa NIC',
+        'Id. Deferida','Id. Indeferida','Recorrida','Rec. Deferida','Rec. Indeferida',
+        'Não Se Aplica','Antiga'
+    ];
+    const list = opts || ALL_STATUS;
+
+    const items = list.map(s => {
+        const bg = _statusRHColor(s);
+        const fg = _statusTextColor(bg);
+        return `<div class="csd-item" data-val="${s}" onclick="_csdSelect('${containerId}','${selectId}','${s}')">
+            <span class="csd-badge" style="background:${bg}; color:${fg};">${s}</span>
+        </div>`;
+    }).join('');
+
+    const initBg = _statusRHColor(currentValue);
+    const initFg = _statusTextColor(initBg);
+
+    return `
+        <div class="custom-status-dropdown" id="${containerId}">
+            <div class="csd-trigger" onclick="_csdToggle('${containerId}')">
+                <span class="csd-badge" id="${containerId}-badge" style="background:${initBg}; color:${initFg};">${currentValue || 'Conferência'}</span>
+                <span class="csd-arrow">▼</span>
+            </div>
+            <div class="csd-list">${items}</div>
+        </div>
+        <select id="${selectId}" style="display:none;" onchange="${onchange || ''}">${list.map(s=>`<option value="${s}" ${s===currentValue?'selected':''}>${s}</option>`).join('')}</select>
+    `;
+}
+
+function _csdToggle(containerId) {
+    // Fecha outros abertos
+    document.querySelectorAll('.custom-status-dropdown.open').forEach(el => {
+        if (el.id !== containerId) el.classList.remove('open');
+    });
+    document.getElementById(containerId)?.classList.toggle('open');
+}
+
+function _csdSelect(containerId, selectId, value) {
+    const bg = _statusRHColor(value);
+    const fg = _statusTextColor(bg);
+    const badge = document.getElementById(containerId + '-badge');
+    if (badge) { badge.textContent = value; badge.style.background = bg; badge.style.color = fg; }
+    const sel = document.getElementById(selectId);
+    if (sel) { sel.value = value; sel.dispatchEvent(new Event('change')); }
+    document.getElementById(containerId)?.classList.remove('open');
+}
+
+// Fecha dropdown ao clicar fora
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.custom-status-dropdown')) {
+        document.querySelectorAll('.custom-status-dropdown.open').forEach(el => el.classList.remove('open'));
+    }
+});
+
 // Helper: gera o HTML completo de uma linha da tabela de multas
 function _buildMultaRow(m) {
     const dataInfracao = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
@@ -537,19 +637,7 @@ function abrirModalNovaMulta() {
                         <div style="display:flex; gap:1rem; flex-wrap:wrap;">
                             <div style="flex:2; min-width:200px;">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Forma de Resolução</label>
-                                <select id="nm-status" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                                    <option value="Conferência">Em Conferência (Padrão)</option>
-                                    <option value="Em Andamento">Em Andamento</option>
-                                    <option value="Indicado">📋 Seguiu com a Indicação</option>
-                                    <option value="Multa NIC">💳 Optou por Pagar Multa NIC</option>
-                                    <option value="Id. Deferida">Id. Deferida</option>
-                                    <option value="Id. Indeferida">Id. Indeferida</option>
-                                    <option value="Recorrida">Recorrida</option>
-                                    <option value="Rec. Deferida">Rec. Deferida</option>
-                                    <option value="Rec. Indeferida">Rec. Indeferida</option>
-                                    <option value="Não Se Aplica">Não Se Aplica</option>
-                                    <option value="Antiga">🕰️ Antiga (não comunica RH)</option>
-                                </select>
+                                ${_buildStatusDropdown('csd-nm-status','nm-status','Conferência')}
                             </div>
                             <div style="flex:1; min-width:120px;">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Parcelas</label>
@@ -907,9 +995,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                         </div>
                         <div style="flex:1; min-width:200px;">
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Status</label>
-                            <select id="gm-status" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;" onchange="atualizarValoresMultaModal()">
-                                ${optionsStatus}
-                            </select>
+                            ${_buildStatusDropdown('csd-gm-status','gm-status', multa.status || 'Conferência', null, 'atualizarValoresMultaModal()')}
                         </div>
                     </div>
 
