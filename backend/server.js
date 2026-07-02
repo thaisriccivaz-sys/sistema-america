@@ -5457,9 +5457,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM multas_logistica WHERE id = ?', [req.params.id], (err, oldData) => {
         if (err || !oldData) return res.status(404).json({ error: 'Multa não encontrada' });
 
-        if (oldData.status === 'Multa NIC') {
-            return res.status(403).json({ error: 'Esta multa já foi enviada ao RH e não pode ser editada (Multa NIC).' });
-        }
+        // Removido bloqueio de edição para Multa NIC conforme solicitado
 
         const novoStatusUpdatedAt = (status && status !== oldData.status) ? getNowBR() : oldData.status_updated_at;
 

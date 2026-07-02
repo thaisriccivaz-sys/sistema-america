@@ -65,9 +65,14 @@ function _statusMonacoBadge(m) {
 // Helper: cor do badge Status RH
 function _statusRHColor(status) {
     if (status === 'Conferência') return '#fef08a';
-    if (status === 'Conferido')   return '#bfdbfe';
+    if (status === 'Em Andamento')   return '#ff5c00';
     if (status === 'Indicado')    return '#66f1c2';
     if (status === 'Multa NIC')   return '#fecaca';
+    if (status === 'Id. Deferida') return '#009933';
+    if (status === 'Id. Indeferida') return '#ff746c';
+    if (status === 'Recorrida') return '#0000ff';
+    if (status === 'Rec. Deferida') return '#65c8d0';
+    if (status === 'Rec. Indeferida') return '#ff13f0';
     if (status === 'Não Se Aplica') return '#cbd5e1';
     if (status === 'Antiga')      return '#e7e5e4';
     return '#e2e8f0';
@@ -217,7 +222,7 @@ async function carregarMultasLogistica() {
 }
 
 function renderMultasLogistica(container) {
-    const STATUS_OPTS = ['Conferência','Conferido','Indicado','Multa NIC','Não Se Aplica','Antiga'];
+    const STATUS_OPTS = ['Conferência', 'Em Andamento', 'Indicado', 'Multa NIC', 'Id. Deferida', 'Id. Indeferida', 'Recorrida', 'Rec. Deferida', 'Rec. Indeferida', 'Não Se Aplica', 'Antiga'];
     const optsStatus = STATUS_OPTS.map(s => `<option value="${s}">${s}</option>`).join('');
 
     let html = `
@@ -533,9 +538,14 @@ function abrirModalNovaMulta() {
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Forma de Resolução</label>
                                 <select id="nm-status" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                                     <option value="Conferência">Em Conferência (Padrão)</option>
+                                    <option value="Em Andamento">Em Andamento</option>
                                     <option value="Indicado">📋 Seguiu com a Indicação</option>
                                     <option value="Multa NIC">💳 Optou por Pagar Multa NIC</option>
-                                    <option value="Conferido">Conferido</option>
+                                    <option value="Id. Deferida">Id. Deferida</option>
+                                    <option value="Id. Indeferida">Id. Indeferida</option>
+                                    <option value="Recorrida">Recorrida</option>
+                                    <option value="Rec. Deferida">Rec. Deferida</option>
+                                    <option value="Rec. Indeferida">Rec. Indeferida</option>
                                     <option value="Não Se Aplica">Não Se Aplica</option>
                                     <option value="Antiga">🕰️ Antiga (não comunica RH)</option>
                                 </select>
@@ -796,7 +806,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
 
     let optionsMotoristas = _buildOptionsMotoristas(multa.motorista_id);
 
-    const statusOpts = ['Conferência', 'Conferido', 'Indicado', 'Multa NIC', 'Não Se Aplica', 'Antiga'];
+    const statusOpts = ['Conferência', 'Em Andamento', 'Indicado', 'Multa NIC', 'Id. Deferida', 'Id. Indeferida', 'Recorrida', 'Rec. Deferida', 'Rec. Indeferida', 'Não Se Aplica', 'Antiga'];
     let optionsStatus = '';
     statusOpts.forEach(s => {
         const sel = (multa.status === s) ? 'selected' : '';
@@ -1025,34 +1035,6 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
 
     atualizarValoresMultaModal();
 
-    if (multa.status === 'Indicado' || multa.status === 'Multa NIC') {
-        const form = document.getElementById('form-gerenciar-multa');
-        const elements = form.querySelectorAll('input, select, textarea, button');
-        elements.forEach(el => {
-            if (el.textContent !== 'Cancelar' && !el.classList.contains('ph-eye') && !el.closest('button[title="Visualizar"]')) {
-                el.disabled = true;
-                el.style.opacity = '0.7';
-                el.style.cursor = 'not-allowed';
-            }
-        });
-        
-        // Disable "Salvar Alterações" explicitly
-        const btnSalvar = form.querySelector('button[type="submit"]');
-        if (btnSalvar) {
-            btnSalvar.disabled = true;
-            btnSalvar.style.display = 'none';
-        }
-        
-        // Hide file upload part
-        const docExtra = document.getElementById('gm-doc-extra');
-        if (docExtra) docExtra.parentElement.parentElement.style.display = 'none';
-
-        // Show warning
-        const avisoBlock = document.createElement('div');
-        avisoBlock.style.cssText = 'background:#fef2f2; border:1px solid #fecaca; color:#dc2626; padding:0.8rem; border-radius:6px; margin-bottom:1rem; font-weight:600; text-align:center;';
-        avisoBlock.innerHTML = '&#9888; Esta multa já foi enviada ao RH e não pode mais ser editada ou excluída.';
-        form.insertBefore(avisoBlock, form.firstChild);
-    }
 
     if (focoMotorista && (multa.status !== 'Indicado' && multa.status !== 'Multa NIC')) {
         document.getElementById('gm-motorista').focus();
