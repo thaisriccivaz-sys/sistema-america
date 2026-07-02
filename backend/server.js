@@ -20008,6 +20008,13 @@ setTimeout(() => {
         });
 
         db.run("UPDATE credenciamentos SET status = 'enviado' WHERE status IS NULL", (err) => { });
+
+        // Monaco: adicionar colunas de debug/payload e link_indicacao
+        [
+            "ALTER TABLE multas_monaco ADD COLUMN payload_raw TEXT;",
+            "ALTER TABLE multas_monaco ADD COLUMN link_indicacao TEXT;",
+            "ALTER TABLE multas_logistica ADD COLUMN link_formulario TEXT;"
+        ].forEach(q => db.run(q, err => { if (!err) console.log('[MIGRATION] Coluna adicionada:', q); }));
     });
 
 }, 3000);
@@ -20136,8 +20143,53 @@ function syncToLogistica(uuid, tipoEvento, payload) {
         const dataLimite = payload.prazo_identificacao_condutor || payload.vencimento_multa || null;
         const localInfracao = payload.local || payload.local_infracao || payload.cidade || null;
         const statusMonaco = payload.status_notificacao || tipoEvento;
-        let linkFormulario = payload.link_indicacao || payload.link_formulario || payload.url_formulario ||
-                             payload.Link || payload.LinkIndicacao || payload.link || null;
+        // Busca exaustiva do link de indicação — a Mônaco pode enviar com nomes variados
+        let linkFormulario =
+            payload.link_indicacao ||
+            payload.link_formulario ||
+            payload.url_formulario ||
+            payload.Link ||
+            payload.LinkIndicacao ||
+            payload.link ||
+            payload.url_indicacao ||
+            payload.urlIndicacao ||
+            payload.link_condutor ||
+            payload.url_condutor ||
+            payload.link_notificacao ||
+            payload.url_notificacao ||
+            null;
+
+        // Se ainda não encontrou, varre TODOS os campos em busca de uma URL da Lummon
+        if (!linkFormulario) {
+            for (const [k, v] of Object.entries(payload)) {
+                if (typeof v === 'string' && v.includes('indica.lummon.com.br')) {
+                    linkFormulario = v;
+                    console.log(`[MONACO SYNC] Link lummon encontrado no campo '${k}':`, v);
+                    break;
+                }
+            }
+        }
+
+        // Fallback: verifica campos aninhados (ex: { indicacao: { link: '...' } })
+        if (!linkFormulario) {
+            for (const [k, v] of Object.entries(payload)) {
+                if (v && typeof v === 'object' && !Array.isArray(v)) {
+                    for (const [k2, v2] of Object.entries(v)) {
+                        if (typeof v2 === 'string' && (v2.includes('lummon') || v2.startsWith('https://indica'))) {
+                            linkFormulario = v2;
+                            console.log(`[MONACO SYNC] Link lummon encontrado em '${k}.${k2}':`, v2);
+                            break;
+                        }
+                    }
+                    if (linkFormulario) break;
+                }
+            }
+        }
+
+        console.log(`[MONACO SYNC] link_formulario para AIT ${payload.numero_ait}: ${linkFormulario || 'NÃO ENCONTRADO'}`);
+        if (!linkFormulario) {
+            console.log('[MONACO SYNC] Campos do payload:', Object.keys(payload).join(', '));
+        }
 
 
         if (row) {
@@ -20374,6 +20426,46 @@ app.post('/api/monaco/retornoCondutor', monacoAuth, (req, res) => {
             return res.status(500).json({ codError: 500, message: 'Erro ao atualizar' });
         }
         res.status(200).json({ mensagem: 'Status enviado com sucesso' });
+    });
+});
+
+
+// ── POST /api/monaco/linkIndicacao ───────────────────────────────────────────
+// Endpoint dedicado para receber o link de indicação do condutor via webhook separado
+app.post('/api/monaco/linkIndicacao', monacoAuth, (req, res) => {
+    const payload = req.body || {};
+    const uuid = payload.uuid;
+    const link = payload.link_indicacao || payload.link || payload.url || payload.link_formulario;
+    if (!uuid) return res.status(400).json({ codError: 400, message: 'Campo uuid obrigatório' });
+    if (!link)  return res.status(400).json({ codError: 400, message: 'Campo link obrigatório (link_indicacao, link ou url)' });
+    db.run(`UPDATE multas_monaco SET link_indicacao = ?, status_visualizacao = 'atualizado', visualizada = 0, updated_at = datetime('now') WHERE uuid = ?`,
+        [link, uuid], function(err) {
+            if (err) {
+                console.error('[MONACO] Erro ao salvar link indicação:', err);
+                return res.status(500).json({ codError: 500, message: 'Erro ao salvar link' });
+            }
+            db.run(`UPDATE multas_logistica SET link_formulario = ? WHERE monaco_uuid = ?`, [link, uuid], () => {});
+            console.log(`[MONACO] Link indicação salvo uuid=${uuid}: ${link}`);
+            res.status(200).json({ mensagem: 'Link de indicação registrado com sucesso', uuid, link });
+        });
+});
+
+// ── PATCH /api/monaco/multas/:id/link ────────────────────────────────────────
+// Edição manual do link de indicação (correção de links errados pelo usuário interno)
+app.patch('/api/monaco/multas/:id/link', authenticateToken, (req, res) => {
+    const { link_indicacao } = req.body || {};
+    const id = req.params.id;
+    db.get('SELECT monaco_uuid FROM multas_monaco WHERE id = ?', [id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
+        db.run(`UPDATE multas_monaco SET link_indicacao = ?, updated_at = datetime('now') WHERE id = ?`,
+            [link_indicacao || null, id], function(errU) {
+                if (errU) return res.status(500).json({ error: errU.message });
+                if (row.monaco_uuid) {
+                    db.run(`UPDATE multas_logistica SET link_formulario = ? WHERE monaco_uuid = ?`,
+                        [link_indicacao || null, row.monaco_uuid], () => {});
+                }
+                res.json({ sucesso: true });
+            });
     });
 });
 

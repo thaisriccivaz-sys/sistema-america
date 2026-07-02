@@ -365,14 +365,19 @@ window._monacoAbrirDetalhe = async function(id) {
             ${m.controle_notificacao ? _campoFull('Controle Notificação', m.controle_notificacao) : ''}
             ${m.controle_da_multa ? _campoFull('Controle da Multa', m.controle_da_multa) : ''}
 
-            ${m.link_formulario ? `
             <div style="background:#eff6ff;border:1.5px solid #3b82f6;border-radius:8px;padding:1rem;">
-                <p style="margin:0 0 6px;font-size:0.75rem;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.05em;">🔗 Link para Indicação do Condutor</p>
-                <a href="${m.link_formulario}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;padding:8px 14px;font-size:0.85rem;font-weight:600;">
+                <p style="margin:0 0 8px;font-size:0.75rem;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.05em;">🔗 Link para Indicação do Condutor</p>
+                ${(m.link_indicacao || m.link_formulario) ? `
+                <a href="${m.link_indicacao || m.link_formulario}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;padding:8px 14px;font-size:0.85rem;font-weight:600;">
                     <i class="ph ph-arrow-square-out"></i> Acessar Formulário de Indicação
                 </a>
-                <p style="margin:6px 0 0;font-size:0.75rem;color:#64748b;word-break:break-all;">${m.link_formulario}</p>
-            </div>` : ''}
+                <p style="margin:6px 0 4px;font-size:0.75rem;color:#64748b;word-break:break-all;">${m.link_indicacao || m.link_formulario}</p>
+                ` : `<p style="margin:0 0 6px;font-size:0.8rem;color:#dc2626;font-weight:600;">⚠️ Link não recebido automaticamente — insira manualmente abaixo.</p>`}
+                <div style="display:flex;gap:6px;margin-top:8px;">
+                    <input type="text" id="monaco-link-input" value="${m.link_indicacao || m.link_formulario || ''}" placeholder="https://indica.lummon.com.br/..." style="flex:1;padding:6px 10px;border:1px solid #93c5fd;border-radius:6px;font-size:0.82rem;">
+                    <button onclick="window._monacoSalvarLink(${m.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;">Salvar Link</button>
+                </div>
+            </div>
 
             ${arquivosHtml}
 
@@ -413,6 +418,26 @@ window._monacoSalvarObs = async function(id) {
         if (m) m.observacao_interna = obs;
         if (typeof window.showToast === 'function') window.showToast('Observação salva!', 'success');
     } catch(e) { alert('Erro ao salvar: ' + e.message); }
+};
+
+// ── Salvar Link de Indicação manualmente ─────────────────────────────────────
+window._monacoSalvarLink = async function(id) {
+    const link = document.getElementById('monaco-link-input')?.value?.trim() || '';
+    try {
+        const resp = await fetch(`/api/monaco/multas/${id}/link`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${window.currentToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ link_indicacao: link || null })
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        const m = _multas.find(x => x.id === id);
+        if (m) {
+            m.link_indicacao = link || null;
+            m.link_formulario = link || null;
+        }
+        if (typeof window.showToast === 'function') window.showToast('Link salvo com sucesso!', 'success');
+        else alert('Link salvo!');
+    } catch(e) { alert('Erro ao salvar link: ' + e.message); }
 };
 
 // ── Marcar todas lidas ────────────────────────────────────────────────────────

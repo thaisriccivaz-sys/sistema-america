@@ -2,8 +2,8 @@
 
 let multasLogistica = [];
 let colaboradoresMultas = [];
-let _multasSortCol = 'data_infracao';
-let _multasSortDir = 'desc'; // mais novo primeiro por padrão
+let _multasSortCol = 'data_limite';
+let _multasSortDir = 'asc'; // mais antigo (prazo mais próximo) primeiro por padrão
 
 // Helper: badge de data limite
 // - VENCIDA (diff <= 0): texto vermelho, SEM ícone ⚠️
@@ -115,11 +115,8 @@ function _buildMultaRow(m) {
     const btnTermo = (m.termo_desconto_base64)
         ? `<button onclick="visualizarTermoDescontoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; margin-right:8px;" title="Termo de Desconto Assinado (Mônaco)"><img src="assets/icone_termo_desconto.png" alt="Termo" style="width:1.2rem; height:1.2rem; object-fit:contain; filter: brightness(0); opacity: 0.8;"></button>` : '';
 
-    // Botão Assinar — aparece quando há motorista vinculado e status permite assinatura do termo
-    const _podeAssinar = m.motorista_id && String(m.motorista_id) !== '-1' && (m.status === 'Conferido' || m.status === 'Conferência' || m.status === 'Indicado' || m.status === 'Multa NIC');
-    const btnAssinar = _podeAssinar
-        ? `<button onclick="abrirModalAssinaturaMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#7c3aed; margin-right:8px;" title="Assinar Documento"><i class="ph ph-pen-nib" style="font-size:1.2rem;"></i></button>`
-        : '';
+    // Botão Assinar — OCULTADO conforme solicitação
+    const btnAssinar = '';
 
     return `
         <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
