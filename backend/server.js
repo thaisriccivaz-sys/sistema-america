@@ -18437,6 +18437,31 @@ app.get('/api/debug-treinamentos', (req, res) => {
   });
 });
 
+app.get('/api/debug2-treinamentos', (req, res) => {
+  const tipo = req.query.tipo || 'treinamento';
+  const sql = `
+    SELECT t.*,
+      (SELECT json_group_array(json_object(
+          'id',             a.id,
+          'nome_arquivo',   a.nome_arquivo,
+          'tipo_mime',      a.tipo_mime,
+          'url_cloudinary', a.url_cloudinary,
+          'enviado_em',     a.enviado_em
+        ))
+       FROM treinamento_anexos a WHERE a.treinamento_id = t.id
+      ) AS _anexos_json
+    FROM treinamentos t
+    WHERE IFNULL(t.tipo, 'treinamento') = ?
+    ORDER BY t.criado_em DESC`;
+  db.all(sql, [tipo], (err, rows) => {
+    res.json({ 
+      count: rows ? rows.length : 0, 
+      error: err ? err.message : null, 
+      rows: rows 
+    });
+  });
+});
+
 // ── POST /api/treinamentos — Cria treinamento ─────────────────────────────────
 app.post('/api/treinamentos', authenticateToken, (req, res) => {
   const { nome, descricao, departamento, capa_url, validade_dias, pesquisa_perguntas, tipo = 'treinamento' } = req.body || {};
