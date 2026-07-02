@@ -929,7 +929,7 @@ function _renderFormPropostaInt() {
         <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0;">
 
             <!-- Toolbar -->
-            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:98px; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
+            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:60px; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
                 
                 <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
                 <div class="saas-dropdown-container">
@@ -2178,7 +2178,7 @@ function _renderCadastroClienteInt() {
         <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif;">
             
             <!-- Toolbar -->
-            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:98px; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
+            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:60px; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
                 
                 <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
                 <div class="saas-dropdown-container">
@@ -3454,7 +3454,7 @@ function _renderCadastroContatosInt() {
                 flex-wrap: wrap;
                 gap: 0.6rem;
                 position: sticky;
-                top: 98px;
+                top: 60px;
                 z-index: 997;
                 border-top-left-radius: 14px;
                 border-top-right-radius: 14px;
@@ -5241,7 +5241,7 @@ function _renderEnderecosInt() {
                 flex-wrap: wrap;
                 gap: 0.6rem;
                 position: sticky;
-                top: 98px;
+                top: 60px;
                 z-index: 997;
                 border-top-left-radius: 14px;
                 border-top-right-radius: 14px;
