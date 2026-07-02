@@ -3,7 +3,7 @@
 let multasLogistica = [];
 let colaboradoresMultas = [];
 let _multasSortCol = 'data_limite';
-let _multasSortDir = 'asc'; // mais antigo (prazo mais próximo) primeiro por padrão
+let _multasSortDir = 'desc'; // mais novo primeiro por padrão
 
 // Helper: badge de data limite
 // - VENCIDA (diff <= 0): texto vermelho, SEM ícone ⚠️
