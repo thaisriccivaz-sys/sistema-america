@@ -201,10 +201,11 @@ function renderCardsFrota() {
     return;
   }
 
-  tb.innerHTML = rows.map(v => {
+    tb.innerHTML = rows.map(v => {
     const alerta = alertaPlaca(v.placa, v.exercicio);
     const statusManut = (window._frotaStatusManut || {})[v.id] || {};
-    const emManutencao = statusManut.manutencoes_ativas > 0 || v.em_manutencao;
+    const emManutencaoDB = (v.em_manutencao == 1 || v.em_manutencao === '1' || v.em_manutencao === true);
+    const emManutencao = statusManut.manutencoes_ativas > 0 || emManutencaoDB;
     const kPatterns = (window._manutDados || []).filter(m => m.veiculo_id === v.id && m.status === 'agendada' && m.km_proxima_manutencao && v.km_atual && (m.km_proxima_manutencao - v.km_atual) <= 1000);
     const manutPreventivaPendente = kPatterns.length > 0;
     
@@ -318,7 +319,7 @@ function renderCardsFrota() {
                 ${v.tipo_veiculo||'VEÍCULO'}
             </div>
             <div style="display:flex;gap:4px;">
-                <button onclick="window.toggleManutencaoFrota(${v.id}, ${v.em_manutencao ? 0 : 1})" style="background:${v.em_manutencao ? '#64748b' : '#94a3b8'};color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="${v.em_manutencao ? 'Retirar da Manutenção' : 'Colocar em Manutenção'}"><i class="ph ph-wrench"></i></button>
+                <button onclick="window.toggleManutencaoFrota(${v.id}, ${emManutencaoDB ? 0 : 1})" style="background:${emManutencaoDB ? '#64748b' : '#94a3b8'};color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="${emManutencaoDB ? 'Retirar da Manutenção' : 'Colocar em Manutenção'}"><i class="ph ph-wrench"></i></button>
                 ${v.crlv_filename ? `<button onclick="window.visualizarCRLV(${v.id})" style="background:#0891b2;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Visualizar CRLV"><i class="ph ph-file-pdf"></i></button>` : `<button disabled style="background:#e2e8f0;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:not-allowed;" title="Sem CRLV"><i class="ph ph-file-pdf"></i></button>`}
                 <button onclick="window.abrirModalFrota(${v.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Editar"><i class="ph ph-pencil"></i></button>
                 <button onclick="window.excluirVeiculoFrota(${v.id},'${v.placa}')" style="background:#dc2626;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Excluir"><i class="ph ph-trash"></i></button>
@@ -642,9 +643,10 @@ window.initFrotaVeiculos = async function() {
 </div>`;
 
   try {
+    const ts = Date.now();
     const [frotaRes, statusRes] = await Promise.all([
-        fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } }),
-        fetch('/api/frota/status-manutencao', { headers: { Authorization: 'Bearer ' + tok } }).catch(() => ({ json: () => [] }))
+        fetch('/api/frota/veiculos?_=' + ts, { headers: { Authorization: 'Bearer ' + tok } }),
+        fetch('/api/frota/status-manutencao?_=' + ts, { headers: { Authorization: 'Bearer ' + tok } }).catch(() => ({ json: () => [] }))
     ]);
     const rows = await frotaRes.json();
     const statusManut = await statusRes.json().catch(() => []);
