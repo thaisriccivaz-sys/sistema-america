@@ -5588,8 +5588,168 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
     });
 });
 
+// POST /api/logistica/multas/:id/salvar-declaracao — gera e salva a Declaração de Responsabilidade assinada
+app.post('/api/logistica/multas/:id/salvar-declaracao', authenticateToken, async (req, res) => {
+    const multaId = req.params.id;
+    const { opcao, parcelas, assinatura_base64, selfie_base64 } = req.body;
+
+    if (!opcao || !['indicacao', 'nic'].includes(opcao)) {
+        return res.status(400).json({ error: 'Opção inválida. Use "indicacao" ou "nic".' });
+    }
+
+    db.get(`SELECT ml.*, c.nome_completo as colab_nome, c.cpf as colab_cpf
+            FROM multas_logistica ml LEFT JOIN colaboradores c ON c.id = ml.motorista_id
+            WHERE ml.id = ?`, [multaId], async (err, m) => {
+        if (err || !m) return res.status(404).json({ error: 'Multa não encontrada.' });
+
+        const fmtData = (d) => {
+            if (!d) return 'Não informada';
+            if (d.includes('/')) return d;
+            const [y, mo, dy] = d.split('-');
+            return dy ? `${dy}/${mo}/${y}` : d;
+        };
+        const numericStr = (m.valor_multa || '0').toString().replace(/[^\d,.]/g, '').replace(',', '.');
+        const valorOriginal = parseFloat(numericStr) || 0;
+        const valorNIC = valorOriginal * 2;
+        const valorTotal = valorOriginal + valorNIC;
+        const fmtMoney = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const numParcelas = parseInt(parcelas) || 1;
+        const valorParcela = opcao === 'nic' ? valorTotal / numParcelas : valorOriginal / numParcelas;
+
+        const checkInd = opcao === 'indicacao' ? '✓' : '&nbsp;';
+        const checkNic = opcao === 'nic'       ? '✓' : '&nbsp;';
+
+        const now = new Date();
+        const dataDeclFmt = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
+
+        const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+        let logoBase64 = '';
+        try {
+            const fs = require('fs');
+            if (fs.existsSync(logoPath)) logoBase64 = 'data:image/png;base64,' + fs.readFileSync(logoPath).toString('base64');
+        } catch(_) {}
+
+        const selfieHtml = selfie_base64
+            ? `<div style="text-align:center;margin-top:20px;"><p style="font-size:0.85rem;color:#64748b;margin-bottom:6px;">Selfie do Colaborador (Comprovante de Assinatura)</p><img src="${selfie_base64}" style="max-width:180px;max-height:180px;border-radius:8px;border:2px solid #e2e8f0;" alt="Selfie"></div>`
+            : '';
+        const assinaturaHtml = assinatura_base64
+            ? `<div style="text-align:left;margin-top:10px;"><img src="${assinatura_base64}" style="max-width:280px;max-height:90px;border-bottom:1px solid #000;display:block;" alt="Assinatura"></div>`
+            : `<div style="border-bottom:1px solid #000;width:280px;height:60px;margin-top:10px;"></div>`;
+
+        const termoHTML = `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><title>Declaração de Responsabilidade por Infração</title>
+<style>
+body{font-family:Arial,sans-serif;font-size:13px;color:#1e293b;margin:0;padding:20px}
+.logo{text-align:center;margin-bottom:16px}.logo img{max-width:280px}
+h1{font-size:14px;text-align:center;text-transform:uppercase;margin:0 0 4px}
+h2{font-size:12px;text-align:center;margin:0 0 16px;font-weight:normal;color:#475569}
+.bloco{border:1px solid #cbd5e1;border-radius:6px;padding:12px 14px;margin-bottom:12px}
+.bloco-title{font-weight:700;font-size:11px;text-transform:uppercase;color:#1d4ed8;margin-bottom:8px}
+table.dados{width:100%;border-collapse:collapse;margin-bottom:6px}
+table.dados td{padding:3px 5px;font-size:12px;border-bottom:1px solid #f1f5f9}
+table.dados td:first-child{font-weight:600;width:170px}
+.opcao{border:2px solid #cbd5e1;border-radius:6px;padding:10px 12px;margin-bottom:10px}
+.opcao.selecionada{border-color:#2563eb;background:#eff6ff}
+.opcao-titulo{font-weight:700;font-size:12px;margin-bottom:6px}
+.vd{font-size:14px;font-weight:700;color:#dc2626}
+.rodape{font-size:11px;color:#64748b;text-align:center;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:10px}
+p{line-height:1.5;margin:5px 0}
+</style></head><body>
+<div class="logo">${logoBase64 ? `<img src="${logoBase64}" alt="América Rental">` : '<h3>AMÉRICA RENTAL EQUIPAMENTOS LTDA</h3>'}</div>
+<h1>Declaração de Responsabilidade por Infração de Trânsito</h1>
+<h2>CNPJ nº 03.434.448/0001-01 — Rua Salto da Divisa, nº 97, Parque Alvorada – Guarulhos/SP</h2>
+<div class="bloco">
+  <div class="bloco-title">Dados do Colaborador</div>
+  <table class="dados">
+    <tr><td>Nome:</td><td>${m.colab_nome || m.motorista_nome || '—'}</td></tr>
+    <tr><td>CPF:</td><td>${m.colab_cpf || '—'}</td></tr>
+    <tr><td>Data da Declaração:</td><td>${dataDeclFmt}</td></tr>
+  </table>
+</div>
+<div class="bloco">
+  <div class="bloco-title">Dados da Infração</div>
+  <p>Pelo presente instrumento, DECLARO, para os devidos fins de direito, ser o condutor do veículo e único responsável pela infração de trânsito abaixo:</p>
+  <table class="dados">
+    <tr><td>PLACA:</td><td>${m.placa || '—'}</td></tr>
+    <tr><td>AUTO DE INFRAÇÃO (AIT):</td><td>${m.numero_ait || '—'}</td></tr>
+    <tr><td>DATA / HORA:</td><td>${fmtData(m.data_infracao)}${m.hora_infracao ? ' às ' + m.hora_infracao : ''}</td></tr>
+    <tr><td>ENDEREÇO:</td><td>${m.local_infracao || '—'}</td></tr>
+    <tr><td>DESCRIÇÃO:</td><td>${m.motivo || '—'}</td></tr>
+  </table>
+  <p>Neste ato me responsabilizo pelo cometimento da aludida infração, requerendo a este respeitável órgão que a pontuação seja lançada em meu prontuário, nos termos do artigo 257, parágrafo 7° do Código de Trânsito Brasileiro e da Resolução do Contran n° 918, de 28 de março de 2022, em todos os órgãos que se fizer necessário.</p>
+  <p style="font-size:11px;color:#475569;">Resolução CONTRAN nº 918, de 28 de março de 2022 — Seção I — Da Identificação do Condutor Infrator — Art. 5º § 1º. [...] Declaro ciência quanto aos termos do artigo 257, parágrafo 8° do CTB, que prevê que em caso de não identificação do condutor infrator e, em sendo o veículo de propriedade de pessoa jurídica, será lavrada nova multa, cujo valor será o dobro da multa originária. Declaro, ainda, que sou responsável penal, cível e administrativamente pela veracidade das informações e dos documentos fornecidos.</p>
+</div>
+<div class="opcao ${opcao === 'indicacao' ? 'selecionada' : ''}">
+  <div class="opcao-titulo">OPÇÃO 1 – INDICAÇÃO DO CONDUTOR</div>
+  <p>(${checkInd}) Declaro que opto pela indicação como condutor infrator, autorizando a empresa a realizar a devida identificação junto ao órgão competente, evitando a aplicação de multa por Não Identificação de Condutor (NIC).</p>
+  <p>Estou ciente de que assumo integralmente as responsabilidades legais decorrentes da infração, inclusive quanto à pontuação em minha CNH.</p>
+  <p><strong>Valor da Multa:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span> &nbsp;&nbsp; <strong>Pontuação:</strong> <span class="vd">${m.pontuacao || '—'} pontos</span></p>
+</div>
+<div class="opcao ${opcao === 'nic' ? 'selecionada' : ''}">
+  <div class="opcao-titulo">OPÇÃO 2 – NÃO INDICAÇÃO DO CONDUTOR (NIC)</div>
+  <p>(${checkNic}) Declaro que opto por não realizar a indicação do condutor, estando ciente de que será aplicada a multa por Não Identificação de Condutor (NIC), conforme legislação vigente.</p>
+  <p><strong>Valor da Multa Originária:</strong> ${fmtMoney(valorOriginal)}</p>
+  <p><strong>Valor da Multa NIC</strong> (2x a originária): <span class="vd">${fmtMoney(valorNIC)}</span></p>
+  <p><strong>Valor Total a Descontar:</strong> <span class="vd">${fmtMoney(valorTotal)}</span></p>
+  <p>Estou ciente de que minha omissão na entrega tempestiva dos documentos gerou à empresa a aplicação da multa acessória por Não Identificação do Condutor (NIC), nos termos do art. 257, § 8º, do Código de Trânsito Brasileiro, no valor correspondente ao dobro da multa originária.</p>
+  <p>Autorizo a empresa AMÉRICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ nº 03.434.448/0001-01, com sede na Rua Salto da Divisa, nº 97, CEP 07242-300, Parque Alvorada – Guarulhos/SP, a efetuar o desconto em folha de pagamento conforme abaixo:</p>
+  <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'✓':' '}) 1x &nbsp; (${numParcelas===2?'✓':' '}) 2x &nbsp; (${numParcelas===3?'✓':' '}) 3x &nbsp; (${numParcelas>3?'✓':' '}) Outro: ${numParcelas>3?numParcelas+'x':''}</p>
+  <p><strong>Valor da Parcela:</strong> <span class="vd">${fmtMoney(valorParcela)}</span></p>
+</div>
+<div style="margin-top:24px;">
+  <p><strong>Assinatura do Colaborador:</strong></p>
+  ${assinaturaHtml}
+  <p style="margin-top:6px;font-size:12px;">${m.colab_nome || m.motorista_nome || '—'}</p>
+  ${selfieHtml}
+</div>
+<div class="rodape">Documento gerado em ${dataDeclFmt} pelo Sistema de Gestão — América Rental Equipamentos Ltda.</div>
+</body></html>`;
+
+        const termoBase64 = Buffer.from(termoHTML).toString('base64');
+
+        db.get('SELECT documentos_extras FROM multas_logistica WHERE id = ?', [multaId], (errDoc, rowDoc) => {
+            if (errDoc || !rowDoc) return res.status(500).json({ error: 'Erro ao buscar documentos.' });
+
+            let extras = [];
+            try { extras = JSON.parse(rowDoc.documentos_extras || '[]'); } catch(_) {}
+
+            extras.push({
+                nome: `Declaracao_Responsabilidade_${m.numero_ait || multaId}.html`,
+                tipo: 'text/html',
+                base64: termoBase64,
+                adicionado_em: new Date().toISOString(),
+                opcao
+            });
+
+            db.run('UPDATE multas_logistica SET documentos_extras = ? WHERE id = ?', [JSON.stringify(extras), multaId], (errUpd) => {
+                if (errUpd) return res.status(500).json({ error: 'Erro ao salvar documento.' });
+
+                const novoStatus = opcao === 'indicacao' ? 'Indicado' : 'Multa NIC';
+                const oldStatus = m.status;
+
+                db.run(`UPDATE multas_logistica SET status = ?, status_updated_at = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`,
+                    [novoStatus, getNowBR(), multaId], (errStatus) => {
+                        if (errStatus) return res.status(500).json({ error: 'Erro ao atualizar status.' });
+
+                        if (oldStatus !== novoStatus && m.motorista_id && m.motorista_id != -1) {
+                            const val2 = parseFloat((m.valor_multa || '0').toString().replace(/[^\d,.]/g, '').replace(',', '.')) || 0;
+                            notificarRHAuto(m.motorista_id, novoStatus, numParcelas, val2, m.data_infracao, m.numero_ait, {
+                                placa: m.placa, hora_infracao: m.hora_infracao,
+                                local_infracao: m.local_infracao, motivo: m.motivo,
+                                pontuacao: m.pontuacao, data_limite: m.data_limite
+                            }).catch(e => console.error('[salvar-declaracao] Notif error:', e.message));
+                        }
+
+                        res.json({ ok: true, novoStatus, totalDocs: extras.length });
+                    });
+            });
+        });
+    });
+});
+
 // DELETE /api/logistica/multas/:id
 app.delete('/api/logistica/multas/:id', authenticateToken, (req, res) => {
+
     db.get('SELECT status FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
 

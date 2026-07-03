@@ -228,8 +228,12 @@ function _buildMultaRow(m) {
     const btnTermo = (m.termo_desconto_base64)
         ? `<button onclick="visualizarTermoDescontoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; margin-right:8px;" title="Termo de Desconto Assinado (Mônaco)"><img src="assets/icone_termo_desconto.png" alt="Termo" style="width:1.2rem; height:1.2rem; object-fit:contain; filter: brightness(0); opacity: 0.8;"></button>` : '';
 
-    // Botão Assinar — OCULTADO conforme solicitação
-    const btnAssinar = '';
+
+    // Botão Assinar — Declaração de Responsabilidade por Infração
+    const statusFinalizados = ['Indicado','Multa NIC','Id. Deferida','Id. Indeferida','Recorrida','Rec. Deferida','Rec. Indeferida','Cobrada - Pz. Perdido','Não Se Aplica','Antiga','Ex Colaborador'];
+    const btnAssinar = (m.motorista_id && m.motorista_id != -1 && !statusFinalizados.includes(m.status))
+        ? `<button onclick="abrirFluxoAssinatura(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#7c3aed; margin-right:8px;" title="Assinar Declaração de Responsabilidade"><i class="ph ph-pen-nib" style="font-size:1.2rem;"></i></button>`
+        : '';
 
     return `
         <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
@@ -1863,3 +1867,326 @@ document.addEventListener('click', function(e) {
         }
     });
 });
+
+// =============================================================================
+// FLUXO DE ASSINATURA — DECLARAÇÃO DE RESPONSABILIDADE POR INFRAÇÃO
+// =============================================================================
+window.abrirFluxoAssinatura = function(multaId) {
+    const multa = multasLogistica.find(x => x.id === multaId);
+    if (!multa) { alert('Multa não encontrada.'); return; }
+
+    const fmtMoney = v => {
+        const n = parseFloat((v||'0').toString().replace(/[^\d,.]/g,'').replace(',','.')) || 0;
+        return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits:2, maximumFractionDigits:2 });
+    };
+    const valorOrig = parseFloat((multa.valor_multa||'0').toString().replace(/[^\d,.]/g,'').replace(',','.')) || 0;
+    const valorNIC = valorOrig * 2;
+    const valorTotal = valorOrig + valorNIC;
+
+    // ---- Estado interno do fluxo ----
+    let _opcaoEscolhida = null;
+    let _parcelas = 1;
+    let _assinaturaBase64 = null;
+    let _selfieBase64 = null;
+    let _canvas = null;
+    let _ctx = null;
+    let _desenhando = false;
+
+    // ---- Overlay fullscreen ----
+    const overlay = document.createElement('div');
+    overlay.id = 'fluxo-assinatura-overlay';
+    overlay.style.cssText = `position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.85);display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;overflow-y:auto;padding:16px;box-sizing:border-box;`;
+    document.body.appendChild(overlay);
+
+    const fechar = () => { overlay.remove(); };
+
+    // ---- Renderiza Etapa 1: Escolha da Opção ----
+    function renderEtapa1() {
+        overlay.innerHTML = `
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:700px;box-shadow:0 25px 50px rgba(0,0,0,0.4);overflow:hidden;">
+          <div style="background:linear-gradient(135deg,#1e3a5f,#2563eb);padding:24px 28px;position:relative;">
+            <button onclick="document.getElementById('fluxo-assinatura-overlay').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:0.85rem;">✕ Fechar</button>
+            <h2 style="margin:0;color:#fff;font-size:1.3rem;font-weight:700;">✍️ Declaração de Responsabilidade</h2>
+            <p style="margin:6px 0 0;color:#93c5fd;font-size:0.85rem;">AIT: <strong>${multa.numero_ait||'—'}</strong> &nbsp;|&nbsp; Placa: <strong>${multa.placa||'—'}</strong> &nbsp;|&nbsp; Valor: <strong>${fmtMoney(valorOrig)}</strong></p>
+          </div>
+          <div style="padding:28px;">
+            <p style="color:#475569;margin:0 0 20px;font-size:0.95rem;font-weight:600;">Selecione como o colaborador deseja responder à infração:</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+              
+              <div onclick="_fluxoEscolher('indicacao')" style="border:2px solid #e2e8f0;border-radius:12px;padding:24px 20px;cursor:pointer;transition:all 0.2s;text-align:center;" 
+                   onmouseover="this.style.borderColor='#2563eb';this.style.background='#eff6ff'" 
+                   onmouseout="this.style.borderColor='#e2e8f0';this.style.background='#fff'">
+                <div style="font-size:2.5rem;margin-bottom:12px;">🪪</div>
+                <div style="font-weight:700;color:#1e293b;font-size:1rem;margin-bottom:8px;">Indicação do Condutor</div>
+                <div style="font-size:0.8rem;color:#64748b;">Assume a infração na CNH. O valor original será descontado.</div>
+                <div style="margin-top:12px;background:#eff6ff;color:#2563eb;padding:6px 12px;border-radius:20px;font-size:0.85rem;font-weight:700;">${fmtMoney(valorOrig)}</div>
+                ${multa.pontuacao ? `<div style="margin-top:6px;background:#fef3c7;color:#b45309;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:600;">${multa.pontuacao} pontos na CNH</div>` : ''}
+              </div>
+
+              <div onclick="_fluxoEscolher('nic')" style="border:2px solid #e2e8f0;border-radius:12px;padding:24px 20px;cursor:pointer;transition:all 0.2s;text-align:center;"
+                   onmouseover="this.style.borderColor='#dc2626';this.style.background='#fff1f2'"
+                   onmouseout="this.style.borderColor='#e2e8f0';this.style.background='#fff'">
+                <div style="font-size:2.5rem;margin-bottom:12px;">🚫</div>
+                <div style="font-weight:700;color:#1e293b;font-size:1rem;margin-bottom:8px;">Multa NIC</div>
+                <div style="font-size:0.8rem;color:#64748b;">Não se identifica. Valor dobrado será descontado.</div>
+                <div style="margin-top:12px;background:#fff1f2;color:#dc2626;padding:6px 12px;border-radius:20px;font-size:0.85rem;font-weight:700;">${fmtMoney(valorTotal)} (2x)</div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // ---- Renderiza Etapa 2: Confirmação ----
+    function renderEtapa2(opcao) {
+        const isInd = opcao === 'indicacao';
+        const corFundo = isInd ? '#eff6ff' : '#fff1f2';
+        const corBorda = isInd ? '#2563eb' : '#dc2626';
+        const corTexto = isInd ? '#1e3a5f' : '#7f1d1d';
+        const titulo = isInd ? '⚠️ Confirmação — Indicação do Condutor' : '⚠️ Confirmação — Multa NIC';
+        const icone = isInd ? '🪪' : '🚫';
+
+        const mensagem = isInd
+            ? `<p><strong>Você optou por indicar o real condutor nesta infração. Deseja prosseguir?</strong></p>
+               <p>Ao realizar a identificação do real condutor, a pontuação referente à infração será registrada em sua CNH, e o valor da multa será descontado em sua folha de pagamento, conforme as normas internas da empresa.</p>
+               <p>Antes de confirmar essa opção, é importante que o colaborador esteja ciente da quantidade de pontos já registrados em sua Carteira Nacional de Habilitação, evitando ultrapassar o limite previsto na legislação de trânsito.</p>
+               <p>Para acompanhar sua pontuação e demais informações da CNH, utilize o aplicativo <strong>Carteira Digital de Trânsito (CDT)</strong>.</p>
+               <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;">
+                 <div style="background:#eff6ff;border:2px solid #2563eb;border-radius:10px;padding:10px 18px;text-align:center;">
+                   <div style="font-size:0.75rem;color:#64748b;margin-bottom:4px;">VALOR A DESCONTAR</div>
+                   <div style="font-size:1.5rem;font-weight:800;color:#dc2626;">${fmtMoney(valorOrig)}</div>
+                 </div>
+                 ${multa.pontuacao ? `<div style="background:#fef3c7;border:2px solid #f59e0b;border-radius:10px;padding:10px 18px;text-align:center;">
+                   <div style="font-size:0.75rem;color:#64748b;margin-bottom:4px;">PONTUAÇÃO NA CNH</div>
+                   <div style="font-size:1.5rem;font-weight:800;color:#b45309;">${multa.pontuacao} pts</div>
+                 </div>` : ''}
+               </div>`
+            : `<p><strong>Você optou por não se indicar nessa infração. Deseja prosseguir?</strong></p>
+               <p>Se não houver identificação do infrator real, uma nova multa (NIC/Remulta) será emitida, com o valor equivalente ao dobro da multa original. É importante ressaltar que, mesmo optando por não se identificar, será necessário assinar o termo de desconto, seguindo o procedimento de reembolso da empresa.</p>
+               <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;">
+                 <div style="background:#fff1f2;border:2px solid #dc2626;border-radius:10px;padding:10px 18px;text-align:center;">
+                   <div style="font-size:0.75rem;color:#64748b;margin-bottom:4px;">MULTA ORIGINAL</div>
+                   <div style="font-size:1.3rem;font-weight:700;color:#475569;">${fmtMoney(valorOrig)}</div>
+                 </div>
+                 <div style="background:#fff1f2;border:2px solid #dc2626;border-radius:10px;padding:10px 18px;text-align:center;">
+                   <div style="font-size:0.75rem;color:#64748b;margin-bottom:4px;">MULTA NIC (2x)</div>
+                   <div style="font-size:1.3rem;font-weight:700;color:#dc2626;">${fmtMoney(valorNIC)}</div>
+                 </div>
+                 <div style="background:#7f1d1d;border:2px solid #dc2626;border-radius:10px;padding:10px 18px;text-align:center;">
+                   <div style="font-size:0.75rem;color:#fca5a5;margin-bottom:4px;">VALOR TOTAL A PAGAR</div>
+                   <div style="font-size:1.5rem;font-weight:800;color:#fff;">${fmtMoney(valorTotal)}</div>
+                 </div>
+               </div>
+               <div style="margin-top:16px;">
+                 <label style="font-size:0.85rem;font-weight:600;color:#475569;display:block;margin-bottom:6px;">Forma de pagamento (parcelas):</label>
+                 <div style="display:flex;gap:8px;flex-wrap:wrap;" id="parcelas-container">
+                   ${[1,2,3,4,5].map(n=>`<button id="parc-btn-${n}" onclick="_fluxoSetParcelas(${n})" style="border:2px solid #cbd5e1;background:#fff;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:600;color:#475569;">${n}x ${fmtMoney((valorTotal/n))}</button>`).join('')}
+                 </div>
+               </div>`;
+
+        overlay.innerHTML = `
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:700px;box-shadow:0 25px 50px rgba(0,0,0,0.4);overflow:hidden;">
+          <div style="background:${corBorda};padding:20px 28px;position:relative;">
+            <h2 style="margin:0;color:#fff;font-size:1.1rem;font-weight:700;">${titulo}</h2>
+            <p style="margin:4px 0 0;color:rgba(255,255,255,0.8);font-size:0.82rem;">AIT: ${multa.numero_ait||'—'} &nbsp;|&nbsp; ${multa.motorista_nome||'—'}</p>
+          </div>
+          <div style="padding:24px;background:${corFundo};">
+            <div style="font-size:2rem;margin-bottom:12px;text-align:center;">${icone}</div>
+            <div style="font-size:0.92rem;color:${corTexto};line-height:1.6;">${mensagem}</div>
+          </div>
+          <div style="padding:16px 24px 24px;display:flex;justify-content:space-between;gap:12px;border-top:1px solid #e2e8f0;flex-wrap:wrap;">
+            <button onclick="_fluxoVoltar()" style="background:#f1f5f9;color:#475569;border:none;border-radius:8px;padding:10px 22px;cursor:pointer;font-weight:600;font-size:0.9rem;">← Voltar</button>
+            <button onclick="_fluxoConfirmar()" style="background:${corBorda};color:#fff;border:none;border-radius:8px;padding:10px 26px;cursor:pointer;font-weight:700;font-size:0.9rem;">Confirmar e Gerar Termo →</button>
+          </div>
+        </div>`;
+
+        // Destaca parcela 1 por padrão
+        setTimeout(() => {
+            const btn1 = document.getElementById('parc-btn-1');
+            if (btn1) { btn1.style.borderColor = '#dc2626'; btn1.style.color = '#dc2626'; btn1.style.background = '#fff1f2'; }
+        }, 50);
+    }
+
+    // ---- Renderiza Etapa 3: Termo + Assinatura ----
+    function renderEtapa3(opcao) {
+        const isInd = opcao === 'indicacao';
+        const fmtData = (d) => {
+            if (!d) return '—';
+            if (d.includes('/')) return d;
+            const [y, mo, dy] = d.split('-');
+            return dy ? `${dy}/${mo}/${y}` : d;
+        };
+        const checkInd = isInd ? '✓' : '☐';
+        const checkNic = !isInd ? '✓' : '☐';
+        const valorDesc = isInd ? fmtMoney(valorOrig) : fmtMoney(valorTotal);
+        const parcelaValor = isInd ? valorOrig / _parcelas : valorTotal / _parcelas;
+
+        overlay.innerHTML = `
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:800px;box-shadow:0 25px 50px rgba(0,0,0,0.4);overflow:hidden;max-height:95vh;display:flex;flex-direction:column;">
+          <div style="background:linear-gradient(135deg,#1e3a5f,#2563eb);padding:18px 24px;position:relative;flex-shrink:0;">
+            <h2 style="margin:0;color:#fff;font-size:1.1rem;font-weight:700;">📄 Leitura e Assinatura do Termo</h2>
+            <p style="margin:4px 0 0;color:#93c5fd;font-size:0.8rem;">Leia o termo abaixo e, após leitura, assine e tire uma selfie para confirmar.</p>
+          </div>
+          
+          <div style="flex:1;overflow-y:auto;padding:20px 24px;">
+            
+            <!-- Termo resumido -->
+            <div style="border:1px solid #e2e8f0;border-radius:10px;padding:18px;margin-bottom:20px;background:#f8fafc;font-size:0.82rem;line-height:1.6;color:#1e293b;">
+              <h3 style="text-align:center;font-size:0.95rem;text-transform:uppercase;margin:0 0 4px;">DECLARAÇÃO DE RESPONSABILIDADE POR INFRAÇÃO DE TRÂNSITO</h3>
+              <p style="text-align:center;font-size:0.75rem;color:#64748b;margin:0 0 14px;">CNPJ nº 03.434.448/0001-01 — Rua Salto da Divisa, nº 97 — Guarulhos/SP</p>
+              
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;background:#fff;border-radius:6px;padding:10px;border:1px solid #e2e8f0;">
+                <div><strong>PLACA:</strong> ${multa.placa||'—'}</div>
+                <div><strong>AIT:</strong> ${multa.numero_ait||'—'}</div>
+                <div><strong>DATA/HORA:</strong> ${fmtData(multa.data_infracao)} ${multa.hora_infracao||''}</div>
+                <div><strong>ENDEREÇO:</strong> ${(multa.local_infracao||'—').substring(0,40)}</div>
+                <div style="grid-column:1/-1"><strong>DESCRIÇÃO:</strong> ${multa.motivo||'—'}</div>
+              </div>
+
+              <p>Pelo presente instrumento, DECLARO ser o condutor do veículo e único responsável pela infração acima. Neste ato me responsabilizo pelo cometimento da infração, nos termos do art. 257, § 7° do CTB e da Resolução CONTRAN n° 918/2022. Declaro ciência que em caso de não identificação do condutor, será lavrada nova multa com valor dobrado (art. 257, § 8° do CTB).</p>
+              
+              <div style="border:2px solid ${isInd?'#2563eb':'#e2e8f0'};border-radius:8px;padding:12px;margin:8px 0;background:${isInd?'#eff6ff':'#fff'};">
+                <strong>(${checkInd}) OPÇÃO 1 — INDICAÇÃO DO CONDUTOR</strong>
+                <p style="margin:6px 0 0;">Declaro que opto pela indicação como condutor infrator, autorizando a empresa a realizar a devida identificação junto ao órgão competente. Estou ciente de que assumo integralmente as responsabilidades legais, inclusive pontuação na CNH.</p>
+                <p><strong>Valor:</strong> <span style="color:#dc2626;font-weight:700;">${fmtMoney(valorOrig)}</span> &nbsp;&nbsp; ${multa.pontuacao?`<strong>Pontuação:</strong> <span style="color:#b45309;font-weight:700;">${multa.pontuacao} pts</span>`:''}
+              </div>
+              
+              <div style="border:2px solid ${!isInd?'#dc2626':'#e2e8f0'};border-radius:8px;padding:12px;margin:8px 0;background:${!isInd?'#fff1f2':'#fff'};">
+                <strong>(${checkNic}) OPÇÃO 2 — NÃO INDICAÇÃO (NIC)</strong>
+                <p style="margin:6px 0 0;">Declaro que opto por não realizar a indicação do condutor. Autorizo a empresa AMÉRICA RENTAL EQUIPAMENTOS LTDA (CNPJ 03.434.448/0001-01) a efetuar o desconto em folha conforme abaixo:</p>
+                <p><strong>Multa Originária:</strong> ${fmtMoney(valorOrig)} &nbsp;|&nbsp; <strong>Multa NIC (2x):</strong> ${fmtMoney(valorNIC)} &nbsp;|&nbsp; <strong>Total:</strong> <span style="color:#dc2626;font-weight:700;">${fmtMoney(valorTotal)}</span></p>
+                <p><strong>Parcelas:</strong> ${_parcelas}x de <span style="color:#dc2626;font-weight:700;">${fmtMoney(parcelaValor)}</span></p>
+              </div>
+            </div>
+
+            <!-- Assinatura Canvas -->
+            <div style="margin-bottom:20px;">
+              <div style="font-weight:700;color:#1e293b;margin-bottom:8px;font-size:0.9rem;">✍️ Assinatura do Colaborador</div>
+              <div style="border:2px solid #cbd5e1;border-radius:8px;background:#f8fafc;overflow:hidden;position:relative;">
+                <canvas id="canvas-declaracao" width="740" height="140" style="display:block;width:100%;cursor:crosshair;touch-action:none;"></canvas>
+                <div id="canvas-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.85rem;pointer-events:none;">Assine aqui com o dedo ou mouse</div>
+              </div>
+              <button onclick="_fluxoLimparCanvas()" style="margin-top:6px;background:none;border:1px solid #cbd5e1;color:#64748b;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:0.8rem;">🗑 Limpar</button>
+            </div>
+
+            <!-- Selfie -->
+            <div style="margin-bottom:20px;">
+              <div style="font-weight:700;color:#1e293b;margin-bottom:8px;font-size:0.9rem;">📷 Selfie para Comprovação</div>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <label style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;font-size:0.9rem;display:inline-block;">
+                  📷 Tirar Selfie
+                  <input type="file" id="selfie-input" accept="image/*" capture="user" style="display:none;" onchange="_fluxoCapturarSelfie(this)">
+                </label>
+                <span style="font-size:0.8rem;color:#94a3b8;" id="selfie-status">Nenhuma foto tirada</span>
+              </div>
+              <div id="selfie-preview" style="margin-top:10px;"></div>
+            </div>
+
+          </div>
+
+          <!-- Rodapé -->
+          <div style="padding:16px 24px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;gap:12px;flex-wrap:wrap;background:#f8fafc;">
+            <button onclick="_fluxoVoltar()" style="background:#f1f5f9;color:#475569;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;">← Voltar</button>
+            <button onclick="_fluxoFinalizar()" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;border:none;border-radius:8px;padding:12px 28px;cursor:pointer;font-weight:700;font-size:1rem;" id="btn-finalizar-declaracao">✅ Finalizar e Salvar</button>
+          </div>
+        </div>`;
+
+        // Init canvas
+        setTimeout(() => {
+            _canvas = document.getElementById('canvas-declaracao');
+            if (!_canvas) return;
+            _ctx = _canvas.getContext('2d');
+            _ctx.lineWidth = 2.5;
+            _ctx.strokeStyle = '#1e293b';
+            _ctx.lineCap = 'round';
+
+            const getPos = (e) => {
+                const rect = _canvas.getBoundingClientRect();
+                const scaleX = _canvas.width / rect.width;
+                const scaleY = _canvas.height / rect.height;
+                const src = e.touches ? e.touches[0] : e;
+                return { x: (src.clientX - rect.left) * scaleX, y: (src.clientY - rect.top) * scaleY };
+            };
+            _canvas.addEventListener('mousedown', e => { _desenhando = true; const p = getPos(e); _ctx.beginPath(); _ctx.moveTo(p.x, p.y); document.getElementById('canvas-placeholder').style.display='none'; });
+            _canvas.addEventListener('mousemove', e => { if (!_desenhando) return; const p = getPos(e); _ctx.lineTo(p.x, p.y); _ctx.stroke(); });
+            _canvas.addEventListener('mouseup', () => { _desenhando = false; _assinaturaBase64 = _canvas.toDataURL('image/png'); });
+            _canvas.addEventListener('mouseleave', () => { _desenhando = false; });
+            _canvas.addEventListener('touchstart', e => { e.preventDefault(); _desenhando = true; const p = getPos(e); _ctx.beginPath(); _ctx.moveTo(p.x, p.y); document.getElementById('canvas-placeholder').style.display='none'; }, {passive:false});
+            _canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!_desenhando) return; const p = getPos(e); _ctx.lineTo(p.x, p.y); _ctx.stroke(); }, {passive:false});
+            _canvas.addEventListener('touchend', () => { _desenhando = false; _assinaturaBase64 = _canvas.toDataURL('image/png'); });
+        }, 80);
+    }
+
+    // ---- Funções de controle (globais temporárias) ----
+    window._fluxoEscolher = function(opcao) {
+        _opcaoEscolhida = opcao;
+        renderEtapa2(opcao);
+    };
+    window._fluxoSetParcelas = function(n) {
+        _parcelas = n;
+        document.querySelectorAll('[id^="parc-btn-"]').forEach(b => {
+            b.style.borderColor = '#cbd5e1'; b.style.color = '#475569'; b.style.background = '#fff';
+        });
+        const btn = document.getElementById(`parc-btn-${n}`);
+        if (btn) { btn.style.borderColor = '#dc2626'; btn.style.color = '#dc2626'; btn.style.background = '#fff1f2'; }
+    };
+    window._fluxoVoltar = function() {
+        if (document.getElementById('canvas-declaracao')) renderEtapa2(_opcaoEscolhida);
+        else renderEtapa1();
+    };
+    window._fluxoConfirmar = function() {
+        renderEtapa3(_opcaoEscolhida);
+    };
+    window._fluxoLimparCanvas = function() {
+        if (_ctx && _canvas) { _ctx.clearRect(0, 0, _canvas.width, _canvas.height); _assinaturaBase64 = null; document.getElementById('canvas-placeholder').style.display='flex'; }
+    };
+    window._fluxoCapturarSelfie = function(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            _selfieBase64 = e.target.result;
+            document.getElementById('selfie-status').textContent = '✅ Foto capturada!';
+            document.getElementById('selfie-status').style.color = '#16a34a';
+            document.getElementById('selfie-preview').innerHTML = `<img src="${_selfieBase64}" style="max-width:120px;max-height:120px;border-radius:8px;border:2px solid #86efac;margin-top:4px;">`;
+        };
+        reader.readAsDataURL(file);
+    };
+    window._fluxoFinalizar = async function() {
+        // Captura assinatura atual do canvas
+        if (_canvas) _assinaturaBase64 = _canvas.toDataURL('image/png');
+
+        if (!_assinaturaBase64 || _assinaturaBase64 === 'data:,') {
+            alert('Por favor, assine no campo de assinatura antes de finalizar.');
+            return;
+        }
+
+        const btn = document.getElementById('btn-finalizar-declaracao');
+        btn.disabled = true; btn.textContent = '⏳ Salvando...';
+
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        try {
+            const res = await fetch(`/api/logistica/multas/${multaId}/salvar-declaracao`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    opcao: _opcaoEscolhida,
+                    parcelas: _parcelas,
+                    assinatura_base64: _assinaturaBase64,
+                    selfie_base64: _selfieBase64 || null
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Erro ao salvar.');
+            overlay.remove();
+            window._ultimoIdMultaEditada = multaId;
+            await carregarMultasLogistica();
+            if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso(`Declaração assinada e salva! Status: ${data.novoStatus}`);
+        } catch(e) {
+            btn.disabled = false; btn.textContent = '✅ Finalizar e Salvar';
+            alert('Erro ao salvar declaração: ' + e.message);
+        }
+    };
+
+    // Inicia na etapa 1
+    renderEtapa1();
+};
