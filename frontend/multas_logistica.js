@@ -2077,7 +2077,7 @@ window.abrirFluxoAssinatura = function(multaId) {
               </div>
               <div style="display:flex;justify-content:space-between;margin-top:6px;">
                 <button onclick="_fluxoLimparCanvas()" style="background:none;border:1px solid #cbd5e1;color:#64748b;border-radius:6px;padding:6px 16px;cursor:pointer;font-size:0.85rem;">🗑 Limpar</button>
-                <button onclick="document.getElementById('selfie-section').style.display='block'; this.style.display='none'; setTimeout(()=>{document.getElementById('selfie-input').click();}, 200);" id="btn-seguinte-selfie" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:6px 20px;cursor:pointer;font-size:0.9rem;font-weight:600;">Seguinte →</button>
+                <button onclick="document.getElementById('selfie-section').style.display='block'; this.style.display='none'; setTimeout(()=>{ _fluxoIniciarCamera(); }, 200);" id="btn-seguinte-selfie" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:6px 20px;cursor:pointer;font-size:0.9rem;font-weight:600;">Seguinte →</button>
               </div>
             </div>
 
@@ -2085,11 +2085,16 @@ window.abrirFluxoAssinatura = function(multaId) {
             <div id="selfie-section" style="margin-bottom:20px;display:none;">
               <div style="font-weight:700;color:#1e293b;margin-bottom:8px;font-size:0.9rem;">📷 Selfie para Comprovação <span style="color:#dc2626;font-size:0.8rem;">(obrigatório)</span></div>
               <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:0.82rem;color:#92400e;">⚠️ Tire uma selfie para confirmar sua identidade e concluir o processo de assinatura.</div>
-              <label id="selfie-label" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:12px 24px;cursor:pointer;font-weight:600;font-size:0.95rem;display:inline-block;">
-                📷 Tirar Selfie
-                <input type="file" id="selfie-input" accept="image/*" capture="user" style="display:none;" onchange="_fluxoCapturarSelfie(this)">
-              </label>
-              <span style="font-size:0.8rem;color:#94a3b8;display:block;margin-top:8px;" id="selfie-status">Nenhuma foto tirada</span>
+              
+              <div id="selfie-camera-container" style="display:none; flex-direction:column; align-items:center; background:#0f172a; border-radius:8px; overflow:hidden; position:relative; margin-bottom:12px; width:100%; max-width:400px; margin-left:auto; margin-right:auto;">
+                <video id="selfie-video" autoplay playsinline style="width:100%; max-height:300px; object-fit:cover;"></video>
+                <button onclick="_fluxoTirarFotoWebRTC()" style="position:absolute; bottom:16px; background:#16a34a; color:#fff; border:2px solid #fff; border-radius:50px; padding:10px 24px; cursor:pointer; font-weight:700; font-size:0.95rem; box-shadow:0 4px 6px rgba(0,0,0,0.3);">📸 Capturar</button>
+              </div>
+
+              <div id="selfie-controls" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                <button onclick="_fluxoIniciarCamera()" id="btn-iniciar-camera" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;font-size:0.9rem;">📷 Abrir Câmera</button>
+                <span style="font-size:0.8rem;color:#94a3b8;" id="selfie-status">Nenhuma foto tirada</span>
+              </div>
               <div id="selfie-preview" style="margin-top:10px;"></div>
             </div>
 
@@ -2171,12 +2176,64 @@ window.abrirFluxoAssinatura = function(multaId) {
         const reader = new FileReader();
         reader.onload = e => {
             _selfieBase64 = e.target.result;
-            document.getElementById('selfie-status').textContent = '✅ Foto capturada!';
+            document.getElementById('selfie-status').textContent = '✅ Foto capturada (Arquivo)!';
             document.getElementById('selfie-status').style.color = '#16a34a';
             document.getElementById('selfie-preview').innerHTML = `<img src="${_selfieBase64}" style="max-width:120px;max-height:120px;border-radius:8px;border:2px solid #86efac;margin-top:4px;">`;
+            document.getElementById('btn-iniciar-camera').textContent = '📷 Tirar Outra Foto';
         };
         reader.readAsDataURL(file);
     };
+    
+    window._fluxoIniciarCamera = async function() {
+        const container = document.getElementById('selfie-camera-container');
+        const video = document.getElementById('selfie-video');
+        const controls = document.getElementById('selfie-controls');
+        
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+            video.srcObject = stream;
+            container.style.display = 'flex';
+            controls.style.display = 'none';
+            document.getElementById('selfie-preview').innerHTML = '';
+            _selfieBase64 = null;
+            window._streamSelfie = stream;
+        } catch (err) {
+            console.warn('Câmera nativa não disponível:', err);
+            // Fallback para input file nativo (abre o file picker / câmera nativa do mobile)
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.capture = 'user';
+            input.onchange = (e) => _fluxoCapturarSelfie(e.target);
+            input.click();
+        }
+    };
+
+    window._fluxoTirarFotoWebRTC = function() {
+        const video = document.getElementById('selfie-video');
+        if (!video.srcObject) return;
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        _selfieBase64 = canvas.toDataURL('image/jpeg', 0.8);
+        
+        if (window._streamSelfie) {
+            window._streamSelfie.getTracks().forEach(t => t.stop());
+        }
+        video.srcObject = null;
+        
+        document.getElementById('selfie-camera-container').style.display = 'none';
+        document.getElementById('selfie-controls').style.display = 'flex';
+        
+        document.getElementById('selfie-status').textContent = '✅ Foto capturada!';
+        document.getElementById('selfie-status').style.color = '#16a34a';
+        document.getElementById('selfie-preview').innerHTML = `<img src="${_selfieBase64}" style="max-width:120px;max-height:120px;border-radius:8px;border:2px solid #86efac;margin-top:4px;">`;
+        document.getElementById('btn-iniciar-camera').textContent = '📷 Tirar Outra Foto';
+    };
+
     window._fluxoFinalizar = async function() {
         // Captura assinatura atual do canvas
         if (_canvas) _assinaturaBase64 = _canvas.toDataURL('image/png');
@@ -2187,7 +2244,7 @@ window.abrirFluxoAssinatura = function(multaId) {
         }
         if (!_selfieBase64) {
             alert('A selfie é obrigatória. Por favor, tire a selfie antes de finalizar.');
-            document.getElementById('selfie-input')?.click();
+            _fluxoIniciarCamera();
             return;
         }
 
