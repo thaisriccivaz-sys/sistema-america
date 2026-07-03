@@ -5457,6 +5457,11 @@ window.modalSelecionarEndereco = function(idx) {
     const propEnderecoInput = document.getElementById('prop-endereco');
     if (propEnderecoInput) {
         propEnderecoInput.value = fullAddress;
+        
+        // Trigger classification and checkbox mapping immediately
+        if (typeof window.classificarRegiaoEDias === 'function') {
+            window.classificarRegiaoEDias();
+        }
     }
 
     Swal.close();
