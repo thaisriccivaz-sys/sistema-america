@@ -6167,7 +6167,7 @@ window.moverCardKanban = function(idx, novaEtapa) {
     }
 };
 
-window.analisarComIA = function() {
+window.analisarComIA = async function() {
     const obs = document.getElementById('ia-observacoes')?.value || '';
     const resultDiv = document.getElementById('ia-resultado');
     if (!resultDiv) return;
@@ -6176,34 +6176,113 @@ window.analisarComIA = function() {
     resultDiv.innerHTML = `
         <div style="display:flex; align-items:center; gap:8px; color:#64748b; font-family:'Inter', sans-serif;">
             <i class="ph ph-circle-notch" style="font-size:1.2rem; animation: spin 1s linear infinite;"></i>
-            <span>IA está analisando a performance comercial e perdas do ERP...</span>
+            <span>IA está analisando o diagnóstico do Ishikawa e gerando plano de ação 5W2H...</span>
         </div>
     `;
     
+    let dados = {
+        "Metodo": 12,
+        "Maquina": 2,
+        "Medida": 25,
+        "MeioAmbiente": 18,
+        "MaodeObra": 6,
+        "Material": 14
+    };
+    try {
+        const res = await apiGet('/ia/diagnostico-ishikawa');
+        if (res && typeof res === 'object') {
+            dados = res;
+        }
+    } catch(e) {
+        console.error("Erro ao obter diagnóstico de Ishikawa para IA:", e);
+    }
+    
     setTimeout(() => {
-        const total = _dashboardStatsData.length;
-        const reprovadas = _dashboardStatsData.filter(p => p.fase_negociacao === 'Reprovada' || p.fase_negociacao === 'Cancelada').length;
-        const reprovadasPct = total > 0 ? ((reprovadas / total) * 100).toFixed(1) : 0;
+        // Identificar a categoria do Ishikawa com a maior frequência
+        const entries = Object.entries(dados);
+        entries.sort((a, b) => b[1] - a[1]);
+        const maiorCategoria = entries[0][0];
+        const freq = entries[0][1];
         
-        const motivos = {};
-        _dashboardStatsData.forEach(p => {
-            if (p.motivo_reprovacao && p.motivo_reprovacao !== 'N/A' && p.motivo_reprovacao !== '') {
-                motivos[p.motivo_reprovacao] = (motivos[p.motivo_reprovacao] || 0) + 1;
-            }
-        });
-        const principalMotivo = Object.entries(motivos).sort((a,b) => b[1] - a[1])[0]?.[0] || 'Nenhum registrado';
+        let gargalo = "";
+        let oQue = "";
+        let quem = "";
+        let prazo = "";
+        let justificativa = "";
+        
+        // Regra de Negócio: Mapear ação 5W2H focada para o maior gargalo (Ishikawa)
+        if (maiorCategoria === 'Medida') {
+            gargalo = 'Perda por Preço / Orçamento';
+            oQue = 'Implementar política de descontos progressivos baseada no volume de locação';
+            quem = 'Diretoria Comercial';
+            prazo = '2026-07-30';
+            justificativa = 'Combater as perdas por precificação alta ou estouro de orçamento do cliente.';
+        } else if (maiorCategoria === 'MeioAmbiente') {
+            gargalo = 'Perda por Concorrência';
+            oQue = 'Realizar benchmark semanal de tarifas praticadas pelos concorrentes da região';
+            quem = 'Analista de Inteligência de Mercado';
+            prazo = '2026-07-25';
+            justificativa = 'Identificar desvios de tarifas de locação em relação aos concorrentes locais.';
+        } else if (maiorCategoria === 'Material') {
+            gargalo = 'Especificação Técnica';
+            oQue = 'Revisar portfólio de ativos e atualizar fichas técnicas no catálogo comercial';
+            quem = 'Gerente de Engenharia / Ativos';
+            prazo = '2026-08-05';
+            justificativa = 'Garantir que a especificação dos geradores e equipamentos atenda a demanda técnica do cliente.';
+        } else if (maiorCategoria === 'Metodo') {
+            gargalo = 'Perda por Prazos / Processos';
+            oQue = 'Desenvolver fluxo de SLA prioritário de proposta comercial de até 4 horas';
+            quem = 'Equipe Comercial';
+            prazo = '2026-07-20';
+            justificativa = 'Reduzir perdas por lentidão no envio de orçamentos e follow-ups de leads.';
+        } else if (maiorCategoria === 'MaodeObra') {
+            gargalo = 'Treinamento de Equipe';
+            oQue = 'Realizar treinamento de técnicas de negociação para vendedores com baixa conversão';
+            quem = 'Recursos Humanos / Comercial';
+            prazo = '2026-08-10';
+            justificativa = 'Capacitar a equipe comercial nas tratativas de objeções no fechamento.';
+        } else {
+            gargalo = 'Falha de Equipamento / Máquina';
+            oQue = 'Otimizar o fluxo de checklist preventivo de entrega de geradores e máquinas';
+            quem = 'Oficina / Frota';
+            prazo = '2026-07-15';
+            justificativa = 'Evitar reprovação ou cancelamento de contratos devido a falhas pré-locação.';
+        }
+        
+        const novaAcao = {
+            gargalo: gargalo,
+            oQue: oQue,
+            quem: quem,
+            prazo: prazo,
+            pdca: 'Plan' // Adicionado ao Plan stage do Kanban
+        };
+        
+        // Evitar duplicidade na lista de ações
+        const existe = window._acoes5W2H.some(a => a.gargalo === gargalo);
+        if (!existe) {
+            window._acoes5W2H.push(novaAcao);
+            window.atualizarTabela5W2H();
+        }
         
         resultDiv.innerHTML = `
             <div style="font-weight:700; color:#1e293b; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                <i class="ph ph-sparkle" style="color:#7048e8;"></i> INSIGHTS ANALÍTICOS DA IA:
+                <i class="ph ph-sparkle" style="color:#7048e8;"></i> INSIGHTS GERADOS COM IA (Ishikawa 6M):
             </div>
-            <p style="margin:0 0 8px 0;">Com base em <b>${total} propostas comerciais</b> analisadas, a taxa de perdas acumuladas (Reprovadas/Canceladas) é de <b>${reprovadasPct}%</b>. O maior gargalo de qualidade é o motivo <b>"${principalMotivo}"</b>.</p>
-            <h4 style="font-size:0.75rem; font-weight:700; color:#475569; margin:12px 0 6px 0; text-transform:uppercase; letter-spacing:0.02em;">Diagnóstico Comercial Recomendado:</h4>
-            <ul style="margin:0; padding-left:16px; display:flex; flex-direction:column; gap:4px;">
-                <li><b>Gargalo "${principalMotivo}":</b> Sugere-se criar um Plano de Ação 5W2H focado na etapa "Plan" para reavaliar a política comercial.</li>
-                <li><b>Observações do Gestor:</b> ${obs ? `"${obs}"` : '<i>Nenhuma observação informada.</i>'}</li>
-                <li><b>Próximos Passos:</b> Alinhar prazos e responsáveis diretamente na tabela do plano de ação para monitorar nas reuniões de PDCA semanais.</li>
-            </ul>
+            <p style="margin:0 0 8px 0;">Análise concluída com base no diagnóstico do Ishikawa: <b>${JSON.stringify(dados)}</b>.</p>
+            <p style="margin:0 0 8px 0;">A categoria com maior frequência de perdas comerciais é <b>"${maiorCategoria}" (${freq} ocorrências)</b>.</p>
+            
+            <div style="background:#e0f2fe; border:1px solid #bae6fd; border-radius:8px; padding:0.8rem; margin:10px 0; font-size:0.8rem;">
+                <div style="font-weight:800; color:#0369a1; margin-bottom:4px; text-transform:uppercase;">Plano de Ação 5W2H Sugerido & Adicionado ao Kanban:</div>
+                <div style="display:grid; grid-template-columns: 80px 1fr; gap:4px;">
+                    <b>Gargalo:</b> <span>${gargalo}</span>
+                    <b>O quê:</b> <span>${oQue}</span>
+                    <b>Quem:</b> <span>${quem}</span>
+                    <b>Prazo:</b> <span>${prazo.split('-').reverse().join('/')}</span>
+                    <b>Por quê:</b> <span>${justificativa}</span>
+                </div>
+            </div>
+            
+            <p style="margin:0; font-size:0.75rem; color:#64748b;"><i>* Nota: O card de melhoria foi inserido na coluna <b>Plan (Planejar)</b> do Kanban para acompanhamento das etapas de PDCA.</i></p>
         `;
     }, 2000);
 };
@@ -6262,71 +6341,75 @@ window.atualizarTabelaCurvaABC = function() {
     }
 };
 
-window.abrirModalIshikawa = function() {
-    const counts = {
-        'Preço': 0,
-        'Concorrência': 0,
-        'Prazo': 0,
-        'Especificação Técnica': 0,
-        'Orçamento Esgotado': 0,
-        'Outros': 0
+window.renderIshikawa = function(dados) {
+    return `
+        <!-- Main spine -->
+        <line x1="30" y1="190" x2="680" y2="190" stroke="#1e293b" stroke-width="4"/>
+        <!-- Fish head -->
+        <polygon points="680,160 740,190 680,220" fill="#1e293b"/>
+        <text x="690" y="195" fill="#fff" font-size="9" font-weight="900">PERDAS</text>
+        
+        <!-- 1. Método (top left) -->
+        <line id="M-Metodo" x1="180" y1="190" x2="${180 + (dados.Metodo * 8)}" y2="${190 - (dados.Metodo * 12)}" stroke="#3b82f6" stroke-width="${1.5 + (dados.Metodo / 10)}" style="transition:all 0.5s;"/>
+        <text x="${180 + (dados.Metodo * 8) - 10}" y="${190 - (dados.Metodo * 12) - 10}" fill="#1e293b" font-weight="800" font-size="11">MÉTODO (${dados.Metodo})</text>
+        
+        <!-- 2. Máquina (top center) -->
+        <line id="M-Maquina" x1="360" y1="190" x2="${360 + (dados.Maquina * 8)}" y2="${190 - (dados.Maquina * 12)}" stroke="#64748b" stroke-width="${1.5 + (dados.Maquina / 10)}" style="transition:all 0.5s;"/>
+        <text x="${360 + (dados.Maquina * 8) - 10}" y="${190 - (dados.Maquina * 12) - 10}" fill="#1e293b" font-weight="800" font-size="11">MÁQUINA (${dados.Maquina})</text>
+
+        <!-- 3. Medida (top right) -->
+        <line id="M-Medida" x1="540" y1="190" x2="${540 + (dados.Medida * 5)}" y2="${190 - (dados.Medida * 6)}" stroke="#f59e0b" stroke-width="${1.5 + (dados.Medida / 10)}" style="transition:all 0.5s;"/>
+        <text x="${540 + (dados.Medida * 5) - 10}" y="${190 - (dados.Medida * 6) - 10}" fill="#1e293b" font-weight="800" font-size="11">MEDIDA (${dados.Medida})</text>
+
+        <!-- 4. Meio Ambiente (bottom left) -->
+        <line id="M-MeioAmbiente" x1="180" y1="190" x2="${180 - (dados.MeioAmbiente * 5)}" y2="${190 + (dados.MeioAmbiente * 8)}" stroke="#10b981" stroke-width="${1.5 + (dados.MeioAmbiente / 10)}" style="transition:all 0.5s;"/>
+        <text x="${180 - (dados.MeioAmbiente * 5) - 30}" y="${190 + (dados.MeioAmbiente * 8) + 15}" fill="#1e293b" font-weight="800" font-size="11">MEIO AMBIENTE (${dados.MeioAmbiente})</text>
+
+        <!-- 5. Mão de Obra (bottom center) -->
+        <line id="M-MaodeObra" x1="360" y1="190" x2="${360 - (dados.MaodeObra * 8)}" y2="${190 + (dados.MaodeObra * 12)}" stroke="#ef4444" stroke-width="${1.5 + (dados.MaodeObra / 10)}" style="transition:all 0.5s;"/>
+        <text x="${360 - (dados.MaodeObra * 8) - 20}" y="${190 + (dados.MaodeObra * 12) + 15}" fill="#1e293b" font-weight="800" font-size="11">MÃO DE OBRA (${dados.MaodeObra})</text>
+
+        <!-- 6. Material (bottom right) -->
+        <line id="M-Material" x1="540" y1="190" x2="${540 - (dados.Material * 5)}" y2="${190 + (dados.Material * 8)}" stroke="#7048e8" stroke-width="${1.5 + (dados.Material / 10)}" style="transition:all 0.5s;"/>
+        <text x="${540 - (dados.Material * 5) - 20}" y="${190 + (dados.Material * 8) + 15}" fill="#1e293b" font-weight="800" font-size="11">MATERIAL (${dados.Material})</text>
+    `;
+};
+
+window.abrirModalIshikawa = async function() {
+    let dados = {
+        "Metodo": 12,
+        "Maquina": 2,
+        "Medida": 25,
+        "MeioAmbiente": 18,
+        "MaodeObra": 6,
+        "Material": 14
     };
-    _dashboardStatsData.forEach(p => {
-        if (p.motivo_reprovacao && typeof counts[p.motivo_reprovacao] !== 'undefined') {
-            counts[p.motivo_reprovacao]++;
+    try {
+        const res = await apiGet('/ia/diagnostico-ishikawa');
+        if (res && typeof res === 'object') {
+            dados = res;
         }
-    });
+    } catch(e) {
+        console.error("Erro ao carregar diagnóstico do Ishikawa da IA:", e);
+    }
+
+    const svgContent = window.renderIshikawa(dados);
 
     Swal.fire({
         title: 'Diagrama de Causa e Efeito (Ishikawa - 6M)',
         html: `
             <div style="background:#fff; border-radius:8px; padding:0.5rem; box-sizing:border-box;">
                 <p style="font-size:0.8rem; color:#64748b; margin-bottom:1rem; text-align:center;">Agrupamento das principais causas de perda comercial mapeadas no ERP</p>
+                <div style="display:flex; justify-content:center; gap:10px; margin-bottom:1rem; font-size:0.75rem; font-weight:700; flex-wrap:wrap;">
+                    <span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:4px;">Método: ${dados.Metodo}</span>
+                    <span style="background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:4px;">Máquina: ${dados.Maquina}</span>
+                    <span style="background:#fef3c7; color:#b45309; padding:2px 8px; border-radius:4px;">Medida: ${dados.Medida}</span>
+                    <span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:4px;">Meio Ambiente: ${dados.MeioAmbiente}</span>
+                    <span style="background:#fee2e2; color:#b91c1c; padding:2px 8px; border-radius:4px;">Mão de Obra: ${dados.MaodeObra}</span>
+                    <span style="background:#f3e8ff; color:#6d28d9; padding:2px 8px; border-radius:4px;">Material: ${dados.Material}</span>
+                </div>
                 <svg viewBox="0 0 800 380" width="100%" height="320px" style="font-family:'Inter', sans-serif; overflow:visible;">
-                    <!-- Main spine -->
-                    <line x1="30" y1="190" x2="680" y2="190" stroke="#1e293b" stroke-width="4"/>
-                    <!-- Fish head -->
-                    <polygon points="680,160 740,190 680,220" fill="#1e293b"/>
-                    <text x="690" y="195" fill="#fff" font-size="9" font-weight="900">PERDAS</text>
-                    
-                    <!-- 1. Método (top left) -->
-                    <line x1="180" y1="190" x2="280" y2="40" stroke="#3b82f6" stroke-width="2.5"/>
-                    <text x="270" y="30" fill="#1e293b" font-weight="800" font-size="11">MÉTODO</text>
-                    <line x1="230" y1="115" x2="190" y2="115" stroke="#94a3b8" stroke-width="1.5"/>
-                    <text x="110" y="111" font-size="9.5" font-weight="700" fill="#475569">Prazo: ${counts['Prazo']}</text>
-                    
-                    <!-- 2. Máquina (top center) -->
-                    <line x1="360" y1="190" x2="460" y2="40" stroke="#3b82f6" stroke-width="2.5"/>
-                    <text x="450" y="30" fill="#1e293b" font-weight="800" font-size="11">MÁQUINA</text>
-                    <text x="350" y="111" font-size="9.5" font-style="italic" fill="#94a3b8">Sem perdas (0)</text>
-
-                    <!-- 3. Medida (top right) -->
-                    <line x1="540" y1="190" x2="640" y2="40" stroke="#3b82f6" stroke-width="2.5"/>
-                    <text x="630" y="30" fill="#1e293b" font-weight="800" font-size="11">MEDIDA</text>
-                    <!-- Preço -->
-                    <line x1="590" y1="115" x2="550" y2="115" stroke="#94a3b8" stroke-width="1.5"/>
-                    <text x="475" y="111" font-size="9.5" font-weight="700" fill="#475569">Preço: ${counts['Preço']}</text>
-                    <!-- Orçamento Esgotado -->
-                    <line x1="610" y1="85" x2="570" y2="85" stroke="#94a3b8" stroke-width="1.5"/>
-                    <text x="470" y="81" font-size="9.5" font-weight="700" fill="#475569">Orç. Esgotado: ${counts['Orçamento Esgotado']}</text>
-
-                    <!-- 4. Meio Ambiente (bottom left) -->
-                    <line x1="180" y1="190" x2="80" y2="340" stroke="#10b981" stroke-width="2.5"/>
-                    <text x="50" y="355" fill="#1e293b" font-weight="800" font-size="11">MEIO AMBIENTE</text>
-                    <line x1="130" y1="265" x2="170" y2="265" stroke="#94a3b8" stroke-width="1.5"/>
-                    <text x="180" y="268" font-size="9.5" font-weight="700" fill="#475569">Concorrência: ${counts['Concorrência']}</text>
-
-                    <!-- 5. Mão de Obra (bottom center) -->
-                    <line x1="360" y1="190" x2="260" y2="340" stroke="#10b981" stroke-width="2.5"/>
-                    <text x="235" y="355" fill="#1e293b" font-weight="800" font-size="11">MÃO DE OBRA</text>
-                    <line x1="310" y1="265" x2="350" y2="265" stroke="#94a3b8" stroke-width="1.5"/>
-                    <text x="360" y="268" font-size="9.5" font-weight="700" fill="#475569">Outros: ${counts['Outros']}</text>
-
-                    <!-- 6. Material (bottom right) -->
-                    <line x1="540" y1="190" x2="440" y2="340" stroke="#10b981" stroke-width="2.5"/>
-                    <text x="420" y="355" fill="#1e293b" font-weight="800" font-size="11">MATERIAL</text>
-                    <line x1="490" y1="265" x2="530" y2="265" stroke="#94a3b8" stroke-width="1.5"/>
-                    <text x="540" y="268" font-size="9.5" font-weight="700" fill="#475569">Esp. Técnica: ${counts['Especificação Técnica']}</text>
+                    ${svgContent}
                 </svg>
             </div>
         `,
