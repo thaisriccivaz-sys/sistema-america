@@ -2075,7 +2075,10 @@ window.abrirFluxoAssinatura = function(multaId) {
                 <canvas id="canvas-declaracao" width="740" height="140" style="display:block;width:100%;cursor:crosshair;touch-action:none;"></canvas>
                 <div id="canvas-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.85rem;pointer-events:none;">Assine aqui com o dedo ou mouse</div>
               </div>
-              <button onclick="_fluxoLimparCanvas()" style="margin-top:6px;background:none;border:1px solid #cbd5e1;color:#64748b;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:0.8rem;">🗑 Limpar</button>
+              <div style="display:flex;justify-content:space-between;margin-top:6px;">
+                <button onclick="_fluxoLimparCanvas()" style="background:none;border:1px solid #cbd5e1;color:#64748b;border-radius:6px;padding:6px 16px;cursor:pointer;font-size:0.85rem;">🗑 Limpar</button>
+                <button onclick="document.getElementById('selfie-section').style.display='block'; this.style.display='none'; setTimeout(()=>{document.getElementById('selfie-input').click();}, 200);" id="btn-seguinte-selfie" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:6px 20px;cursor:pointer;font-size:0.9rem;font-weight:600;">Seguinte →</button>
+              </div>
             </div>
 
             <!-- Selfie -->
@@ -2115,23 +2118,13 @@ window.abrirFluxoAssinatura = function(multaId) {
                 const src = e.touches ? e.touches[0] : e;
                 return { x: (src.clientX - rect.left) * scaleX, y: (src.clientY - rect.top) * scaleY };
             };
-            const abrirSelfieAuto = () => {
-                _assinaturaBase64 = _canvas.toDataURL('image/png');
-                const selfieSection = document.getElementById('selfie-section');
-                if (selfieSection) selfieSection.style.display = 'block';
-                // Abre câmera automaticamente no mobile
-                const selfieInput = document.getElementById('selfie-input');
-                if (selfieInput) {
-                    setTimeout(() => { selfieInput.click(); }, 200);
-                }
-            };
             _canvas.addEventListener('mousedown', e => { _desenhando = true; const p = getPos(e); _ctx.beginPath(); _ctx.moveTo(p.x, p.y); document.getElementById('canvas-placeholder').style.display='none'; });
             _canvas.addEventListener('mousemove', e => { if (!_desenhando) return; const p = getPos(e); _ctx.lineTo(p.x, p.y); _ctx.stroke(); });
-            _canvas.addEventListener('mouseup', () => { _desenhando = false; abrirSelfieAuto(); });
-            _canvas.addEventListener('mouseleave', () => { if (_desenhando) { _desenhando = false; abrirSelfieAuto(); } });
+            _canvas.addEventListener('mouseup', () => { _desenhando = false; _assinaturaBase64 = _canvas.toDataURL('image/png'); });
+            _canvas.addEventListener('mouseleave', () => { _desenhando = false; });
             _canvas.addEventListener('touchstart', e => { e.preventDefault(); _desenhando = true; const p = getPos(e); _ctx.beginPath(); _ctx.moveTo(p.x, p.y); document.getElementById('canvas-placeholder').style.display='none'; }, {passive:false});
             _canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!_desenhando) return; const p = getPos(e); _ctx.lineTo(p.x, p.y); _ctx.stroke(); }, {passive:false});
-            _canvas.addEventListener('touchend', () => { _desenhando = false; abrirSelfieAuto(); });
+            _canvas.addEventListener('touchend', () => { _desenhando = false; _assinaturaBase64 = _canvas.toDataURL('image/png'); });
         }, 80);
     }
 
@@ -2161,7 +2154,16 @@ window.abrirFluxoAssinatura = function(multaId) {
         renderEtapa3(_opcaoEscolhida);
     };
     window._fluxoLimparCanvas = function() {
-        if (_ctx && _canvas) { _ctx.clearRect(0, 0, _canvas.width, _canvas.height); _assinaturaBase64 = null; document.getElementById('canvas-placeholder').style.display='flex'; }
+        if (_ctx && _canvas) { 
+            _ctx.clearRect(0, 0, _canvas.width, _canvas.height); 
+            _assinaturaBase64 = null; 
+            document.getElementById('canvas-placeholder').style.display='flex'; 
+            
+            const btnSeg = document.getElementById('btn-seguinte-selfie');
+            if (btnSeg) btnSeg.style.display = 'inline-block';
+            const sectSelfie = document.getElementById('selfie-section');
+            if (sectSelfie) sectSelfie.style.display = 'none';
+        }
     };
     window._fluxoCapturarSelfie = function(input) {
         const file = input.files[0];
