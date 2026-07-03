@@ -14617,6 +14617,7 @@ window.verComprovantePresenca = async function (presencaId) {
         // Use the existing full-screen document viewer from treinamento_presenca.js
         if (window._verDocumentoAssinado) {
             window._verDocumentoAssinado(encodeURIComponent(JSON.stringify({
+                id: presencaId,
                 assinatura: data.assinatura_base64 || '',
                 selfie: data.selfie_base64 || '',
                 capa: data.capa_url || '',

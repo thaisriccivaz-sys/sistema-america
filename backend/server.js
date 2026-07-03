@@ -19506,6 +19506,145 @@ app.get('/api/treinamento-presenca/auditoria/:id', authenticateToken, (req, res)
     );
 });
 
+// GET /api/treinamento-presenca/auditoria/:id/pdf — Gera PDF do comprovante de assinatura
+app.get('/api/treinamento-presenca/auditoria/:id/pdf', authenticateToken, async (req, res) => {
+    try {
+        const htmlPdf = require('html-pdf-node');
+
+        const row = await new Promise((resolve, reject) => {
+            db.get(
+                `SELECT tp.*, c.nome_completo as colaborador_nome, t.nome as treinamento_nome, t.tipo as treinamento_tipo,
+                        t.capa_url, tp.instrutor_nome
+                 FROM treinamento_presenca tp
+                 LEFT JOIN colaboradores c ON tp.colaborador_id = c.id
+                 LEFT JOIN treinamentos t ON tp.treinamento_id = t.id
+                 WHERE tp.id = ?`,
+                [req.params.id],
+                (err, r) => err ? reject(err) : resolve(r)
+            );
+        });
+
+        if (!row) return res.status(404).json({ error: 'Registro não encontrado' });
+
+        const dtFormatada = row.data_conclusao || row.data_presenca
+            ? new Date((row.data_conclusao || row.data_presenca).replace(' ', 'T') + (!(row.data_conclusao || row.data_presenca).includes('Z') ? 'Z' : '')).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+            : '—';
+
+        // Converte a imagem da capa (URL) para base64 para embutir no PDF
+        let capaBase64 = '';
+        if (row.capa_url) {
+            try {
+                const https = require('https');
+                const http = require('http');
+                const urlLib = require('url');
+                const parsed = urlLib.parse(row.capa_url);
+                const client = parsed.protocol === 'https:' ? https : http;
+                capaBase64 = await new Promise((resolve) => {
+                    const bufs = [];
+                    client.get(row.capa_url, (resp) => {
+                        resp.on('data', (chunk) => bufs.push(chunk));
+                        resp.on('end', () => {
+                            const b64 = Buffer.concat(bufs).toString('base64');
+                            const mime = (resp.headers['content-type'] || 'image/jpeg').split(';')[0];
+                            resolve(`data:${mime};base64,${b64}`);
+                        });
+                    }).on('error', () => resolve(''));
+                });
+            } catch (_) { capaBase64 = ''; }
+        }
+
+        const capaHtml = capaBase64
+            ? `<img src="${capaBase64}" style="width:100%;height:auto;max-height:460px;object-fit:contain;display:block;border-radius:6px;" />`
+            : `<div style="width:100%;height:200px;background:#e2e8f0;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.9rem;">Sem imagem de capa</div>`;
+
+        const assinaturaHtml = row.assinatura_base64
+            ? `<img src="${row.assinatura_base64}" style="width:100%;height:auto;max-height:200px;object-fit:contain;display:block;border-radius:4px;" />`
+            : `<div style="border-bottom:2px solid #94a3b8;height:80px;width:100%;margin-bottom:4px;"></div>`;
+
+        const selfieHtml = row.selfie_base64
+            ? `<img src="${row.selfie_base64}" style="width:100%;height:auto;max-height:320px;object-fit:contain;display:block;border-radius:6px;" />`
+            : '';
+
+        const htmlContent = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Comprovante – ${(row.treinamento_nome || '').replace(/</g,'&lt;')}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #1e293b; background: #fff; }
+  .page { display: flex; width: 100%; min-height: 570px; padding: 20px; gap: 18px; }
+  .col-left { flex: 0 0 48%; display: flex; flex-direction: column; gap: 12px; }
+  .col-right { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+  .header-box { background: linear-gradient(135deg, #0e7490, #06b6d4); border-radius: 10px; padding: 14px; color: #fff; }
+  .header-box h1 { font-size: 13px; font-weight: 700; margin-bottom: 5px; }
+  .header-box p { font-size: 10.5px; color: rgba(255,255,255,0.88); margin: 2px 0; }
+  .capa-box { flex: 1; border: 1.5px solid #e2e8f0; border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #f8fafc; }
+  .section-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; background: #f1f5f9; padding: 6px 10px; border-radius: 6px 6px 0 0; border: 1.5px solid #e2e8f0; border-bottom: none; }
+  .assinatura-box { border: 1.5px solid #e2e8f0; border-radius: 0 6px 6px 6px; padding: 10px; background: #fff; }
+  .selfie-box { border: 1.5px solid #e2e8f0; border-radius: 0 6px 6px 6px; overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center; }
+  .nome-linha { font-size: 10px; color: #475569; margin-top: 6px; border-top: 1px solid #e2e8f0; padding-top: 6px; }
+  .rodape { text-align: center; font-size: 9px; color: #94a3b8; margin-top: auto; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <!-- COLUNA ESQUERDA: cabeçalho + capa -->
+  <div class="col-left">
+    <div class="header-box">
+      <h1>${(row.treinamento_nome || 'Treinamento').replace(/</g,'&lt;')}</h1>
+      <p>&#128203; Tipo: ${(row.treinamento_tipo || '—').replace(/</g,'&lt;')}</p>
+      <p>&#128100; ${(row.colaborador_nome || '—').replace(/</g,'&lt;')}</p>
+      <p>&#128197; ${dtFormatada}</p>
+      ${row.instrutor_nome ? `<p>&#127891; Instrutor: ${row.instrutor_nome.replace(/</g,'&lt;')}</p>` : ''}
+    </div>
+    <div class="capa-box">
+      ${capaHtml}
+    </div>
+  </div>
+
+  <!-- COLUNA DIREITA: assinatura em cima, selfie embaixo -->
+  <div class="col-right">
+    <div>
+      <div class="section-label">ASSINATURA DIGITAL</div>
+      <div class="assinatura-box">
+        ${assinaturaHtml}
+        <div class="nome-linha"><strong>${(row.colaborador_nome || '—').replace(/</g,'&lt;')}</strong></div>
+      </div>
+    </div>
+
+    ${row.selfie_base64 ? `
+    <div>
+      <div class="section-label">SELFIE DE CONFIRMACAO</div>
+      <div class="selfie-box">
+        ${selfieHtml}
+      </div>
+    </div>` : ''}
+
+    <div class="rodape">
+      Gerado em ${dtFormatada} | Sistema de Gestao — America Rental Equipamentos Ltda.
+    </div>
+  </div>
+</div>
+</body>
+</html>`;
+
+        const pdfBuffer = await htmlPdf.generatePdf(
+            { content: htmlContent },
+            { format: 'A4', landscape: true, printBackground: true, margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' } }
+        );
+
+        const nomeArquivo = `Comprovante_${(row.treinamento_nome || 'assinatura').replace(/[^a-z0-9]/gi, '_')}_${req.params.id}.pdf`;
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(nomeArquivo)}"`);
+        res.end(pdfBuffer);
+
+    } catch (e) {
+        console.error('[PDF-COMPROVANTE]', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
   const {
     colaborador_id, treinamento_id, assinatura_base64, selfie_base64, instrutor_nome,

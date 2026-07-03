@@ -315,7 +315,7 @@
 
                 const temDoc = h.assinatura_base64 || h.selfie_base64;
                 const btnDoc = temDoc
-                    ? `<button onclick="window._verDocumentoAssinado('${encodeURIComponent(JSON.stringify({ assinatura: h.assinatura_base64, selfie: h.selfie_base64, capa: h.capa_url || '', nome: nome, treinamento: h.treinamento_nome, data: dt, instrutor: h.instrutor_nome || '' }))}')"
+                    ? `<button onclick="window._verDocumentoAssinado('${encodeURIComponent(JSON.stringify({ id: h.id, assinatura: h.assinatura_base64, selfie: h.selfie_base64, capa: h.capa_url || '', nome: nome, treinamento: h.treinamento_nome, data: dt, instrutor: h.instrutor_nome || '' }))}')"
                         style="background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
                         <i class="ph ph-eye"></i> Ver documento
                       </button>
@@ -363,6 +363,7 @@
             if (!h) { alert('Documento não encontrado.'); return; }
             const dt = fmtData(h.data_conclusao);
             window._verDocumentoAssinado(encodeURIComponent(JSON.stringify({
+                id: h.id,
                 assinatura: h.assinatura_base64 || '',
                 selfie: h.selfie_base64 || '',
                 capa: h.capa_url || '',
@@ -387,37 +388,44 @@
         }
         fs.style.cssText = 'position:fixed;inset:0;z-index:10001;background:#0f172a;display:flex;flex-direction:column;overflow:hidden;font-family:inherit;';
 
-        // Layout vertical: imagem da capa em cima, dados em baixo (scroll)
-        const capaPanel = data.capa ? `
-            <div style="flex-shrink:0;background:#000;display:flex;align-items:center;justify-content:center;max-height:55vh;overflow:hidden;">
-                <img src="${data.capa}" style="width:100%;height:auto;max-height:55vh;object-fit:contain;display:block;" />
-            </div>` : '';
-
-        // Painel de dados (assinatura + selfie + info) — ocupa o restante com scroll
-        const rightPanel = `
-            <div style="flex:1;background:#f8fafc;display:flex;flex-direction:column;overflow-y:auto;min-height:0;">
-                <!-- Cabeçalho interno -->
-                <div style="background:linear-gradient(135deg,#0e7490,#06b6d4);padding:14px 16px;flex-shrink:0;">
+        // Coluna esquerda: cabeçalho de info + capa do treinamento
+        const colLeft = `
+            <div style="flex:0 0 48%;display:flex;flex-direction:column;gap:12px;padding:14px;overflow-y:auto;">
+                <div style="background:linear-gradient(135deg,#0e7490,#06b6d4);border-radius:10px;padding:14px;color:#fff;flex-shrink:0;">
                     <p style="margin:0 0 2px;font-size:0.72rem;font-weight:700;color:rgba(255,255,255,0.7);letter-spacing:.06em;">DADOS DO REGISTRO</p>
-                    <p style="margin:0 0 2px;font-size:0.85rem;color:#fff;"><strong>${data.nome}</strong></p>
-                    <p style="margin:0 0 2px;font-size:0.8rem;color:rgba(255,255,255,0.85);">${data.treinamento}</p>
+                    <p style="margin:0 0 2px;font-size:0.9rem;color:#fff;"><strong>${data.nome}</strong></p>
+                    <p style="margin:0 0 2px;font-size:0.8rem;color:rgba(255,255,255,0.88);">${data.treinamento}</p>
                     <p style="margin:0 0 2px;font-size:0.75rem;color:rgba(255,255,255,0.75);"><i class="ph ph-calendar"></i> ${data.data}</p>
                     ${data.instrutor ? `<p style="margin:0;font-size:0.75rem;color:rgba(255,255,255,0.75);"><i class="ph ph-chalkboard-teacher"></i> Instrutor: ${data.instrutor}</p>` : ''}
                 </div>
-                <!-- Conteúdo -->
-                <div style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;">
-                    ${data.assinatura ? `<div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
-                        <p style="margin:0;background:#f1f5f9;padding:8px 12px;font-size:0.68rem;font-weight:700;color:#64748b;letter-spacing:.06em;">ASSINATURA DIGITAL</p>
-                        <img src="${data.assinatura}" style="width:100%;height:auto;object-fit:contain;display:block;cursor:pointer;" onclick="window.open(this.src, '_blank')" title="Clique para ampliar" />
-                    </div>` : '<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:16px 0;">Sem assinatura registrada</p>'}
-
-                    ${data.selfie ? `<div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
-                        <p style="margin:0;background:#f1f5f9;padding:8px 12px;font-size:0.68rem;font-weight:700;color:#64748b;letter-spacing:.06em;">SELFIE DE CONFIRMAÇÃO</p>
-                        <img src="${data.selfie}" style="width:100%;height:auto;object-fit:contain;display:block;cursor:pointer;" onclick="window.open(this.src, '_blank')" title="Clique para ampliar" />
-                    </div>` : ''}
-                    <div style="height:4px;"></div>
-                </div>
+                ${data.capa ? `
+                <div style="flex:1;border:1.5px solid rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center;min-height:200px;">
+                    <img src="${data.capa}" style="width:100%;height:auto;max-height:100%;object-fit:contain;display:block;" />
+                </div>` : '<div style="flex:1;border:1.5px solid rgba(255,255,255,0.08);border-radius:10px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.3);font-size:0.85rem;">Sem imagem de capa</div>'}
             </div>`;
+
+        // Coluna direita: assinatura em cima + selfie embaixo (sem corte)
+        const colRight = `
+            <div style="flex:1;display:flex;flex-direction:column;gap:12px;padding:14px;overflow-y:auto;">
+                ${data.assinatura ? `
+                <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);flex-shrink:0;">
+                    <p style="margin:0;background:#f1f5f9;padding:8px 12px;font-size:0.68rem;font-weight:700;color:#64748b;letter-spacing:.06em;">ASSINATURA DIGITAL</p>
+                    <div style="padding:10px;background:#fff;">
+                        <img src="${data.assinatura}" style="width:100%;height:auto;object-fit:contain;display:block;" title="Clique para ampliar" onclick="window.open(this.src,'_blank')" />
+                        <p style="margin:8px 0 0;font-size:0.78rem;color:#475569;border-top:1px solid #e2e8f0;padding-top:6px;">${data.nome}</p>
+                    </div>
+                </div>` : '<p style="font-size:0.8rem;color:rgba(255,255,255,0.4);text-align:center;padding:16px 0;">Sem assinatura registrada</p>'}
+
+                ${data.selfie ? `
+                <div style="background:#000;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);flex:1;display:flex;flex-direction:column;">
+                    <p style="margin:0;background:#1e293b;padding:8px 12px;font-size:0.68rem;font-weight:700;color:#94a3b8;letter-spacing:.06em;flex-shrink:0;">SELFIE DE CONFIRMAÇÃO</p>
+                    <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:8px;">
+                        <img src="${data.selfie}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;border-radius:6px;" onclick="window.open(this.src,'_blank')" title="Clique para ampliar" />
+                    </div>
+                </div>` : ''}
+            </div>`;
+
+        const pdfUrl = data.id ? `${window.API_URL || '/api'}/treinamento-presenca/auditoria/${data.id}/pdf?token=${window.currentToken || ''}` : null;
 
         fs.innerHTML = `
             <!-- Barra de título -->
@@ -427,15 +435,22 @@
                     <span style="color:#fff;font-size:0.9rem;font-weight:700;">Documento Assinado</span>
                     <span style="color:rgba(255,255,255,0.5);font-size:0.8rem;">— ${data.treinamento}</span>
                 </div>
-                <button onclick="document.getElementById('fs-ver-documento').style.display='none'"
-                    style="background:rgba(255,255,255,0.1);border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;color:#fff;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">
-                    <i class="ph ph-x"></i>
-                </button>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    ${pdfUrl ? `<a href="${pdfUrl}" target="_blank"
+                        style="display:inline-flex;align-items:center;gap:6px;background:#0e7490;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;text-decoration:none;">
+                        <i class="ph ph-file-pdf" style="font-size:1rem;"></i> Abrir PDF
+                    </a>` : ''}
+                    <button onclick="document.getElementById('fs-ver-documento').style.display='none'"
+                        style="background:rgba(255,255,255,0.1);border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;color:#fff;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>
             </div>
-            <!-- Corpo vertical: capa em cima, dados em baixo -->
-            <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;">
-                ${capaPanel}
-                ${rightPanel}
+            <!-- Corpo lado a lado: capa à esquerda, assinatura+selfie à direita -->
+            <div style="flex:1;display:flex;overflow:hidden;min-height:0;">
+                ${colLeft}
+                <div style="width:1px;background:rgba(255,255,255,0.08);flex-shrink:0;"></div>
+                ${colRight}
             </div>`;
 
         fs.style.display = 'flex';
@@ -1014,6 +1029,7 @@
             const corpo = document.getElementById('modal-assin-corpo');
             if (corpo) {
                 const docData = encodeURIComponent(JSON.stringify({
+                    id: dados.id,
                     assinatura: _assinaturaBase64,
                     selfie: _selfieBase64,
                     capa: t.capa_url || '',
