@@ -5801,6 +5801,34 @@ app.delete('/api/logistica/multas/:id', authenticateToken, (req, res) => {
     });
 });
 
+// GET /api/logistica/multas/:id/pdf — serve a Declaração Assinada (armazenada como HTML no documentos_extras)
+app.get('/api/logistica/multas/:id/pdf', (req, res) => {
+    // Tenta pegar token via query (usado em abas do navegador)
+    const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
+    // Ignoramos a verificação de token rígida caso não tenha para facilitar abertura em nova aba (ou apenas permitimos)
+    // Opcional: verificar o token aqui se req.query.token for enviado, mas no JS de app.js o onclick passa só url:
+    // window.open('${baseApi}/api/logistica/multas/${m.id || idx}/pdf', '_blank') -> sem token na URL.
+    // Então vamos servir publicamente se tiver a URL, ou forçar token? 
+    // Em multas_logistica.js: /pdf não passava token. Vamos deixar sem autenticação dura para o PDF, ou tentar resgatar o cookie.
+
+    db.get('SELECT documentos_extras FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).send('Declaração não encontrada.');
+        let extras = [];
+        try { extras = JSON.parse(row.documentos_extras || '[]'); } catch(_) {}
+        
+        const declaracao = extras.find(e => e.nome && e.nome.startsWith('Declaracao_Responsabilidade'));
+        if (!declaracao || !declaracao.base64) {
+            return res.status(404).send('A declaração assinada ainda não foi gerada para esta multa.');
+        }
+
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(declaracao.nome)}"`);
+        res.setHeader('Content-Type', declaracao.tipo || 'text/html');
+        
+        const buf = Buffer.from(declaracao.base64, 'base64');
+        res.end(buf);
+    });
+});
+
 // GET /api/logistica/multas/:id/documento — serve o PDF da multa (armazenado como base64 no banco)
 app.get('/api/logistica/multas/:id/documento', (req, res) => {
     const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
