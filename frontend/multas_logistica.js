@@ -230,9 +230,9 @@ function _buildMultaRow(m) {
 
 
     // Botão Assinar — Declaração de Responsabilidade por Infração
-    const statusFinalizados = ['Indicado','Multa NIC','Id. Deferida','Id. Indeferida','Recorrida','Rec. Deferida','Rec. Indeferida','Cobrada - Pz. Perdido','Antiga','Ex Colaborador'];
-    const temMotorista = (m.motorista_nome && m.motorista_nome.trim() !== '') && (parseInt(m.motorista_id) !== -1);
-    const btnAssinar = (temMotorista && !statusFinalizados.includes(m.status))
+    const temMotorista = m.motorista_id && parseInt(m.motorista_id) !== -1;
+    const isFinalizado = m.status === 'Indicado' || m.status === 'Multa NIC' || m.status === 'Antiga' || m.status === 'Ex Colaborador';
+    const btnAssinar = (temMotorista && !isFinalizado)
         ? `<button onclick="abrirFluxoAssinatura(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#7c3aed; margin-right:8px;" title="Assinar Declaração de Responsabilidade"><i class="ph ph-pen-nib" style="font-size:1.2rem;"></i></button>`
         : '';
 
