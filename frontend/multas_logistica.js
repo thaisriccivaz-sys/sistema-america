@@ -234,7 +234,11 @@ function _buildMultaRow(m) {
 
     return `
         <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-            <td style="padding:1rem;"><strong>${m.numero_ait || '—'}</strong></td>
+            <td style="padding:1rem;">
+                ${window._ultimoIdMultaEditada === m.id 
+                    ? `<strong style="font-weight:900; color:#2563eb; background:#eff6ff; padding:2px 4px; border-radius:4px;">${m.numero_ait || '—'}</strong>` 
+                    : `<span>${m.numero_ait || '—'}</span>`}
+            </td>
             <td style="padding:1rem; font-weight:600; color:#334155; white-space:nowrap;">${m.placa || '—'}</td>
             <td style="padding:1rem;">${dataInfracao}<br><span style="color:#64748b; font-size:0.8rem;">${m.hora_infracao || '—'}</span></td>
             <td style="padding:1rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${m.motivo || ''}">${m.motivo || '—'}</td>
@@ -322,7 +326,12 @@ async function carregarMultasLogistica() {
         });
         if (response.ok) {
             multasLogistica = await response.json();
-            renderMultasLogistica(container);
+            const tbody = document.getElementById('multas-logistica-tbody');
+            if (tbody) {
+                filtrarMultasLogistica();
+            } else {
+                renderMultasLogistica(container);
+            }
         } else {
             container.innerHTML = '<p style="padding: 1rem; color: red;">Erro ao carregar multas.</p>';
         }
@@ -1411,6 +1420,7 @@ async function salvarGerenciamentoMulta(e, id) {
             throw new Error(errData.error || 'Erro ao salvar multa.');
         }
 
+        window._ultimoIdMultaEditada = id;
         await fecharEAtualizar('Multa atualizada e e-mail enviado (se aplicável)!');
     } catch (err) {
         clearTimeout(timeoutId);
