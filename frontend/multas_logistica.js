@@ -2024,8 +2024,8 @@ window.abrirFluxoAssinatura = function(multaId) {
             const [y, mo, dy] = d.split('-');
             return dy ? `${dy}/${mo}/${y}` : d;
         };
-        const checkInd = isInd ? '✓' : '☐';
-        const checkNic = !isInd ? '✓' : '☐';
+        const checkInd = isInd ? '✓' : '&nbsp;&nbsp;&nbsp;';
+        const checkNic = !isInd ? '✓' : '&nbsp;&nbsp;&nbsp;';
         const valorDesc = isInd ? fmtMoney(valorOrig) : fmtMoney(valorTotal);
         const parcelaValor = isInd ? valorOrig / _parcelas : valorTotal / _parcelas;
 
