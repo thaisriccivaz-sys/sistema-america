@@ -11625,6 +11625,50 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
 
                 res.json({ sucesso: true, id: multaId, pasta: pastaNome });
 
+                // Notificação de Nova Multa no Prontuário
+                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'nova_multa_prontuario'", [], (err, rowsC) => {
+                    if (!err && rowsC && rowsC.length > 0) {
+                        const colabNome = colab.nome_completo || colab.nome || 'Colaborador';
+                        const msg = `Nova multa incluída no prontuário de ${colabNome} (AIT ${body.numero_ait || 'S/N'})`;
+                        const dados = JSON.stringify({ ait: body.numero_ait, motorista: colabNome });
+                        
+                        rowsC.forEach(c => {
+                            db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                                [c.usuario_id, 'nova_multa_prontuario', msg, dados]);
+                        });
+
+                        const fmt = v => {
+                            const val = typeof v === 'string' ? parseFloat(v.replace(/[^\\d,.-]/g, '').replace(',', '.')) : parseFloat(v);
+                            return 'R$ ' + (val||0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        };
+                        const htmlContent = `
+                            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;padding:10px;">
+                                    <h3 style="color:#1e293b;margin:0;">AMÉRICA RENTAL EQUIPAMENTOS</h3>
+                                </div>
+                                <div style="padding:24px;">
+                                    <h2 style="color: #2c3e50; border-bottom: 2px solid #ea580c; padding-bottom: 10px;">Nova Multa no Prontuário</h2>
+                                    <p>Uma nova multa foi incluída no prontuário do colaborador abaixo:</p>
+                                    <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                                        <p><strong>Colaborador:</strong> ${colabNome}</p>
+                                        <p><strong>Nº do AIT:</strong> ${body.numero_ait || 'Não informado'}</p>
+                                        <p><strong>Placa:</strong> ${body.placa || 'Não informada'}</p>
+                                        <p><strong>Data da Infração:</strong> ${body.data_infracao ? body.data_infracao.split('-').reverse().join('/') : 'Não informada'}</p>
+                                        <p><strong>Infração:</strong> ${body.codigo_infracao || 'S/C'} - ${body.descricao_infracao || ''}</p>
+                                        <p><strong>Valor:</strong> ${fmt(body.valor_multa)}</p>
+                                    </div>
+                                    <p style="margin-top: 30px; font-size: 0.9rem; color: #7f8c8d; text-align: center;">E-mail gerado automaticamente pelo Sistema RH & Logística</p>
+                                </div>
+                            </div>
+                        `;
+
+                        sendEmailParaNotificados('nova_multa_prontuario', {
+                            subject: `Nova Multa Incluída - ${colabNome}`,
+                            html: htmlContent
+                        });
+                    }
+                });
+
                 // Upload da notificacao no OneDrive via Graph API (assíncrono)
                 if (req.file && onedrive) {
                     ; (async () => {
