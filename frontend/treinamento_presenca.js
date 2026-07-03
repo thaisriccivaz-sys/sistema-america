@@ -405,25 +405,29 @@
             </div>`;
 
         // Coluna direita: assinatura em cima + selfie embaixo (sem corte)
+        // A coluna NÃO faz scroll — cada imagem tem max-height calculado em vh
+        const alturaAssin = data.selfie ? '30vh' : '72vh';
+        const alturaSelfie = data.assinatura ? '42vh' : '72vh';
         const colRight = `
-            <div style="flex:1;display:flex;flex-direction:column;gap:12px;padding:14px;overflow-y:auto;">
+            <div style="flex:1;display:flex;flex-direction:column;gap:8px;padding:14px;overflow:hidden;min-height:0;">
                 ${data.assinatura ? `
-                <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);flex-shrink:0;">
-                    <p style="margin:0;background:#f1f5f9;padding:8px 12px;font-size:0.68rem;font-weight:700;color:#64748b;letter-spacing:.06em;">ASSINATURA DIGITAL</p>
-                    <div style="padding:10px;background:#fff;">
-                        <img src="${data.assinatura}" style="width:100%;height:auto;object-fit:contain;display:block;" title="Clique para ampliar" onclick="window.open(this.src,'_blank')" />
-                        <p style="margin:8px 0 0;font-size:0.78rem;color:#475569;border-top:1px solid #e2e8f0;padding-top:6px;">${data.nome}</p>
+                <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);flex-shrink:0;display:flex;flex-direction:column;">
+                    <p style="margin:0;background:#f1f5f9;padding:6px 12px;font-size:0.68rem;font-weight:700;color:#64748b;letter-spacing:.06em;flex-shrink:0;">ASSINATURA DIGITAL</p>
+                    <div style="padding:8px 10px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;max-height:${alturaAssin};">
+                        <img src="${data.assinatura}" style="max-width:100%;max-height:${alturaAssin};width:auto;height:auto;object-fit:contain;display:block;cursor:pointer;" title="Clique para ampliar" onclick="window.open(this.src,'_blank')" />
                     </div>
+                    <p style="margin:0;padding:4px 10px 6px;font-size:0.78rem;color:#475569;border-top:1px solid #e2e8f0;flex-shrink:0;">${data.nome}</p>
                 </div>` : '<p style="font-size:0.8rem;color:rgba(255,255,255,0.4);text-align:center;padding:16px 0;">Sem assinatura registrada</p>'}
 
                 ${data.selfie ? `
-                <div style="background:#000;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);flex:1;display:flex;flex-direction:column;">
-                    <p style="margin:0;background:#1e293b;padding:8px 12px;font-size:0.68rem;font-weight:700;color:#94a3b8;letter-spacing:.06em;flex-shrink:0;">SELFIE DE CONFIRMAÇÃO</p>
-                    <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:8px;">
-                        <img src="${data.selfie}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;border-radius:6px;" onclick="window.open(this.src,'_blank')" title="Clique para ampliar" />
+                <div style="background:#000;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);flex:1;display:flex;flex-direction:column;min-height:0;">
+                    <p style="margin:0;background:#1e293b;padding:6px 12px;font-size:0.68rem;font-weight:700;color:#94a3b8;letter-spacing:.06em;flex-shrink:0;">SELFIE DE CONFIRMAÇÃO</p>
+                    <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:8px;overflow:hidden;min-height:0;">
+                        <img src="${data.selfie}" style="max-width:100%;max-height:${alturaSelfie};width:auto;height:auto;object-fit:contain;display:block;border-radius:6px;cursor:pointer;" onclick="window.open(this.src,'_blank')" title="Clique para ampliar" />
                     </div>
                 </div>` : ''}
             </div>`;
+
 
         const pdfUrl = data.id ? `${window.API_URL || '/api'}/treinamento-presenca/auditoria/${data.id}/pdf?token=${window.currentToken || ''}` : null;
 
