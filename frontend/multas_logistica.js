@@ -1033,15 +1033,18 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                         </div>
                     </div>
 
-                    <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap; background:#f1f5f9; padding:1rem; border-radius:8px; border:1px solid #e2e8f0;">
-                        <div style="flex:1; min-width:150px;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Parcelamento</label>
-                            <select id="gm-parcelas" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px; background:#fff;" onchange="atualizarValoresMultaModal()">
-                                <option value="1" ${multa.parcelas == 1 ? 'selected' : ''}>1x</option>
-                                <option value="2" ${multa.parcelas == 2 ? 'selected' : ''}>2x</option>
-                                <option value="3" ${multa.parcelas == 3 ? 'selected' : ''}>3x</option>
-                            </select>
-                        </div>
+                    ${(() => {
+                        const isAssinada = (multa.status === 'Indicado' || multa.status === 'Multa NIC' || multa.status === 'Assinado' || multa.status === 'Concluído');
+                        const displayParcelas = isAssinada ? 'flex' : 'none';
+                        return `
+                        <div style="display:${displayParcelas}; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap; background:#f1f5f9; padding:1rem; border-radius:8px; border:1px solid #e2e8f0;">
+                            <div style="flex:1; min-width:150px;">
+                                <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Parcelamento Escolhido</label>
+                                <input type="text" value="${multa.parcelas || 1}x" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px; background:#e2e8f0; color:#475569; font-weight:600;" disabled>
+                                <input type="hidden" id="gm-parcelas" value="${multa.parcelas || 1}">
+                            </div>
+                        `;
+                    })()}
                         <div style="flex:2; min-width:250px;">
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Valor a Descontar (Detalhes)</label>
                             <div id="gm-valor-info" style="padding:0.6rem; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:600; color:#0f172a; min-height:38px; display:flex; align-items:center;">

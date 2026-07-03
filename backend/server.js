@@ -5727,8 +5727,8 @@ p{line-height:1.5;margin:5px 0}
                 const novoStatus = opcao === 'indicacao' ? 'Indicado' : 'Multa NIC';
                 const oldStatus = m.status;
 
-                db.run(`UPDATE multas_logistica SET status = ?, status_updated_at = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`,
-                    [novoStatus, getNowBR(), multaId], (errStatus) => {
+                db.run(`UPDATE multas_logistica SET status = ?, status_updated_at = ?, parcelas = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`,
+                    [novoStatus, getNowBR(), numParcelas, multaId], (errStatus) => {
                         if (errStatus) return res.status(500).json({ error: 'Erro ao atualizar status.' });
 
                         if (oldStatus !== novoStatus && m.motorista_id && m.motorista_id != -1) {
