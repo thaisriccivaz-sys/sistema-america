@@ -18884,6 +18884,12 @@ window.renderMultasMotoristaTab = async function (container) {
                         <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Observação</span>
                         <span style="font-style:italic;color:#475569;">${m.observacao}</span>
                     </div>` : ''}
+
+                    <div style="grid-column:1/-1; margin-top:8px; padding-top:12px; border-top:1px dashed #cbd5e1; display:flex; gap:10px;">
+                        <button onclick="window.open('${API_URL.replace('/api','')}/api/logistica/multas/${m.id || idx}/pdf', '_blank')" style="background:#fff;color:#1d4ed8;border:1px solid #bfdbfe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'">
+                            <i class="ph ph-file-pdf" style="font-size:1rem;"></i> Ver Declaração Assinada
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
