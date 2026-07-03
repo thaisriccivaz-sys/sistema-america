@@ -217,8 +217,7 @@ function _buildMultaRow(m) {
 
     const btnEditar = `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>`;
 
-    const btnExcluir = (m.status === 'Indicado' || m.status === 'Multa NIC') ? '' :
-        `<button onclick="confirmarExcluirMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#ef4444;" title="Excluir"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>`;
+    const btnExcluir = '';
 
     const btnLink = m.link_formulario
         ? `<button onclick="window.open(String('${m.link_formulario}').startsWith('http') ? '${m.link_formulario}' : 'https://${m.link_formulario}', '_blank')" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:8px;" title="Abrir Formulário Externo"><i class="ph ph-link" style="font-size:1.2rem;"></i></button>` : '';
