@@ -1310,6 +1310,7 @@ function _renderFormPropostaInt() {
                                 <div style="display:flex; gap:6px; margin-bottom:0.35rem;">
                                     <input type="text" id="prop-endereco" value="${v('endereco_instalacao')}"
                                         onchange="window.classificarRegiaoEDias()"
+                                        oninput="window.classificarRegiaoEDiasDebounced()"
                                         style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Rua, número, cidade, estado">
                                     <button type="button" onclick="window.abrirModalEnderecosEntrega()" style="background:#e2e8f0; color:#475569; border:none; padding:0 0.75rem; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; height:38px; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'" title="Consultar Endereços de Instalação">
                                         <i class="ph ph-magnifying-glass" style="font-size:1.15rem;"></i>
@@ -1414,6 +1415,11 @@ function _renderFormPropostaInt() {
                 </form>
             </div>
     `;
+    
+    // Auto-trigger region classification if address is already pre-filled
+    if (typeof window.classificarRegiaoEDias === 'function') {
+        window.classificarRegiaoEDias();
+    }
 }
 
 window.toggleMotivoReprovacao = function(fase) {
@@ -6626,5 +6632,13 @@ window.atualizarDiasManutencaoObs = function() {
             obsTextarea.value = val;
         }
     }
+};
+
+let classificarDebounceTimeout = null;
+window.classificarRegiaoEDiasDebounced = function() {
+    clearTimeout(classificarDebounceTimeout);
+    classificarDebounceTimeout = setTimeout(() => {
+        window.classificarRegiaoEDias();
+    }, 800);
 };
 
