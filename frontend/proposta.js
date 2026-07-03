@@ -1303,13 +1303,36 @@ function _renderFormPropostaInt() {
                         </div>
                         <div style="display:grid; grid-template-columns:2fr 1fr 1fr 1.5fr; gap:1rem;">
                             <div>
-                                <label class="prop-lbl">Endereço de Instalação</label>
-                                <div style="display:flex; gap:6px;">
+                                <label class="prop-lbl" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                                    <span>Endereço de Instalação</span>
+                                    <span id="prop-regiao-ia-badge" style="display:none; font-weight:800; font-size:0.7rem; padding:2px 6px; border-radius:10px; font-family:'Inter',sans-serif;"></span>
+                                </label>
+                                <div style="display:flex; gap:6px; margin-bottom:0.35rem;">
                                     <input type="text" id="prop-endereco" value="${v('endereco_instalacao')}"
+                                        onchange="window.classificarRegiaoEDias()"
                                         style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Rua, número, cidade, estado">
                                     <button type="button" onclick="window.abrirModalEnderecosEntrega()" style="background:#e2e8f0; color:#475569; border:none; padding:0 0.75rem; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; height:38px; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'" title="Consultar Endereços de Instalação">
                                         <i class="ph ph-magnifying-glass" style="font-size:1.15rem;"></i>
                                     </button>
+                                </div>
+                                <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-top:0.25rem; background:#f8fafc; padding:0.4rem 0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
+                                    <div style="display:flex; align-items:center; gap:4px;">
+                                        <i class="ph ph-wrench" style="color:#7048e8; font-size:0.9rem;"></i>
+                                        <select id="prop-qtd-manutencoes" onchange="window.classificarRegiaoEDias()" style="border:1px solid #cbd5e1; border-radius:4px; padding:2px; font-size:0.72rem; color:#475569; font-weight:700; background:#fff; cursor:pointer; font-family:'Inter',sans-serif; outline:none;">
+                                            <option value="1">1 Manut./Semana</option>
+                                            <option value="2">2 Manut./Semana</option>
+                                            <option value="3">3 Manut./Semana</option>
+                                        </select>
+                                    </div>
+                                    <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; font-size:0.75rem; color:#475569; font-weight:600; font-family:'Inter',sans-serif;">
+                                        <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-seg" value="Segunda" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Seg</label>
+                                        <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-ter" value="Terça" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Ter</label>
+                                        <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-qua" value="Quarta" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Qua</label>
+                                        <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-qui" value="Quinta" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Qui</label>
+                                        <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-sex" value="Sexta" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Sex</label>
+                                        <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-sab" value="Sábado" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Sáb</label>
+                                        <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-dom" value="Domingo" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Dom</label>
+                                    </div>
                                 </div>
                             </div>
                             <div>
@@ -6486,5 +6509,117 @@ window.abrirModalPreenchimentoIA = function() {
             }
         }
     });
+};
+
+window.classificarRegiaoEDias = async function() {
+    const endereco = document.getElementById('prop-endereco')?.value || '';
+    const qtdManut = parseInt(document.getElementById('prop-qtd-manutencoes')?.value) || 1;
+    const badge = document.getElementById('prop-regiao-ia-badge');
+
+    const chkSeg = document.getElementById('chk-dia-seg');
+    const chkTer = document.getElementById('chk-dia-ter');
+    const chkQua = document.getElementById('chk-dia-qua');
+    const chkQui = document.getElementById('chk-dia-qui');
+    const chkSex = document.getElementById('chk-dia-sex');
+    const chkSab = document.getElementById('chk-dia-sab');
+    const chkDom = document.getElementById('chk-dia-dom');
+
+    if (chkSeg) chkSeg.checked = false;
+    if (chkTer) chkTer.checked = false;
+    if (chkQua) chkQua.checked = false;
+    if (chkQui) chkQui.checked = false;
+    if (chkSex) chkSex.checked = false;
+    if (chkSab) chkSab.checked = false;
+    if (chkDom) chkDom.checked = false;
+
+    if (!endereco.trim()) {
+        if (badge) badge.style.display = 'none';
+        return;
+    }
+
+    try {
+        const res = await apiPost('/ia/classificar-regiao', { endereco });
+        if (res && res.regiao) {
+            const regiao = res.regiao;
+
+            if (badge) {
+                badge.style.display = 'inline-block';
+                badge.innerText = `Região: ${regiao} (IA)`;
+                
+                if (regiao === 'Zona Leste') {
+                    badge.style.background = '#e0f2fe';
+                    badge.style.color = '#0369a1';
+                } else if (regiao === 'Zona Oeste') {
+                    badge.style.background = '#fef3c7';
+                    badge.style.color = '#b45309';
+                } else if (regiao === 'Zona Sul') {
+                    badge.style.background = '#dcfce7';
+                    badge.style.color = '#15803d';
+                } else if (regiao === 'Zona Norte') {
+                    badge.style.background = '#f3e8ff';
+                    badge.style.color = '#6d28d9';
+                } else if (regiao === 'Guarulhos') {
+                    badge.style.background = '#fee2e2';
+                    badge.style.color = '#b91c1c';
+                } else {
+                    badge.style.background = '#f1f5f9';
+                    badge.style.color = '#475569';
+                    badge.innerText = 'Outra Região';
+                }
+            }
+
+            // Regras temporárias de dias conforme Qtd. de Manutenções Semanais e Região
+            if (regiao === 'Zona Leste') {
+                // Zona Leste - Segunda, quarta e sexta
+                if (qtdManut >= 1 && chkSeg) chkSeg.checked = true;
+                if (qtdManut >= 2 && chkQua) chkQua.checked = true;
+                if (qtdManut >= 3 && chkSex) chkSex.checked = true;
+            } else if (regiao === 'Zona Oeste' || regiao === 'Zona Sul') {
+                // Zona Oeste & Zona Sul - Terça e Quinta
+                if (qtdManut >= 1 && chkTer) chkTer.checked = true;
+                if (qtdManut >= 2 && chkQui) chkQui.checked = true;
+            } else if (regiao === 'Zona Norte') {
+                // Zona Norte - Quarta - Quinta e Sexta
+                if (qtdManut >= 1 && chkQua) chkQua.checked = true;
+                if (qtdManut >= 2 && chkQui) chkQui.checked = true;
+                if (qtdManut >= 3 && chkSex) chkSex.checked = true;
+            } else if (regiao === 'Guarulhos') {
+                // Guarulhos - Segunda e Sexta
+                if (qtdManut >= 1 && chkSeg) chkSeg.checked = true;
+                if (qtdManut >= 2 && chkSex) chkSex.checked = true;
+            }
+            
+            // Atualizar o campo de observações com o planejamento sugerido
+            window.atualizarDiasManutencaoObs();
+        }
+    } catch(e) {
+        console.error("Erro ao classificar região da proposta:", e);
+    }
+};
+
+window.atualizarDiasManutencaoObs = function() {
+    const dias = [];
+    if (document.getElementById('chk-dia-seg')?.checked) dias.push('Segunda');
+    if (document.getElementById('chk-dia-ter')?.checked) dias.push('Terça');
+    if (document.getElementById('chk-dia-qua')?.checked) dias.push('Quarta');
+    if (document.getElementById('chk-dia-qui')?.checked) dias.push('Quinta');
+    if (document.getElementById('chk-dia-sex')?.checked) dias.push('Sexta');
+    if (document.getElementById('chk-dia-sab')?.checked) dias.push('Sábado');
+    if (document.getElementById('chk-dia-dom')?.checked) dias.push('Domingo');
+
+    const obsTextarea = document.getElementById('prop-obs');
+    const badgeText = document.getElementById('prop-regiao-ia-badge')?.innerText || '';
+    if (obsTextarea) {
+        let val = obsTextarea.value || '';
+        // Remove blocos de manutenção antigos
+        val = val.replace(/\n*--- Planejamento de Manutenções ---\n[\s\S]*?\n---------------------------------------/, '');
+        
+        if (dias.length > 0) {
+            const block = `\n--- Planejamento de Manutenções ---\nDias: ${dias.join(', ')}\n${badgeText ? badgeText + '\n' : ''}---------------------------------------`;
+            obsTextarea.value = val + block;
+        } else {
+            obsTextarea.value = val;
+        }
+    }
 };
 

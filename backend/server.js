@@ -2489,6 +2489,32 @@ app.post('/api/ia/classificar-tipo', authenticateToken, (req, res) => {
     });
 });
 
+// POST /api/ia/classificar-regiao - Identifica a região do endereço via IA
+app.post('/api/ia/classificar-regiao', authenticateToken, (req, res) => {
+    const { endereco } = req.body;
+    if (!endereco) {
+        return res.status(400).json({ error: 'Endereço não informado.' });
+    }
+
+    const e = endereco.toLowerCase();
+    let regiao = 'Outra';
+
+    // Heuristics/keywords to map São Paulo / Guarulhos zones
+    if (e.includes('guarulhos') || e.includes('gopouva') || e.includes('cumbica') || e.includes('pimentas') || e.includes('macedo') || e.includes('cecilia') || e.includes('gru')) {
+        regiao = 'Guarulhos';
+    } else if (e.includes('leste') || e.includes('itaquera') || e.includes('penha') || e.includes('tatuape') || e.includes('tatuapé') || e.includes('mooca') || e.includes('moca') || e.includes('itaim paulista') || e.includes('sao miguel') || e.includes('são miguel') || e.includes('carrao') || e.includes('carrão') || e.includes('sapopemba') || e.includes('mateo bei') || e.includes('arthur alvim') || e.includes('patriarca') || e.includes('vila prudente') || e.includes('zl')) {
+        regiao = 'Zona Leste';
+    } else if (e.includes('oeste') || e.includes('lapa') || e.includes('pinheiros') || e.includes('butanta') || e.includes('butantã') || e.includes('perdizes') || e.includes('pompeia') || e.includes('pompéia') || e.includes('alto de pinheiros') || e.includes('barra funda') || e.includes('vila madalena') || e.includes('jaguare') || e.includes('jaguaré') || e.includes('rio pequeno') || e.includes('zo')) {
+        regiao = 'Zona Oeste';
+    } else if (e.includes('sul') || e.includes('santo amaro') || e.includes('morumbi') || e.includes('interlagos') || e.includes('moema') || e.includes('itaim bibi') || e.includes('vila mariana') || e.includes('saude') || e.includes('saúde') || e.includes('jabaquara') || e.includes('brooklin') || e.includes('campo belo') || e.includes('grajau') || e.includes('grajaú') || e.includes('socorro') || e.includes('capao redondo') || e.includes('capão redondo') || e.includes('zs')) {
+        regiao = 'Zona Sul';
+    } else if (e.includes('norte') || e.includes('santana') || e.includes('tucuruvi') || e.includes('casa verde') || e.includes('limao') || e.includes('limão') || e.includes('freguesia') || e.includes('freguesia do o') || e.includes('freguesia do ó') || e.includes('tremembe') || e.includes('tremembé') || e.includes('jaçanã') || e.includes('jacana') || e.includes('mandaqui') || e.includes('vila maria') || e.includes('vila guilherme') || e.includes('zn')) {
+        regiao = 'Zona Norte';
+    }
+
+    res.json({ regiao });
+});
+
 // Auto-migration: add santander_ficha_data column if it doesn't exist
 db.run("ALTER TABLE colaboradores ADD COLUMN santander_ficha_data TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) {
