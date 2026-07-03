@@ -5755,6 +5755,28 @@ p{line-height:1.5;margin:5px 0}
                             (errAud) => { if (errAud) console.error('[salvar-declaracao] Erro auditoria:', errAud.message); }
                         );
 
+                        try {
+                            const crypto = require('crypto');
+                            const hashPdf = crypto.createHash('sha256').update(termoBase64 || '').digest('hex');
+                            const { gps_lat, gps_lon, dispositivo } = req.body;
+                            const ip_addr = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.ip || '';
+                            db.run(
+                                `INSERT INTO assinaturas_auditoria (documento_id, document_type, colaborador_id, colaborador_nome, gps_lat, gps_lon, dispositivo, ip_address, hash_assinatura) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                [
+                                    multaId,
+                                    'Multa — Declaração de Responsabilidade',
+                                    m.motorista_id || -1,
+                                    m.colab_nome || m.motorista_nome || usuarioAudit,
+                                    gps_lat || '',
+                                    gps_lon || '',
+                                    dispositivo || req.headers['user-agent'] || '',
+                                    String(ip_addr),
+                                    hashPdf
+                                ],
+                                (errAudAssin) => { if (errAudAssin) console.error('[salvar-declaracao] Erro assinaturas_auditoria:', errAudAssin.message); }
+                            );
+                        } catch (e) { console.error('[salvar-declaracao] Erro hash:', e); }
+
                         res.json({ ok: true, novoStatus, totalDocs: extras.length });
                     });
             });

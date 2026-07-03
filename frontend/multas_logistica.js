@@ -2292,6 +2292,8 @@ window.abrirFluxoAssinatura = function(multaId) {
 
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
         try {
+            const secData = (typeof window.getDeviceSecurityData === 'function') ? await window.getDeviceSecurityData() : { gps_lat: '', gps_lon: '', dispositivo: navigator.userAgent };
+            
             const res = await fetch(`/api/logistica/multas/${multaId}/salvar-declaracao`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -2299,7 +2301,10 @@ window.abrirFluxoAssinatura = function(multaId) {
                     opcao: _opcaoEscolhida,
                     parcelas: _parcelas,
                     assinatura_base64: _assinaturaBase64,
-                    selfie_base64: _selfieBase64 || null
+                    selfie_base64: _selfieBase64 || null,
+                    gps_lat: secData.gps_lat,
+                    gps_lon: secData.gps_lon,
+                    dispositivo: secData.dispositivo
                 })
             });
             const data = await res.json();
