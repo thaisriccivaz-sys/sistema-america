@@ -2175,11 +2175,36 @@ window.abrirFluxoAssinatura = function(multaId) {
         if (!file) return;
         const reader = new FileReader();
         reader.onload = e => {
-            _selfieBase64 = e.target.result;
-            document.getElementById('selfie-status').textContent = '✅ Foto capturada (Arquivo)!';
-            document.getElementById('selfie-status').style.color = '#16a34a';
-            document.getElementById('selfie-preview').innerHTML = `<img src="${_selfieBase64}" style="max-width:120px;max-height:120px;border-radius:8px;border:2px solid #86efac;margin-top:4px;">`;
-            document.getElementById('btn-iniciar-camera').textContent = '📷 Tirar Outra Foto';
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const maxDim = 1000;
+                let w = img.width, h = img.height;
+                if (w > maxDim || h > maxDim) {
+                    if (w > h) { h = h * (maxDim / w); w = maxDim; }
+                    else { w = w * (maxDim / h); h = maxDim; }
+                }
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                
+                const overlayH = 75;
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+                ctx.fillRect(0, canvas.height - overlayH, canvas.width, overlayH);
+                
+                const dtStr = new Date().toLocaleString('pt-BR');
+                ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 14px Arial'; ctx.fillText('Infração: AIT ' + (multa.numero_ait || '—'), 8, canvas.height - overlayH + 20);
+                ctx.fillStyle = '#e2e8f0'; ctx.font = '13px Arial'; ctx.fillText('Colaborador: ' + (multa.motorista_nome || ''), 8, canvas.height - overlayH + 38);
+                ctx.fillStyle = '#94a3b8'; ctx.font = '12px Arial'; ctx.fillText(dtStr, 8, canvas.height - overlayH + 54);
+                ctx.fillText('Opção: ' + (_opcaoEscolhida === 'indicacao' ? 'Indicação' : 'NIC'), 8, canvas.height - overlayH + 68);
+                
+                _selfieBase64 = canvas.toDataURL('image/jpeg', 0.8);
+                document.getElementById('selfie-status').textContent = '✅ Foto capturada (Arquivo)!';
+                document.getElementById('selfie-status').style.color = '#16a34a';
+                document.getElementById('selfie-preview').innerHTML = `<img src="${_selfieBase64}" style="max-width:120px;max-height:120px;border-radius:8px;border:2px solid #86efac;margin-top:4px;">`;
+                document.getElementById('btn-iniciar-camera').textContent = '📷 Tirar Outra Foto';
+            };
+            img.src = e.target.result;
         };
         reader.readAsDataURL(file);
     };
@@ -2216,7 +2241,18 @@ window.abrirFluxoAssinatura = function(multaId) {
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const overlayH = 75;
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+        ctx.fillRect(0, canvas.height - overlayH, canvas.width, overlayH);
+        
+        const dtStr = new Date().toLocaleString('pt-BR');
+        ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 14px Arial'; ctx.fillText('Infração: AIT ' + (multa.numero_ait || '—'), 8, canvas.height - overlayH + 20);
+        ctx.fillStyle = '#e2e8f0'; ctx.font = '13px Arial'; ctx.fillText('Colaborador: ' + (multa.motorista_nome || ''), 8, canvas.height - overlayH + 38);
+        ctx.fillStyle = '#94a3b8'; ctx.font = '12px Arial'; ctx.fillText(dtStr, 8, canvas.height - overlayH + 54);
+        ctx.fillText('Opção: ' + (_opcaoEscolhida === 'indicacao' ? 'Indicação' : 'NIC'), 8, canvas.height - overlayH + 68);
         
         _selfieBase64 = canvas.toDataURL('image/jpeg', 0.8);
         
