@@ -5630,11 +5630,11 @@ app.post('/api/logistica/multas/:id/salvar-declaracao', authenticateToken, async
         } catch(_) {}
 
         const selfieHtml = selfie_base64
-            ? `<div style="text-align:center;margin-top:20px;"><p style="font-size:0.85rem;color:#64748b;margin-bottom:6px;">Selfie do Colaborador (Comprovante de Assinatura)</p><img src="${selfie_base64}" style="max-width:180px;max-height:180px;border-radius:8px;border:2px solid #e2e8f0;" alt="Selfie"></div>`
+            ? `<div style="text-align:center;"><img src="${selfie_base64}" style="max-width:320px;max-height:240px;border-radius:8px;border:2px solid #e2e8f0;" alt="Selfie"><p style="font-size:0.85rem;color:#64748b;margin-top:6px;">Selfie (Comprovante)</p></div>`
             : '';
         const assinaturaHtml = assinatura_base64
-            ? `<div style="text-align:left;margin-top:10px;"><img src="${assinatura_base64}" style="max-width:280px;max-height:90px;border-bottom:1px solid #000;display:block;" alt="Assinatura"></div>`
-            : `<div style="border-bottom:1px solid #000;width:280px;height:60px;margin-top:10px;"></div>`;
+            ? `<div style="text-align:center;"><img src="${assinatura_base64}" style="max-width:280px;max-height:90px;border-bottom:1px solid #000;display:inline-block;" alt="Assinatura"><p style="margin-top:6px;font-size:12px;">${m.colab_nome || m.motorista_nome || '—'}</p></div>`
+            : `<div style="text-align:center;"><div style="border-bottom:1px solid #000;width:280px;height:60px;margin:0 auto;"></div><p style="margin-top:6px;font-size:12px;">${m.colab_nome || m.motorista_nome || '—'}</p></div>`;
 
         const termoHTML = `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"><title>Declaração de Responsabilidade por Infração</title>
@@ -5696,11 +5696,14 @@ p{line-height:1.5;margin:5px 0}
   <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'✓':' '}) 1x &nbsp; (${numParcelas===2?'✓':' '}) 2x &nbsp; (${numParcelas===3?'✓':' '}) 3x &nbsp; (${numParcelas>3?'✓':' '}) Outro: ${numParcelas>3?numParcelas+'x':''}</p>
   <p><strong>Valor da Parcela:</strong> <span class="vd">${fmtMoney(valorParcela)}</span></p>
 </div>
-<div style="margin-top:24px;">
-  <p><strong>Assinatura do Colaborador:</strong></p>
-  ${assinaturaHtml}
-  <p style="margin-top:6px;font-size:12px;">${m.colab_nome || m.motorista_nome || '—'}</p>
-  ${selfieHtml}
+<div style="margin-top:30px; display:flex; justify-content:space-around; align-items:end;">
+  <div style="flex:1; text-align:center;">
+    <p style="margin-bottom:14px; font-weight:bold;">Assinatura do Colaborador</p>
+    ${assinaturaHtml}
+  </div>
+  ${selfie_base64 ? `<div style="flex:1; text-align:center;">
+    ${selfieHtml}
+  </div>` : ''}
 </div>
 <div class="rodape">Documento gerado em ${dataDeclFmt} pelo Sistema de Gestão — América Rental Equipamentos Ltda.</div>
 </body></html>`;
