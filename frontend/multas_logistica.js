@@ -28,7 +28,7 @@ function _dataLimiteBadge(dl, motivo = '') {
     }
 
     const mot = (motivo || '').toLowerCase();
-    const isNaoIdentificacao = mot.includes('nao id') || mot.includes('não id') || mot.includes('nic');
+    const isNaoIdentificacao = mot.includes('nao id') || mot.includes('não id') || /\bnic\b/.test(mot);
     if (isNaoIdentificacao) {
         return `<span style="color:#2563eb; font-weight:700; white-space:nowrap;" title="Multa por Não Identificação">↔️ ${fmt}</span>`;
     }
