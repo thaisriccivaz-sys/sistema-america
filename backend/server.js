@@ -5740,6 +5740,21 @@ p{line-height:1.5;margin:5px 0}
                             }).catch(e => console.error('[salvar-declaracao] Notif error:', e.message));
                         }
 
+                        // Trilha de auditoria — Declaração de Responsabilidade por Infração
+                        const opcaoLabel = opcao === 'indicacao' ? 'Indicação do Condutor' : 'Não Indicação (NIC)';
+                        const usuarioAudit = (req.user && (req.user.nome || req.user.email)) || 'Colaborador';
+                        db.run(
+                            `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                            [
+                                m.colab_nome || m.motorista_nome || usuarioAudit,
+                                'Multas — Declaração de Responsabilidade',
+                                `AIT ${m.numero_ait || multaId} | Assinatura Digital`,
+                                oldStatus,
+                                `${novoStatus} | Opção: ${opcaoLabel} | Parcelas: ${numParcelas}x | Selfie: ${selfie_base64 ? 'Sim' : 'Não'}`
+                            ],
+                            (errAud) => { if (errAud) console.error('[salvar-declaracao] Erro auditoria:', errAud.message); }
+                        );
+
                         res.json({ ok: true, novoStatus, totalDocs: extras.length });
                     });
             });

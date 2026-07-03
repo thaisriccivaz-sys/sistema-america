@@ -2053,18 +2053,19 @@ window.abrirFluxoAssinatura = function(multaId) {
 
               <p>Pelo presente instrumento, DECLARO ser o condutor do veículo e único responsável pela infração acima. Neste ato me responsabilizo pelo cometimento da infração, nos termos do art. 257, § 7° do CTB e da Resolução CONTRAN n° 918/2022. Declaro ciência que em caso de não identificação do condutor, será lavrada nova multa com valor dobrado (art. 257, § 8° do CTB).</p>
               
-              <div style="border:2px solid ${isInd?'#2563eb':'#e2e8f0'};border-radius:8px;padding:12px;margin:8px 0;background:${isInd?'#eff6ff':'#fff'};">
-                <strong>(${checkInd}) OPÇÃO 1 — INDICAÇÃO DO CONDUTOR</strong>
+              ${isInd ? `
+              <div style="border:2px solid #2563eb;border-radius:8px;padding:12px;margin:8px 0;background:#eff6ff;">
+                <strong>(✓) OPÇÃO 1 — INDICAÇÃO DO CONDUTOR</strong>
                 <p style="margin:6px 0 0;">Declaro que opto pela indicação como condutor infrator, autorizando a empresa a realizar a devida identificação junto ao órgão competente. Estou ciente de que assumo integralmente as responsabilidades legais, inclusive pontuação na CNH.</p>
-                <p><strong>Valor:</strong> <span style="color:#dc2626;font-weight:700;">${fmtMoney(valorOrig)}</span> &nbsp;&nbsp; ${multa.pontuacao?`<strong>Pontuação:</strong> <span style="color:#b45309;font-weight:700;">${multa.pontuacao} pts</span>`:''}
-              </div>
-              
-              <div style="border:2px solid ${!isInd?'#dc2626':'#e2e8f0'};border-radius:8px;padding:12px;margin:8px 0;background:${!isInd?'#fff1f2':'#fff'};">
-                <strong>(${checkNic}) OPÇÃO 2 — NÃO INDICAÇÃO (NIC)</strong>
-                <p style="margin:6px 0 0;">Declaro que opto por não realizar a indicação do condutor. Autorizo a empresa AMÉRICA RENTAL EQUIPAMENTOS LTDA (CNPJ 03.434.448/0001-01) a efetuar o desconto em folha conforme abaixo:</p>
-                <p><strong>Multa Originária:</strong> ${fmtMoney(valorOrig)} &nbsp;|&nbsp; <strong>Multa NIC (2x):</strong> ${fmtMoney(valorNIC)} &nbsp;|&nbsp; <strong>Total:</strong> <span style="color:#dc2626;font-weight:700;">${fmtMoney(valorTotal)}</span></p>
+                <p><strong>Valor:</strong> <span style="color:#dc2626;font-weight:700;">${fmtMoney(valorOrig)}</span> &nbsp;&nbsp; ${multa.pontuacao ? `<strong>Pontuação:</strong> <span style="color:#b45309;font-weight:700;">${multa.pontuacao} pts</span>` : ''}</p>
                 <p><strong>Parcelas:</strong> ${_parcelas}x de <span style="color:#dc2626;font-weight:700;">${fmtMoney(parcelaValor)}</span></p>
-              </div>
+              </div>` : `
+              <div style="border:2px solid #dc2626;border-radius:8px;padding:12px;margin:8px 0;background:#fff1f2;">
+                <strong>(✓) OPÇÃO 2 — NÃO INDICAÇÃO (NIC)</strong>
+                <p style="margin:6px 0 0;">Declaro que opto por não realizar a indicação do condutor. Autorizo a empresa AMÉRICA RENTAL EQUIPAMENTOS LTDA (CNPJ 03.434.448/0001-01) a efetuar o desconto em folha conforme abaixo:</p>
+                <p><strong>Multa Originária:</strong> ${fmtMoney(valorOrig)} &nbsp;|&nbsp; <strong>Multa NIC:</strong> ${fmtMoney(valorNIC)} &nbsp;|&nbsp; <strong>Total:</strong> <span style="color:#dc2626;font-weight:700;">${fmtMoney(valorTotal)}</span></p>
+                <p><strong>Parcelas:</strong> ${_parcelas}x de <span style="color:#dc2626;font-weight:700;">${fmtMoney(parcelaValor)}</span></p>
+              </div>`}
             </div>
 
             <!-- Assinatura Canvas -->
@@ -2078,15 +2079,14 @@ window.abrirFluxoAssinatura = function(multaId) {
             </div>
 
             <!-- Selfie -->
-            <div style="margin-bottom:20px;">
-              <div style="font-weight:700;color:#1e293b;margin-bottom:8px;font-size:0.9rem;">📷 Selfie para Comprovação</div>
-              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                <label style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;font-size:0.9rem;display:inline-block;">
-                  📷 Tirar Selfie
-                  <input type="file" id="selfie-input" accept="image/*" capture="user" style="display:none;" onchange="_fluxoCapturarSelfie(this)">
-                </label>
-                <span style="font-size:0.8rem;color:#94a3b8;" id="selfie-status">Nenhuma foto tirada</span>
-              </div>
+            <div id="selfie-section" style="margin-bottom:20px;display:none;">
+              <div style="font-weight:700;color:#1e293b;margin-bottom:8px;font-size:0.9rem;">📷 Selfie para Comprovação <span style="color:#dc2626;font-size:0.8rem;">(obrigatório)</span></div>
+              <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:0.82rem;color:#92400e;">⚠️ Tire uma selfie para confirmar sua identidade e concluir o processo de assinatura.</div>
+              <label id="selfie-label" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:12px 24px;cursor:pointer;font-weight:600;font-size:0.95rem;display:inline-block;">
+                📷 Tirar Selfie
+                <input type="file" id="selfie-input" accept="image/*" capture="user" style="display:none;" onchange="_fluxoCapturarSelfie(this)">
+              </label>
+              <span style="font-size:0.8rem;color:#94a3b8;display:block;margin-top:8px;" id="selfie-status">Nenhuma foto tirada</span>
               <div id="selfie-preview" style="margin-top:10px;"></div>
             </div>
 
@@ -2115,13 +2115,23 @@ window.abrirFluxoAssinatura = function(multaId) {
                 const src = e.touches ? e.touches[0] : e;
                 return { x: (src.clientX - rect.left) * scaleX, y: (src.clientY - rect.top) * scaleY };
             };
+            const abrirSelfieAuto = () => {
+                _assinaturaBase64 = _canvas.toDataURL('image/png');
+                const selfieSection = document.getElementById('selfie-section');
+                if (selfieSection) selfieSection.style.display = 'block';
+                // Abre câmera automaticamente no mobile
+                const selfieInput = document.getElementById('selfie-input');
+                if (selfieInput) {
+                    setTimeout(() => { selfieInput.click(); }, 200);
+                }
+            };
             _canvas.addEventListener('mousedown', e => { _desenhando = true; const p = getPos(e); _ctx.beginPath(); _ctx.moveTo(p.x, p.y); document.getElementById('canvas-placeholder').style.display='none'; });
             _canvas.addEventListener('mousemove', e => { if (!_desenhando) return; const p = getPos(e); _ctx.lineTo(p.x, p.y); _ctx.stroke(); });
-            _canvas.addEventListener('mouseup', () => { _desenhando = false; _assinaturaBase64 = _canvas.toDataURL('image/png'); });
-            _canvas.addEventListener('mouseleave', () => { _desenhando = false; });
+            _canvas.addEventListener('mouseup', () => { _desenhando = false; abrirSelfieAuto(); });
+            _canvas.addEventListener('mouseleave', () => { if (_desenhando) { _desenhando = false; abrirSelfieAuto(); } });
             _canvas.addEventListener('touchstart', e => { e.preventDefault(); _desenhando = true; const p = getPos(e); _ctx.beginPath(); _ctx.moveTo(p.x, p.y); document.getElementById('canvas-placeholder').style.display='none'; }, {passive:false});
             _canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!_desenhando) return; const p = getPos(e); _ctx.lineTo(p.x, p.y); _ctx.stroke(); }, {passive:false});
-            _canvas.addEventListener('touchend', () => { _desenhando = false; _assinaturaBase64 = _canvas.toDataURL('image/png'); });
+            _canvas.addEventListener('touchend', () => { _desenhando = false; abrirSelfieAuto(); });
         }, 80);
     }
 
@@ -2171,6 +2181,11 @@ window.abrirFluxoAssinatura = function(multaId) {
 
         if (!_assinaturaBase64 || _assinaturaBase64 === 'data:,') {
             alert('Por favor, assine no campo de assinatura antes de finalizar.');
+            return;
+        }
+        if (!_selfieBase64) {
+            alert('A selfie é obrigatória. Por favor, tire a selfie antes de finalizar.');
+            document.getElementById('selfie-input')?.click();
             return;
         }
 
