@@ -2417,6 +2417,78 @@ app.get('/api/ia/diagnostico-ishikawa', authenticateToken, (req, res) => {
     });
 });
 
+// POST /api/ia/classificar-tipo - Analisa o atendimento e sugere o tipo da proposta
+app.post('/api/ia/classificar-tipo', authenticateToken, (req, res) => {
+    const { texto } = req.body;
+    if (!texto) {
+        return res.status(400).json({ error: 'Texto de atendimento não informado.' });
+    }
+
+    const t = texto.toLowerCase();
+
+    // Classes mapping with weights based on typical construction & rental business context
+    const classes = [
+        {
+            name: "Proposta Obra Mensal",
+            keywords: ["obra", "canteiro", "mensal", "meses", "mês", "mes", "construcao", "construção", "predial", "edificacao", "edificação", "faturado mensal", "longo prazo", "locação mensal"]
+        },
+        {
+            name: "Proposta Evento",
+            keywords: ["evento", "show", "festa", "casamento", "feira", "congresso", "exposicao", "exposição", "festival", "palco", "aniversario", "aniversário", "sabado", "sábado", "domingo", "fim de semana", "fds", "diária de evento"]
+        },
+        {
+            name: "Proposta Obra Diária",
+            keywords: ["diaria", "diária", "diarias", "diárias", "obra", "dias", "dia", "curto prazo", "obra rápida", "reparo rápido", "rápida"]
+        },
+        {
+            name: "Proposta Serviço Avulso",
+            keywords: ["servico", "serviço", "avulso", "manutencao", "manutenção", "visita", "tecnica", "técnica", "conserto", "instalacao", "instalação", "reparo", "suporte", "assistencia", "assistência", "limpeza", "avulsa"]
+        },
+        {
+            name: "Proposta Locação Longa",
+            keywords: ["longa", "longo prazo", "anual", "semestral", "permanente", "contrato longo", "ano", "anos", "indeterminado", "12 meses", "6 meses"]
+        },
+        {
+            name: "Proposta Reforma",
+            keywords: ["reforma", "reformar", "pintura", "retrofit", "restauro", "adequacao", "adequação", "reparacao", "reparação", "acabamento", "adequar"]
+        }
+    ];
+
+    let bestClass = "Proposta Obra Mensal"; // default fallback
+    let maxScore = -1;
+
+    classes.forEach(c => {
+        let score = 0;
+        c.keywords.forEach(kw => {
+            const regex = new RegExp(kw, 'gi');
+            const matches = t.match(regex);
+            if (matches) {
+                score += matches.length;
+            }
+        });
+        
+        if (score > maxScore) {
+            maxScore = score;
+            bestClass = c.name;
+        }
+    });
+
+    // Special context sub-rules for co-occurrences
+    if (t.includes('obra')) {
+        if (t.includes('diaria') || t.includes('diária') || t.includes('dias') || t.includes('dia')) {
+            bestClass = "Proposta Obra Diária";
+        } else if (t.includes('mensal') || t.includes('meses') || t.includes('mês') || t.includes('mes')) {
+            bestClass = "Proposta Obra Mensal";
+        }
+    }
+
+    res.json({
+        tipo_sugerido: bestClass,
+        score: maxScore,
+        observacao_formatada: `--- Primeiro Atendimento (IA) ---\n${texto}\n----------------------------------`
+    });
+});
+
 // Auto-migration: add santander_ficha_data column if it doesn't exist
 db.run("ALTER TABLE colaboradores ADD COLUMN santander_ficha_data TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) {

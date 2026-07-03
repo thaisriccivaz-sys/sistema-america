@@ -1183,7 +1183,12 @@ function _renderFormPropostaInt() {
                                 style="width:100%;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div>
-                            <label class="prop-lbl">Tipo *</label>
+                            <label class="prop-lbl" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                                <span>Tipo *</span>
+                                <a href="javascript:void(0)" onclick="window.abrirModalPreenchimentoIA()" style="color:#7048e8; font-size:0.75rem; font-weight:700; text-decoration:none; display:flex; align-items:center; gap:2px;">
+                                    <i class="ph ph-magic-wand"></i> IA: Atendimento
+                                </a>
+                            </label>
                             <select id="prop-tipo" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                                 <option value="">-- Selecione --</option>
                                 ${PROP_TIPOS.map(t => `<option value="${t}" ${v('tipo')===t?'selected':''}>${t}</option>`).join('')}
@@ -6415,6 +6420,71 @@ window.abrirModalIshikawa = async function() {
         `,
         width: '800px',
         confirmButtonText: 'Fechar'
+    });
+};
+
+window.abrirModalPreenchimentoIA = function() {
+    Swal.fire({
+        title: 'IA: Classificar Atendimento',
+        html: `
+            <div style="text-align:left; font-family:'Inter', sans-serif;">
+                <p style="font-size:0.8rem; color:#64748b; margin-bottom:0.8rem;">
+                    Descreva em detalhes a demanda inicial do cliente. A IA analisará o texto para sugerir a melhor categoria de proposta e preencherá automaticamente o campo de Observações.
+                </p>
+                <textarea id="ia-atendimento-input" rows="6" placeholder="Ex: Cliente entrou em contato solicitando a locação de um gerador de 150 kVA para canteiro de obras pelo período fixo de 6 meses..." 
+                    style="width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; resize:vertical; box-sizing:border-box; font-family:'Inter', sans-serif; line-height:1.4;"></textarea>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Analisar e Preencher',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#7048e8',
+        cancelButtonColor: '#94a3b8',
+        preConfirm: () => {
+            const txt = document.getElementById('ia-atendimento-input')?.value || '';
+            if (!txt.trim()) {
+                Swal.showValidationMessage('Por favor, descreva o atendimento.');
+                return false;
+            }
+            return txt;
+        }
+    }).then(async (result) => {
+        if (result.isConfirmed && result.value) {
+            Swal.fire({
+                title: 'IA Analisando...',
+                html: 'Aguarde enquanto identificamos o tipo de proposta...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            try {
+                const res = await apiPost('/ia/classificar-tipo', { texto: result.value });
+                Swal.close();
+
+                if (res && res.tipo_sugerido) {
+                    const tipoSelect = document.getElementById('prop-tipo');
+                    const obsTextarea = document.getElementById('prop-obs');
+
+                    if (tipoSelect) {
+                        tipoSelect.value = res.tipo_sugerido;
+                    }
+                    if (obsTextarea) {
+                        obsTextarea.value = res.observacao_formatada;
+                    }
+
+                    if (typeof mostrarToastSucesso === 'function') {
+                        mostrarToastSucesso(`Classificado como: ${res.tipo_sugerido}!`);
+                    }
+                } else {
+                    Swal.fire('Erro', 'Não foi possível classificar o atendimento.', 'error');
+                }
+            } catch (e) {
+                console.error("Erro na classificação da IA:", e);
+                Swal.fire('Erro', 'Houve uma falha ao contatar o servidor de IA.', 'error');
+            }
+        }
     });
 };
 
