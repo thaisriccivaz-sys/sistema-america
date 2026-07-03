@@ -1029,7 +1029,7 @@ function _renderFormPropostaInt() {
                         </div>
                         <div>
                             <label class="prop-lbl">Fase de Negociação *</label>
-                            <select id="prop-fase" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                            <select id="prop-fase" onchange="window.toggleMotivoReprovacao(this.value)" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                                 ${PROP_FASES.map(f => `<option value="${f}" ${v('fase_negociacao')===f?'selected':''}>${f}</option>`).join('')}
                             </select>
                         </div>
@@ -1040,6 +1040,15 @@ function _renderFormPropostaInt() {
                                 ${PROP_MODELOS.map(m => `<option value="${m}" ${v('modelo_impressao')===m?'selected':''}>${m}</option>`).join('')}
                             </select>
                         </div>
+                    </div>
+
+                    <!-- Motivo de Reprovação (Exibido apenas se a Fase de Negociação for 'Reprovada') -->
+                    <div id="wrapper-motivo-reprovacao" style="display: ${v('fase_negociacao') === 'Reprovada' ? 'block' : 'none'}; margin-bottom: 1rem;">
+                        <label class="prop-lbl">Motivo de Reprovação *</label>
+                        <select id="prop-motivo-reprovacao" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                            <option value="">-- Selecione o Motivo --</option>
+                            ${['Preço', 'Concorrência', 'Prazo', 'Especificação Técnica', 'Orçamento Esgotado', 'Outros'].map(opt => `<option value="${opt}" ${v('motivo_reprovacao')===opt?'selected':''}>${opt}</option>`).join('')}
+                        </select>
                     </div>
 
                     <!-- Seção: Cliente e Contato -->
@@ -1197,6 +1206,17 @@ function _renderFormPropostaInt() {
             </div>
     `;
 }
+
+window.toggleMotivoReprovacao = function(fase) {
+    const wrapper = document.getElementById('wrapper-motivo-reprovacao');
+    if (wrapper) {
+        wrapper.style.display = (fase === 'Reprovada') ? 'block' : 'none';
+        if (fase !== 'Reprovada') {
+            const select = document.getElementById('prop-motivo-reprovacao');
+            if (select) select.value = '';
+        }
+    }
+};
 
 window.verClienteProposta = async function(id) {
     const p = _propostasData.find(pr => pr.id === id);
@@ -1734,6 +1754,7 @@ window.salvarPropostaNova = async function() {
         observacoes: obter('prop-obs'),
         valor_total: obterN('prop-valor-total'),
         status: obter('prop-status'),
+        motivo_reprovacao: obter('prop-motivo-reprovacao'),
         criado_por: window.currentUser?.nome || window.currentUser?.email || '',
     };
 
@@ -1798,6 +1819,7 @@ window.estornarPropostaEdicao = async function() {
         observacoes: obter('prop-obs'),
         valor_total: obterN('prop-valor-total'),
         status: obter('prop-status'),
+        motivo_reprovacao: obter('prop-motivo-reprovacao'),
         criado_por: window.currentUser?.nome || window.currentUser?.email || '',
     };
 

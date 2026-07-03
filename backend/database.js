@@ -214,6 +214,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     observacoes TEXT,
                     valor_total REAL DEFAULT 0,
                     status TEXT DEFAULT 'Ativa',
+                    motivo_reprovacao TEXT,
                     contrato TEXT,
                     criado_por TEXT,
                     criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
@@ -885,6 +886,15 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     const cols = rows.map(r => r.name);
                     if (!cols.includes('tipo_conclusao')) db.run("ALTER TABLE frota_manutencoes ADD COLUMN tipo_conclusao TEXT DEFAULT 'realizada'");
                     if (!cols.includes('data_inicio')) db.run("ALTER TABLE frota_manutencoes ADD COLUMN data_inicio TEXT");
+                });
+
+                // Propostas (Motivo de Reprovação)
+                db.all("PRAGMA table_info(propostas)", (err, rows) => {
+                    if (err || !rows) return;
+                    const cols = rows.map(r => r.name);
+                    if (!cols.includes('motivo_reprovacao')) {
+                        db.run("ALTER TABLE propostas ADD COLUMN motivo_reprovacao TEXT");
+                    }
                 });
             });
 

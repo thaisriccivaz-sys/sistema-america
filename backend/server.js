@@ -20686,8 +20686,8 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         tabela_precos, endereco_instalacao, desconto_percent, desconto_reais,
         condicao_pagamento, representante, transportadora, tipo_frete,
         valor_frete_ida, valor_frete_volta, observacoes, valor_total,
-        status, criado_por, criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        status, motivo_reprovacao, criado_por, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
         d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
@@ -20696,7 +20696,7 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
         d.representante, d.transportadora, d.tipo_frete,
         d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
-        d.valor_total||0, d.status||'Ativa', d.criado_por, agora, agora
+        d.valor_total||0, d.status||'Ativa', d.motivo_reprovacao||null, d.criado_por, agora, agora
       ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         
@@ -20729,7 +20729,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       tabela_precos=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
       condicao_pagamento=?, representante=?, transportadora=?, tipo_frete=?,
       valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
-      status=?, atualizado_em=?
+      status=?, motivo_reprovacao=?, atualizado_em=?
       WHERE id=?`,
     [
       d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
@@ -20739,7 +20739,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
       d.representante, d.transportadora, d.tipo_frete,
       d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
-      d.valor_total||0, d.status||'Ativa', agora, proposalId
+      d.valor_total||0, d.status||'Ativa', d.motivo_reprovacao||null, agora, proposalId
     ], function(errUpdate) {
       if (errUpdate) return res.status(500).json({ error: errUpdate.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Proposta não encontrada' });
@@ -20772,7 +20772,8 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
         { field: 'valor_frete_volta', label: 'Frete Volta' },
         { field: 'observacoes', label: 'Observações' },
         { field: 'valor_total', label: 'Valor Total' },
-        { field: 'status', label: 'Status' }
+        { field: 'status', label: 'Status' },
+        { field: 'motivo_reprovacao', label: 'Motivo de Reprovação' }
       ];
 
       fieldsToCompare.forEach(item => {
