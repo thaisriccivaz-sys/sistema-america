@@ -480,16 +480,27 @@ function renderTelaPropostas() {
                         </div>
                     </div>
                     
-                    <button onclick="abrirFormProposta(null)" style="
-                        background:linear-gradient(135deg,#7048e8,#9775fa);
-                        color:white; border:none; padding:0.6rem 1.2rem;
-                        border-radius:8px; cursor:pointer; font-weight:600;
-                        display:flex; align-items:center; gap:0.5rem;
-                        font-size:0.88rem; box-shadow:0 4px 12px rgba(112,72,232,0.25);
-                        transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'"
-                        onmouseout="this.style.transform='translateY(0)'">
-                        <i class="ph ph-plus-circle"></i> Nova Proposta
-                    </button>
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <button onclick="window.abrirModalIshikawa()" style="
+                            background:#fff; border:1px solid #cbd5e1; color:#3b4b60;
+                            padding:0.6rem 1.2rem; border-radius:8px; cursor:pointer;
+                            font-weight:600; display:flex; align-items:center; gap:0.5rem;
+                            font-size:0.88rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);
+                            transition:all 0.2s;" onmouseover="this.style.background='#f8fafc'"
+                            onmouseout="this.style.background='#fff'">
+                            <i class="ph ph-graph" style="color:#7048e8;"></i> Mapa de Causas (Ishikawa)
+                        </button>
+                        <button onclick="abrirFormProposta(null)" style="
+                            background:linear-gradient(135deg,#7048e8,#9775fa);
+                            color:white; border:none; padding:0.6rem 1.2rem;
+                            border-radius:8px; cursor:pointer; font-weight:600;
+                            display:flex; align-items:center; gap:0.5rem;
+                            font-size:0.88rem; box-shadow:0 4px 12px rgba(112,72,232,0.25);
+                            transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'"
+                            onmouseout="this.style.transform='translateY(0)'">
+                            <i class="ph ph-plus-circle"></i> Nova Proposta
+                        </button>
+                    </div>
                 </div>
 
                 <!-- 1. Top Section (Critical Operations & Alarms KPI Cards) -->
@@ -588,32 +599,74 @@ function renderTelaPropostas() {
 
                 </div>
 
-                <!-- 2.1 Gestão de Qualidade: Plano de Ação 5W2H -->
+                <!-- 1.1 Curva ABC de Clientes -->
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:1rem;">
+                    <h3 style="margin:0 0 1rem 0; font-size:0.95rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-chart-bar" style="color:#7048e8;"></i> Classificação de Clientes - Curva ABC (BI)
+                    </h3>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.83rem; text-align:left;">
+                            <thead>
+                                <tr style="border-bottom:2px solid #e2e8f0; background:#f8fafc; color:#475569;">
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">Cliente</th>
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">Valor Total</th>
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">% Acumulado</th>
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700; text-align:center;">Classe</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-curva-abc" style="color:#1e293b;">
+                                <!-- Preenchido dinamicamente via window.atualizarTabelaCurvaABC -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 2. Gestão de Qualidade: Kanban PDCA -->
                 <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:1rem;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
                         <h3 style="margin:0; font-size:0.95rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
-                            <i class="ph ph-list-checks" style="color:#7048e8;"></i> Plano de Ação 5W2H (Gestão de Qualidade)
+                            <i class="ph ph-kanban" style="color:#7048e8;"></i> Kanban PDCA (Gestão de Qualidade)
                         </h3>
                         <button onclick="window.adicionarLinha5W2H()" style="background:#7048e8; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.8rem; display:inline-flex; align-items:center; gap:4px; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
                             <i class="ph ph-plus"></i> Nova Ação
                         </button>
                     </div>
-                    <div style="overflow-x:auto;">
-                        <table style="width:100%; border-collapse:collapse; font-size:0.83rem; text-align:left;">
-                            <thead>
-                                <tr style="border-bottom:2px solid #e2e8f0; background:#f8fafc; color:#475569;">
-                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">Gargalo (Ishikawa)</th>
-                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">O quê</th>
-                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">Quem</th>
-                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">Prazo</th>
-                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">PDCA</th>
-                                    <th style="padding:0.6rem 0.75rem; font-weight:700; text-align:center; width:50px;">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-5w2h" style="color:#1e293b;">
-                                <!-- Preenchido dinamicamente via window.atualizarTabela5W2H -->
-                            </tbody>
-                        </table>
+                    
+                    <!-- Kanban Board Grid: 4 Columns -->
+                    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:1rem; min-height:220px; box-sizing:border-box;">
+                        
+                        <!-- Column: Plan -->
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:0.8rem; display:flex; flex-direction:column; gap:0.8rem; box-sizing:border-box;">
+                            <div style="border-bottom:2px solid #3b82f6; padding-bottom:4px; margin-bottom:0.25rem;">
+                                <span style="font-weight:800; font-size:0.8rem; color:#1e293b; text-transform:uppercase; letter-spacing:0.02em;">📝 Plan (Planejar)</span>
+                            </div>
+                            <div id="kanban-plan" style="display:flex; flex-direction:column; gap:0.6rem; flex:1;"></div>
+                        </div>
+
+                        <!-- Column: Do -->
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:0.8rem; display:flex; flex-direction:column; gap:0.8rem; box-sizing:border-box;">
+                            <div style="border-bottom:2px solid #f59e0b; padding-bottom:4px; margin-bottom:0.25rem;">
+                                <span style="font-weight:800; font-size:0.8rem; color:#1e293b; text-transform:uppercase; letter-spacing:0.02em;">⚡ Do (Executar)</span>
+                            </div>
+                            <div id="kanban-do" style="display:flex; flex-direction:column; gap:0.6rem; flex:1;"></div>
+                        </div>
+
+                        <!-- Column: Check -->
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:0.8rem; display:flex; flex-direction:column; gap:0.8rem; box-sizing:border-box;">
+                            <div style="border-bottom:2px solid #10b981; padding-bottom:4px; margin-bottom:0.25rem;">
+                                <span style="font-weight:800; font-size:0.8rem; color:#1e293b; text-transform:uppercase; letter-spacing:0.02em;">🔍 Check (Verificar)</span>
+                            </div>
+                            <div id="kanban-check" style="display:flex; flex-direction:column; gap:0.6rem; flex:1;"></div>
+                        </div>
+
+                        <!-- Column: Act -->
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:0.8rem; display:flex; flex-direction:column; gap:0.8rem; box-sizing:border-box;">
+                            <div style="border-bottom:2px solid #ef4444; padding-bottom:4px; margin-bottom:0.25rem;">
+                                <span style="font-weight:800; font-size:0.8rem; color:#1e293b; text-transform:uppercase; letter-spacing:0.02em;">🔄 Act (Agir)</span>
+                            </div>
+                            <div id="kanban-act" style="display:flex; flex-direction:column; gap:0.6rem; flex:1;"></div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -864,6 +917,7 @@ function renderTelaPropostas() {
     if (_currentPropostaTab === 'lista') {
         setTimeout(() => {
             if (window.atualizarTabela5W2H) window.atualizarTabela5W2H();
+            if (window.atualizarTabelaCurvaABC) window.atualizarTabelaCurvaABC();
         }, 0);
     }
 }
@@ -920,6 +974,7 @@ window.switchPropostaTab = function(tab) {
         }
         if (tab === 'lista') {
             if (window.atualizarTabela5W2H) window.atualizarTabela5W2H();
+            if (window.atualizarTabelaCurvaABC) window.atualizarTabelaCurvaABC();
         }
     } else {
         renderTelaPropostas();
@@ -6046,34 +6101,70 @@ window.adicionarLinha5W2H = function() {
 };
 
 window.atualizarTabela5W2H = function() {
-    const tbody = document.getElementById('tbody-5w2h');
-    if (tbody) {
-        if (window._acoes5W2H.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="padding:1.5rem; text-align:center; color:#94a3b8; font-style:italic;">Nenhuma ação cadastrada no plano.</td></tr>';
-            return;
-        }
-        tbody.innerHTML = window._acoes5W2H.map((a, idx) => `
-            <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                <td style="padding:0.6rem 0.75rem; font-weight:700; color:#475569;">${a.gargalo}</td>
-                <td style="padding:0.6rem 0.75rem; color:#1e293b;">${a.oQue}</td>
-                <td style="padding:0.6rem 0.75rem; color:#475569; font-weight:600;">${a.quem}</td>
-                <td style="padding:0.6rem 0.75rem; color:#64748b;">${a.prazo.split('-').reverse().join('/')}</td>
-                <td style="padding:0.6rem 0.75rem;">
-                    <span style="background:${a.pdca === 'Plan' ? '#e0f2fe' : a.pdca === 'Do' ? '#fef3c7' : a.pdca === 'Check' ? '#dcfce7' : '#fee2e2'}; color:${a.pdca === 'Plan' ? '#0369a1' : a.pdca === 'Do' ? '#b45309' : a.pdca === 'Check' ? '#15803d' : '#b91c1c'}; padding:3px 8px; border-radius:12px; font-weight:700; font-size:0.72rem;">
-                        ${a.pdca}
-                    </span>
-                </td>
-                <td style="padding:0.6rem 0.75rem; text-align:center; font-size:1.1rem; color:#ef4444;">
-                    <i class="ph ph-trash" onclick="window.removerAcao5W2H(${idx})" style="cursor:pointer;" title="Remover Ação"></i>
-                </td>
-            </tr>
-        `).join('');
+    const planCol = document.getElementById('kanban-plan');
+    const doCol = document.getElementById('kanban-do');
+    const checkCol = document.getElementById('kanban-check');
+    const actCol = document.getElementById('kanban-act');
+    
+    if (planCol && doCol && checkCol && actCol) {
+        planCol.innerHTML = '';
+        doCol.innerHTML = '';
+        checkCol.innerHTML = '';
+        actCol.innerHTML = '';
+        
+        window._acoes5W2H.forEach((a, idx) => {
+            const cardHtml = `
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:0.65rem; box-shadow:0 1px 3px rgba(0,0,0,0.05); display:flex; flex-direction:column; gap:0.4rem; box-sizing:border-box;">
+                    <div style="font-weight:700; font-size:0.78rem; color:#1e293b; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:105px;" title="${a.gargalo}">${a.gargalo}</span>
+                        <i class="ph ph-trash" onclick="window.removerAcaoKanban(${idx})" style="color:#ef4444; cursor:pointer; font-size:0.85rem;" title="Remover Ação"></i>
+                    </div>
+                    <div style="font-size:0.72rem; color:#475569; line-height:1.25; overflow:hidden; display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;" title="${a.oQue}">${a.oQue}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.65rem; color:#64748b; margin-top:0.15rem; border-top:1px dashed #e2e8f0; padding-top:4px;">
+                        <span>👤 <b>${a.quem}</b></span>
+                        <span>📅 ${a.prazo.split('-').reverse().join('/')}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:0.15rem; font-size:0.65rem; border-top:1px solid #f1f5f9; padding-top:4px;">
+                        <span style="font-weight:700; color:#94a3b8;">ETAPA:</span>
+                        <select onchange="window.moverCardKanban(${idx}, this.value)" style="font-size:0.65rem; border:1px solid #cbd5e1; border-radius:4px; padding:1px; color:#475569; background:#fff; cursor:pointer; font-family:'Inter',sans-serif;">
+                            <option value="Plan" ${a.pdca === 'Plan' ? 'selected' : ''}>Plan</option>
+                            <option value="Do" ${a.pdca === 'Do' ? 'selected' : ''}>Do</option>
+                            <option value="Check" ${a.pdca === 'Check' ? 'selected' : ''}>Check</option>
+                            <option value="Act" ${a.pdca === 'Act' ? 'selected' : ''}>Act</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            
+            if (a.pdca === 'Plan') planCol.innerHTML += cardHtml;
+            else if (a.pdca === 'Do') doCol.innerHTML += cardHtml;
+            else if (a.pdca === 'Check') checkCol.innerHTML += cardHtml;
+            else if (a.pdca === 'Act') actCol.innerHTML += cardHtml;
+        });
+
+        const emptyMsg = '<div style="text-align:center; padding:1.2rem 0.2rem; color:#cbd5e1; font-style:italic; font-size:0.7rem;">Sem ações</div>';
+        if (!planCol.innerHTML) planCol.innerHTML = emptyMsg;
+        if (!doCol.innerHTML) doCol.innerHTML = emptyMsg;
+        if (!checkCol.innerHTML) checkCol.innerHTML = emptyMsg;
+        if (!actCol.innerHTML) actCol.innerHTML = emptyMsg;
     }
 };
 
-window.removerAcao5W2H = function(idx) {
+window.removerAcaoKanban = function(idx) {
     window._acoes5W2H.splice(idx, 1);
     window.atualizarTabela5W2H();
+};
+
+window.removerAcao5W2H = window.removerAcaoKanban;
+
+window.moverCardKanban = function(idx, novaEtapa) {
+    if (window._acoes5W2H[idx]) {
+        window._acoes5W2H[idx].pdca = novaEtapa;
+        window.atualizarTabela5W2H();
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso(`Ação movida para etapa ${novaEtapa}!`);
+        }
+    }
 };
 
 window.analisarComIA = function() {
@@ -6115,5 +6206,132 @@ window.analisarComIA = function() {
             </ul>
         `;
     }, 2000);
+};
+
+window.calcularCurvaABC = function(dados) {
+    const agrupado = {};
+    dados.forEach(p => {
+        const cliente = p.cliente_nome || 'N/A';
+        const valor = typeof p.valor_total === 'number' ? p.valor_total : parseFloat(p.valor_total) || 0;
+        agrupado[cliente] = (agrupado[cliente] || 0) + valor;
+    });
+
+    const lista = Object.entries(agrupado).map(([cliente, valor]) => ({
+        cliente_nome: cliente,
+        valor_total: valor
+    }));
+
+    lista.sort((a, b) => b.valor_total - a.valor_total);
+
+    const totalGeral = lista.reduce((a, b) => a + b.valor_total, 0);
+    let acumulado = 0;
+
+    return lista.map(item => {
+        acumulado += item.valor_total;
+        const pct = totalGeral > 0 ? (acumulado / totalGeral) * 100 : 0;
+        const classe = pct <= 80 ? 'A' : (pct <= 95 ? 'B' : 'C');
+        return {
+            cliente_nome: item.cliente_nome,
+            valor: item.valor_total,
+            percentual: pct.toFixed(2),
+            classe: classe
+        };
+    });
+};
+
+window.atualizarTabelaCurvaABC = function() {
+    const tbody = document.getElementById('tbody-curva-abc');
+    if (tbody) {
+        const curva = window.calcularCurvaABC(_dashboardStatsData);
+        if (curva.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="padding:1.5rem; text-align:center; color:#94a3b8; font-style:italic;">Nenhum dado encontrado para gerar a Curva ABC.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = curva.map(c => `
+            <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
+                <td style="padding:0.6rem 0.75rem; font-weight:700; color:#1e293b;">${c.cliente_nome}</td>
+                <td style="padding:0.6rem 0.75rem; font-weight:600; color:#475569;">${c.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                <td style="padding:0.6rem 0.75rem; color:#64748b;">${c.percentual}%</td>
+                <td style="padding:0.6rem 0.75rem; text-align:center;">
+                    <span style="background:${c.classe === 'A' ? '#dcfce7' : c.classe === 'B' ? '#fef3c7' : '#fee2e2'}; color:${c.classe === 'A' ? '#15803d' : c.classe === 'B' ? '#b45309' : '#b91c1c'}; padding:3px 10px; border-radius:12px; font-weight:800; font-size:0.75rem;">
+                        Classe ${c.classe}
+                    </span>
+                </td>
+            </tr>
+        `).join('');
+    }
+};
+
+window.abrirModalIshikawa = function() {
+    const counts = {
+        'Preço': 0,
+        'Concorrência': 0,
+        'Prazo': 0,
+        'Especificação Técnica': 0,
+        'Orçamento Esgotado': 0,
+        'Outros': 0
+    };
+    _dashboardStatsData.forEach(p => {
+        if (p.motivo_reprovacao && typeof counts[p.motivo_reprovacao] !== 'undefined') {
+            counts[p.motivo_reprovacao]++;
+        }
+    });
+
+    Swal.fire({
+        title: 'Diagrama de Causa e Efeito (Ishikawa - 6M)',
+        html: `
+            <div style="background:#fff; border-radius:8px; padding:0.5rem; box-sizing:border-box;">
+                <p style="font-size:0.8rem; color:#64748b; margin-bottom:1rem; text-align:center;">Agrupamento das principais causas de perda comercial mapeadas no ERP</p>
+                <svg viewBox="0 0 800 380" width="100%" height="320px" style="font-family:'Inter', sans-serif; overflow:visible;">
+                    <!-- Main spine -->
+                    <line x1="30" y1="190" x2="680" y2="190" stroke="#1e293b" stroke-width="4"/>
+                    <!-- Fish head -->
+                    <polygon points="680,160 740,190 680,220" fill="#1e293b"/>
+                    <text x="690" y="195" fill="#fff" font-size="9" font-weight="900">PERDAS</text>
+                    
+                    <!-- 1. Método (top left) -->
+                    <line x1="180" y1="190" x2="280" y2="40" stroke="#3b82f6" stroke-width="2.5"/>
+                    <text x="270" y="30" fill="#1e293b" font-weight="800" font-size="11">MÉTODO</text>
+                    <line x1="230" y1="115" x2="190" y2="115" stroke="#94a3b8" stroke-width="1.5"/>
+                    <text x="110" y="111" font-size="9.5" font-weight="700" fill="#475569">Prazo: ${counts['Prazo']}</text>
+                    
+                    <!-- 2. Máquina (top center) -->
+                    <line x1="360" y1="190" x2="460" y2="40" stroke="#3b82f6" stroke-width="2.5"/>
+                    <text x="450" y="30" fill="#1e293b" font-weight="800" font-size="11">MÁQUINA</text>
+                    <text x="350" y="111" font-size="9.5" font-style="italic" fill="#94a3b8">Sem perdas (0)</text>
+
+                    <!-- 3. Medida (top right) -->
+                    <line x1="540" y1="190" x2="640" y2="40" stroke="#3b82f6" stroke-width="2.5"/>
+                    <text x="630" y="30" fill="#1e293b" font-weight="800" font-size="11">MEDIDA</text>
+                    <!-- Preço -->
+                    <line x1="590" y1="115" x2="550" y2="115" stroke="#94a3b8" stroke-width="1.5"/>
+                    <text x="475" y="111" font-size="9.5" font-weight="700" fill="#475569">Preço: ${counts['Preço']}</text>
+                    <!-- Orçamento Esgotado -->
+                    <line x1="610" y1="85" x2="570" y2="85" stroke="#94a3b8" stroke-width="1.5"/>
+                    <text x="470" y="81" font-size="9.5" font-weight="700" fill="#475569">Orç. Esgotado: ${counts['Orçamento Esgotado']}</text>
+
+                    <!-- 4. Meio Ambiente (bottom left) -->
+                    <line x1="180" y1="190" x2="80" y2="340" stroke="#10b981" stroke-width="2.5"/>
+                    <text x="50" y="355" fill="#1e293b" font-weight="800" font-size="11">MEIO AMBIENTE</text>
+                    <line x1="130" y1="265" x2="170" y2="265" stroke="#94a3b8" stroke-width="1.5"/>
+                    <text x="180" y="268" font-size="9.5" font-weight="700" fill="#475569">Concorrência: ${counts['Concorrência']}</text>
+
+                    <!-- 5. Mão de Obra (bottom center) -->
+                    <line x1="360" y1="190" x2="260" y2="340" stroke="#10b981" stroke-width="2.5"/>
+                    <text x="235" y="355" fill="#1e293b" font-weight="800" font-size="11">MÃO DE OBRA</text>
+                    <line x1="310" y1="265" x2="350" y2="265" stroke="#94a3b8" stroke-width="1.5"/>
+                    <text x="360" y="268" font-size="9.5" font-weight="700" fill="#475569">Outros: ${counts['Outros']}</text>
+
+                    <!-- 6. Material (bottom right) -->
+                    <line x1="540" y1="190" x2="440" y2="340" stroke="#10b981" stroke-width="2.5"/>
+                    <text x="420" y="355" fill="#1e293b" font-weight="800" font-size="11">MATERIAL</text>
+                    <line x1="490" y1="265" x2="530" y2="265" stroke="#94a3b8" stroke-width="1.5"/>
+                    <text x="540" y="268" font-size="9.5" font-weight="700" fill="#475569">Esp. Técnica: ${counts['Especificação Técnica']}</text>
+                </svg>
+            </div>
+        `,
+        width: '800px',
+        confirmButtonText: 'Fechar'
+    });
 };
 
