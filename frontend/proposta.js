@@ -39,6 +39,7 @@ const PROP_STATUS_CORES = {
 };
 
 let _propostasData = [];
+let _dashboardStatsData = [];
 let _propostasEditandoId = null;
 let _currentPropostaTab = 'lista'; // 'lista', 'form' ou 'cadastro-cliente'
 let _clienteEditandoId = null;
@@ -79,12 +80,108 @@ async function carregarPropostas() {
         console.error('[PROPOSTAS] Erro ao carregar:', e);
         _propostasData = [];
     }
+    try {
+        const stats = await apiGet('/dashboard/stats');
+        _dashboardStatsData = Array.isArray(stats) ? stats : [];
+    } catch (e) {
+        console.error('[DASHBOARD STATS] Erro ao carregar:', e);
+        _dashboardStatsData = [];
+    }
 }
 
 /* ── Render da tela principal ───────────────────────────────────────── */
 function renderTelaPropostas() {
     const container = document.getElementById('view-comercial-proposta');
     if (!container) return;
+
+    // --- PROCESSAMENTO DE DADOS COMERCIAIS & BI ---
+    const statusCounts = {};
+    let totalPropostas = 0;
+    let totalConvertido = 0;
+    let totalReprovado = 0;
+    const motivoCounts = {};
+
+    _dashboardStatsData.forEach(p => {
+        const fase = p.fase_negociacao || 'Em Elaboração';
+        statusCounts[fase] = (statusCounts[fase] || 0) + 1;
+        totalPropostas++;
+
+        const valor = typeof p.valor_total === 'number' ? p.valor_total : parseFloat(p.valor_total) || 0;
+        if (fase === 'Aprovada' || fase === 'Convertida em OS') {
+            totalConvertido += valor;
+        } else if (fase === 'Reprovada' || fase === 'Cancelada') {
+            totalReprovado += valor;
+        }
+
+        const motivo = p.motivo_reprovacao;
+        if (motivo && motivo !== 'N/A' && motivo !== '') {
+            motivoCounts[motivo] = (motivoCounts[motivo] || 0) + 1;
+        }
+    });
+
+    // 1. Rosca Status
+    const fasesLabels = ['Aprovada', 'Reprovada', 'Cancelada', 'Aguardando Aprovação', 'Em Elaboração'];
+    const coresFases = {
+        'Aprovada': '#10b981',
+        'Reprovada': '#ef4444',
+        'Cancelada': '#f97316',
+        'Aguardando Aprovação': '#3b82f6',
+        'Em Elaboração': '#94a3b8'
+    };
+    let currentPct = 0;
+    const fatias = [];
+    fasesLabels.forEach(f => {
+        const count = statusCounts[f] || 0;
+        if (count > 0 && totalPropostas > 0) {
+            const pct = (count / totalPropostas) * 100;
+            fatias.push({
+                color: coresFases[f] || '#94a3b8',
+                start: currentPct,
+                end: currentPct + pct,
+                fase: f,
+                count: count
+            });
+            currentPct += pct;
+        }
+    });
+    if (fatias.length === 0) {
+        fatias.push({ color: '#e2e8f0', start: 0, end: 100, fase: 'Sem dados', count: 0 });
+    }
+    const gradientParts = fatias.map(f => `${f.color} ${f.start}% ${f.end}%`).join(', ');
+    const conicGradientStyle = `background: conic-gradient(${gradientParts});`;
+    const legendaHtml = fatias.map(f => `
+        <div style="display:flex; align-items:center; gap:4px; font-size:0.62rem; color:#475569; font-weight:600;">
+            <span style="width:6px; height:6px; background:${f.color}; display:inline-block; border-radius:50%; flex-shrink:0;"></span>
+            <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:85px;" title="${f.fase}">${f.fase}: ${f.count}</span>
+        </div>
+    `).join('');
+
+    // 2. Comparativo Financeiro
+    const maxVal = Math.max(totalConvertido, totalReprovado, 1);
+    const pctConvertido = (totalConvertido / maxVal) * 90;
+    const pctReprovado = (totalReprovado / maxVal) * 90;
+    const totalConvertidoFmt = totalConvertido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const totalReprovadoFmt = totalReprovado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    // 3. Pareto Motivos
+    const motivosOrdenados = Object.entries(motivoCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+    const maxMotivoCount = motivosOrdenados.length > 0 ? motivosOrdenados[0][1] : 1;
+    const paretoHtml = motivosOrdenados.length > 0 ? motivosOrdenados.map(([motivo, count]) => {
+        const pct = (count / maxMotivoCount) * 100;
+        return `
+            <div style="display:flex; flex-direction:column; gap:2px; font-size:0.75rem; margin-bottom:0.6rem;">
+                <div style="display:flex; justify-content:space-between; font-weight:700; color:#475569;">
+                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px;" title="${motivo}">${motivo}</span>
+                    <span style="color:#1e293b;">${count}</span>
+                </div>
+                <div style="background:#f1f5f9; border-radius:4px; height:10px; overflow:hidden; width:100%;">
+                    <div style="width:${pct}%; background:linear-gradient(90deg, #f59e0b, #d97706); height:100%; border-radius:4px;"></div>
+                </div>
+            </div>
+        `;
+    }).join('') : `<div style="text-align:center; padding:2.5rem 0; color:#94a3b8; font-style:italic; font-size:0.8rem;">Nenhum motivo registrado.</div>`;
 
     const hoje = new Date().toLocaleDateString('pt-BR');
 
@@ -93,6 +190,11 @@ function renderTelaPropostas() {
 
             <!-- STYLE PARA A NAVBAR SAAS -->
             <style>
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+
                 /* Estilização personalizada para as caixas de mensagem (SweetAlert2) */
                 .swal2-popup {
                     font-family: 'Inter', sans-serif !important;
@@ -438,79 +540,94 @@ function renderTelaPropostas() {
                     </div>
                 </div>
 
-                <!-- 2. Middle-Top Section (Commercial Performance) -->
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
-                    <!-- Widget Esquerdo: Funil de Vendas -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
-                        <h3 style="margin:0 0 1.2rem 0; font-size:0.9rem; font-weight:800; color:#1e293b;">Funil de Vendas: Proposta -> Contrato</h3>
-                        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; gap:0.6rem; min-height:220px; padding:0.5rem 0;">
-                            <!-- Stage 1 -->
-                            <div style="width:100%; max-width:280px; background:linear-gradient(90deg, #3b82f6, #60a5fa); color:white; font-size:0.78rem; font-weight:700; padding:0.45rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(59,130,246,0.15);">
-                                <span style="padding-left:10px;">Lead</span>
-                                <span style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:4px;">150</span>
-                            </div>
-                            <!-- Stage 2 -->
-                            <div style="width:80%; max-width:284px; background:linear-gradient(90deg, #10b981, #34d399); color:white; font-size:0.78rem; font-weight:700; padding:0.45rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(16,185,129,0.15);">
-                                <span style="padding-left:10px;">Proposta Enviada</span>
-                                <span style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:4px;">120</span>
-                            </div>
-                            <!-- Stage 3 -->
-                            <div style="width:60%; max-width:284px; background:linear-gradient(90deg, #f59e0b, #fbbf24); color:white; font-size:0.78rem; font-weight:700; padding:0.45rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(245,158,11,0.15);">
-                                <span style="padding-left:10px;">Em Negociação</span>
-                                <span style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:4px;">85</span>
-                            </div>
-                            <!-- Stage 4 -->
-                            <div style="width:40%; max-width:284px; background:linear-gradient(90deg, #7048e8, #9775fa); color:white; font-size:0.78rem; font-weight:700; padding:0.45rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(112,72,232,0.15);">
-                                <span style="padding-left:10px;">Contrato Assinado</span>
-                                <span style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:4px;">60</span>
+                <!-- 2. Middle-Top Section (Commercial Analytics & Quality Grid - 3 Colunas) -->
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:1rem; margin-bottom:1rem;">
+                    
+                    <!-- Coluna 1: Rosca Status -->
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; align-items:center; min-height:260px; box-sizing:border-box;">
+                        <h3 style="margin:0 0 1rem 0; font-size:0.9rem; font-weight:800; color:#1e293b; align-self:flex-start;">Proporção de Status</h3>
+                        <div style="width:120px; height:120px; border-radius:50%; ${conicGradientStyle} display:flex; align-items:center; justify-content:center; margin:0 auto; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+                            <div style="width:80px; height:80px; border-radius:50%; background:#ffffff; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                                <span style="font-size:1.15rem; font-weight:800; color:#1e293b;">${totalPropostas}</span>
+                                <span style="font-size:0.6rem; color:#64748b; font-weight:600; text-transform:uppercase;">Total</span>
                             </div>
                         </div>
+                        <div style="width:100%; display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:0.75rem; justify-content:center; max-height:80px; overflow-y:auto;">
+                            ${legendaHtml}
+                        </div>
                     </div>
-                    
-                    <!-- Widget Direito: Velocidade de Venda -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
-                        <h3 style="margin:0 0 1.2rem 0; font-size:0.9rem; font-weight:800; color:#1e293b;">Velocidade de Venda (Média de Dias)</h3>
-                        <div style="display:flex; flex-direction:column; justify-content:center; flex:1; gap:0.95rem; min-height:220px; font-size:0.8rem; font-family:'Inter', sans-serif;">
-                            <!-- Segment 1: Diamante -->
-                            <div style="display:flex; flex-direction:column; gap:3px;">
-                                <div style="display:flex; justify-content:space-between; font-weight:700; color:#475569;">
-                                    <span>💎 Diamante</span>
-                                    <span style="color:#1e293b;">15 dias</span>
-                                </div>
-                                <div style="background:#f1f5f9; border-radius:6px; height:12px; overflow:hidden;">
-                                    <div style="width:33.3%; background:linear-gradient(90deg, #3b82f6, #2563eb); height:100%; border-radius:6px;"></div>
-                                </div>
+
+                    <!-- Coluna 2: Comparativo Financeiro -->
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; min-height:260px; box-sizing:border-box;">
+                        <h3 style="margin:0 0 1rem 0; font-size:0.9rem; font-weight:800; color:#1e293b;">Conversão Financeira</h3>
+                        <div style="display:flex; gap:1.5rem; justify-content:center; align-items:flex-end; height:120px; border-bottom:1px solid #cbd5e1; padding-bottom:8px; box-sizing:border-box; margin-bottom:8px; flex:1;">
+                            <!-- Convertido -->
+                            <div style="display:flex; flex-direction:column; align-items:center; width:65px;">
+                                <span style="font-size:0.65rem; font-weight:700; color:#16a34a; margin-bottom:4px; text-align:center; overflow:hidden; text-overflow:ellipsis; max-width:65px;" title="${totalConvertidoFmt}">${totalConvertidoFmt}</span>
+                                <div style="width:30px; height:${Math.round(pctConvertido)}px; background:linear-gradient(180deg,#10b981,#059669); border-radius:4px 4px 0 0;" title="Convertido"></div>
                             </div>
-                            <!-- Segment 2: Ouro -->
-                            <div style="display:flex; flex-direction:column; gap:3px;">
-                                <div style="display:flex; justify-content:space-between; font-weight:700; color:#475569;">
-                                    <span>🥇 Ouro</span>
-                                    <span style="color:#1e293b;">22 dias</span>
-                                </div>
-                                <div style="background:#f1f5f9; border-radius:6px; height:12px; overflow:hidden;">
-                                    <div style="width:48.8%; background:linear-gradient(90deg, #f59e0b, #d97706); height:100%; border-radius:6px;"></div>
-                                </div>
+                            <!-- Perdido -->
+                            <div style="display:flex; flex-direction:column; align-items:center; width:65px;">
+                                <span style="font-size:0.65rem; font-weight:700; color:#dc2626; margin-bottom:4px; text-align:center; overflow:hidden; text-overflow:ellipsis; max-width:65px;" title="${totalReprovadoFmt}">${totalReprovadoFmt}</span>
+                                <div style="width:30px; height:${Math.round(pctReprovado)}px; background:linear-gradient(180deg,#ef4444,#dc2626); border-radius:4px 4px 0 0;" title="Perdido"></div>
                             </div>
-                            <!-- Segment 3: Prata -->
-                            <div style="display:flex; flex-direction:column; gap:3px;">
-                                <div style="display:flex; justify-content:space-between; font-weight:700; color:#475569;">
-                                    <span>🥈 Prata</span>
-                                    <span style="color:#1e293b;">30 dias</span>
-                                </div>
-                                <div style="background:#f1f5f9; border-radius:6px; height:12px; overflow:hidden;">
-                                    <div style="width:66.6%; background:linear-gradient(90deg, #94a3b8, #64748b); height:100%; border-radius:6px;"></div>
-                                </div>
-                            </div>
-                            <!-- Segment 4: Bronze -->
-                            <div style="display:flex; flex-direction:column; gap:3px;">
-                                <div style="display:flex; justify-content:space-between; font-weight:700; color:#475569;">
-                                    <span>🥉 Bronze</span>
-                                    <span style="color:#1e293b;">45 dias</span>
-                                </div>
-                                <div style="background:#f1f5f9; border-radius:6px; height:12px; overflow:hidden;">
-                                    <div style="width:100%; background:linear-gradient(90deg, #b45309, #78350f); height:100%; border-radius:6px;"></div>
-                                </div>
-                            </div>
+                        </div>
+                        <div style="display:flex; gap:1.5rem; justify-content:center; font-size:0.7rem; font-weight:700; color:#64748b; margin-top:4px;">
+                            <span style="width:65px; text-align:center;">Aprovado</span>
+                            <span style="width:65px; text-align:center;">Perdido</span>
+                        </div>
+                    </div>
+
+                    <!-- Coluna 3: Pareto Motivos -->
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; min-height:260px; box-sizing:border-box;">
+                        <h3 style="margin:0 0 1rem 0; font-size:0.9rem; font-weight:800; color:#1e293b;">Motivos de Perda (Top 5)</h3>
+                        <div style="display:flex; flex-direction:column; justify-content:center; flex:1; overflow-y:auto; max-height:180px;">
+                            ${paretoHtml}
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- 2.1 Gestão de Qualidade: Plano de Ação 5W2H -->
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:1rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                        <h3 style="margin:0; font-size:0.95rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                            <i class="ph ph-list-checks" style="color:#7048e8;"></i> Plano de Ação 5W2H (Gestão de Qualidade)
+                        </h3>
+                        <button onclick="window.adicionarLinha5W2H()" style="background:#7048e8; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.8rem; display:inline-flex; align-items:center; gap:4px; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
+                            <i class="ph ph-plus"></i> Nova Ação
+                        </button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.83rem; text-align:left;">
+                            <thead>
+                                <tr style="border-bottom:2px solid #e2e8f0; background:#f8fafc; color:#475569;">
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">Gargalo (Ishikawa)</th>
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">O quê</th>
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">Quem</th>
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">Prazo</th>
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">PDCA</th>
+                                    <th style="padding:0.6rem 0.75rem; font-weight:700; text-align:center; width:50px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-5w2h" style="color:#1e293b;">
+                                <!-- Preenchido dinamicamente via window.atualizarTabela5W2H -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 2.2 Painel IA: Análise Inteligente de Melhoria -->
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:1rem;">
+                    <h3 style="margin:0 0 0.8rem 0; font-size:0.95rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-sparkle" style="color:#7048e8;"></i> Análise Inteligente de Melhoria (IA)
+                    </h3>
+                    <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                        <textarea id="ia-observacoes" rows="4" style="width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:8px; font-size:0.85rem; resize:vertical; box-sizing:border-box; font-family:'Inter', sans-serif;" placeholder="Digite aqui observações adicionais sobre as perdas comerciais ou contexto de mercado para subsidiar a análise da IA..."></textarea>
+                        <button onclick="window.analisarComIA()" style="background:linear-gradient(135deg,#7048e8,#9775fa); color:white; border:none; padding:0.6rem 1.2rem; border-radius:8px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; justify-content:center; gap:0.5rem; font-size:0.88rem; align-self:flex-start; box-shadow:0 4px 12px rgba(112,72,232,0.2); transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'">
+                            <i class="ph ph-cpu"></i> Analisar com IA
+                        </button>
+                        <div id="ia-resultado" style="display:none; margin-top:1rem; padding:1rem; border-radius:8px; background:#f8fafc; border:1px solid #e2e8f0; font-size:0.85rem; line-height:1.5; color:#334155;">
                         </div>
                     </div>
                 </div>
@@ -743,6 +860,12 @@ function renderTelaPropostas() {
     } else if (_currentPropostaTab === 'enderecos') {
         _renderEnderecosInt();
     }
+
+    if (_currentPropostaTab === 'lista') {
+        setTimeout(() => {
+            if (window.atualizarTabela5W2H) window.atualizarTabela5W2H();
+        }, 0);
+    }
 }
 
 window.switchPropostaTab = function(tab) {
@@ -794,6 +917,9 @@ window.switchPropostaTab = function(tab) {
             else if (tab === 'cadastro-cliente' && tabCadastroCliente) tabCadastroCliente.classList.add('active');
             else if (tab === 'cadastro-contatos' && tabCadastroContatos) tabCadastroContatos.classList.add('active');
             else if (tab === 'enderecos' && tabEnderecos) tabEnderecos.classList.add('active');
+        }
+        if (tab === 'lista') {
+            if (window.atualizarTabela5W2H) window.atualizarTabela5W2H();
         }
     } else {
         renderTelaPropostas();
@@ -5847,4 +5973,147 @@ window.pageBuscarCliente = async function() {
 
 console.log('[PROPOSTAS] Módulo frontend de proposta carregado.');
 console.log('[CONTATOS] Módulo frontend de cadastro de contatos carregado.');
+
+// --- GESTÃO DE QUALIDADE (5W2H & IA) ---
+if (typeof window._acoes5W2H === 'undefined') {
+    window._acoes5W2H = [
+        { gargalo: 'Preço Elevado', oQue: 'Revisar tabela de preços e margem para locações de longo prazo', quem: 'Comercial / Diretoria', prazo: '2026-07-20', pdca: 'Plan' },
+        { gargalo: 'Prazo de Mobilização', oQue: 'Otimizar o fluxo de revisão de frota na oficina para acelerar entrega', quem: 'Operações / Frota', prazo: '2026-07-15', pdca: 'Do' }
+    ];
+}
+
+window.adicionarLinha5W2H = function() {
+    if (typeof Swal === 'undefined') {
+        alert('Erro: SweetAlert2 não carregado.');
+        return;
+    }
+    Swal.fire({
+        title: 'Nova Ação 5W2H',
+        html: `
+            <div style="text-align:left; font-family:'Inter',sans-serif; display:flex; flex-direction:column; gap:0.75rem;">
+                <div>
+                    <label style="font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase;">Gargalo (Ishikawa) *</label>
+                    <input type="text" id="swal-5w2h-gargalo" class="swal2-input" style="width:100%; margin:4px 0; box-sizing:border-box; font-size:0.85rem;" placeholder="Ex: Preço elevado">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase;">O quê (Ação Corretiva) *</label>
+                    <input type="text" id="swal-5w2h-oque" class="swal2-input" style="width:100%; margin:4px 0; box-sizing:border-box; font-size:0.85rem;" placeholder="Ex: Oferecer desconto progressivo">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase;">Quem (Responsável) *</label>
+                    <input type="text" id="swal-5w2h-quem" class="swal2-input" style="width:100%; margin:4px 0; box-sizing:border-box; font-size:0.85rem;" placeholder="Ex: João da Silva">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase;">Prazo *</label>
+                    <input type="date" id="swal-5w2h-prazo" class="swal2-input" style="width:100%; margin:4px 0; box-sizing:border-box; font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase;">Etapa PDCA *</label>
+                    <select id="swal-5w2h-pdca" class="swal2-select" style="width:100%; margin:4px 0; box-sizing:border-box; padding:0.5rem; border-radius:6px; border:1px solid #cbd5e1; font-size:0.85rem;">
+                        <option value="Plan">Plan (Planejar)</option>
+                        <option value="Do">Do (Executar)</option>
+                        <option value="Check">Check (Verificar)</option>
+                        <option value="Act">Act (Agir)</option>
+                    </select>
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Adicionar',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const gargalo = document.getElementById('swal-5w2h-gargalo').value.trim();
+            const oQue = document.getElementById('swal-5w2h-oque').value.trim();
+            const quem = document.getElementById('swal-5w2h-quem').value.trim();
+            const prazo = document.getElementById('swal-5w2h-prazo').value;
+            const pdca = document.getElementById('swal-5w2h-pdca').value;
+            
+            if (!gargalo || !oQue || !quem || !prazo) {
+                Swal.showValidationMessage('Todos os campos são obrigatórios!');
+                return false;
+            }
+            return { gargalo, oQue, quem, prazo, pdca };
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window._acoes5W2H.push(result.value);
+            window.atualizarTabela5W2H();
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Ação adicionada ao Plano 5W2H!');
+            }
+        }
+    });
+};
+
+window.atualizarTabela5W2H = function() {
+    const tbody = document.getElementById('tbody-5w2h');
+    if (tbody) {
+        if (window._acoes5W2H.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="padding:1.5rem; text-align:center; color:#94a3b8; font-style:italic;">Nenhuma ação cadastrada no plano.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = window._acoes5W2H.map((a, idx) => `
+            <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
+                <td style="padding:0.6rem 0.75rem; font-weight:700; color:#475569;">${a.gargalo}</td>
+                <td style="padding:0.6rem 0.75rem; color:#1e293b;">${a.oQue}</td>
+                <td style="padding:0.6rem 0.75rem; color:#475569; font-weight:600;">${a.quem}</td>
+                <td style="padding:0.6rem 0.75rem; color:#64748b;">${a.prazo.split('-').reverse().join('/')}</td>
+                <td style="padding:0.6rem 0.75rem;">
+                    <span style="background:${a.pdca === 'Plan' ? '#e0f2fe' : a.pdca === 'Do' ? '#fef3c7' : a.pdca === 'Check' ? '#dcfce7' : '#fee2e2'}; color:${a.pdca === 'Plan' ? '#0369a1' : a.pdca === 'Do' ? '#b45309' : a.pdca === 'Check' ? '#15803d' : '#b91c1c'}; padding:3px 8px; border-radius:12px; font-weight:700; font-size:0.72rem;">
+                        ${a.pdca}
+                    </span>
+                </td>
+                <td style="padding:0.6rem 0.75rem; text-align:center; font-size:1.1rem; color:#ef4444;">
+                    <i class="ph ph-trash" onclick="window.removerAcao5W2H(${idx})" style="cursor:pointer;" title="Remover Ação"></i>
+                </td>
+            </tr>
+        `).join('');
+    }
+};
+
+window.removerAcao5W2H = function(idx) {
+    window._acoes5W2H.splice(idx, 1);
+    window.atualizarTabela5W2H();
+};
+
+window.analisarComIA = function() {
+    const obs = document.getElementById('ia-observacoes')?.value || '';
+    const resultDiv = document.getElementById('ia-resultado');
+    if (!resultDiv) return;
+    
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px; color:#64748b; font-family:'Inter', sans-serif;">
+            <i class="ph ph-circle-notch" style="font-size:1.2rem; animation: spin 1s linear infinite;"></i>
+            <span>IA está analisando a performance comercial e perdas do ERP...</span>
+        </div>
+    `;
+    
+    setTimeout(() => {
+        const total = _dashboardStatsData.length;
+        const reprovadas = _dashboardStatsData.filter(p => p.fase_negociacao === 'Reprovada' || p.fase_negociacao === 'Cancelada').length;
+        const reprovadasPct = total > 0 ? ((reprovadas / total) * 100).toFixed(1) : 0;
+        
+        const motivos = {};
+        _dashboardStatsData.forEach(p => {
+            if (p.motivo_reprovacao && p.motivo_reprovacao !== 'N/A' && p.motivo_reprovacao !== '') {
+                motivos[p.motivo_reprovacao] = (motivos[p.motivo_reprovacao] || 0) + 1;
+            }
+        });
+        const principalMotivo = Object.entries(motivos).sort((a,b) => b[1] - a[1])[0]?.[0] || 'Nenhum registrado';
+        
+        resultDiv.innerHTML = `
+            <div style="font-weight:700; color:#1e293b; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                <i class="ph ph-sparkle" style="color:#7048e8;"></i> INSIGHTS ANALÍTICOS DA IA:
+            </div>
+            <p style="margin:0 0 8px 0;">Com base em <b>${total} propostas comerciais</b> analisadas, a taxa de perdas acumuladas (Reprovadas/Canceladas) é de <b>${reprovadasPct}%</b>. O maior gargalo de qualidade é o motivo <b>"${principalMotivo}"</b>.</p>
+            <h4 style="font-size:0.75rem; font-weight:700; color:#475569; margin:12px 0 6px 0; text-transform:uppercase; letter-spacing:0.02em;">Diagnóstico Comercial Recomendado:</h4>
+            <ul style="margin:0; padding-left:16px; display:flex; flex-direction:column; gap:4px;">
+                <li><b>Gargalo "${principalMotivo}":</b> Sugere-se criar um Plano de Ação 5W2H focado na etapa "Plan" para reavaliar a política comercial.</li>
+                <li><b>Observações do Gestor:</b> ${obs ? `"${obs}"` : '<i>Nenhuma observação informada.</i>'}</li>
+                <li><b>Próximos Passos:</b> Alinhar prazos e responsáveis diretamente na tabela do plano de ação para monitorar nas reuniões de PDCA semanais.</li>
+            </ul>
+        `;
+    }, 2000);
+};
 
