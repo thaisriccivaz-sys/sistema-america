@@ -1930,7 +1930,7 @@ window.abrirFluxoAssinatura = function(multaId) {
                 <div style="font-size:2.5rem;margin-bottom:12px;">🚫</div>
                 <div style="font-weight:700;color:#1e293b;font-size:1rem;margin-bottom:8px;">Multa NIC</div>
                 <div style="font-size:0.8rem;color:#64748b;">Não se identifica. Valor dobrado será descontado.</div>
-                <div style="margin-top:12px;background:#fff1f2;color:#dc2626;padding:6px 12px;border-radius:20px;font-size:0.85rem;font-weight:700;">${fmtMoney(valorTotal)} (2x)</div>
+                <div style="margin-top:12px;background:#fff1f2;color:#dc2626;padding:6px 12px;border-radius:20px;font-size:0.85rem;font-weight:700;">${fmtMoney(valorTotal)}</div>
               </div>
             </div>
           </div>
