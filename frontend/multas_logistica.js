@@ -325,7 +325,7 @@ async function carregarMultasLogistica() {
         });
         if (response.ok) {
             multasLogistica = await response.json();
-            const tbody = document.getElementById('multas-logistica-tbody');
+            const tbody = document.getElementById('multas-tbody');
             if (tbody) {
                 filtrarMultasLogistica();
             } else {
