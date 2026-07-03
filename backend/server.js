@@ -2341,6 +2341,37 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
     }
 });
 
+// GET /api/dashboard/stats - Estatísticas comerciais para Dashboard Comercial
+app.get('/api/dashboard/stats', authenticateToken, (req, res) => {
+    const query = `
+        SELECT 
+            codigo, 
+            cliente_nome, 
+            valor_total, 
+            status, 
+            COALESCE(NULLIF(motivo_reprovacao, ''), 'N/A') AS motivo_reprovacao, 
+            data_cadastro, 
+            atendente,
+            CASE 
+                WHEN avg_val IS NULL OR avg_val = 0 THEN 'B'
+                WHEN valor_total > 1.2 * avg_val THEN 'A'
+                WHEN valor_total >= 0.8 * avg_val THEN 'B'
+                ELSE 'C'
+            END AS classificacao
+        FROM propostas,
+        (SELECT AVG(valor_total) AS avg_val FROM propostas)
+        ORDER BY valor_total DESC
+    `;
+
+    db.all(query, [], (err, rows) => {
+        if (err) {
+            console.error("Erro na busca de estatísticas do dashboard:", err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(rows);
+    });
+});
+
 // Auto-migration: add santander_ficha_data column if it doesn't exist
 db.run("ALTER TABLE colaboradores ADD COLUMN santander_ficha_data TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) {
