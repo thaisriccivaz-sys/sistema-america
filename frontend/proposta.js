@@ -1042,9 +1042,9 @@ function _renderFormPropostaInt() {
                         </div>
                     </div>
 
-                    <!-- Motivo de Reprovação (Exibido apenas se a Fase de Negociação for 'Reprovada') -->
-                    <div id="wrapper-motivo-reprovacao" style="display: ${v('fase_negociacao') === 'Reprovada' ? 'block' : 'none'}; margin-bottom: 1rem;">
-                        <label class="prop-lbl">Motivo de Reprovação *</label>
+                    <!-- Motivo de Reprovação/Cancelamento (Exibido apenas se a Fase de Negociação for 'Reprovada' ou 'Cancelada') -->
+                    <div id="wrapper-motivo-reprovacao" style="display: ${v('fase_negociacao') === 'Reprovada' || v('fase_negociacao') === 'Cancelada' ? 'block' : 'none'}; margin-bottom: 1rem;">
+                        <label class="prop-lbl">${v('fase_negociacao') === 'Cancelada' ? 'Motivo de Cancelamento *' : 'Motivo de Reprovação *'}</label>
                         <select id="prop-motivo-reprovacao" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                             <option value="">-- Selecione o Motivo --</option>
                             ${['Preço', 'Concorrência', 'Prazo', 'Especificação Técnica', 'Orçamento Esgotado', 'Outros'].map(opt => `<option value="${opt}" ${v('motivo_reprovacao')===opt?'selected':''}>${opt}</option>`).join('')}
@@ -1210,8 +1210,20 @@ function _renderFormPropostaInt() {
 window.toggleMotivoReprovacao = function(fase) {
     const wrapper = document.getElementById('wrapper-motivo-reprovacao');
     if (wrapper) {
-        wrapper.style.display = (fase === 'Reprovada') ? 'block' : 'none';
-        if (fase !== 'Reprovada') {
+        const isReprovada = (fase === 'Reprovada');
+        const isCancelada = (fase === 'Cancelada');
+        wrapper.style.display = (isReprovada || isCancelada) ? 'block' : 'none';
+        
+        const label = wrapper.querySelector('.prop-lbl');
+        if (label) {
+            if (isReprovada) {
+                label.textContent = 'Motivo de Reprovação *';
+            } else if (isCancelada) {
+                label.textContent = 'Motivo de Cancelamento *';
+            }
+        }
+        
+        if (!isReprovada && !isCancelada) {
             const select = document.getElementById('prop-motivo-reprovacao');
             if (select) select.value = '';
         }
