@@ -1969,18 +1969,21 @@ window.abrirFluxoAssinatura = function(multaId) {
                    <div style="font-size:1.3rem;font-weight:700;color:#475569;">${fmtMoney(valorOrig)}</div>
                  </div>
                  <div style="background:#fff1f2;border:2px solid #dc2626;border-radius:10px;padding:10px 18px;text-align:center;">
-                   <div style="font-size:0.75rem;color:#64748b;margin-bottom:4px;">MULTA NIC (2x)</div>
+                   <div style="font-size:0.75rem;color:#64748b;margin-bottom:4px;">MULTA NIC</div>
                    <div style="font-size:1.3rem;font-weight:700;color:#dc2626;">${fmtMoney(valorNIC)}</div>
                  </div>
                  <div style="background:#7f1d1d;border:2px solid #dc2626;border-radius:10px;padding:10px 18px;text-align:center;">
                    <div style="font-size:0.75rem;color:#fca5a5;margin-bottom:4px;">VALOR TOTAL A PAGAR</div>
                    <div style="font-size:1.5rem;font-weight:800;color:#fff;">${fmtMoney(valorTotal)}</div>
                  </div>
-               </div>
-               <div style="margin-top:16px;">
-                 <label style="font-size:0.85rem;font-weight:600;color:#475569;display:block;margin-bottom:6px;">Forma de pagamento (parcelas):</label>
+               </div>`;
+
+        const valorCalc = isInd ? valorOrig : valorTotal;
+        const parcelasHtml = `
+               <div style="margin-top:20px;border-top:1px solid rgba(0,0,0,0.1);padding-top:16px;">
+                 <label style="font-size:0.85rem;font-weight:600;color:${corTexto};display:block;margin-bottom:8px;">Forma de pagamento (parcelas):</label>
                  <div style="display:flex;gap:8px;flex-wrap:wrap;" id="parcelas-container">
-                   ${[1,2,3,4,5].map(n=>`<button id="parc-btn-${n}" onclick="_fluxoSetParcelas(${n})" style="border:2px solid #cbd5e1;background:#fff;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:600;color:#475569;">${n}x ${fmtMoney((valorTotal/n))}</button>`).join('')}
+                   ${[1,2,3].map(n=>`<button id="parc-btn-${n}" onclick="_fluxoSetParcelas(${n})" style="border:2px solid #cbd5e1;background:#fff;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:600;color:#475569;transition:all 0.2s;">${n}x ${fmtMoney((valorCalc/n))}</button>`).join('')}
                  </div>
                </div>`;
 
@@ -1993,6 +1996,7 @@ window.abrirFluxoAssinatura = function(multaId) {
           <div style="padding:24px;background:${corFundo};">
             <div style="font-size:2rem;margin-bottom:12px;text-align:center;">${icone}</div>
             <div style="font-size:0.92rem;color:${corTexto};line-height:1.6;">${mensagem}</div>
+            ${parcelasHtml}
           </div>
           <div style="padding:16px 24px 24px;display:flex;justify-content:space-between;gap:12px;border-top:1px solid #e2e8f0;flex-wrap:wrap;">
             <button onclick="_fluxoVoltar()" style="background:#f1f5f9;color:#475569;border:none;border-radius:8px;padding:10px 22px;cursor:pointer;font-weight:600;font-size:0.9rem;">← Voltar</button>
@@ -2003,7 +2007,11 @@ window.abrirFluxoAssinatura = function(multaId) {
         // Destaca parcela 1 por padrão
         setTimeout(() => {
             const btn1 = document.getElementById('parc-btn-1');
-            if (btn1) { btn1.style.borderColor = '#dc2626'; btn1.style.color = '#dc2626'; btn1.style.background = '#fff1f2'; }
+            if (btn1) { 
+                btn1.style.borderColor = corBorda; 
+                btn1.style.color = corBorda; 
+                btn1.style.background = isInd ? '#fff' : '#fff1f2'; 
+            }
         }, 50);
     }
 
@@ -2128,7 +2136,12 @@ window.abrirFluxoAssinatura = function(multaId) {
             b.style.borderColor = '#cbd5e1'; b.style.color = '#475569'; b.style.background = '#fff';
         });
         const btn = document.getElementById(`parc-btn-${n}`);
-        if (btn) { btn.style.borderColor = '#dc2626'; btn.style.color = '#dc2626'; btn.style.background = '#fff1f2'; }
+        if (btn) {
+            const isInd = _opcaoEscolhida === 'indicacao';
+            btn.style.borderColor = isInd ? '#2563eb' : '#dc2626';
+            btn.style.color = isInd ? '#2563eb' : '#dc2626';
+            btn.style.background = isInd ? '#eff6ff' : '#fff1f2';
+        }
     };
     window._fluxoVoltar = function() {
         if (document.getElementById('canvas-declaracao')) renderEtapa2(_opcaoEscolhida);
