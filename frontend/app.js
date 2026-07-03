@@ -18863,12 +18863,12 @@ window.renderMultasMotoristaTab = async function (container) {
                         const valFloat = parseFloat((m.valor_multa || '0').toString().replace(/[^\\d,.]/g, '').replace(',', '.')) || 0;
                         const qtdParc = parseInt(m.parcelas) || 1;
                         const valParc = (valFloat / qtdParc).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-                        const labelParcelas = m.parcelas ? \`\${m.parcelas}x (\${valParc})\` : \`1x (\${valParc})\`;
-                        return \`
+                        const labelParcelas = m.parcelas ? `${m.parcelas}x (${valParc})` : `1x (${valParc})`;
+                        return `
                         <div style="display:flex;flex-direction:column;gap:2px;">
                             <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Parcelas</span>
-                            <span style="font-weight:600;">\${labelParcelas}</span>
-                        </div>\`;
+                            <span style="font-weight:600;">${labelParcelas}</span>
+                        </div>`;
                     })()}
                     <div style="display:flex;flex-direction:column;gap:2px;">
                         <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Prazo Indicação</span>
@@ -18910,25 +18910,25 @@ window.renderMultasMotoristaTab = async function (container) {
 
                         let botoes = '';
                         if (hasDeclaracao) {
-                            botoes += \`<button onclick="window.open('\${baseApi}/api/logistica/multas/\${m.id || idx}/pdf', '_blank')" style="background:#fff;color:#1d4ed8;border:1px solid #bfdbfe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-file-pdf" style="font-size:1rem;"></i> Declaração Assinada</button>\`;
+                            botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id || idx}/pdf', '_blank')" style="background:#fff;color:#1d4ed8;border:1px solid #bfdbfe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-file-pdf" style="font-size:1rem;"></i> Declaração Assinada</button>`;
                         }
                         if (hasTermoFisico) {
-                            botoes += \`<button onclick="window.open('\${baseApi}/api/logistica/multas/\${m.id || idx}/termo-desconto?token=\${tokenUrl}', '_blank')" style="background:#fff;color:#d97706;border:1px solid #fde68a;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#fffbeb'" onmouseout="this.style.background='#fff'"><i class="ph ph-file-text" style="font-size:1rem;"></i> Termo Físico (Mônaco)</button>\`;
+                            botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id || idx}/termo-desconto?token=${tokenUrl}', '_blank')" style="background:#fff;color:#d97706;border:1px solid #fde68a;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#fffbeb'" onmouseout="this.style.background='#fff'"><i class="ph ph-file-text" style="font-size:1rem;"></i> Termo Físico (Mônaco)</button>`;
                         }
                         if (hasDocBase) {
-                            botoes += \`<button onclick="window.open('\${baseApi}/api/logistica/multas/\${m.id || idx}/documento?token=\${tokenUrl}', '_blank')" style="background:#fff;color:#10b981;border:1px solid #a7f3d0;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#ecfdf5'" onmouseout="this.style.background='#fff'"><i class="ph ph-file-pdf" style="font-size:1rem;"></i> PDF da Multa Original</button>\`;
+                            botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id || idx}/documento?token=${tokenUrl}', '_blank')" style="background:#fff;color:#10b981;border:1px solid #a7f3d0;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#ecfdf5'" onmouseout="this.style.background='#fff'"><i class="ph ph-file-pdf" style="font-size:1rem;"></i> PDF da Multa Original</button>`;
                         }
                         if (hasDocExtra0) {
-                            botoes += \`<button onclick="window.open('\${baseApi}/api/logistica/multas/\${m.id || idx}/documento-extra/0?token=\${tokenUrl}', '_blank')" style="background:#fff;color:#3b82f6;border:1px solid #bfdbfe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-files" style="font-size:1rem;"></i> Documento Anexo 1</button>\`;
+                            botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id || idx}/documento-extra/0?token=${tokenUrl}', '_blank')" style="background:#fff;color:#3b82f6;border:1px solid #bfdbfe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-files" style="font-size:1rem;"></i> Documento Anexo 1</button>`;
                         }
                         if (hasDocExtra1) {
-                            botoes += \`<button onclick="window.open('\${baseApi}/api/logistica/multas/\${m.id || idx}/documento-extra/1?token=\${tokenUrl}', '_blank')" style="background:#fff;color:#8b5cf6;border:1px solid #ddd6fe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-files" style="font-size:1rem;"></i> Documento Anexo 2</button>\`;
+                            botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id || idx}/documento-extra/1?token=${tokenUrl}', '_blank')" style="background:#fff;color:#8b5cf6;border:1px solid #ddd6fe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-files" style="font-size:1rem;"></i> Documento Anexo 2</button>`;
                         }
 
-                        return \`
+                        return `
                         <div style="grid-column:1/-1; margin-top:8px; padding-top:12px; border-top:1px dashed #cbd5e1; display:flex; gap:10px; flex-wrap:wrap;">
-                            \${botoes}
-                        </div>\`;
+                            ${botoes}
+                        </div>`;
                     })()}
                 </div>
             </div>
