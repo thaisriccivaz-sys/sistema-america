@@ -235,7 +235,7 @@ function _buildMultaRow(m) {
         <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
             <td style="padding:1rem;">
                 ${window._ultimoIdMultaEditada === m.id 
-                    ? `<strong style="font-weight:900; color:#2563eb; background:#eff6ff; padding:2px 4px; border-radius:4px;">${m.numero_ait || '—'}</strong>` 
+                    ? `<strong style="font-weight:900;">${m.numero_ait || '—'}</strong>` 
                     : `<span>${m.numero_ait || '—'}</span>`}
             </td>
             <td style="padding:1rem; font-weight:600; color:#334155; white-space:nowrap;">${m.placa || '—'}</td>
