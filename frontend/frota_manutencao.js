@@ -390,12 +390,41 @@ window._mnCalDiaClick = function(dia, y, m) {
 
 
 function mnRenderPreventivaTela(sub) {
-    const frota = window._manutFrota || [];
-    // Apenas veículos com ao menos uma manutenção preventiva registrada
-    const idsComPrev = new Set((window._manutDados||[]).filter(m => m.tipo==='preventiva').map(m => String(m.veiculo_id)));
-    const frotaComPrev = frota.filter(v => idsComPrev.has(String(v.id)));
-    const veicOpts = frotaComPrev.map(v => `<option value="${v.id}">${v.placa} \u2014 ${(v.marca_modelo_versao||'').substring(0,28)}</option>`).join('');
+    const prevSubAba = window._mnPrevSubAba || 'plano';
     sub.innerHTML = `
+    <!-- Sub-tabs da Preventiva -->
+    <div style="display:flex;gap:4px;margin-bottom:1rem;background:#fff;padding:5px;border-radius:10px;border:1px solid #e2e8f0;width:fit-content;">
+        <button id="mn-prev-sub-plano" onclick="window.mnPrevMudarSub('plano')"
+            style="padding:7px 18px;border:none;border-radius:7px;font-weight:600;cursor:pointer;font-size:0.87rem;display:flex;align-items:center;gap:6px;background:${prevSubAba==='plano'?'#0284c7':'transparent'};color:${prevSubAba==='plano'?'#fff':'#64748b'};">
+            <i class="ph ph-calendar-check"></i> Plano Preventivo
+        </button>
+        <button id="mn-prev-sub-hist" onclick="window.mnPrevMudarSub('historico')"
+            style="padding:7px 18px;border:none;border-radius:7px;font-weight:600;cursor:pointer;font-size:0.87rem;display:flex;align-items:center;gap:6px;background:${prevSubAba==='historico'?'#0284c7':'transparent'};color:${prevSubAba==='historico'?'#fff':'#64748b'};">
+            <i class="ph ph-clock-counter-clockwise"></i> Histórico de Preventivas
+        </button>
+    </div>
+    <div id="mn-prev-sub-conteudo"></div>`;
+
+    window.mnPrevMudarSub(prevSubAba);
+}
+
+window.mnPrevMudarSub = function(aba) {
+    window._mnPrevSubAba = aba;
+    ['plano','historico'].forEach(a => {
+        const btn = document.getElementById('mn-prev-sub-' + a);
+        if (btn) { btn.style.background = a===aba?'#0284c7':'transparent'; btn.style.color = a===aba?'#fff':'#64748b'; }
+    });
+    const c = document.getElementById('mn-prev-sub-conteudo');
+    if (!c) return;
+    if (aba === 'plano') mnPrevRenderPlano(c);
+    else mnPrevRenderHistorico(c);
+};
+
+function mnPrevRenderPlano(c) {
+    const frota = window._manutFrota || [];
+    const idsComPrev = new Set((window._manutDados||[]).filter(m => m.tipo==='preventiva').map(m => String(m.veiculo_id)));
+    const veicOpts = frota.map(v => `<option value="${v.id}">${v.placa} \u2014 ${(v.marca_modelo_versao||'').substring(0,28)}</option>`).join('');
+    c.innerHTML = `
     <div style="background:#fff;padding:1rem 1.25rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
         <label style="font-weight:700;color:#475569;font-size:0.9rem;">Veículo:</label>
         <select id="mn-prev-veiculo" onchange="window.mnCarregarPreventivoVeiculo()" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;min-width:240px;background:#fff;">
@@ -409,6 +438,125 @@ function mnRenderPreventivaTela(sub) {
     </div>
     <div id="mn-prev-plano"><div style="padding:3rem;text-align:center;color:#94a3b8;">Selecione um ve\u00edculo para ver o plano preventivo.</div></div>`;
 }
+
+async function mnPrevRenderHistorico(c) {
+    const frota = window._manutFrota || [];
+    const veicOpts = frota.map(v => `<option value="${v.id}">${v.placa}</option>`).join('');
+    c.innerHTML = `
+    <!-- Filtros -->
+    <div style="background:#fff;padding:0.75rem 1rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <i class="ph ph-funnel" style="color:#0284c7;"></i>
+        <select id="mn-prevhist-veiculo" onchange="window.mnCarregarPrevHist()" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;outline:none;background:#fff;">
+            <option value="">Todos os Veículos</option>${veicOpts}
+        </select>
+        <select id="mn-prevhist-status" onchange="window.mnCarregarPrevHist()" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;outline:none;background:#fff;">
+            <option value="">Todos Status</option>
+            <option value="agendada">Agendada</option>
+            <option value="em_andamento">Em Andamento</option>
+            <option value="concluida">Concluída</option>
+            <option value="cancelada">Cancelada</option>
+        </select>
+        <button onclick="window.mnCarregarPrevHist()" style="padding:6px 12px;background:#0284c7;color:#fff;border:none;border-radius:8px;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:4px;">
+            <i class="ph ph-arrows-clockwise"></i> Atualizar
+        </button>
+        <span id="mn-prevhist-count" style="margin-left:auto;font-size:0.8rem;color:#94a3b8;"></span>
+    </div>
+    <!-- Tabela -->
+    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+        <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+            <thead><tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">
+                <th style="padding:10px 12px;text-align:left;color:#475569;font-weight:700;">Placa</th>
+                <th style="padding:10px 12px;text-align:left;color:#475569;font-weight:700;">Serviço</th>
+                <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">Status</th>
+                <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">Data Agend.</th>
+                <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">KM Realizado</th>
+                <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">KM Próxima</th>
+                <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">KM Restante</th>
+                <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">Ações</th>
+            </tr></thead>
+            <tbody id="mn-prevhist-tbody">
+                <tr><td colspan="8" style="padding:2rem;text-align:center;color:#94a3b8;"><i class="ph ph-circle-notch ph-spin" style="font-size:1.5rem;"></i></td></tr>
+            </tbody>
+        </table>
+        </div>
+    </div>`;
+    window.mnCarregarPrevHist();
+}
+
+window.mnCarregarPrevHist = async function() {
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    const fV = document.getElementById('mn-prevhist-veiculo')?.value || '';
+    const fS = document.getElementById('mn-prevhist-status')?.value || '';
+
+    let url = '/api/frota/manutencoes/historico';
+    try {
+        const r = await fetch(url, { headers: { Authorization: 'Bearer ' + tok } });
+        let lista = (await r.json()) || [];
+        lista = lista.filter(m => m.tipo === 'preventiva' || !m.tipo);
+        if (fV) lista = lista.filter(m => String(m.veiculo_id) === fV);
+        if (fS) lista = lista.filter(m => m.status === fS);
+        mnRenderPrevHistDados(lista);
+    } catch(e) {
+        const tbody = document.getElementById('mn-prevhist-tbody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="padding:1.5rem;text-align:center;color:#dc2626;">Erro ao carregar.</td></tr>';
+    }
+};
+
+function mnRenderPrevHistDados(lista) {
+    const count = document.getElementById('mn-prevhist-count');
+    if (count) count.textContent = lista.length + ' registro' + (lista.length !== 1 ? 's' : '');
+
+    const tbody = document.getElementById('mn-prevhist-tbody');
+    if (!tbody) return;
+
+    if (!lista.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="padding:2.5rem;text-align:center;color:#94a3b8;"><i class="ph ph-calendar-check" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Nenhuma manutenção preventiva encontrada.</td></tr>';
+        return;
+    }
+
+    const statusCor = { agendada:'#2563eb', em_andamento:'#d97706', concluida:'#10b981', cancelada:'#94a3b8', programada:'#7c3aed' };
+    const statusLbl = { agendada:'Agendada', em_andamento:'Em Andamento', concluida:'Concluída', cancelada:'Cancelada', programada:'Programada' };
+    const fmtD = d => { if (!d) return '—'; const p = d.split('T')[0].split('-'); return `${p[2]}/${p[1]}/${p[0].slice(2)}`; };
+
+    tbody.innerHTML = lista.map((m, i) => {
+        const bgRow = i % 2 === 0 ? '#fff' : '#fafafa';
+        const sKey = m.status || 'concluida';
+        const statusBadge = `<span style="background:${statusCor[sKey]||'#94a3b8'}22;color:${statusCor[sKey]||'#94a3b8'};padding:2px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">${statusLbl[sKey]||sKey}</span>`;
+
+        const kmAtualVeic = (window._manutFrota||[]).find(v => v.id == m.veiculo_id)?.km_atual || 0;
+        const kmProx = m.km_proxima_manutencao;
+        let kmRestHtml = '—';
+        if (kmProx && kmAtualVeic) {
+            const rest = kmProx - kmAtualVeic;
+            const cor = rest <= 0 ? '#dc2626' : rest <= 1000 ? '#d97706' : '#10b981';
+            kmRestHtml = `<span style="color:${cor};font-weight:700;">${rest <= 0 ? 'Vencida há ' + Math.abs(rest).toLocaleString('pt-BR') : 'Restam ' + rest.toLocaleString('pt-BR')} km</span>`;
+        }
+
+        let acoes = '';
+        if (sKey === 'agendada' || sKey === 'programada') {
+            acoes += `<button onclick="window.mnCorrAcao(${m.id},'em_andamento')" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:0.72rem;cursor:pointer;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-play"></i> Iniciar</button> `;
+        }
+        if (sKey === 'em_andamento') {
+            acoes += `<button onclick="window.mnCorrConcluir(${m.id})" style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:0.72rem;cursor:pointer;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-check"></i> Concluir</button> `;
+        }
+        acoes += `<button onclick="window.abrirModalManutencao(${m.id})" style="background:#2563eb18;color:#2563eb;border:1px solid #2563eb40;border-radius:6px;padding:3px 6px;font-size:0.72rem;cursor:pointer;display:inline-flex;align-items:center;"><i class="ph ph-pencil"></i></button>`;
+
+        return `<tr style="background:${bgRow};border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background='${bgRow}'">
+            <td style="padding:10px 12px;font-weight:700;color:#1e293b;white-space:nowrap;">${m.placa||'—'}</td>
+            <td style="padding:10px 12px;max-width:200px;"><span title="${(m.descricao||'').replace(/"/g,'&quot;')}" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${m.descricao||'—'}</span></td>
+            <td style="padding:10px 12px;text-align:center;">${statusBadge}</td>
+            <td style="padding:10px 12px;text-align:center;color:#64748b;">${fmtD(m.data_agendamento)}</td>
+            <td style="padding:10px 12px;text-align:center;color:#475569;font-weight:600;">${m.km_na_manutencao ? Number(m.km_na_manutencao).toLocaleString('pt-BR')+' km' : '—'}</td>
+            <td style="padding:10px 12px;text-align:center;color:#0284c7;font-weight:600;">${kmProx ? Number(kmProx).toLocaleString('pt-BR')+' km' : '—'}</td>
+            <td style="padding:10px 12px;text-align:center;">${kmRestHtml}</td>
+            <td style="padding:10px 12px;text-align:center;">
+                <div style="display:flex;gap:4px;align-items:center;justify-content:center;flex-wrap:wrap;">${acoes}</div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
 
 window.mnCarregarPreventivoVeiculo = async function() {
     const vid = document.getElementById('mn-prev-veiculo')?.value;
@@ -595,7 +743,6 @@ window.abrirModalManutencaoPreventiva = function(servicoId, nome, tipoControle, 
     window.abrirModalManutencao(null, { tipo: 'preventiva', servico_catalogo_id: servicoId, descricao: nome, tipoControle, vid });
 };
 
-
 window.mnSalvarKmPreventivo = async function() {
     const vid = document.getElementById('mn-prev-veiculo')?.value;
     const km = document.getElementById('mn-prev-km')?.value;
@@ -617,69 +764,6 @@ window.mnSalvarKmPreventivo = async function() {
 function mnRenderCorretivaTela(sub) {
     const frota = window._manutFrota || [];
     const veicOpts = frota.map(v => `<option value="${v.id}">${v.placa}</option>`).join('');
-    const statusCor = {agendada:'#2563eb',em_andamento:'#dc2626',concluida:'#2d9e5f',cancelada:'#94a3b8'};
-    const statusLbl = {agendada:'Agendada',em_andamento:'Em Andamento',concluida:'Concluída',cancelada:'Cancelada'};
-    const rows = (window._manutDados||[]).filter(m => m.tipo==='corretiva');
-    const makeRow = m => `<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-        <td style="padding:0.7rem 1rem;font-weight:700;">${m.placa||'—'}</td>
-        <td style="padding:0.7rem 1rem;max-width:200px;">${m.descricao||'—'}</td>
-        <td style="padding:0.7rem 1rem;text-align:center;"><span style="background:${statusCor[m.status]||'#94a3b8'}22;color:${statusCor[m.status]||'#94a3b8'};padding:2px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;">${statusLbl[m.status]||m.status}</span></td>
-        <td style="padding:0.7rem 1rem;text-align:center;color:#64748b;">${m.data_agendamento||m.data_conclusao||'—'}</td>
-        <td style="padding:0.7rem 1rem;text-align:center;color:#64748b;">${m.fornecedor||'—'}</td>
-        <td style="padding:0.7rem 1rem;text-align:center;color:#64748b;">${m.custo?'R$ '+Number(m.custo).toFixed(2).replace('.',','):'—'}</td>
-        <td style="padding:0.7rem 1rem;text-align:center;display:flex;gap:4px;">
-            <button onclick="window.abrirModalManutencao(${m.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-pencil"></i></button>
-            <button onclick="window.excluirManutencao(${m.id})" style="background:#dc2626;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-trash"></i></button>
-        </td>
-    </tr>`;
-    sub.innerHTML = `<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
-        <div style="background:#f8fafc;padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px;"><i class="ph ph-wrench" style="color:#d97706;"></i> Manutenções Corretivas</span>
-            <div style="display:flex;gap:8px;">
-                <select id="mn-corr-veiculo" onchange="window.mnFiltrarCorretiva()" style="padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;outline:none;background:#fff;"><option value="">Todos os Veículos</option>${veicOpts}</select>
-                <select id="mn-corr-status" onchange="window.mnFiltrarCorretiva()" style="padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;outline:none;background:#fff;">
-                    <option value="">Todos Status</option><option value="agendada">Agendada</option><option value="em_andamento">Em Andamento</option><option value="concluida">Concluída</option><option value="cancelada">Cancelada</option>
-                </select>
-            </div>
-        </div>
-        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
-            <thead><tr style="background:#f1f5f9;">
-                <th style="padding:0.6rem 1rem;text-align:left;color:#64748b;">Placa</th>
-                <th style="padding:0.6rem 1rem;text-align:left;color:#64748b;">Descrição</th>
-                <th style="padding:0.6rem 1rem;text-align:center;color:#64748b;">Status</th>
-                <th style="padding:0.6rem 1rem;text-align:center;color:#64748b;">Data</th>
-                <th style="padding:0.6rem 1rem;text-align:center;color:#64748b;">Fornecedor</th>
-                <th style="padding:0.6rem 1rem;text-align:center;color:#64748b;">Custo</th>
-                <th style="padding:0.6rem 1rem;"></th>
-            </tr></thead>
-            <tbody id="mn-corr-tbody">${rows.length ? rows.map(makeRow).join('') : '<tr><td colspan="7" style="padding:2rem;text-align:center;color:#94a3b8;">Nenhuma manutenção corretiva registrada.</td></tr>'}</tbody>
-        </table></div>
-    </div>`;
-}
-
-window.mnFiltrarCorretiva = function() {
-    const fV = document.getElementById('mn-corr-veiculo')?.value||'';
-    const fS = document.getElementById('mn-corr-status')?.value||'';
-    let rows = (window._manutDados||[]).filter(m=>m.tipo==='corretiva');
-    if (fV) rows = rows.filter(m=>String(m.veiculo_id)===fV);
-    if (fS) rows = rows.filter(m=>m.status===fS);
-    const tbody = document.getElementById('mn-corr-tbody');
-    if (!tbody) return;
-    const statusCor={agendada:'#2563eb',em_andamento:'#dc2626',concluida:'#2d9e5f',cancelada:'#94a3b8'};
-    const statusLbl={agendada:'Agendada',em_andamento:'Em Andamento',concluida:'Concluída',cancelada:'Cancelada'};
-    tbody.innerHTML = rows.length ? rows.map(m=>`<tr style="border-bottom:1px solid #f1f5f9;">
-        <td style="padding:0.7rem 1rem;font-weight:700;">${m.placa||'—'}</td>
-        <td style="padding:0.7rem 1rem;">${m.descricao||'—'}</td>
-        <td style="padding:0.7rem 1rem;text-align:center;"><span style="background:${statusCor[m.status]||'#94a3b8'}22;color:${statusCor[m.status]||'#94a3b8'};padding:2px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;">${statusLbl[m.status]||m.status}</span></td>
-        <td style="padding:0.7rem 1rem;text-align:center;color:#64748b;">${m.data_agendamento||m.data_conclusao||'—'}</td>
-        <td style="padding:0.7rem 1rem;text-align:center;color:#64748b;">${m.fornecedor||'—'}</td>
-        <td style="padding:0.7rem 1rem;text-align:center;color:#64748b;">${m.custo?'R$ '+Number(m.custo).toFixed(2).replace('.',','):'—'}</td>
-        <td style="padding:0.7rem 1rem;display:flex;gap:4px;">
-            <button onclick="window.abrirModalManutencao(${m.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-pencil"></i></button>
-            <button onclick="window.excluirManutencao(${m.id})" style="background:#dc2626;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-trash"></i></button>
-        </td>
-    </tr>`).join('') : '<tr><td colspan="7" style="padding:2rem;text-align:center;color:#94a3b8;">Nenhuma encontrada.</td></tr>';
-};
 
 async function mnCarregarPreventivo(vid, tok) {
 

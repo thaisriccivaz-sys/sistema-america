@@ -316,7 +316,7 @@ function renderCardsFrota() {
                 ${v.tipo_veiculo||'VEÍCULO'}
             </div>
             <div style="display:flex;gap:4px;">
-                <button onclick="window.toggleManutencaoFrota(${v.id}, ${emManutencao ? 0 : 1})" style="background:${emManutencao ? '#64748b' : '#94a3b8'};color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="${emManutencao ? 'Retirar da Manutenção' : 'Colocar em Manutenção'}"><i class="ph ph-wrench"></i></button>
+                <button onclick="window.abrirPopupManutencaoCard(${v.id}, ${emManutencao ? 1 : 0})" style="background:${emManutencao ? '#dc2626' : '#94a3b8'};color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="${emManutencao ? 'Ver / Retirar da Manutenção' : 'Registrar Manutenção'}"><i class="ph ph-wrench"></i></button>
                 ${v.crlv_filename ? `<button onclick="window.visualizarCRLV(${v.id})" style="background:#0891b2;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Visualizar CRLV"><i class="ph ph-file-pdf"></i></button>` : `<button disabled style="background:#e2e8f0;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:not-allowed;" title="Sem CRLV"><i class="ph ph-file-pdf"></i></button>`}
                 <button onclick="window.abrirModalFrota(${v.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Editar"><i class="ph ph-pencil"></i></button>
                 <button onclick="window.excluirVeiculoFrota(${v.id},'${v.placa}')" style="background:#dc2626;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Excluir"><i class="ph ph-trash"></i></button>
@@ -326,6 +326,198 @@ function renderCardsFrota() {
     `;
   }).join('');
 }
+
+
+// ── Popup de Manutenção no Card do Veículo ─────────────────────────────────
+window.abrirPopupManutencaoCard = async function(vid, emManutencao) {
+    // Se já está em manutenção, oferecer retirar
+    if (emManutencao) {
+        if (!confirm('Este veículo está em manutenção. Deseja retirar da manutenção?')) return;
+        try {
+            const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+            await fetch(`/api/frota/veiculos/${vid}/toggle-manutencao`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ status: 0 })
+            });
+            mostrarToastAviso('✅ Veículo retirado da manutenção!');
+            window.initFrotaVeiculos();
+        } catch(e) { mostrarToastAviso('❌ Erro: ' + e.message); }
+        return;
+    }
+
+    const v = (window._frotaDados||[]).find(x => x.id === vid);
+    if (!v) return;
+
+    const tok = window.currentToken || localStorage.getItem('token') || localStorage.getItem('erp_token');
+
+    // Buscar serviços preventivos do veículo
+    let servicosPreventivos = [];
+    try {
+        const r = await fetch(`/api/frota/manutencoes/preventivo/${vid}`, { headers: { Authorization: 'Bearer ' + tok } });
+        const d = await r.json();
+        servicosPreventivos = Object.values(d.grupos || {}).flatMap(g => g.itens || []);
+    } catch(e) {}
+
+    // Montar lista de checkboxes preventivos
+    const servicosHtml = servicosPreventivos.length
+        ? servicosPreventivos.map(s => `
+            <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;border:1px solid #e2e8f0;background:#fafafa;margin-bottom:4px;" id="mn-card-svc-lbl-${s.servico_catalogo_id||s.id}">
+                <input type="checkbox" value="${s.servico_catalogo_id||s.id}" data-nome="${(s.nome||s.descricao||'').replace(/"/g,'&quot;')}" class="mn-card-svc-cb"
+                    style="width:15px;height:15px;cursor:pointer;"
+                    onchange="this.closest('label').style.background=this.checked?'#eff6ff':'#fafafa';this.closest('label').style.borderColor=this.checked?'#3b82f6':'#e2e8f0'">
+                <span style="font-size:0.83rem;color:#1e293b;">${s.nome||s.descricao||'—'}</span>
+                <span style="margin-left:auto;font-size:0.72rem;color:${(s.status_item==='vencida')?'#dc2626':(s.status_item==='proxima')?'#d97706':'#10b981'};">
+                    ${s.status_item==='vencida'?'⚠️ Vencida':(s.status_item==='proxima')?'🔶 Próxima':'✅ OK'}
+                </span>
+            </label>`).join('')
+        : '<p style="color:#94a3b8;text-align:center;font-size:0.85rem;margin:8px 0;">Nenhum serviço preventivo cadastrado para este veículo.</p>';
+
+    // Criar overlay/modal
+    let popup = document.getElementById('mn-card-popup');
+    if (popup) popup.remove();
+    popup = document.createElement('div');
+    popup.id = 'mn-card-popup';
+    popup.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+    popup.innerHTML = `
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,0.25);">
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#1e293b,#334155);padding:18px 22px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:12px;">
+            <div style="background:#d97706;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="ph ph-wrench" style="color:#fff;font-size:1.3rem;"></i>
+            </div>
+            <div>
+                <div style="color:#fff;font-weight:700;font-size:1rem;">Registrar Manutenção</div>
+                <div style="color:rgba(255,255,255,0.65);font-size:0.8rem;">${v.placa} — ${(v.marca_modelo_versao||'').substring(0,30)}</div>
+            </div>
+            <button onclick="document.getElementById('mn-card-popup').remove()" style="margin-left:auto;background:rgba(255,255,255,0.12);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div style="padding:20px 22px;">
+            <!-- Tipo de manutenção -->
+            <div style="margin-bottom:18px;">
+                <p style="font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px;">Tipo de Manutenção</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <button id="mn-card-tipo-prev" onclick="window._mnCardSelecionarTipo('preventiva')"
+                        style="padding:14px 10px;border:2px solid #e2e8f0;border-radius:10px;background:#f8fafc;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:.15s;">
+                        <i class="ph ph-calendar-check" style="font-size:1.8rem;color:#0284c7;"></i>
+                        <span style="font-size:0.85rem;font-weight:700;color:#1e293b;">Preventiva</span>
+                        <span style="font-size:0.72rem;color:#64748b;text-align:center;">Serviços planejados</span>
+                    </button>
+                    <button id="mn-card-tipo-corr" onclick="window._mnCardSelecionarTipo('corretiva')"
+                        style="padding:14px 10px;border:2px solid #e2e8f0;border-radius:10px;background:#f8fafc;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:.15s;">
+                        <i class="ph ph-warning" style="font-size:1.8rem;color:#dc2626;"></i>
+                        <span style="font-size:0.85rem;font-weight:700;color:#1e293b;">Corretiva</span>
+                        <span style="font-size:0.72rem;color:#64748b;text-align:center;">Defeito / problema</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Data de início -->
+            <div style="margin-bottom:18px;">
+                <label style="font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">
+                    <i class="ph ph-calendar" style="margin-right:4px;"></i>Data de Início
+                </label>
+                <input type="date" id="mn-card-data" value="${new Date().toISOString().split('T')[0]}"
+                    style="width:100%;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+            </div>
+
+            <!-- Seção Corretiva: descrição do defeito -->
+            <div id="mn-card-sec-corretiva" style="display:none;margin-bottom:18px;">
+                <label style="font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">
+                    <i class="ph ph-note-pencil" style="margin-right:4px;color:#dc2626;"></i>Descrição do Defeito
+                </label>
+                <textarea id="mn-card-defeito" rows="3" placeholder="Descreva o problema / defeito apresentado pelo veículo..."
+                    style="width:100%;padding:10px 12px;border:1.5px solid #fca5a5;border-radius:8px;font-size:0.9rem;outline:none;resize:vertical;box-sizing:border-box;font-family:inherit;background:#fff5f5;"></textarea>
+            </div>
+
+            <!-- Seção Preventiva: lista de serviços -->
+            <div id="mn-card-sec-preventiva" style="display:none;margin-bottom:18px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                    <label style="font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">
+                        <i class="ph ph-list-checks" style="margin-right:4px;color:#0284c7;"></i>Serviços a Realizar
+                    </label>
+                    <button onclick="document.querySelectorAll('.mn-card-svc-cb').forEach(cb=>{cb.checked=true;cb.closest('label').style.background='#eff6ff';cb.closest('label').style.borderColor='#3b82f6';})"
+                        style="background:none;border:none;color:#0284c7;font-size:0.78rem;cursor:pointer;font-weight:600;">Selecionar todos</button>
+                </div>
+                <div style="max-height:240px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px;">
+                    ${servicosHtml}
+                </div>
+            </div>
+
+            <!-- Aviso: escolha um tipo -->
+            <div id="mn-card-aviso-tipo" style="text-align:center;padding:16px;background:#f8fafc;border-radius:10px;color:#94a3b8;font-size:0.85rem;margin-bottom:8px;">
+                <i class="ph ph-arrow-up" style="display:block;font-size:1.5rem;margin-bottom:4px;"></i>
+                Selecione o tipo de manutenção acima
+            </div>
+
+            <!-- Botões de ação -->
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
+                <button onclick="document.getElementById('mn-card-popup').remove()"
+                    style="padding:10px 20px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;font-size:0.9rem;">
+                    Cancelar
+                </button>
+                <button id="mn-card-btn-confirmar" onclick="window._mnCardConfirmar(${vid})"
+                    style="padding:10px 22px;border:none;border-radius:8px;background:#d97706;color:#fff;cursor:pointer;font-weight:700;font-size:0.9rem;display:flex;align-items:center;gap:6px;opacity:0.5;pointer-events:none;">
+                    <i class="ph ph-check"></i> Confirmar
+                </button>
+            </div>
+        </div>
+    </div>`;
+    document.body.appendChild(popup);
+    popup.addEventListener('click', e => { if (e.target === popup) popup.remove(); });
+};
+
+window._mnCardSelecionarTipo = function(tipo) {
+    const btnPrev = document.getElementById('mn-card-tipo-prev');
+    const btnCorr = document.getElementById('mn-card-tipo-corr');
+    const secPrev = document.getElementById('mn-card-sec-preventiva');
+    const secCorr = document.getElementById('mn-card-sec-corretiva');
+    const aviso = document.getElementById('mn-card-aviso-tipo');
+    const btnConf = document.getElementById('mn-card-btn-confirmar');
+    window._mnCardTipoAtual = tipo;
+
+    if (btnPrev) { btnPrev.style.borderColor = tipo==='preventiva'?'#0284c7':'#e2e8f0'; btnPrev.style.background = tipo==='preventiva'?'#eff6ff':'#f8fafc'; }
+    if (btnCorr) { btnCorr.style.borderColor = tipo==='corretiva'?'#dc2626':'#e2e8f0'; btnCorr.style.background = tipo==='corretiva'?'#fff5f5':'#f8fafc'; }
+    if (secPrev) secPrev.style.display = tipo==='preventiva'?'block':'none';
+    if (secCorr) secCorr.style.display = tipo==='corretiva'?'block':'none';
+    if (aviso) aviso.style.display = 'none';
+    if (btnConf) { btnConf.style.opacity='1'; btnConf.style.pointerEvents='auto'; }
+};
+
+window._mnCardConfirmar = async function(vid) {
+    const tipo = window._mnCardTipoAtual;
+    if (!tipo) return;
+    const data = document.getElementById('mn-card-data')?.value;
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+    const btn = document.getElementById('mn-card-btn-confirmar');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Salvando...'; }
+
+    try {
+        let body = { veiculo_id: vid, tipo, data_inicio: data || null };
+        if (tipo === 'corretiva') {
+            body.descricao_corretiva = document.getElementById('mn-card-defeito')?.value?.trim() || 'Manutenção Corretiva';
+        } else {
+            const cbs = [...document.querySelectorAll('.mn-card-svc-cb:checked')];
+            body.servicos_preventivos = cbs.map(cb => ({ id: parseInt(cb.value), nome: cb.dataset.nome || 'Preventiva' }));
+        }
+        const r = await fetch('/api/frota/manutencoes/agendar-card', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+            body: JSON.stringify(body)
+        });
+        if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Erro'); }
+        document.getElementById('mn-card-popup')?.remove();
+        mostrarToastAviso(`✅ Manutenção ${tipo} agendada com sucesso!`);
+        window.initFrotaVeiculos();
+    } catch(e) {
+        mostrarToastAviso('❌ Erro: ' + e.message);
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check"></i> Confirmar'; }
+    }
+};
 
 window.toggleManutencaoFrota = async function(vid, novoStatus) {
     if (!confirm(`Deseja ${novoStatus ? 'colocar este veículo em manutenção' : 'retirar este veículo da manutenção'}?`)) return;
@@ -346,6 +538,7 @@ window.toggleManutencaoFrota = async function(vid, novoStatus) {
         mostrarToastAviso('❌ Erro: ' + e.message);
     }
 }
+
 
 window.salvarKmCard = async function(vid) {
     const inp = document.getElementById('km-card-' + vid);

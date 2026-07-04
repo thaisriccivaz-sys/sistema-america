@@ -75,6 +75,9 @@ function renderFrotaResumo() {
         </div>
       </div>
 
+      <!-- BANNER MANUTENÇÃO -->
+      <div id="frota-banner-manutencao" style="display:none;margin-bottom:1rem;"></div>
+
       <!-- STATS BAR -->
       <div id="frota-stats" style="display:none; gap:12px; margin-bottom:1.5rem; flex-wrap:wrap;"></div>
 
@@ -87,8 +90,44 @@ function renderFrotaResumo() {
       </div>
     </div>`;
 
+    // Carregar banner de manutenção assincronamente
+    _carregarBannerManutencao();
+
     // Auto-busca desabilitada aqui - use o botão Buscar
 }
+
+async function _carregarBannerManutencao() {
+    const banner = document.getElementById('frota-banner-manutencao');
+    if (!banner) return;
+    try {
+        const tok = window.currentToken || localStorage.getItem('token') || localStorage.getItem('erp_token');
+        const r = await fetch('/api/frota/veiculos/em-manutencao', { headers: { Authorization: 'Bearer ' + tok } });
+        const lista = await r.json();
+        if (!Array.isArray(lista) || !lista.length) { banner.style.display = 'none'; return; }
+
+        banner.style.display = 'block';
+        banner.innerHTML = `
+        <div style="background:linear-gradient(135deg,#7f1d1d,#dc2626);border-radius:14px;padding:14px 18px;box-shadow:0 4px 16px rgba(220,38,38,0.25);">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                <i class="ph ph-warning" style="color:#fbbf24;font-size:1.4rem;flex-shrink:0;"></i>
+                <span style="color:#fff;font-weight:800;font-size:0.95rem;">⚠️ Veículos em Manutenção — ${lista.length} veículo${lista.length!==1?'s':''} indisponível${lista.length!==1?'s':''}</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                ${lista.map(v => {
+                    const tipoIcon = v.tipo_manutencao === 'corretiva' ? '🔧' : '🗓️';
+                    const diasText = v.dias_parado > 0 ? ` · ${v.dias_parado} dia${v.dias_parado!==1?'s':''} parado` : '';
+                    const statusLbl = { agendada: 'Agendada', em_andamento: 'Em Andamento' };
+                    return `<div style="background:rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;border:1px solid rgba(255,255,255,0.15);" title="${v.motivo||''}">
+                        <span style="font-weight:800;color:#fff;font-size:0.88rem;">${tipoIcon} ${v.placa}</span>
+                        <span style="font-size:0.75rem;color:rgba(255,255,255,0.75);">${(v.marca_modelo_versao||'').substring(0,20)}</span>
+                        <span style="background:rgba(255,255,255,0.2);color:#fff;border-radius:20px;padding:1px 8px;font-size:0.7rem;font-weight:700;">${statusLbl[v.status_manutencao]||v.status_manutencao||'—'}${diasText}</span>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>`;
+    } catch(e) { console.warn('Banner manutenção:', e); }
+}
+
 
 let __frotaDados = {}; // cache global para exportação
 

@@ -14427,6 +14427,157 @@ app.put('/api/frota/veiculos/:id/toggle-manutencao', authenticateToken, (req, re
     });
 });
 
+
+// GET - veículos em manutenção (para banner de aviso no resumo de rota)
+app.get('/api/frota/veiculos/em-manutencao', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT fv.id, fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.em_manutencao,
+               fm.descricao as motivo, fm.tipo as tipo_manutencao,
+               fm.data_inicio, fm.status as status_manutencao,
+               CASE
+                   WHEN fm.data_inicio IS NOT NULL THEN
+                       CAST((julianday('now') - julianday(fm.data_inicio)) AS INTEGER)
+                   ELSE 0
+               END as dias_parado
+        FROM frota_veiculos fv
+        LEFT JOIN frota_manutencoes fm ON fm.veiculo_id = fv.id
+            AND fm.status IN ('agendada','em_andamento')
+            AND fm.id = (SELECT id FROM frota_manutencoes fm2
+                         WHERE fm2.veiculo_id = fv.id
+                           AND fm2.status IN ('agendada','em_andamento')
+                         ORDER BY fm2.created_at DESC LIMIT 1)
+        WHERE fv.em_manutencao = 1
+        ORDER BY dias_parado DESC, fv.placa ASC
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// POST - agendar manutenção diretamente do card do veículo (popup)
+app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, res) => {
+    const { veiculo_id, tipo, data_inicio, descricao_corretiva, servicos_preventivos } = req.body;
+    if (!veiculo_id || !tipo) return res.status(400).json({ error: 'veiculo_id e tipo são obrigatórios' });
+    const usuarioNome = req.user?.username || req.user?.nome || 'Sistema';
+    const now = new Date().toISOString();
+
+    try {
+        if (tipo === 'corretiva') {
+            // Registra 1 manutenção corretiva
+            await new Promise((resolve, reject) => {
+                db.run(
+                    `INSERT INTO frota_manutencoes
+                     (veiculo_id, tipo, descricao, status, data_agendamento, data_inicio, usuario_nome, created_at, updated_at)
+                     VALUES (?, 'corretiva', ?, 'agendada', ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                    [veiculo_id, descricao_corretiva || 'Manutenção Corretiva', data_inicio || null, data_inicio || null, usuarioNome],
+                    function(err) { err ? reject(err) : resolve(this.lastID); }
+                );
+            });
+        } else {
+            // Registra manutenções preventivas (uma por serviço selecionado)
+            const servicos = Array.isArray(servicos_preventivos) ? servicos_preventivos : [];
+            for (const s of servicos) {
+                await new Promise((resolve, reject) => {
+                    db.run(
+                        `INSERT INTO frota_manutencoes
+                         (veiculo_id, tipo, descricao, status, data_agendamento, data_inicio, servico_catalogo_id, usuario_nome, created_at, updated_at)
+                         VALUES (?, 'preventiva', ?, 'agendada', ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                        [veiculo_id, s.nome || 'Preventiva', data_inicio || null, data_inicio || null, s.id || null, usuarioNome],
+                        function(err) { err ? reject(err) : resolve(this.lastID); }
+                    );
+                });
+            }
+        }
+        // Marca veículo em manutenção
+        await new Promise((resolve, reject) => {
+            db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                [veiculo_id], err => err ? reject(err) : resolve());
+        });
+        res.json({ ok: true, message: 'Manutenção agendada com sucesso' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// GET - listar manutenções corretivas com dias parado calculado
+app.get('/api/frota/manutencoes/corretivas', authenticateToken, (req, res) => {
+    const { status, veiculo_id } = req.query;
+    let sql = `
+        SELECT fm.*, fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo,
+               CASE
+                   WHEN fm.data_inicio IS NOT NULL AND fm.status NOT IN ('concluida','cancelada') THEN
+                       CAST((julianday('now') - julianday(fm.data_inicio)) AS INTEGER)
+                   WHEN fm.data_inicio IS NOT NULL AND fm.status IN ('concluida','cancelada') AND fm.data_conclusao IS NOT NULL THEN
+                       CAST((julianday(fm.data_conclusao) - julianday(fm.data_inicio)) AS INTEGER)
+                   ELSE 0
+               END as dias_parado
+        FROM frota_manutencoes fm
+        LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id
+        WHERE fm.tipo = 'corretiva'
+    `;
+    const params = [];
+    if (status) { sql += ' AND fm.status = ?'; params.push(status); }
+    if (veiculo_id) { sql += ' AND fm.veiculo_id = ?'; params.push(veiculo_id); }
+    sql += ' ORDER BY CASE fm.status WHEN \'em_andamento\' THEN 1 WHEN \'agendada\' THEN 2 WHEN \'concluida\' THEN 3 ELSE 4 END, fm.created_at DESC';
+    db.all(sql, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// PUT - atualizar status de manutenção corretiva (iniciar / concluir / cancelar)
+app.put('/api/frota/manutencoes/:id/status', authenticateToken, (req, res) => {
+    const { status, km_na_manutencao, custo, fornecedor, observacoes } = req.body;
+    const statusValidos = ['agendada', 'em_andamento', 'concluida', 'cancelada'];
+    if (!statusValidos.includes(status)) return res.status(400).json({ error: 'Status inválido' });
+
+    const now = new Date().toISOString().split('T')[0];
+    let fields = ['status=?', 'updated_at=CURRENT_TIMESTAMP'];
+    const params = [status];
+
+    if (status === 'em_andamento' && !req.body.data_inicio) {
+        fields.push('data_inicio=?'); params.push(now);
+    }
+    if (status === 'concluida') {
+        fields.push('data_conclusao=?'); params.push(now);
+        if (km_na_manutencao) { fields.push('km_na_manutencao=?'); params.push(km_na_manutencao); }
+        if (custo != null) { fields.push('custo=?'); params.push(custo); }
+        if (fornecedor) { fields.push('fornecedor=?'); params.push(fornecedor); }
+        if (observacoes) { fields.push('observacoes=?'); params.push(observacoes); }
+    }
+    params.push(req.params.id);
+
+    db.run(`UPDATE frota_manutencoes SET ${fields.join(',')} WHERE id=?`, params, function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        // Se concluída ou cancelada, verificar se o veículo ainda tem manutenções ativas
+        if (status === 'concluida' || status === 'cancelada') {
+            db.get(
+                `SELECT fm.veiculo_id FROM frota_manutencoes fm WHERE fm.id=?`, [req.params.id],
+                (e2, row) => {
+                    if (!row) return res.json({ ok: true });
+                    db.get(
+                        `SELECT COUNT(*) as n FROM frota_manutencoes WHERE veiculo_id=? AND status IN ('agendada','em_andamento')`,
+                        [row.veiculo_id], (e3, cnt) => {
+                            if ((cnt?.n || 0) === 0) {
+                                db.run('UPDATE frota_veiculos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.veiculo_id]);
+                            }
+                            res.json({ ok: true });
+                        }
+                    );
+                }
+            );
+        } else {
+            if (status === 'em_andamento') {
+                db.get('SELECT veiculo_id FROM frota_manutencoes WHERE id=?', [req.params.id], (e2, row) => {
+                    if (row) db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.veiculo_id]);
+                });
+            }
+            res.json({ ok: true });
+        }
+    });
+});
+
+
 // DELETE - excluir veículo
 app.delete('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM frota_veiculos WHERE id = ?', [req.params.id], function (err) {
