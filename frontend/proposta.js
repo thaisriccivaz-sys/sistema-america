@@ -4996,6 +4996,10 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                         Clientes - Endereços Entrega
                     </div>
 
+                    <!-- Estatísticas de Regiões e Quilometragem (Centro) -->
+                    <div id="modal-enderecos-estatisticas" style="display:flex; gap:0.5rem; align-items:center; font-family:'Inter', sans-serif; font-size:0.72rem; color:#475569; font-weight:600; flex:1; justify-content:center; flex-wrap:wrap; margin:0 1rem;">
+                    </div>
+
                     <!-- Botões de Ação (Lado Direito) -->
                     <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
                         <button type="button" onclick="window.modalCarregarEnderecos(window._modalSelectedClienteId)" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:38px; height:38px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
@@ -5179,6 +5183,11 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
 window.modalRenderEnderecos = function() {
     const tbody = document.getElementById('modal-end-tbody');
     if (!tbody) return;
+
+    // Refresh route statistics
+    if (typeof window.atualizarEstatisticasModal === 'function') {
+        window.atualizarEstatisticasModal();
+    }
 
     if (!window._modalEnderecos || window._modalEnderecos.length === 0) {
         tbody.innerHTML = `
@@ -6640,5 +6649,204 @@ window.classificarRegiaoEDiasDebounced = function() {
     classificarDebounceTimeout = setTimeout(() => {
         window.classificarRegiaoEDias();
     }, 800);
+};
+
+// local helper functions for route calculation and statistics
+window._enderecoCoordenadasCache = window._enderecoCoordenadasCache || {};
+window._geocodingQueue = window._geocodingQueue || {};
+
+function obterRegiaoLocal(enderecoCompleto) {
+    const e = enderecoCompleto.toLowerCase();
+    
+    // Heuristics mapping keywords to region (mirrors backend comprehensive database)
+    const lesteKw = ["leste", "itaquera", "penha", "tatuape", "tatuapé", "mooca", "moca", "itaim paulista", "sao miguel", "são miguel", "carrao", "carrão", "sapopemba", "mateo bei", "arthur alvim", "patriarca", "vila prudente", "zl", "aricanduva", "california", "califórnia", "belem", "belém", "bras", "brás", "cangaiba", "cangaíba", "cidade lider", "cidade líder", "tiradentes", "ermelino", "guaianases", "helena", "bonifacio", "bonifácio", "lajeado", "parque do carmo", "ponte rasa", "sao lucas", "são lucas", "mateus", "curuca", "curuça", "curuçá", "formosa", "jacui", "jacuí", "matilde", "pari", "agua rasa", "água rasa", "belenzinho", "artur alvim", "ermelino matarazzo", "parque novo mundo"];
+    
+    const oesteKw = ["oeste", "lapa", "pinheiros", "butanta", "butantã", "perdizes", "pompeia", "pompéia", "alto de pinheiros", "barra funda", "vila madalena", "jaguare", "jaguaré", "rio pequeno", "zo", "raposo tavares", "bonfiglioli", "osasco", "barueri", "carapicuiba", "carapicuíba", "itapevi", "jandira", "alphaville", "tambore", "tamboré", "cotia", "granja viana", "sonia", "sônia", "jardim paulista", "cerqueira cesar", "cerqueira césar", "vila sonia", "vila sônia"];
+    
+    const sulKw = ["sul", "santo amaro", "morumbi", "interlagos", "moema", "itaim bibi", "vila mariana", "saude", "saúde", "jabaquara", "brooklin", "campo belo", "grajau", "grajaú", "socorro", "capao redondo", "capão redondo", "zs", "ipiranga", "sacoma", "sacomã", "cursino", "cidade ademar", "pedreira", "parelheiros", "campo limpo", "vila olimpia", "vila olímpia", "chacara santo antonio", "chácara santo antônio", "andrade", "ibira", "ibirapuera", "aeroporto", "panamby", "chacara flora", "chácara flora"];
+    
+    const norteKw = ["norte", "santana", "tucuruvi", "casa verde", "limao", "limão", "freguesia", "freguesia do o", "freguesia do ó", "tremembe", "tremembé", "jaçanã", "jacana", "mandaqui", "vila maria", "vila guilherme", "zn", "cachoeirinha", "imbirim", "parada inglesa", "jardim sao paulo", "jardim são paulo", "brasilandia", "brasilândia", "anhanguera", "perus", "jaragua", "jaraguá", "pirituba", "medeiros", "vila medeiros"];
+    
+    const guarulhosKw = ["guarulhos", "gopouva", "cumbica", "pimentas", "macedo", "cecilia", "cecília", "gru", "bosque maia", "taboao", "taboão", "vila galvão", "vila galvao", "bonsucesso", "lavras", "soberana", "haras", "recreio", "parque cecap", "cecap"];
+
+    const classes = [
+        { name: "Zona Leste", keywords: lesteKw },
+        { name: "Zona Oeste", keywords: oesteKw },
+        { name: "Zona Sul", keywords: sulKw },
+        { name: "Zona Norte", keywords: norteKw },
+        { name: "Guarulhos", keywords: guarulhosKw }
+    ];
+
+    let maxScore = -1;
+    let regiao = 'Outra';
+    
+    classes.forEach(c => {
+        let score = 0;
+        c.keywords.forEach(kw => {
+            const regex = new RegExp(kw, 'gi');
+            const matches = e.match(regex);
+            if (matches) {
+                score += matches.length;
+            }
+        });
+        if (score > maxScore && score > 0) {
+            maxScore = score;
+            regiao = c.name;
+        }
+    });
+
+    return regiao;
+}
+
+function calcularDistanciaHaversine(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = R * c;
+    return d; // Distance in km
+}
+
+async function obterCoordenadasEnderecoAsync(enderecoCompleto) {
+    const key = enderecoCompleto.trim();
+    if (!key) return;
+    if (window._enderecoCoordenadasCache[key]) return;
+    if (window._geocodingQueue[key]) return;
+
+    window._geocodingQueue[key] = true;
+
+    try {
+        const query = encodeURIComponent(key);
+        const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${query}`;
+        
+        // Respect rate limit (1.2 seconds delay)
+        await new Promise(resolve => setTimeout(resolve, 1200));
+
+        const response = await fetch(url, {
+            headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'SistemaAmericaRental/1.0 (derek.oliveira@gmail.com)'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data && data.length > 0) {
+                window._enderecoCoordenadasCache[key] = {
+                    lat: parseFloat(data[0].lat),
+                    lon: parseFloat(data[0].lon)
+                };
+                // Refresh rendering to calculate real distances
+                if (typeof window.atualizarEstatisticasModal === 'function') {
+                    window.atualizarEstatisticasModal();
+                }
+            }
+        }
+    } catch(err) {
+        console.error("Erro geocode background:", err);
+    } finally {
+        delete window._geocodingQueue[key];
+    }
+}
+
+window.atualizarEstatisticasModal = function() {
+    const statsContainer = document.getElementById('modal-enderecos-estatisticas');
+    if (!statsContainer) return;
+
+    if (!window._modalEnderecos || window._modalEnderecos.length === 0) {
+        statsContainer.innerHTML = `
+            <div style="background:#f1f5f9; color:#64748b; padding:4px 8px; border-radius:6px; font-size:0.72rem;">
+                Nenhum endereço cadastrado
+            </div>
+        `;
+        return;
+    }
+
+    const regioesCount = {
+        'Zona Leste': 0,
+        'Zona Sul': 0,
+        'Zona Oeste': 0,
+        'Zona Norte': 0,
+        'Guarulhos': 0,
+        'Outra': 0
+    };
+
+    const regioesKm = {
+        'Zona Leste': 0,
+        'Zona Sul': 0,
+        'Zona Oeste': 0,
+        'Zona Norte': 0,
+        'Guarulhos': 0,
+        'Outra': 0
+    };
+
+    const LAT_A = -23.433765;
+    const LON_A = -46.420206;
+
+    window._modalEnderecos.forEach(e => {
+        const fullAddress = `${e.endereco || ''}, ${e.numero || ''} - ${e.bairro || ''} - ${e.municipio || ''}/${e.uf || ''}`;
+        const reg = obterRegiaoLocal(fullAddress);
+        
+        regioesCount[reg] = (regioesCount[reg] || 0) + 1;
+        
+        let distance = 0;
+        const cacheKey = fullAddress.trim();
+        
+        if (window._enderecoCoordenadasCache[cacheKey]) {
+            const coords = window._enderecoCoordenadasCache[cacheKey];
+            distance = calcularDistanciaHaversine(LAT_A, LON_A, coords.lat, coords.lon);
+        } else {
+            // Fallback estimates
+            if (reg === 'Zona Leste') distance = 12;
+            else if (reg === 'Zona Sul') distance = 28;
+            else if (reg === 'Zona Oeste') distance = 22;
+            else if (reg === 'Zona Norte') distance = 18;
+            else if (reg === 'Guarulhos') distance = 7;
+            else distance = 15;
+
+            obterCoordenadasEnderecoAsync(cacheKey);
+        }
+        
+        regioesKm[reg] += distance;
+    });
+
+    const totalCount = Object.values(regioesCount).reduce((a, b) => a + b, 0);
+    const totalKm = Object.values(regioesKm).reduce((a, b) => a + b, 0);
+
+    statsContainer.innerHTML = `
+        <div style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap; font-family:'Inter',sans-serif; font-size:0.72rem;">
+            <div style="background:#f1f5f9; color:#475569; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #e2e8f0;">
+                <i class="ph ph-hash" style="font-weight:700;"></i> Total: <b>${totalCount}</b>
+            </div>
+            
+            <div style="background:#e0f2fe; color:#0369a1; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #bae6fd;">
+                <span style="display:inline-block; width:6px; height:6px; background:#0284c7; border-radius:50%;"></span> Z. Leste: <b>${regioesCount['Zona Leste']}</b> (${regioesKm['Zona Leste'].toFixed(1)} km)
+            </div>
+            
+            <div style="background:#dcfce7; color:#15803d; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #bbf7d0;">
+                <span style="display:inline-block; width:6px; height:6px; background:#16a34a; border-radius:50%;"></span> Z. Sul: <b>${regioesCount['Zona Sul']}</b> (${regioesKm['Zona Sul'].toFixed(1)} km)
+            </div>
+            
+            <div style="background:#fef3c7; color:#b45309; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #fde68a;">
+                <span style="display:inline-block; width:6px; height:6px; background:#d97706; border-radius:50%;"></span> Z. Oeste: <b>${regioesCount['Zona Oeste']}</b> (${regioesKm['Zona Oeste'].toFixed(1)} km)
+            </div>
+            
+            <div style="background:#f3e8ff; color:#6d28d9; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #e9d5ff;">
+                <span style="display:inline-block; width:6px; height:6px; background:#8b5cf6; border-radius:50%;"></span> Z. Norte: <b>${regioesCount['Zona Norte']}</b> (${regioesKm['Zona Norte'].toFixed(1)} km)
+            </div>
+
+            <div style="background:#fee2e2; color:#b91c1c; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #fecaca;">
+                <span style="display:inline-block; width:6px; height:6px; background:#dc2626; border-radius:50%;"></span> Guarulhos: <b>${regioesCount['Guarulhos']}</b> (${regioesKm['Guarulhos'].toFixed(1)} km)
+            </div>
+            
+            <div style="background:#eceff1; color:#37474f; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #cfd8dc; font-weight:700;">
+                <i class="ph ph-navigation-arrow"></i> Total KM: <b>${totalKm.toFixed(1)} km</b>
+            </div>
+        </div>
+    `;
 };
 
