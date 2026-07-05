@@ -1937,6 +1937,14 @@ function calcularDescontoReais() {
 window.limparFormPropostaNovo = function() {
     _propostasEditandoId = null;
     _renderFormPropostaInt();
+    
+    // Rolar até o topo do formulário onde a toolbar se torna fixa (sticky)
+    const container = document.getElementById('prop-view-form');
+    if (container) {
+        const targetY = container.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo({ top: targetY, behavior: 'smooth' });
+    }
+
     if (typeof mostrarToastSucesso === 'function') {
         mostrarToastSucesso('Campos limpos. Pronto para criar nova proposta.');
     }
