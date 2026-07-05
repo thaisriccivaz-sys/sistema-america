@@ -14346,7 +14346,22 @@ db.serialize(() => {
 
 // GET - listar todos os veículos da frota
 app.get('/api/frota/veiculos', authenticateToken, (req, res) => {
-    db.all('SELECT id, placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_filename, foto_base64, created_at, updated_at, km_atual, em_manutencao FROM frota_veiculos ORDER BY placa ASC', [], (err, rows) => {
+    db.all(`
+        SELECT fv.id, fv.placa, fv.marca_modelo_versao, fv.cor_predominante, fv.ano_fabricacao, fv.ano_modelo,
+               fv.exercicio, fv.renavam, fv.motor, fv.chassi, fv.tipo_veiculo, fv.capacidade_tanque, fv.capacidade_carga,
+               fv.altura_com_banheiro, fv.altura_sem_banheiro, fv.largura_com_banheiro, fv.largura_sem_banheiro,
+               fv.profundidade_com_banheiro, fv.profundidade_sem_banheiro, fv.crlv_filename, fv.foto_base64,
+               fv.created_at, fv.updated_at, fv.km_atual, fv.em_manutencao,
+               (
+                   SELECT fm.status FROM frota_manutencoes fm
+                   WHERE fm.veiculo_id = fv.id
+                     AND fm.status IN ('agendada','em_andamento')
+                   ORDER BY CASE fm.status WHEN 'em_andamento' THEN 1 ELSE 2 END, fm.created_at DESC
+                   LIMIT 1
+               ) as status_manutencao_ativo
+        FROM frota_veiculos fv
+        ORDER BY fv.placa ASC
+    `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
     });
@@ -14427,6 +14442,38 @@ app.put('/api/frota/veiculos/:id/toggle-manutencao', authenticateToken, (req, re
     });
 });
 
+
+// POST - finalizar manutenção com dados de conclusão (km, custo, fornecedor, obs)
+app.post('/api/frota/veiculos/:id/finalizar-manutencao', authenticateToken, async (req, res) => {
+    const vid = req.params.id;
+    const { km_na_manutencao, custo, fornecedor, observacoes } = req.body;
+    const now = new Date().toISOString().split('T')[0];
+    try {
+        // Finalizar todas as manutenções ativas (agendada ou em_andamento) do veículo
+        await new Promise((resolve, reject) => {
+            db.run(
+                `UPDATE frota_manutencoes
+                 SET status='concluida', data_conclusao=?,
+                     km_na_manutencao=COALESCE(?,km_na_manutencao),
+                     custo=COALESCE(?,custo),
+                     fornecedor=COALESCE(?,fornecedor),
+                     observacoes=COALESCE(?,observacoes),
+                     updated_at=CURRENT_TIMESTAMP
+                 WHERE veiculo_id=? AND status IN ('agendada','em_andamento')`,
+                [now, km_na_manutencao||null, custo||null, fornecedor||null, observacoes||null, vid],
+                err => err ? reject(err) : resolve()
+            );
+        });
+        // Marcar veículo como fora de manutenção
+        await new Promise((resolve, reject) => {
+            db.run('UPDATE frota_veiculos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [vid],
+                err => err ? reject(err) : resolve());
+        });
+        res.json({ ok: true, message: 'Manutenção finalizada com sucesso' });
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 
 // GET - veículos em manutenção (para banner de aviso no resumo de rota)
 app.get('/api/frota/veiculos/em-manutencao', authenticateToken, (req, res) => {

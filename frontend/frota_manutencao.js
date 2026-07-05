@@ -764,6 +764,217 @@ window.mnSalvarKmPreventivo = async function() {
 function mnRenderCorretivaTela(sub) {
     const frota = window._manutFrota || [];
     const veicOpts = frota.map(v => `<option value="${v.id}">${v.placa}</option>`).join('');
+    sub.innerHTML = `
+    <!-- Cards de resumo -->
+    <div id="mn-corr-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:1rem;"></div>
+
+    <!-- Filtros e tabela -->
+    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+        <div style="background:#f8fafc;padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <i class="ph ph-funnel" style="color:#d97706;"></i>
+            <select id="mn-corr-veiculo" onchange="window.mnCarregarCorretivas()" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;outline:none;background:#fff;">
+                <option value="">Todos os Veículos</option>${veicOpts}
+            </select>
+            <select id="mn-corr-status" onchange="window.mnCarregarCorretivas()" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;outline:none;background:#fff;">
+                <option value="">Todos Status</option>
+                <option value="agendada">Agendada</option>
+                <option value="em_andamento">Em Andamento</option>
+                <option value="concluida">Concluída</option>
+                <option value="cancelada">Cancelada</option>
+            </select>
+            <button onclick="window.mnCarregarCorretivas()" style="padding:6px 12px;background:#d97706;color:#fff;border:none;border-radius:8px;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                <i class="ph ph-arrows-clockwise"></i> Atualizar
+            </button>
+            <span id="mn-corr-count" style="margin-left:auto;font-size:0.8rem;color:#94a3b8;"></span>
+        </div>
+        <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+            <thead><tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">
+                <th style="padding:10px 12px;text-align:left;color:#475569;font-weight:700;">Veículo</th>
+                <th style="padding:10px 12px;text-align:left;color:#475569;font-weight:700;">Defeito / Problema</th>
+                <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">Status</th>
+                <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">Data Início</th>
+                <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">⏱ Dias Parado</th>
+                <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">Data Conclusão</th>
+                <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">Fornecedor</th>
+                <th style="padding:10px 12px;text-align:right;color:#475569;font-weight:700;">Custo</th>
+                <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">Ações</th>
+            </tr></thead>
+            <tbody id="mn-corr-tbody">
+                <tr><td colspan="9" style="padding:2rem;text-align:center;color:#94a3b8;">
+                    <i class="ph ph-circle-notch ph-spin" style="font-size:1.5rem;"></i>
+                </td></tr>
+            </tbody>
+        </table>
+        </div>
+    </div>`;
+    window.mnCarregarCorretivas();
+}
+
+window.mnCarregarCorretivas = async function() {
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    const fV = document.getElementById('mn-corr-veiculo')?.value || '';
+    const fS = document.getElementById('mn-corr-status')?.value || '';
+    let url = '/api/frota/manutencoes/corretivas';
+    const params = [];
+    if (fV) params.push('veiculo_id=' + fV);
+    if (fS) params.push('status=' + fS);
+    if (params.length) url += '?' + params.join('&');
+    try {
+        const r = await fetch(url, { headers: { Authorization: 'Bearer ' + tok } });
+        const lista = await r.json();
+        window._mnCorrDados = Array.isArray(lista) ? lista : [];
+        _mnRenderCorretivaDados(window._mnCorrDados);
+    } catch(e) {
+        const tbody = document.getElementById('mn-corr-tbody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="padding:1.5rem;text-align:center;color:#dc2626;">Erro ao carregar manutenções corretivas.</td></tr>';
+    }
+};
+
+function _mnRenderCorretivaDados(lista) {
+    const cardsEl = document.getElementById('mn-corr-cards');
+    if (cardsEl) {
+        const emAndamento = lista.filter(m => m.status === 'em_andamento').length;
+        const agendadas   = lista.filter(m => m.status === 'agendada').length;
+        const mesAtual    = new Date().toISOString().slice(0, 7);
+        const concluidasMes = lista.filter(m => m.status === 'concluida' && (m.data_conclusao || '').startsWith(mesAtual)).length;
+        const maxDias     = lista.filter(m => m.status === 'em_andamento').reduce((mx, m) => Math.max(mx, m.dias_parado || 0), 0);
+        cardsEl.innerHTML = [
+            { cor: '#dc2626', bg: '#fef2f2', icone: 'ph-wrench',        label: 'Em Andamento',         val: emAndamento },
+            { cor: '#d97706', bg: '#fffbeb', icone: 'ph-calendar-plus', label: 'Agendadas',             val: agendadas },
+            { cor: '#10b981', bg: '#ecfdf5', icone: 'ph-check-circle',  label: 'Concluídas este mês',   val: concluidasMes },
+            { cor: '#7c3aed', bg: '#f5f3ff', icone: 'ph-clock',         label: 'Máx. dias parado',      val: maxDias + ' dia' + (maxDias !== 1 ? 's' : '') },
+        ].map(c => `
+            <div style="background:${c.bg};border:1px solid ${c.cor}30;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;">
+                <div style="background:${c.cor}18;border-radius:10px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="ph ${c.icone}" style="color:${c.cor};font-size:1.3rem;"></i>
+                </div>
+                <div>
+                    <div style="font-size:1.4rem;font-weight:800;color:${c.cor};">${c.val}</div>
+                    <div style="font-size:0.75rem;color:#64748b;font-weight:600;">${c.label}</div>
+                </div>
+            </div>`).join('');
+    }
+
+    const count = document.getElementById('mn-corr-count');
+    if (count) count.textContent = lista.length + ' registro' + (lista.length !== 1 ? 's' : '');
+
+    const statusCor = { agendada:'#d97706', em_andamento:'#dc2626', concluida:'#10b981', cancelada:'#94a3b8' };
+    const statusLbl = { agendada:'Agendada', em_andamento:'Em Andamento', concluida:'Concluída', cancelada:'Cancelada' };
+    const fmtD = d => {
+        if (!d) return '<span style="color:#94a3b8;">—</span>';
+        const p = d.split('T')[0].split('-');
+        return `<span style="font-weight:600;">${p[2]}/${p[1]}/${(p[0]||'').slice(2)}</span>`;
+    };
+
+    const tbody = document.getElementById('mn-corr-tbody');
+    if (!tbody) return;
+
+    if (!lista.length) {
+        tbody.innerHTML = '<tr><td colspan="9" style="padding:2.5rem;text-align:center;color:#94a3b8;"><i class="ph ph-wrench" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Nenhuma manutenção corretiva encontrada.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = lista.map((m, i) => {
+        const bgRow = i % 2 === 0 ? '#fff' : '#fafafa';
+        const sKey = m.status || 'agendada';
+        const statusBadge = `<span style="background:${statusCor[sKey]||'#94a3b8'}22;color:${statusCor[sKey]||'#94a3b8'};padding:2px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">${statusLbl[sKey]||sKey}</span>`;
+
+        const dias = m.dias_parado || 0;
+        const diasCor = dias >= 7 ? '#dc2626' : dias >= 3 ? '#d97706' : '#10b981';
+        const diasBadge = sKey === 'agendada'
+            ? '<span style="color:#d97706;font-size:0.8rem;font-weight:700;">Agendada</span>'
+            : `<span style="background:${diasCor}18;color:${diasCor};padding:2px 10px;border-radius:20px;font-size:0.8rem;font-weight:700;">${dias} dia${dias !== 1 ? 's' : ''}</span>`;
+
+        let acoes = '';
+        if (sKey === 'agendada') {
+            acoes += `<button onclick="window.mnCorrAcaoInterno(${m.id},'em_andamento')" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-play"></i> Iniciar</button>`;
+            acoes += ` <button onclick="window.mnCorrAcaoInterno(${m.id},'cancelada')" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;display:inline-flex;align-items:center;"><i class="ph ph-x"></i></button>`;
+        } else if (sKey === 'em_andamento') {
+            acoes += `<button onclick="window.mnCorrConcluirInterno(${m.id})" style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-check"></i> Concluir</button>`;
+            acoes += ` <button onclick="window.mnCorrAcaoInterno(${m.id},'cancelada')" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;display:inline-flex;align-items:center;"><i class="ph ph-x"></i></button>`;
+        }
+
+        return `<tr style="background:${bgRow};border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#fefce8'" onmouseout="this.style.background='${bgRow}'">
+            <td style="padding:10px 12px;font-weight:700;color:#1e293b;white-space:nowrap;">${m.placa||'—'}<br><span style="font-size:0.72rem;font-weight:400;color:#64748b;">${(m.tipo_veiculo||'').toLowerCase()}</span></td>
+            <td style="padding:10px 12px;max-width:220px;"><span title="${(m.descricao||'').replace(/"/g,'&quot;')}" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${m.descricao||'—'}</span></td>
+            <td style="padding:10px 12px;text-align:center;">${statusBadge}</td>
+            <td style="padding:10px 12px;text-align:center;">${fmtD(m.data_inicio)}</td>
+            <td style="padding:10px 12px;text-align:center;">${diasBadge}</td>
+            <td style="padding:10px 12px;text-align:center;">${fmtD(m.data_conclusao)}</td>
+            <td style="padding:10px 12px;text-align:center;color:#64748b;">${m.fornecedor||'—'}</td>
+            <td style="padding:10px 12px;text-align:right;color:#10b981;font-weight:600;">${m.custo ? 'R$\u00a0'+Number(m.custo).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
+            <td style="padding:10px 12px;text-align:center;"><div style="display:flex;gap:4px;align-items:center;justify-content:center;">${acoes}</div></td>
+        </tr>`;
+    }).join('');
+}
+
+window.mnCorrAcaoInterno = async function(id, status) {
+    const labels = { em_andamento: 'iniciar', cancelada: 'cancelar' };
+    if (!confirm(`Deseja ${labels[status]||'atualizar'} esta manutenção?`)) return;
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    try {
+        const r = await fetch(`/api/frota/manutencoes/${id}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+            body: JSON.stringify({ status })
+        });
+        if (!r.ok) throw new Error((await r.json()).error || 'Erro');
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Status atualizado!');
+        window.mnCarregarCorretivas();
+    } catch(e) { if (typeof mostrarToastAviso === 'function') mostrarToastAviso('❌ ' + e.message); }
+};
+
+window.mnCorrConcluirInterno = function(id) {
+    let modal = document.getElementById('mn-corr-concl-modal');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.id = 'mn-corr-concl-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+    modal.innerHTML = `
+    <div style="background:#fff;border-radius:14px;width:100%;max-width:400px;box-shadow:0 20px 50px rgba(0,0,0,0.2);">
+        <div style="background:linear-gradient(135deg,#065f46,#10b981);padding:16px 20px;border-radius:14px 14px 0 0;display:flex;align-items:center;gap:10px;">
+            <i class="ph ph-check-circle" style="color:#fff;font-size:1.4rem;"></i>
+            <span style="color:#fff;font-weight:700;font-size:1rem;">Concluir Manutenção</span>
+            <button onclick="document.getElementById('mn-corr-concl-modal').remove()" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>
+        </div>
+        <div style="padding:20px;">
+            <div style="margin-bottom:12px;"><label style="font-size:0.8rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">KM na Manutenção</label>
+                <input type="number" id="mn-corri-km" placeholder="Ex: 45000" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;"></div>
+            <div style="margin-bottom:12px;"><label style="font-size:0.8rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Custo (R$)</label>
+                <input type="number" step="0.01" id="mn-corri-custo" placeholder="Ex: 350.00" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;"></div>
+            <div style="margin-bottom:12px;"><label style="font-size:0.8rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Fornecedor</label>
+                <input type="text" id="mn-corri-forn" placeholder="Ex: Oficina Central" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;"></div>
+            <div style="margin-bottom:18px;"><label style="font-size:0.8rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Observações</label>
+                <textarea id="mn-corri-obs" rows="2" placeholder="O que foi feito..." style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;resize:vertical;font-family:inherit;box-sizing:border-box;"></textarea></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button onclick="document.getElementById('mn-corr-concl-modal').remove()" style="padding:9px 18px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>
+                <button onclick="window._mnCorrSalvarConclInterno(${id})" style="padding:9px 20px;border:none;border-radius:8px;background:#10b981;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-check"></i> Salvar Conclusão</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window._mnCorrSalvarConclInterno = async function(id) {
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    const km = document.getElementById('mn-corri-km')?.value;
+    const custo = document.getElementById('mn-corri-custo')?.value;
+    const fornecedor = document.getElementById('mn-corri-forn')?.value;
+    const observacoes = document.getElementById('mn-corri-obs')?.value;
+    try {
+        const r = await fetch(`/api/frota/manutencoes/${id}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+            body: JSON.stringify({ status: 'concluida', km_na_manutencao: km||null, custo: custo||null, fornecedor: fornecedor||null, observacoes: observacoes||null })
+        });
+        if (!r.ok) throw new Error((await r.json()).error || 'Erro');
+        document.getElementById('mn-corr-concl-modal')?.remove();
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Manutenção concluída!');
+        window.mnCarregarCorretivas();
+    } catch(e) { if (typeof mostrarToastAviso === 'function') mostrarToastAviso('❌ ' + e.message); }
+};
 
 async function mnCarregarPreventivo(vid, tok) {
 

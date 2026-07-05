@@ -224,17 +224,26 @@ function renderCardsFrota() {
         placaColor = '#d97706';
     }
 
-    // Card background: cinza quando em manutenção, amarelo quando houver alerta de manutenção preventiva
+    // Status ativo da manutenção: 'agendada', 'em_andamento', ou null
+    const statusManutAtivo = v.status_manutencao_ativo || (emManutencao ? 'agendada' : null);
+    const manutCor = statusManutAtivo === 'em_andamento' ? '#dc2626' : statusManutAtivo === 'agendada' ? '#d97706' : null;
+    const manutRibbonCor = statusManutAtivo === 'em_andamento' ? '#dc2626' : statusManutAtivo === 'agendada' ? '#d97706' : '#64748b';
+
     const alertaManutStatus = statusManut.alerta_manutencao || 'ok';
-    const cardBg = emManutencao ? '#f1f5f9' : (alertaManutStatus === 'vencida' || alertaManutStatus === 'proxima' || manutPreventivaPendente) ? '#fffbeb' : '#fff';
-    const cardBorder = emManutencao ? '2px solid #cbd5e1' : (alertaManutStatus === 'vencida' || alertaManutStatus === 'proxima' || manutPreventivaPendente) ? '2px solid #fcd34d' : '1px solid #e2e8f0';
+    const cardBg = emManutencao
+        ? (statusManutAtivo === 'em_andamento' ? '#fff5f5' : '#fffdf0')
+        : (alertaManutStatus === 'vencida' || alertaManutStatus === 'proxima' || manutPreventivaPendente) ? '#fffbeb' : '#fff';
+    const cardBorder = emManutencao
+        ? (statusManutAtivo === 'em_andamento' ? '2px solid #fca5a5' : '2px solid #fde68a')
+        : (alertaManutStatus === 'vencida' || alertaManutStatus === 'proxima' || manutPreventivaPendente) ? '2px solid #fcd34d' : '1px solid #e2e8f0';
 
     const manutRibbon = emManutencao ? `
-        <div style="position:absolute;top:0;left:0;width:0;height:0;border-top:60px solid #64748b;border-right:60px solid transparent;z-index:2;"></div>
+        <div style="position:absolute;top:0;left:0;width:0;height:0;border-top:60px solid ${manutRibbonCor};border-right:60px solid transparent;z-index:2;"></div>
         <div style="position:absolute;top:8px;left:6px;z-index:3;color:#fff;font-size:1.1rem;transform:rotate(-45deg);width:30px;text-align:center;">
             <i class="ph ph-wrench"></i>
         </div>
     ` : '';
+
 
     const placeholder = 'https://via.placeholder.com/400x250/e2e8f0/94a3b8?text=Sem+Foto';
     const foto = v.foto_base64 || placeholder;
@@ -316,7 +325,7 @@ function renderCardsFrota() {
                 ${v.tipo_veiculo||'VEÍCULO'}
             </div>
             <div style="display:flex;gap:4px;">
-                <button onclick="window.abrirPopupManutencaoCard(${v.id}, ${emManutencao ? 1 : 0})" style="background:${emManutencao ? '#dc2626' : '#94a3b8'};color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="${emManutencao ? 'Ver / Retirar da Manutenção' : 'Registrar Manutenção'}"><i class="ph ph-wrench"></i></button>
+                <button onclick="window.abrirPopupManutencaoCard(${v.id}, ${emManutencao ? 1 : 0}, '${statusManutAtivo||''}')" style="background:${emManutencao ? (statusManutAtivo==='em_andamento' ? '#dc2626' : '#d97706') : '#94a3b8'};color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="${emManutencao ? (statusManutAtivo==='em_andamento' ? '🔴 Em Manutenção — Finalizar' : '🟡 Manutenção Agendada — Finalizar') : 'Registrar Manutenção'}"><i class="ph ph-wrench"></i></button>
                 ${v.crlv_filename ? `<button onclick="window.visualizarCRLV(${v.id})" style="background:#0891b2;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Visualizar CRLV"><i class="ph ph-file-pdf"></i></button>` : `<button disabled style="background:#e2e8f0;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:not-allowed;" title="Sem CRLV"><i class="ph ph-file-pdf"></i></button>`}
                 <button onclick="window.abrirModalFrota(${v.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Editar"><i class="ph ph-pencil"></i></button>
                 <button onclick="window.excluirVeiculoFrota(${v.id},'${v.placa}')" style="background:#dc2626;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Excluir"><i class="ph ph-trash"></i></button>
@@ -328,21 +337,92 @@ function renderCardsFrota() {
 }
 
 
+// ── Formulário de Finalização de Manutenção (pelo Card) ─────────────────────
+function _abrirFormFinalizacaoManutencao(vid, statusAtivo) {
+    const v = (window._frotaDados||[]).find(x => x.id === vid) || {};
+    const statusLabel = statusAtivo === 'em_andamento' ? '🔴 Em Andamento' : '🟡 Agendada';
+
+    let modal = document.getElementById('mn-finalizar-card-modal');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.id = 'mn-finalizar-card-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+    modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:440px;box-shadow:0 25px 60px rgba(0,0,0,0.25);">
+        <div style="background:linear-gradient(135deg,#7f1d1d,#dc2626);padding:18px 22px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:12px;">
+            <div style="background:rgba(255,255,255,0.15);border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="ph ph-check-circle" style="color:#fff;font-size:1.3rem;"></i>
+            </div>
+            <div>
+                <div style="color:#fff;font-weight:700;font-size:1rem;">Finalizar Manutenção</div>
+                <div style="color:rgba(255,255,255,0.7);font-size:0.8rem;">${v.placa||'Veículo'} — ${statusLabel}</div>
+            </div>
+            <button onclick="document.getElementById('mn-finalizar-card-modal').remove()" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>
+        </div>
+        <div style="padding:20px 22px;">
+            <div style="background:#fff3f3;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:0.82rem;color:#7f1d1d;">
+                <i class="ph ph-info" style="margin-right:6px;"></i>
+                Ao confirmar, todas as manutenções ativas deste veículo serão marcadas como <strong>concluídas</strong>.
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                <div>
+                    <label style="font-size:0.8rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;"><i class="ph ph-gauge" style="margin-right:3px;"></i>KM Final</label>
+                    <input type="number" id="mn-fin-km" placeholder="Ex: 45000" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.88rem;outline:none;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-size:0.8rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;"><i class="ph ph-currency-dollar-simple" style="margin-right:3px;"></i>Custo (R$)</label>
+                    <input type="number" step="0.01" id="mn-fin-custo" placeholder="Ex: 350,00" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.88rem;outline:none;box-sizing:border-box;">
+                </div>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:0.8rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;"><i class="ph ph-buildings" style="margin-right:3px;"></i>Fornecedor / Oficina</label>
+                <input type="text" id="mn-fin-forn" placeholder="Ex: Oficina Central" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.88rem;outline:none;box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:18px;">
+                <label style="font-size:0.8rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;"><i class="ph ph-note-pencil" style="margin-right:3px;"></i>O que foi feito</label>
+                <textarea id="mn-fin-obs" rows="2" placeholder="Descreva o serviço realizado..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;resize:vertical;font-family:inherit;box-sizing:border-box;"></textarea>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <button onclick="document.getElementById('mn-finalizar-card-modal').remove()" style="padding:10px 20px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>
+                <button id="mn-fin-btn" onclick="window._confirmarFinalizacaoManutencao(${vid})" style="padding:10px 22px;border:none;border-radius:8px;background:#dc2626;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-check-circle"></i> Finalizar Manutenção
+                </button>
+            </div>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+window._confirmarFinalizacaoManutencao = async function(vid) {
+    const btn = document.getElementById('mn-fin-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Finalizando...'; }
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+    const km = document.getElementById('mn-fin-km')?.value || null;
+    const custo = document.getElementById('mn-fin-custo')?.value || null;
+    const fornecedor = document.getElementById('mn-fin-forn')?.value?.trim() || null;
+    const observacoes = document.getElementById('mn-fin-obs')?.value?.trim() || null;
+    try {
+        const r = await fetch(`/api/frota/veiculos/${vid}/finalizar-manutencao`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ km_na_manutencao: km, custo, fornecedor, observacoes })
+        });
+        if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Erro ao finalizar'); }
+        document.getElementById('mn-finalizar-card-modal')?.remove();
+        mostrarToastAviso('✅ Manutenção finalizada com sucesso!');
+        window.initFrotaVeiculos();
+    } catch(e) {
+        mostrarToastAviso('❌ ' + e.message);
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check-circle"></i> Finalizar Manutenção'; }
+    }
+};
+
 // ── Popup de Manutenção no Card do Veículo ─────────────────────────────────
-window.abrirPopupManutencaoCard = async function(vid, emManutencao) {
-    // Se já está em manutenção, oferecer retirar
+window.abrirPopupManutencaoCard = async function(vid, emManutencao, statusAtivo) {
+    // Se já está em manutenção, mostrar formulário de finalização
     if (emManutencao) {
-        if (!confirm('Este veículo está em manutenção. Deseja retirar da manutenção?')) return;
-        try {
-            const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
-            await fetch(`/api/frota/veiculos/${vid}/toggle-manutencao`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ status: 0 })
-            });
-            mostrarToastAviso('✅ Veículo retirado da manutenção!');
-            window.initFrotaVeiculos();
-        } catch(e) { mostrarToastAviso('❌ Erro: ' + e.message); }
+        _abrirFormFinalizacaoManutencao(vid, statusAtivo);
         return;
     }
 
