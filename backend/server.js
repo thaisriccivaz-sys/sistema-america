@@ -21704,13 +21704,73 @@ app.delete('/api/contatos/:id', authenticateToken, (req, res) => {
   });
 });
 
+// GET /api/servicos-precificacao - Listar serviços precificados
+app.get('/api/servicos-precificacao', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM servicos_precificacao ORDER BY id DESC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// GET /api/servicos-precificacao/:id - Obter serviço precificado por ID
+app.get('/api/servicos-precificacao/:id', authenticateToken, (req, res) => {
+  db.get('SELECT * FROM servicos_precificacao WHERE id = ?', [req.params.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Serviço não encontrado' });
+    res.json(row);
+  });
+});
+
+// POST /api/servicos-precificacao - Criar serviço precificado
+app.post('/api/servicos-precificacao', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  db.run(`INSERT INTO servicos_precificacao (
+    nome, tabela_precos, estrutura_produto, custo_insumos, custos_fixos, custo_mao_obra,
+    markup_prc, markup_valores, markup_tipo, preco_venda, observacoes, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  [
+    d.nome, d.tabela_precos, d.estrutura_produto, d.custo_insumos || 0, d.custos_fixos, d.custo_mao_obra || 0,
+    d.markup_prc || 0, d.markup_valores, d.markup_tipo || 'divisor', d.preco_venda || 0, d.observacoes, agora, agora
+  ], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, id: this.lastID });
+  });
+});
+
+// PUT /api/servicos-precificacao/:id - Atualizar serviço precificado
+app.put('/api/servicos-precificacao/:id', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  db.run(`UPDATE servicos_precificacao SET
+    nome=?, tabela_precos=?, estrutura_produto=?, custo_insumos=?, custos_fixos=?, custo_mao_obra=?,
+    markup_prc=?, markup_valores=?, markup_tipo=?, preco_venda=?, observacoes=?, updated_at=?
+    WHERE id=?`,
+  [
+    d.nome, d.tabela_precos, d.estrutura_produto, d.custo_insumos || 0, d.custos_fixos, d.custo_mao_obra || 0,
+    d.markup_prc || 0, d.markup_valores, d.markup_tipo || 'divisor', d.preco_venda || 0, d.observacoes, agora, req.params.id
+  ], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Serviço não encontrado' });
+    res.json({ success: true });
+  });
+});
+
+// DELETE /api/servicos-precificacao/:id - Excluir serviço precificado
+app.delete('/api/servicos-precificacao/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM servicos_precificacao WHERE id = ?', [req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Serviço não encontrado' });
+    res.json({ success: true });
+  });
+});
+
 console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
 console.log('[CLIENTES] Módulo de cadastro de clientes carregado.');
-
-
-
+console.log('[COMERCIAL] Módulo de precificação de serviços carregado.');
 
 try { require('../rescue_estoque.js'); } catch(e) { console.error('Rescue script error:', e); }
+
 
 
 

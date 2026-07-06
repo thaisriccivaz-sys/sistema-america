@@ -798,6 +798,7 @@ const TAB_META = {
     // Comercial - Roxo
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
     'comercial-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Proposta' },
+    'comercial-servicos-precificacao': { color: '#7048e8', icon: 'ph-calculator', title: 'Precificação de Serviços' },
     'comercial-enderecos': { color: '#7048e8', icon: 'ph-map-pin', title: 'Endereço' },
     'comercial-em-breve': { color: '#7048e8', icon: 'ph-handshake', title: 'Comercial' },
     // Administrativo - Amarelo
@@ -955,6 +956,16 @@ function navigateTo(target) {
         }
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         const targetNavObj = document.querySelector(`[data-target="comercial-enderecos"]`);
+        if (targetNavObj) targetNavObj.classList.add('active');
+        return;
+    }
+    if (target === 'comercial-servicos-precificacao') {
+        navigateTo('comercial-proposta');
+        if (typeof window.switchPropostaTab === 'function') {
+            window.switchPropostaTab('servicos-precificacao');
+        }
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        const targetNavObj = document.querySelector(`[data-target="comercial-servicos-precificacao"]`);
         if (targetNavObj) targetNavObj.classList.add('active');
         return;
     }

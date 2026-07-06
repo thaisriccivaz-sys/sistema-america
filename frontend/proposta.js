@@ -477,6 +477,9 @@ function renderTelaPropostas() {
                             <div class="saas-dropdown-item" id="tab-prop-enderecos" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
                                 <i class="ph ph-map-pin"></i> Endereços
                             </div>
+                            <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
+                                <i class="ph ph-calculator"></i> Precificação de Serviços
+                            </div>
                         </div>
                     </div>
                     
@@ -901,6 +904,9 @@ function renderTelaPropostas() {
             <!-- VIEW: ENDEREÇOS ENTREGA -->
             <div id="prop-view-enderecos" style="display:${_currentPropostaTab === 'enderecos' ? 'block' : 'none'};"></div>
 
+            <!-- VIEW: PRECIFICACAO SERVICOS -->
+            <div id="prop-view-servicos-precificacao" style="display:${_currentPropostaTab === 'servicos-precificacao' ? 'block' : 'none'};"></div>
+
         </div>
     `;
 
@@ -912,6 +918,8 @@ function renderTelaPropostas() {
         _renderCadastroContatosInt();
     } else if (_currentPropostaTab === 'enderecos') {
         _renderEnderecosInt();
+    } else if (_currentPropostaTab === 'servicos-precificacao') {
+        _renderServicosPrecificacaoInt();
     }
 
     if (_currentPropostaTab === 'lista') {
@@ -930,13 +938,16 @@ window.switchPropostaTab = function(tab) {
     const viewCadastroCliente = document.getElementById('prop-view-cadastro-cliente');
     const viewCadastroContatos = document.getElementById('prop-view-cadastro-contatos');
     const viewEnderecos = document.getElementById('prop-view-enderecos');
+    const viewServicosPrecificacao = document.getElementById('prop-view-servicos-precificacao');
     const tabLista = document.getElementById('tab-prop-lista');
     const tabForm = document.getElementById('tab-prop-form');
     const tabCadastroCliente = document.getElementById('tab-prop-cadastro-cliente');
     const tabCadastroContatos = document.getElementById('tab-prop-cadastro-contatos');
     const tabEnderecos = document.getElementById('tab-prop-enderecos');
+    const tabServicosPrecificacao = document.getElementById('tab-prop-servicos-precificacao');
 
-    if (viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && viewEnderecos && tabLista && tabForm && tabCadastroCliente && tabCadastroContatos && tabEnderecos) {
+    const elementsExist = viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && viewEnderecos && viewServicosPrecificacao;
+    if (elementsExist) {
         if (tab === 'form' && viewForm.innerHTML.trim() === '') {
             _renderFormPropostaInt();
         }
@@ -949,12 +960,16 @@ window.switchPropostaTab = function(tab) {
         if (tab === 'enderecos' && viewEnderecos.innerHTML.trim() === '') {
             _renderEnderecosInt();
         }
+        if (tab === 'servicos-precificacao' && viewServicosPrecificacao.innerHTML.trim() === '') {
+            _renderServicosPrecificacaoInt();
+        }
 
         viewLista.style.display = tab === 'lista' ? 'block' : 'none';
         viewForm.style.display = tab === 'form' ? 'block' : 'none';
         viewCadastroCliente.style.display = tab === 'cadastro-cliente' ? 'block' : 'none';
         viewCadastroContatos.style.display = tab === 'cadastro-contatos' ? 'block' : 'none';
         viewEnderecos.style.display = tab === 'enderecos' ? 'block' : 'none';
+        viewServicosPrecificacao.style.display = tab === 'servicos-precificacao' ? 'block' : 'none';
 
         // Update active class in SaaS Header
         document.querySelectorAll('.saas-nav-item, .saas-dropdown-item').forEach(item => {
@@ -971,6 +986,9 @@ window.switchPropostaTab = function(tab) {
             else if (tab === 'cadastro-cliente' && tabCadastroCliente) tabCadastroCliente.classList.add('active');
             else if (tab === 'cadastro-contatos' && tabCadastroContatos) tabCadastroContatos.classList.add('active');
             else if (tab === 'enderecos' && tabEnderecos) tabEnderecos.classList.add('active');
+            else if (tab === 'servicos-precificacao') {
+                document.querySelectorAll('#tab-prop-servicos-precificacao').forEach(el => el.classList.add('active'));
+            }
         }
         if (tab === 'lista') {
             if (window.atualizarTabela5W2H) window.atualizarTabela5W2H();
@@ -1129,6 +1147,9 @@ function _renderFormPropostaInt() {
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
                             <i class="ph ph-map-pin"></i> Endereços
+                        </div>
+                        <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
+                            <i class="ph ph-calculator"></i> Precificação de Serviços
                         </div>
                     </div>
                 </div>
@@ -2458,6 +2479,9 @@ function _renderCadastroClienteInt() {
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
                             <i class="ph ph-map-pin"></i> Endereços
+                        </div>
+                        <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
+                            <i class="ph ph-calculator"></i> Precificação de Serviços
                         </div>
                     </div>
                 </div>
@@ -6857,4 +6881,712 @@ window.atualizarEstatisticasModal = function() {
         </div>
     `;
 };
+
+/* ── Precificação de Serviços ────────────────────────────────────────── */
+
+let _precificacaoServicoEditandoId = null;
+let _precificacaoInsumos = [];
+let _precificacaoCustosFixos = [];
+let _precificacaoServicosList = [];
+
+window._renderServicosPrecificacaoInt = async function() {
+    const container = document.getElementById('prop-view-servicos-precificacao');
+    if (!container) return;
+
+    // Initialize/Reset State
+    _precificacaoServicoEditandoId = null;
+    _precificacaoInsumos = [];
+    _precificacaoCustosFixos = [];
+
+    await _carregarServicosPrecificadosList();
+    _renderFormPrecificacaoBase();
+};
+
+async function _carregarServicosPrecificadosList() {
+    try {
+        _precificacaoServicosList = await apiGet('/servicos-precificacao') || [];
+    } catch (e) {
+        console.error('[PRECIFICACAO] Erro ao carregar lista:', e);
+        _precificacaoServicosList = [];
+    }
+}
+
+function _renderFormPrecificacaoBase() {
+    const container = document.getElementById('prop-view-servicos-precificacao');
+    if (!container) return;
+
+    container.innerHTML = `
+        <style>
+            #form-precificacao input:not([type="checkbox"]):not([type="radio"]),
+            #form-precificacao select,
+            #form-precificacao textarea {
+                padding: 0.55rem 0.75rem !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 6px !important;
+                font-size: 0.85rem !important;
+                background: #fff !important;
+                color: #1e293b !important;
+                outline: none !important;
+                transition: all 0.2s !important;
+                box-sizing: border-box !important;
+                width: 100% !important;
+                height: 38px !important;
+            }
+            #form-precificacao textarea {
+                height: auto !important;
+            }
+            #form-precificacao input:focus,
+            #form-precificacao select:focus,
+            #form-precificacao textarea:focus {
+                border-color: #7048e8 !important;
+                box-shadow: 0 0 0 3px rgba(112, 72, 232, 0.15) !important;
+            }
+            #form-precificacao input[readonly] {
+                background: #f1f5f9 !important;
+                color: #64748b !important;
+                cursor: not-allowed !important;
+            }
+            #form-precificacao button {
+                border-radius: 6px !important;
+                height: 38px !important;
+                box-sizing: border-box !important;
+                transition: all 0.2s !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                cursor: pointer;
+            }
+            .cost-card {
+                background: #fff;
+                border: 1px solid #e2e8f0;
+                border-radius: 12px;
+                padding: 1.25rem;
+                margin-bottom: 1.25rem;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            }
+            .cost-title {
+                font-size: 0.92rem;
+                font-weight: 700;
+                color: #334155;
+                margin-top: 0;
+                margin-bottom: 1rem;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                border-bottom: 1px solid #f1f5f9;
+                padding-bottom: 8px;
+            }
+            .prec-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 0.82rem;
+            }
+            .prec-table th {
+                text-align: left;
+                padding: 6px 8px;
+                background: #f8fafc;
+                color: #64748b;
+                font-weight: 600;
+                border-bottom: 1px solid #e2e8f0;
+            }
+            .prec-table td {
+                padding: 6px 8px;
+                border-bottom: 1px solid #f1f5f9;
+                vertical-align: middle;
+            }
+            .prec-list-item {
+                padding: 0.75rem 1rem;
+                border-bottom: 1px solid #e2e8f0;
+                cursor: pointer;
+                transition: all 0.2s;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+            .prec-list-item:hover {
+                background: #f1f5f9;
+            }
+            .prec-list-item.active {
+                background: #ede9fc;
+                border-left: 4px solid #7048e8;
+            }
+        </style>
+        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif;">
+            
+            <!-- Toolbar -->
+            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
+                
+                <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
+                <div class="saas-dropdown-container">
+                    <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
+                        <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
+                    </div>
+                    <div class="saas-dropdown-menu">
+                        <div class="saas-dropdown-item" onclick="abrirFormProposta(null); event.stopPropagation();">
+                            <i class="ph ph-pencil-simple"></i> Nova Proposta
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
+                            <i class="ph ph-user-plus"></i> Cadastro de Clientes
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                            <i class="ph ph-identification-card"></i> Cadastro de Contatos
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
+                            <i class="ph ph-map-pin"></i> Endereços
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
+                            <i class="ph ph-calculator"></i> Precificação de Serviços
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação (Lado Direito) -->
+                <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                    <button onclick="_recarregarServicosPrecificacao()" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                        <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
+                    </button>
+                    <button onclick="_limparFormPrecificacaoNovo()" title="Novo" style="background:#475569; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'">
+                        <i class="ph ph-plus" style="font-size:1rem;"></i> Novo
+                    </button>
+
+                    <!-- Spacer -->
+                    <div style="width: 4px;"></div>
+
+                    <button onclick="_salvarServicoPrecificacao()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
+                        <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
+                    </button>
+                    <button onclick="_excluirServicoPrecificacao()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
+                        <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Layout Grid -->
+            <div style="display:flex; width:100%; box-sizing:border-box;">
+                
+                <!-- Left Side: Form -->
+                <div style="width:70%; padding:1.5rem; border-right:1px solid #e2e8f0; box-sizing:border-box;">
+                    <form id="form-precificacao" onsubmit="return false;">
+                        
+                        <div style="display:grid; grid-template-columns: 2fr 1fr; gap:1.25rem; margin-bottom:1.25rem;">
+                            <div>
+                                <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:0.4rem;">Nome do Serviço *</label>
+                                <input type="text" id="prec-nome" placeholder="Ex: Manutenção Preventiva de Gerador" required style="box-sizing: border-box !important;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:0.4rem;">Tabela de Preços *</label>
+                                <select id="prec-tabela" required style="box-sizing: border-box !important;">
+                                    <option value="">-- Selecione --</option>
+                                    ${PROP_TABELAS.map(t => `<option value="${t}">${t}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Card 1: Insumos -->
+                        <div class="cost-card">
+                            <div class="cost-title">
+                                <i class="ph ph-package" style="color:#7048e8; font-size:1.1rem;"></i>
+                                Estrutura do Produto (Insumos / Peças)
+                            </div>
+                            <table class="prec-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50%;">Insumo / Componente</th>
+                                        <th style="width: 15%; text-align: right;">Qtd</th>
+                                        <th style="width: 18%; text-align: right;">Custo Unitário</th>
+                                        <th style="width: 17%; text-align: right;">Custo Total</th>
+                                        <th style="width: 5%; text-align: center;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-prec-insumos"></tbody>
+                            </table>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1rem;">
+                                <button type="button" onclick="_adicionarInsumoRow()" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:0 0.75rem; font-size:0.8rem; font-weight:600; height:32px !important;">
+                                    <i class="ph ph-plus" style="margin-right:4px;"></i> Adicionar Insumo
+                                </button>
+                                <div style="font-size:0.85rem; font-weight:700; color:#475569;">
+                                    Custo Total Insumos: <span id="span-custo-insumos" style="color:#1e293b; font-size:0.95rem; margin-left:4px;">R$ 0,00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 2: Custos Fixos / Mão de Obra -->
+                        <div class="cost-card">
+                            <div class="cost-title">
+                                <i class="ph ph-users" style="color:#7048e8; font-size:1.1rem;"></i>
+                                Mão de Obra e Custos Fixos / Operacionais
+                            </div>
+                            <table class="prec-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50%;">Descrição do Custo</th>
+                                        <th style="width: 15%; text-align: right;">Qtd / Horas</th>
+                                        <th style="width: 18%; text-align: right;">Custo Unitário</th>
+                                        <th style="width: 17%; text-align: right;">Custo Total</th>
+                                        <th style="width: 5%; text-align: center;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-prec-fixos"></tbody>
+                            </table>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1rem;">
+                                <button type="button" onclick="_adicionarFixoRow()" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:0 0.75rem; font-size:0.8rem; font-weight:600; height:32px !important;">
+                                    <i class="ph ph-plus" style="margin-right:4px;"></i> Adicionar Custo
+                                </button>
+                                <div style="font-size:0.85rem; font-weight:700; color:#475569;">
+                                    Custo Total Mão-de-Obra: <span id="span-custo-fixos" style="color:#1e293b; font-size:0.95rem; margin-left:4px;">R$ 0,00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 3: Markup e Preço de Venda -->
+                        <div class="cost-card" style="border:1px solid #ddd6fe; background:#faf5ff;">
+                            <div class="cost-title" style="border-bottom:1px solid #edd9ff; color:#5b21b6;">
+                                <i class="ph ph-percent" style="color:#7048e8; font-size:1.1rem;"></i>
+                                Composição de Markup & Preço de Venda Final
+                            </div>
+                            
+                            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:1rem; margin-bottom:1.25rem;">
+                                <div>
+                                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#5b21b6; margin-bottom:0.3rem;">Despesa Adm. (%)</label>
+                                    <input type="number" id="prec-m-adm" value="10" min="0" max="100" step="0.1" oninput="_recalcularPrecificacao()" style="height:38px !important; box-sizing: border-box !important;">
+                                </div>
+                                <div>
+                                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#5b21b6; margin-bottom:0.3rem;">Impostos (%)</label>
+                                    <input type="number" id="prec-m-impostos" value="15" min="0" max="100" step="0.1" oninput="_recalcularPrecificacao()" style="height:38px !important; box-sizing: border-box !important;">
+                                </div>
+                                <div>
+                                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#5b21b6; margin-bottom:0.3rem;">Margem de Lucro (%)</label>
+                                    <input type="number" id="prec-m-lucro" value="20" min="0" max="100" step="0.1" oninput="_recalcularPrecificacao()" style="height:38px !important; box-sizing: border-box !important;">
+                                </div>
+                                <div>
+                                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#5b21b6; margin-bottom:0.3rem;">Outras Despesas (%)</label>
+                                    <input type="number" id="prec-m-outros" value="5" min="0" max="100" step="0.1" oninput="_recalcularPrecificacao()" style="height:38px !important; box-sizing: border-box !important;">
+                                </div>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns: 1.2fr 1fr 1.5fr; gap:1.25rem; align-items:center; border-top:1px dashed #edd9ff; padding-top:1.25rem;">
+                                <div>
+                                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#5b21b6; margin-bottom:0.3rem;">Tipo de Cálculo (Markup)</label>
+                                    <select id="prec-m-tipo" onchange="_recalcularPrecificacao()" style="height:38px !important; box-sizing: border-box !important;">
+                                        <option value="divisor" selected>Markup Divisor (Margem interna)</option>
+                                        <option value="multiplicador">Markup Multiplicador (Cost-plus)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#5b21b6; margin-bottom:0.3rem;">Markup Total</label>
+                                    <input type="text" id="prec-m-total" value="50.0%" readonly style="font-weight:700; text-align:center; height:38px !important; box-sizing: border-box !important;">
+                                </div>
+                                <div style="text-align:right;">
+                                    <span style="font-size:0.78rem; font-weight:700; color:#5b21b6; display:block; margin-bottom:2px;">PREÇO DE VENDA CALCULADO</span>
+                                    <span id="span-preco-venda-final" style="font-size:1.6rem; font-weight:900; color:#7048e8;">R$ 0,00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Observações -->
+                        <div>
+                            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:0.4rem;">Observações / Detalhes Adicionais</label>
+                            <textarea id="prec-observacoes" rows="3" placeholder="Insira aqui notas adicionais, justificativas ou detalhes da precificação..." style="box-sizing: border-box !important;"></textarea>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Right Side: List -->
+                <div style="width:30%; background:#f8fafc; box-sizing:border-box; border-left: 1px solid #e2e8f0;">
+                    <div style="padding:1rem; border-bottom:1px solid #e2e8f0; font-size:0.88rem; font-weight:700; color:#334155; display:flex; align-items:center; gap:6px; background:#f1f5f9;">
+                        <i class="ph ph-list-bullets" style="color:#7048e8; font-size:1.1rem;"></i>
+                        Serviços Cadastrados
+                    </div>
+                    <div id="prec-services-list-container" style="max-height:850px; overflow-y:auto;"></div>
+                </div>
+
+            </div>
+
+        </div>
+    `;
+
+    _renderInsumosRows();
+    _renderFixosRows();
+    _recalcularPrecificacao();
+    _renderSidebarList();
+}
+
+window._renderInsumosRows = function() {
+    const tbody = document.getElementById('tbody-prec-insumos');
+    if (!tbody) return;
+
+    if (_precificacaoInsumos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.5rem;">Nenhum insumo adicionado.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = _precificacaoInsumos.map((item, idx) => {
+        const total = (item.qtd || 0) * (item.custo_unitario || 0);
+        return `
+            <tr>
+                <td>
+                    <input type="text" value="${item.nome || ''}" onchange="_atualizarInsumo(${idx}, 'nome', this.value)" style="height:32px !important; padding:4px 8px !important; box-sizing: border-box !important;" placeholder="Nome da peça/material">
+                </td>
+                <td>
+                    <input type="number" value="${item.qtd}" min="0.001" step="any" oninput="_atualizarInsumo(${idx}, 'qtd', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:32px !important; text-align:right; padding:4px 8px !important; box-sizing: border-box !important;">
+                </td>
+                <td>
+                    <input type="number" value="${item.custo_unitario}" min="0" step="0.01" oninput="_atualizarInsumo(${idx}, 'custo_unitario', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:32px !important; text-align:right; padding:4px 8px !important; box-sizing: border-box !important;">
+                </td>
+                <td style="text-align:right; font-weight:600; color:#475569; padding-right:12px;">
+                    R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>
+                <td style="text-align:center;">
+                    <i class="ph ph-trash" onclick="_excluirInsumoRow(${idx})" style="color:#ef4444; font-size:1.1rem; cursor:pointer;" title="Remover Insumo"></i>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+
+window._atualizarInsumo = function(idx, field, val) {
+    if (_precificacaoInsumos[idx]) {
+        _precificacaoInsumos[idx][field] = val;
+    }
+};
+
+window._adicionarInsumoRow = function() {
+    _precificacaoInsumos.push({ nome: '', qtd: 1, custo_unitario: 0 });
+    _renderInsumosRows();
+    _recalcularPrecificacao();
+};
+
+window._excluirInsumoRow = function(idx) {
+    _precificacaoInsumos.splice(idx, 1);
+    _renderInsumosRows();
+    _recalcularPrecificacao();
+};
+
+window._renderFixosRows = function() {
+    const tbody = document.getElementById('tbody-prec-fixos');
+    if (!tbody) return;
+
+    if (_precificacaoCustosFixos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.5rem;">Nenhum custo fixo / mão-de-obra adicionado.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = _precificacaoCustosFixos.map((item, idx) => {
+        const total = (item.qtd || 0) * (item.custo_unitario || 0);
+        return `
+            <tr>
+                <td>
+                    <input type="text" value="${item.descricao || ''}" onchange="_atualizarFixo(${idx}, 'descricao', this.value)" style="height:32px !important; padding:4px 8px !important; box-sizing: border-box !important;" placeholder="Ex: Técnico de Campo / Deslocamento">
+                </td>
+                <td>
+                    <input type="number" value="${item.qtd}" min="0.001" step="any" oninput="_atualizarFixo(${idx}, 'qtd', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:32px !important; text-align:right; padding:4px 8px !important; box-sizing: border-box !important;">
+                </td>
+                <td>
+                    <input type="number" value="${item.custo_unitario}" min="0" step="0.01" oninput="_atualizarFixo(${idx}, 'custo_unitario', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:32px !important; text-align:right; padding:4px 8px !important; box-sizing: border-box !important;">
+                </td>
+                <td style="text-align:right; font-weight:600; color:#475569; padding-right:12px;">
+                    R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>
+                <td style="text-align:center;">
+                    <i class="ph ph-trash" onclick="_excluirFixoRow(${idx})" style="color:#ef4444; font-size:1.1rem; cursor:pointer;" title="Remover Custo"></i>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+
+window._atualizarFixo = function(idx, field, val) {
+    if (_precificacaoCustosFixos[idx]) {
+        _precificacaoCustosFixos[idx][field] = val;
+    }
+};
+
+window._adicionarFixoRow = function() {
+    _precificacaoCustosFixos.push({ descricao: '', qtd: 1, custo_unitario: 0 });
+    _renderFixosRows();
+    _recalcularPrecificacao();
+};
+
+window._excluirFixoRow = function(idx) {
+    _precificacaoCustosFixos.splice(idx, 1);
+    _renderFixosRows();
+    _recalcularPrecificacao();
+};
+
+window._recalcularPrecificacao = function() {
+    let sumInsumos = 0;
+    _precificacaoInsumos.forEach(item => {
+        sumInsumos += (item.qtd || 0) * (item.custo_unitario || 0);
+    });
+    
+    const subtotalInsumos = document.getElementById('span-custo-insumos');
+    if (subtotalInsumos) {
+        subtotalInsumos.textContent = `R$ ${sumInsumos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    let sumFixos = 0;
+    _precificacaoCustosFixos.forEach(item => {
+        sumFixos += (item.qtd || 0) * (item.custo_unitario || 0);
+    });
+
+    const subtotalFixos = document.getElementById('span-custo-fixos');
+    if (subtotalFixos) {
+        subtotalFixos.textContent = `R$ ${sumFixos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    const getVal = (id) => parseFloat(document.getElementById(id)?.value || 0);
+    const mAdm = getVal('prec-m-adm');
+    const mImpostos = getVal('prec-m-impostos');
+    const mLucro = getVal('prec-m-lucro');
+    const mOutros = getVal('prec-m-outros');
+    const mTotal = mAdm + mImpostos + mLucro + mOutros;
+
+    const inputTotal = document.getElementById('prec-m-total');
+    if (inputTotal) {
+        inputTotal.value = mTotal.toFixed(1) + '%';
+    }
+
+    const mTipo = document.getElementById('prec-m-tipo')?.value || 'divisor';
+    const totalCusto = sumInsumos + sumFixos;
+    let precoVenda = 0;
+
+    if (mTipo === 'divisor') {
+        const divisor = 1 - (mTotal / 100);
+        if (divisor <= 0) {
+            precoVenda = totalCusto / 0.01;
+        } else {
+            precoVenda = totalCusto / divisor;
+        }
+    } else {
+        precoVenda = totalCusto * (1 + (mTotal / 100));
+    }
+
+    const spanPrecoFinal = document.getElementById('span-preco-venda-final');
+    if (spanPrecoFinal) {
+        spanPrecoFinal.textContent = `R$ ${precoVenda.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+};
+
+window._renderSidebarList = function() {
+    const listContainer = document.getElementById('prec-services-list-container');
+    if (!listContainer) return;
+
+    if (_precificacaoServicosList.length === 0) {
+        listContainer.innerHTML = `<div style="text-align:center; color:#94a3b8; padding:2rem; font-size:0.8rem;">Nenhum serviço cadastrado.</div>`;
+        return;
+    }
+
+    listContainer.innerHTML = _precificacaoServicosList.map(s => {
+        const activeClass = (_precificacaoServicoEditandoId === s.id) ? 'active' : '';
+        const precoFmt = (s.preco_venda || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        return `
+            <div class="prec-list-item ${activeClass}" onclick="_carregarServicoParaEdicao(${s.id})">
+                <div style="font-weight:700; color:#1e293b; font-size:0.85rem;">${s.nome}</div>
+                <div style="font-size:0.75rem; color:#64748b; font-weight:600; display:flex; justify-content:space-between; align-items:center;">
+                    <span><i class="ph ph-handshake"></i> ${s.tabela_precos}</span>
+                    <span style="color:#7048e8; font-weight:800; font-size:0.82rem;">${precoFmt}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+};
+
+window._carregarServicoParaEdicao = async function(id) {
+    _precificacaoServicoEditandoId = id;
+    
+    document.querySelectorAll('.prec-list-item').forEach(el => el.classList.remove('active'));
+
+    Swal.fire({
+        title: 'Carregando...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        const s = await apiGet(`/servicos-precificacao/${id}`);
+        Swal.close();
+        if (s) {
+            document.getElementById('prec-nome').value = s.nome || '';
+            document.getElementById('prec-tabela').value = s.tabela_precos || '';
+            document.getElementById('prec-observacoes').value = s.observacoes || '';
+            document.getElementById('prec-m-tipo').value = s.markup_tipo || 'divisor';
+
+            try {
+                _precificacaoInsumos = JSON.parse(s.estrutura_produto) || [];
+            } catch(e) {
+                _precificacaoInsumos = [];
+            }
+
+            try {
+                _precificacaoCustosFixos = JSON.parse(s.custos_fixos) || [];
+            } catch(e) {
+                _precificacaoCustosFixos = [];
+            }
+
+            try {
+                const mVals = JSON.parse(s.markup_valores) || { adm: 10, impostos: 15, lucro: 20, outros: 5 };
+                document.getElementById('prec-m-adm').value = mVals.adm ?? 10;
+                document.getElementById('prec-m-impostos').value = mVals.impostos ?? 15;
+                document.getElementById('prec-m-lucro').value = mVals.lucro ?? 20;
+                document.getElementById('prec-m-outros').value = mVals.outros ?? 5;
+            } catch (e) {
+                document.getElementById('prec-m-adm').value = 10;
+                document.getElementById('prec-m-impostos').value = 15;
+                document.getElementById('prec-m-lucro').value = 20;
+                document.getElementById('prec-m-outros').value = 5;
+            }
+
+            _renderInsumosRows();
+            _renderFixosRows();
+            _recalcularPrecificacao();
+            _renderSidebarList();
+        }
+    } catch(e) {
+        Swal.close();
+        console.error(e);
+        alert('Erro ao carregar os dados do serviço.');
+    }
+};
+
+window._recarregarServicosPrecificacao = async function() {
+    Swal.fire({
+        title: 'Atualizando...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+    await _carregarServicosPrecificadosList();
+    Swal.close();
+    _renderSidebarList();
+    if (_precificacaoServicoEditandoId) {
+        _carregarServicoParaEdicao(_precificacaoServicoEditandoId);
+    } else {
+        _limparFormPrecificacaoNovo();
+    }
+};
+
+window._limparFormPrecificacaoNovo = function() {
+    _precificacaoServicoEditandoId = null;
+    _precificacaoInsumos = [];
+    _precificacaoCustosFixos = [];
+
+    const form = document.getElementById('form-precificacao');
+    if (form) form.reset();
+
+    _renderInsumosRows();
+    _renderFixosRows();
+    _recalcularPrecificacao();
+    _renderSidebarList();
+};
+
+window._salvarServicoPrecificacao = async function() {
+    const nome = document.getElementById('prec-nome')?.value.trim();
+    const tabela_precos = document.getElementById('prec-tabela')?.value;
+    if (!nome) { alert('Informe o Nome do Serviço.'); return; }
+    if (!tabela_precos) { alert('Selecione a Tabela de Preços.'); return; }
+
+    const getVal = (id) => parseFloat(document.getElementById(id)?.value || 0);
+    const mAdm = getVal('prec-m-adm');
+    const mImpostos = getVal('prec-m-impostos');
+    const mLucro = getVal('prec-m-lucro');
+    const mOutros = getVal('prec-m-outros');
+    const mTotal = mAdm + mImpostos + mLucro + mOutros;
+    const mTipo = document.getElementById('prec-m-tipo')?.value || 'divisor';
+
+    let sumInsumos = 0;
+    _precificacaoInsumos.forEach(item => {
+        sumInsumos += (item.qtd || 0) * (item.custo_unitario || 0);
+    });
+    let sumFixos = 0;
+    _precificacaoCustosFixos.forEach(item => {
+        sumFixos += (item.qtd || 0) * (item.custo_unitario || 0);
+    });
+
+    const totalCusto = sumInsumos + sumFixos;
+    let precoVenda = 0;
+    if (mTipo === 'divisor') {
+        const divisor = 1 - (mTotal / 100);
+        precoVenda = divisor <= 0 ? totalCusto / 0.01 : totalCusto / divisor;
+    } else {
+        precoVenda = totalCusto * (1 + (mTotal / 100));
+    }
+
+    const payload = {
+        nome,
+        tabela_precos,
+        estrutura_produto: JSON.stringify(_precificacaoInsumos),
+        custo_insumos: sumInsumos,
+        custos_fixos: JSON.stringify(_precificacaoCustosFixos),
+        custo_mao_obra: sumFixos,
+        markup_prc: mTotal,
+        markup_valores: JSON.stringify({ adm: mAdm, impostos: mImpostos, lucro: mLucro, outros: mOutros }),
+        markup_tipo: mTipo,
+        preco_venda: precoVenda,
+        observacoes: document.getElementById('prec-observacoes')?.value || ''
+    };
+
+    try {
+        let resp;
+        if (_precificacaoServicoEditandoId) {
+            resp = await apiPut(`/servicos-precificacao/${_precificacaoServicoEditandoId}`, payload);
+        } else {
+            resp = await apiPost('/servicos-precificacao', payload);
+        }
+
+        if (resp && (resp.success || resp.id)) {
+            Swal.fire({
+                title: 'Sucesso!',
+                text: _precificacaoServicoEditandoId ? 'Serviço atualizado com sucesso!' : 'Serviço cadastrado com sucesso!',
+                icon: 'success',
+                confirmButtonColor: '#7048e8'
+            });
+            await _carregarServicosPrecificadosList();
+            _renderSidebarList();
+            if (!_precificacaoServicoEditandoId && resp.id) {
+                _precificacaoServicoEditandoId = resp.id;
+                _renderSidebarList();
+            }
+        } else {
+            alert('Erro ao salvar serviço: ' + (resp?.error || 'Erro desconhecido'));
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao comunicar com o servidor.');
+    }
+};
+
+window._excluirServicoPrecificacao = async function() {
+    if (!_precificacaoServicoEditandoId) {
+        Swal.fire('Aviso', 'Nenhum serviço selecionado para excluir.', 'warning');
+        return;
+    }
+
+    const result = await Swal.fire({
+        title: 'Tem certeza?',
+        text: 'Você não poderá reverter esta ação!',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sim, excluir!',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
+        try {
+            const resp = await apiDelete(`/servicos-precificacao/${_precificacaoServicoEditandoId}`);
+            if (resp && resp.success) {
+                Swal.fire('Excluído!', 'O serviço foi excluído com sucesso.', 'success');
+                _limparFormPrecificacaoNovo();
+                await _carregarServicosPrecificadosList();
+                _renderSidebarList();
+            } else {
+                alert('Erro ao excluir: ' + (resp?.error || 'Erro desconhecido'));
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Erro ao comunicar com o servidor.');
+        }
+    }
+};
+
 

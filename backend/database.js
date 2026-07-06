@@ -1657,4 +1657,31 @@ db.run("PRAGMA foreign_keys = ON;");
                 }
             });
 
+            // Tabela de precificação de serviços
+            db.run(`
+                CREATE TABLE IF NOT EXISTS servicos_precificacao (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL,
+                    tabela_precos TEXT NOT NULL,
+                    estrutura_produto TEXT,  -- JSON string de insumos
+                    custo_insumos REAL DEFAULT 0,
+                    custos_fixos TEXT,  -- JSON string de mão-de-obra/fixos
+                    custo_mao_obra REAL DEFAULT 0,
+                    markup_prc REAL DEFAULT 0,
+                    markup_valores TEXT,     -- JSON contendo adm, impostos, lucro, outros
+                    markup_tipo TEXT DEFAULT 'divisor', -- 'divisor' ou 'multiplicador'
+                    preco_venda REAL DEFAULT 0,
+                    observacoes TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `, (err) => {
+                if (!err) {
+                    console.log('[COMERCIAL] Tabela servicos_precificacao OK.');
+                } else {
+                    console.error('[COMERCIAL] Erro ao criar tabela servicos_precificacao:', err);
+                }
+            });
+
 module.exports = db;
+
