@@ -2159,16 +2159,30 @@ window.salvarPropostaNova = async function() {
     };
 
     try {
-        const resp = await apiPost('/propostas', payload);
-        if (resp && (resp.success || resp.id)) {
-            fecharFormProposta();
-            await carregarPropostas();
-            renderTelaPropostas();
-            if (typeof mostrarToastSucesso === 'function') {
-                mostrarToastSucesso(`Proposta ${resp.codigo} criada com contrato ${resp.contrato} com sucesso!`);
+        if (_propostasEditandoId) {
+            const resp = await apiPut(`/propostas/${_propostasEditandoId}`, payload);
+            if (resp && resp.success) {
+                fecharFormProposta();
+                await carregarPropostas();
+                renderTelaPropostas();
+                if (typeof mostrarToastSucesso === 'function') {
+                    mostrarToastSucesso('Proposta atualizada com sucesso!');
+                }
+            } else {
+                alert('Erro ao atualizar proposta: ' + (resp?.error || 'Erro desconhecido'));
             }
         } else {
-            alert('Erro ao salvar proposta: ' + (resp?.error || 'Erro desconhecido'));
+            const resp = await apiPost('/propostas', payload);
+            if (resp && (resp.success || resp.id)) {
+                fecharFormProposta();
+                await carregarPropostas();
+                renderTelaPropostas();
+                if (typeof mostrarToastSucesso === 'function') {
+                    mostrarToastSucesso(`Proposta ${resp.codigo} criada com contrato ${resp.contrato} com sucesso!`);
+                }
+            } else {
+                alert('Erro ao salvar proposta: ' + (resp?.error || 'Erro desconhecido'));
+            }
         }
     } catch (e) {
         console.error('[PROPOSTAS] Erro ao salvar:', e);
