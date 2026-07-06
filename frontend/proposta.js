@@ -1201,24 +1201,22 @@ function _renderFormPropostaInt() {
                         <div>
                             <label class="prop-lbl">Código</label>
                             <div style="display:flex; gap:0.25rem; align-items:center;">
+                                <input type="text" id="prop-codigo" value="${v('codigo') || (isNovo ? 'Auto' : '')}" readonly
+                                    style="flex:1;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box; height:36px;">
                                 <button type="button" onclick="window.abrirModalPesquisaPropostas()" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#475569; transition:all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Pesquisar Proposta">
                                     <i class="ph ph-magnifying-glass" style="font-size:1.1rem; font-weight:700;"></i>
                                 </button>
-                                <input type="text" id="prop-codigo" value="${v('codigo') || (isNovo ? 'Auto' : '')}" readonly
-                                    style="flex:1;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box; height:36px;">
                             </div>
                         </div>
                         <div>
-                            <label class="prop-lbl" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                                <span>Tipo *</span>
-                                <a href="javascript:void(0)" onclick="window.abrirModalPreenchimentoIA()" style="color:#7048e8; font-size:0.75rem; font-weight:700; text-decoration:none; display:flex; align-items:center; gap:2px;">
-                                    <i class="ph ph-magic-wand"></i> IA: Atendimento
-                                </a>
-                            </label>
+                            <label class="prop-lbl">Tipo *</label>
                             <select id="prop-tipo" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                                 <option value="">-- Selecione --</option>
                                 ${PROP_TIPOS.map(t => `<option value="${t}" ${v('tipo')===t?'selected':''}>${t}</option>`).join('')}
                             </select>
+                            <a href="javascript:void(0)" onclick="window.abrirModalPreenchimentoIA()" style="color:#7048e8; font-size:0.75rem; font-weight:700; text-decoration:none; display:flex; align-items:center; gap:2px; margin-top:4px; justify-content:flex-end;">
+                                <i class="ph ph-magic-wand"></i> IA: Atendimento
+                            </a>
                         </div>
                         <div>
                             <label class="prop-lbl">Atendente</label>
