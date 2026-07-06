@@ -94,9 +94,29 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         const horasTrab   = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
         const trabalhou   = (d.diasTrabalhados || 0) > 0 || horasTrab > 0;
 
-        // ── Férias cadastradas no RH do sistema (banco) — tem prioridade sobre RHID ──
-        // Verifica ferias_programadas_inicio/fim e férias fracionadas do colaborador
-        if (_dataEstaEmFerias(diaStr, c)) {
+        // ── Detecção de Férias diretamente pelo ControlID (RHID) ────────────────
+        // 1) toolTipAlert contém "férias" → férias registradas no RHID
+        // 2) abreviationJustification indica férias (ex: "FE", "VA", "FER")
+        // 3) TODAS as marcações do dia são pré-atribuídas (isPreAssigned=true) sem
+        //    nenhuma batida real → ControlID pré-atribui o horário nos dias de férias
+        // 4) Fallback: ferias_programadas_inicio/fim do cadastro do RH do sistema
+        const toolTipLower = (d.toolTipAlert || '').toLowerCase();
+        const abrJust = (d.abreviationJustification || '').toLowerCase().trim();
+        const justNome = (d.nomeJustificativa || d.justificativa || '').toLowerCase();
+        const isFerias_tooltip = toolTipLower.includes('férias') || toolTipLower.includes('ferias')
+                              || toolTipLower.includes('vacation') || toolTipLower.includes('va ')
+                              || justNome.includes('ferias') || justNome.includes('férias')
+                              || abrJust === 'fe' || abrJust === 'fer' || abrJust === 'va'
+                              || abrJust === 'fér' || abrJust.startsWith('fer') || abrJust.startsWith('fér');
+        // Verifica se TODAS as marcações são pré-atribuídas (sem batida real)
+        const marcacoesRaw = d.listAfdtManutencao || [];
+        const todasPreAtribuidas = marcacoesRaw.length > 0
+            && marcacoesRaw.every(m => m.isPreAssigned === true || m._typeRegister === 'I')
+            && !trabalhou; // E não houve horas trabalhadas reais computadas
+        const isFerias_preAssigned = todasPreAtribuidas;
+        const isFerias_banco = _dataEstaEmFerias(diaStr, c);
+
+        if (isFerias_tooltip || isFerias_preAssigned || isFerias_banco) {
             status = 'Férias';
         } else if (d.isHoliday) {
             status = 'Feriado: ' + (d.holidayName || '');
