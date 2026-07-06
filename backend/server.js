@@ -2426,77 +2426,182 @@ app.post('/api/ia/classificar-tipo', authenticateToken, (req, res) => {
 
     const t = texto.toLowerCase();
 
-    // Classes mapping with weights based on typical construction & rental business context
-    const classes = [
-        {
-            name: "Proposta Obra Mensal",
-            keywords: ["obra", "canteiro", "mensal", "meses", "mês", "mes", "construcao", "construção", "predial", "edificacao", "edificação", "faturado mensal", "longo prazo", "locação mensal"]
-        },
-        {
-            name: "Proposta Evento",
-            keywords: ["evento", "show", "festa", "casamento", "feira", "congresso", "exposicao", "exposição", "festival", "palco", "aniversario", "aniversário", "sabado", "sábado", "domingo", "fim de semana", "fds", "diária de evento"]
-        },
-        {
-            name: "Proposta Obra Diária",
-            keywords: ["diaria", "diária", "diarias", "diárias", "obra", "dias", "dia", "curto prazo", "obra rápida", "reparo rápido", "rápida"]
-        },
-        {
-            name: "Proposta Serviço Avulso",
-            keywords: ["servico", "serviço", "avulso", "manutencao", "manutenção", "visita", "tecnica", "técnica", "conserto", "instalacao", "instalação", "reparo", "suporte", "assistencia", "assistência", "limpeza", "avulsa"]
-        },
-        {
-            name: "Proposta Locação Longa",
-            keywords: ["longa", "longo prazo", "anual", "semestral", "permanente", "contrato longo", "ano", "anos", "indeterminado", "12 meses", "6 meses"]
-        },
-        {
-            name: "Proposta Reforma",
-            keywords: ["reforma", "reformar", "pintura", "retrofit", "restauro", "adequacao", "adequação", "reparacao", "reparação", "acabamento", "adequar"]
+    // Query estoque to check registered products
+    db.all('SELECT id, nome, categoria FROM estoque', [], (err, estoqueProds) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: err.message });
         }
-    ];
 
-    let bestClass = "Proposta Obra Mensal"; // default fallback
-    let maxScore = -1;
+        // Classes mapping with weights based on typical construction & rental business context
+        const classes = [
+            {
+                name: "Proposta Obra Mensal",
+                keywords: ["obra", "canteiro", "mensal", "meses", "mês", "mes", "construcao", "construção", "predial", "edificacao", "edificação", "faturado mensal", "longo prazo", "locação mensal"]
+            },
+            {
+                name: "Proposta Evento",
+                keywords: ["evento", "show", "festa", "casamento", "feira", "congresso", "exposicao", "exposição", "festival", "palco", "aniversario", "aniversário", "sabado", "sábado", "domingo", "fim de semana", "fds", "diária de evento"]
+            },
+            {
+                name: "Proposta Obra Diária",
+                keywords: ["diaria", "diária", "diarias", "diárias", "obra", "dias", "dia", "curto prazo", "obra rápida", "reparo rápido", "rápida"]
+            },
+            {
+                name: "Proposta Serviço Avulso",
+                keywords: ["servico", "serviço", "avulso", "manutencao", "manutenção", "visita", "tecnica", "técnica", "conserto", "instalacao", "instalação", "reparo", "suporte", "assistencia", "assistência", "limpeza", "avulsa"]
+            },
+            {
+                name: "Proposta Locação Longa",
+                keywords: ["longa", "longo prazo", "anual", "semestral", "permanente", "contrato longo", "ano", "anos", "indeterminado", "12 meses", "6 meses"]
+            },
+            {
+                name: "Proposta Reforma",
+                keywords: ["reforma", "reformar", "pintura", "retrofit", "restauro", "adequacao", "adequação", "reparacao", "reparação", "acabamento", "adequar"]
+            }
+        ];
 
-    classes.forEach(c => {
-        let score = 0;
-        c.keywords.forEach(kw => {
-            const regex = new RegExp(kw, 'gi');
-            const matches = t.match(regex);
-            if (matches) {
-                score += matches.length;
+        let bestClass = "Proposta Obra Mensal"; // default fallback
+        let maxScore = -1;
+
+        classes.forEach(c => {
+            let score = 0;
+            c.keywords.forEach(kw => {
+                const regex = new RegExp(kw, 'gi');
+                const matches = t.match(regex);
+                if (matches) {
+                    score += matches.length;
+                }
+            });
+            
+            if (score > maxScore) {
+                maxScore = score;
+                bestClass = c.name;
             }
         });
-        
-        if (score > maxScore) {
-            maxScore = score;
-            bestClass = c.name;
+
+        // Special context sub-rules for co-occurrences
+        if (t.includes('obra')) {
+            if (t.includes('diaria') || t.includes('diária') || t.includes('dias') || t.includes('dia')) {
+                bestClass = "Proposta Obra Diária";
+            } else if (t.includes('mensal') || t.includes('meses') || t.includes('mês') || t.includes('mes')) {
+                bestClass = "Proposta Obra Mensal";
+            }
         }
-    });
 
-    // Special context sub-rules for co-occurrences
-    if (t.includes('obra')) {
-        if (t.includes('diaria') || t.includes('diária') || t.includes('dias') || t.includes('dia')) {
-            bestClass = "Proposta Obra Diária";
-        } else if (t.includes('mensal') || t.includes('meses') || t.includes('mês') || t.includes('mes')) {
-            bestClass = "Proposta Obra Mensal";
+        // Detect quantity of maintenance from the text
+        let qtd_manutencoes = 1; // default
+        if (t.includes('3 manuten') || t.includes('3vezes') || t.includes('3 vezes') || t.includes('3 manut') || t.includes('tres manuten') || t.includes('três manuten') || t.includes('três vezes') || t.includes('tres vezes')) {
+            qtd_manutencoes = 3;
+        } else if (t.includes('2 manuten') || t.includes('2vezes') || t.includes('2 vezes') || t.includes('2 manut') || t.includes('duas manuten') || t.includes('duas vezes') || t.includes('bi-semanal') || t.includes('bisanal')) {
+            qtd_manutencoes = 2;
+        } else if (t.includes('1 manuten') || t.includes('1vezes') || t.includes('1 vez') || t.includes('1 manut') || t.includes('uma manuten') || t.includes('uma vez') || t.includes('semanal') || t.includes('1x por semana')) {
+            qtd_manutencoes = 1;
         }
-    }
 
-    // Detect quantity of maintenance from the text
-    let qtd_manutencoes = 1; // default
-    if (t.includes('3 manuten') || t.includes('3vezes') || t.includes('3 vezes') || t.includes('3 manut') || t.includes('tres manuten') || t.includes('três manuten') || t.includes('três vezes') || t.includes('tres vezes')) {
-        qtd_manutencoes = 3;
-    } else if (t.includes('2 manuten') || t.includes('2vezes') || t.includes('2 vezes') || t.includes('2 manut') || t.includes('duas manuten') || t.includes('duas vezes') || t.includes('bi-semanal') || t.includes('bisanal')) {
-        qtd_manutencoes = 2;
-    } else if (t.includes('1 manuten') || t.includes('1vezes') || t.includes('1 vez') || t.includes('1 manut') || t.includes('uma manuten') || t.includes('uma vez') || t.includes('semanal') || t.includes('1x por semana')) {
-        qtd_manutencoes = 1;
-    }
+        // Helper functions for fuzzy product matching
+        const normalizeText = (str) => {
+            if (!str) return '';
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        };
 
-    res.json({
-        tipo_sugerido: bestClass,
-        score: maxScore,
-        observacao_formatada: `--- Primeiro Atendimento (IA) ---\n${texto}\n----------------------------------`,
-        qtd_manutencoes: qtd_manutencoes
+        const tNormalized = normalizeText(texto);
+        const matchedProducts = [];
+
+        if (estoqueProds && estoqueProds.length > 0) {
+            estoqueProds.forEach(p => {
+                const prodNormalized = normalizeText(p.nome);
+                
+                // 1. Direct match check
+                let matchIndex = tNormalized.indexOf(prodNormalized);
+                let isMatch = matchIndex !== -1;
+                const words = prodNormalized.split(/\s+/).filter(w => w.length > 2);
+
+                // 2. Singular/plural word check if direct check didn't match
+                if (!isMatch && words.length > 0) {
+                    let allMatched = true;
+                    let firstIdx = -1;
+                    for (let word of words) {
+                        const idx = tNormalized.indexOf(word);
+                        if (idx === -1) {
+                            // Try singular
+                            if (word.endsWith('s')) {
+                                const singular = word.slice(0, -1);
+                                const idx2 = tNormalized.indexOf(singular);
+                                if (idx2 !== -1) {
+                                    if (firstIdx === -1) firstIdx = idx2;
+                                    continue;
+                                }
+                            }
+                            allMatched = false;
+                            break;
+                        } else {
+                            if (firstIdx === -1) firstIdx = idx;
+                        }
+                    }
+                    if (allMatched) {
+                        isMatch = true;
+                        matchIndex = firstIdx;
+                    }
+                }
+
+                if (isMatch) {
+                    // Extract context window
+                    const start = Math.max(0, matchIndex - 25);
+                    const end = Math.min(tNormalized.length, matchIndex + prodNormalized.length + 25);
+                    const context = tNormalized.substring(start, end);
+
+                    // Clean product words from context to avoid matching numbers in names (like 150 kVA)
+                    let cleanContext = context;
+                    words.forEach(w => {
+                        cleanContext = cleanContext.replace(new RegExp(w + 's?', 'g'), '');
+                    });
+
+                    // Search for quantities in context
+                    let quantity = 1;
+                    const digitMatch = cleanContext.match(/\b\d+\b/);
+                    if (digitMatch) {
+                        quantity = parseInt(digitMatch[0]);
+                    } else {
+                        const numWords = {
+                            'um': 1, 'uma': 1, 'dois': 2, 'duas': 2, 'tres': 3, 'três': 3,
+                            'quatro': 4, 'cinco': 5, 'seis': 6, 'sete': 7, 'oito': 8,
+                            'nove': 9, 'dez': 10
+                        };
+                        for (let key in numWords) {
+                            if (new RegExp('\\b' + key + '\\b').test(cleanContext)) {
+                                quantity = numWords[key];
+                                break;
+                            }
+                        }
+                    }
+
+                    matchedProducts.push({
+                        codigo: p.id.toString(),
+                        descricao: p.nome,
+                        quantidade: quantity
+                    });
+                }
+            });
+        }
+
+        // Deduplicate matched products by ID (codigo)
+        const uniqueMatchedProducts = [];
+        const seenCodes = new Set();
+        matchedProducts.forEach(item => {
+            if (!seenCodes.has(item.codigo)) {
+                seenCodes.add(item.codigo);
+                uniqueMatchedProducts.push(item);
+            }
+        });
+
+        res.json({
+            tipo_sugerido: bestClass,
+            score: maxScore,
+            observacao_formatada: `--- Primeiro Atendimento (IA) ---\n${texto}\n----------------------------------`,
+            qtd_manutencoes: qtd_manutencoes,
+            produtos_sugeridos: uniqueMatchedProducts
+        });
     });
 });
 

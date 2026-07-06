@@ -6626,6 +6626,13 @@ window.abrirModalPreenchimentoIA = function() {
                         }
                     }
 
+                    if (res.produtos_sugeridos && res.produtos_sugeridos.length > 0) {
+                        window._propProdutosAdicionados = res.produtos_sugeridos;
+                        if (typeof window.renderizarProdutosPropostaGrid === 'function') {
+                            window.renderizarProdutosPropostaGrid();
+                        }
+                    }
+
                     if (typeof mostrarToastSucesso === 'function') {
                         mostrarToastSucesso(`Classificado como: ${res.tipo_sugerido}!`);
                     }
