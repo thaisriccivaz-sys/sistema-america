@@ -1325,22 +1325,8 @@ function _renderFormPropostaInt() {
                                 </select>
                             </div>
                         </div>
-                        <div style="display:grid; grid-template-columns:2fr 1fr 1fr 1.5fr; gap:1rem;">
-                            <div>
-                                <label class="prop-lbl" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                                    <span>Endereço de Instalação</span>
-                                    <span id="prop-regiao-ia-badge" style="display:none; font-weight:800; font-size:0.7rem; padding:2px 6px; border-radius:10px; font-family:'Inter',sans-serif;"></span>
-                                </label>
-                                <div style="display:flex; gap:6px; margin-bottom:0.35rem;">
-                                    <input type="text" id="prop-endereco" value="${v('endereco_instalacao')}"
-                                        onchange="window.classificarRegiaoEDias()"
-                                        oninput="window.classificarRegiaoEDiasDebounced()"
-                                        style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Rua, número, cidade, estado">
-                                    <button type="button" onclick="window.abrirModalEnderecosEntrega()" style="background:#e2e8f0; color:#475569; border:none; padding:0 0.75rem; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; height:38px; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'" title="Consultar Endereços de Instalação">
-                                        <i class="ph ph-magnifying-glass" style="font-size:1.15rem;"></i>
-                                    </button>
-                                </div>
-                            </div>
+                        <!-- Linha: Desconto %, Desconto R$, Condição Pagamento -->
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1.5fr; gap:1rem; margin-bottom:1rem;">
                             <div>
                                 <label class="prop-lbl">Desconto (%)</label>
                                 <input type="number" id="prop-desc-pct" value="${vn('desconto_percent','0')}" min="0" max="100" step="0.01"
@@ -1359,8 +1345,29 @@ function _renderFormPropostaInt() {
                                     ${PROP_COND_PAG.map(c => `<option value="${c}" ${v('condicao_pagamento')===c?'selected':''}>${c}</option>`).join('')}
                                 </select>
                             </div>
-                            <!-- Barra de Manutenção e Dias da Semana (Largura Total da Linha) -->
-                            <div style="grid-column: span 4; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-top:0.25rem; background:#f8fafc; padding:0.4rem 0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box; width:100%;">
+                        </div>
+
+                        <!-- Linha: Endereço de Instalação, Manutenções e Dias da Semana (Largura Total da Linha) -->
+                        <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap; background:#f8fafc; padding:0.5rem 0.75rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box; width:100%; margin-bottom:1rem;">
+                            
+                            <!-- Endereço de Instalação -->
+                            <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:320px;">
+                                <span style="font-size:0.85rem; font-weight:700; color:#475569; white-space:nowrap;">Instalação:</span>
+                                <input type="text" id="prop-endereco" value="${v('endereco_instalacao')}"
+                                    onchange="window.classificarRegiaoEDias()"
+                                    oninput="window.classificarRegiaoEDiasDebounced()"
+                                    style="flex:1;padding:0.4rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:34px;" placeholder="Rua, número, cidade, estado">
+                                <button type="button" onclick="window.abrirModalEnderecosEntrega()" style="background:#e2e8f0; color:#475569; border:none; padding:0 0.65rem; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; height:34px; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'" title="Consultar Endereços de Instalação">
+                                    <i class="ph ph-magnifying-glass" style="font-size:1.05rem;"></i>
+                                </button>
+                                <span id="prop-regiao-ia-badge" style="display:none; font-weight:800; font-size:0.7rem; padding:2px 6px; border-radius:10px; font-family:'Inter',sans-serif; white-space:nowrap;"></span>
+                            </div>
+
+                            <!-- Divisor Vertical -->
+                            <div style="width:1px; height:20px; background:#e2e8f0; margin:0 4px;"></div>
+
+                            <!-- Manutenção e Dias -->
+                            <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
                                 <i class="ph ph-wrench" style="color:#7048e8; font-size:0.9rem;"></i>
                                 <select id="prop-qtd-manutencoes" onchange="window.classificarRegiaoEDias()" style="border:1px solid #cbd5e1; border-radius:4px; padding:2px; font-size:0.72rem; color:#475569; font-weight:700; background:#fff; cursor:pointer; font-family:'Inter',sans-serif; outline:none; margin-right:4px;">
                                     <option value="1">1 Manut./Semana</option>
