@@ -4,6 +4,37 @@ const htmlPdf = require('html-pdf-node');
 const { PDFDocument } = require('pdf-lib');
 const rhidPonto = require('./routes/controlid.js');
 
+// ── Helpers para detecção de férias via banco do RH ──────────────────────
+function _parseDataFeriasParaISO(dStr) {
+    if (!dStr) return null;
+    dStr = dStr.trim();
+    // Aceita DD/MM/AAAA ou AAAA-MM-DD
+    if (dStr.includes('/')) {
+        const p = dStr.split('/');
+        if (p.length === 3) return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+    }
+    if (dStr.includes('-') && dStr.length >= 10) return dStr.substring(0, 10);
+    return null;
+}
+
+function _dataEstaEmFerias(diaISO, colab) {
+    if (!colab || !diaISO) return false;
+    const dt = diaISO.substring(0, 10);
+    const periodos = [
+        { ini: colab.ferias_programadas_inicio, fim: colab.ferias_programadas_fim },
+    ];
+    // Férias fracionadas (segunda parcela)
+    if (colab.ferias_fracionadas === 'Sim' && colab.ferias_fracionadas_tipo === 'Tirada') {
+        periodos.push({ ini: colab.ferias_fracionadas_inicio2, fim: colab.ferias_fracionadas_fim2 });
+    }
+    for (const { ini, fim } of periodos) {
+        const iniISO = _parseDataFeriasParaISO(ini);
+        const fimISO = _parseDataFeriasParaISO(fim);
+        if (iniISO && fimISO && dt >= iniISO && dt <= fimISO) return true;
+    }
+    return false;
+}
+
 function fmtMin(m) {
     if (!m) return '';
     const hrs = Math.floor(m / 60).toString().padStart(2, '0');
@@ -63,7 +94,11 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         const horasTrab   = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
         const trabalhou   = (d.diasTrabalhados || 0) > 0 || horasTrab > 0;
 
-        if (d.isHoliday) {
+        // ── Férias cadastradas no RH do sistema (banco) — tem prioridade sobre RHID ──
+        // Verifica ferias_programadas_inicio/fim e férias fracionadas do colaborador
+        if (_dataEstaEmFerias(diaStr, c)) {
+            status = 'Férias';
+        } else if (d.isHoliday) {
             status = 'Feriado: ' + (d.holidayName || '');
         } else if (isFolgaSt || isFolgaFlag || isDSRMin) {
             // DSR/FOLGA explícito da API — mas se trabalhou >= 6h, é dia trabalhado (ex: 10/05 Naelson)
