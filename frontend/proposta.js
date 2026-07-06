@@ -1531,23 +1531,6 @@ function _renderFormPropostaInt() {
     if (typeof window.calcularValorTotalProposta === 'function') {
         window.calcularValorTotalProposta();
     }
-
-    if (prop && prop.dias_semana) {
-        try {
-            const savedDays = typeof prop.dias_semana === 'string' ? JSON.parse(prop.dias_semana) : prop.dias_semana;
-            if (Array.isArray(savedDays)) {
-                if (savedDays.includes('Segunda') && document.getElementById('chk-dia-seg')) document.getElementById('chk-dia-seg').checked = true;
-                if (savedDays.includes('Terça') && document.getElementById('chk-dia-ter')) document.getElementById('chk-dia-ter').checked = true;
-                if (savedDays.includes('Quarta') && document.getElementById('chk-dia-qua')) document.getElementById('chk-dia-qua').checked = true;
-                if (savedDays.includes('Quinta') && document.getElementById('chk-dia-qui')) document.getElementById('chk-dia-qui').checked = true;
-                if (savedDays.includes('Sexta') && document.getElementById('chk-dia-sex')) document.getElementById('chk-dia-sex').checked = true;
-                if (savedDays.includes('Sábado') && document.getElementById('chk-dia-sab')) document.getElementById('chk-dia-sab').checked = true;
-                if (savedDays.includes('Domingo') && document.getElementById('chk-dia-dom')) document.getElementById('chk-dia-dom').checked = true;
-            }
-        } catch (e) {
-            console.error('Erro ao restaurar dias_semana:', e);
-        }
-    }
 }
 
 window.toggleMotivoReprovacao = function(fase) {
@@ -2173,17 +2156,6 @@ window.salvarPropostaNova = async function() {
         criado_por: window.currentUser?.nome || window.currentUser?.email || '',
         itens: window._propProdutosAdicionados || [],
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
-        dias_semana: JSON.stringify((() => {
-            const days = [];
-            if (document.getElementById('chk-dia-seg')?.checked) days.push('Segunda');
-            if (document.getElementById('chk-dia-ter')?.checked) days.push('Terça');
-            if (document.getElementById('chk-dia-qua')?.checked) days.push('Quarta');
-            if (document.getElementById('chk-dia-qui')?.checked) days.push('Quinta');
-            if (document.getElementById('chk-dia-sex')?.checked) days.push('Sexta');
-            if (document.getElementById('chk-dia-sab')?.checked) days.push('Sábado');
-            if (document.getElementById('chk-dia-dom')?.checked) days.push('Domingo');
-            return days;
-        })())
     };
 
     try {
@@ -2251,17 +2223,6 @@ window.estornarPropostaEdicao = async function() {
         criado_por: window.currentUser?.nome || window.currentUser?.email || '',
         itens: window._propProdutosAdicionados || [],
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
-        dias_semana: JSON.stringify((() => {
-            const days = [];
-            if (document.getElementById('chk-dia-seg')?.checked) days.push('Segunda');
-            if (document.getElementById('chk-dia-ter')?.checked) days.push('Terça');
-            if (document.getElementById('chk-dia-qua')?.checked) days.push('Quarta');
-            if (document.getElementById('chk-dia-qui')?.checked) days.push('Quinta');
-            if (document.getElementById('chk-dia-sex')?.checked) days.push('Sexta');
-            if (document.getElementById('chk-dia-sab')?.checked) days.push('Sábado');
-            if (document.getElementById('chk-dia-dom')?.checked) days.push('Domingo');
-            return days;
-        })())
     };
 
     try {

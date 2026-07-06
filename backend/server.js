@@ -21023,46 +21023,6 @@ app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
   });
 });
 
-// Sincronizar Proposta com OS Logística caso exista OS com mesmo número (contrato ou codigo)
-function atualizarOSSeExistir(prop) {
-  const query = `
-    UPDATE os_logistica SET
-      cliente = ?,
-      endereco = ?,
-      tipo_servico = ?,
-      produtos = ?,
-      observacoes = ?,
-      hora_inicio = ?,
-      hora_fim = ?,
-      dias_semana = ?,
-      contrato = ?,
-      atualizado_em = datetime('now', '-3 hours')
-    WHERE (numero_os = ? OR contrato = ? OR numero_os = ? OR contrato = ?) AND status = 'ativo'
-  `;
-  const params = [
-    prop.cliente_nome,
-    prop.endereco_instalacao,
-    prop.tipo,
-    prop.itens ? (typeof prop.itens === 'string' ? prop.itens : JSON.stringify(prop.itens)) : '[]',
-    prop.observacoes,
-    prop.hora_inicio || '00:00',
-    prop.hora_fim || '00:00',
-    prop.dias_semana ? (typeof prop.dias_semana === 'string' ? prop.dias_semana : JSON.stringify(prop.dias_semana)) : '[]',
-    prop.contrato,
-    prop.contrato, // numero_os = contrato
-    prop.contrato, // contrato = contrato
-    prop.codigo,   // numero_os = codigo
-    prop.codigo    // contrato = codigo
-  ];
-  db.run(query, params, function(err) {
-    if (err) {
-      console.error('[PROPOSTAS->OS] Erro ao sincronizar OS:', err.message);
-    } else if (this.changes > 0) {
-      console.log(`[PROPOSTAS->OS] Sincronizadas ${this.changes} OS(s) com a proposta ${prop.codigo}/${prop.contrato}`);
-    }
-  });
-}
-
 // POST /api/propostas - Criar nova proposta
 app.post('/api/propostas', authenticateToken, (req, res) => {
   const d = req.body;
@@ -21076,8 +21036,8 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         tabela_precos, endereco_instalacao, desconto_percent, desconto_reais,
         condicao_pagamento, representante, transportadora, tipo_frete,
         valor_frete_ida, valor_frete_volta, observacoes, valor_total,
-        status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, dias_semana, criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
         d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
@@ -21089,25 +21049,10 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         d.valor_total||0, d.status||'Ativa', d.motivo_reprovacao||null, d.criado_por,
         d.itens ? (typeof d.itens === 'string' ? d.itens : JSON.stringify(d.itens)) : '[]',
         d.servico_precificacao_id || null,
-        d.dias_semana || '[]',
         agora, agora
       ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         
-        // Sincronizar OS correspondente
-        atualizarOSSeExistir({
-          codigo,
-          contrato,
-          cliente_nome: d.cliente_nome,
-          endereco_instalacao: d.endereco_instalacao,
-          tipo: d.tipo,
-          itens: d.itens,
-          observacoes: d.observacoes,
-          hora_inicio: d.hora_inicio,
-          hora_fim: d.hora_fim,
-          dias_semana: d.dias_semana
-        });
-
         // Log de criação
         const usuarioLog = req.user?.username || req.user?.nome || d.criado_por || 'unknown';
         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Criação', '', ?, ?)`,
@@ -21137,7 +21082,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       tabela_precos=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
       condicao_pagamento=?, representante=?, transportadora=?, tipo_frete=?,
       valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
-      status=?, motivo_reprovacao=?, itens=?, servico_precificacao_id=?, dias_semana=?, atualizado_em=?
+      status=?, motivo_reprovacao=?, itens=?, servico_precificacao_id=?, atualizado_em=?
       WHERE id=?`,
     [
       d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
@@ -21150,25 +21095,10 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       d.valor_total||0, d.status||'Ativa', d.motivo_reprovacao||null,
       d.itens ? (typeof d.itens === 'string' ? d.itens : JSON.stringify(d.itens)) : '[]',
       d.servico_precificacao_id || null,
-      d.dias_semana || '[]',
       agora, proposalId
     ], function(errUpdate) {
       if (errUpdate) return res.status(500).json({ error: errUpdate.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Proposta não encontrada' });
-
-      // Sincronizar OS correspondente
-      atualizarOSSeExistir({
-        codigo: oldRow.codigo,
-        contrato: oldRow.contrato,
-        cliente_nome: d.cliente_nome,
-        endereco_instalacao: d.endereco_instalacao,
-        tipo: d.tipo,
-        itens: d.itens,
-        observacoes: d.observacoes,
-        hora_inicio: d.hora_inicio,
-        hora_fim: d.hora_fim,
-        dias_semana: d.dias_semana
-      });
 
       // Auditoria: comparar campos alterados
       const fieldsToCompare = [
