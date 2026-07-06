@@ -1180,7 +1180,7 @@ function _renderFormPropostaInt() {
                     <div style="width: 4px;"></div>
 
                     <!-- Text Buttons -->
-                    <button onclick="limparFormPropostaNovo()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" onfocus="this.blur()">
+                    <button onclick="limparFormPropostaNovo(); if (typeof window.abrirModalPreenchimentoIA === 'function') window.abrirModalPreenchimentoIA();" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" onfocus="this.blur()">
                         <i class="ph ph-file-text" style="font-size:1rem;"></i> Novo
                     </button>
                     <button onclick="salvarPropostaNova()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
