@@ -1091,9 +1091,13 @@ function limparFiltrosPropostas() {
 }
 
 /* ── Formulário (Modal) ─────────────────────────────────────────────── */
-function abrirFormProposta(id) {
+async function abrirFormProposta(id) {
     _propostasEditandoId = id;
     _currentPropostaTab = 'form';
+    
+    if (typeof _carregarServicosPrecificadosList === 'function') {
+        await _carregarServicosPrecificadosList();
+    }
     
     // Sempre re-renderiza o form ao abrir pelo botão de Editar ou Nova Proposta (para resetar dados)
     if (document.getElementById('prop-view-form')) {
@@ -1327,6 +1331,18 @@ function _renderFormPropostaInt() {
                                 </select>
                             </div>
                         </div>
+
+                        <!-- Linha: Serviço Precificado -->
+                        <div style="display:grid; grid-template-columns:1fr; gap:1rem; margin-bottom:0.85rem;">
+                            <div>
+                                <label class="prop-lbl">Serviço Precificado (Composição de Custo/Preço)</label>
+                                <select id="prop-servico-precificado" onchange="window.calcularValorTotalProposta()" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;font-weight:600;color:#1e293b;background:#fff;">
+                                    <option value="">-- Nenhum Serviço Precificado Selecionado (Manter Valor Manual) --</option>
+                                    ${(_precificacaoServicosList || []).map(s => `<option value="${s.id}" data-preco="${s.preco_venda}" ${prop && prop.servico_precificacao_id === s.id ? 'selected' : ''}>${s.nome} (${'R$ ' + Number(s.preco_venda).toLocaleString('pt-BR', {minimumFractionDigits:2})})</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+
                         <!-- Linha: Desconto %, Desconto R$, Condição Pagamento -->
                         <div style="display:grid; grid-template-columns:1fr 1fr 1.5fr; gap:1rem; margin-bottom:1rem;">
                             <div>
@@ -1338,6 +1354,7 @@ function _renderFormPropostaInt() {
                             <div>
                                 <label class="prop-lbl">Desconto (R$)</label>
                                 <input type="number" id="prop-desc-rs" value="${vn('desconto_reais','0')}" min="0" step="0.01"
+                                    oninput="document.getElementById('prop-desc-pct').value = '0'; window.calcularValorTotalProposta();"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                             <div>
@@ -1467,11 +1484,13 @@ function _renderFormPropostaInt() {
                             <div>
                                 <label class="prop-lbl">Frete Ida (R$)</label>
                                 <input type="number" id="prop-frete-ida" value="${vn('valor_frete_ida','0')}" min="0" step="0.01"
+                                    oninput="window.calcularValorTotalProposta()"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Frete Volta (R$)</label>
                                 <input type="number" id="prop-frete-volta" value="${vn('valor_frete_volta','0')}" min="0" step="0.01"
+                                    oninput="window.calcularValorTotalProposta()"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                         </div>
@@ -1507,6 +1526,10 @@ function _renderFormPropostaInt() {
     // Auto-trigger region classification if address is already pre-filled
     if (typeof window.classificarRegiaoEDias === 'function') {
         window.classificarRegiaoEDias();
+    }
+
+    if (typeof window.calcularValorTotalProposta === 'function') {
+        window.calcularValorTotalProposta();
     }
 }
 
@@ -2016,10 +2039,62 @@ window.calcularFimContrato = function() {
 
 function calcularDescontoReais() {
     const pct = parseFloat(document.getElementById('prop-desc-pct')?.value || 0);
-    const total = parseFloat(document.getElementById('prop-valor-total')?.value || 0);
+    const servicoSelect = document.getElementById('prop-servico-precificado');
+    let precoServico = 0;
+    if (servicoSelect && servicoSelect.value) {
+        const selectedOption = servicoSelect.options[servicoSelect.selectedIndex];
+        precoServico = parseFloat(selectedOption.getAttribute('data-preco') || 0);
+    }
+    const freteIda = parseFloat(document.getElementById('prop-frete-ida')?.value || 0);
+    const freteVolta = parseFloat(document.getElementById('prop-frete-volta')?.value || 0);
+    const subtotal = precoServico + freteIda + freteVolta;
+
     const rsEl = document.getElementById('prop-desc-rs');
-    if (rsEl && total > 0) rsEl.value = (total * pct / 100).toFixed(2);
+    if (rsEl && subtotal > 0) {
+        rsEl.value = (subtotal * pct / 100).toFixed(2);
+    }
+
+    if (typeof window.calcularValorTotalProposta === 'function') {
+        window.calcularValorTotalProposta();
+    }
 }
+
+window.calcularValorTotalProposta = function() {
+    const servicoSelect = document.getElementById('prop-servico-precificado');
+    const freteIdaEl = document.getElementById('prop-frete-ida');
+    const freteVoltaEl = document.getElementById('prop-frete-volta');
+    const descPctEl = document.getElementById('prop-desc-pct');
+    const descRsEl = document.getElementById('prop-desc-rs');
+    const totalEl = document.getElementById('prop-valor-total');
+
+    if (!totalEl) return;
+
+    if (!servicoSelect || !servicoSelect.value) {
+        totalEl.removeAttribute('readonly');
+        totalEl.style.background = '#fff';
+        return;
+    }
+
+    totalEl.setAttribute('readonly', 'true');
+    totalEl.style.background = '#f1f5f9';
+
+    const selectedOption = servicoSelect.options[servicoSelect.selectedIndex];
+    const precoServico = parseFloat(selectedOption.getAttribute('data-preco') || 0);
+    const freteIda = parseFloat(freteIdaEl?.value || 0);
+    const freteVolta = parseFloat(freteVoltaEl?.value || 0);
+
+    const subtotal = precoServico + freteIda + freteVolta;
+
+    let desconto = 0;
+    if (descPctEl && parseFloat(descPctEl.value) > 0) {
+        desconto = subtotal * parseFloat(descPctEl.value) / 100;
+    } else if (descRsEl && parseFloat(descRsEl.value) > 0) {
+        desconto = parseFloat(descRsEl.value);
+    }
+
+    const totalCalculado = Math.max(0, subtotal - desconto);
+    totalEl.value = totalCalculado.toFixed(2);
+};
 
 /* ── Botões CRUD e Envio ─────────────────────────────────────────────── */
 window.limparFormPropostaNovo = function() {
@@ -2080,6 +2155,7 @@ window.salvarPropostaNova = async function() {
         motivo_reprovacao: obter('prop-motivo-reprovacao'),
         criado_por: window.currentUser?.nome || window.currentUser?.email || '',
         itens: window._propProdutosAdicionados || [],
+        servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
     };
 
     try {
@@ -2146,6 +2222,7 @@ window.estornarPropostaEdicao = async function() {
         motivo_reprovacao: obter('prop-motivo-reprovacao'),
         criado_por: window.currentUser?.nome || window.currentUser?.email || '',
         itens: window._propProdutosAdicionados || [],
+        servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
     };
 
     try {
