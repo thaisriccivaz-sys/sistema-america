@@ -1427,9 +1427,10 @@ window._recBuscarPontoSelecionados = async function () {
 
                     let tipo2 = '';
                     // ── Férias (ControlID) = folga para fins de recibo ──────────────
-                    // Apenas toolTipAlert é fonte confiável para férias (conforme ControlID)
+                    // Apenas toolTipAlert e d.isFerias (setado pelo backend) são fontes confiáveis
                     const _tip2 = (d.toolTipAlert || '').toLowerCase();
-                    const isFerias2 = _tip2.includes('férias') || _tip2.includes('ferias') || _tip2.includes('vacation');
+                    const isFerias2 = d.isFerias === true
+                        || _tip2.includes('férias') || _tip2.includes('ferias') || _tip2.includes('vacation');
                     if (isFerias2) {
                         tipo2 = 'folga'; // Férias → trata como folga (sem desconto VT/VR, sem falta)
                     } else if (d.isHoliday) {

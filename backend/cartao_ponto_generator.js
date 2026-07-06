@@ -98,11 +98,14 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         // O ControlID grava "Férias" (ou variações) no toolTipAlert quando o dia é férias.
         // NÃO usamos isPreAssigned (pode ser apontamento esquecido/automático)
         // NÃO usamos ferias_programadas do banco (pode estar desatualizado)
+        // O backend também seta d.isFerias=true após lookup de justificativas
         const toolTipLower = (d.toolTipAlert || '').toLowerCase();
-        const isFerias_controlid = toolTipLower.includes('férias') || toolTipLower.includes('ferias')
+        const isFerias_controlid = d.isFerias === true
+                                || toolTipLower.includes('férias') || toolTipLower.includes('ferias')
                                 || toolTipLower.includes('vacation');
 
         if (isFerias_controlid) {
+
             status = 'Férias';
         } else if (d.isHoliday) {
             status = 'Feriado: ' + (d.holidayName || '');

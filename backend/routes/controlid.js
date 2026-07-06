@@ -357,6 +357,58 @@ router.get('/ponto-colaborador', async (req, res) => {
             console.warn('[ControlID] Erro ao buscar apuracao_ponto:', rhidMsg);
         }
 
+        // ── PASSO 3b: Enriquecer dias de férias com nome da justificativa ────
+        // O ControlID não retorna toolTipAlert nem nomeJustificativa preenchidos
+        // nos dias de férias — apenas o idJustification (ex: 3416 = "Férias").
+        // Buscamos a lista de justificativas para mapear ID → nome.
+        if (Array.isArray(apuracaoData) && apuracaoData.some(d => d.idJustification)) {
+            try {
+                const justRes = await axios.get(`${RHID_BASE_URL}/justification`, {
+                    headers: { ...RHID_GET_HEADERS, Authorization: authHeader },
+                    params: { start: 0, length: 200 }
+                });
+                const justList = Array.isArray(justRes.data) ? justRes.data
+                    : (justRes.data?.data || justRes.data?.list || justRes.data?.items || []);
+                // Monta mapa id → nome
+                const justMap = {};
+                justList.forEach(j => {
+                    if (j.id != null) {
+                        justMap[j.id] = (j.name || j.nome || j.descricao || j.description || '');
+                    }
+                });
+                // Enriquece cada dia com o nome da justificativa
+                apuracaoData.forEach(d => {
+                    if (d.idJustification && justMap[d.idJustification]) {
+                        d.nomeJustificativa = justMap[d.idJustification];
+                        // Se o nome mencionar férias, marca explicitamente
+                        const nomeLow = d.nomeJustificativa.toLowerCase();
+                        if (nomeLow.includes('férias') || nomeLow.includes('ferias') || nomeLow.includes('vacation')) {
+                            d.toolTipAlert = d.nomeJustificativa; // garante detecção downstream
+                            d.isFerias = true;
+                        }
+                    }
+                });
+                console.log(`[ControlID] Justificativas mapeadas: ${Object.keys(justMap).length} IDs. Dias enriquecidos.`);
+            } catch (jErr) {
+                console.warn('[ControlID] Não foi possível buscar lista de justificativas:', jErr.message);
+                // Fallback: detectar férias pela combinação de campos sem nome
+                // Dias de férias: têm idJustification + não trabalharam + TODAS as marcações são _typeRegister=I
+                if (Array.isArray(apuracaoData)) {
+                    apuracaoData.forEach(d => {
+                        if (!d.idJustification) return;
+                        const marcacoes = d.listAfdtManutencao || [];
+                        const todasInseridas = marcacoes.length > 0 && marcacoes.every(m => m._typeRegister === 'I');
+                        const semTrabalho = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
+                        const naoEFolga = !d.folga && !(d.dsrConsideradoMinutos > 0);
+                        if (todasInseridas && semTrabalho && naoEFolga) {
+                            d.isFerias = true;
+                            d.toolTipAlert = 'Férias'; // força detecção downstream
+                        }
+                    });
+                }
+            }
+        }
+
         // ── PASSO 4: Processar resposta ───────────────────────────────────────
         const resultado = processarApuracao(apuracaoData, mesNum, anoNum, idPerson, nomeRHID);
 
