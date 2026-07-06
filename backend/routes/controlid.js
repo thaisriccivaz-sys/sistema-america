@@ -604,6 +604,56 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         if (Array.isArray(data) && data.length > 0) {
             payloadDebug = 'Exemplo Dia 1: ' + JSON.stringify(data[0]).substring(0, 800);
             try { fs.writeFileSync(path.join(__dirname, '../../frontend/apuracao.txt'), JSON.stringify(data[0])); } catch(e){}
+            // DEBUG AMPLIADO: gravar todos os dias para inspecionar dias de férias
+            try {
+                // Procura dias suspeitos de férias: toolTipAlert, justificativas, ou dias mid/late-month
+                const diasSuspeitos = data.filter(d => {
+                    const tip = (d.toolTipAlert || '').toLowerCase();
+                    const abr = (d.abreviationJustification || '').toLowerCase();
+                    const nome = (d.nomeJustificativa || '').toLowerCase();
+                    const marcacoes = d.listAfdtManutencao || [];
+                    const todasI = marcacoes.length > 0 && marcacoes.every(m => m._typeRegister === 'I');
+                    return tip.includes('rias') || tip.includes('vacat') || abr.includes('fe') || nome.includes('rias')
+                        || d.idJustification || todasI;
+                });
+                const debugData = {
+                    totalDias: data.length,
+                    diasSuspeitos: diasSuspeitos.map(d => ({
+                        date: d.date || d.dateTimeStr,
+                        toolTipAlert: d.toolTipAlert,
+                        idJustification: d.idJustification,
+                        abreviationJustification: d.abreviationJustification,
+                        nomeJustificativa: d.nomeJustificativa,
+                        status: d.status,
+                        situacao: d.situacao,
+                        tipo: d.tipo,
+                        diasTrabalhados: d.diasTrabalhados,
+                        totalHorasTrabalhadas: d.totalHorasTrabalhadas,
+                        listAfdtManutencao: (d.listAfdtManutencao || []).map(m => ({
+                            hora: m.hora, _typeRegister: m._typeRegister, isPreAssigned: m.isPreAssigned,
+                            idJustification: m.idJustification, reason: m.reason
+                        }))
+                    })),
+                    // Também salvar o dia 14 e 15 de qualquer mês para comparação
+                    dia14a16: data.filter(d => {
+                        const dt = String(d.date || d.dateTimeStr || '').substring(8, 10);
+                        return ['14','15','16'].includes(dt);
+                    }).map(d => ({
+                        date: d.date || d.dateTimeStr,
+                        toolTipAlert: d.toolTipAlert,
+                        idJustification: d.idJustification,
+                        abreviationJustification: d.abreviationJustification,
+                        nomeJustificativa: d.nomeJustificativa,
+                        status: d.status, diasTrabalhados: d.diasTrabalhados,
+                        listAfdtManutencao: (d.listAfdtManutencao || []).map(m => ({
+                            hora: m.hora, _typeRegister: m._typeRegister,
+                            isPreAssigned: m.isPreAssigned, reason: m.reason,
+                            idJustification: m.idJustification
+                        }))
+                    }))
+                };
+                fs.writeFileSync(path.join(__dirname, '../../frontend/apuracao_ferias_debug.txt'), JSON.stringify(debugData, null, 2));
+            } catch(e){ console.warn('Debug ferias write error:', e.message); }
         } else {
             payloadDebug = JSON.stringify(data).substring(0, 800);
             try { fs.writeFileSync(path.join(__dirname, '../../frontend/apuracao.txt'), JSON.stringify(data)); } catch(e){}
