@@ -1426,18 +1426,10 @@ window._recBuscarPontoSelecionados = async function () {
                     const isFolgaFlag2 = d.folga === true || d.isHoliday === true || d.isHoliday === 1;
 
                     let tipo2 = '';
-                    // ── Férias (ControlID) = folga para fins de recibo ──────────
+                    // ── Férias (ControlID) = folga para fins de recibo ──────────────
+                    // Apenas toolTipAlert é fonte confiável para férias (conforme ControlID)
                     const _tip2 = (d.toolTipAlert || '').toLowerCase();
-                    const _abr2 = (d.abreviationJustification || '').toLowerCase().trim();
-                    const _jn2  = (d.nomeJustificativa || d.justificativa || '').toLowerCase();
-                    const _marc2 = d.listAfdtManutencao || [];
-                    const isFerias2 = _tip2.includes('férias') || _tip2.includes('ferias') || _tip2.includes('vacation')
-                        || _jn2.includes('ferias') || _jn2.includes('férias')
-                        || _abr2 === 'fe' || _abr2 === 'fer' || _abr2 === 'va' || _abr2 === 'fér'
-                        || _abr2.startsWith('fer') || _abr2.startsWith('fér')
-                        || (_marc2.length > 0 && _marc2.every(m => m.isPreAssigned === true || m._typeRegister === 'I') && !trb2)
-                        || (typeof window !== 'undefined' && typeof window._isColabFerias === 'function'
-                            ? false : false); // server-side: só usa os checks acima
+                    const isFerias2 = _tip2.includes('férias') || _tip2.includes('ferias') || _tip2.includes('vacation');
                     if (isFerias2) {
                         tipo2 = 'folga'; // Férias → trata como folga (sem desconto VT/VR, sem falta)
                     } else if (d.isHoliday) {

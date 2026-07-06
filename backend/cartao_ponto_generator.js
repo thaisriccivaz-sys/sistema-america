@@ -94,29 +94,15 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         const horasTrab   = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
         const trabalhou   = (d.diasTrabalhados || 0) > 0 || horasTrab > 0;
 
-        // ── Detecção de Férias diretamente pelo ControlID (RHID) ────────────────
-        // 1) toolTipAlert contém "férias" → férias registradas no RHID
-        // 2) abreviationJustification indica férias (ex: "FE", "VA", "FER")
-        // 3) TODAS as marcações do dia são pré-atribuídas (isPreAssigned=true) sem
-        //    nenhuma batida real → ControlID pré-atribui o horário nos dias de férias
-        // 4) Fallback: ferias_programadas_inicio/fim do cadastro do RH do sistema
+        // ── Detecção de Férias — SOMENTE pelo campo toolTipAlert do ControlID ────
+        // O ControlID grava "Férias" (ou variações) no toolTipAlert quando o dia é férias.
+        // NÃO usamos isPreAssigned (pode ser apontamento esquecido/automático)
+        // NÃO usamos ferias_programadas do banco (pode estar desatualizado)
         const toolTipLower = (d.toolTipAlert || '').toLowerCase();
-        const abrJust = (d.abreviationJustification || '').toLowerCase().trim();
-        const justNome = (d.nomeJustificativa || d.justificativa || '').toLowerCase();
-        const isFerias_tooltip = toolTipLower.includes('férias') || toolTipLower.includes('ferias')
-                              || toolTipLower.includes('vacation') || toolTipLower.includes('va ')
-                              || justNome.includes('ferias') || justNome.includes('férias')
-                              || abrJust === 'fe' || abrJust === 'fer' || abrJust === 'va'
-                              || abrJust === 'fér' || abrJust.startsWith('fer') || abrJust.startsWith('fér');
-        // Verifica se TODAS as marcações são pré-atribuídas (sem batida real)
-        const marcacoesRaw = d.listAfdtManutencao || [];
-        const todasPreAtribuidas = marcacoesRaw.length > 0
-            && marcacoesRaw.every(m => m.isPreAssigned === true || m._typeRegister === 'I')
-            && !trabalhou; // E não houve horas trabalhadas reais computadas
-        const isFerias_preAssigned = todasPreAtribuidas;
-        const isFerias_banco = _dataEstaEmFerias(diaStr, c);
+        const isFerias_controlid = toolTipLower.includes('férias') || toolTipLower.includes('ferias')
+                                || toolTipLower.includes('vacation');
 
-        if (isFerias_tooltip || isFerias_preAssigned || isFerias_banco) {
+        if (isFerias_controlid) {
             status = 'Férias';
         } else if (d.isHoliday) {
             status = 'Feriado: ' + (d.holidayName || '');
@@ -139,7 +125,8 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
                            || abr.includes('ext');
             if (obsJust.includes('atestado') || obsJust.includes('medic')) {
                 status = 'Atestado Médico';
-            } else if (obsJust.includes('férias') || obsJust.includes('ferias') || justName.includes('ferias') || justName.includes('férias')) {
+            } else if (obsJust.includes('férias') || obsJust.includes('ferias')
+                    || justName.includes('ferias') || justName.includes('férias')) {
                 status = 'Férias';
             } else if (isExterno) {
                 status = 'Trabalho Externo';
