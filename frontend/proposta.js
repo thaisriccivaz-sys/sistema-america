@@ -1121,6 +1121,8 @@ function _renderFormPropostaInt() {
     const container = document.getElementById('prop-view-form');
     if (!container) return;
 
+    window._propProdutosAdicionados = prop && prop.itens ? (typeof prop.itens === 'string' ? JSON.parse(prop.itens) : prop.itens) : [];
+
     const v = (campo) => prop ? (prop[campo] || '') : '';
     const vn = (campo, def='0') => prop ? (prop[campo] ?? def) : def;
 
@@ -1387,6 +1389,58 @@ function _renderFormPropostaInt() {
                         </div>
                     </div>
 
+                    <!-- Seção: Produtos da Proposta -->
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:1rem 1.2rem; margin-bottom:1rem;">
+                        <h4 style="margin:0 0 0.85rem; font-size:0.88rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
+                            <i class="ph ph-package" style="color:#7048e8;"></i> Produtos da Proposta
+                        </h4>
+                        
+                        <!-- Inputs para adicionar produto -->
+                        <div style="display:grid; grid-template-columns:1.5fr 3fr 1fr auto; gap:1rem; align-items:flex-end; margin-bottom:1rem;">
+                            <div>
+                                <label class="prop-lbl">Código do Produto</label>
+                                <div style="display:flex; gap:0.25rem; align-items:center;">
+                                    <input type="text" id="prop-prod-codigo" placeholder="Código" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:36px;">
+                                    <button type="button" onclick="window.abrirModalBuscaProdutos()" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#475569; transition:all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Pesquisar Produto">
+                                        <i class="ph ph-magnifying-glass" style="font-size:1.1rem; font-weight:700;"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Descrição</label>
+                                <input type="text" id="prop-prod-descricao" placeholder="Descrição do produto..." style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:36px;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Quantidade</label>
+                                <input type="number" id="prop-prod-quantidade" value="1" min="1" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:36px;">
+                            </div>
+                            <div>
+                                <button type="button" onclick="window.adicionarProdutoProposta()" style="background:#7048e8; color:#fff; border:none; border-radius:6px; padding:0 1.2rem; height:36px; font-size:0.85rem; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
+                                    <i class="ph ph-plus-circle" style="font-size:1.1rem;"></i> Adicionar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- GridView com produtos adicionados -->
+                        <div style="border:1px solid #e2e8f0; border-radius:8px; background:#fff; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
+                                <thead>
+                                    <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
+                                        <th style="padding:10px 12px; font-weight:700; width:120px; text-align:center;">Código</th>
+                                        <th style="padding:10px 12px; font-weight:700;">Descrição</th>
+                                        <th style="padding:10px 12px; font-weight:700; width:100px; text-align:center;">Quantidade</th>
+                                        <th style="padding:10px 12px; font-weight:700; width:80px; text-align:center;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="prop-produtos-tbody">
+                                    <tr>
+                                        <td colspan="4" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum produto adicionado à proposta.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <!-- Seção: Representante, Frete e Valor -->
                     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:1rem 1.2rem; margin-bottom:1rem;">
                         <h4 style="margin:0 0 0.85rem; font-size:0.88rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
@@ -1445,6 +1499,10 @@ function _renderFormPropostaInt() {
                 </form>
             </div>
     `;
+    
+    if (typeof window.renderizarProdutosPropostaGrid === 'function') {
+        window.renderizarProdutosPropostaGrid();
+    }
     
     // Auto-trigger region classification if address is already pre-filled
     if (typeof window.classificarRegiaoEDias === 'function') {
@@ -2021,6 +2079,7 @@ window.salvarPropostaNova = async function() {
         status: obter('prop-status'),
         motivo_reprovacao: obter('prop-motivo-reprovacao'),
         criado_por: window.currentUser?.nome || window.currentUser?.email || '',
+        itens: window._propProdutosAdicionados || [],
     };
 
     try {
@@ -2086,6 +2145,7 @@ window.estornarPropostaEdicao = async function() {
         status: obter('prop-status'),
         motivo_reprovacao: obter('prop-motivo-reprovacao'),
         criado_por: window.currentUser?.nome || window.currentUser?.email || '',
+        itens: window._propProdutosAdicionados || [],
     };
 
     try {
@@ -7762,6 +7822,203 @@ window.abrirModalPesquisaPropostas = async function() {
         console.error(e);
         Swal.fire('Erro', 'Houve uma falha ao abrir a busca de propostas.', 'error');
     }
+};
+
+/* ── Módulo de Produtos da Proposta ─────────────────────────────────── */
+window.abrirModalBuscaProdutos = async function() {
+    Swal.fire({
+        title: 'Carregando produtos...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        const produtos = await apiGet('/estoque') || [];
+        Swal.close();
+
+        const renderRows = (list) => {
+            if (list.length === 0) {
+                return `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum produto encontrado.</td></tr>`;
+            }
+            return list.map(p => {
+                return `
+                    <tr ondblclick="window.selecionarProdutoBusca('${p.id}', '${p.nome.replace(/'/g, "\\'")}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                        <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center;">${p.id}</td>
+                        <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.nome}</td>
+                        <td style="padding:10px 12px; color:#475569;">${p.categoria || '—'}</td>
+                        <td style="padding:10px 12px; color:#475569; text-align:center;">${p.quantidade_atual || 0}</td>
+                    </tr>
+                `;
+            }).join('');
+        };
+
+        Swal.fire({
+            title: '',
+            html: `
+                <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; padding:0; border-radius:12px; overflow:hidden;">
+                    <!-- Header -->
+                    <div style="font-size:1.1rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:14px 18px; background:#f8fafc; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-magnifying-glass" style="color:#7048e8; font-size:1.3rem;"></i> Pesquisar Produtos
+                    </div>
+                    
+                    <!-- Body/Filters -->
+                    <div style="padding:16px; background:#f1f5f9; display:flex; flex-direction:column; gap:12px;">
+                        <div style="display:grid; grid-template-columns: 1fr 2fr; gap:0.75rem;">
+                            <div>
+                                <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Código</label>
+                                <input type="text" id="modal-prod-search-codigo" placeholder="Filtrar por código..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; box-sizing:border-box; outline:none; height:36px;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Descrição</label>
+                                <input type="text" id="modal-prod-search-descricao" placeholder="Filtrar por descrição..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; box-sizing:border-box; outline:none; height:36px;">
+                            </div>
+                        </div>
+
+                        <!-- GridView Container -->
+                        <div style="max-height:280px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
+                                <thead>
+                                    <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:80px;">Código</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2;">Descrição</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:130px;">Categoria</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:100px;">Qtd Atual</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modal-prod-tbody">
+                                    ${renderRows(produtos)}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div style="font-size:0.75rem; color:#64748b; font-style:italic; display:flex; justify-content:space-between; align-items:center;">
+                            <span>Dica: Clique duas vezes (Double Click) em um produto para selecioná-lo.</span>
+                            <span id="modal-prod-count" style="font-weight:700; color:#475569;">Total: ${produtos.length} produto(s)</span>
+                        </div>
+                    </div>
+                </div>
+            `,
+            showConfirmButton: false,
+            width: '650px',
+            customClass: {
+                popup: 'custom-swal-padding-zero'
+            },
+            didOpen: () => {
+                const inputCodigo = document.getElementById('modal-prod-search-codigo');
+                const inputDescricao = document.getElementById('modal-prod-search-descricao');
+                const tbody = document.getElementById('modal-prod-tbody');
+                const countSpan = document.getElementById('modal-prod-count');
+
+                const filterProds = () => {
+                    const codVal = (inputCodigo?.value || '').toLowerCase().trim();
+                    const descVal = (inputDescricao?.value || '').toLowerCase().trim();
+
+                    const filtered = produtos.filter(p => {
+                        const matchCodigo = !codVal || (p.id && p.id.toString().includes(codVal));
+                        const matchDesc = !descVal || (p.nome && p.nome.toLowerCase().includes(descVal));
+                        return matchCodigo && matchDesc;
+                    });
+
+                    if (tbody) tbody.innerHTML = renderRows(filtered);
+                    if (countSpan) countSpan.textContent = `Total: ${filtered.length} produto(s)`;
+                };
+
+                [inputCodigo, inputDescricao].forEach(input => {
+                    input?.addEventListener('input', filterProds);
+                });
+            }
+        });
+
+        window.selecionarProdutoBusca = function(id, nome) {
+            const inputCodigo = document.getElementById('prop-prod-codigo');
+            const inputDescricao = document.getElementById('prop-prod-descricao');
+            if (inputCodigo) inputCodigo.value = id;
+            if (inputDescricao) inputDescricao.value = nome;
+            Swal.close();
+        };
+
+    } catch (e) {
+        Swal.close();
+        console.error(e);
+        Swal.fire('Erro', 'Houve uma falha ao buscar produtos.', 'error');
+    }
+};
+
+window.adicionarProdutoProposta = function() {
+    const inputCodigo = document.getElementById('prop-prod-codigo');
+    const inputDescricao = document.getElementById('prop-prod-descricao');
+    const inputQuantidade = document.getElementById('prop-prod-quantidade');
+
+    const codigo = inputCodigo?.value?.trim() || '';
+    const descricao = inputDescricao?.value?.trim() || '';
+    const quantidade = parseInt(inputQuantidade?.value) || 0;
+
+    if (!codigo) {
+        alert('Por favor, informe ou selecione o código do produto.');
+        return;
+    }
+    if (!descricao) {
+        alert('Por favor, informe a descrição do produto.');
+        return;
+    }
+    if (quantidade <= 0) {
+        alert('A quantidade deve ser maior que zero.');
+        return;
+    }
+
+    if (!window._propProdutosAdicionados) {
+        window._propProdutosAdicionados = [];
+    }
+
+    // Check if product with same code is already added
+    const index = window._propProdutosAdicionados.findIndex(p => p.codigo === codigo);
+    if (index !== -1) {
+        window._propProdutosAdicionados[index].quantidade += quantidade;
+    } else {
+        window._propProdutosAdicionados.push({ codigo, descricao, quantidade });
+    }
+
+    // Reset inputs
+    if (inputCodigo) inputCodigo.value = '';
+    if (inputDescricao) inputDescricao.value = '';
+    if (inputQuantidade) inputQuantidade.value = '1';
+
+    window.renderizarProdutosPropostaGrid();
+};
+
+window.removerProdutoProposta = function(idx) {
+    if (window._propProdutosAdicionados && window._propProdutosAdicionados[idx]) {
+        window._propProdutosAdicionados.splice(idx, 1);
+        window.renderizarProdutosPropostaGrid();
+    }
+};
+
+window.renderizarProdutosPropostaGrid = function() {
+    const tbody = document.getElementById('prop-produtos-tbody');
+    if (!tbody) return;
+
+    const list = window._propProdutosAdicionados || [];
+    if (list.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum produto adicionado à proposta.</td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = list.map((p, idx) => `
+        <tr style="border-bottom:1px solid #e2e8f0;">
+            <td style="padding:10px 12px; font-weight:700; color:#7048e8; text-align:center;">${p.codigo}</td>
+            <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.descricao}</td>
+            <td style="padding:10px 12px; font-weight:700; color:#475569; text-align:center;">${p.quantidade}</td>
+            <td style="padding:10px 12px; text-align:center;">
+                <button type="button" onclick="window.removerProdutoProposta(${idx})" style="background:#fee2e2; color:#ef4444; border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'" title="Remover Produto">
+                    <i class="ph ph-trash" style="font-size:0.95rem;"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
 };
 
 

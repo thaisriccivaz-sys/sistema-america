@@ -20931,8 +20931,8 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         tabela_precos, endereco_instalacao, desconto_percent, desconto_reais,
         condicao_pagamento, representante, transportadora, tipo_frete,
         valor_frete_ida, valor_frete_volta, observacoes, valor_total,
-        status, motivo_reprovacao, criado_por, criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        status, motivo_reprovacao, criado_por, itens, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
         d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
@@ -20941,7 +20941,9 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
         d.representante, d.transportadora, d.tipo_frete,
         d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
-        d.valor_total||0, d.status||'Ativa', d.motivo_reprovacao||null, d.criado_por, agora, agora
+        d.valor_total||0, d.status||'Ativa', d.motivo_reprovacao||null, d.criado_por,
+        d.itens ? (typeof d.itens === 'string' ? d.itens : JSON.stringify(d.itens)) : '[]',
+        agora, agora
       ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         
@@ -20974,7 +20976,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       tabela_precos=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
       condicao_pagamento=?, representante=?, transportadora=?, tipo_frete=?,
       valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
-      status=?, motivo_reprovacao=?, atualizado_em=?
+      status=?, motivo_reprovacao=?, itens=?, atualizado_em=?
       WHERE id=?`,
     [
       d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
@@ -20984,7 +20986,9 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
       d.representante, d.transportadora, d.tipo_frete,
       d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
-      d.valor_total||0, d.status||'Ativa', d.motivo_reprovacao||null, agora, proposalId
+      d.valor_total||0, d.status||'Ativa', d.motivo_reprovacao||null,
+      d.itens ? (typeof d.itens === 'string' ? d.itens : JSON.stringify(d.itens)) : '[]',
+      agora, proposalId
     ], function(errUpdate) {
       if (errUpdate) return res.status(500).json({ error: errUpdate.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Proposta não encontrada' });
@@ -21179,6 +21183,40 @@ function gerarHtmlProposta(p) {
                 <div class="col-4"><div class="field"><label>Desconto (R$)</label><span>${fmtMoeda(p.desconto_reais)}</span></div></div>
             </div>
         </div>
+
+        ${(() => {
+            if (p.itens) {
+                try {
+                    const list = JSON.parse(p.itens);
+                    if (list && list.length > 0) {
+                        return `
+                        <div class="section">
+                            <h3>Produtos / Equipamentos</h3>
+                            <table style="width:100%; border-collapse:collapse; margin-top:5px; font-size:9.5pt;">
+                                <thead>
+                                    <tr style="background:#f1f5f9; border-bottom:2px solid #cbd5e1; text-align:left; color:#475569; font-size:8pt; text-transform:uppercase;">
+                                        <th style="padding:6px 8px; font-weight:bold; width:120px; text-align:center;">Código</th>
+                                        <th style="padding:6px 8px; font-weight:bold;">Descrição</th>
+                                        <th style="padding:6px 8px; font-weight:bold; width:100px; text-align:center;">Quantidade</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${list.map(item => `
+                                        <tr style="border-bottom:1px solid #e2e8f0;">
+                                            <td style="padding:6px 8px; text-align:center; font-weight:bold; color:#7048e8;">${item.codigo}</td>
+                                            <td style="padding:6px 8px; font-weight:600; color:#1e293b;">${item.descricao}</td>
+                                            <td style="padding:6px 8px; text-align:center; font-weight:bold; color:#475569;">${item.quantidade}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                        `;
+                    }
+                } catch(e) { console.error(e); }
+            }
+            return '';
+        })()}
 
         <div class="section">
             <h3>Representante e Frete</h3>
