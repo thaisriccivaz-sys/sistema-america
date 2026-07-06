@@ -219,6 +219,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     criado_por TEXT,
                     itens TEXT,
                     servico_precificacao_id INTEGER,
+                    dias_semana TEXT,
                     criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
                     atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
                 )
@@ -227,6 +228,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 // Ignore error if already exists
             });
             db.run(`ALTER TABLE propostas ADD COLUMN servico_precificacao_id INTEGER`, (err) => {
+                // Ignore error if already exists
+            });
+            db.run(`ALTER TABLE propostas ADD COLUMN dias_semana TEXT`, (err) => {
                 // Ignore error if already exists
             });
 
