@@ -1200,8 +1200,13 @@ function _renderFormPropostaInt() {
                     <div style="display:grid; grid-template-columns:1fr 2fr 1.5fr; gap:1rem; margin-bottom:1rem;">
                         <div>
                             <label class="prop-lbl">Código</label>
-                            <input type="text" id="prop-codigo" value="${v('codigo') || (isNovo ? 'Auto' : '')}" readonly
-                                style="width:100%;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box;">
+                            <div style="display:flex; gap:0.25rem; align-items:center;">
+                                <button type="button" onclick="window.abrirModalPesquisaPropostas()" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#475569; transition:all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Pesquisar Proposta">
+                                    <i class="ph ph-magnifying-glass" style="font-size:1.1rem; font-weight:700;"></i>
+                                </button>
+                                <input type="text" id="prop-codigo" value="${v('codigo') || (isNovo ? 'Auto' : '')}" readonly
+                                    style="flex:1;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box; height:36px;">
+                            </div>
                         </div>
                         <div>
                             <label class="prop-lbl" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
@@ -7586,6 +7591,164 @@ window._excluirServicoPrecificacao = async function() {
             console.error(e);
             alert('Erro ao comunicar com o servidor.');
         }
+    }
+};
+
+/* ── Modal de Pesquisa de Propostas ───────────────────────────────────── */
+
+window.abrirModalPesquisaPropostas = async function() {
+    Swal.fire({
+        title: 'Carregando propostas...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        await carregarPropostas();
+        const clientes = await apiGet('/clientes') || [];
+        Swal.close();
+
+        // Mapeamento de Razão Social -> CNPJ
+        const clientCnpjMap = {};
+        clientes.forEach(c => {
+            if (c.nome_razao_social) {
+                clientCnpjMap[c.nome_razao_social.toLowerCase().trim()] = c.cpf_cnpj || '';
+            }
+        });
+
+        // Adiciona CNPJ localmente a cada proposta
+        const propostasComCnpj = _propostasData.map(p => {
+            const cnpj = p.cliente_nome ? (clientCnpjMap[p.cliente_nome.toLowerCase().trim()] || '') : '';
+            return {
+                ...p,
+                cliente_cnpj: cnpj
+            };
+        });
+
+        const renderRows = (list) => {
+            if (list.length === 0) {
+                return `<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhuma proposta encontrada.</td></tr>`;
+            }
+            return list.map(p => {
+                const total = p.valor_total || 0;
+                const totalFmt = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                const dataFmt = p.data_cadastro ? p.data_cadastro.split('-').reverse().join('/') : '';
+                return `
+                    <tr ondblclick="window.selecionarPropostaBusca(${p.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                        <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center;">${p.codigo || '—'}</td>
+                        <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.cliente_nome || '—'}</td>
+                        <td style="padding:10px 12px; color:#475569;">${p.cliente_cnpj || '—'}</td>
+                        <td style="padding:10px 12px; color:#475569; text-align:center;">${dataFmt}</td>
+                        <td style="padding:10px 12px; font-weight:700; color:#16a34a; text-align:right;">${totalFmt}</td>
+                        <td style="padding:10px 12px; color:#475569; text-align:center;">${p.fase_negociacao || '—'}</td>
+                        <td style="padding:10px 12px; color:#475569; text-align:center;">${p.status || '—'}</td>
+                    </tr>
+                `;
+            }).join('');
+        };
+
+        Swal.fire({
+            title: '',
+            html: `
+                <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; padding:0; border-radius:12px; overflow:hidden;">
+                    
+                    <!-- Header -->
+                    <div style="font-size:1.1rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:14px 18px; background:#f8fafc; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-file-search" style="color:#7048e8; font-size:1.3rem;"></i> Pesquisar Propostas
+                    </div>
+                    
+                    <!-- Body/Filters -->
+                    <div style="padding:16px; background:#f1f5f9; display:flex; flex-direction:column; gap:12px;">
+                        
+                        <!-- Inputs -->
+                        <div style="display:grid; grid-template-columns: 1fr 2fr 1.5fr; gap:0.75rem;">
+                            <div>
+                                <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Código</label>
+                                <input type="text" id="modal-search-codigo" placeholder="Ex: Auto ou CT" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; box-sizing:border-box; outline:none; height:36px;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Razão Social</label>
+                                <input type="text" id="modal-search-razao" placeholder="Nome do cliente..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; box-sizing:border-box; outline:none; height:36px;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">CNPJ do Cliente</label>
+                                <input type="text" id="modal-search-cnpj" placeholder="CNPJ..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; box-sizing:border-box; outline:none; height:36px;">
+                            </div>
+                        </div>
+
+                        <!-- GridView Container -->
+                        <div style="max-height:300px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
+                                <thead>
+                                    <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:80px;">Código</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2;">Razão Social</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:130px;">CNPJ</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:90px;">Data</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:right; width:100px;">Valor</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:90px;">Fase</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:80px;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modal-proposta-tbody">
+                                    ${renderRows(propostasComCnpj)}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div style="font-size:0.75rem; color:#64748b; font-style:italic; display:flex; justify-content:space-between; align-items:center;">
+                            <span>Dica: Clique duas vezes (Double Click) em uma linha para abrir a proposta no formulário.</span>
+                            <span id="modal-proposta-count" style="font-weight:700; color:#475569;">Total: ${propostasComCnpj.length} proposta(s)</span>
+                        </div>
+                    </div>
+                </div>
+            `,
+            showConfirmButton: false,
+            width: '850px',
+            customClass: {
+                popup: 'custom-swal-padding-zero'
+            },
+            didOpen: () => {
+                const inputCodigo = document.getElementById('modal-search-codigo');
+                const inputRazao = document.getElementById('modal-search-razao');
+                const inputCnpj = document.getElementById('modal-search-cnpj');
+                const tbody = document.getElementById('modal-proposta-tbody');
+                const countSpan = document.getElementById('modal-proposta-count');
+
+                const filterProps = () => {
+                    const codVal = (inputCodigo?.value || '').toLowerCase().trim();
+                    const razVal = (inputRazao?.value || '').toLowerCase().trim();
+                    const cnpjVal = (inputCnpj?.value || '').replace(/\D/g, '');
+
+                    const filtered = propostasComCnpj.filter(p => {
+                        const matchCodigo = !codVal || (p.codigo && p.codigo.toLowerCase().includes(codVal));
+                        const matchRazao = !razVal || (p.cliente_nome && p.cliente_nome.toLowerCase().includes(razVal));
+                        
+                        const cnpjClean = p.cliente_cnpj ? p.cliente_cnpj.replace(/\D/g, '') : '';
+                        const matchCnpj = !cnpjVal || cnpjClean.includes(cnpjVal);
+
+                        return matchCodigo && matchRazao && matchCnpj;
+                    });
+
+                    if (tbody) tbody.innerHTML = renderRows(filtered);
+                    if (countSpan) countSpan.textContent = `Total: ${filtered.length} proposta(s)`;
+                };
+
+                [inputCodigo, inputRazao, inputCnpj].forEach(input => {
+                    input?.addEventListener('input', filterProps);
+                });
+            }
+        });
+
+        window.selecionarPropostaBusca = function(id) {
+            abrirFormProposta(id);
+            Swal.close();
+        };
+
+    } catch (e) {
+        Swal.close();
+        console.error(e);
+        Swal.fire('Erro', 'Houve uma falha ao abrir a busca de propostas.', 'error');
     }
 };
 
