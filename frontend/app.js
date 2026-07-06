@@ -18400,8 +18400,19 @@ window.populateSantanderPreview = async function () {
 };
 
 window.gerarFichaSantander = async function () {
-    const colab = viewedColaborador || window._admissaoColabSelecionado;
+    let colab = viewedColaborador || window._admissaoColabSelecionado;
     if (!colab) { alert('Selecione um colaborador primeiro.'); return; }
+
+    // Sempre buscar dados frescos do servidor para garantir endereço e outros campos atualizados
+    if (colab.id) {
+        try {
+            const fresh = await apiGet('/colaboradores/' + colab.id);
+            if (fresh && fresh.id) {
+                colab = fresh;
+                if (viewedColaborador && viewedColaborador.id === fresh.id) viewedColaborador = fresh;
+            }
+        } catch (e) { console.warn('Santander: não foi possível buscar dados frescos:', e); }
+    }
 
     const fmt = (v) => v || '—';
     const hoje = new Date();
@@ -18412,8 +18423,15 @@ window.gerarFichaSantander = async function () {
     // Salário formatado
     const salario = colab.salario ? parseFloat(colab.salario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—';
 
-    // Endereço completo (usado em um único campo)
-    const enderecoPuro = fmt(colab.endereco);
+    // Endereço completo — monta todos os campos disponíveis
+    const endPartes = [
+        colab.endereco,
+        colab.bairro,
+        colab.cidade,
+        colab.estado,
+        colab.cep
+    ].filter(p => p && p.trim());
+    const enderecoPuro = endPartes.length > 0 ? endPartes.join(', ') : '—';
 
     // Data admissão formatada
     let admissaoFmt = '—';
