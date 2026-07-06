@@ -38,19 +38,52 @@ function getFichaAdmissaoHtml(colaborador, baseUrl) {
 
     let sabIn = c.sabado_entrada;
     let sabOut = c.sabado_saida;
-    // Fallback: se não tem sábado específico, usa horário padrão para escala seg-sab
     const escalaTipo = c.escala_tipo || c.escala_padrao || '';
-    if (!sabIn && escalaTipo && (escalaTipo.toLowerCase().includes('seis') || escalaTipo.toLowerCase().includes('seg_sab') || escalaTipo.toLowerCase().includes('sabado'))) {
+    const escalaTipoLow = escalaTipo.toLowerCase();
+
+    // Tenta parsear os dias de folga cadastrados (campo escala_folgas é JSON array)
+    let diasFolga = [];
+    try {
+        if (c.escala_folgas) {
+            const parsed = typeof c.escala_folgas === 'string' ? JSON.parse(c.escala_folgas) : c.escala_folgas;
+            if (Array.isArray(parsed)) diasFolga = parsed;
+        }
+    } catch(e) {}
+
+    const hin  = safeStr(c.horario_entrada);
+    const hout = safeStr(c.horario_saida);
+    const folgasStr = diasFolga.length > 0 ? diasFolga.join(' e ') : '—';
+
+    // Fallback: se não tem sábado específico, usa horário padrão para escala seg-sab
+    if (!sabIn && (escalaTipoLow.includes('seis') || escalaTipoLow.includes('seg_sab') || escalaTipoLow.includes('sabado') || escalaTipo === 'padrao_seis_dias' || escalaTipo === 'padrao_sab_4h')) {
         sabIn = c.horario_entrada;
         sabOut = c.horario_saida;
     }
 
-    const logoSrc = `${baseUrl || 'https://sistema-america.onrender.com'}/assets/logo-header.png`;
+    let horarioStr;
+    if (escalaTipo === 'escala_12x36') {
+        horarioStr = `12x36 — ${hin} às ${hout}`;
+    } else if (escalaTipo === 'escala_uma_folga') {
+        horarioStr = `6 dias/semana — Folga: ${folgasStr} — ${hin} às ${hout}`;
+    } else if (escalaTipo === 'escala_duas_folgas') {
+        horarioStr = `5 dias/semana — Folgas: ${folgasStr} — ${hin} às ${hout}`;
+    } else if (escalaTipo === 'padrao_seis_dias') {
+        horarioStr = sabIn
+            ? `Seg à Sáb ${hin} às ${hout}`
+            : `Seg à Sex ${hin} às ${hout}`;
+    } else if (escalaTipo === 'padrao_sab_4h') {
+        horarioStr = `Seg à Sex ${hin} às ${hout} - Sáb ${safeStr(c.sabado_entrada || hin)} às ${safeStr(c.sabado_saida || '')}`;
+    } else if (escalaTipo === 'padrao_sab_alternado') {
+        horarioStr = `Seg à Sex ${hin} às ${hout} - Sábados Alternados (Compensado)`;
+    } else {
+        // padrao_seg_sexta e demais
+        horarioStr = sabIn
+            ? `Seg à Sex ${hin} às ${hout} - Sáb ${safeStr(sabIn)} às ${safeStr(sabOut)}`
+            : `Seg à Sex ${hin} às ${hout}`;
+    }
 
-    // Montar string de horário fora do template para evitar backtick aninhado
-    const horarioStr = sabIn
-        ? ('Seg \u00e0 Sex ' + safeStr(c.horario_entrada) + ' \u00e0s ' + safeStr(c.horario_saida) + ' - S\u00e1b ' + safeStr(sabIn) + ' \u00e0s ' + safeStr(sabOut))
-        : ('Seg \u00e0 Sex ' + safeStr(c.horario_entrada) + ' \u00e0s ' + safeStr(c.horario_saida));
+
+    const logoSrc = `${baseUrl || 'https://sistema-america.onrender.com'}/assets/logo-header.png`;
 
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
