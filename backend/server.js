@@ -2349,6 +2349,7 @@ app.get('/api/dashboard/stats', authenticateToken, (req, res) => {
             cliente_nome, 
             valor_total, 
             status, 
+            fase_negociacao,
             COALESCE(NULLIF(motivo_reprovacao, ''), 'N/A') AS motivo_reprovacao, 
             data_cadastro, 
             atendente,
