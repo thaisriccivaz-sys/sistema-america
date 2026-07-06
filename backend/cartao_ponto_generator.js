@@ -145,7 +145,10 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         }
         
         let marcacoes = [];
-        if (d.listAfdtManutencao && d.listAfdtManutencao.length > 0) {
+        if (status === 'Férias') {
+            // Dia de férias: exibir 'Férias' nas colunas ENT.1 e SAÍ.1 (igual ao relatório ControlID)
+            marcacoes = ['Férias', 'Férias'];
+        } else if (d.listAfdtManutencao && d.listAfdtManutencao.length > 0) {
             marcacoes = d.listAfdtManutencao.map(m => {
                 if (m._typeClassification === 'F') return 'Falta';
                 const h = Math.floor(m.hora/100).toString().padStart(2,'0');
@@ -156,6 +159,7 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         } else if (d.marcacoes && Array.isArray(d.marcacoes)) {
             marcacoes = d.marcacoes.map(m => m.hora || m.time || m);
         }
+
 
         const e1 = marcacoes[0] || '';
         const s1 = marcacoes[1] || '';

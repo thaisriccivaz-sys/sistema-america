@@ -2669,7 +2669,7 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
         }
         
         // ── Classificação do status (MESMA lógica do backend cartao_ponto_generator.js) ──
-        // ORDEM IMPORTA: JUSTIFICADO e FERIADO antes de DSR/FOLGA e FALTA
+        // ORDEM IMPORTA: Férias e FERIADO antes de DSR/FOLGA e FALTA
         let status = '';
         const stRaw2 = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
         const isFolgaSt3  = stRaw2.includes('folg') || stRaw2.includes('dsr');
@@ -2678,13 +2678,19 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
         const semHorario3  = ((d.idHorarioContratual || 0) === 0 && (d.strHorarioContratualSimples || '').trim() === '');
         const horasTrab3   = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
         const trabalhou3   = (d.diasTrabalhados || 0) > 0 || horasTrab3 > 0;
+        const _tipLow3 = (d.toolTipAlert || '').toLowerCase();
 
-        if (d.isHoliday) {
+        // Férias: d.isFerias (setado pelo backend após lookup de justificativas) OU toolTipAlert contém 'férias'
+        if (d.isFerias || _tipLow3.includes('férias') || _tipLow3.includes('ferias') || _tipLow3.includes('vacation')) {
+            status = 'Férias';
+        } else if (d.isHoliday) {
             status = 'Feriado: ' + (d.holidayName || '');
         } else if (d.idJustification) {
-            const obsJust3 = (d.toolTipAlert || '').toLowerCase();
+            const obsJust3 = _tipLow3;
             if (obsJust3.includes('atestado') || obsJust3.includes('medic')) {
                 status = 'Atestado Médico';
+            } else if (obsJust3.includes('externo') || obsJust3.includes('trab. ext')) {
+                status = 'Trabalho Externo';
             } else {
                 status = 'Justificado';
             }
@@ -2698,7 +2704,10 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
         }
         
         let marcacoes = [];
-        if (d.listAfdtManutencao && d.listAfdtManutencao.length > 0) {
+        if (status === 'Férias') {
+            // Dia de férias: exibir 'Férias' nas colunas ENT.1 e SAÍ.1 (igual ao relatório ControlID)
+            marcacoes = ['Férias', 'Férias'];
+        } else if (d.listAfdtManutencao && d.listAfdtManutencao.length > 0) {
             marcacoes = d.listAfdtManutencao.map(m => {
                 const h = Math.floor(m.hora/100).toString().padStart(2,'0');
                 const mn = (m.hora%100).toString().padStart(2,'0');
