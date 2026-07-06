@@ -7433,6 +7433,104 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                 colabNome = colabRow?.nome_completo || `Colaborador ${item.colaborador_id}`;
             }
 
+            // forcarAnexar: usuário escolheu "Anexar em todos" mesmo nos já assinados.
+            // Lemos o arquivo base (_base.pdf ou o arquivo atual), mesclamos os novos holerites
+            // e gravamos um novo registro, removendo o antigo assinado.
+            if (item.forcarAnexar && docId && tipo === 'Pagamentos') {
+                const hasNewHolerites = (bufAd && item.paginaAdiantamento) || (bufPg && item.paginaPagamento);
+                console.log(`[PAGAMENTOS-MASSA] forcarAnexar=true para colaborador ${item.colaborador_id}, doc ${docId}. hasNewHolerites=${hasNewHolerites}`);
+                if (hasNewHolerites) {
+                    const rowOld = await new Promise((res, rej) => db.get('SELECT file_path, tem_adiantamento, tem_pagamento FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
+                    if (rowOld && rowOld.file_path) {
+                        try {
+                            const { PDFDocument } = require('pdf-lib');
+                            const fsP = require('fs').promises;
+                            const fsSync = require('fs');
+                            const pathMod = require('path');
+                            const fullPath = rowOld.file_path;
+                            const baseCopyPath = fullPath.replace(/\.pdf$/i, '_base.pdf');
+
+                            let baseBytes;
+                            if (fsSync.existsSync(baseCopyPath)) {
+                                baseBytes = await fsP.readFile(baseCopyPath);
+                            } else if (fsSync.existsSync(fullPath)) {
+                                baseBytes = await fsP.readFile(fullPath);
+                                const tempDoc = await PDFDocument.load(baseBytes);
+                                const paginasHolAnt = (rowOld.tem_adiantamento ? 1 : 0) + (rowOld.tem_pagamento ? 1 : 0);
+                                if (paginasHolAnt > 0) {
+                                    const totalPags = tempDoc.getPageCount();
+                                    const paginasBase = Math.max(1, totalPags - paginasHolAnt);
+                                    const docLimpo = await PDFDocument.create();
+                                    const pagsCopiadasBase = await docLimpo.copyPages(tempDoc, Array.from({ length: paginasBase }, (_, i) => i));
+                                    pagsCopiadasBase.forEach(p => docLimpo.addPage(p));
+                                    baseBytes = await docLimpo.save();
+                                }
+                            } else {
+                                throw new Error(`Arquivo base não encontrado: ${fullPath}`);
+                            }
+
+                            const basePdfDoc = await PDFDocument.load(baseBytes);
+                            let temAdFlag = false, temPgFlag = false;
+                            if (bufAd && item.paginaAdiantamento) {
+                                const bufExAd = await pagamentosMassa.extrairPagina(bufAd, item.paginaAdiantamento, true);
+                                const adDoc = await PDFDocument.load(bufExAd);
+                                const adPgs = await basePdfDoc.copyPages(adDoc, adDoc.getPageIndices());
+                                adPgs.forEach(p => basePdfDoc.addPage(p));
+                                temAdFlag = true;
+                            }
+                            if (bufPg && item.paginaPagamento) {
+                                const bufExPg = await pagamentosMassa.extrairPagina(bufPg, item.paginaPagamento, true);
+                                const pgDoc = await PDFDocument.load(bufExPg);
+                                const pgPgs = await basePdfDoc.copyPages(pgDoc, pgDoc.getPageIndices());
+                                pgPgs.forEach(p => basePdfDoc.addPage(p));
+                                temPgFlag = true;
+                            }
+
+                            const mergedBytes = await basePdfDoc.save();
+
+                            // Salva novo documento (salvarDocumentoNoBanco remove o antigo e cria novo)
+                            const colab = await new Promise((resolve, reject) =>
+                                db.get('SELECT * FROM colaboradores WHERE id = ?', [item.colaborador_id], (e, r) => e ? reject(e) : resolve(r))
+                            );
+                            colabNome = colab?.nome_completo || colabNome;
+                            const safeNome2 = pagamentosMassa.normalizarNome(colab?.nome_completo || '').replace(/\s+/g, '_');
+                            const safeTipo2 = tipo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
+                            const nomeArq2 = `${safeTipo2}_${safeNome2}_${mesDoc}${anoDoc}.pdf`;
+
+                            const dbRes2 = await pagamentosMassa.salvarDocumentoNoBanco({
+                                colaboradorId: item.colaborador_id,
+                                nomeColab: colab?.nome_completo,
+                                bufferPDF: mergedBytes,
+                                nomeArquivo: nomeArq2,
+                                tipoDocumento: tipo,
+                                ano: anoDoc,
+                                mes: mesDoc,
+                                basePath: BASE_UPLOAD_PATH,
+                                temAdiantamento: temAdFlag,
+                                temPagamento: temPgFlag,
+                            });
+                            docId = dbRes2.docId;
+                            try { await uploadDocToOneDrive(docId); } catch(e2) { console.warn('[PAGAMENTOS-MASSA] OneDrive forcarAnexar skip:', e2.message); }
+                        } catch(fErr) {
+                            console.error('[PAGAMENTOS-MASSA] Erro no forcarAnexar:', fErr);
+                            throw new Error('Falha ao recriar documento para colaborador ' + item.colaborador_id);
+                        }
+                    }
+                    // Se não encontrou o arquivo, cai no fluxo normal abaixo (item.docId=null tratado depois)
+                } else {
+                    // forcarAnexar sem holerites novos — mantém o docId e apenas registra
+                    console.log(`[PAGAMENTOS-MASSA] forcarAnexar sem novos holerites para doc ${docId} — sem alteração no arquivo.`);
+                }
+
+                // Pula os demais blocos de criação/merge
+                const _massaJob = _massaJobs[jobId];
+                if (_massaJob) {
+                    _massaJob.done++;
+                    _massaJob.resultados.push({ colaborador_id: item.colaborador_id, nome: colabNome, ok: true, docId });
+                }
+                continue;
+            }
+
             if (!docId) {
                 if (!bufferPDF) throw new Error('PDF base não fornecido para extração.');
                 // 1. Extrair página individual

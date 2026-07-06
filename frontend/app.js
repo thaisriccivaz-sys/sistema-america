@@ -17082,6 +17082,8 @@ window.atualizarTodasAssinaturas = async function (btn) {
                             colaborador_id: i.colaborador_id,
                             docId: i.docId,
                             enviarEmail: false,
+                            // Força recriação do documento quando já estava assinado
+                            forcarAnexar: i.assinadoStatus === 'Assinado' || i.assinadoStatus === 'Pendente',
                         })),
                     };
                     const rs = await fetch('/api/pagamentos-massa/enviar', {
