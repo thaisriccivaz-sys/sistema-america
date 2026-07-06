@@ -2482,10 +2482,21 @@ app.post('/api/ia/classificar-tipo', authenticateToken, (req, res) => {
         }
     }
 
+    // Detect quantity of maintenance from the text
+    let qtd_manutencoes = 1; // default
+    if (t.includes('3 manuten') || t.includes('3vezes') || t.includes('3 vezes') || t.includes('3 manut') || t.includes('tres manuten') || t.includes('três manuten') || t.includes('três vezes') || t.includes('tres vezes')) {
+        qtd_manutencoes = 3;
+    } else if (t.includes('2 manuten') || t.includes('2vezes') || t.includes('2 vezes') || t.includes('2 manut') || t.includes('duas manuten') || t.includes('duas vezes') || t.includes('bi-semanal') || t.includes('bisanal')) {
+        qtd_manutencoes = 2;
+    } else if (t.includes('1 manuten') || t.includes('1vezes') || t.includes('1 vez') || t.includes('1 manut') || t.includes('uma manuten') || t.includes('uma vez') || t.includes('semanal') || t.includes('1x por semana')) {
+        qtd_manutencoes = 1;
+    }
+
     res.json({
         tipo_sugerido: bestClass,
         score: maxScore,
-        observacao_formatada: `--- Primeiro Atendimento (IA) ---\n${texto}\n----------------------------------`
+        observacao_formatada: `--- Primeiro Atendimento (IA) ---\n${texto}\n----------------------------------`,
+        qtd_manutencoes: qtd_manutencoes
     });
 });
 

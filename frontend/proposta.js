@@ -6558,6 +6558,14 @@ window.abrirModalPreenchimentoIA = function() {
                         obsTextarea.value = res.observacao_formatada;
                     }
 
+                    const manutSelect = document.getElementById('prop-qtd-manutencoes');
+                    if (manutSelect && res.qtd_manutencoes) {
+                        manutSelect.value = res.qtd_manutencoes.toString();
+                        if (typeof window.classificarRegiaoEDias === 'function') {
+                            window.classificarRegiaoEDias();
+                        }
+                    }
+
                     if (typeof mostrarToastSucesso === 'function') {
                         mostrarToastSucesso(`Classificado como: ${res.tipo_sugerido}!`);
                     }
