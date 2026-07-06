@@ -1377,24 +1377,6 @@ function _renderFormPropostaInt() {
                                     <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-dom" value="Domingo" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Dom</label>
                                 </div>
                             </div>
-                            <div>
-                                <label class="prop-lbl">Desconto (%)</label>
-                                <input type="number" id="prop-desc-pct" value="${vn('desconto_percent','0')}" min="0" max="100" step="0.01"
-                                    oninput="calcularDescontoReais()"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
-                            </div>
-                            <div>
-                                <label class="prop-lbl">Desconto (R$)</label>
-                                <input type="number" id="prop-desc-rs" value="${vn('desconto_reais','0')}" min="0" step="0.01"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
-                            </div>
-                            <div>
-                                <label class="prop-lbl">Condição de Pagamento *</label>
-                                <select id="prop-cond-pag" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
-                                    <option value="">-- Selecione --</option>
-                                    ${PROP_COND_PAG.map(c => `<option value="${c}" ${v('condicao_pagamento')===c?'selected':''}>${c}</option>`).join('')}
-                                </select>
-                            </div>
                         </div>
                     </div>
 
