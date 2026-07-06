@@ -7258,18 +7258,29 @@ function _renderFormPrecificacaoBase() {
                             </div>
                         </div>
 
-                        <!-- Card 1: Insumos -->
+                        <!-- Datalist for Setores suggestion (Ponto de Equilíbrio base) -->
+                        <datalist id="datalist-setores">
+                            <option value="Operacional">
+                            <option value="Logística">
+                            <option value="Comercial">
+                            <option value="Financeiro">
+                            <option value="RH">
+                            <option value="Diretoria">
+                            <option value="Administrativo">
+                        </datalist>
+
+                        <!-- Card 1: Rateio de Custos Fixos por Setor -->
                         <div class="cost-card">
                             <div class="cost-title">
-                                <i class="ph ph-package" style="color:#7048e8; font-size:1.1rem;"></i>
-                                Estrutura do Produto (Insumos / Peças)
+                                <i class="ph ph-chart-pie" style="color:#7048e8; font-size:1.1rem;"></i>
+                                Rateio de Custos Fixos por Setor
                             </div>
                             <table class="prec-table">
                                 <thead>
                                     <tr>
-                                        <th style="width: 50%;">Insumo / Componente</th>
-                                        <th style="width: 15%; text-align: right;">Qtd</th>
-                                        <th style="width: 18%; text-align: right;">Custo Unitário</th>
+                                        <th style="width: 50%;">Setor</th>
+                                        <th style="width: 15%; text-align: right;">Percentual de Rateio (%)</th>
+                                        <th style="width: 18%; text-align: right;">Custo Base do Setor</th>
                                         <th style="width: 17%; text-align: right;">Custo Total</th>
                                         <th style="width: 5%; text-align: center;"></th>
                                     </tr>
@@ -7278,19 +7289,19 @@ function _renderFormPrecificacaoBase() {
                             </table>
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1rem;">
                                 <button type="button" onclick="_adicionarInsumoRow()" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:0 0.75rem; font-size:0.8rem; font-weight:600; height:32px !important;">
-                                    <i class="ph ph-plus" style="margin-right:4px;"></i> Adicionar Insumo
+                                    <i class="ph ph-plus" style="margin-right:4px;"></i> Adicionar Setor
                                 </button>
                                 <div style="font-size:0.85rem; font-weight:700; color:#475569;">
-                                    Custo Total Insumos: <span id="span-custo-insumos" style="color:#1e293b; font-size:0.95rem; margin-left:4px;">R$ 0,00</span>
+                                    Custo Total Rateio: <span id="span-custo-insumos" style="color:#1e293b; font-size:0.95rem; margin-left:4px;">R$ 0,00</span>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Card 2: Custos Fixos / Mão de Obra -->
+                        <!-- Card 2: Custos Variáveis Operacionais -->
                         <div class="cost-card">
                             <div class="cost-title">
-                                <i class="ph ph-users" style="color:#7048e8; font-size:1.1rem;"></i>
-                                Mão de Obra e Custos Fixos / Operacionais
+                                <i class="ph ph-wrench" style="color:#7048e8; font-size:1.1rem;"></i>
+                                Custos Variáveis Operacionais
                             </div>
                             <table class="prec-table">
                                 <thead>
@@ -7309,7 +7320,7 @@ function _renderFormPrecificacaoBase() {
                                     <i class="ph ph-plus" style="margin-right:4px;"></i> Adicionar Custo
                                 </button>
                                 <div style="font-size:0.85rem; font-weight:700; color:#475569;">
-                                    Custo Total Mão-de-Obra: <span id="span-custo-fixos" style="color:#1e293b; font-size:0.95rem; margin-left:4px;">R$ 0,00</span>
+                                    Custo Total Variável Direto: <span id="span-custo-fixos" style="color:#1e293b; font-size:0.95rem; margin-left:4px;">R$ 0,00</span>
                                 </div>
                             </div>
                         </div>
@@ -7392,19 +7403,19 @@ window._renderInsumosRows = function() {
     if (!tbody) return;
 
     if (_precificacaoInsumos.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.5rem;">Nenhum insumo adicionado.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.5rem;">Nenhum setor adicionado.</td></tr>`;
         return;
     }
 
     tbody.innerHTML = _precificacaoInsumos.map((item, idx) => {
-        const total = (item.qtd || 0) * (item.custo_unitario || 0);
+        const total = ((item.qtd || 0) * (item.custo_unitario || 0)) / 100;
         return `
             <tr>
                 <td>
-                    <input type="text" value="${item.nome || ''}" onchange="_atualizarInsumo(${idx}, 'nome', this.value)" style="height:32px !important; padding:4px 8px !important; box-sizing: border-box !important;" placeholder="Nome da peça/material">
+                    <input type="text" list="datalist-setores" value="${item.nome || ''}" onchange="_atualizarInsumoSetor(${idx}, this.value)" style="height:32px !important; padding:4px 8px !important; box-sizing: border-box !important;" placeholder="Selecione ou digite o setor">
                 </td>
                 <td>
-                    <input type="number" value="${item.qtd}" min="0.001" step="any" oninput="_atualizarInsumo(${idx}, 'qtd', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:32px !important; text-align:right; padding:4px 8px !important; box-sizing: border-box !important;">
+                    <input type="number" value="${item.qtd}" min="0" max="100" step="any" oninput="_atualizarInsumo(${idx}, 'qtd', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:32px !important; text-align:right; padding:4px 8px !important; box-sizing: border-box !important;">
                 </td>
                 <td>
                     <input type="number" value="${item.custo_unitario}" min="0" step="0.01" oninput="_atualizarInsumo(${idx}, 'custo_unitario', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:32px !important; text-align:right; padding:4px 8px !important; box-sizing: border-box !important;">
@@ -7413,7 +7424,7 @@ window._renderInsumosRows = function() {
                     R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
                 <td style="text-align:center;">
-                    <i class="ph ph-trash" onclick="_excluirInsumoRow(${idx})" style="color:#ef4444; font-size:1.1rem; cursor:pointer;" title="Remover Insumo"></i>
+                    <i class="ph ph-trash" onclick="_excluirInsumoRow(${idx})" style="color:#ef4444; font-size:1.1rem; cursor:pointer;" title="Remover Setor"></i>
                 </td>
             </tr>
         `;
@@ -7423,6 +7434,28 @@ window._renderInsumosRows = function() {
 window._atualizarInsumo = function(idx, field, val) {
     if (_precificacaoInsumos[idx]) {
         _precificacaoInsumos[idx][field] = val;
+    }
+};
+
+window._atualizarInsumoSetor = function(idx, val) {
+    if (!_precificacaoInsumos[idx]) return;
+    _precificacaoInsumos[idx].nome = val;
+    
+    // Ponto de Equilíbrio base values mapping
+    const defaultBases = {
+        'Operacional': 15000.00,
+        'Logística': 18000.00,
+        'Comercial': 8000.00,
+        'Financeiro': 7000.00,
+        'RH': 6000.00,
+        'Diretoria': 25000.00,
+        'Administrativo': 12000.00
+    };
+    
+    if (defaultBases[val] !== undefined) {
+        _precificacaoInsumos[idx].custo_unitario = defaultBases[val];
+        _renderInsumosRows();
+        _recalcularPrecificacao();
     }
 };
 
@@ -7492,7 +7525,7 @@ window._excluirFixoRow = function(idx) {
 window._recalcularPrecificacao = function() {
     let sumInsumos = 0;
     _precificacaoInsumos.forEach(item => {
-        sumInsumos += (item.qtd || 0) * (item.custo_unitario || 0);
+        sumInsumos += ((item.qtd || 0) * (item.custo_unitario || 0)) / 100;
     });
     
     const subtotalInsumos = document.getElementById('span-custo-insumos');
@@ -7670,7 +7703,7 @@ window._salvarServicoPrecificacao = async function() {
 
     let sumInsumos = 0;
     _precificacaoInsumos.forEach(item => {
-        sumInsumos += (item.qtd || 0) * (item.custo_unitario || 0);
+        sumInsumos += ((item.qtd || 0) * (item.custo_unitario || 0)) / 100;
     });
     let sumFixos = 0;
     _precificacaoCustosFixos.forEach(item => {
