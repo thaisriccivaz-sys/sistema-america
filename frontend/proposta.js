@@ -1340,22 +1340,41 @@ function _renderFormPropostaInt() {
                                         <i class="ph ph-magnifying-glass" style="font-size:1.15rem;"></i>
                                     </button>
                                 </div>
-                                <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-top:0.25rem; background:#f8fafc; padding:0.4rem 0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
-                                    <i class="ph ph-wrench" style="color:#7048e8; font-size:0.9rem;"></i>
-                                    <select id="prop-qtd-manutencoes" onchange="window.classificarRegiaoEDias()" style="border:1px solid #cbd5e1; border-radius:4px; padding:2px; font-size:0.72rem; color:#475569; font-weight:700; background:#fff; cursor:pointer; font-family:'Inter',sans-serif; outline:none; margin-right:4px;">
-                                        <option value="1">1 Manut./Semana</option>
-                                        <option value="2">2 Manut./Semana</option>
-                                        <option value="3">3 Manut./Semana</option>
-                                    </select>
-                                    <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; font-size:0.75rem; color:#475569; font-weight:600; font-family:'Inter',sans-serif;">
-                                        <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-seg" value="Segunda" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Seg</label>
-                                        <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-ter" value="Terça" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Ter</label>
-                                        <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-qua" value="Quarta" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Qua</label>
-                                        <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-qui" value="Quinta" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Qui</label>
-                                        <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-sex" value="Sexta" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Sex</label>
-                                        <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-sab" value="Sábado" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Sáb</label>
-                                        <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-dom" value="Domingo" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Dom</label>
-                                    </div>
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Desconto (%)</label>
+                                <input type="number" id="prop-desc-pct" value="${vn('desconto_percent','0')}" min="0" max="100" step="0.01"
+                                    oninput="calcularDescontoReais()"
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Desconto (R$)</label>
+                                <input type="number" id="prop-desc-rs" value="${vn('desconto_reais','0')}" min="0" step="0.01"
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Condição de Pagamento *</label>
+                                <select id="prop-cond-pag" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                                    <option value="">-- Selecione --</option>
+                                    ${PROP_COND_PAG.map(c => `<option value="${c}" ${v('condicao_pagamento')===c?'selected':''}>${c}</option>`).join('')}
+                                </select>
+                            </div>
+                            <!-- Barra de Manutenção e Dias da Semana (Largura Total da Linha) -->
+                            <div style="grid-column: span 4; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-top:0.25rem; background:#f8fafc; padding:0.4rem 0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box; width:100%;">
+                                <i class="ph ph-wrench" style="color:#7048e8; font-size:0.9rem;"></i>
+                                <select id="prop-qtd-manutencoes" onchange="window.classificarRegiaoEDias()" style="border:1px solid #cbd5e1; border-radius:4px; padding:2px; font-size:0.72rem; color:#475569; font-weight:700; background:#fff; cursor:pointer; font-family:'Inter',sans-serif; outline:none; margin-right:4px;">
+                                    <option value="1">1 Manut./Semana</option>
+                                    <option value="2">2 Manut./Semana</option>
+                                    <option value="3">3 Manut./Semana</option>
+                                </select>
+                                <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; font-size:0.75rem; color:#475569; font-weight:600; font-family:'Inter',sans-serif;">
+                                    <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-seg" value="Segunda" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Seg</label>
+                                    <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-ter" value="Terça" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Ter</label>
+                                    <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-qua" value="Quarta" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Qua</label>
+                                    <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-qui" value="Quinta" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Qui</label>
+                                    <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-sex" value="Sexta" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Sex</label>
+                                    <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-sab" value="Sábado" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Sáb</label>
+                                    <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-dom" value="Domingo" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Dom</label>
                                 </div>
                             </div>
                             <div>
