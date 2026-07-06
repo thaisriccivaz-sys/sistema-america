@@ -2114,6 +2114,7 @@ window.limparFormPropostaNovo = function() {
 };
 
 window.salvarPropostaNova = async function() {
+    console.log('[DEBUG] salvarPropostaNova called. _propostasEditandoId =', _propostasEditandoId);
     const obter = (id) => document.getElementById(id)?.value || '';
     const obterN = (id) => parseFloat(document.getElementById(id)?.value || 0);
 
