@@ -365,27 +365,87 @@ function renderTelaPropostas() {
 
                 /* Títulos de Seção */
                 #form-proposta h4 {
-                    font-size: 0.9rem !important;
+                    font-size: 0.8rem !important;
                     font-weight: 800 !important;
                     color: #475569 !important;
                     text-transform: uppercase !important;
-                    letter-spacing: 0.05em !important;
+                    letter-spacing: 0.04em !important;
                     border-bottom: 2px solid #e2e8f0 !important;
-                    padding-bottom: 0.4rem !important;
-                    margin: 1.5rem 0 1rem 0 !important;
+                    padding-bottom: 0.25rem !important;
+                    margin: 0.8rem 0 0.5rem 0 !important;
                     display: flex !important;
                     align-items: center !important;
-                    gap: 0.5rem !important;
+                    gap: 0.4rem !important;
                 }
 
                 /* Tamanho de Fonte e Cor de Inputs, Selects e Textareas */
-                #form-proposta input,
-                #form-proposta select,
-                #form-proposta textarea,
                 #form-cadastro-cliente input:not([type="checkbox"]),
                 #form-cadastro-cliente select {
                     font-size: 0.85rem !important;
                     color: #1e293b !important;
+                }
+
+                /* Estilo Profissional de ERP Web (Densa e Compacta) para o Form Nova Proposta */
+                #form-proposta input:not([type="checkbox"]),
+                #form-proposta select {
+                    height: 28px !important;
+                    padding: 0.15rem 0.45rem !important;
+                    font-size: 0.76rem !important;
+                    border-radius: 4px !important;
+                    border: 1px solid #cbd5e1 !important;
+                    color: #1e293b !important;
+                    box-sizing: border-box !important;
+                    line-height: normal !important;
+                }
+                #form-proposta textarea {
+                    padding: 0.3rem 0.45rem !important;
+                    font-size: 0.76rem !important;
+                    border-radius: 4px !important;
+                    border: 1px solid #cbd5e1 !important;
+                    color: #1e293b !important;
+                    box-sizing: border-box !important;
+                }
+                #form-proposta label.prop-lbl {
+                    font-size: 0.7rem !important;
+                    font-weight: 700 !important;
+                    color: #475569 !important;
+                    margin-bottom: 0.15rem !important;
+                    text-transform: uppercase !important;
+                    letter-spacing: 0.03em !important;
+                }
+                /* Alinhamento de botões de busca / addon com a altura de 28px */
+                #form-proposta button[style*="height:36px"],
+                #form-proposta button[style*="height: 36px"],
+                #form-proposta button[style*="height:38px"],
+                #form-proposta button[style*="height: 38px"] {
+                    height: 28px !important;
+                    width: 28px !important;
+                    border-radius: 4px !important;
+                }
+                #form-proposta button[style*="height:36px"] i,
+                #form-proposta button[style*="height:38px"] i {
+                    font-size: 0.9rem !important;
+                }
+                /* Compactar espaçamento vertical e horizontal nos grids do form */
+                #form-proposta div[style*="display:grid"] {
+                    gap: 0.4rem 0.6rem !important;
+                }
+                #form-proposta div[style*="margin-bottom:1rem"] {
+                    margin-bottom: 0.5rem !important;
+                }
+                #form-proposta div[style*="margin-bottom:0.85rem"] {
+                    margin-bottom: 0.4rem !important;
+                }
+                #form-proposta div[style*="margin-top:1rem"] {
+                    margin-top: 0.4rem !important;
+                }
+                /* Tabela de itens da proposta compactada */
+                #form-proposta table {
+                    font-size: 0.76rem !important;
+                }
+                #form-proposta table th,
+                #form-proposta table td {
+                    padding: 0.3rem 0.45rem !important;
                 }
             </style>
 
