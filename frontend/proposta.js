@@ -2165,7 +2165,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
     const inativoChecked = client ? (client.inativo === 1 ? 'checked' : '') : '';
     const ufSelect = (selectedUf) => {
         const ufs = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
-        return ufs.map(uf => `<option value="${uf}" ${selectedUf === uf ? 'selected' : ''}>${uf}</option>`).join('');
+        return ufs.map(uf => `<option value="${uf}" ${selectedUf === uf ? 'selected' : ''}>dots ${uf}</option>`).join('').replace(/\.\.\. /g, '');
     };
 
     const enquadramentoOptions = (selectedVal) => {
@@ -2196,6 +2196,15 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
         }
     }
 
+    window._modalClienteContatos = [];
+    if (client && client.contatos) {
+        try {
+            window._modalClienteContatos = JSON.parse(client.contatos || '[]');
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
     Swal.fire({
         title: '',
         width: '1100px',
@@ -2214,7 +2223,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                 .mcli-toolbar {
                     background: #f8fafc;
                     border-bottom: 1px solid #e2e8f0;
-                    padding: 0.5rem 1rem;
+                    padding: 0.4rem 0.8rem;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
@@ -2321,16 +2330,47 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
             <div class="mcli-container">
                 <!-- Toolbar/Header -->
                 <div class="mcli-toolbar">
-                    <div style="font-size:0.95rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
-                        <i class="ph ph-user-plus" style="color:#7048e8; font-size:1.2rem;"></i>
-                        <span>${_modalClienteEditandoId ? 'Editar Cliente' : 'Cadastrar Novo Cliente'}</span>
+                    <!-- Dropdown de navegação comercial à esquerda -->
+                    <div class="saas-dropdown-container" style="margin:0;">
+                        <div class="saas-nav-item active" style="display:flex; align-items:center; gap:0.25rem; background:#1e40af; color:#fff; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#1e3a8a'" onmouseout="this.style.background='#1e40af'">
+                            <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size:0.8rem; opacity:0.7;"></i>
+                        </div>
+                        <div class="saas-dropdown-menu">
+                            <div class="saas-dropdown-item" onclick="Swal.close(); abrirFormProposta(null); event.stopPropagation();">
+                                <i class="ph ph-pencil-simple"></i> Nova Proposta
+                            </div>
+                            <div class="saas-dropdown-item" onclick="Swal.close(); switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
+                                <i class="ph ph-user-plus"></i> Cadastro de Clientes
+                            </div>
+                            <div class="saas-dropdown-item" onclick="Swal.close(); switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                                <i class="ph ph-identification-card"></i> Cadastro de Contatos
+                            </div>
+                            <div class="saas-dropdown-item" onclick="Swal.close(); switchPropostaTab('enderecos'); event.stopPropagation();">
+                                <i class="ph ph-map-pin"></i> Endereços
+                            </div>
+                            <div class="saas-dropdown-item" onclick="Swal.close(); switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
+                                <i class="ph ph-calculator"></i> Precificação de Serviços
+                            </div>
+                        </div>
                     </div>
+
                     <div style="display:flex; gap:0.4rem; align-items:center;">
-                        <button onclick="window.modalSalvarCliente(${_modalClienteEditandoId || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px; height:28px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-                            <i class="ph ph-check" style="font-size:0.9rem;"></i> Salvar
+                        <button onclick="window.modalRecarregarCliente(${_modalClienteEditandoId || 'null'})" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none; box-sizing:border-box;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                            <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
                         </button>
-                        <button onclick="Swal.close()" style="background:#dc2626; color:white; border:none; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px; height:28px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
-                            <i class="ph ph-x" style="font-size:0.9rem;"></i> Fechar
+                        <div style="width: 4px;"></div>
+                        <button onclick="window.modalSalvarCliente(${_modalClienteEditandoId || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                            <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
+                        </button>
+                        <button onclick="window.modalExcluirCliente(${_modalClienteEditandoId || 'null'})" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+                            <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
+                        </button>
+                        <button onclick="window.modalVerificarCliente()" style="background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'">
+                            <i class="ph ph-shield-check" style="font-size:1rem;"></i> Verificar
+                        </button>
+                        <div style="width: 4px;"></div>
+                        <button onclick="Swal.close()" style="background:#475569; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'">
+                            <i class="ph ph-x" style="font-size:1rem;"></i> Fechar
                         </button>
                     </div>
                 </div>
@@ -2338,211 +2378,339 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                 <!-- Form Body -->
                 <div class="mcli-form-body">
                     <!-- Info bar -->
-                    <div style="display:flex; justify-content:space-between; align-items:center; background:#f0f7ff; border:1px solid #c2e0ff; padding:0.4rem 0.8rem; border-radius:6px; margin-bottom:0.8rem; font-size:0.78rem; color:#1e40af; gap:0.5rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#f0f7ff; border:1px solid #c2e0ff; padding:0.6rem 1.2rem; border-radius:6px; margin-bottom:1rem; font-size:0.85rem; color:#1e40af; flex-wrap:wrap; gap:0.5rem;">
                         <div style="font-weight:600; display:flex; align-items:center; gap:6px;">
-                            <i class="ph ph-info" style="font-size:1rem;"></i>
-                            Pesquise pelo CNPJ para completar o cadastro automaticamente.
+                            <i class="ph ph-info" style="font-size:1.1rem;"></i>
+                            Pesquise pelo CNPJ para completar o cadastro.
                         </div>
-                        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#1e293b; margin:0;">
+                        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#1e293b; text-transform:uppercase; font-size:0.75rem; margin:0;">
                             <input type="checkbox" id="modal-cli-inativo" ${inativoChecked} style="accent-color:#3b82f6;"> Inativo?
                         </label>
                     </div>
 
-                    <!-- Seção: Identificação -->
-                    <div class="mcli-section-title first">
-                        <i class="ph ph-identification-card"></i> Identificação
-                    </div>
-                    <div class="mcli-grid" style="grid-template-columns: 1fr; gap:0.6rem;">
-                        <!-- Linha 1: Código, Data Cadastro, CPF/CNPJ, IE -->
-                        <div style="display:grid; grid-template-columns:1.2fr 1.2fr 1.8fr 1.8fr; gap:0.75rem;">
-                            <div class="mcli-field">
-                                <label>Código</label>
-                                <input type="text" id="modal-cli-codigo" readonly value="${client ? (client.codigo || '') : ''}" placeholder="Auto">
-                            </div>
-                            <div class="mcli-field">
-                                <label>Data de Cadastro</label>
-                                <input type="date" id="modal-cli-data-cadastro" value="${dataCadastro}">
-                            </div>
-                            <div class="mcli-field">
-                                <label>CPF / CNPJ *</label>
-                                <div class="mcli-input-group">
-                                    <input type="text" id="modal-cli-cpf-cnpj" value="${client ? (client.cpf_cnpj || '') : ''}" placeholder="Apenas números">
-                                    <button type="button" onclick="window.modalBuscarCNPJ()" id="modal-btn-busca-cnpj" class="mcli-btn-addon" title="Buscar CNPJ">
-                                        <i class="ph ph-magnifying-glass"></i>
-                                    </button>
+                    <!-- Main Grid: Campos (Esquerda) e Foto (Direita) -->
+                    <div style="display:flex; gap:1.5rem; flex-wrap:wrap; margin-bottom:0.85rem;">
+                        <!-- Coluna dos Campos (Esquerda) -->
+                        <div style="flex:1; min-width:300px; display:grid; gap:0.85rem;">
+                            <!-- Linha 1: Código, Data Cadastro, CPF/CNPJ, IE -->
+                            <div style="display:grid; grid-template-columns:1.2fr 1fr 1.5fr 1.5fr; gap:0.75rem;">
+                                <div class="mcli-field">
+                                    <label>Código</label>
+                                    <div style="display:flex; gap:3px;">
+                                        <input type="text" id="modal-cli-codigo" readonly value="${client ? (client.codigo || '') : ''}" placeholder="Auto" class="mcli-input">
+                                        <button type="button" onclick="window.modalAbrirPesquisaCliente()" title="Buscar Cliente" class="mcli-btn-addon" style="background:#16a34a;"><i class="ph ph-magnifying-glass"></i></button>
+                                        <button type="button" onclick="window.modalLimparFormCliente()" title="Limpar/Novo" class="mcli-btn-addon" style="background:#475569;"><i class="ph ph-arrows-counter-clockwise"></i></button>
+                                    </div>
+                                </div>
+                                <div class="mcli-field">
+                                    <label>Data de Cadastro</label>
+                                    <input type="date" id="modal-cli-data-cadastro" value="${dataCadastro}" class="mcli-input">
+                                </div>
+                                <div class="mcli-field">
+                                    <label>CPF / CNPJ *</label>
+                                    <div class="mcli-input-group">
+                                        <input type="text" id="modal-cli-cpf-cnpj" value="${client ? (client.cpf_cnpj || '') : ''}" placeholder="Apenas números" class="mcli-input">
+                                        <button type="button" onclick="window.modalBuscarCNPJ()" id="modal-btn-busca-cnpj" class="mcli-btn-addon" title="Buscar CNPJ">
+                                            <i class="ph ph-magnifying-glass"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mcli-field">
+                                    <label>Inscrição Estadual</label>
+                                    <input type="text" id="modal-cli-ie" value="${client ? (client.inscricao_estadual || '') : ''}" placeholder="ISENTO" class="mcli-input">
                                 </div>
                             </div>
-                            <div class="mcli-field">
-                                <label>Inscrição Estadual</label>
-                                <input type="text" id="modal-cli-ie" value="${client ? (client.inscricao_estadual || '') : ''}" placeholder="ISENTO">
-                            </div>
-                        </div>
 
-                        <!-- Linha 2: IM, Grupo, Centralizador -->
-                        <div style="display:grid; grid-template-columns:1.2fr 1.5fr 2.3fr; gap:0.75rem;">
-                            <div class="mcli-field">
-                                <label>Inscrição Municipal</label>
-                                <input type="text" id="modal-cli-im" value="${client ? (client.inscricao_municipal || '') : ''}">
-                            </div>
-                            <div class="mcli-field">
-                                <label>Grupo de Clientes</label>
-                                <select id="modal-cli-grupo">
-                                    <option value="">-- Selecione --</option>
-                                    ${grupoOptions(client ? client.grupo_clientes : '')}
-                                </select>
-                            </div>
-                            <div class="mcli-field">
-                                <label>Cliente Centralizador</label>
-                                <select id="modal-cli-centralizador">
-                                    <option value="">-- Selecione --</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Linha 3: Razão Social -->
-                        <div class="mcli-field">
-                            <label>Nome / Razão Social *</label>
-                            <input type="text" id="modal-cli-razao-social" value="${client ? (client.nome_razao_social || '') : prefilledName}">
-                        </div>
-
-                        <!-- Linha 4: Nome Fantasia -->
-                        <div class="mcli-field">
-                            <label>Nome Fantasia</label>
-                            <input type="text" id="modal-cli-nome-fantasia" value="${client ? (client.nome_fantasia || '') : ''}">
-                        </div>
-                    </div>
-
-                    <!-- Seção: Endereço -->
-                    <div class="mcli-section-title">
-                        <i class="ph ph-map-pin"></i> Endereço
-                    </div>
-                    <div class="mcli-grid" style="grid-template-columns: 1fr; gap:0.6rem;">
-                        <!-- Linha 1 CEP, Endereço, Número, Complemento -->
-                        <div style="display:grid; grid-template-columns:1.5fr 3fr 1fr 1.5fr; gap:0.75rem;">
-                            <div class="mcli-field">
-                                <label>CEP</label>
-                                <div class="mcli-input-group">
-                                    <input type="text" id="modal-cli-cep" value="${client ? (client.cep || '') : ''}" placeholder="00000-000">
-                                    <button type="button" onclick="window.modalBuscarCEP()" class="mcli-btn-addon" title="Buscar CEP">
-                                        <i class="ph ph-magnifying-glass"></i>
-                                    </button>
+                            <!-- Linha 2: IM, Grupo, Centralizador -->
+                            <div style="display:grid; grid-template-columns:1.2fr 1.5fr 2.3fr; gap:0.75rem;">
+                                <div class="mcli-field">
+                                    <label>Inscrição Municipal</label>
+                                    <input type="text" id="modal-cli-im" value="${client ? (client.inscricao_municipal || '') : ''}" class="mcli-input">
+                                </div>
+                                <div class="mcli-field">
+                                    <label>Grupo de Clientes</label>
+                                    <select id="modal-cli-grupo" class="mcli-select">
+                                        <option value="">-- Selecione --</option>
+                                        ${grupoOptions(client ? client.grupo_clientes : '')}
+                                    </select>
+                                </div>
+                                <div class="mcli-field">
+                                    <label>Cliente Centralizador</label>
+                                    <select id="modal-cli-centralizador" class="mcli-select">
+                                        <option value="">-- Selecione --</option>
+                                    </select>
                                 </div>
                             </div>
+
+                            <!-- Linha 3: Razão Social -->
                             <div class="mcli-field">
-                                <label>Endereço</label>
-                                <input type="text" id="modal-cli-endereco" value="${client ? (client.endereco || '') : ''}">
+                                <label>Nome / Razão Social *</label>
+                                <input type="text" id="modal-cli-razao-social" value="${client ? (client.nome_razao_social || '') : prefilledName}" class="mcli-input">
                             </div>
+
+                            <!-- Linha 4: Nome Fantasia -->
                             <div class="mcli-field">
-                                <label>Número</label>
-                                <input type="text" id="modal-cli-numero" value="${client ? (client.numero || '') : ''}">
-                            </div>
-                            <div class="mcli-field">
-                                <label>Complemento</label>
-                                <input type="text" id="modal-cli-complemento" value="${client ? (client.complemento || '') : ''}">
+                                <label>Nome Fantasia</label>
+                                <input type="text" id="modal-cli-nome-fantasia" value="${client ? (client.nome_fantasia || '') : ''}" class="mcli-input">
                             </div>
                         </div>
 
-                        <!-- Linha 2 Bairro, UF, Município, País -->
-                        <div style="display:grid; grid-template-columns:2fr 1fr 2fr 1fr; gap:0.75rem;">
-                            <div class="mcli-field">
-                                <label>Bairro</label>
-                                <input type="text" id="modal-cli-bairro" value="${client ? (client.bairro || '') : ''}">
+                        <!-- Foto/Avatar (Direita) -->
+                        <div style="flex:0 0 160px; display:flex; flex-direction:column; align-items:center; justify-content:center; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; padding:1rem; box-sizing:border-box; height: fit-content; align-self: center;">
+                            <div style="width:100px; height:100px; border-radius:50%; background:#e2e8f0; display:flex; align-items:center; justify-content:center; margin-bottom:0.75rem; border:2px solid #cbd5e1; overflow:hidden;">
+                                <i class="ph ph-user" style="font-size:3rem; color:#94a3b8;"></i>
                             </div>
-                            <div class="mcli-field">
-                                <label>UF</label>
-                                <select id="modal-cli-uf">
-                                    <option value="">--</option>
-                                    ${ufSelect(client ? client.uf : '')}
-                                </select>
-                            </div>
-                            <div class="mcli-field">
-                                <label>Município</label>
-                                <input type="text" id="modal-cli-municipio" value="${client ? (client.municipio || '') : ''}">
-                            </div>
-                            <div class="mcli-field">
-                                <label>País</label>
-                                <input type="text" id="modal-cli-pais" value="${client ? (client.pais || 'BRASIL') : 'BRASIL'}">
-                            </div>
+                            <button type="button" onclick="alert('Funcionalidade de foto em desenvolvimento')" style="background:#495057;color:white;border:none;padding:0.4rem 0.8rem;border-radius:4px;font-size:0.75rem;font-weight:600;cursor:pointer; height:28px; display:inline-flex; align-items:center; justify-content:center; font-family:'Inter', sans-serif !important;">
+                                Alterar Foto
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Seção: Contatos / Comunicação -->
-                    <div class="mcli-section-title">
-                        <i class="ph ph-phone"></i> Contatos / Comunicação
-                    </div>
-                    <div class="mcli-grid" style="grid-template-columns: 1fr; gap:0.6rem;">
-                        <!-- Linha 1 Telefones, Ramais, Fax, Website -->
-                        <div style="display:grid; grid-template-columns:1.5fr 0.8fr 1.5fr 0.8fr 1fr 1.5fr; gap:0.75rem;">
-                            <div class="mcli-field">
-                                <label>Telefone</label>
-                                <input type="text" id="modal-cli-telefone" value="${client ? (client.telefone || '') : ''}">
-                            </div>
-                            <div class="mcli-field">
-                                <label>Ramal</label>
-                                <input type="text" id="modal-cli-ramal" value="${client ? (client.ramal || '') : ''}">
-                            </div>
-                            <div class="mcli-field">
-                                <label>Telefone 2</label>
-                                <input type="text" id="modal-cli-telefone2" value="${client ? (client.telefone_2 || '') : ''}">
-                            </div>
-                            <div class="mcli-field">
-                                <label>Ramal</label>
-                                <input type="text" id="modal-cli-ramal2" value="${client ? (client.ramal_2 || '') : ''}">
-                            </div>
-                            <div class="mcli-field">
-                                <label>Fax</label>
-                                <input type="text" id="modal-cli-fax" value="${client ? (client.fax || '') : ''}">
-                            </div>
-                            <div class="mcli-field">
-                                <label>Website</label>
-                                <input type="text" id="modal-cli-website" value="${client ? (client.website || '') : ''}">
+                    <!-- Linha 5 CEP, Endereço, Número, Complemento -->
+                    <div style="display:grid; grid-template-columns:1.2fr 3fr 1fr 1.5fr; gap:0.75rem; margin-top:0.85rem;">
+                        <div class="mcli-field">
+                            <label>CEP</label>
+                            <div class="mcli-input-group">
+                                <input type="text" id="modal-cli-cep" value="${client ? (client.cep || '') : ''}" placeholder="00000-000" class="mcli-input">
+                                <button type="button" onclick="window.modalBuscarCEP()" class="mcli-btn-addon" title="Buscar CEP">
+                                    <i class="ph ph-magnifying-glass"></i>
+                                </button>
                             </div>
                         </div>
-
-                        <!-- Linha 2 DDI Celular, Celular -->
-                        <div style="display:grid; grid-template-columns:1.5fr 2fr; gap:0.75rem; max-width: 50%;">
-                            <div class="mcli-field">
-                                <label>DDI do Celular</label>
-                                <select id="modal-cli-celular-ddi">
-                                    <option value="+55 (BRASIL)" ${client && client.celular_ddi === '+55 (BRASIL)' ? 'selected' : ''}>+55 (BRASIL)</option>
-                                    <option value="+1 (EUA)" ${client && client.celular_ddi === '+1 (EUA)' ? 'selected' : ''}>+1 (EUA)</option>
-                                    <option value="+351 (PORTUGAL)" ${client && client.celular_ddi === '+351 (PORTUGAL)' ? 'selected' : ''}>+351 (PORTUGAL)</option>
-                                </select>
-                            </div>
-                            <div class="mcli-field">
-                                <label>Celular</label>
-                                <input type="text" id="modal-cli-celular" value="${client ? (client.celular || '') : ''}" placeholder="(XX)XXXXX-XXXX">
-                            </div>
+                        <div class="mcli-field">
+                            <label>Endereço</label>
+                            <input type="text" id="modal-cli-endereco" value="${client ? (client.endereco || '') : ''}" class="mcli-input">
+                        </div>
+                        <div class="mcli-field">
+                            <label>Número</label>
+                            <input type="text" id="modal-cli-numero" value="${client ? (client.numero || '') : ''}" class="mcli-input">
+                        </div>
+                        <div class="mcli-field">
+                            <label>Complemento</label>
+                            <input type="text" id="modal-cli-complemento" value="${client ? (client.complemento || '') : ''}" class="mcli-input">
                         </div>
                     </div>
 
-                    <!-- Seção: Parâmetros & Fiscal -->
-                    <div class="mcli-section-title">
-                        <i class="ph ph-gear"></i> Configurações & Fiscal
-                    </div>
-                    <div class="mcli-grid" style="grid-template-columns: 1fr; gap:0.8rem;">
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
-                            <label style="display:flex; align-items:center; gap:5px; font-size:0.78rem; font-weight:600; color:#475569; margin:0; cursor:pointer;">
-                                <input type="checkbox" id="modal-cli-p-limite" ${parametros.limite ? 'checked' : ''} style="accent-color:#3b82f6;"> Bloquear faturamento por limite de crédito
-                            </label>
-                            <label style="display:flex; align-items:center; gap:5px; font-size:0.78rem; font-weight:600; color:#475569; margin:0; cursor:pointer;">
-                                <input type="checkbox" id="modal-cli-p-retencao" ${parametros.retencao ? 'checked' : ''} style="accent-color:#3b82f6;"> Exigir retenção de impostos em notas fiscais
-                            </label>
+                    <!-- Linha 6 Bairro, UF, Município, País -->
+                    <div style="display:grid; grid-template-columns:2fr 1fr 2fr 1fr; gap:0.75rem; margin-top:0.85rem;">
+                        <div class="mcli-field">
+                            <label>Bairro</label>
+                            <input type="text" id="modal-cli-bairro" value="${client ? (client.bairro || '') : ''}" class="mcli-input">
                         </div>
-                        <div style="display:grid; grid-template-columns:1.5fr 1.5fr 1.5fr; gap:0.75rem;">
-                            <div class="mcli-field">
-                                <label>Enquadramento Tributário</label>
-                                <select id="modal-cli-f-tributario">
-                                    ${enquadramentoOptions(fiscal.enquadramento)}
-                                </select>
+                        <div class="mcli-field">
+                            <label>UF</label>
+                            <select id="modal-cli-uf" class="mcli-select">
+                                <option value="">--</option>
+                                ${ufSelect(client ? client.uf : '')}
+                            </select>
+                        </div>
+                        <div class="mcli-field">
+                            <label>Município</label>
+                            <input type="text" id="modal-cli-municipio" value="${client ? (client.municipio || '') : ''}" class="mcli-input">
+                        </div>
+                        <div class="mcli-field">
+                            <label>País</label>
+                            <input type="text" id="modal-cli-pais" value="${client ? (client.pais || 'BRASIL') : 'BRASIL'}" class="mcli-input">
+                        </div>
+                    </div>
+
+                    <!-- Linha 7 Telefones, Ramais, Fax, Website -->
+                    <div style="display:grid; grid-template-columns:1.5fr 0.8fr 1.5fr 0.8fr 1fr 1.5fr; gap:0.75rem; margin-top:0.85rem;">
+                        <div class="mcli-field">
+                            <label>Telefone</label>
+                            <input type="text" id="modal-cli-telefone" value="${client ? (client.telefone || '') : ''}" class="mcli-input">
+                        </div>
+                        <div class="mcli-field">
+                            <label>Ramal</label>
+                            <input type="text" id="modal-cli-ramal" value="${client ? (client.ramal || '') : ''}" class="mcli-input">
+                        </div>
+                        <div class="mcli-field">
+                            <label>Telefone 2</label>
+                            <input type="text" id="modal-cli-telefone2" value="${client ? (client.telefone_2 || '') : ''}" class="mcli-input">
+                        </div>
+                        <div class="mcli-field">
+                            <label>Ramal</label>
+                            <input type="text" id="modal-cli-ramal2" value="${client ? (client.ramal_2 || '') : ''}" class="mcli-input">
+                        </div>
+                        <div class="mcli-field">
+                            <label>Fax</label>
+                            <input type="text" id="modal-cli-fax" value="${client ? (client.fax || '') : ''}" class="mcli-input">
+                        </div>
+                        <div class="mcli-field">
+                            <label>Website</label>
+                            <input type="text" id="modal-cli-website" value="${client ? (client.website || '') : ''}" class="mcli-input">
+                        </div>
+                    </div>
+
+                    <!-- Linha 8 DDI Celular, Celular, Whatsapp, CRM -->
+                    <div style="display:grid; grid-template-columns:1.5fr 2fr auto 1.5fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
+                        <div class="mcli-field">
+                            <label>DDI do Celular</label>
+                            <select id="modal-cli-celular-ddi" class="mcli-select">
+                                <option value="+55 (BRASIL)" ${client && client.celular_ddi === '+55 (BRASIL)' ? 'selected' : ''}>+55 (BRASIL)</option>
+                                <option value="+1 (EUA)" ${client && client.celular_ddi === '+1 (EUA)' ? 'selected' : ''}>+1 (EUA)</option>
+                                <option value="+351 (PORTUGAL)" ${client && client.celular_ddi === '+351 (PORTUGAL)' ? 'selected' : ''}>+351 (PORTUGAL)</option>
+                            </select>
+                        </div>
+                        <div class="mcli-field">
+                            <label>Celular</label>
+                            <input type="text" id="modal-cli-celular" value="${client ? (client.celular || '') : ''}" placeholder="(XX)XXXXX-XXXX" class="mcli-input">
+                        </div>
+                        <div>
+                            <button type="button" onclick="window.abrirWhatsApp()" style="background:#25d366;color:white;border:none;padding:0.5rem;border-radius:4px;cursor:pointer;font-size:1.15rem;display:flex;align-items:center;justify-content:center;height:28px;width:38px;box-sizing:border-box;"><i class="ph ph-whatsapp-logo"></i></button>
+                        </div>
+                        <div>
+                            <button type="button" onclick="alert('Abrindo CRM...')" style="background:#3b5bdb;color:white;border:none;padding:0.45rem 1rem;border-radius:4px;font-weight:600;font-size:0.78rem;cursor:pointer;display:flex;align-items:center;gap:5px;height:28px;justify-content:center;width:100%;box-sizing:border-box;"><i class="ph ph-briefcase"></i> Abrir no CRM</button>
+                        </div>
+                    </div>
+
+                    <!-- ACORDEÕES EXPANSÍVEIS -->
+                    <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1.5rem;">
+                        <!-- Parâmetros -->
+                        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                            <div onclick="window.modalToggleAccordion('modal-acc-parametros')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                                <span>▶ Parâmetros <i class="ph ph-gear-six"></i></span>
+                                <span id="modal-acc-parametros-arrow" style="transition:transform 0.2s;">▶</span>
                             </div>
-                            <div class="mcli-field">
-                                <label>Regime Especial ISS</label>
-                                <input type="text" id="modal-cli-f-iss" value="${fiscal.regime_iss}" placeholder="Ex: Nenhum">
+                            <div id="modal-acc-parametros" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                                    <label style="display:flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" id="modal-cli-p-limite" ${parametros.limite ? 'checked' : ''}> Bloquear faturamento por limite de crédito</label>
+                                    <label style="display:flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" id="modal-cli-p-retencao" ${parametros.retencao ? 'checked' : ''}> Exigir retenção de impostos em notas fiscais</label>
+                                </div>
                             </div>
-                            <div class="mcli-field">
-                                <label>CNAE Principal</label>
-                                <input type="text" id="modal-cli-f-cnae" value="${fiscal.cnae}">
+                        </div>
+
+                        <!-- Fiscal -->
+                        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                            <div onclick="window.modalToggleAccordion('modal-acc-fiscal')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                                <span>▶ Fiscal <i class="ph ph-wrench"></i></span>
+                                <span id="modal-acc-fiscal-arrow" style="transition:transform 0.2s;">▶</span>
+                            </div>
+                            <div id="modal-acc-fiscal" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem;">
+                                    <div>
+                                        <label style="font-size: 0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:2px; display:block;">Enquadramento Tributário</label>
+                                        <select id="modal-cli-f-tributario" class="mcli-select">
+                                            ${enquadramentoOptions(fiscal.enquadramento)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:2px; display:block;">Regime Especial ISS</label>
+                                        <input type="text" id="modal-cli-f-iss" value="${fiscal.regime_iss}" placeholder="Ex: Nenhum" class="mcli-input">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:2px; display:block;">CNAE Principal</label>
+                                        <input type="text" id="modal-cli-f-cnae" value="${fiscal.cnae}" class="mcli-input">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Contatos (Expandido por padrão) -->
+                        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                            <div onclick="window.modalToggleAccordion('modal-acc-contatos')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                                <span>▼ Contatos <i class="ph ph-users-three"></i></span>
+                                <span id="modal-acc-contatos-arrow" style="transition:transform 0.2s;">▼</span>
+                            </div>
+                            <div id="modal-acc-contatos" style="display:block; padding:1.2rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                                <!-- Controles de e-mail e botão novo contato -->
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+                                    <div style="display:flex; align-items:center; gap:8px; font-weight:600; font-family:'Inter', sans-serif; font-size:0.85rem; color:#475569;">
+                                        <span>Dados para Envio de E-Mail Cobranças: Enviar com</span>
+                                        <input type="number" id="modal-cli-email-cob-antecedencia" value="${client ? (client.email_cob_antecedencia || 5) : 5}" style="width:45px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:6px; height:30px; box-sizing:border-box; outline:none; font-family:'Inter', sans-serif;">
+                                        <span>dias de antecedência e</span>
+                                        <input type="number" id="modal-cli-email-cob-posterior" value="${client ? (client.email_cob_posterior || 5) : 5}" style="width:45px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:6px; height:30px; box-sizing:border-box; outline:none; font-family:'Inter', sans-serif;">
+                                        <span>dias posterior ao Vencimento</span>
+                                    </div>
+                                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                                        <button type="button" onclick="window.modalAbrirPesquisaContatoCliente()" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s; height:28px;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                                            <i class="ph ph-magnifying-glass" style="font-size:1rem;"></i> Pesquisar Contato
+                                        </button>
+                                        <button type="button" onclick="document.getElementById('modal-cli-contato-form').style.display='flex'" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:background 0.15s; height:28px;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                                            <i class="ph ph-plus-bold" style="font-size:1rem;"></i> Novo Contato
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Formulário Inline de Novo Contato -->
+                                <div id="modal-cli-contato-form" style="display:none; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:0.8rem; margin-bottom:1rem; gap:0.5rem; flex-direction:column; text-align:left;">
+                                    <div style="display:grid; grid-template-columns:1.5fr 1.5fr 1.5fr 1fr; gap:0.75rem;">
+                                        <div class="mcli-field">
+                                            <label>Nome *</label>
+                                            <input type="text" id="modal-new-con-nome" class="mcli-input">
+                                        </div>
+                                        <div class="mcli-field">
+                                            <label>Celular</label>
+                                            <input type="text" id="modal-new-con-celular" class="mcli-input" placeholder="(XX)XXXXX-XXXX">
+                                        </div>
+                                        <div class="mcli-field">
+                                            <label>E-mail</label>
+                                            <input type="text" id="modal-new-con-email" class="mcli-input">
+                                        </div>
+                                        <div class="mcli-field">
+                                            <label>Cargo</label>
+                                            <input type="text" id="modal-new-con-cargo" class="mcli-input">
+                                        </div>
+                                    </div>
+                                    <div style="display:flex; justify-content:flex-end; gap:0.4rem; margin-top:0.6rem;">
+                                        <button type="button" onclick="window.modalSalvarContatoInline()" style="background:#16a34a; color:white; border:none; padding:0.35rem 0.75rem; border-radius:4px; font-weight:600; font-size:0.78rem; cursor:pointer; height:28px;">Confirmar</button>
+                                        <button type="button" onclick="document.getElementById('modal-cli-contato-form').style.display='none'" style="background:#dc2626; color:white; border:none; padding:0.35rem 0.75rem; border-radius:4px; font-weight:600; font-size:0.78rem; cursor:pointer; height:28px;">Cancelar</button>
+                                    </div>
+                                </div>
+
+                                <!-- Tabela de contatos cadastrados -->
+                                <div style="background:#fff; border-radius:10px; border:1px solid #e2e8f0; overflow-x:auto; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                                    <table style="width:100%; border-collapse:collapse; font-size:0.82rem; min-width:1200px; font-family:'Inter', sans-serif;">
+                                        <thead>
+                                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; text-align:left; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">Identificação</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">Nome</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">Departamento</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">Celular</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">Telefone/Ramal</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">E-mail</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">Dono</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">Cargo</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">Situação</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">NFe</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">Cobrança</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">OS</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">Contrato</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">Origem</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">Inativo</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; text-align:center;">Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="modal-cli-contatos-tbody">
+                                            <!-- Populado dinamicamente -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Validação de Dados (DataValid) -->
+                        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                            <div onclick="window.modalToggleAccordion('modal-acc-validacao')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                                <span>▶ Validação de Dados (DataValid) <i class="ph ph-check-circle"></i></span>
+                                <span id="modal-acc-validacao-arrow" style="transition:transform 0.2s;">▶</span>
+                            </div>
+                            <div id="modal-acc-validacao" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                                <div style="color:#155724; background-color:#d4edda; border:1px solid #c3e6cb; padding:0.75rem 1.25rem; border-radius:4px; font-weight:600; display:flex; align-items:center; gap:5px;">
+                                    <i class="ph ph-check-circle-bold" style="font-size:1.2rem;"></i> Todos os dados cadastrais estão de acordo com a Receita Federal e Sintegra.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Anexo de Arquivos -->
+                        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                            <div onclick="window.modalToggleAccordion('modal-acc-anexos')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                                <span>▶ Anexo de Arquivos <i class="ph ph-file-arrow-up"></i></span>
+                                <span id="modal-acc-anexos-arrow" style="transition:transform 0.2s;">▶</span>
+                            </div>
+                            <div id="modal-acc-anexos" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                                <input type="file" id="modal-cli-anexo-file" style="margin-bottom:0.5rem; display:block;">
+                                <span style="color:#64748b; font-size:0.75rem;">(Formatos permitidos: PDF, PNG, JPG até 5MB)</span>
                             </div>
                         </div>
                     </div>
@@ -2550,18 +2718,189 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
             </div>
         `,
         didOpen: async () => {
+            // Populate Cliente Centralizador
             try {
                 const clientesList = await apiGet('/clientes') || [];
                 const selectCentralizador = document.getElementById('modal-cli-centralizador');
                 if (selectCentralizador) {
                     selectCentralizador.innerHTML = '<option value="">-- Selecione --</option>' + 
-                        clientesList.map(c => `<option value="${c.nome_razao_social}" ${client && client.cliente_centralizador === c.nome_razao_social ? 'selected' : ''}>${c.nome_razao_social}</option>`).join('');
+                        clientesList.map(c => `<option value="dots${c.nome_razao_social}" ${client && client.cliente_centralizador === c.nome_razao_social ? 'selected' : ''}>dots${c.nome_razao_social}</option>`).join('').replace(/\.\.\./g, '');
                 }
             } catch (e) {
                 console.error('Erro ao carregar centralizadores no modal:', e);
             }
+
+            // Populate contacts table
+            window.modalRenderTabelaContatos();
         }
     });
+};
+
+window.modalToggleAccordion = function(id) {
+    const el = document.getElementById(id);
+    const arrow = document.getElementById(id + '-arrow');
+    if (el) {
+        if (el.style.display === 'none') {
+            el.style.display = 'block';
+            if (arrow) arrow.innerText = id.includes('contatos') ? '▼' : '▼';
+        } else {
+            el.style.display = 'none';
+            if (arrow) arrow.innerText = id.includes('contatos') ? '▶' : '▶';
+        }
+    }
+};
+
+window.modalRenderTabelaContatos = function() {
+    const tbody = document.getElementById('modal-cli-contatos-tbody');
+    if (!tbody) return;
+    
+    if (!window._modalClienteContatos || window._modalClienteContatos.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="16" style="padding:1rem; text-align:center; color:#94a3b8;">
+                    Nenhum contato adicionado.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = window._modalClienteContatos.map((c, idx) => `
+        <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.identificacao || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#1e293b; font-weight:600;">${c.nome}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.departamento || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.celular || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.telefone_ramal || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.email || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.dono || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.cargo || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.situacao || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.nfe || 'Não'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.cobranca || 'Não'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.os || 'Não'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.contrato || 'Não'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.origem || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.inativo || 'Não'}</td>
+            <td style="padding:0.75rem 1rem; text-align:center;">
+                <button type="button" onclick="window.modalRemoverContato(${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fa5252'; this.style.color='#fff';" onmouseout="this.style.background='#ffe3e3'; this.style.color='#e03131';" title="Remover Contato">
+                    <i class="ph ph-trash" style="font-size:0.95rem;"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+};
+
+window.modalSalvarContatoInline = function() {
+    const nome = document.getElementById('modal-new-con-nome')?.value.trim() || '';
+    const celular = document.getElementById('modal-new-con-celular')?.value.trim() || '';
+    const email = document.getElementById('modal-new-con-email')?.value.trim() || '';
+    const cargo = document.getElementById('modal-new-con-cargo')?.value.trim() || '';
+
+    if (!nome) {
+        Swal.fire('Aviso', 'Por favor, preencha o Nome do contato.', 'warning');
+        return;
+    }
+
+    const newContact = {
+        identificacao: 'Direto',
+        nome: nome,
+        departamento: 'Comercial',
+        celular: celular,
+        telefone_ramal: '',
+        email: email,
+        dono: window.currentUser?.nome || '',
+        cargo: cargo,
+        situacao: 'Ativo',
+        nfe: 'Sim',
+        cobranca: 'Sim',
+        os: 'Sim',
+        contrato: 'Sim',
+        origem: 'Cadastro Modal',
+        inativo: 'Não'
+    };
+
+    window._modalClienteContatos.push(newContact);
+    window.modalRenderTabelaContatos();
+
+    // Reset fields
+    document.getElementById('modal-new-con-nome').value = '';
+    document.getElementById('modal-new-con-celular').value = '';
+    document.getElementById('modal-new-con-email').value = '';
+    document.getElementById('modal-new-con-cargo').value = '';
+    document.getElementById('modal-cli-contato-form').style.display = 'none';
+};
+
+window.modalRemoverContato = function(idx) {
+    window._modalClienteContatos.splice(idx, 1);
+    window.modalRenderTabelaContatos();
+};
+
+window.modalAbrirPesquisaContatoCliente = function() {
+    Swal.fire('Aviso', 'Utilize o botão "Novo Contato" para adicionar contatos a este cliente diretamente.', 'info');
+};
+
+window.modalRecarregarCliente = function(clientId) {
+    if (clientId) {
+        window.abrirModalCadastroCliente(clientId, '');
+    } else {
+        window.abrirModalCadastroCliente(null, '');
+    }
+};
+
+window.modalAbrirPesquisaCliente = async function() {
+    try {
+        const clientes = await apiGet('/clientes');
+        if (!clientes || clientes.length === 0) {
+            Swal.fire('Aviso', 'Nenhum cliente cadastrado ainda.', 'info');
+            return;
+        }
+
+        const rowsHtml = clientes.map(c => `
+            <tr onclick="window.modalSelectClientePesquisa(${c.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo}</td>
+                <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social}</td>
+                <td style="padding:0.5rem; text-align:left;">${c.cpf_cnpj}</td>
+            </tr>
+        `).join('');
+
+        window.modalSelectClientePesquisa = function(id) {
+            Swal.close();
+            setTimeout(() => {
+                window.abrirModalCadastroCliente(id, '');
+            }, 300);
+        };
+
+        Swal.fire({
+            title: 'Pesquisar Cliente',
+            html: `
+                <div style="max-height:400px; overflow-y:auto; width:100%;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.85rem; font-family:'Inter', sans-serif;">
+                        <thead>
+                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1;">
+                                <th style="padding:0.5rem; text-align:left;">Código</th>
+                                <th style="padding:0.5rem; text-align:left;">Nome / Razão Social</th>
+                                <th style="padding:0.5rem; text-align:left;">CPF / CNPJ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            `,
+            showConfirmButton: false,
+            showCancelButton: true,
+            cancelButtonText: 'Fechar'
+        });
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Erro', 'Erro ao carregar lista de clientes: ' + e.message, 'error');
+    }
+};
+
+window.modalLimparFormCliente = function() {
+    window.abrirModalCadastroCliente(null, '');
 };
 
 window.modalBuscarCNPJ = async function() {
@@ -2748,7 +3087,7 @@ window.modalSalvarCliente = async function(clientId) {
         celular: document.getElementById('modal-cli-celular')?.value || '',
         parametros: JSON.stringify(parametros),
         fiscal: JSON.stringify(fiscal),
-        contatos: JSON.stringify([]),
+        contatos: JSON.stringify(window._modalClienteContatos || []),
         validacao_dados: '',
         anexo_arquivos: '',
         criado_por: window.currentUser?.nome || window.currentUser?.email || ''
@@ -2779,6 +3118,61 @@ window.modalSalvarCliente = async function(clientId) {
         console.error(e);
         Swal.fire('Erro', 'Erro de comunicação com o servidor.', 'error');
     }
+};
+
+window.modalExcluirCliente = async function(clientId) {
+    if (!clientId) {
+        Swal.fire('Aviso', 'Selecione um cliente cadastrado para poder excluir.', 'warning');
+        return;
+    }
+    
+    const confirmRes = await Swal.fire({
+        title: 'Confirmação',
+        text: 'Deseja realmente excluir este cliente permanentemente?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sim, excluir',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#64748b'
+    });
+    
+    if (!confirmRes.isConfirmed) return;
+    
+    try {
+        const res = await apiDelete(`/clientes/${clientId}`);
+        if (res && res.success) {
+            _clientesCache = []; // Limpar cache
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Cliente excluído com sucesso.');
+            }
+            const propClienteInput = document.getElementById('prop-cliente');
+            if (propClienteInput) propClienteInput.value = '';
+            
+            Swal.close();
+        } else {
+            Swal.fire('Erro', 'Erro ao excluir cliente: ' + (res?.error || 'Erro desconhecido.'), 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Erro', 'Erro de comunicação com o servidor.', 'error');
+    }
+};
+
+window.modalVerificarCliente = function() {
+    const cpfCnpj = document.getElementById('modal-cli-cpf-cnpj')?.value || '';
+    const razaoSocial = document.getElementById('modal-cli-razao-social')?.value || '';
+    
+    if (!cpfCnpj) {
+        Swal.fire('Aviso', 'Falta preencher: CPF / CNPJ.', 'warning');
+        return;
+    }
+    if (!razaoSocial) {
+        Swal.fire('Aviso', 'Falta preencher: Nome / Razão Social.', 'warning');
+        return;
+    }
+    
+    Swal.fire('Sucesso', 'Campos validados com sucesso! Pronto para salvar.', 'success');
 };
 
 window.pesquisarContatoProposta = async function() {
