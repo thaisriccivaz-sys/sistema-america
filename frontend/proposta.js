@@ -839,6 +839,9 @@ window.switchPropostaTab = function(tab) {
                 const activeContainer = document.getElementById(`prop-view-${tab}`);
                 if (activeContainer) activeContainer.scrollIntoView({ block: 'start' });
             }
+
+            // Inicializar/re-sincronizar animações GSAP de entrada nos cards da nova tela
+            if (window.initGSAPAnimations) window.initGSAPAnimations();
         }, 150);
     } else {
         renderTelaPropostas();
@@ -7762,6 +7765,7 @@ function _renderFormPrecificacaoBase() {
         if (toolbar) {
             toolbar.scrollIntoView({ block: 'start' });
         }
+        if (window.initGSAPAnimations) window.initGSAPAnimations();
     }, 150);
 }
 
@@ -8526,20 +8530,15 @@ window.renderizarProdutosPropostaGrid = function() {
         if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
         gsap.registerPlugin(ScrollTrigger);
 
-        // Seleciona e filtra apenas os elementos que AINDA NÃO foram inicializados
-        const targets = gsap.utils.toArray('.reveal-card, .card, .cc-container, .cc-container-end, .cost-card, .saas-card')
-            .filter(el => !el.dataset.gsapInitialized);
-            
-        if (targets.length === 0) {
-            ScrollTrigger.refresh();
-            return;
-        }
+        // Limpa instâncias anteriores para evitar duplicações e vazamento de memória
+        ScrollTrigger.getAll().forEach(t => t.kill());
 
-        // Estado inicial de opacidade zero apenas para os novos elementos
-        targets.forEach(el => {
-            el.dataset.gsapInitialized = "true";
-            gsap.set(el, { opacity: 0, y: 30 });
-        });
+        // Seleciona todos os cards e containers principais
+        const targets = gsap.utils.toArray('.reveal-card, .card, .cc-container, .cc-container-end, .cost-card, .saas-card');
+        if (targets.length === 0) return;
+
+        // Estado inicial de opacidade zero apenas para os elementos
+        gsap.set(targets, { opacity: 0, y: 30 });
 
         // Batch trigger para efeito de fade-up escalonado rápido e moderno (50ms de stagger)
         ScrollTrigger.batch(targets, {
@@ -8586,34 +8585,12 @@ window.renderizarProdutosPropostaGrid = function() {
         timeout = setTimeout(runGSAP, 30);
     };
 
-    // Auto run on MutationObserver to dynamically catch new tabs/renders
-    const observer = new MutationObserver((mutations) => {
-        let hasNewTarget = false;
-        for (let mutation of mutations) {
-            for (let node of mutation.addedNodes) {
-                if (node.nodeType === 1) { // Element node
-                    if ((node.matches && node.matches('.reveal-card, .card, .cc-container, .cc-container-end, .cost-card, .saas-card')) || 
-                        (node.querySelector && node.querySelector('.reveal-card, .card, .cc-container, .cc-container-end, .cost-card, .saas-card'))) {
-                        hasNewTarget = true;
-                        break;
-                    }
-                }
-            }
-            if (hasNewTarget) break;
-        }
-        if (hasNewTarget) {
-            window.initGSAPAnimations();
-        }
-    });
-
-    // Start observing when document is ready
+    // Auto run na carga inicial da página
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
-            observer.observe(document.body, { childList: true, subtree: true });
             window.initGSAPAnimations();
         });
     } else {
-        observer.observe(document.body, { childList: true, subtree: true });
         window.initGSAPAnimations();
     }
 })();
