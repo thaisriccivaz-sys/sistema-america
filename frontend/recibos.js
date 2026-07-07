@@ -432,6 +432,11 @@ function _buildRecibosLayout(mesAt, anoAt) {
         onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
         <i class="ph ph-list-numbers" style="font-size:1.1rem;"></i> Conferência do Ponto
       </button>
+      <button id="btn-exportar-excel" onclick="window.exportarExcelRecibos()"
+        style="display:flex;align-items:center;gap:8px;padding:.65rem 1.4rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .2s;"
+        onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f0fdf4'">
+        <i class="ph ph-file-xls" style="font-size:1.1rem;"></i> Exportar Excel
+      </button>
       <button id="btn-anexar-massa" onclick="window.anexarRecibosDocsMassa()"
         style="display:none;align-items:center;gap:8px;padding:.65rem 1.4rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(16,185,129,.35);">
         <i class="ph ph-paperclip" style="font-size:1.1rem;"></i> Anexar aos Docs. em Massa
@@ -1104,6 +1109,92 @@ window.calcularTotalRecibos = function() {
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+window.exportarExcelRecibos = async function() {
+    if (!_recibosFiltrados || !_recibosFiltrados.length) {
+        if(typeof mostrarToastAviso === 'function') mostrarToastAviso('Nenhum colaborador na lista para exportar.');
+        return;
+    }
+
+    if (typeof ExcelJS === 'undefined') {
+        if(typeof mostrarToastAviso === 'function') mostrarToastAviso('Biblioteca ExcelJS não carregada.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-exportar-excel');
+    const btnHtml = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Exportando...'; }
+
+    try {
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Recibos');
+
+        sheet.columns = [
+            { header: 'COLABORADOR', key: 'colaborador', width: 40 },
+            { header: 'CARGO / DEPTO', key: 'cargoDepto', width: 30 },
+            { header: 'MEIO TRANSP.', key: 'transporte', width: 20 },
+            { header: 'FOLGAS VT', key: 'folgasVT', width: 15 },
+            { header: 'FALTAS TRANSP.', key: 'faltasVT', width: 18 },
+            { header: 'VALOR TRANSP.', key: 'valorVT', width: 18 },
+            { header: 'JANTAR', key: 'jantar', width: 12 },
+            { header: 'FOLGAS VR', key: 'folgasVR', width: 15 },
+            { header: 'FALTAS VR', key: 'faltasVR', width: 15 },
+            { header: 'VALOR VR', key: 'valorVR', width: 15 }
+        ];
+
+        sheet.getRow(1).font = { bold: true };
+        sheet.getRow(1).alignment = { horizontal: 'center' };
+
+        _recibosFiltrados.forEach(c => {
+            const s = _recibosSelecoes[c.id] || {};
+            
+            const inpVR = document.getElementById(`inp-valvr-${c.id}`);
+            const inpVT = document.getElementById(`inp-valvt-${c.id}`);
+            
+            let vr = 0, vt = 0;
+            if (inpVR) vr = parseFloat(inpVR.value) || 0;
+            if (inpVT) vt = parseFloat(inpVT.value) || 0;
+
+            const cargo = c.cargo || '—';
+            const depto = c.departamento || '—';
+
+            sheet.addRow({
+                colaborador: _recNome(c),
+                cargoDepto: `${cargo} / ${depto}`,
+                transporte: c.meio_transporte || '—',
+                folgasVT: s.folgasVT || 0,
+                faltasVT: s.faltasVT || 0,
+                valorVT: vt,
+                jantar: s.diasExtra || 0,
+                folgasVR: s.folgasVR || 0,
+                faltasVR: s.faltasVR || 0,
+                valorVR: vr
+            });
+        });
+
+        sheet.getColumn('valorVT').numFmt = '"R$" #,##0.00';
+        sheet.getColumn('valorVR').numFmt = '"R$" #,##0.00';
+        
+        sheet.getColumn('folgasVT').alignment = { horizontal: 'center' };
+        sheet.getColumn('faltasVT').alignment = { horizontal: 'center' };
+        sheet.getColumn('jantar').alignment = { horizontal: 'center' };
+        sheet.getColumn('folgasVR').alignment = { horizontal: 'center' };
+        sheet.getColumn('faltasVR').alignment = { horizontal: 'center' };
+
+        const mes = document.getElementById('rec-mes')?.value || '';
+        const ano = document.getElementById('rec-ano')?.value || '';
+        const fileName = `Recibos_${mes}_${ano}.xlsx`;
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveAs(blob, fileName);
+    } catch (err) {
+        console.error(err);
+        if(typeof mostrarToastErro === 'function') mostrarToastErro('Erro ao exportar Excel.');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = btnHtml; }
+    }
 };
 window.toggleSelectAllRecibos = function (checked) {
     _recibosFiltrados.forEach(c => {
