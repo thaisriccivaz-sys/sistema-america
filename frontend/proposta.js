@@ -747,16 +747,12 @@ function renderTelaPropostas() {
         const toolbar = document.getElementById(toolbarId);
         if (toolbar) {
             const targetY = toolbar.getBoundingClientRect().top + window.scrollY;
-            if (window.scrollY < targetY - 2) {
-                window.scrollTo({ top: targetY });
-            }
+            window.scrollTo({ top: targetY });
         } else {
             const activeContainer = document.getElementById(`prop-view-${_currentPropostaTab}`);
             if (activeContainer) {
                 const targetY = activeContainer.getBoundingClientRect().top + window.scrollY;
-                if (window.scrollY < targetY - 2) {
-                    window.scrollTo({ top: targetY });
-                }
+                window.scrollTo({ top: targetY });
             }
         }
     }, 150);
@@ -843,16 +839,12 @@ window.switchPropostaTab = function(tab) {
             const toolbar = document.getElementById(toolbarId);
             if (toolbar) {
                 const targetY = toolbar.getBoundingClientRect().top + window.scrollY;
-                if (window.scrollY < targetY - 2) {
-                    window.scrollTo({ top: targetY });
-                }
+                window.scrollTo({ top: targetY });
             } else {
                 const activeContainer = document.getElementById(`prop-view-${tab}`);
                 if (activeContainer) {
                     const targetY = activeContainer.getBoundingClientRect().top + window.scrollY;
-                    if (window.scrollY < targetY - 2) {
-                        window.scrollTo({ top: targetY });
-                    }
+                    window.scrollTo({ top: targetY });
                 }
             }
         }, 10);
