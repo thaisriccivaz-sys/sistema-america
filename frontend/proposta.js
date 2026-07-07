@@ -8817,7 +8817,7 @@ window.abrirModalPesquisaPropostas = async function() {
                 </div>
             `,
             showConfirmButton: false,
-            width: '850px',
+            width: '1100px',
             customClass: {
                 popup: 'custom-swal-padding-zero'
             },
