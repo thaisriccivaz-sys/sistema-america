@@ -108,8 +108,8 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             const marcacoesRaw = d.listAfdtManutencao || [];
             const todasI = marcacoesRaw.length > 0 && marcacoesRaw.every(m => m._typeRegister === 'I');
             const semTrabalhoReal = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
-            const naoFolgaDsr = !d.folga && (d.dsrConsideradoMinutos || 0) === 0;
-            if (todasI && semTrabalhoReal && naoFolgaDsr) {
+            // O ControlID insere essas marcações falsas até nos finais de semana, não checamos folga
+            if (todasI && semTrabalhoReal) {
                 isFerias_controlid = true;
             }
         }
@@ -156,8 +156,8 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         
         let marcacoes = [];
         if (status === 'Férias') {
-            // Dia de férias: exibir 'Férias' nas colunas ENT.1 e SAÍ.1 (igual ao relatório ControlID)
-            marcacoes = ['Férias', 'Férias'];
+            // Dia de férias: exibir 'Férias' nas colunas ENT.1 e ENT.2 (igual ao relatório ControlID)
+            marcacoes = ['Férias', '', 'Férias', ''];
         } else if (d.listAfdtManutencao && d.listAfdtManutencao.length > 0) {
             marcacoes = d.listAfdtManutencao.map(m => {
                 if (m._typeClassification === 'F') return 'Falta';
@@ -284,7 +284,7 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
             ent1_td = 'Atestado Médico'; sai1_td = ''; ent2_td = 'Atestado Médico'; sai2_td = '';
         } else if (status === 'Trabalho Externo' && !e1) {
             ent1_td = 'Trabalho Externo'; sai1_td = ''; ent2_td = 'Trabalho Externo'; sai2_td = '';
-        } else if (status === 'Férias' && !e1) {
+        } else if (status === 'Férias') {
             ent1_td = 'Férias'; sai1_td = ''; ent2_td = 'Férias'; sai2_td = '';
         } else if (status === 'Justificado' && !e1) {
             ent1_td = 'Justificado'; sai1_td = ''; ent2_td = 'Justificado'; sai2_td = '';

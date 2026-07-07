@@ -392,7 +392,7 @@ router.get('/ponto-colaborador', async (req, res) => {
             }
 
             // Detecção 2 (SEMPRE roda): Férias por padrão de campos do RHID
-            // Critério: tem idJustification + zero trabalho real + TODAS marcações _typeRegister='I' + não é folga/DSR
+            // Critério: tem idJustification + zero trabalho real + TODAS marcações _typeRegister='I'
             // Dias de esquecimento de ponto NÃO passam nesse filtro porque têm marcações 'O' (batidas reais)
             apuracaoData.forEach(d => {
                 if (d.isFerias) return; // já marcado pela lookup acima
@@ -400,8 +400,8 @@ router.get('/ponto-colaborador', async (req, res) => {
                 const marcacoesF = d.listAfdtManutencao || [];
                 const todasI = marcacoesF.length > 0 && marcacoesF.every(m => m._typeRegister === 'I');
                 const semTrabalho = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
-                const naoEFolga = !d.folga && (d.dsrConsideradoMinutos || 0) === 0;
-                if (todasI && semTrabalho && naoEFolga) {
+                // Finais de semana no meio das férias também recebem essas batidas automáticas, então não filtramos por folga
+                if (todasI && semTrabalho) {
                     d.isFerias = true;
                     d.toolTipAlert = 'Férias'; // propaga para detecção downstream
                     console.log(`[ControlID] Férias detectada por padrão: ${d.date || d.dateTimeStr} idJust=${d.idJustification}`);

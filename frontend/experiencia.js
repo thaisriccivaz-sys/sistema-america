@@ -39,16 +39,16 @@ function filterExperienciaList(searchVal) {
             // Apenas quem ainda não tem resultado finalizado (nem aprovado, nem reprovado)
             matchStat = c.formulario_resultado !== 'Aprovado' && c.formulario_resultado !== 'Reprovado';
         } else if (_expStatFilter === 'aprovados') {
-            matchStat = c.formulario_resultado === 'Aprovado';
+            matchStat = (c.formulario_resultado || '').toLowerCase() === 'aprovado';
         } else if (_expStatFilter === 'reprovados') {
-            matchStat = c.formulario_resultado === 'Reprovado';
+            matchStat = (c.formulario_resultado || '').toLowerCase() === 'reprovado';
         } else if (_expStatFilter === 'vencendo') {
             const hoje = new Date(); hoje.setHours(0,0,0,0);
             if (c.prazo2_fim) {
                 const fim = parseDateBR_or_ISO(c.prazo2_fim);
                 if (fim) {
                     const diff = Math.ceil((fim - hoje) / 86400000);
-                    matchStat = (diff > 0 && diff <= 15);
+                    matchStat = (diff >= 0 && diff <= 15);
                 } else matchStat = false;
             } else matchStat = false;
         }
@@ -534,7 +534,7 @@ window.dispararEmailsExperiencia = async function() {
         const fim = c.prazo2_fim ? parseDateBR_or_ISO(c.prazo2_fim) : null;
         const diff = fim ? Math.ceil((fim - hoje) / 86400000) : null;
         const pendente = !c.formulario_situacao || c.formulario_situacao === 'pendente';
-        if (pendente && diff !== null && diff > 0 && diff <= 15) {
+        if (pendente && diff !== null && diff >= 0 && diff <= 15) {
             return { ...c, _enviando: true };
         }
         return c;
@@ -640,7 +640,7 @@ function renderExperienciaList(lista) {
             }
         } else {
             const hoje_sb = new Date(); hoje_sb.setHours(0,0,0,0);
-            const fim2_sb = c.prazo2_fim ? new Date(c.prazo2_fim) : null;
+            const fim2_sb = c.prazo2_fim ? parseDateBR_or_ISO(c.prazo2_fim) : null;
             if (fim2_sb && fim2_sb < hoje_sb) {
                 statusBadge = `<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;"><i class="ph ph-warning-circle"></i> Vencido</span>`;
             } else {
@@ -705,10 +705,12 @@ function renderExperienciaList(lista) {
             const fim = parseDateBR_or_ISO(c.prazo2_fim);
             if (fim) {
                 const diff = Math.ceil((fim - hoje) / 86400000);
-                if (diff <= 0) {
+                if (diff < 0) {
                     diasRestantesHtml = `<br><span style="color:#dc2626;font-size:0.75rem;font-weight:700;"><i class="ph ph-warning"></i> Vencido!</span>`;
                 } else if (diff <= 15) {
-                    diasRestantesHtml = `<br><span style="color:#dc2626;font-size:0.75rem;font-weight:700;"><i class="ph ph-warning"></i> ${diff} dias restantes!</span>`;
+                    const printDiff = diff + 1;
+                    const word = printDiff === 1 ? 'dia restante' : 'dias restantes';
+                    diasRestantesHtml = `<br><span style="color:#dc2626;font-size:0.75rem;font-weight:700;"><i class="ph ph-warning"></i> ${printDiff} ${word}!</span>`;
                 }
             }
         }

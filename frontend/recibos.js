@@ -2689,8 +2689,8 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
             const _mF = d.listAfdtManutencao || [];
             const _todasI = _mF.length > 0 && _mF.every(m => m._typeRegister === 'I');
             const _semTrab = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
-            const _naoFolga = !d.folga && (d.dsrConsideradoMinutos || 0) === 0;
-            if (_todasI && _semTrab && _naoFolga) _isFerias3 = true;
+            // Férias ocorrem mesmo em finais de semana, não excluímos folga
+            if (_todasI && _semTrab) _isFerias3 = true;
         }
 
         if (_isFerias3) {
@@ -2717,8 +2717,8 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
         
         let marcacoes = [];
         if (status === 'Férias') {
-            // Dia de férias: exibir 'Férias' nas colunas ENT.1 e SAÍ.1 (igual ao relatório ControlID)
-            marcacoes = ['Férias', 'Férias'];
+            // Dia de férias: exibir 'Férias' nas colunas ENT.1 e ENT.2 (igual ao relatório ControlID)
+            marcacoes = ['Férias', '', 'Férias', ''];
         } else if (d.listAfdtManutencao && d.listAfdtManutencao.length > 0) {
             marcacoes = d.listAfdtManutencao.map(m => {
                 const h = Math.floor(m.hora/100).toString().padStart(2,'0');
@@ -2810,6 +2810,8 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
             ent1_td = status; sai1_td = ''; ent2_td = ''; sai2_td = '';
         } else if (status === 'Folga') {
             ent1_td = 'Folga'; sai1_td = ''; ent2_td = ''; sai2_td = '';
+        } else if (status === 'Férias') {
+            ent1_td = 'Férias'; sai1_td = ''; ent2_td = 'Férias'; sai2_td = '';
         } else if (status === 'Atestado Médico') {
             ent1_td = 'Atestado Médico'; sai1_td = ''; ent2_td = 'Atestado Médico'; sai2_td = '';
         } else if (status === 'Justificado') {
