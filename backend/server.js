@@ -93,16 +93,18 @@ async function sendMailHelper(opts) {
             .replace(/\n{3,}/g, '\n\n')
             .trim();
     }
+    const defaultEmail = process.env.EMAIL_FROM || SMTP_CONFIG.auth.user || 'suporte@americarental.com.br';
+    
     return _globalTransporter.sendMail({
         ...opts,
-        from: opts.from || '"America Rental" <americasistema48@gmail.com>',
-        replyTo: opts.replyTo || 'americasistema48@gmail.com',
+        from: opts.from || `"America Rental" <${defaultEmail}>`,
+        replyTo: opts.replyTo || defaultEmail,
         text: textPlain,
         headers: {
             'X-Mailer': 'America-Rental-ERP/1.0',
             'X-Priority': '3',
             'Precedence': 'bulk',
-            'List-Unsubscribe': '<mailto:americasistema48@gmail.com?subject=Cancelar>',
+            'List-Unsubscribe': `<mailto:${defaultEmail}?subject=Cancelar>`,
             ...(opts.headers || {})
         }
     });
@@ -1735,7 +1737,7 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
                     `;
 
                     await sendMailHelper({
-                        from: `"RH - América Rental" <${SMTP_CONFIG.auth.user}>`,
+                        from: `"América Rental - Sistema" <${SMTP_CONFIG.auth.user}>`,
                         to: destEmail,
                         subject: `Lembrete de Assinatura - ${doc.nome_documento || 'Documento'}`,
                         html: html
@@ -2071,7 +2073,7 @@ app.post('/api/assinafy/upload', async (req, res) => {
         try {
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
             await sendMailHelper({
-                from: `"RH América Rental" <${SMTP_CONFIG.auth.user}>`,
+                from: `"América Rental - Sistema" <${SMTP_CONFIG.auth.user}>`,
                 to: 'americasistema48@gmail.com',
                 subject: `?? Assinatura solicitada: ${resultado?.docType?.split('###')[0] || 'Documento'} - ${resultado?.nomeColab}`,
                 html: `
@@ -3317,7 +3319,7 @@ async function checkColaboradorDesligado(colaboradorId) {
         }
 
         await sendMailHelper({
-            from: '"RH America Rental" <' + SMTP_CONFIG.auth.user + '>',
+            from: '"América Rental - Sistema" <' + SMTP_CONFIG.auth.user + '>',
             to: emailsUnicos.join(', '),
             subject: 'Acao necessaria: ' + colab.nome_completo + ' foi desligado(a) e era responsavel por departamento(s)',
             html: htmlContent,
@@ -3361,7 +3363,7 @@ app.get('/api/test-desligado/:id', authenticateToken, async (req, res) => {
         const destinos = emailsUnicos.length ? emailsUnicos : ['americasistema48@gmail.com'];
         try {
             await sendMailHelper({
-                from: '"RH America Rental (TESTE)" <' + SMTP_CONFIG.auth.user + '>',
+                from: '"América Rental - Sistema" <' + SMTP_CONFIG.auth.user + '>',
                 to: destinos.join(', '),
                 subject: '[TESTE] Desligado-Depto: ' + colab.nome_completo,
                 html: '<p><b>TESTE</b> - Colaborador: ' + colab.nome_completo + ' | Deptos: ' + deptos.length + '</p>'
@@ -4309,7 +4311,7 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
                                         for (const eAddr of emailsArr) {
                                             try {
                                                 await sendMailHelper({
-                                                    from: `"Logística América Rental" <${SMTP_CONFIG.auth.user}>`,
+                                                    from: `"América Rental - Sistema" <${SMTP_CONFIG.auth.user}>`,
                                                     to: eAddr,
                                                     subject: `[Sinistro] Novo registro para ${colab.nome_completo || 'Colaborador'}`,
                                                     html,
@@ -8759,7 +8761,7 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
 
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
         const mailOptions = {
-            from: `"RH América Rental" <${SMTP_CONFIG.auth.user}>`,
+            from: `"América Rental - Sistema" <${SMTP_CONFIG.auth.user}>`,
             to: email_to,
             cc: cc || [],
             subject: `Solicitação de Exame ${tipoExameStr}`,
@@ -8916,7 +8918,7 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
 
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
         await sendMailHelper({
-            from: `"RH América Rental" <${SMTP_CONFIG.auth.user}>`,
+            from: `"América Rental - Sistema" <${SMTP_CONFIG.auth.user}>`,
             to: email_to,
             subject: emailSubject,
             html: htmlContent,
@@ -9014,7 +9016,7 @@ app.post('/api/send-boleto-financeiro', authenticateToken, async (req, res) => {
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
 
         await sendMailHelper({
-            from: `"América Rental RH" <${SMTP_CONFIG.auth.user}>`,
+            from: `"América Rental - Sistema" <${SMTP_CONFIG.auth.user}>`,
             to: email_to,
             subject: `📉 Boleto Faculdade - ${colab.nome_completo}`,
             html: htmlContent,
@@ -9115,7 +9117,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
 
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
         await sendMailHelper({
-            from: `"RH América Rental" <${SMTP_CONFIG.auth.user}>`,
+            from: `"América Rental - Sistema" <${SMTP_CONFIG.auth.user}>`,
             to: email_to,
             subject: `?? Documento Disciplinar para Folha — ${colab.nome_completo} (${tipoDocumento})`,
             html: htmlContent,
@@ -10258,7 +10260,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                                                     }
 
                                                     const mailOptions = {
-                                                        from: `"Estoque América Rental" <${SMTP_CONFIG.auth.user}>`,
+                                                        from: `"América Rental - Sistema" <${SMTP_CONFIG.auth.user}>`,
                                                         to: emails,
                                                         subject: 'ALERTA DE ESTOQUE MÍNIMO - America Rental',
                                                         html: `
@@ -11556,7 +11558,7 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
 
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
             await sendMailHelper({
-                from: `"RH América Rental" <${SMTP_CONFIG.auth.user}>`,
+                from: `"América Rental - Sistema" <${SMTP_CONFIG.auth.user}>`,
                 to: email,
                 subject: `Processo Admissional - ${row.nome_completo || row.nome}`,
                 html: htmlMessage,
@@ -12843,7 +12845,7 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
             const formLink = `${req.protocol}://${req.get('host')}/avaliacao-publica.html?token=${tokenPayload}`;
 
             await sendMailHelper({
-                from: `"América Rental RH" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
+                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
                 to: emailDestino,
                 subject: `Avaliação de Experiência — ${r.nome_completo}`,
                 html: gerarEmailExperienciaHTML({
@@ -12932,7 +12934,7 @@ function verificarExperienciasVencendo() {
                 const tipoAviso = deveEnviar7d ? '⚠️ URGENTE — 7 dias' : '15 dias';
 
                 await sendMailHelper({
-                    from: `"América Rental RH" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
+                    from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
                     to: emailDestino,
                     subject: `Avaliação de Experiência — ${r.nome_completo} (${diasRestantes} dias restantes)`,
                     html: gerarEmailExperienciaHTML({
@@ -13004,7 +13006,7 @@ async function notificarResponsaveisEquipes(mensagem, titulo, icone = 'ph-users-
                     const nodemailer = require('nodemailer');
                     const transporter = nodemailer.createTransport(SMTP_CONFIG);
                     sendMailHelper({
-                        from: `"América Rental Sistema" <${SMTP_CONFIG.auth.user}>`,
+                        from: `"América Rental - Sistema" <${SMTP_CONFIG.auth.user}>`,
                         to: emails,
                         subject: isUrgente ? `[URGENTE] ${titulo}` : titulo,
                         html: htmlContent,
@@ -13212,7 +13214,7 @@ function enviarEmailAlertaCRLV(v) {
         try {
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
             await sendMailHelper({
-                from: `"América Rental Sistema" <${SMTP_CONFIG.auth.user}>`,
+                from: `"América Rental - Sistema" <${SMTP_CONFIG.auth.user}>`,
                 to: emailDestino,
                 subject: `Aviso de CRLV Vencido - Veículo ${v.placa}`,
                 html: htmlContent,
@@ -13357,7 +13359,7 @@ app.post('/api/experiencia/cron/forcar', authenticateToken, async (req, res) => 
                 const formLink = `${baseUrl}/avaliacao-publica.html?token=${tokenPayload}`;
 
                 await sendMailHelper({
-                    from: `"América Rental RH" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
+                    from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
                     to: emailDestino,
                     subject: `Avaliação de Experiência — ${r.nome_completo} (${diasRestantes} dias restantes)`,
                     html: gerarEmailExperienciaHTML({
@@ -16000,7 +16002,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                         }
 
                         const mailOptions = {
-                            from: `"América Rental (Logística)" <${process.env.EMAIL_USER}>`,
+                            from: `"América Rental - Sistema" <${process.env.EMAIL_USER}>`,
                             to: cred.cliente_email,
                             subject: `Credenciamento de Equipe - América Rental`,
                             html: emailHtml
@@ -17994,7 +17996,7 @@ async function dispararAcoesAgenda(card) {
                 </div>`;
                 try {
                     await sendMailHelper({
-                        from: `"Agenda América Rental" <${SMTP_CONFIG.auth.user}>`,
+                        from: `"América Rental - Sistema" <${SMTP_CONFIG.auth.user}>`,
                         to: c.email_corporativo,
                         subject: `[Agenda ${dataFmt}] ${card.titulo || tipo_label}`,
                         html,
@@ -18184,7 +18186,7 @@ app.post('/api/estoque/testar-email', authenticateToken, async (req, res) => {
         }
 
         const mailOpts = {
-            from: `"Estoque América Rental" <${SMTP_CONFIG.auth.user}>`,
+            from: `"América Rental - Sistema" <${SMTP_CONFIG.auth.user}>`,
             to: emailDestino,
             subject: '[TESTE] ALERTA DE ESTOQUE MÍNIMO - America Rental',
             html: `<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:auto;padding:20px;border:1px solid #ddd;border-radius:8px;">
@@ -19375,7 +19377,7 @@ app.post('/api/public/pesquisa-treinamento/:token', (req, res) => {
                       const emailsParaEnviar = configs.map(c => c.email).filter(e => e && e.trim() !== '');
                       if (emailsParaEnviar.length > 0) {
                           const mailOptions = {
-                              from: `"Treinamentos América Rental" <${SMTP_CONFIG.auth.user}>`,
+                              from: `"América Rental - Sistema" <${SMTP_CONFIG.auth.user}>`,
                               to: emailsParaEnviar,
                               subject: `Pesquisa Respondida: ${info.treinamento_nome}`,
                               html: `
@@ -20756,7 +20758,7 @@ async function dispararEmailLicenca(lic, diffDias, emailDestino) {
 
     try {
         await sendMailHelper({
-            from: '"América Rental Administrativo" <' + SMTP_CONFIG.auth.user + '>',
+            from: '"América Rental - Sistema" <' + SMTP_CONFIG.auth.user + '>',
             to: emailDestino,
             subject: `[Aviso] Vencimento: ${lic.nome} - ${lic.empresa}`,
             html: htmlContent,
