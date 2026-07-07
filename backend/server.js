@@ -1737,7 +1737,7 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
                     `;
 
                     await sendMailHelper({
-                        from: `"América Rental - Sistema" <>`,
+                        from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
                         to: destEmail,
                         subject: `Lembrete de Assinatura - ${doc.nome_documento || 'Documento'}`,
                         html: html
@@ -2073,7 +2073,7 @@ app.post('/api/assinafy/upload', async (req, res) => {
         try {
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
             await sendMailHelper({
-                from: `"América Rental - Sistema" <>`,
+                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
                 to: 'americasistema48@gmail.com',
                 subject: `?? Assinatura solicitada: ${resultado?.docType?.split('###')[0] || 'Documento'} - ${resultado?.nomeColab}`,
                 html: `
@@ -3319,7 +3319,7 @@ async function checkColaboradorDesligado(colaboradorId) {
         }
 
         await sendMailHelper({
-            from: '"América Rental - Sistema" <>',
+            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
             to: emailsUnicos.join(', '),
             subject: 'Acao necessaria: ' + colab.nome_completo + ' foi desligado(a) e era responsavel por departamento(s)',
             html: htmlContent,
@@ -3363,7 +3363,7 @@ app.get('/api/test-desligado/:id', authenticateToken, async (req, res) => {
         const destinos = emailsUnicos.length ? emailsUnicos : ['americasistema48@gmail.com'];
         try {
             await sendMailHelper({
-                from: '"América Rental - Sistema" <>',
+                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
                 to: destinos.join(', '),
                 subject: '[TESTE] Desligado-Depto: ' + colab.nome_completo,
                 html: '<p><b>TESTE</b> - Colaborador: ' + colab.nome_completo + ' | Deptos: ' + deptos.length + '</p>'
@@ -4311,7 +4311,7 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
                                         for (const eAddr of emailsArr) {
                                             try {
                                                 await sendMailHelper({
-                                                    from: `"América Rental - Sistema" <>`,
+                                                    from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
                                                     to: eAddr,
                                                     subject: `[Sinistro] Novo registro para ${colab.nome_completo || 'Colaborador'}`,
                                                     html,
@@ -8761,7 +8761,7 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
 
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
         const mailOptions = {
-            from: `"América Rental - Sistema" <>`,
+            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
             to: email_to,
             cc: cc || [],
             subject: `Solicitação de Exame ${tipoExameStr}`,
@@ -8918,7 +8918,7 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
 
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
         await sendMailHelper({
-            from: `"América Rental - Sistema" <>`,
+            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
             to: email_to,
             subject: emailSubject,
             html: htmlContent,
@@ -9016,7 +9016,7 @@ app.post('/api/send-boleto-financeiro', authenticateToken, async (req, res) => {
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
 
         await sendMailHelper({
-            from: `"América Rental - Sistema" <>`,
+            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
             to: email_to,
             subject: `📉 Boleto Faculdade - ${colab.nome_completo}`,
             html: htmlContent,
@@ -9117,7 +9117,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
 
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
         await sendMailHelper({
-            from: `"América Rental - Sistema" <>`,
+            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
             to: email_to,
             subject: `?? Documento Disciplinar para Folha — ${colab.nome_completo} (${tipoDocumento})`,
             html: htmlContent,
@@ -10260,7 +10260,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                                                     }
 
                                                     const mailOptions = {
-                                                        from: `"América Rental - Sistema" <>`,
+                                                        from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
                                                         to: emails,
                                                         subject: 'ALERTA DE ESTOQUE MÍNIMO - America Rental',
                                                         html: `
@@ -11558,7 +11558,7 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
 
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
             await sendMailHelper({
-                from: `"América Rental - Sistema" <>`,
+                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
                 to: email,
                 subject: `Processo Admissional - ${row.nome_completo || row.nome}`,
                 html: htmlMessage,
@@ -13006,7 +13006,7 @@ async function notificarResponsaveisEquipes(mensagem, titulo, icone = 'ph-users-
                     const nodemailer = require('nodemailer');
                     const transporter = nodemailer.createTransport(SMTP_CONFIG);
                     sendMailHelper({
-                        from: `"América Rental - Sistema" <>`,
+                        from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
                         to: emails,
                         subject: isUrgente ? `[URGENTE] ${titulo}` : titulo,
                         html: htmlContent,
@@ -13214,7 +13214,7 @@ function enviarEmailAlertaCRLV(v) {
         try {
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
             await sendMailHelper({
-                from: `"América Rental - Sistema" <>`,
+                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
                 to: emailDestino,
                 subject: `Aviso de CRLV Vencido - Veículo ${v.placa}`,
                 html: htmlContent,
@@ -17996,7 +17996,7 @@ async function dispararAcoesAgenda(card) {
                 </div>`;
                 try {
                     await sendMailHelper({
-                        from: `"América Rental - Sistema" <>`,
+                        from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
                         to: c.email_corporativo,
                         subject: `[Agenda ${dataFmt}] ${card.titulo || tipo_label}`,
                         html,
@@ -18186,7 +18186,7 @@ app.post('/api/estoque/testar-email', authenticateToken, async (req, res) => {
         }
 
         const mailOpts = {
-            from: `"América Rental - Sistema" <>`,
+            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
             to: emailDestino,
             subject: '[TESTE] ALERTA DE ESTOQUE MÍNIMO - America Rental',
             html: `<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:auto;padding:20px;border:1px solid #ddd;border-radius:8px;">
@@ -19377,7 +19377,7 @@ app.post('/api/public/pesquisa-treinamento/:token', (req, res) => {
                       const emailsParaEnviar = configs.map(c => c.email).filter(e => e && e.trim() !== '');
                       if (emailsParaEnviar.length > 0) {
                           const mailOptions = {
-                              from: `"América Rental - Sistema" <>`,
+                              from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
                               to: emailsParaEnviar,
                               subject: `Pesquisa Respondida: ${info.treinamento_nome}`,
                               html: `
@@ -20758,7 +20758,7 @@ async function dispararEmailLicenca(lic, diffDias, emailDestino) {
 
     try {
         await sendMailHelper({
-            from: '"América Rental - Sistema" <>',
+            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
             to: emailDestino,
             subject: `[Aviso] Vencimento: ${lic.nome} - ${lic.empresa}`,
             html: htmlContent,
