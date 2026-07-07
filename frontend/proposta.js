@@ -7439,22 +7439,29 @@ function _renderFormPrecificacaoBase() {
     container.innerHTML = `
         <style>
             #form-precificacao input:not([type="checkbox"]):not([type="radio"]),
-            #form-precificacao select,
-            #form-precificacao textarea {
-                padding: 0.55rem 0.75rem !important;
+            #form-precificacao select {
+                padding: 0.15rem 0.45rem !important;
                 border: 1px solid #cbd5e1 !important;
-                border-radius: 6px !important;
-                font-size: 0.85rem !important;
+                border-radius: 4px !important;
+                font-size: 0.76rem !important;
                 background: #fff !important;
                 color: #1e293b !important;
                 outline: none !important;
                 transition: all 0.2s !important;
                 box-sizing: border-box !important;
                 width: 100% !important;
-                height: 38px !important;
+                height: 28px !important;
             }
             #form-precificacao textarea {
-                height: auto !important;
+                padding: 0.3rem 0.45rem !important;
+                font-size: 0.76rem !important;
+                border-radius: 4px !important;
+                border: 1px solid #cbd5e1 !important;
+                color: #1e293b !important;
+                outline: none !important;
+                transition: all 0.2s !important;
+                box-sizing: border-box !important;
+                width: 100% !important;
             }
             #form-precificacao input:focus,
             #form-precificacao select:focus,
@@ -7468,8 +7475,8 @@ function _renderFormPrecificacaoBase() {
                 cursor: not-allowed !important;
             }
             #form-precificacao button {
-                border-radius: 6px !important;
-                height: 38px !important;
+                border-radius: 4px !important;
+                height: 28px !important;
                 box-sizing: border-box !important;
                 transition: all 0.2s !important;
                 display: inline-flex !important;
@@ -7480,49 +7487,50 @@ function _renderFormPrecificacaoBase() {
             .cost-card {
                 background: #fff;
                 border: 1px solid #e2e8f0;
-                border-radius: 12px;
-                padding: 1.25rem;
-                margin-bottom: 1.25rem;
+                border-radius: 8px;
+                padding: 0.75rem !important;
+                margin-bottom: 0.75rem !important;
                 box-shadow: 0 1px 3px rgba(0,0,0,0.02);
             }
             .cost-title {
-                font-size: 0.92rem;
+                font-size: 0.8rem !important;
                 font-weight: 700;
                 color: #334155;
                 margin-top: 0;
-                margin-bottom: 1rem;
+                margin-bottom: 0.6rem !important;
                 display: flex;
                 align-items: center;
                 gap: 6px;
                 border-bottom: 1px solid #f1f5f9;
-                padding-bottom: 8px;
+                padding-bottom: 4px !important;
             }
             .prec-table {
                 width: 100%;
                 border-collapse: collapse;
-                font-size: 0.82rem;
+                font-size: 0.76rem !important;
             }
             .prec-table th {
                 text-align: left;
-                padding: 6px 8px;
+                padding: 4px 6px !important;
                 background: #f8fafc;
                 color: #64748b;
                 font-weight: 600;
                 border-bottom: 1px solid #e2e8f0;
             }
             .prec-table td {
-                padding: 6px 8px;
+                padding: 4px 6px !important;
                 border-bottom: 1px solid #f1f5f9;
                 vertical-align: middle;
             }
             .prec-list-item {
-                padding: 0.75rem 1rem;
+                padding: 0.45rem 0.8rem !important;
                 border-bottom: 1px solid #e2e8f0;
                 cursor: pointer;
                 transition: all 0.2s;
                 display: flex;
                 flex-direction: column;
                 gap: 4px;
+                font-size: 0.76rem !important;
             }
             .prec-list-item:hover {
                 background: #f1f5f9;
@@ -7741,6 +7749,14 @@ function _renderFormPrecificacaoBase() {
     _renderFixosRows();
     _recalcularPrecificacao();
     _renderSidebarList();
+
+    // Auto scroll to make sticky toolbar dock at top
+    setTimeout(() => {
+        const toolbar = document.getElementById('prop-toolbar-servicos');
+        if (toolbar) {
+            toolbar.scrollIntoView({ block: 'start' });
+        }
+    }, 150);
 }
 
 window._renderInsumosRows = function() {
@@ -7757,13 +7773,13 @@ window._renderInsumosRows = function() {
         return `
             <tr>
                 <td>
-                    <input type="text" list="datalist-setores" value="${item.nome || ''}" onchange="_atualizarInsumoSetor(${idx}, this.value)" style="height:32px !important; padding:4px 8px !important; box-sizing: border-box !important;" placeholder="Selecione ou digite o setor">
+                    <input type="text" list="datalist-setores" value="${item.nome || ''}" onchange="_atualizarInsumoSetor(${idx}, this.value)" style="height:28px !important; padding:2px 6px !important; font-size:0.76rem !important; border-radius:4px !important; box-sizing: border-box !important;" placeholder="Selecione ou digite o setor">
                 </td>
                 <td>
-                    <input type="number" value="${item.qtd}" min="0" max="100" step="any" oninput="_atualizarInsumo(${idx}, 'qtd', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:32px !important; text-align:right; padding:4px 8px !important; box-sizing: border-box !important;">
+                    <input type="number" value="${item.qtd}" min="0" max="100" step="any" oninput="_atualizarInsumo(${idx}, 'qtd', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:28px !important; text-align:right; padding:2px 6px !important; font-size:0.76rem !important; border-radius:4px !important; box-sizing: border-box !important;">
                 </td>
                 <td>
-                    <input type="number" value="${item.custo_unitario}" min="0" step="0.01" oninput="_atualizarInsumo(${idx}, 'custo_unitario', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:32px !important; text-align:right; padding:4px 8px !important; box-sizing: border-box !important;">
+                    <input type="number" value="${item.custo_unitario}" min="0" step="0.01" oninput="_atualizarInsumo(${idx}, 'custo_unitario', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:28px !important; text-align:right; padding:2px 6px !important; font-size:0.76rem !important; border-radius:4px !important; box-sizing: border-box !important;">
                 </td>
                 <td style="text-align:right; font-weight:600; color:#475569; padding-right:12px;">
                     R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -7830,13 +7846,13 @@ window._renderFixosRows = function() {
         return `
             <tr>
                 <td>
-                    <input type="text" value="${item.descricao || ''}" onchange="_atualizarFixo(${idx}, 'descricao', this.value)" style="height:32px !important; padding:4px 8px !important; box-sizing: border-box !important;" placeholder="Ex: Técnico de Campo / Deslocamento">
+                    <input type="text" value="${item.descricao || ''}" onchange="_atualizarFixo(${idx}, 'descricao', this.value)" style="height:28px !important; padding:2px 6px !important; font-size:0.76rem !important; border-radius:4px !important; box-sizing: border-box !important;" placeholder="Ex: Técnico de Campo / Deslocamento">
                 </td>
                 <td>
-                    <input type="number" value="${item.qtd}" min="0.001" step="any" oninput="_atualizarFixo(${idx}, 'qtd', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:32px !important; text-align:right; padding:4px 8px !important; box-sizing: border-box !important;">
+                    <input type="number" value="${item.qtd}" min="0.001" step="any" oninput="_atualizarFixo(${idx}, 'qtd', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:28px !important; text-align:right; padding:2px 6px !important; font-size:0.76rem !important; border-radius:4px !important; box-sizing: border-box !important;">
                 </td>
                 <td>
-                    <input type="number" value="${item.custo_unitario}" min="0" step="0.01" oninput="_atualizarFixo(${idx}, 'custo_unitario', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:32px !important; text-align:right; padding:4px 8px !important; box-sizing: border-box !important;">
+                    <input type="number" value="${item.custo_unitario}" min="0" step="0.01" oninput="_atualizarFixo(${idx}, 'custo_unitario', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:28px !important; text-align:right; padding:2px 6px !important; font-size:0.76rem !important; border-radius:4px !important; box-sizing: border-box !important;">
                 </td>
                 <td style="text-align:right; font-weight:600; color:#475569; padding-right:12px;">
                     R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
