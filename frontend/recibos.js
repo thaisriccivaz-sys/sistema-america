@@ -2815,12 +2815,17 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
             || _tipLow3.includes('férias') || _tipLow3.includes('ferias') || _tipLow3.includes('vacation');
 
         // Fallback: padrão de campos (funciona mesmo com dados do banco antigos sem isFerias)
-        if (!_isFerias3 && d.idJustification) {
+        if (!_isFerias3) {
             const _mF = d.listAfdtManutencao || [];
             const _todasI = _mF.length > 0 && _mF.every(m => m._typeRegister === 'I');
             const _semTrab = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
-            // Férias ocorrem mesmo em finais de semana, não excluímos folga
-            if (_todasI && _semTrab) _isFerias3 = true;
+            const _dtStr = String(d.date || d.dateTimeStr || '').substring(0, 10);
+            const _dtObj = new Date(_dtStr + 'T12:00:00');
+            const _diaSem = !isNaN(_dtObj.getTime()) ? _dtObj.getDay() : -1;
+            // Férias ocorrem mesmo em finais de semana (0=DOM, 6=SAB), a API muitas vezes omite idJustification
+            if (_todasI && _semTrab && (d.idJustification || _diaSem === 0 || _diaSem === 6)) {
+                _isFerias3 = true;
+            }
         }
 
         if (_isFerias3) {
