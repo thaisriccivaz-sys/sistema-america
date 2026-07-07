@@ -2330,28 +2330,10 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
             <div class="mcli-container">
                 <!-- Toolbar/Header -->
                 <div class="mcli-toolbar">
-                    <!-- Dropdown de navegação comercial à esquerda -->
-                    <div class="saas-dropdown-container" style="margin:0;">
-                        <div class="saas-nav-item active" style="display:flex; align-items:center; gap:0.25rem; background:#1e40af; color:#fff; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#1e3a8a'" onmouseout="this.style.background='#1e40af'">
-                            <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size:0.8rem; opacity:0.7;"></i>
-                        </div>
-                        <div class="saas-dropdown-menu">
-                            <div class="saas-dropdown-item" onclick="Swal.close(); abrirFormProposta(null); event.stopPropagation();">
-                                <i class="ph ph-pencil-simple"></i> Nova Proposta
-                            </div>
-                            <div class="saas-dropdown-item" onclick="Swal.close(); switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
-                                <i class="ph ph-user-plus"></i> Cadastro de Clientes
-                            </div>
-                            <div class="saas-dropdown-item" onclick="Swal.close(); switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
-                                <i class="ph ph-identification-card"></i> Cadastro de Contatos
-                            </div>
-                            <div class="saas-dropdown-item" onclick="Swal.close(); switchPropostaTab('enderecos'); event.stopPropagation();">
-                                <i class="ph ph-map-pin"></i> Endereços
-                            </div>
-                            <div class="saas-dropdown-item" onclick="Swal.close(); switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
-                                <i class="ph ph-calculator"></i> Precificação de Serviços
-                            </div>
-                        </div>
+                    <!-- Título do Modal à esquerda -->
+                    <div style="font-size:0.95rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px; font-family:'Inter', sans-serif;">
+                        <i class="ph ph-user-plus" style="color:#7048e8; font-size:1.2rem;"></i>
+                        <span>${_modalClienteEditandoId ? 'Editar Cliente' : 'Cadastrar Novo Cliente'}</span>
                     </div>
 
                     <div style="display:flex; gap:0.4rem; align-items:center;">
@@ -2369,8 +2351,8 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             <i class="ph ph-shield-check" style="font-size:1rem;"></i> Verificar
                         </button>
                         <div style="width: 4px;"></div>
-                        <button onclick="Swal.close()" style="background:#475569; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'">
-                            <i class="ph ph-x" style="font-size:1rem;"></i> Fechar
+                        <button onclick="Swal.close()" title="Fechar" style="background:#475569; color:white; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; box-sizing:border-box;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'">
+                            <i class="ph ph-x" style="font-size:1.15rem;"></i>
                         </button>
                     </div>
                 </div>
