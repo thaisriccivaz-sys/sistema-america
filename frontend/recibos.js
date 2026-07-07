@@ -2817,14 +2817,19 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
         // Fallback: padrão de campos (funciona mesmo com dados do banco antigos sem isFerias)
         if (!_isFerias3) {
             const _mF = d.listAfdtManutencao || [];
-            const _todasI = _mF.length > 0 && _mF.every(m => m._typeRegister === 'I');
             const _semTrab = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
             const _dtStr = String(d.date || d.dateTimeStr || '').substring(0, 10);
             const _dtObj = new Date(_dtStr + 'T12:00:00');
             const _diaSem = !isNaN(_dtObj.getTime()) ? _dtObj.getDay() : -1;
-            // Férias ocorrem mesmo em finais de semana (0=DOM, 6=SAB), a API muitas vezes omite idJustification
-            if (_todasI && _semTrab && (d.idJustification || _diaSem === 0 || _diaSem === 6)) {
-                _isFerias3 = true;
+            if (_semTrab && _mF.length > 0) {
+                // Critério A: todas _typeRegister='I' + idJustification
+                const _todasI = _mF.every(m => m._typeRegister === 'I');
+                if (_todasI && d.idJustification) _isFerias3 = true;
+                // Critério B: SAB/DOM com todas as marcações hora=0
+                if (!_isFerias3 && (_diaSem === 0 || _diaSem === 6)) {
+                    const _todasHoraZero = _mF.every(m => (m.hora || 0) === 0);
+                    if (_todasHoraZero) _isFerias3 = true;
+                }
             }
         }
 

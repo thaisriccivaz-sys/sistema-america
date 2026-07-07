@@ -392,31 +392,47 @@ router.get('/ponto-colaborador', async (req, res) => {
             }
 
             // Detecção 2 (SEMPRE roda): Férias por padrão de campos do RHID
-            // Critério principal: tem idJustification + zero trabalho real + TODAS marcações _typeRegister='I'
-            // Critério extra (SAB/DOM): ControlID muitas vezes omite idJustification em finais de semana dentro das férias
-            //   → nesses dias chegam marcações hora=0 com _typeRegister='I' mas sem idJustification
-            // Dias de esquecimento de ponto NÃO passam nesse filtro porque têm marcações 'O' (batidas reais)
+            // Critério A: idJustification + zero trabalho + TODAS marcações _typeRegister='I'
+            // Critério B: SAB/DOM + zero trabalho + TODAS marcações com hora=0 (ControlID injeta meia-noite nos fds de férias)
+            // Dias de esquecimento de ponto NÃO passam porque têm marcações 'O' com hora != 0
             apuracaoData.forEach(d => {
                 if (d.isFerias) return; // já marcado pela lookup acima
                 const marcacoesF = d.listAfdtManutencao || [];
-                const todasI = marcacoesF.length > 0 && marcacoesF.every(m => m._typeRegister === 'I');
                 const semTrabalho = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
-                if (!todasI || !semTrabalho) return;
-                // Com idJustification → definitivamente férias (qualquer dia)
-                if (d.idJustification) {
-                    d.isFerias = true;
-                    d.toolTipAlert = 'Férias';
-                    console.log(`[ControlID] Férias detectada por padrão: ${d.date || d.dateTimeStr} idJust=${d.idJustification}`);
-                    return;
-                }
-                // Sem idJustification mas é SAB (6) ou DOM (0): possível fim de semana dentro das férias
+                if (!semTrabalho) return;
+
                 const dtStr = String(d.date || d.dateTimeStr || '').substring(0, 10);
                 const dtObj = new Date(dtStr + 'T12:00:00');
                 const diaSem = !isNaN(dtObj.getTime()) ? dtObj.getDay() : -1;
-                if (diaSem === 0 || diaSem === 6) {
+
+                // Critério A: tem idJustification + todas as marcações são _typeRegister='I'
+                const todasI = marcacoesF.length > 0 && marcacoesF.every(m => m._typeRegister === 'I');
+                if (todasI && d.idJustification) {
                     d.isFerias = true;
                     d.toolTipAlert = 'Férias';
-                    console.log(`[ControlID] Férias detectada em fim de semana (sem idJust): ${d.date || d.dateTimeStr} diaSem=${diaSem}`);
+                    console.log(`[ControlID] Férias detectada (todasI+idJust): ${d.date || d.dateTimeStr}`);
+                    return;
+                }
+
+                // Critério B: SAB ou DOM + todas as marcações têm hora=0 (injeção automática ControlID)
+                const todasHoraZero = marcacoesF.length > 0 && marcacoesF.every(m => (m.hora || 0) === 0);
+                if ((diaSem === 0 || diaSem === 6) && todasHoraZero) {
+                    d.isFerias = true;
+                    d.toolTipAlert = 'Férias';
+                    console.log(`[ControlID] Férias detectada em fds (hora=0): ${d.date || d.dateTimeStr} diaSem=${diaSem} registros=${marcacoesF.map(m=>m._typeRegister).join(',')}`);
+                    return;
+                }
+
+                // Critério C: SAB ou DOM sem NENHUMA marcação + sem trabalho + tem idJustification nos dias vizinhos
+                // (às vezes o ControlID não envia marcações nenhuma para SAB/DOM de férias)
+                if ((diaSem === 0 || diaSem === 6) && marcacoesF.length === 0 && !d.faltaDiaInteiro) {
+                    // Só marca como férias se o campo de status ou strHorarioContratualSimples indicar horário previsto
+                    // (para não confundir com folga/DSR normal)
+                    const temHorarioPrevisto = !!(d.idHorarioContratual || (d.strHorarioContratualSimples || '').trim());
+                    if (temHorarioPrevisto) {
+                        // Não marca automaticamente — deixa cair na lógica de folga abaixo
+                        // (só usamos o critério B de hora=0 para fins de semana de férias confirmados por marcações)
+                    }
                 }
             });
         }

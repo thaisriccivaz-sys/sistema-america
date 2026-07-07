@@ -104,13 +104,20 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
                                 || toolTipLower.includes('vacation');
 
         if (!isFerias_controlid) {
-            // Padrão específico de férias: nenhum trabalho real + só marcações inseridas
+            // Padrão específico de férias: nenhum trabalho real + marcações inseridas ou meia-noite
             const marcacoesRaw = d.listAfdtManutencao || [];
-            const todasI = marcacoesRaw.length > 0 && marcacoesRaw.every(m => m._typeRegister === 'I');
             const semTrabalhoReal = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
-            // O ControlID insere essas marcações falsas até nos finais de semana, mas às vezes sem idJustification
-            if (todasI && semTrabalhoReal && (d.idJustification || diaSemanaStr === 'SAB' || diaSemanaStr === 'DOM')) {
-                isFerias_controlid = true;
+            if (semTrabalhoReal && marcacoesRaw.length > 0) {
+                // Critério A: todas _typeRegister='I' com idJustification
+                const todasI = marcacoesRaw.every(m => m._typeRegister === 'I');
+                if (todasI && d.idJustification) {
+                    isFerias_controlid = true;
+                }
+                // Critério B: SAB/DOM com todas as marcações hora=0 (ControlID injeta meia-noite nos fds de férias)
+                if (!isFerias_controlid && (diaSemanaStr === 'SAB' || diaSemanaStr === 'DOM')) {
+                    const todasHoraZero = marcacoesRaw.every(m => (m.hora || 0) === 0);
+                    if (todasHoraZero) isFerias_controlid = true;
+                }
             }
         }
 
