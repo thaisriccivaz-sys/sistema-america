@@ -3795,10 +3795,541 @@ window.encaminharNovoContato = async function() {
         return;
     }
 
-    window.limparFormContato();
-    _redirectAfterContactSaveToClient = true;
-    window.switchPropostaTab('cadastro-contatos');
-    await window.carregarEmpresaSelecionada(_clienteEditandoId);
+    try {
+        const clientes = await apiGet('/clientes') || [];
+        const client = clientes.find(c => c.id === _clienteEditandoId);
+
+        if (!client) {
+            Swal.fire({
+                title: 'Erro',
+                text: 'Cliente selecionado não foi encontrado no banco de dados.',
+                icon: 'error',
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'Ok'
+            });
+            return;
+        }
+
+        Swal.fire({
+            title: '',
+            width: '1100px',
+            customClass: {
+                popup: 'custom-swal-height-large'
+            },
+            showConfirmButton: false,
+            html: `
+                <style>
+                    .mcon-container {
+                        background: #fff;
+                        width: 100%;
+                        text-align: left;
+                        font-family: 'Inter', sans-serif;
+                    }
+                    .mcon-toolbar {
+                        background: #f8fafc;
+                        border-bottom: 1px solid #e2e8f0;
+                        padding: 0.4rem 0.8rem;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        flex-wrap: wrap;
+                        gap: 0.4rem;
+                        position: sticky;
+                        top: 0;
+                        z-index: 997;
+                        border-top-left-radius: 12px;
+                        border-top-right-radius: 12px;
+                    }
+                    .mcon-form-body {
+                        padding: 0.8rem 1.0rem;
+                        max-height: 420px;
+                        overflow-y: auto;
+                    }
+                    .mcon-section-title {
+                        font-size: 0.8rem !important;
+                        font-weight: 800 !important;
+                        color: #475569 !important;
+                        text-transform: uppercase !important;
+                        letter-spacing: 0.04em !important;
+                        border-bottom: 2px solid #e2e8f0 !important;
+                        padding-bottom: 0.25rem !important;
+                        margin: 0.8rem 0 0.5rem 0 !important;
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                    }
+                    .mcon-section-title.first {
+                        margin-top: 0 !important;
+                    }
+                    .mcon-grid {
+                        display: grid;
+                        gap: 0.4rem 0.6rem;
+                    }
+                    .mcon-grid-contact-row1 {
+                        grid-template-columns: 1.5fr 3.5fr 2fr 2fr;
+                    }
+                    .mcon-grid-contact-row2 {
+                        grid-template-columns: 1.5fr 1.5fr 1.5fr 1.2fr 1.2fr 1.5fr;
+                    }
+                    .mcon-grid-contact-row3 {
+                        grid-template-columns: 1.5fr 1.5fr 1.2fr 1.8fr 1.2fr 1.2fr;
+                    }
+                    .mcon-grid-contact-row4 {
+                        grid-template-columns: 1.5fr 0.8fr 4fr;
+                    }
+                    .mcon-grid-company-row1 {
+                        grid-template-columns: 4fr 2fr 1.5fr;
+                    }
+                    .mcon-grid-company-row2 {
+                        grid-template-columns: 3.5fr 1fr 2fr 2.5fr 1fr;
+                    }
+                    .mcon-grid-company-row3 {
+                        grid-template-columns: 1.5fr 0.8fr 1.5fr 1.5fr 0.8fr 2fr;
+                    }
+                    .mcon-field {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 0.2rem;
+                    }
+                    .mcon-field label {
+                        font-size: 0.7rem !important;
+                        font-weight: 700 !important;
+                        color: #64748b !important;
+                        text-transform: uppercase !important;
+                        letter-spacing: 0.02em !important;
+                        margin-bottom: 2px !important;
+                    }
+                    .mcon-input, .mcon-select {
+                        padding: 0.15rem 0.45rem !important;
+                        border: 1px solid #cbd5e1 !important;
+                        border-radius: 4px !important;
+                        font-size: 0.76rem !important;
+                        background: #fff !important;
+                        color: #1e293b !important;
+                        outline: none !important;
+                        transition: all 0.2s !important;
+                        box-sizing: border-box !important;
+                        width: 100% !important;
+                        height: 28px !important;
+                        font-family: 'Inter', sans-serif !important;
+                    }
+                    .mcon-input:focus, .mcon-select:focus {
+                        border-color: #3b82f6 !important;
+                        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+                    }
+                    .mcon-input[readonly] {
+                        background: #f1f5f9 !important;
+                        color: #64748b !important;
+                        cursor: not-allowed !important;
+                    }
+                    .mcon-input-group {
+                        display: flex;
+                        gap: 0.35rem;
+                        width: 100%;
+                    }
+                    .mcon-btn-addon {
+                        background: #16a34a;
+                        color: #fff;
+                        border: none;
+                        padding: 0.2rem 0.5rem;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-weight: 600;
+                        font-size: 0.76rem;
+                        transition: all 0.2s;
+                        height: 28px;
+                        box-sizing: border-box;
+                    }
+                    .mcon-btn-addon:hover {
+                        background: #15803d;
+                    }
+                    .mcon-btn-addon.secondary {
+                        background: #475569;
+                    }
+                    .mcon-btn-addon.secondary:hover {
+                        background: #334155;
+                    }
+                    .mcon-btn-addon.success {
+                        background: #25d366;
+                    }
+                    .mcon-btn-addon.success:hover {
+                        background: #20ba5a;
+                    }
+                    .mcon-ribbon-checkboxes {
+                        display: flex;
+                        gap: 12px;
+                        font-size: 0.76rem;
+                        align-items: center;
+                        font-weight: 600;
+                        font-family: 'Inter', sans-serif;
+                    }
+                    .mcon-ribbon-checkboxes label {
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 4px;
+                        cursor: pointer;
+                    }
+                </style>
+
+                <div class="mcon-container">
+                    <!-- Toolbar Superior -->
+                    <div class="mcon-toolbar">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-weight:800; font-size:0.85rem; color:#1e293b; text-transform:uppercase;">
+                                <i class="ph ph-user-plus" style="color:#7048e8; font-size:1.1rem; vertical-align:middle;"></i> Novo Contato
+                            </span>
+                        </div>
+                        <div class="mcon-ribbon-checkboxes" style="color:#475569;">
+                            <label><input type="checkbox" id="mcon-email-nfe"> Envio NFe</label>
+                            <label><input type="checkbox" id="mcon-email-cobranca"> Cobrança</label>
+                            <label><input type="checkbox" id="mcon-email-os"> OS</label>
+                            <label><input type="checkbox" id="mcon-email-contrato"> Contrato</label>
+                            <label style="margin-left:8px; border-left:1px solid #cbd5e1; padding-left:12px;"><input type="checkbox" id="mcon-inativo"> Inativo</label>
+                        </div>
+                        <div style="display:flex; gap:0.4rem; align-items:center;">
+                            <button onclick="window.modalSalvarNovoContato()" style="background:#16a34a; color:white; border:none; padding:0.35rem 0.8rem; border-radius:4px; cursor:pointer; font-weight:600; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px; height:28px; box-sizing:border-box;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                <i class="ph ph-check" style="font-size:0.9rem;"></i> Salvar
+                            </button>
+                            <button onclick="Swal.close()" style="background:#e2e8f0; color:#475569; border:none; padding:0.35rem 0.8rem; border-radius:4px; cursor:pointer; font-weight:600; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px; height:28px; box-sizing:border-box;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                                <i class="ph ph-x" style="font-size:0.9rem;"></i> Fechar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Corpo do Modal -->
+                    <div class="mcon-form-body">
+                        <!-- DADOS DO CONTATO -->
+                        <div class="mcon-section-title first">
+                            <i class="ph ph-identification-card"></i> Dados do Contato
+                        </div>
+                        <div class="mcon-grid" style="display:flex; flex-direction:column; gap:0.5rem;">
+                            <!-- Linha 1 -->
+                            <div class="mcon-grid mcon-grid-contact-row1">
+                                <div class="mcon-field">
+                                    <label>Código</label>
+                                    <input type="text" id="mcon-codigo" readonly placeholder="Auto" class="mcon-input" style="text-align:center; font-weight:bold; color:#7048e8;">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Nome *</label>
+                                    <input type="text" id="mcon-nome" placeholder="Nome Completo" class="mcon-input">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Celular</label>
+                                    <input type="text" id="mcon-celular" placeholder="(XX) XXXXX-XXXX" class="mcon-input">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>E-mail *</label>
+                                    <input type="email" id="mcon-email" placeholder="nome@empresa.com" class="mcon-input">
+                                </div>
+                            </div>
+
+                            <!-- Linha 2 -->
+                            <div class="mcon-grid mcon-grid-contact-row2">
+                                <div class="mcon-field">
+                                    <label>Tipo</label>
+                                    <select id="mcon-tipo" class="mcon-select">
+                                        <option value="">-- Selecione --</option>
+                                        <option value="1 - Principal">1 - Principal</option>
+                                        <option value="2 - Financeiro">2 - Financeiro</option>
+                                        <option value="3 - Comercial">3 - Comercial</option>
+                                        <option value="4 - Técnico">4 - Técnico</option>
+                                        <option value="5 - Diretoria">5 - Diretoria</option>
+                                        <option value="6 - Outros">6 - Outros</option>
+                                    </select>
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Representante</label>
+                                    <input type="text" id="mcon-representante" class="mcon-input">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Cargo</label>
+                                    <input type="text" id="mcon-cargo" class="mcon-input">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Sexo</label>
+                                    <select id="mcon-sexo" class="mcon-select">
+                                        <option value="">--</option>
+                                        <option value="M">Masculino</option>
+                                        <option value="F">Feminino</option>
+                                        <option value="O">Outro</option>
+                                    </select>
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Nascimento</label>
+                                    <input type="date" id="mcon-nascimento" class="mcon-input">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Departamento</label>
+                                    <input type="text" id="mcon-departamento" class="mcon-input">
+                                </div>
+                            </div>
+
+                            <!-- Linha 3 -->
+                            <div class="mcon-grid mcon-grid-contact-row3">
+                                <div class="mcon-field">
+                                    <label>Origem</label>
+                                    <input type="text" id="mcon-origem" class="mcon-input">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Influenciador</label>
+                                    <select id="mcon-influenciador" class="mcon-select">
+                                        <option value="">-- Selecione --</option>
+                                        <option value="Sim">Sim</option>
+                                        <option value="Não">Não</option>
+                                    </select>
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Classificação</label>
+                                    <select id="mcon-classificacao" class="mcon-select">
+                                        <option value="">-- Selecione --</option>
+                                        <option value="1 - Diamante">1 - Diamante</option>
+                                        <option value="2 - Ouro">2 - Ouro</option>
+                                        <option value="3 - Prata">3 - Prata</option>
+                                        <option value="4 - Bronze">4 - Bronze</option>
+                                    </select>
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Ramo de Atividade</label>
+                                    <input type="text" id="mcon-ramo-atividade" class="mcon-input">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Região</label>
+                                    <input type="text" id="mcon-regiao" class="mcon-input">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Nextel</label>
+                                    <input type="text" id="mcon-nextel" class="mcon-input">
+                                </div>
+                            </div>
+
+                            <!-- Linha 4 -->
+                            <div class="mcon-grid mcon-grid-contact-row4">
+                                <div class="mcon-field">
+                                    <label>Telefone</label>
+                                    <input type="text" id="mcon-telefone" placeholder="(XX) XXXX-XXXX" class="mcon-input">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Ramal</label>
+                                    <input type="text" id="mcon-ramal" class="mcon-input">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Outras Comunicações</label>
+                                    <input type="text" id="mcon-outra-comunicacao" class="mcon-input">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- EMPRESA CLIENTE -->
+                        <div class="mcon-section-title">
+                            <i class="ph ph-buildings"></i> Empresa Cliente
+                        </div>
+                        <div class="mcon-grid" style="display:flex; flex-direction:column; gap:0.5rem;">
+                            <!-- Linha 1 -->
+                            <div class="mcon-grid mcon-grid-company-row1">
+                                <div class="mcon-field">
+                                    <label>Cliente (Razão Social) *</label>
+                                    <div class="mcon-input-group">
+                                        <input type="text" id="memp-codigo" readonly class="mcon-input" style="width: 80px; font-weight: bold; text-align: center;" value="${client.codigo || ''}">
+                                        <input type="text" id="memp-razao-social" readonly class="mcon-input" value="${client.nome_razao_social || ''}">
+                                    </div>
+                                </div>
+                                <div class="mcon-field">
+                                    <label>CNPJ *</label>
+                                    <input type="text" id="memp-cnpj" readonly class="mcon-input" value="${client.cpf_cnpj || ''}">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>CEP</label>
+                                    <input type="text" id="memp-cep" readonly class="mcon-input" value="${client.cep || ''}">
+                                </div>
+                            </div>
+
+                            <!-- Linha 2 -->
+                            <div class="mcon-grid mcon-grid-company-row2">
+                                <div class="mcon-field">
+                                    <label>Endereço</label>
+                                    <input type="text" id="memp-endereco" readonly class="mcon-input" value="${client.endereco || ''}">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Número</label>
+                                    <input type="text" id="memp-numero" readonly class="mcon-input" value="${client.numero || ''}">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Bairro</label>
+                                    <input type="text" id="memp-bairro" readonly class="mcon-input" value="${client.bairro || ''}">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Cidade</label>
+                                    <input type="text" id="memp-cidade" readonly class="mcon-input" value="${client.municipio || ''}">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>UF</label>
+                                    <input type="text" id="memp-uf" readonly class="mcon-input" value="${client.uf || ''}">
+                                </div>
+                            </div>
+
+                            <!-- Linha de controle -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                <div class="mcon-field">
+                                    <label>Grupo de Clientes</label>
+                                    <input type="text" id="memp-grupo" readonly class="mcon-input" value="${client.grupo_clientes || ''}">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Cliente Centralizador</label>
+                                    <input type="text" id="memp-centralizador" readonly class="mcon-input" value="${client.cliente_centralizador || ''}">
+                                </div>
+                            </div>
+
+                            <!-- Linha 3 -->
+                            <div class="mcon-grid mcon-grid-company-row3">
+                                <div class="mcon-field">
+                                    <label>Telefone</label>
+                                    <input type="text" id="memp-telefone" readonly class="mcon-input" value="${client.telefone || ''}">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Ramal</label>
+                                    <input type="text" id="memp-ramal" readonly class="mcon-input" value="${client.ramal || ''}">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Telefone 2</label>
+                                    <input type="text" id="memp-telefone2" readonly class="mcon-input" value="${client.telefone_2 || ''}">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Ramal 2</label>
+                                    <input type="text" id="memp-ramal2" readonly class="mcon-input" value="${client.ramal_2 || ''}">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Fax</label>
+                                    <input type="text" id="memp-fax" readonly class="mcon-input" value="${client.fax || ''}">
+                                </div>
+                                <div class="mcon-field">
+                                    <label>Website (Site)</label>
+                                    <input type="text" id="memp-site" readonly class="mcon-input" value="${client.website || ''}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `,
+            didOpen: () => {
+                const conCelular = document.getElementById('mcon-celular');
+                if (conCelular) {
+                    conCelular.addEventListener('input', (e) => {
+                        let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
+                        e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
+                    });
+                }
+                const conTelefone = document.getElementById('mcon-telefone');
+                if (conTelefone) {
+                    conTelefone.addEventListener('input', (e) => {
+                        let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,4})(\d{0,4})/);
+                        e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
+                    });
+                }
+            }
+        });
+    } catch(err) {
+        console.error(err);
+        Swal.fire('Erro', 'Ocorreu um erro ao carregar o cliente para o contato.', 'error');
+    }
+};
+
+window.modalSalvarNovoContato = async function() {
+    const conNome = document.getElementById('mcon-nome')?.value || '';
+    const conEmail = document.getElementById('mcon-email')?.value || '';
+    const empCnpj = document.getElementById('memp-cnpj')?.value || '';
+    const empRazao = document.getElementById('memp-razao-social')?.value || '';
+
+    if (!conNome) {
+        alert('Por favor, preencha o Nome do Contato.');
+        return;
+    }
+    if (!conEmail) {
+        alert('Por favor, preencha o E-mail do Contato.');
+        return;
+    }
+    if (!empCnpj) {
+        alert('Por favor, preencha o CNPJ da Empresa Cliente.');
+        return;
+    }
+    if (!empRazao) {
+        alert('Por favor, preencha a Razão Social da Empresa Cliente.');
+        return;
+    }
+
+    const empresa_cliente = {
+        id: _clienteEditandoId,
+        codigo: document.getElementById('memp-codigo')?.value || '',
+        cpf_cnpj: empCnpj,
+        nome_razao_social: empRazao,
+        cep: document.getElementById('memp-cep')?.value || '',
+        endereco: document.getElementById('memp-endereco')?.value || '',
+        numero: document.getElementById('memp-numero')?.value || '',
+        bairro: document.getElementById('memp-bairro')?.value || '',
+        municipio: document.getElementById('memp-cidade')?.value || '',
+        uf: document.getElementById('memp-uf')?.value || '',
+        grupo_clientes: document.getElementById('memp-grupo')?.value || '',
+        cliente_centralizador: document.getElementById('memp-centralizador')?.value || '',
+        telefone: document.getElementById('memp-telefone')?.value || '',
+        ramal: document.getElementById('memp-ramal')?.value || '',
+        telefone_2: document.getElementById('memp-telefone2')?.value || '',
+        ramal_2: document.getElementById('memp-ramal2')?.value || '',
+        fax: document.getElementById('memp-fax')?.value || '',
+        website: document.getElementById('memp-site')?.value || '',
+        criado_por: window.currentUser?.nome || window.currentUser?.email || ''
+    };
+
+    const payload = {
+        codigo: null,
+        nome: conNome,
+        tipo: document.getElementById('mcon-tipo')?.value || '',
+        representante: document.getElementById('mcon-representante')?.value || '',
+        departamento: document.getElementById('mcon-departamento')?.value || '',
+        cargo: document.getElementById('mcon-cargo')?.value || '',
+        origem: document.getElementById('mcon-origem')?.value || '',
+        influenciador: document.getElementById('mcon-influenciador')?.value || '',
+        classificacao: document.getElementById('mcon-classificacao')?.value || '',
+        data_nascimento: document.getElementById('mcon-nascimento')?.value || '',
+        ramo_atividade: document.getElementById('mcon-ramo-atividade')?.value || '',
+        regiao: document.getElementById('mcon-regiao')?.value || '',
+        sexo: document.getElementById('mcon-sexo')?.value || '',
+        celular: document.getElementById('mcon-celular')?.value || '',
+        telefone: document.getElementById('mcon-telefone')?.value || '',
+        ramal: document.getElementById('mcon-ramal')?.value || '',
+        nextel: document.getElementById('mcon-nextel')?.value || '',
+        email: conEmail,
+        outra_comunicacao: document.getElementById('mcon-outra-comunicacao')?.value || '',
+        inativo: document.getElementById('mcon-inativo')?.checked ? 1 : 0,
+        email_cobranca: document.getElementById('mcon-email-cobranca')?.checked ? 1 : 0,
+        email_nfe: document.getElementById('mcon-email-nfe')?.checked ? 1 : 0,
+        email_os: document.getElementById('mcon-email-os')?.checked ? 1 : 0,
+        email_contrato: document.getElementById('mcon-email-contrato')?.checked ? 1 : 0,
+        criado_por: window.currentUser?.nome || window.currentUser?.email || '',
+        cliente_id: _clienteEditandoId,
+        empresa_cliente: empresa_cliente
+    };
+
+    try {
+        const res = await apiPost('/contatos', payload);
+        if (res && res.success) {
+            _clientesCache = []; // Limpar cache
+            Swal.close();
+            
+            // Reload parent client to refresh contacts grid table
+            await window.carregarClienteParaEdicao(_clienteEditandoId);
+
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Contato cadastrado com sucesso!');
+            }
+        } else {
+            alert('Erro ao salvar contato: ' + (res?.error || 'Erro desconhecido.'));
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao salvar contato.');
+    }
 };
 
 window.abrirModalPesquisaContatoCliente = async function() {
