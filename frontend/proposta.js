@@ -1238,9 +1238,10 @@ window.atualizarGraficosComerciais = function(lista) {
         totalPropostas++;
 
         const valor = typeof p.valor_total === 'number' ? p.valor_total : parseFloat(p.valor_total) || 0;
-        if (fase === 'Convertida em OS') {
+        const faseNorm = (p.fase_negociacao || '').trim().toLowerCase();
+        if (faseNorm === 'convertida em os' || faseNorm === 'convertida para os' || faseNorm === 'ganho') {
             totalConvertido += valor;
-        } else if (fase === 'Reprovada' || fase === 'Cancelada') {
+        } else if (faseNorm === 'reprovada' || faseNorm === 'reprovadas' || faseNorm === 'cancelada' || faseNorm === 'canceladas' || faseNorm === 'perdida' || faseNorm === 'perdido') {
             totalReprovado += valor;
         }
 
@@ -1327,10 +1328,10 @@ window.atualizarGraficosComerciais = function(lista) {
                 <i class="ph ph-currency-dollar-simple" style="color:#10b981; font-size:1.05rem;"></i> Conversão Financeira
             </h3>
             <div style="display:flex; gap:1.5rem; justify-content:center; align-items:flex-end; height:105px; border-bottom:1px solid #cbd5e1; padding-bottom:8px; box-sizing:border-box; margin-bottom:8px; flex:1; background:linear-gradient(180deg, rgba(248,250,252,0) 0%, rgba(248,250,252,0.8) 100%);">
-                <!-- Convertido -->
+                <!-- Ganho -->
                 <div style="display:flex; flex-direction:column; align-items:center; width:70px;">
                     <span style="font-size:0.68rem; font-weight:800; color:#16a34a; margin-bottom:4px; text-align:center; overflow:hidden; text-overflow:ellipsis; max-width:70px;" title="${totalConvertidoFmt}">${totalConvertidoFmt}</span>
-                    <div style="width:28px; height:${Math.round(pctConvertido)}px; background:linear-gradient(180deg,#34d399,#059669); border-radius:5px 5px 0 0; box-shadow:0 4px 10px rgba(16,185,129,0.25);" title="Convertido"></div>
+                    <div style="width:28px; height:${Math.round(pctConvertido)}px; background:linear-gradient(180deg,#34d399,#059669); border-radius:5px 5px 0 0; box-shadow:0 4px 10px rgba(16,185,129,0.25);" title="Ganho"></div>
                 </div>
                 <!-- Perdido -->
                 <div style="display:flex; flex-direction:column; align-items:center; width:70px;">
