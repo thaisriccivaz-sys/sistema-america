@@ -655,20 +655,29 @@ function renderTelaPropostas() {
         _renderServicosPrecificacaoInt();
     }
 
-    if (_currentPropostaTab === 'lista') {
-        setTimeout(() => {
+    setTimeout(() => {
+        if (_currentPropostaTab === 'lista') {
             if (window.atualizarGraficosGlobais) window.atualizarGraficosGlobais();
             if (window.atualizarTabela5W2H) window.atualizarTabela5W2H();
             if (window.atualizarTabelaCurvaABC) window.atualizarTabelaCurvaABC();
             filtrarPropostas();
-            
-            // Auto scroll to make sticky toolbar dock at top
-            const toolbar = document.getElementById('prop-toolbar-principal');
+        }
+        
+        // Auto scroll active tab's toolbar to top
+        const activeContainer = document.getElementById(`prop-view-${_currentPropostaTab}`);
+        if (activeContainer) {
+            const toolbar = activeContainer.querySelector('[style*="position:sticky"]') || 
+                            activeContainer.querySelector('[style*="position: sticky"]') || 
+                            activeContainer.querySelector('.cc-toolbar') || 
+                            activeContainer.querySelector('.cc-toolbar-end') ||
+                            document.getElementById('prop-toolbar-principal');
             if (toolbar) {
                 toolbar.scrollIntoView({ block: 'start' });
+            } else {
+                activeContainer.scrollIntoView({ block: 'start' });
             }
-        }, 0);
-    }
+        }
+    }, 50);
 }
 
 window.switchPropostaTab = function(tab) {
@@ -736,15 +745,24 @@ window.switchPropostaTab = function(tab) {
             if (window.atualizarTabela5W2H) window.atualizarTabela5W2H();
             if (window.atualizarTabelaCurvaABC) window.atualizarTabelaCurvaABC();
             filtrarPropostas();
-            
-            // Auto scroll to make sticky toolbar dock at top
-            setTimeout(() => {
-                const toolbar = document.getElementById('prop-toolbar-principal');
+        }
+        
+        // Auto scroll active tab's toolbar to top
+        setTimeout(() => {
+            const activeContainer = document.getElementById(`prop-view-${tab}`);
+            if (activeContainer) {
+                const toolbar = activeContainer.querySelector('[style*="position:sticky"]') || 
+                                activeContainer.querySelector('[style*="position: sticky"]') || 
+                                activeContainer.querySelector('.cc-toolbar') || 
+                                activeContainer.querySelector('.cc-toolbar-end') ||
+                                document.getElementById('prop-toolbar-principal');
                 if (toolbar) {
                     toolbar.scrollIntoView({ block: 'start' });
+                } else {
+                    activeContainer.scrollIntoView({ block: 'start' });
                 }
-            }, 50);
-        }
+            }
+        }, 80);
     } else {
         renderTelaPropostas();
     }
