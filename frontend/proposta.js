@@ -839,14 +839,6 @@ window.switchPropostaTab = function(tab) {
                 const activeContainer = document.getElementById(`prop-view-${tab}`);
                 if (activeContainer) activeContainer.scrollIntoView({ block: 'start' });
             }
-
-            // Inicializar/re-sincronizar animações GSAP de entrada nos cards da nova tela
-            if (window.initGSAPAnimations) window.initGSAPAnimations();
-
-            // Forçar recálculo de posições do ScrollTrigger de forma segura para os cards recém-exibidos
-            if (typeof ScrollTrigger !== 'undefined') {
-                ScrollTrigger.refresh();
-            }
         }, 150);
     } else {
         renderTelaPropostas();
@@ -1206,8 +1198,6 @@ window.atualizarGraficosGlobais = function() {
             </div>
         `;
     }
-
-    if (window.initGSAPAnimations) window.initGSAPAnimations();
 };
 
 
@@ -1372,8 +1362,6 @@ window.atualizarGraficosComerciais = function(lista) {
     if (typeof window.atualizarTabelaCurvaABC === 'function') {
         window.atualizarTabelaCurvaABC(lista);
     }
-
-    if (window.initGSAPAnimations) window.initGSAPAnimations();
 };
 
 /* ── Filtros ────────────────────────────────────────────────────────── */
@@ -7770,7 +7758,6 @@ function _renderFormPrecificacaoBase() {
         if (toolbar) {
             toolbar.scrollIntoView({ block: 'start' });
         }
-        if (window.initGSAPAnimations) window.initGSAPAnimations();
     }, 150);
 }
 
@@ -8529,86 +8516,7 @@ window.renderizarProdutosPropostaGrid = function() {
     `).join('');
 };
 
-(function() {
-    let timeout;
-    function runGSAP() {
-        if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
-        gsap.registerPlugin(ScrollTrigger);
 
-        // Identifica o container principal ativo na tela (evita varrer o DOM inteiro)
-        let activeContainer = document.querySelector('.view-section.active') || document.body;
-
-        // Se estiver no módulo de propostas comerciais, foca no sub-painel ativo
-        const activeSubView = activeContainer.querySelector('[id^="prop-view-"][style*="display: block"], [id^="prop-view-"]:not([style*="display: none"])');
-        if (activeSubView) {
-            activeContainer = activeSubView;
-        }
-
-        // Seleciona e filtra apenas os cards que estão VISÍVEIS no container ativo e que ainda não foram inicializados
-        const targets = gsap.utils.toArray('.reveal-card, .card, .cc-container, .cc-container-end, .cost-card, .saas-card', activeContainer)
-            .filter(el => (el.offsetWidth > 0 || el.offsetHeight > 0) && !el.dataset.gsapInitialized);
-            
-        if (targets.length === 0) {
-            return; // Retorna imediatamente sem nenhuma chamada de layout pesada (como refresh)
-        }
-
-        // Estado inicial com deslocamento suave para os novos elementos visíveis
-        targets.forEach(el => {
-            el.dataset.gsapInitialized = "true";
-            gsap.set(el, { opacity: 0, y: 15 });
-        });
-
-        // Batch trigger para efeito de fade-up escalonado rápido (stagger de 40ms)
-        ScrollTrigger.batch(targets, {
-            onEnter: batch => gsap.to(batch, {
-                opacity: 1,
-                y: 0,
-                duration: 0.35,
-                stagger: 0.04,
-                ease: 'power1.out',
-                overwrite: 'auto'
-            }),
-            onLeaveBack: batch => gsap.to(batch, {
-                opacity: 0,
-                y: 15,
-                duration: 0.25,
-                overwrite: 'auto'
-            }),
-            // Fade-out simples ao passar pelo topo
-            onLeave: batch => gsap.to(batch, {
-                opacity: 0,
-                y: -15,
-                duration: 0.25,
-                overwrite: 'auto'
-            }),
-            onEnterBack: batch => gsap.to(batch, {
-                opacity: 1,
-                y: 0,
-                duration: 0.35,
-                stagger: 0.04,
-                ease: 'power1.out',
-                overwrite: 'auto'
-            }),
-            start: "top 95%",
-            end: "bottom 5%"
-        });
-    }
-
-    // Debounce rápido (30ms) para execução instantânea após renderização
-    window.initGSAPAnimations = function() {
-        clearTimeout(timeout);
-        timeout = setTimeout(runGSAP, 30);
-    };
-
-    // Execução na carga inicial da página
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            window.initGSAPAnimations();
-        });
-    } else {
-        window.initGSAPAnimations();
-    }
-})();
 
 
 
