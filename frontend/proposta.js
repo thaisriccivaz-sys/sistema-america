@@ -864,48 +864,53 @@ window.atualizarGraficosGlobais = function() {
     if (containerKpis) {
         containerKpis.innerHTML = `
             <!-- Card 1: Manutenção Crítica (Alerta Laranja) -->
-            <div style="background:linear-gradient(135deg, #f97316, #ea580c); color:white; border-radius:12px; padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 15px rgba(234,88,12,0.15);">
+            <div style="background:linear-gradient(135deg, #f97316, #ea580c); color:white; border-radius:14px; padding:0.8rem 1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 10px 20px -5px rgba(234,88,12,0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                 <div>
-                    <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.02em; opacity:0.9;">Manutenção Crítica - 7 Dias</div>
-                    <div style="font-size:1.85rem; font-weight:900; margin-top:0.25rem;">${manutCriticaCount}</div>
+                    <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; opacity:0.9;">Manutenção Crítica - 7 Dias</div>
+                    <div style="font-size:2rem; font-weight:900; margin-top:0.25rem; letter-spacing:-0.5px;">${manutCriticaCount}</div>
                 </div>
-                <div style="display:flex; gap:0.5rem; font-size:1.6rem; opacity:0.9;">
+                <div style="display:flex; justify-content:center; align-items:center; width:44px; height:44px; background:rgba(255,255,255,0.15); border-radius:10px; font-size:1.6rem; opacity:0.95;">
                     <i class="ph ph-wrench"></i>
-                    <i class="ph ph-calendar"></i>
                 </div>
             </div>
             
             <!-- Card 2: Taxa de Ocupação de Ativos (Azul) -->
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:0.8rem 1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 6px -1px rgba(0,0,0,0.01), 0 2px 4px -1px rgba(0,0,0,0.01); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                 <div>
-                    <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.02em;">Taxa Ocupação de Ativos</div>
-                    <div style="font-size:1.85rem; font-weight:900; color:#1e293b; margin-top:0.25rem; display:flex; align-items:center; gap:0.35rem;">
+                    <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">Taxa Ocupação de Ativos</div>
+                    <div style="font-size:2rem; font-weight:900; color:#1e293b; margin-top:0.25rem; display:flex; align-items:center; gap:0.5rem; letter-spacing:-0.5px;">
                         ${occupancyFmt}
-                        <span style="font-size:0.78rem; font-weight:700; color:#3b82f6;"><i class="ph ph-trend-up"></i> +1.2%</span>
+                        <span style="font-size:0.78rem; font-weight:700; color:#3b82f6; background:#eff6ff; padding:2px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:2px;"><i class="ph ph-trend-up"></i> +1.2%</span>
                     </div>
                 </div>
-                <i class="ph ph-package" style="font-size:1.65rem; color:#3b82f6; opacity:0.85;"></i>
+                <div style="display:flex; justify-content:center; align-items:center; width:44px; height:44px; background:#eff6ff; color:#3b82f6; border-radius:10px; font-size:1.6rem; opacity:0.95;">
+                    <i class="ph ph-package"></i>
+                </div>
             </div>
             
             <!-- Card 3: SLA de Serviços - Cumprimento (Verde) -->
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:0.8rem 1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 6px -1px rgba(0,0,0,0.01), 0 2px 4px -1px rgba(0,0,0,0.01); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                 <div>
-                    <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.02em;">SLA de Serviços - Cumprimento</div>
-                    <div style="font-size:1.85rem; font-weight:900; color:#1e293b; margin-top:0.25rem;">${slaFmt}</div>
+                    <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">SLA de Serviços - Cumprimento</div>
+                    <div style="font-size:2rem; font-weight:900; color:#1e293b; margin-top:0.25rem; letter-spacing:-0.5px;">${slaFmt}</div>
                 </div>
-                <i class="ph ph-check-circle" style="font-size:1.65rem; color:#10b981; opacity:0.85;"></i>
+                <div style="display:flex; justify-content:center; align-items:center; width:44px; height:44px; background:#ecfdf5; color:#10b981; border-radius:10px; font-size:1.6rem; opacity:0.95;">
+                    <i class="ph ph-check-circle"></i>
+                </div>
             </div>
             
             <!-- Card 4: Inadimplência Atual (Vermelho/Rosa) -->
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:0.8rem 1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 6px -1px rgba(0,0,0,0.01), 0 2px 4px -1px rgba(0,0,0,0.01); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                 <div>
-                    <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.02em;">Inadimplência Atual</div>
-                    <div style="font-size:1.85rem; font-weight:900; color:#1e293b; margin-top:0.25rem; display:flex; align-items:center; gap:0.35rem;">
+                    <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">Inadimplência Atual</div>
+                    <div style="font-size:2rem; font-weight:900; color:#1e293b; margin-top:0.25rem; display:flex; align-items:center; gap:0.5rem; letter-spacing:-0.5px;">
                         ${defaultFmt}
-                        <span style="font-size:0.78rem; font-weight:700; color:#ef4444;"><i class="ph ph-trend-down"></i> -0.4%</span>
+                        <span style="font-size:0.78rem; font-weight:700; color:#ef4444; background:#fef2f2; padding:2px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:2px;"><i class="ph ph-trend-down"></i> -0.4%</span>
                     </div>
                 </div>
-                <i class="ph ph-warning-circle" style="font-size:1.65rem; color:#ef4444; opacity:0.85;"></i>
+                <div style="display:flex; justify-content:center; align-items:center; width:44px; height:44px; background:#fef2f2; color:#ef4444; border-radius:10px; font-size:1.6rem; opacity:0.95;">
+                    <i class="ph ph-warning-circle"></i>
+                </div>
             </div>
         `;
     }
@@ -964,38 +969,58 @@ window.atualizarGraficosGlobais = function() {
         return `${idx === 0 ? 'M' : 'L'} ${x},${y}`;
     }).join(' ');
 
-    const lastRevX = 40 + 5 * 80;
-    const lastRevY = 160 - (ultimos6Meses[5].receita / maxValor) * 140;
-    const lastCostX = 40 + 5 * 80;
-    const lastCostY = 160 - (ultimos6Meses[5].custo / maxValor) * 140;
+    const areaRevenuePoints = revenuePoints + ` L ${40 + 5 * 80},160 L 40,160 Z`;
+    const areaCostPoints = costPoints + ` L ${40 + 5 * 80},160 L 40,160 Z`;
+
+    const pointsHtml = ultimos6Meses.map((m, idx) => {
+        const x = 40 + idx * 80;
+        const yRev = 160 - (m.receita / maxValor) * 140;
+        const yCost = 160 - (m.custo / maxValor) * 140;
+        return `
+            <circle cx="${x}" cy="${yRev}" r="5" fill="#3b82f6" stroke="#fff" stroke-width="2" style="filter:drop-shadow(0 2px 4px rgba(59,130,246,0.3)); cursor:pointer;" title="Receita: ${formatarValorK(m.receita)}"/>
+            <circle cx="${x}" cy="${yCost}" r="4" fill="#f97316" stroke="#fff" stroke-width="1.5" style="cursor:pointer;" title="Custo: ${formatarValorK(m.custo)}"/>
+        `;
+    }).join('');
 
     const containerLinha = document.getElementById('container-grafico-linha');
     if (containerLinha) {
         containerLinha.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
-                <h3 style="margin:0; font-size:0.9rem; font-weight:800; color:#1e293b;">Receita vs. Custo Operacional (Últimos 6 Meses)</h3>
+                <h3 style="margin:0; font-size:0.9rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                    <i class="ph ph-chart-line-up" style="color:#3b82f6; font-size:1.1rem;"></i> Receita vs. Custo Operacional (6M)
+                </h3>
                 <div style="display:flex; gap:0.6rem; font-size:0.72rem; font-weight:700;">
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        <span style="width:8px; height:8px; background:#3b82f6; display:inline-block; border-radius:2px;"></span>
+                    <div style="display:flex; align-items:center; gap:4px; background:#eff6ff; color:#2563eb; padding:3px 8px; border-radius:12px;">
+                        <span style="width:6px; height:6px; background:#3b82f6; display:inline-block; border-radius:50%;"></span>
                         <span>Receita</span>
                     </div>
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        <span style="width:8px; height:2px; background:#f97316; display:inline-block;"></span>
+                    <div style="display:flex; align-items:center; gap:4px; background:#fff7ed; color:#c2410c; padding:3px 8px; border-radius:12px;">
+                        <span style="width:6px; height:2px; background:#f97316; display:inline-block;"></span>
                         <span>Custo</span>
                     </div>
                 </div>
             </div>
             <div style="position:relative; height:180px; margin-top:0.5rem; font-family:'Inter', sans-serif;">
                 <svg width="100%" height="180" viewBox="0 0 500 180" preserveAspectRatio="none" style="overflow: visible;">
-                    <g stroke="#f1f5f9" stroke-width="1">
+                    <defs>
+                        <linearGradient id="receita-area-grad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.2"/>
+                            <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0"/>
+                        </linearGradient>
+                        <linearGradient id="custo-area-grad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#f97316" stop-opacity="0.1"/>
+                            <stop offset="100%" stop-color="#f97316" stop-opacity="0.0"/>
+                        </linearGradient>
+                    </defs>
+                    <g stroke="#f1f5f9" stroke-width="1" stroke-dasharray="2 4">
                         <line x1="30" y1="20" x2="480" y2="20"/>
                         <line x1="30" y1="60" x2="480" y2="60"/>
                         <line x1="30" y1="100" x2="480" y2="100"/>
                         <line x1="30" y1="140" x2="480" y2="140"/>
                     </g>
-                    <line x1="30" y1="160" x2="480" y2="160" stroke="#cbd5e1" stroke-width="1.5"/>
+                    <line x1="30" y1="160" x2="480" y2="160" stroke="#e2e8f0" stroke-width="1.5"/>
                     
-                    <g fill="#94a3b8" font-size="8" text-anchor="end">
+                    <g fill="#94a3b8" font-size="8" text-anchor="end" font-weight="600">
                         <text x="22" y="23">${yMaxStr}</text>
                         <text x="22" y="63">${y75Str}</text>
                         <text x="22" y="103">${y50Str}</text>
@@ -1003,7 +1028,7 @@ window.atualizarGraficosGlobais = function() {
                         <text x="22" y="163">0</text>
                     </g>
                     
-                    <g fill="#64748b" font-size="9" text-anchor="middle" font-weight="600">
+                    <g fill="#64748b" font-size="9" text-anchor="middle" font-weight="700">
                         <text x="40" y="174">${ultimos6Meses[0].label}</text>
                         <text x="120" y="174">${ultimos6Meses[1].label}</text>
                         <text x="200" y="174">${ultimos6Meses[2].label}</text>
@@ -1012,11 +1037,16 @@ window.atualizarGraficosGlobais = function() {
                         <text x="440" y="174">${ultimos6Meses[5].label}</text>
                     </g>
                     
-                    <path d="${revenuePoints}" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                    <circle cx="${lastRevX}" cy="${lastRevY}" r="4" fill="#3b82f6"/>
+                    <!-- Areas -->
+                    <path d="${areaRevenuePoints}" fill="url(#receita-area-grad)" stroke="none"/>
+                    <path d="${areaCostPoints}" fill="url(#custo-area-grad)" stroke="none"/>
                     
+                    <!-- Lines -->
+                    <path d="${revenuePoints}" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0px 4px 6px rgba(59, 130, 246, 0.25));"/>
                     <path d="${costPoints}" fill="none" stroke="#f97316" stroke-width="2" stroke-dasharray="4 4" stroke-linecap="round" stroke-linejoin="round"/>
-                    <circle cx="${lastCostX}" cy="${lastCostY}" r="4" fill="#f97316"/>
+                    
+                    <!-- Interactive Circles -->
+                    ${pointsHtml}
                 </svg>
             </div>
         `;
@@ -1035,10 +1065,10 @@ window.atualizarGraficosGlobais = function() {
         const heightStyle = `height:${totalHeightPct}%;`;
 
         return `
-            <div style="display:flex; flex-direction:column-reverse; width:34px; ${heightStyle} min-height:10px;">
-                <div style="height:${pctPesado}%; background:#3b82f6; border-radius:2px;" title="Eq. Pesado (${formatarValorK(m.receita * 0.5)})"></div>
-                <div style="height:${pctLeves}%; background:#10b981;" title="Veíc. Leves (${formatarValorK(m.receita * 0.3)})"></div>
-                <div style="height:${pctTecnica}%; background:#f97316; border-top-left-radius:2px; border-top-right-radius:2px;" title="M.O. Técnica (${formatarValorK(m.receita * 0.2)})"></div>
+            <div style="display:flex; flex-direction:column-reverse; width:38px; ${heightStyle} min-height:10px; transition: height 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-radius:4px; overflow:hidden;">
+                <div style="height:${pctPesado}%; background:linear-gradient(180deg, #60a5fa, #2563eb);" title="Eq. Pesado (${formatarValorK(m.receita * 0.5)})"></div>
+                <div style="height:${pctLeves}%; background:linear-gradient(180deg, #34d399, #059669);" title="Veíc. Leves (${formatarValorK(m.receita * 0.3)})"></div>
+                <div style="height:${pctTecnica}%; background:linear-gradient(180deg, #fb923c, #ea580c);" title="M.O. Técnica (${formatarValorK(m.receita * 0.2)})"></div>
             </div>
         `;
     }).join('');
@@ -1047,30 +1077,28 @@ window.atualizarGraficosGlobais = function() {
     if (containerBarra) {
         containerBarra.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
-                <h3 style="margin:0; font-size:0.9rem; font-weight:800; color:#1e293b;">Receita por Categoria de Ativo (Mensal)</h3>
-                <div style="display:flex; flex-direction:column; gap:2px; font-size:0.65rem; background:rgba(255,255,255,0.9); padding:4px; border-radius:4px; border:1px solid #e2e8f0;">
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        <span style="width:6px; height:6px; background:#3b82f6; display:inline-block; border-radius:1px;"></span>
-                        <span>Eq. Pesado</span>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        <span style="width:6px; height:6px; background:#10b981; display:inline-block; border-radius:1px;"></span>
-                        <span>Veíc. Leves</span>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        <span style="width:6px; height:6px; background:#f97316; display:inline-block; border-radius:1px;"></span>
-                        <span>M.O. Técnica</span>
-                    </div>
+                <h3 style="margin:0; font-size:0.9rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                    <i class="ph ph-chart-bar" style="color:#10b981; font-size:1.1rem;"></i> Categoria de Ativo (Mensal)
+                </h3>
+                <div style="display:flex; gap:0.4rem; font-size:0.65rem; font-weight:700;">
+                    <span style="display:inline-flex; align-items:center; gap:4px; background:#eff6ff; color:#1e40af; padding:2px 8px; border-radius:12px;">
+                        <span style="width:6px; height:6px; background:#3b82f6; display:inline-block; border-radius:50%;"></span>
+                        Eq. Pesado
+                    </span>
+                    <span style="display:inline-flex; align-items:center; gap:4px; background:#ecfdf5; color:#065f46; padding:2px 8px; border-radius:12px;">
+                        <span style="width:6px; height:6px; background:#10b981; display:inline-block; border-radius:50%;"></span>
+                        Veículos
+                    </span>
                 </div>
             </div>
             <div style="position:relative; height:180px; margin-top:0.5rem; font-family:'Inter', sans-serif;">
-                <div style="display:flex; justify-content:space-around; align-items:flex-end; height:140px; border-bottom:1px solid #cbd5e1; padding-bottom:5px; box-sizing:border-box;">
+                <div style="display:flex; justify-content:space-around; align-items:flex-end; height:140px; border-bottom:1px solid #cbd5e1; padding-bottom:5px; box-sizing:border-box; background:linear-gradient(180deg, rgba(248,250,252,0) 0%, rgba(248,250,252,0.8) 100%);">
                     ${barsHtml}
                 </div>
                 <div style="display:flex; justify-content:space-around; font-size:0.75rem; font-weight:700; color:#64748b; margin-top:8px;">
-                    <span style="width:34px; text-align:center;">${ultimos3Meses[0].label}</span>
-                    <span style="width:34px; text-align:center;">${ultimos3Meses[1].label}</span>
-                    <span style="width:34px; text-align:center;">${ultimos3Meses[2].label}</span>
+                    <span style="width:38px; text-align:center;">${ultimos3Meses[0].label}</span>
+                    <span style="width:38px; text-align:center;">${ultimos3Meses[1].label}</span>
+                    <span style="width:38px; text-align:center;">${ultimos3Meses[2].label}</span>
                 </div>
             </div>
         `;
@@ -1142,24 +1170,29 @@ window.atualizarGraficosComerciais = function(lista) {
     const conicGradientStyle = `background: conic-gradient(${gradientParts});`;
     
     const legendaHtml = fatias.map(f => `
-        <div style="display:flex; align-items:center; gap:4px; font-size:0.62rem; color:#475569; font-weight:600;">
-            <span style="width:6px; height:6px; background:${f.color}; display:inline-block; border-radius:50%; flex-shrink:0;"></span>
-            <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:85px;" title="${f.fase}">${f.fase}: ${f.count}</span>
+        <div style="display:flex; align-items:center; gap:6px; font-size:0.68rem; color:#475569; font-weight:700; padding:2px 4px; border-radius:6px; transition:background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+            <span style="width:8px; height:8px; background:${f.color}; display:inline-block; border-radius:50%; flex-shrink:0; box-shadow:0 0 4px ${f.color}80;"></span>
+            <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px;" title="${f.fase}">${f.fase}</span>
+            <span style="margin-left:auto; color:#1e293b; font-weight:800; background:#f1f5f9; padding:1px 6px; border-radius:10px; font-size:0.6rem;">${f.count}</span>
         </div>
     `).join('');
 
     const containerRosca = document.getElementById('container-grafico-rosca');
     if (containerRosca) {
         containerRosca.innerHTML = `
-            <h3 style="margin:0 0 1rem 0; font-size:0.9rem; font-weight:800; color:#1e293b; align-self:flex-start;">Proporção de Status</h3>
-            <div style="width:120px; height:120px; border-radius:50%; ${conicGradientStyle} display:flex; align-items:center; justify-content:center; margin:0 auto; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
-                <div style="width:80px; height:80px; border-radius:50%; background:#ffffff; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                    <span style="font-size:1.15rem; font-weight:800; color:#1e293b;">${totalPropostas}</span>
-                    <span style="font-size:0.6rem; color:#64748b; font-weight:600; text-transform:uppercase;">Total</span>
+            <h3 style="margin:0 0 0.8rem 0; font-size:0.9rem; font-weight:800; color:#1e293b; align-self:flex-start; display:flex; align-items:center; gap:6px; width:100%;">
+                <i class="ph ph-chart-pie" style="color:#7048e8; font-size:1.05rem;"></i> Status de Propostas
+            </h3>
+            <div style="display:flex; align-items:center; justify-content:space-between; width:100%; gap:0.5rem; flex:1; padding-top:0.25rem;">
+                <div style="width:110px; height:110px; border-radius:50%; ${conicGradientStyle} display:flex; align-items:center; justify-content:center; margin:0 auto; box-shadow:0 4px 12px rgba(0,0,0,0.06); flex-shrink:0; position:relative;">
+                    <div style="width:78px; height:78px; border-radius:50%; background:#ffffff; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:inset 0 2px 5px rgba(0,0,0,0.05);">
+                        <span style="font-size:1.25rem; font-weight:900; color:#1e293b; letter-spacing:-0.5px;">${totalPropostas}</span>
+                        <span style="font-size:0.55rem; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;">Total</span>
+                    </div>
                 </div>
-            </div>
-            <div style="width:100%; display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:0.75rem; justify-content:center; max-height:80px; overflow-y:auto;">
-                ${legendaHtml}
+                <div style="flex:1; display:flex; flex-direction:column; gap:4px; max-height:130px; overflow-y:auto; padding-left:0.5rem; border-left:1px solid #f1f5f9;">
+                    ${legendaHtml}
+                </div>
             </div>
         `;
     }
@@ -1174,22 +1207,24 @@ window.atualizarGraficosComerciais = function(lista) {
     const containerConversao = document.getElementById('container-grafico-conversao');
     if (containerConversao) {
         containerConversao.innerHTML = `
-            <h3 style="margin:0 0 1rem 0; font-size:0.9rem; font-weight:800; color:#1e293b;">Conversão Financeira</h3>
-            <div style="display:flex; gap:1.5rem; justify-content:center; align-items:flex-end; height:120px; border-bottom:1px solid #cbd5e1; padding-bottom:8px; box-sizing:border-box; margin-bottom:8px; flex:1;">
+            <h3 style="margin:0 0 0.8rem 0; font-size:0.9rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                <i class="ph ph-currency-dollar-simple" style="color:#10b981; font-size:1.05rem;"></i> Conversão Financeira
+            </h3>
+            <div style="display:flex; gap:1.5rem; justify-content:center; align-items:flex-end; height:105px; border-bottom:1px solid #cbd5e1; padding-bottom:8px; box-sizing:border-box; margin-bottom:8px; flex:1; background:linear-gradient(180deg, rgba(248,250,252,0) 0%, rgba(248,250,252,0.8) 100%);">
                 <!-- Convertido -->
-                <div style="display:flex; flex-direction:column; align-items:center; width:65px;">
-                    <span style="font-size:0.65rem; font-weight:700; color:#16a34a; margin-bottom:4px; text-align:center; overflow:hidden; text-overflow:ellipsis; max-width:65px;" title="${totalConvertidoFmt}">${totalConvertidoFmt}</span>
-                    <div style="width:30px; height:${Math.round(pctConvertido)}px; background:linear-gradient(180deg,#10b981,#059669); border-radius:4px 4px 0 0;" title="Convertido"></div>
+                <div style="display:flex; flex-direction:column; align-items:center; width:70px;">
+                    <span style="font-size:0.68rem; font-weight:800; color:#16a34a; margin-bottom:4px; text-align:center; overflow:hidden; text-overflow:ellipsis; max-width:70px;" title="${totalConvertidoFmt}">${totalConvertidoFmt}</span>
+                    <div style="width:28px; height:${Math.round(pctConvertido)}px; background:linear-gradient(180deg,#34d399,#059669); border-radius:5px 5px 0 0; box-shadow:0 4px 10px rgba(16,185,129,0.25);" title="Convertido"></div>
                 </div>
                 <!-- Perdido -->
-                <div style="display:flex; flex-direction:column; align-items:center; width:65px;">
-                    <span style="font-size:0.65rem; font-weight:700; color:#dc2626; margin-bottom:4px; text-align:center; overflow:hidden; text-overflow:ellipsis; max-width:65px;" title="${totalReprovadoFmt}">${totalReprovadoFmt}</span>
-                    <div style="width:30px; height:${Math.round(pctReprovado)}px; background:linear-gradient(180deg,#ef4444,#dc2626); border-radius:4px 4px 0 0;" title="Perdido"></div>
+                <div style="display:flex; flex-direction:column; align-items:center; width:70px;">
+                    <span style="font-size:0.68rem; font-weight:800; color:#dc2626; margin-bottom:4px; text-align:center; overflow:hidden; text-overflow:ellipsis; max-width:70px;" title="${totalReprovadoFmt}">${totalReprovadoFmt}</span>
+                    <div style="width:28px; height:${Math.round(pctReprovado)}px; background:linear-gradient(180deg,#f87171,#dc2626); border-radius:5px 5px 0 0; box-shadow:0 4px 10px rgba(220,38,38,0.25);" title="Perdido"></div>
                 </div>
             </div>
-            <div style="display:flex; gap:1.5rem; justify-content:center; font-size:0.7rem; font-weight:700; color:#64748b; margin-top:4px;">
-                <span style="width:65px; text-align:center;">Aprovado</span>
-                <span style="width:65px; text-align:center;">Perdido</span>
+            <div style="display:flex; gap:1.5rem; justify-content:center; font-size:0.75rem; font-weight:800; color:#64748b; margin-top:4px;">
+                <span style="width:70px; text-align:center; color:#059669; background:#ecfdf5; padding:2px 8px; border-radius:12px;">Ganho</span>
+                <span style="width:70px; text-align:center; color:#dc2626; background:#fef2f2; padding:2px 8px; border-radius:12px;">Perdido</span>
             </div>
         `;
     }
@@ -1202,13 +1237,13 @@ window.atualizarGraficosComerciais = function(lista) {
     const paretoHtml = motivosOrdenados.length > 0 ? motivosOrdenados.map(([motivo, count]) => {
         const pct = (count / maxMotivoCount) * 100;
         return `
-            <div style="display:flex; flex-direction:column; gap:2px; font-size:0.75rem; margin-bottom:0.6rem;">
+            <div style="display:flex; flex-direction:column; gap:4px; font-size:0.75rem; margin-bottom:0.5rem;">
                 <div style="display:flex; justify-content:space-between; font-weight:700; color:#475569;">
                     <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px;" title="${motivo}">${motivo}</span>
-                    <span style="color:#1e293b;">${count}</span>
+                    <span style="color:#1e293b; background:#f1f5f9; font-size:0.65rem; font-weight:800; padding:1px 6px; border-radius:10px;">${count}</span>
                 </div>
-                <div style="background:#f1f5f9; border-radius:4px; height:10px; overflow:hidden; width:100%;">
-                    <div style="width:${pct}%; background:linear-gradient(90deg, #f59e0b, #d97706); height:100%; border-radius:4px;"></div>
+                <div style="background:#f1f5f9; border-radius:6px; height:8px; overflow:hidden; width:100%; box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);">
+                    <div style="width:${pct}%; background:linear-gradient(90deg, #6366f1, #a855f7); height:100%; border-radius:6px; box-shadow:0 1px 3px rgba(99,102,241,0.3);"></div>
                 </div>
             </div>
         `;
@@ -1217,8 +1252,10 @@ window.atualizarGraficosComerciais = function(lista) {
     const containerMotivos = document.getElementById('container-grafico-motivos');
     if (containerMotivos) {
         containerMotivos.innerHTML = `
-            <h3 style="margin:0 0 1rem 0; font-size:0.9rem; font-weight:800; color:#1e293b;">Motivos de Perda (Top 5)</h3>
-            <div style="display:flex; flex-direction:column; justify-content:center; flex:1; overflow-y:auto; max-height:180px;">
+            <h3 style="margin:0 0 0.8rem 0; font-size:0.9rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                <i class="ph ph-warning-circle" style="color:#ea580c; font-size:1.05rem;"></i> Top Motivos de Perda
+            </h3>
+            <div style="display:flex; flex-direction:column; justify-content:center; flex:1; overflow-y:auto; max-height:130px; padding-top:0.25rem;">
                 ${paretoHtml}
             </div>
         `;
