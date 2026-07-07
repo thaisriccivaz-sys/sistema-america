@@ -842,6 +842,11 @@ window.switchPropostaTab = function(tab) {
 
             // Inicializar/re-sincronizar animações GSAP de entrada nos cards da nova tela
             if (window.initGSAPAnimations) window.initGSAPAnimations();
+
+            // Forçar recálculo de posições do ScrollTrigger de forma segura para os cards recém-exibidos
+            if (typeof ScrollTrigger !== 'undefined') {
+                ScrollTrigger.refresh();
+            }
         }, 150);
     } else {
         renderTelaPropostas();
@@ -8544,8 +8549,7 @@ window.renderizarProdutosPropostaGrid = function() {
             .filter(el => (el.offsetWidth > 0 || el.offsetHeight > 0) && !el.dataset.gsapInitialized);
             
         if (targets.length === 0) {
-            ScrollTrigger.refresh();
-            return;
+            return; // Retorna imediatamente sem nenhuma chamada de layout pesada (como refresh)
         }
 
         // Estado inicial com deslocamento suave para os novos elementos visíveis
@@ -8588,9 +8592,6 @@ window.renderizarProdutosPropostaGrid = function() {
             start: "top 95%",
             end: "bottom 5%"
         });
-
-        // Sincroniza posições de rolagem
-        ScrollTrigger.refresh();
     }
 
     // Debounce rápido (30ms) para execução instantânea após renderização
