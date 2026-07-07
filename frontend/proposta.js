@@ -4264,10 +4264,28 @@ function _renderCadastroContatosInt() {
         <div class="cc-container">
             <!-- Barra de Ferramentas -->
             <div class="cc-toolbar">
-                <!-- Badge Lado Esquerdo -->
-                <div style="background:#2e58a6; color:white; padding:0.45rem 0.9rem; border-radius:6px; font-weight:700; font-size:0.86rem; display:flex; align-items:center; gap:0.4rem; font-family:'Inter', sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <i class="ph ph-identification-card" style="font-size:1.15rem;"></i>
-                    Cadastro de Contatos
+                <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
+                <div class="saas-dropdown-container">
+                    <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
+                        <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
+                    </div>
+                    <div class="saas-dropdown-menu">
+                        <div class="saas-dropdown-item" onclick="abrirFormProposta(null); event.stopPropagation();">
+                            <i class="ph ph-pencil-simple"></i> Nova Proposta
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
+                            <i class="ph ph-user-plus"></i> Cadastro de Clientes
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                            <i class="ph ph-identification-card"></i> Cadastro de Contatos
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
+                            <i class="ph ph-map-pin"></i> Endereços
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
+                            <i class="ph ph-calculator"></i> Precificação de Serviços
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Botões de Ação (Lado Direito) -->
@@ -5998,10 +6016,28 @@ function _renderEnderecosInt() {
         <div class="cc-container-end">
             <!-- Barra de Ferramentas -->
             <div class="cc-toolbar-end">
-                <!-- Badge Lado Esquerdo -->
-                <div style="background:#2e58a6; color:white; padding:0.45rem 0.9rem; border-radius:6px; font-weight:700; font-size:0.86rem; display:flex; align-items:center; gap:0.4rem; font-family:'Inter', sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <i class="ph ph-map-pin" style="font-size:1.15rem;"></i>
-                    Clientes - Endereços Entrega
+                <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
+                <div class="saas-dropdown-container">
+                    <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
+                        <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
+                    </div>
+                    <div class="saas-dropdown-menu">
+                        <div class="saas-dropdown-item" onclick="abrirFormProposta(null); event.stopPropagation();">
+                            <i class="ph ph-pencil-simple"></i> Nova Proposta
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
+                            <i class="ph ph-user-plus"></i> Cadastro de Clientes
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                            <i class="ph ph-identification-card"></i> Cadastro de Contatos
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
+                            <i class="ph ph-map-pin"></i> Endereços
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
+                            <i class="ph ph-calculator"></i> Precificação de Serviços
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Botões de Ação (Lado Direito) -->
