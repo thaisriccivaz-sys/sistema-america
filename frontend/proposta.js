@@ -392,6 +392,7 @@ function renderTelaPropostas() {
                     color: #1e293b !important;
                     box-sizing: border-box !important;
                     line-height: normal !important;
+                    font-family: 'Inter', sans-serif !important;
                 }
                 [id^="prop-view-"] textarea {
                     padding: 0.3rem 0.45rem !important;
@@ -400,6 +401,7 @@ function renderTelaPropostas() {
                     border: 1px solid #cbd5e1 !important;
                     color: #1e293b !important;
                     box-sizing: border-box !important;
+                    font-family: 'Inter', sans-serif !important;
                 }
 
                 /* Alinhamento de botões de busca / addon / whatsapp com a altura de 28px */
@@ -5449,42 +5451,44 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                     overflow-y: auto;
                 }
                 .cc-section-title-modal {
-                    font-size: 0.8rem;
-                    font-weight: 800;
-                    color: #475569;
-                    text-transform: uppercase;
-                    letter-spacing: 0.04em;
-                    border-bottom: 2px solid #e2e8f0;
-                    padding-bottom: 0.25rem;
-                    margin: 0.8rem 0 0.5rem 0;
-                    display: flex;
-                    align-items: center;
-                    gap: 0.4rem;
+                    font-size: 0.8rem !important;
+                    font-weight: 800 !important;
+                    color: #475569 !important;
+                    text-transform: uppercase !important;
+                    letter-spacing: 0.04em !important;
+                    border-bottom: 2px solid #e2e8f0 !important;
+                    padding-bottom: 0.25rem !important;
+                    margin: 0.8rem 0 0.5rem 0 !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    gap: 0.4rem !important;
+                    font-family: 'Inter', sans-serif !important;
                 }
                 .cc-section-title-modal.first {
                     margin-top: 0;
                 }
                 .cc-input-modal, .cc-select-modal {
-                    padding: 0.15rem 0.45rem;
-                    border: 1px solid #cbd5e1;
-                    border-radius: 4px;
-                    font-size: 0.76rem;
-                    background: #fff;
-                    color: #1e293b;
-                    outline: none;
-                    transition: all 0.2s;
-                    box-sizing: border-box;
-                    width: 100%;
-                    height: 28px;
+                    padding: 0.15rem 0.45rem !important;
+                    border: 1px solid #cbd5e1 !important;
+                    border-radius: 4px !important;
+                    font-size: 0.76rem !important;
+                    background: #fff !important;
+                    color: #1e293b !important;
+                    outline: none !important;
+                    transition: all 0.2s !important;
+                    box-sizing: border-box !important;
+                    width: 100% !important;
+                    height: 28px !important;
+                    font-family: 'Inter', sans-serif !important;
                 }
                 .cc-input-modal:focus, .cc-select-modal:focus {
-                    border-color: #3b82f6;
-                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+                    border-color: #3b82f6 !important;
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
                 }
                 .cc-input-modal[readonly] {
-                    background: #f1f5f9;
-                    color: #64748b;
-                    cursor: not-allowed;
+                    background: #f1f5f9 !important;
+                    color: #64748b !important;
+                    cursor: not-allowed !important;
                 }
                 .cc-grid-modal {
                     display: grid;
@@ -5515,13 +5519,14 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                     }
                 }
                 .prop-lbl-modal {
-                    font-size: 0.7rem;
-                    font-weight: 700;
-                    color: #475569;
-                    text-transform: uppercase;
-                    letter-spacing: 0.03em;
-                    display: block;
-                    margin-bottom: 2px;
+                    font-size: 0.7rem !important;
+                    font-weight: 700 !important;
+                    color: #475569 !important;
+                    text-transform: uppercase !important;
+                    letter-spacing: 0.03em !important;
+                    display: block !important;
+                    margin-bottom: 2px !important;
+                    font-family: 'Inter', sans-serif !important;
                 }
             </style>
 
