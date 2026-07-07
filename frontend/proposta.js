@@ -341,30 +341,24 @@ function renderTelaPropostas() {
                     border-radius: 6px;
                 }
 
-                /* Regras de Uniformização de Fontes (Baseadas em Cadastro de Contatos) */
-                #view-comercial-proposta,
-                #view-comercial-proposta input,
-                #view-comercial-proposta select,
-                #view-comercial-proposta button,
-                #view-comercial-proposta textarea,
-                #view-comercial-proposta table,
-                #view-comercial-proposta label {
-                    font-family: 'Inter', sans-serif !important;
-                }
-
                 /* Rótulos dos Campos (Labels) */
-                .prop-lbl {
-                    font-size: 0.75rem !important;
+                .prop-lbl,
+                .prop-lbl-end,
+                [id^="prop-view-"] label {
+                    font-size: 0.7rem !important;
                     font-weight: 700 !important;
-                    color: #64748b !important;
+                    color: #475569 !important;
                     text-transform: uppercase !important;
-                    letter-spacing: 0.02em !important;
+                    letter-spacing: 0.03em !important;
                     display: block !important;
-                    margin-bottom: 0.25rem !important;
+                    margin-bottom: 0.15rem !important;
                 }
 
-                /* Títulos de Seção */
-                #form-proposta h4 {
+                /* Títulos de Seção / Painéis */
+                #form-proposta h4,
+                .cc-section-title,
+                .cc-section-title-end,
+                [id^="prop-view-"] h4 {
                     font-size: 0.8rem !important;
                     font-weight: 800 !important;
                     color: #475569 !important;
@@ -378,16 +372,9 @@ function renderTelaPropostas() {
                     gap: 0.4rem !important;
                 }
 
-                /* Tamanho de Fonte e Cor de Inputs, Selects e Textareas */
-                #form-cadastro-cliente input:not([type="checkbox"]),
-                #form-cadastro-cliente select {
-                    font-size: 0.85rem !important;
-                    color: #1e293b !important;
-                }
-
-                /* Estilo Profissional de ERP Web (Densa e Compacta) para o Form Nova Proposta */
-                #form-proposta input:not([type="checkbox"]),
-                #form-proposta select {
+                /* Estilo Profissional de ERP Web (Densa e Compacta) para todos os formulários comerciais */
+                [id^="prop-view-"] input:not([type="checkbox"]):not([type="radio"]),
+                [id^="prop-view-"] select {
                     height: 28px !important;
                     padding: 0.15rem 0.45rem !important;
                     font-size: 0.76rem !important;
@@ -397,7 +384,7 @@ function renderTelaPropostas() {
                     box-sizing: border-box !important;
                     line-height: normal !important;
                 }
-                #form-proposta textarea {
+                [id^="prop-view-"] textarea {
                     padding: 0.3rem 0.45rem !important;
                     font-size: 0.76rem !important;
                     border-radius: 4px !important;
@@ -405,38 +392,62 @@ function renderTelaPropostas() {
                     color: #1e293b !important;
                     box-sizing: border-box !important;
                 }
-                #form-proposta label.prop-lbl {
-                    font-size: 0.7rem !important;
-                    font-weight: 700 !important;
-                    color: #475569 !important;
-                    margin-bottom: 0.15rem !important;
-                    text-transform: uppercase !important;
-                    letter-spacing: 0.03em !important;
-                }
-                /* Alinhamento de botões de busca / addon com a altura de 28px */
-                #form-proposta button[style*="height:36px"],
-                #form-proposta button[style*="height: 36px"],
-                #form-proposta button[style*="height:38px"],
-                #form-proposta button[style*="height: 38px"] {
+
+                /* Alinhamento de botões de busca / addon / whatsapp com a altura de 28px */
+                [id^="prop-view-"] form button,
+                [id^="prop-view-"] .prec-container button,
+                [id^="prop-view-"] .cc-grid-end-row1 button,
+                [id^="prop-view-"] .cc-grid-contact-row1 button,
+                [id^="prop-view-"] button[style*="height:36px"],
+                [id^="prop-view-"] button[style*="height: 36px"],
+                [id^="prop-view-"] button[style*="height:38px"],
+                [id^="prop-view-"] button[style*="height: 38px"],
+                [id^="prop-view-"] button[class*="btn-addon"] {
                     height: 28px !important;
-                    width: 28px !important;
+                    font-size: 0.76rem !important;
+                    padding: 0 0.65rem !important;
                     border-radius: 4px !important;
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    gap: 4px !important;
                 }
-                #form-proposta button[style*="height:36px"] i,
-                #form-proposta button[style*="height:38px"] i {
+                
+                [id^="prop-view-"] form button i,
+                [id^="prop-view-"] .prec-container button i,
+                [id^="prop-view-"] button[class*="btn-addon"] i {
                     font-size: 0.9rem !important;
                 }
-                /* Compactar espaçamento vertical e horizontal nos grids do form */
-                #form-proposta div[style*="display:grid"] {
+
+                /* Definir largura fixa de 28px para botões que contêm apenas ícones de busca, whatsapp e visualização */
+                [id^="prop-view-"] form button[title*="Pesquisar"],
+                [id^="prop-view-"] form button[onclick*="WhatsApp"],
+                [id^="prop-view-"] form button[onclick*="abrirWhatsApp"],
+                [id^="prop-view-"] form button[onclick*="CEP"],
+                [id^="prop-view-"] form button[onclick*="CNPJ"],
+                [id^="prop-view-"] form button[title*="Buscar"],
+                [id^="prop-view-"] form button[onclick*="verDetalhesContato"],
+                [id^="prop-view-"] form button[onclick*="recarregar"],
+                [id^="prop-view-"] form button[title*="Recarregar"] {
+                    width: 28px !important;
+                    padding: 0 !important;
+                }
+
+                /* Compactar espaçamento vertical e horizontal nos grids e painéis */
+                [id^="prop-view-"] div[style*="display:grid"],
+                [id^="prop-view-"] div[style*="display: grid"] {
                     gap: 0.4rem 0.6rem !important;
                 }
-                #form-proposta div[style*="margin-bottom:1rem"] {
+                [id^="prop-view-"] div[style*="margin-bottom:1rem"],
+                [id^="prop-view-"] div[style*="margin-bottom: 1rem"],
+                [id^="prop-view-"] div[style*="margin-bottom:0.85rem"],
+                [id^="prop-view-"] div[style*="margin-bottom: 0.85rem"] {
                     margin-bottom: 0.5rem !important;
                 }
-                #form-proposta div[style*="margin-bottom:0.85rem"] {
-                    margin-bottom: 0.4rem !important;
-                }
-                #form-proposta div[style*="margin-top:1rem"] {
+                [id^="prop-view-"] div[style*="margin-top:1rem"],
+                [id^="prop-view-"] div[style*="margin-top: 1rem"],
+                [id^="prop-view-"] div[style*="margin-top:0.85rem"],
+                [id^="prop-view-"] div[style*="margin-top: 0.85rem"] {
                     margin-top: 0.4rem !important;
                 }
                 /* Tabela de itens da proposta compactada */
