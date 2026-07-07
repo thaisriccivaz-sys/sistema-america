@@ -2608,11 +2608,11 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                 <!-- Controles de e-mail e botão novo contato -->
                                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
                                     <div style="display:flex; align-items:center; gap:8px; font-weight:600; font-family:'Inter', sans-serif; font-size:0.85rem; color:#475569;">
-                                        <span>Dados para Envio de E-Mail Cobranças: Enviar com</span>
+                                        <span>E-mail de Cobrança: Enviar</span>
                                         <input type="number" id="modal-cli-email-cob-antecedencia" value="${client ? (client.email_cob_antecedencia || 5) : 5}" style="width:45px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:6px; height:30px; box-sizing:border-box; outline:none; font-family:'Inter', sans-serif;">
-                                        <span>dias de antecedência e</span>
+                                        <span>dias antes e</span>
                                         <input type="number" id="modal-cli-email-cob-posterior" value="${client ? (client.email_cob_posterior || 5) : 5}" style="width:45px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:6px; height:30px; box-sizing:border-box; outline:none; font-family:'Inter', sans-serif;">
-                                        <span>dias posterior ao Vencimento</span>
+                                        <span>dias após o vencimento</span>
                                     </div>
                                     <div style="display:flex; gap:0.5rem; align-items:center;">
                                         <button type="button" onclick="window.modalAbrirPesquisaContatoCliente()" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s; height:28px;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
@@ -4234,11 +4234,11 @@ function _renderCadastroClienteInt() {
                             <!-- Controles de e-mail e botão novo contato -->
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
                                 <div style="display:flex; align-items:center; gap:8px; font-weight:600; font-family:'Inter', sans-serif; font-size:0.85rem; color:#475569;">
-                                    <span>Dados para Envio de E-Mail Cobranças: Enviar com</span>
+                                    <span>E-mail de Cobrança: Enviar</span>
                                     <input type="number" id="cli-email-cob-antecedencia" value="5" style="width:45px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:6px; height:30px; box-sizing:border-box; outline:none; font-family:'Inter', sans-serif;">
-                                    <span>dias de antecedência e</span>
+                                    <span>dias antes e</span>
                                     <input type="number" id="cli-email-cob-posterior" value="5" style="width:45px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:6px; height:30px; box-sizing:border-box; outline:none; font-family:'Inter', sans-serif;">
-                                    <span>dias posterior ao Vencimento</span>
+                                    <span>dias após o vencimento</span>
                                 </div>
                                 <div style="display:flex; gap:0.5rem; align-items:center;">
                                     <button onclick="abrirModalPesquisaContatoCliente()" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
