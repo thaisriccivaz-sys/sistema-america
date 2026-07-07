@@ -8748,13 +8748,13 @@ window.abrirModalPesquisaPropostas = async function() {
                 const dataFmt = p.data_cadastro ? p.data_cadastro.split('-').reverse().join('/') : '';
                 return `
                     <tr ondblclick="window.selecionarPropostaBusca(${p.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                        <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center;">${p.codigo || '—'}</td>
+                        <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${p.codigo || '—'}</td>
                         <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.cliente_nome || '—'}</td>
-                        <td style="padding:10px 12px; color:#475569;">${p.cliente_cnpj || '—'}</td>
-                        <td style="padding:10px 12px; color:#475569; text-align:center;">${dataFmt}</td>
-                        <td style="padding:10px 12px; font-weight:700; color:#16a34a; text-align:right;">${totalFmt}</td>
-                        <td style="padding:10px 12px; color:#475569; text-align:center;">${p.fase_negociacao || '—'}</td>
-                        <td style="padding:10px 12px; color:#475569; text-align:center;">${p.status || '—'}</td>
+                        <td style="padding:10px 12px; color:#475569; white-space:nowrap;">${p.cliente_cnpj || '—'}</td>
+                        <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${dataFmt}</td>
+                        <td style="padding:10px 12px; font-weight:700; color:#16a34a; text-align:right; white-space:nowrap;">${totalFmt}</td>
+                        <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${p.fase_negociacao || '—'}</td>
+                        <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${p.status || '—'}</td>
                     </tr>
                 `;
             }).join('');
@@ -8794,13 +8794,13 @@ window.abrirModalPesquisaPropostas = async function() {
                             <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:80px;">Código</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:110px; white-space:nowrap;">Código</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2;">Razão Social</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:130px;">CNPJ</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:90px;">Data</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:right; width:100px;">Valor</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:90px;">Fase</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:80px;">Status</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:130px; white-space:nowrap;">CNPJ</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:120px; white-space:nowrap;">Data</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:right; width:130px; white-space:nowrap;">Valor</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:180px; white-space:nowrap;">Fase</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:90px; white-space:nowrap;">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody id="modal-proposta-tbody">
