@@ -1238,7 +1238,7 @@ window.atualizarGraficosComerciais = function(lista) {
         totalPropostas++;
 
         const valor = typeof p.valor_total === 'number' ? p.valor_total : parseFloat(p.valor_total) || 0;
-        if (fase === 'Aprovada' || fase === 'Convertida em OS') {
+        if (fase === 'Convertida em OS') {
             totalConvertido += valor;
         } else if (fase === 'Reprovada' || fase === 'Cancelada') {
             totalReprovado += valor;
