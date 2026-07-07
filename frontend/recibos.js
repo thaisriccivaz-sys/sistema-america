@@ -432,10 +432,10 @@ function _buildRecibosLayout(mesAt, anoAt) {
         onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
         <i class="ph ph-list-numbers" style="font-size:1.1rem;"></i> Conferência do Ponto
       </button>
-      <button id="btn-exportar-excel" onclick="window.exportarExcelRecibos()"
-        style="display:flex;align-items:center;gap:8px;padding:.65rem 1.4rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .2s;"
+      <button id="btn-exportar-excel" onclick="window.exportarExcelRecibos()" title="Exportar Excel"
+        style="display:flex;align-items:center;justify-content:center;width:42px;height:42px;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:10px;cursor:pointer;transition:background .2s;flex-shrink:0;padding:0;"
         onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f0fdf4'">
-        <i class="ph ph-file-xls" style="font-size:1.1rem;"></i> Exportar Excel
+        <i class="ph ph-file-xls" style="font-size:1.4rem;"></i>
       </button>
       <button id="btn-anexar-massa" onclick="window.anexarRecibosDocsMassa()"
         style="display:none;align-items:center;gap:8px;padding:.65rem 1.4rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(16,185,129,.35);">
@@ -1124,7 +1124,7 @@ window.exportarExcelRecibos = async function() {
 
     const btn = document.getElementById('btn-exportar-excel');
     const btnHtml = btn ? btn.innerHTML : '';
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Exportando...'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;font-size:1.4rem;"></i>'; }
 
     try {
         const workbook = new ExcelJS.Workbook();
