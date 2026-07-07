@@ -2874,17 +2874,17 @@ function _renderCadastroClienteInt() {
         <style>
             #form-cadastro-cliente input:not([type="checkbox"]),
             #form-cadastro-cliente select {
-                padding: 0.55rem 0.75rem !important;
+                padding: 0.15rem 0.45rem !important;
                 border: 1px solid #cbd5e1 !important;
-                border-radius: 6px !important;
-                font-size: 0.85rem !important;
+                border-radius: 4px !important;
+                font-size: 0.76rem !important;
                 background: #fff !important;
                 color: #1e293b !important;
                 outline: none !important;
                 transition: all 0.2s !important;
                 box-sizing: border-box !important;
                 width: 100% !important;
-                height: 38px !important;
+                height: 28px !important;
             }
             #form-cadastro-cliente input:not([type="checkbox"]):focus,
             #form-cadastro-cliente select:focus {
@@ -2897,8 +2897,8 @@ function _renderCadastroClienteInt() {
                 cursor: not-allowed !important;
             }
             #form-cadastro-cliente button {
-                border-radius: 6px !important;
-                height: 38px !important;
+                border-radius: 4px !important;
+                height: 28px !important;
                 box-sizing: border-box !important;
                 transition: all 0.2s !important;
                 display: inline-flex !important;
@@ -2909,6 +2909,8 @@ function _renderCadastroClienteInt() {
             #form-cadastro-cliente button[id="btn-busca-cnpj"],
             #form-cadastro-cliente button[title="Buscar CEP"] {
                 background-color: #16a34a !important;
+                width: 28px !important;
+                padding: 0 !important;
             }
             #form-cadastro-cliente button[title="Buscar Cliente"]:hover,
             #form-cadastro-cliente button[id="btn-busca-cnpj"]:hover,
@@ -2917,6 +2919,8 @@ function _renderCadastroClienteInt() {
             }
             #form-cadastro-cliente button[title="Limpar/Novo"] {
                 background-color: #475569 !important;
+                font-size: 0.76rem !important;
+                padding: 0 0.65rem !important;
             }
             #form-cadastro-cliente button[title="Limpar/Novo"]:hover {
                 background-color: #334155 !important;
