@@ -191,6 +191,16 @@ function renderTelaPropostas() {
                     border-radius: 12px !important;
                     overflow: hidden !important;
                 }
+                .custom-swal-client-modal {
+                    width: 1700px !important;
+                    max-width: 95% !important;
+                    height: 540px !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    padding: 0 !important;
+                    border-radius: 12px !important;
+                    overflow: hidden !important;
+                }
                 .custom-swal-padding-zero {
                     padding: 0 !important;
                     border-radius: 12px !important;
@@ -2207,9 +2217,9 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
 
     Swal.fire({
         title: '',
-        width: '1500px',
+        width: '1700px',
         customClass: {
-            popup: 'custom-swal-height-large'
+            popup: 'custom-swal-client-modal'
         },
         showConfirmButton: false,
         html: `
