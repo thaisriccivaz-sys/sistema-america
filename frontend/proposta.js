@@ -4474,9 +4474,7 @@ function _renderCadastroContatosInt() {
                             <div class="cc-field">
                                 <label>Código</label>
                                 <div class="cc-input-group">
-                                    <button onclick="navegarContato('anterior')" class="cc-btn-addon secondary" title="Anterior"><i class="ph ph-caret-left"></i></button>
                                     <input type="text" id="con-codigo" readonly placeholder="Auto" class="cc-input" style="text-align: center; font-weight: bold; color: #7048e8;">
-                                    <button onclick="navegarContato('proximo')" class="cc-btn-addon secondary" title="Próximo"><i class="ph ph-caret-right"></i></button>
                                     <button onclick="abrirModalPesquisaContato()" class="cc-btn-addon" title="Buscar Contato"><i class="ph ph-magnifying-glass"></i></button>
                                 </div>
                             </div>
