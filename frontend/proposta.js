@@ -94,95 +94,6 @@ function renderTelaPropostas() {
     const container = document.getElementById('view-comercial-proposta');
     if (!container) return;
 
-    // --- PROCESSAMENTO DE DADOS COMERCIAIS & BI ---
-    const statusCounts = {};
-    let totalPropostas = 0;
-    let totalConvertido = 0;
-    let totalReprovado = 0;
-    const motivoCounts = {};
-
-    _dashboardStatsData.forEach(p => {
-        const fase = p.fase_negociacao || 'Em Elaboração';
-        statusCounts[fase] = (statusCounts[fase] || 0) + 1;
-        totalPropostas++;
-
-        const valor = typeof p.valor_total === 'number' ? p.valor_total : parseFloat(p.valor_total) || 0;
-        if (fase === 'Aprovada' || fase === 'Convertida em OS') {
-            totalConvertido += valor;
-        } else if (fase === 'Reprovada' || fase === 'Cancelada') {
-            totalReprovado += valor;
-        }
-
-        const motivo = p.motivo_reprovacao;
-        if (motivo && motivo !== 'N/A' && motivo !== '') {
-            motivoCounts[motivo] = (motivoCounts[motivo] || 0) + 1;
-        }
-    });
-
-    // 1. Rosca Status
-    const fasesLabels = ['Aprovada', 'Reprovada', 'Cancelada', 'Aguardando Aprovação', 'Em Elaboração'];
-    const coresFases = {
-        'Aprovada': '#10b981',
-        'Reprovada': '#ef4444',
-        'Cancelada': '#f97316',
-        'Aguardando Aprovação': '#3b82f6',
-        'Em Elaboração': '#94a3b8'
-    };
-    let currentPct = 0;
-    const fatias = [];
-    fasesLabels.forEach(f => {
-        const count = statusCounts[f] || 0;
-        if (count > 0 && totalPropostas > 0) {
-            const pct = (count / totalPropostas) * 100;
-            fatias.push({
-                color: coresFases[f] || '#94a3b8',
-                start: currentPct,
-                end: currentPct + pct,
-                fase: f,
-                count: count
-            });
-            currentPct += pct;
-        }
-    });
-    if (fatias.length === 0) {
-        fatias.push({ color: '#e2e8f0', start: 0, end: 100, fase: 'Sem dados', count: 0 });
-    }
-    const gradientParts = fatias.map(f => `${f.color} ${f.start}% ${f.end}%`).join(', ');
-    const conicGradientStyle = `background: conic-gradient(${gradientParts});`;
-    const legendaHtml = fatias.map(f => `
-        <div style="display:flex; align-items:center; gap:4px; font-size:0.62rem; color:#475569; font-weight:600;">
-            <span style="width:6px; height:6px; background:${f.color}; display:inline-block; border-radius:50%; flex-shrink:0;"></span>
-            <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:85px;" title="${f.fase}">${f.fase}: ${f.count}</span>
-        </div>
-    `).join('');
-
-    // 2. Comparativo Financeiro
-    const maxVal = Math.max(totalConvertido, totalReprovado, 1);
-    const pctConvertido = (totalConvertido / maxVal) * 90;
-    const pctReprovado = (totalReprovado / maxVal) * 90;
-    const totalConvertidoFmt = totalConvertido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    const totalReprovadoFmt = totalReprovado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-    // 3. Pareto Motivos
-    const motivosOrdenados = Object.entries(motivoCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
-    const maxMotivoCount = motivosOrdenados.length > 0 ? motivosOrdenados[0][1] : 1;
-    const paretoHtml = motivosOrdenados.length > 0 ? motivosOrdenados.map(([motivo, count]) => {
-        const pct = (count / maxMotivoCount) * 100;
-        return `
-            <div style="display:flex; flex-direction:column; gap:2px; font-size:0.75rem; margin-bottom:0.6rem;">
-                <div style="display:flex; justify-content:space-between; font-weight:700; color:#475569;">
-                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px;" title="${motivo}">${motivo}</span>
-                    <span style="color:#1e293b;">${count}</span>
-                </div>
-                <div style="background:#f1f5f9; border-radius:4px; height:10px; overflow:hidden; width:100%;">
-                    <div style="width:${pct}%; background:linear-gradient(90deg, #f59e0b, #d97706); height:100%; border-radius:4px;"></div>
-                </div>
-            </div>
-        `;
-    }).join('') : `<div style="text-align:center; padding:2.5rem 0; color:#94a3b8; font-style:italic; font-size:0.8rem;">Nenhum motivo registrado.</div>`;
-
     const hoje = new Date().toLocaleDateString('pt-BR');
 
     container.innerHTML = `
@@ -558,46 +469,18 @@ function renderTelaPropostas() {
                 <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:1rem; margin-bottom:1rem;">
                     
                     <!-- Coluna 1: Rosca Status -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; align-items:center; min-height:260px; box-sizing:border-box;">
-                        <h3 style="margin:0 0 1rem 0; font-size:0.9rem; font-weight:800; color:#1e293b; align-self:flex-start;">Proporção de Status</h3>
-                        <div style="width:120px; height:120px; border-radius:50%; ${conicGradientStyle} display:flex; align-items:center; justify-content:center; margin:0 auto; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
-                            <div style="width:80px; height:80px; border-radius:50%; background:#ffffff; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                                <span style="font-size:1.15rem; font-weight:800; color:#1e293b;">${totalPropostas}</span>
-                                <span style="font-size:0.6rem; color:#64748b; font-weight:600; text-transform:uppercase;">Total</span>
-                            </div>
-                        </div>
-                        <div style="width:100%; display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:0.75rem; justify-content:center; max-height:80px; overflow-y:auto;">
-                            ${legendaHtml}
-                        </div>
+                    <div id="container-grafico-rosca" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; align-items:center; min-height:260px; box-sizing:border-box;">
+                        <!-- Preenchido via JS -->
                     </div>
 
                     <!-- Coluna 2: Comparativo Financeiro -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; min-height:260px; box-sizing:border-box;">
-                        <h3 style="margin:0 0 1rem 0; font-size:0.9rem; font-weight:800; color:#1e293b;">Conversão Financeira</h3>
-                        <div style="display:flex; gap:1.5rem; justify-content:center; align-items:flex-end; height:120px; border-bottom:1px solid #cbd5e1; padding-bottom:8px; box-sizing:border-box; margin-bottom:8px; flex:1;">
-                            <!-- Convertido -->
-                            <div style="display:flex; flex-direction:column; align-items:center; width:65px;">
-                                <span style="font-size:0.65rem; font-weight:700; color:#16a34a; margin-bottom:4px; text-align:center; overflow:hidden; text-overflow:ellipsis; max-width:65px;" title="${totalConvertidoFmt}">${totalConvertidoFmt}</span>
-                                <div style="width:30px; height:${Math.round(pctConvertido)}px; background:linear-gradient(180deg,#10b981,#059669); border-radius:4px 4px 0 0;" title="Convertido"></div>
-                            </div>
-                            <!-- Perdido -->
-                            <div style="display:flex; flex-direction:column; align-items:center; width:65px;">
-                                <span style="font-size:0.65rem; font-weight:700; color:#dc2626; margin-bottom:4px; text-align:center; overflow:hidden; text-overflow:ellipsis; max-width:65px;" title="${totalReprovadoFmt}">${totalReprovadoFmt}</span>
-                                <div style="width:30px; height:${Math.round(pctReprovado)}px; background:linear-gradient(180deg,#ef4444,#dc2626); border-radius:4px 4px 0 0;" title="Perdido"></div>
-                            </div>
-                        </div>
-                        <div style="display:flex; gap:1.5rem; justify-content:center; font-size:0.7rem; font-weight:700; color:#64748b; margin-top:4px;">
-                            <span style="width:65px; text-align:center;">Aprovado</span>
-                            <span style="width:65px; text-align:center;">Perdido</span>
-                        </div>
+                    <div id="container-grafico-conversao" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; min-height:260px; box-sizing:border-box;">
+                        <!-- Preenchido via JS -->
                     </div>
 
                     <!-- Coluna 3: Pareto Motivos -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; min-height:260px; box-sizing:border-box;">
-                        <h3 style="margin:0 0 1rem 0; font-size:0.9rem; font-weight:800; color:#1e293b;">Motivos de Perda (Top 5)</h3>
-                        <div style="display:flex; flex-direction:column; justify-content:center; flex:1; overflow-y:auto; max-height:180px;">
-                            ${paretoHtml}
-                        </div>
+                    <div id="container-grafico-motivos" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; min-height:260px; box-sizing:border-box;">
+                        <!-- Preenchido via JS -->
                     </div>
 
                 </div>
@@ -796,95 +679,59 @@ function renderTelaPropostas() {
                     </div>
                 </div>
 
-                <!-- 4. Bottom Section (Detailed Operational Table) -->
+                <!-- 4. Bottom Section (Filtros e Tabela de Propostas) -->
                 <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:1rem;">
-                    <h3 style="margin:0 0 1rem 0; font-size:0.95rem; font-weight:800; color:#1e293b;">Ordens de Serviço e Status de Ativos (Próximos Vencimentos)</h3>
-                    <div style="overflow-x:auto;">
-                        <table style="width:100%; border-collapse:collapse; font-size:0.83rem; text-align:left;">
-                            <thead>
-                                <tr style="border-bottom:2px solid #e2e8f0; background:#f8fafc; color:#475569;">
-                                    <th style="padding:0.6rem 0.75rem; font-weight:700; white-space:nowrap;">ID OS</th>
-                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">Cliente</th>
-                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">Ativo Principal</th>
-                                    <th style="padding:0.6rem 0.75rem; font-weight:700; white-space:nowrap;">Início</th>
-                                    <th style="padding:0.6rem 0.75rem; font-weight:700; white-space:nowrap;">Fim</th>
-                                    <th style="padding:0.6rem 0.75rem; font-weight:700;">Status</th>
-                                    <th style="padding:0.6rem 0.75rem; font-weight:700; text-align:center; white-space:nowrap;">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody style="color:#1e293b;">
-                                <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                                    <td style="padding:0.6rem 0.75rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1024</td>
-                                    <td style="padding:0.6rem 0.75rem; font-weight:600;">Construtora Rio</td>
-                                    <td style="padding:0.6rem 0.75rem; color:#475569;">Escavadeira Komatsu A1</td>
-                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">10/01/2024</td>
-                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">17/01/2024</td>
-                                    <td style="padding:0.6rem 0.75rem;">
-                                        <span style="background:#fef3c7; color:#d97706; padding:3px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;"><i class="ph ph-clock" style="vertical-align:middle;"></i> Em Aluguel (Ativo)</span>
-                                    </td>
-                                    <td style="padding:0.6rem 0.75rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
-                                        <i class="ph ph-eye" title="Ver Proposta" style="color:#3b82f6; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(1)"></i>
-                                        <i class="ph ph-file-text" title="Gerar Nota" style="color:#10b981; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1"></i>
-                                    </td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                                    <td style="padding:0.6rem 0.75rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1025</td>
-                                    <td style="padding:0.6rem 0.75rem; font-weight:600;">Engenharia Tech</td>
-                                    <td style="padding:0.6rem 0.75rem; color:#475569;">Serviço Técnico Manutenção</td>
-                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">15/01/2024</td>
-                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">15/01/2024</td>
-                                    <td style="padding:0.6rem 0.75rem;">
-                                        <span style="background:#dcfce7; color:#16a34a; padding:3px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;"><i class="ph ph-check-circle" style="vertical-align:middle;"></i> Concluído</span>
-                                    </td>
-                                    <td style="padding:0.6rem 0.75rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
-                                        <i class="ph ph-eye" title="Visualizar" style="color:#3b82f6; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(2)"></i>
-                                        <i class="ph ph-receipt" title="Faturar" style="color:#7048e8; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1"></i>
-                                    </td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                                    <td style="padding:0.6rem 0.75rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1026</td>
-                                    <td style="padding:0.6rem 0.75rem; font-weight:600;">Mineração Vale</td>
-                                    <td style="padding:0.6rem 0.75rem; color:#475569;">Gerador 500kVA Cat</td>
-                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">18/01/2024</td>
-                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">18/02/2024</td>
-                                    <td style="padding:0.6rem 0.75rem;">
-                                        <span style="background:#fef3c7; color:#d97706; padding:3px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;"><i class="ph ph-clock" style="vertical-align:middle;"></i> Em Aluguel (Ativo)</span>
-                                    </td>
-                                    <td style="padding:0.6rem 0.75rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
-                                        <i class="ph ph-eye" title="Visualizar" style="color:#3b82f6; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(3)"></i>
-                                        <i class="ph ph-file-text" title="Gerar Nota" style="color:#10b981; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1"></i>
-                                    </td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                                    <td style="padding:0.6rem 0.75rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1027</td>
-                                    <td style="padding:0.6rem 0.75rem; font-weight:600;">Infraestrutura BR</td>
-                                    <td style="padding:0.6rem 0.75rem; color:#475569;">Plataforma Articulada JLG</td>
-                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">22/01/2024</td>
-                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">29/01/2024</td>
-                                    <td style="padding:0.6rem 0.75rem;">
-                                        <span style="background:#fee2e2; color:#ef4444; padding:3px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;"><i class="ph ph-warning-circle" style="vertical-align:middle;"></i> Manutenção Pendente</span>
-                                    </td>
-                                    <td style="padding:0.6rem 0.75rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
-                                        <i class="ph ph-eye" title="Visualizar" style="color:#3b82f6; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(4)"></i>
-                                        <i class="ph ph-wrench" title="Gerar Chamado" style="color:#ea580c; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1"></i>
-                                    </td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                                    <td style="padding:0.6rem 0.75rem; font-weight:700; color:#7048e8; white-space:nowrap;">OS-1028</td>
-                                    <td style="padding:0.6rem 0.75rem; font-weight:600;">Logística Express</td>
-                                    <td style="padding:0.6rem 0.75rem; color:#475569;">Empilhadeira Hyster 2.5</td>
-                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">25/01/2024</td>
-                                    <td style="padding:0.6rem 0.75rem; color:#64748b; white-space:nowrap;">25/02/2024</td>
-                                    <td style="padding:0.6rem 0.75rem;">
-                                        <span style="background:#dcfce7; color:#16a34a; padding:3px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;"><i class="ph ph-check-circle" style="vertical-align:middle;"></i> Concluído</span>
-                                    </td>
-                                    <td style="padding:0.6rem 0.75rem; text-align:center; white-space:nowrap; font-size: 1.1rem; color:#64748b; display:flex; align-items:center; justify-content:center; gap:10px;">
-                                        <i class="ph ph-eye" title="Visualizar" style="color:#3b82f6; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(5)"></i>
-                                        <i class="ph ph-receipt" title="Faturar" style="color:#7048e8; cursor:pointer;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1"></i>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <h3 style="margin:0 0 1rem 0; font-size:0.95rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-file-text" style="color:#7048e8;"></i> Gestão de Propostas Comerciais
+                    </h3>
+                    
+                    <!-- Filtros -->
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0.9rem 1.1rem; margin-bottom:1rem;">
+                        <div style="display:flex; flex-wrap:wrap; gap:0.6rem; align-items:center;">
+                            <input id="prop-filtro-texto" type="text" placeholder="🔍 Buscar por cliente, código, tipo..."
+                                oninput="filtrarPropostas()"
+                                style="flex:2; min-width:200px; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
+                            <select id="prop-filtro-fase" onchange="filtrarPropostas()"
+                                style="flex:1; min-width:160px; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
+                                <option value="">Todas as Fases</option>
+                                ${PROP_FASES.map(f => `<option value="${f}">${f}</option>`).join('')}
+                            </select>
+                            <input id="prop-filtro-de" type="date" title="Período de" onchange="filtrarPropostas()"
+                                style="flex:0 0 auto; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
+                            <input id="prop-filtro-ate" type="date" title="Período até" onchange="filtrarPropostas()"
+                                style="flex:0 0 auto; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
+                            <button onclick="limparFiltrosPropostas()" style="padding:0.45rem 0.85rem; background:#cbd5e1; border:none; border-radius:6px; cursor:pointer; font-size:0.83rem; color:#1e293b; font-weight:600;">
+                                ✕ Limpar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tabela -->
+                    <div style="background:#fff; border-radius:10px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.83rem; min-width:900px; text-align:left;">
+                                <thead>
+                                    <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0; color:#475569;">
+                                        <th style="padding:0.6rem 0.75rem; font-weight:700; white-space:nowrap;">Código</th>
+                                        <th style="padding:0.6rem 0.75rem; font-weight:700;">Cliente</th>
+                                        <th style="padding:0.6rem 0.75rem; font-weight:700;">Tipo</th>
+                                        <th style="padding:0.6rem 0.75rem; font-weight:700;">Fase</th>
+                                        <th style="padding:0.6rem 0.75rem; font-weight:700; white-space:nowrap;">Valor Total</th>
+                                        <th style="padding:0.6rem 0.75rem; font-weight:700; text-align:center; white-space:nowrap;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="prop-tbody" style="color:#1e293b;">
+                                    <!-- Preenchido dinamicamente via filtrarPropostas() -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;">
+                        <span style="font-size:0.75rem; color:#94a3b8; font-style:italic;">* Clique nos ícones para Visualizar, Editar ou Excluir uma proposta.</span>
+                        <p id="prop-count" style="font-size:0.8rem; color:#64748b; font-weight:700; margin:0;">
+                            0 proposta(s) encontrada(s)
+                        </p>
                     </div>
                 </div>
 
@@ -926,6 +773,7 @@ function renderTelaPropostas() {
         setTimeout(() => {
             if (window.atualizarTabela5W2H) window.atualizarTabela5W2H();
             if (window.atualizarTabelaCurvaABC) window.atualizarTabelaCurvaABC();
+            filtrarPropostas();
         }, 0);
     }
 }
@@ -993,6 +841,7 @@ window.switchPropostaTab = function(tab) {
         if (tab === 'lista') {
             if (window.atualizarTabela5W2H) window.atualizarTabela5W2H();
             if (window.atualizarTabelaCurvaABC) window.atualizarTabelaCurvaABC();
+            filtrarPropostas();
         }
     } else {
         renderTelaPropostas();
@@ -1061,6 +910,159 @@ function _renderLinhasPropostas(lista) {
     }).join('');
 }
 
+/* ── Atualização Dinâmica de Gráficos e BI ──────────────────────────────── */
+window.atualizarGraficosComerciais = function(lista) {
+    if (!Array.isArray(lista)) return;
+
+    // --- PROCESSAMENTO DE DADOS COMERCIAIS & BI ---
+    const statusCounts = {};
+    let totalPropostas = 0;
+    let totalConvertido = 0;
+    let totalReprovado = 0;
+    const motivoCounts = {};
+
+    lista.forEach(p => {
+        const fase = p.fase_negociacao || 'Em Elaboração';
+        statusCounts[fase] = (statusCounts[fase] || 0) + 1;
+        totalPropostas++;
+
+        const valor = typeof p.valor_total === 'number' ? p.valor_total : parseFloat(p.valor_total) || 0;
+        if (fase === 'Aprovada' || fase === 'Convertida em OS') {
+            totalConvertido += valor;
+        } else if (fase === 'Reprovada' || fase === 'Cancelada') {
+            totalReprovado += valor;
+        }
+
+        const motivo = p.motivo_reprovacao;
+        if (motivo && motivo !== 'N/A' && motivo !== '') {
+            motivoCounts[motivo] = (motivoCounts[motivo] || 0) + 1;
+        }
+    });
+
+    // 1. Rosca Status
+    const fasesLabels = ['Em Elaboração', 'Proposta Enviada', 'Em Negociação', 'Aguardando Aprovação', 'Aprovada', 'Reprovada', 'Cancelada', 'Convertida em OS'];
+    const coresFases = {
+        'Em Elaboração': '#94a3b8',
+        'Proposta Enviada': '#eab308',
+        'Em Negociação': '#f97316',
+        'Aguardando Aprovação': '#a855f7',
+        'Aprovada': '#10b981',
+        'Reprovada': '#ef4444',
+        'Cancelada': '#64748b',
+        'Convertida em OS': '#3b82f6'
+    };
+
+    let currentPct = 0;
+    const fatias = [];
+    fasesLabels.forEach(f => {
+        const count = statusCounts[f] || 0;
+        if (count > 0 && totalPropostas > 0) {
+            const pct = (count / totalPropostas) * 100;
+            fatias.push({
+                color: coresFases[f] || '#94a3b8',
+                start: currentPct,
+                end: currentPct + pct,
+                fase: f,
+                count: count
+            });
+            currentPct += pct;
+        }
+    });
+    if (fatias.length === 0) {
+        fatias.push({ color: '#e2e8f0', start: 0, end: 100, fase: 'Sem dados', count: 0 });
+    }
+    const gradientParts = fatias.map(f => `${f.color} ${f.start}% ${f.end}%`).join(', ');
+    const conicGradientStyle = `background: conic-gradient(${gradientParts});`;
+    
+    const legendaHtml = fatias.map(f => `
+        <div style="display:flex; align-items:center; gap:4px; font-size:0.62rem; color:#475569; font-weight:600;">
+            <span style="width:6px; height:6px; background:${f.color}; display:inline-block; border-radius:50%; flex-shrink:0;"></span>
+            <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:85px;" title="${f.fase}">${f.fase}: ${f.count}</span>
+        </div>
+    `).join('');
+
+    const containerRosca = document.getElementById('container-grafico-rosca');
+    if (containerRosca) {
+        containerRosca.innerHTML = `
+            <h3 style="margin:0 0 1rem 0; font-size:0.9rem; font-weight:800; color:#1e293b; align-self:flex-start;">Proporção de Status</h3>
+            <div style="width:120px; height:120px; border-radius:50%; ${conicGradientStyle} display:flex; align-items:center; justify-content:center; margin:0 auto; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+                <div style="width:80px; height:80px; border-radius:50%; background:#ffffff; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                    <span style="font-size:1.15rem; font-weight:800; color:#1e293b;">${totalPropostas}</span>
+                    <span style="font-size:0.6rem; color:#64748b; font-weight:600; text-transform:uppercase;">Total</span>
+                </div>
+            </div>
+            <div style="width:100%; display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:0.75rem; justify-content:center; max-height:80px; overflow-y:auto;">
+                ${legendaHtml}
+            </div>
+        `;
+    }
+
+    // 2. Comparativo Financeiro
+    const totalConvertidoFmt = totalConvertido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const totalReprovadoFmt = totalReprovado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const maxVal = Math.max(totalConvertido, totalReprovado, 1);
+    const pctConvertido = (totalConvertido / maxVal) * 90;
+    const pctReprovado = (totalReprovado / maxVal) * 90;
+
+    const containerConversao = document.getElementById('container-grafico-conversao');
+    if (containerConversao) {
+        containerConversao.innerHTML = `
+            <h3 style="margin:0 0 1rem 0; font-size:0.9rem; font-weight:800; color:#1e293b;">Conversão Financeira</h3>
+            <div style="display:flex; gap:1.5rem; justify-content:center; align-items:flex-end; height:120px; border-bottom:1px solid #cbd5e1; padding-bottom:8px; box-sizing:border-box; margin-bottom:8px; flex:1;">
+                <!-- Convertido -->
+                <div style="display:flex; flex-direction:column; align-items:center; width:65px;">
+                    <span style="font-size:0.65rem; font-weight:700; color:#16a34a; margin-bottom:4px; text-align:center; overflow:hidden; text-overflow:ellipsis; max-width:65px;" title="${totalConvertidoFmt}">${totalConvertidoFmt}</span>
+                    <div style="width:30px; height:${Math.round(pctConvertido)}px; background:linear-gradient(180deg,#10b981,#059669); border-radius:4px 4px 0 0;" title="Convertido"></div>
+                </div>
+                <!-- Perdido -->
+                <div style="display:flex; flex-direction:column; align-items:center; width:65px;">
+                    <span style="font-size:0.65rem; font-weight:700; color:#dc2626; margin-bottom:4px; text-align:center; overflow:hidden; text-overflow:ellipsis; max-width:65px;" title="${totalReprovadoFmt}">${totalReprovadoFmt}</span>
+                    <div style="width:30px; height:${Math.round(pctReprovado)}px; background:linear-gradient(180deg,#ef4444,#dc2626); border-radius:4px 4px 0 0;" title="Perdido"></div>
+                </div>
+            </div>
+            <div style="display:flex; gap:1.5rem; justify-content:center; font-size:0.7rem; font-weight:700; color:#64748b; margin-top:4px;">
+                <span style="width:65px; text-align:center;">Aprovado</span>
+                <span style="width:65px; text-align:center;">Perdido</span>
+            </div>
+        `;
+    }
+
+    // 3. Pareto Motivos
+    const motivosOrdenados = Object.entries(motivoCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+    const maxMotivoCount = motivosOrdenados.length > 0 ? motivosOrdenados[0][1] : 1;
+    const paretoHtml = motivosOrdenados.length > 0 ? motivosOrdenados.map(([motivo, count]) => {
+        const pct = (count / maxMotivoCount) * 100;
+        return `
+            <div style="display:flex; flex-direction:column; gap:2px; font-size:0.75rem; margin-bottom:0.6rem;">
+                <div style="display:flex; justify-content:space-between; font-weight:700; color:#475569;">
+                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px;" title="${motivo}">${motivo}</span>
+                    <span style="color:#1e293b;">${count}</span>
+                </div>
+                <div style="background:#f1f5f9; border-radius:4px; height:10px; overflow:hidden; width:100%;">
+                    <div style="width:${pct}%; background:linear-gradient(90deg, #f59e0b, #d97706); height:100%; border-radius:4px;"></div>
+                </div>
+            </div>
+        `;
+    }).join('') : `<div style="text-align:center; padding:2.5rem 0; color:#94a3b8; font-style:italic; font-size:0.8rem;">Nenhum motivo registrado.</div>`;
+
+    const containerMotivos = document.getElementById('container-grafico-motivos');
+    if (containerMotivos) {
+        containerMotivos.innerHTML = `
+            <h3 style="margin:0 0 1rem 0; font-size:0.9rem; font-weight:800; color:#1e293b;">Motivos de Perda (Top 5)</h3>
+            <div style="display:flex; flex-direction:column; justify-content:center; flex:1; overflow-y:auto; max-height:180px;">
+                ${paretoHtml}
+            </div>
+        `;
+    }
+
+    // 4. Curva ABC
+    if (typeof window.atualizarTabelaCurvaABC === 'function') {
+        window.atualizarTabelaCurvaABC(lista);
+    }
+};
+
 /* ── Filtros ────────────────────────────────────────────────────────── */
 function filtrarPropostas() {
     const texto = (document.getElementById('prop-filtro-texto')?.value || '').toLowerCase().trim();
@@ -1079,7 +1081,10 @@ function filtrarPropostas() {
     const tbody = document.getElementById('prop-tbody');
     const count = document.getElementById('prop-count');
     if (tbody) tbody.innerHTML = _renderLinhasPropostas(lista);
-    if (count) count.textContent = `${139 + lista.length} proposta(s) encontrada(s)`;
+    if (count) count.textContent = `${lista.length} proposta(s) encontrada(s)`;
+
+    // Atualiza os gráficos de forma reativa a partir da lista ativa!
+    window.atualizarGraficosComerciais(lista);
 }
 
 function limparFiltrosPropostas() {
@@ -6559,10 +6564,11 @@ window.calcularCurvaABC = function(dados) {
     });
 };
 
-window.atualizarTabelaCurvaABC = function() {
+window.atualizarTabelaCurvaABC = function(lista) {
     const tbody = document.getElementById('tbody-curva-abc');
     if (tbody) {
-        const curva = window.calcularCurvaABC(_dashboardStatsData);
+        const dataset = lista || _propostasData;
+        const curva = window.calcularCurvaABC(dataset);
         if (curva.length === 0) {
             tbody.innerHTML = '<tr><td colspan="4" style="padding:1.5rem; text-align:center; color:#94a3b8; font-style:italic;">Nenhum dado encontrado para gerar a Curva ABC.</td></tr>';
             return;
