@@ -393,7 +393,7 @@ function renderTelaPropostas() {
             <div id="prop-view-lista" style="display:${_currentPropostaTab === 'lista' ? 'block' : 'none'}; font-family:'Inter', sans-serif; background:#f8fafc; padding:1px 0.75rem 0.75rem 0.75rem; border-radius:14px; min-height:800px; box-sizing:border-box;">
                 
                 <!-- Top Toolbar Header -->
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:-10px; margin-bottom:1.2rem; background:#fff; padding:0.8rem 1.2rem; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.02); position:sticky; top:0; z-index:997;">
+                <div id="prop-toolbar-principal" style="display:flex; justify-content:space-between; align-items:center; margin-top:-10px; margin-bottom:1.2rem; background:#fff; padding:0.8rem 1.2rem; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.02); position:sticky; top:0; z-index:997;">
                     <!-- Lado Esquerdo: Dropdown de Navegação Principal -->
                     <div class="saas-dropdown-container">
                         <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
@@ -661,6 +661,12 @@ function renderTelaPropostas() {
             if (window.atualizarTabela5W2H) window.atualizarTabela5W2H();
             if (window.atualizarTabelaCurvaABC) window.atualizarTabelaCurvaABC();
             filtrarPropostas();
+            
+            // Auto scroll to make sticky toolbar dock at top
+            const toolbar = document.getElementById('prop-toolbar-principal');
+            if (toolbar) {
+                toolbar.scrollIntoView({ block: 'start' });
+            }
         }, 0);
     }
 }
@@ -730,6 +736,14 @@ window.switchPropostaTab = function(tab) {
             if (window.atualizarTabela5W2H) window.atualizarTabela5W2H();
             if (window.atualizarTabelaCurvaABC) window.atualizarTabelaCurvaABC();
             filtrarPropostas();
+            
+            // Auto scroll to make sticky toolbar dock at top
+            setTimeout(() => {
+                const toolbar = document.getElementById('prop-toolbar-principal');
+                if (toolbar) {
+                    toolbar.scrollIntoView({ block: 'start' });
+                }
+            }, 50);
         }
     } else {
         renderTelaPropostas();
