@@ -5431,12 +5431,12 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                 .cc-toolbar-modal {
                     background: #f8fafc;
                     border-bottom: 1px solid #e2e8f0;
-                    padding: 0.65rem 1.5rem;
+                    padding: 0.4rem 0.8rem;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
                     flex-wrap: wrap;
-                    gap: 0.6rem;
+                    gap: 0.4rem;
                     position: sticky;
                     top: 0;
                     z-index: 997;
@@ -5444,38 +5444,38 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                     border-top-right-radius: 12px;
                 }
                 .cc-form-body-modal {
-                    padding: 1.5rem;
+                    padding: 0.8rem 1.0rem;
                     max-height: 520px;
                     overflow-y: auto;
                 }
                 .cc-section-title-modal {
-                    font-size: 0.9rem;
+                    font-size: 0.8rem;
                     font-weight: 800;
                     color: #475569;
                     text-transform: uppercase;
-                    letter-spacing: 0.05em;
+                    letter-spacing: 0.04em;
                     border-bottom: 2px solid #e2e8f0;
-                    padding-bottom: 0.4rem;
-                    margin: 1.5rem 0 1rem 0;
+                    padding-bottom: 0.25rem;
+                    margin: 0.8rem 0 0.5rem 0;
                     display: flex;
                     align-items: center;
-                    gap: 0.5rem;
+                    gap: 0.4rem;
                 }
                 .cc-section-title-modal.first {
                     margin-top: 0;
                 }
                 .cc-input-modal, .cc-select-modal {
-                    padding: 0.55rem 0.75rem;
+                    padding: 0.15rem 0.45rem;
                     border: 1px solid #cbd5e1;
-                    border-radius: 6px;
-                    font-size: 0.85rem;
+                    border-radius: 4px;
+                    font-size: 0.76rem;
                     background: #fff;
                     color: #1e293b;
                     outline: none;
                     transition: all 0.2s;
                     box-sizing: border-box;
                     width: 100%;
-                    height: 38px;
+                    height: 28px;
                 }
                 .cc-input-modal:focus, .cc-select-modal:focus {
                     border-color: #3b82f6;
@@ -5488,7 +5488,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                 }
                 .cc-grid-modal {
                     display: grid;
-                    gap: 0.75rem 1rem;
+                    gap: 0.4rem 0.6rem;
                 }
                 .cc-grid-modal-row1 {
                     grid-template-columns: 1.2fr 3.5fr 2fr 2fr;
@@ -5515,13 +5515,13 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                     }
                 }
                 .prop-lbl-modal {
-                    font-size: 0.75rem;
+                    font-size: 0.7rem;
                     font-weight: 700;
                     color: #475569;
                     text-transform: uppercase;
-                    letter-spacing: 0.04em;
+                    letter-spacing: 0.03em;
                     display: block;
-                    margin-bottom: 5px;
+                    margin-bottom: 2px;
                 }
             </style>
 
@@ -5529,8 +5529,8 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                 <!-- Barra de Ferramentas -->
                 <div class="cc-toolbar-modal">
                     <!-- Badge Lado Esquerdo -->
-                    <div style="background:#2e58a6; color:white; padding:0.45rem 0.9rem; border-radius:6px; font-weight:700; font-size:0.86rem; display:flex; align-items:center; gap:0.4rem; font-family:'Inter', sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <i class="ph ph-map-pin" style="font-size:1.15rem;"></i>
+                    <div style="background:#2e58a6; color:white; padding:0.25rem 0.6rem; border-radius:4px; font-weight:700; font-size:0.76rem; display:flex; align-items:center; gap:0.3rem; font-family:'Inter', sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <i class="ph ph-map-pin" style="font-size:1.0rem;"></i>
                         Clientes - Endereços Entrega
                     </div>
 
@@ -5540,18 +5540,18 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
 
                     <!-- Botões de Ação (Lado Direito) -->
                     <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
-                        <button type="button" onclick="window.modalCarregarEnderecos(window._modalSelectedClienteId)" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:38px; height:38px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
-                            <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
+                        <button type="button" onclick="window.modalCarregarEnderecos(window._modalSelectedClienteId)" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                            <i class="ph ph-arrows-clockwise" style="font-size:1.0rem;"></i>
                         </button>
 
                         <!-- Spacer -->
                         <div style="width: 4px;"></div>
 
-                        <button type="button" onclick="window.modalNovoEndereco()" style="background:#3b82f6; color:white; border:none; padding:0 1rem; border-radius:6px; height:38px; cursor:pointer; font-weight:600; font-size:0.85rem; display:inline-flex; align-items:center; gap:6px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-                            <i class="ph ph-file-text" style="font-size:1.1rem;"></i> Novo
+                        <button type="button" onclick="window.modalNovoEndereco()" style="background:#3b82f6; color:white; border:none; padding:0 0.65rem; border-radius:4px; height:28px; cursor:pointer; font-weight:600; font-size:0.76rem; display:inline-flex; align-items:center; gap:6px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                            <i class="ph ph-file-text" style="font-size:1.0rem;"></i> Novo
                         </button>
-                        <button type="button" onclick="window.modalSalvarEndereco()" style="background:#16a34a; color:white; border:none; padding:0 1rem; border-radius:6px; height:38px; cursor:pointer; font-weight:600; font-size:0.85rem; display:inline-flex; align-items:center; gap:6px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-                            <i class="ph ph-check" style="font-size:1.15rem;"></i> Salvar
+                        <button type="button" onclick="window.modalSalvarEndereco()" style="background:#16a34a; color:white; border:none; padding:0 0.65rem; border-radius:4px; height:28px; cursor:pointer; font-weight:600; font-size:0.76rem; display:inline-flex; align-items:center; gap:6px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                            <i class="ph ph-check" style="font-size:1.0rem;"></i> Salvar
                         </button>
                     </div>
                 </div>
@@ -5562,12 +5562,12 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                     <div class="cc-section-title-modal first">
                         <i class="ph ph-user"></i> Dados do Cliente
                     </div>
-                    <div class="cc-grid-modal cc-grid-modal-row1" style="margin-bottom: 1.5rem;">
+                    <div class="cc-grid-modal cc-grid-modal-row1" style="margin-bottom: 0.8rem;">
                         <div>
                             <label class="prop-lbl-modal">Código</label>
                             <div style="display:flex; gap:0.35rem;">
                                 <input type="text" id="modal-cli-codigo" readonly class="cc-input-modal" style="text-align:center;">
-                                <button type="button" onclick="window.modalBuscarCliente()" style="background:#334155; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar Cliente"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                                <button type="button" onclick="window.modalBuscarCliente()" style="background:#334155; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar Cliente"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
                             </div>
                         </div>
                         <div>
@@ -5588,7 +5588,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                     <div class="cc-section-title-modal">
                         <i class="ph ph-map-pin"></i> Detalhes do Endereço de Entrega
                     </div>
-                    <div class="cc-grid-modal cc-grid-modal-row1" style="margin-bottom: 0.75rem;">
+                    <div class="cc-grid-modal cc-grid-modal-row1" style="margin-bottom: 0.4rem;">
                         <div>
                             <label class="prop-lbl-modal">Seq.</label>
                             <input type="text" id="modal-end-seq" readonly value="1" class="cc-input-modal" style="text-align:center; font-weight:bold;">
@@ -5607,12 +5607,12 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                         </div>
                     </div>
 
-                    <div class="cc-grid-modal cc-grid-modal-row2" style="margin-bottom: 0.75rem;">
+                    <div class="cc-grid-modal cc-grid-modal-row2" style="margin-bottom: 0.4rem;">
                         <div>
                             <label class="prop-lbl-modal">CEP *</label>
                             <div style="display:flex; gap:0.35rem;">
                                 <input type="text" id="modal-end-cep" class="cc-input-modal" placeholder="00000-000">
-                                <button type="button" onclick="window.modalBuscarCEP()" style="background:#334155; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                                <button type="button" onclick="window.modalBuscarCEP()" style="background:#334155; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
                             </div>
                         </div>
                         <div>
@@ -5629,7 +5629,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                         </div>
                     </div>
 
-                    <div class="cc-grid-modal cc-grid-modal-row3" style="margin-bottom: 0.75rem;">
+                    <div class="cc-grid-modal cc-grid-modal-row3" style="margin-bottom: 0.4rem;">
                         <div>
                             <label class="prop-lbl-modal">Bairro *</label>
                             <input type="text" id="modal-end-bairro" class="cc-input-modal">
@@ -5644,7 +5644,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                         </div>
                     </div>
 
-                    <div class="cc-grid-modal cc-grid-modal-row4" style="margin-bottom: 1.5rem;">
+                    <div class="cc-grid-modal cc-grid-modal-row4" style="margin-bottom: 0.8rem;">
                         <div>
                             <label class="prop-lbl-modal">Contato</label>
                             <input type="text" id="modal-end-contato" class="cc-input-modal">
@@ -5667,14 +5667,14 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                         * Clique duas vezes sobre uma linha para selecionar o endereço de instalação, ou clique uma vez para carregar para edição.
                     </div>
                     <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; background:#fff; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-                        <table style="width:100%; border-collapse:collapse; font-size:0.83rem; text-align:left;">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.76rem; text-align:left;">
                             <thead>
                                 <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
-                                    <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:50px; text-align:center;">#</th>
-                                    <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:200px;">Nome</th>
-                                    <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b;">Endereço</th>
-                                    <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:150px;">Município / UF</th>
-                                    <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:80px; text-align:center;">Ações</th>
+                                    <th style="padding:6px 8px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:50px; text-align:center;">#</th>
+                                    <th style="padding:6px 8px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:200px;">Nome</th>
+                                    <th style="padding:6px 8px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b;">Endereço</th>
+                                    <th style="padding:6px 8px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:150px;">Município / UF</th>
+                                    <th style="padding:6px 8px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:80px; text-align:center;">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="modal-end-tbody">
@@ -5740,13 +5740,13 @@ window.modalRenderEnderecos = function() {
 
     tbody.innerHTML = window._modalEnderecos.map((e, idx) => `
         <tr onclick="window.modalCarregarEnderecoForm(${idx})" ondblclick="window.modalSelecionarEndereco(${idx})" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-            <td style="padding:10px 12px; text-align:center; color:#475569; font-weight:bold;">${e.sequencia}</td>
-            <td style="padding:10px 12px; color:#1e293b; font-weight:600;">${e.nome_local || '—'}</td>
-            <td style="padding:10px 12px; color:#475569;">${e.endereco || ''}${e.numero ? ', ' + e.numero : ''}${e.bairro ? ' - ' + e.bairro : ''}</td>
-            <td style="padding:10px 12px; color:#475569;">${e.municipio || ''} / ${e.uf || ''}</td>
-            <td style="padding:10px 12px; text-align:center;">
-                <button type="button" onclick="event.stopPropagation(); window.modalExcluirEndereco(${idx})" style="background:#fee2e2; color:#ef4444; border:none; padding:6px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none;" onmouseover="this.style.background='#ef4444'; this.style.color='#fff';" onmouseout="this.style.background='#fee2e2'; this.style.color='#ef4444';" title="Excluir Endereço">
-                    <i class="ph ph-trash" style="font-size:0.9rem;"></i>
+            <td style="padding:5px 8px; text-align:center; color:#475569; font-weight:bold;">${e.sequencia}</td>
+            <td style="padding:5px 8px; color:#1e293b; font-weight:600;">${e.nome_local || '—'}</td>
+            <td style="padding:5px 8px; color:#475569;">${e.endereco || ''}${e.numero ? ', ' + e.numero : ''}${e.bairro ? ' - ' + e.bairro : ''}</td>
+            <td style="padding:5px 8px; color:#475569;">${e.municipio || ''} / ${e.uf || ''}</td>
+            <td style="padding:5px 8px; text-align:center;">
+                <button type="button" onclick="event.stopPropagation(); window.modalExcluirEndereco(${idx})" style="background:#fee2e2; color:#ef4444; border:none; width:22px; height:22px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none;" onmouseover="this.style.background='#ef4444'; this.style.color='#fff';" onmouseout="this.style.background='#fee2e2'; this.style.color='#ef4444';" title="Excluir Endereço">
+                    <i class="ph ph-trash" style="font-size:0.8rem;"></i>
                 </button>
             </td>
         </tr>
