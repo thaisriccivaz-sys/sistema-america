@@ -730,7 +730,7 @@ function renderExperienciaList(lista) {
         tr.innerHTML = `
             <td style="padding:6px 4px;">${avatarHtml}</td>
             <td style="font-weight:600;padding:6px 8px;"><a href="#" style="color:#1c7ed6;text-decoration:none;font-size:0.82rem;" onclick="event.preventDefault();viewColaborador(${c.id})">${c.nome_completo}</a></td>
-            <td style="padding:6px 8px;font-size:0.82rem;">${c.cargo || '-'}</td>
+            <td style="padding:6px 8px;font-size:0.82rem;">${c.departamento || '-'}</td>
             <td style="padding:6px 8px;font-size:0.82rem;">${admissao}</td>
             <td style="padding:6px 8px;font-size:0.82rem;">${c.responsavel_nome || '-'}</td>
             <td style="padding:6px 8px;font-size:0.82rem;">${prazo2Fim}${diasRestantesHtml}</td>
