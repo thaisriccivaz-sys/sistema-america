@@ -184,7 +184,7 @@ function renderTelaPropostas() {
 
                 .custom-swal-height-large {
                     width: 1100px !important;
-                    height: 700px !important;
+                    height: 540px !important;
                     display: flex !important;
                     flex-direction: column !important;
                     padding: 0 !important;
@@ -5447,7 +5447,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                 }
                 .cc-form-body-modal {
                     padding: 0.8rem 1.0rem;
-                    max-height: 520px;
+                    max-height: 420px;
                     overflow-y: auto;
                 }
                 .cc-section-title-modal {
