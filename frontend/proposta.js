@@ -2207,7 +2207,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
 
     Swal.fire({
         title: '',
-        width: '1350px',
+        width: '1500px',
         customClass: {
             popup: 'custom-swal-height-large'
         },
