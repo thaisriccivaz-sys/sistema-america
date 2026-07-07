@@ -1412,47 +1412,53 @@ window._recBuscarPontoSelecionados = async function () {
                 let faltasJustificadasTotal = 0; // Somente dias com idJustification (faltas reais c/ justificativa)
                 let folgasTotal = 0;
                 let folgasVR = 0, faltasVR = 0, folgasVT = 0, faltasVT = 0;
-                const _mT = (c.meio_transporte||'').toLowerCase().trim();
-                const isVC = _mT.includes('combustivel') || _mT.includes('combustível') || _mT.includes('(vc)') || _mT === 'vc' || _mT.includes('outros');
 
                 apuracaoParaCartao.forEach(d => {
+                    // IMPORTANTE: totalHorasTrabalhadas já inclui horas noturnas
+                    // NÃO somar horasTotalNoturno (seria dupla contagem para noturnos)
                     const hT2 = d.totalHorasTrabalhadas || 0;
                     const trb2 = (d.diasTrabalhados || 0) > 0 || hT2 > 0;
                     const st2 = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
                     const isFolgaSt2 = st2.includes('folg') || st2.includes('dsr') || st2.includes('feriado');
                     const isDSR2 = (d.dsrConsideradoMinutos || 0) > 0;
-                    const semHor2 = ((d.idHorarioContratual || 0) === 0 && (d.strHorarioContratualSimples || '').trim() === '');
+                    const semHor2 = ((d.idHorarioContratual || 0) === 0
+                                 && (d.strHorarioContratualSimples || '').trim() === '');
                     const isFolgaFlag2 = d.folga === true || d.isHoliday === true || d.isHoliday === 1;
 
                     let tipo2 = '';
+                    // ── Férias (ControlID) = folga para fins de recibo ──────────────
+                    // Apenas toolTipAlert e d.isFerias (setado pelo backend) são fontes confiáveis
                     const _tip2 = (d.toolTipAlert || '').toLowerCase();
-                    let isFerias2 = d.isFerias === true || _tip2.includes('férias') || _tip2.includes('ferias') || _tip2.includes('vacation');
-                    if (!isFerias2 && d.idJustification) {
-                        const _mF = d.listAfdtManutencao || [];
-                        const _todasI = _mF.length > 0 && _mF.every(m => m._typeRegister === 'I');
-                        const _semTrab = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
-                        if (_todasI && _semTrab) isFerias2 = true;
-                    }
-
+                    const isFerias2 = d.isFerias === true
+                        || _tip2.includes('férias') || _tip2.includes('ferias') || _tip2.includes('vacation');
                     if (isFerias2) {
-                        tipo2 = 'ferias';
+                        tipo2 = 'folga'; // Férias → trata como folga (sem desconto VT/VR, sem falta)
                     } else if (d.isHoliday) {
                         tipo2 = hT2 >= 120 ? '' : 'folga'; // Feriado: se trabalhou 6h+ não desconta
                     } else if (d.idJustification) {
-                        const ob2 = _tip2;
+                        const ob2 = (d.toolTipAlert || '').toLowerCase();
                         const abr2 = (d.abreviationJustification || '').toLowerCase().trim();
+                        const st2  = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
                         const isErroP2  = ob2.includes('erro no ponto');
-                        const isExterno2 = ob2.includes('trabalho externo') || ob2.includes('trab. externo') || ob2.includes('trab externo') || ob2.includes('externo')
-                                        || (ob2.includes('servi') && ob2.includes('externo')) || st2.includes('externo') || st2.includes('trab. ext') || st2 === 'te'
-                                        || abr2 === 'te' || abr2 === 't.e.' || abr2.startsWith('te ') || abr2.includes('ext')
+                        const isExterno2 = ob2.includes('trabalho externo') || ob2.includes('trab. externo')
+                                        || ob2.includes('trab externo') || ob2.includes('externo')
+                                        || (ob2.includes('servi') && ob2.includes('externo'))
+                                        // Campo status/situacao do RHID
+                                        || st2.includes('externo') || st2.includes('trab. ext')
+                                        || st2 === 'te'
+                                        // Abreviação do RHID (ex: "TE", "T.E.", "TRAB.EXT.")
+                                        || abr2 === 'te' || abr2 === 't.e.' || abr2.startsWith('te ')
+                                        || abr2.includes('ext')
+                                        // ── Texto nas entradas de marcação (listAfdtManutencao) ──────────
+                                        // O RHID escreve "Trabalho Externo" como texto nas marcações
                                         || (d.listAfdtManutencao || d.marcacoes || []).some(m => {
                                             const _j = JSON.stringify(m || '').toLowerCase();
                                             return _j.includes('externo') || _j.includes('trabalho ext');
                                         });
                         if (isErroP2 || isExterno2 || hT2 > 0) {
-                            tipo2 = ''; 
+                            tipo2 = ''; // Trabalhado (erro de ponto / trabalho externo → não conta falta)
                         } else {
-                            tipo2 = 'justificado'; 
+                            tipo2 = 'justificado'; // Falta justificada genuína
                         }
                     } else if (isFolgaSt2 || isFolgaFlag2 || isDSR2) {
                         const dStr2 = String(d.date || d.dateTimeStr || '').substring(0, 10);
@@ -1461,16 +1467,23 @@ window._recBuscarPontoSelecionados = async function () {
                         const limiteDsr = isDom2 ? 120 : MIN_VR;
                         tipo2 = hT2 >= limiteDsr ? '' : 'folga';
                     } else if (semHor2 && trb2) {
+                        // Dia de descanso (sem horário) mas trabalhou:
+                        // SAB: precisa de 6h (360min) para ganhar VR; abaixo disso = ainda é folga descontada
+                        // DOM / outros: precisa de 2h (120min)
                         const dStr2 = String(d.date || d.dateTimeStr || '').substring(0, 10);
                         const dParsed2 = new Date(dStr2 + 'T12:00:00');
                         const isSat2 = !isNaN(dParsed2) && dParsed2.getDay() === 6;
                         const vrLimite2 = isSat2 ? 360 : 120;
-                        if (hT2 < vrLimite2) tipo2 = 'folga';
+                        if (hT2 < vrLimite2) tipo2 = 'folga'; // trabalho insuficiente → folga
+                        // else tipo2 = '' (trabalhou o suficiente → conta como VR)
                     } else if (semHor2 && !trb2) {
-                        tipo2 = 'folga';
+                        tipo2 = 'folga'; // Dia de descanso sem trabalho
                     } else if (d.faltaDiaInteiro || (!trb2 && !semHor2)) {
                         tipo2 = 'falta';
                     }
+
+                    const mTr = (c.meio_transporte || '').toLowerCase();
+                    const isVC = typeof _isVC === 'function' ? _isVC(mTr) : false;
 
                     if (tipo2 === 'justificado' || tipo2 === 'falta') {
                         faltasTotal++;
@@ -1482,12 +1495,12 @@ window._recBuscarPontoSelecionados = async function () {
                         folgasVR++;
                         folgasVT++;
                     } else if (tipo2 === 'ferias') {
-                        folgasTotal++; // Global defaults to folga so it doesn't inflate general faltas
+                        folgasTotal++; // Global accounts as folga
                         folgasVR++; // Férias é folga no VR
                         if (isVC) {
-                            faltasVT++; // Férias é FALTA no VC (VT column tracks both VT and VC faltas)
+                            faltasVT++; // Para Vale Combustível, Férias desconta (Falta)
                         } else {
-                            folgasVT++; // Férias é FOLGA no VT
+                            folgasVT++; // Para Vale Transporte, Férias NÃO desconta (Folga)
                         }
                     }
                 });
@@ -1626,10 +1639,12 @@ window._recBuscarPontoSelecionados = async function () {
                         }
                     });
                     s.folgas = folgasSup;
-                    folgasVR = folgasSup;
-                    folgasVT = folgasSup;
+                    s.folgasVR = folgasSup;
+                    s.folgasVT = folgasSup;
                 } else {
                     s.folgas = folgasTotal;
+                    s.folgasVR = folgasVR;
+                    s.folgasVT = folgasVT;
                 }
 
 
@@ -1674,10 +1689,13 @@ window._recBuscarPontoSelecionados = async function () {
 
                 } else {
                     // Não encontrado em nenhum dos dois meses e sem registros na janela
+                    // Não encontrado em nenhum dos dois meses e sem registros na janela
                     s.faltas      = 0;
                     s.folgas      = 0;
                     s.faltasVR    = 0;
                     s.faltasVT    = 0;
+                    s.folgasVR    = 0;
+                    s.folgasVT    = 0;
                     s.pontoStatus = 'ok';
                     ok++;
                 }
@@ -1717,6 +1735,10 @@ window._recBuscarPontoSelecionados = async function () {
                 s.faltasVT = 0;
                 s.faltasVR = 0;
             }
+            if (s.folgasVT === undefined) s.folgasVT = s.folgas;
+            if (s.faltasVT === undefined) s.faltasVT = s.faltas;
+            if (s.folgasVR === undefined) s.folgasVR = s.folgas;
+            if (s.faltasVR === undefined) s.faltasVR = s.faltas;
             s.is_editado = false;
         }
     }
