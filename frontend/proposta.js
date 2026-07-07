@@ -2986,7 +2986,7 @@ function _renderCadastroClienteInt() {
                     <div style="width: 4px;"></div>
 
                     <button onclick="salvarCliente()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
-                        <i class="ph ph-check" style="font-size:1rem;"></i> Processar
+                        <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
                     <button onclick="excluirCliente()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
                         <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
