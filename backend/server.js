@@ -21576,8 +21576,8 @@ app.post('/api/clientes/:clienteId/enderecos', authenticateToken, (req, res) => 
 
   db.run(`INSERT INTO clientes_enderecos_entrega (
     cliente_id, sequencia, nome_local, cpf_cnpj, inscricao_estadual, cep,
-    endereco, numero, complemento, bairro, uf, municipio, contato, telefone, ramal
-  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    endereco, numero, complemento, bairro, uf, municipio, contato, telefone, ramal, coordenadas
+  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   ON CONFLICT(cliente_id, sequencia) DO UPDATE SET
     nome_local=excluded.nome_local,
     cpf_cnpj=excluded.cpf_cnpj,
@@ -21591,10 +21591,11 @@ app.post('/api/clientes/:clienteId/enderecos', authenticateToken, (req, res) => 
     municipio=excluded.municipio,
     contato=excluded.contato,
     telefone=excluded.telefone,
-    ramal=excluded.ramal`,
+    ramal=excluded.ramal,
+    coordenadas=excluded.coordenadas`,
   [
     clienteId, d.sequencia, d.nome_local, d.cpf_cnpj, d.inscricao_estadual, d.cep,
-    d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio, d.contato, d.telefone, d.ramal
+    d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio, d.contato, d.telefone, d.ramal, d.coordenadas
   ], function(err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true, id: this.lastID || d.id });

@@ -6969,7 +6969,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                     grid-template-columns: 1.2fr 3.5fr 2fr 2fr;
                 }
                 .cc-grid-modal-row2 {
-                    grid-template-columns: 1.5fr 4.2fr 1.1fr 3.2fr;
+                    grid-template-columns: 1.5fr 3.5fr 1fr 2.5fr 2.5fr;
                     align-items: end;
                 }
                 .cc-grid-modal-row3 {
@@ -7071,11 +7071,17 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                         </div>
                         <div>
                             <label class="prop-lbl-modal">Nome do Local *</label>
-                            <input type="text" id="modal-end-nome" class="cc-input-modal" placeholder="Ex: FILIAL CAMPINAS">
+                            <div style="display:flex; gap:0.35rem;">
+                                <input type="text" id="modal-end-nome" class="cc-input-modal" placeholder="Ex: FILIAL CAMPINAS" style="flex:1;">
+                                <button type="button" onclick="window.modalBuscarPorNomeLocal()" style="background:#334155; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar por Nome do Local"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
+                            </div>
                         </div>
                         <div>
                             <label class="prop-lbl-modal">CPF/CNPJ</label>
-                            <input type="text" id="modal-end-cnpj" class="cc-input-modal">
+                            <div style="display:flex; gap:0.35rem;">
+                                <input type="text" id="modal-end-cnpj" class="cc-input-modal" style="flex:1;">
+                                <button type="button" onclick="window.modalBuscarPorCNPJLocal()" style="background:#334155; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar CNPJ"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
+                            </div>
                         </div>
                         <div>
                             <label class="prop-lbl-modal">Inscrição Estadual</label>
@@ -7088,7 +7094,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                             <label class="prop-lbl-modal">CEP *</label>
                             <div style="display:flex; gap:0.35rem;">
                                 <input type="text" id="modal-end-cep" class="cc-input-modal" placeholder="00000-000">
-                                <button type="button" onclick="window.modalBuscarCEP()" style="background:#334155; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
+                                <button type="button" onclick="window.modalBuscarCEPEntrega()" style="background:#334155; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
                             </div>
                         </div>
                         <div>
@@ -7102,6 +7108,13 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                         <div>
                             <label class="prop-lbl-modal">Complemento</label>
                             <input type="text" id="modal-end-comp" class="cc-input-modal">
+                        </div>
+                        <div>
+                            <label class="prop-lbl-modal">Lat/Long (Google Maps)</label>
+                            <div style="display:flex; gap:0.35rem;">
+                                <input type="text" id="modal-end-coords" class="cc-input-modal" placeholder="-23.55052; -46.633308" style="flex:1;">
+                                <button type="button" onclick="window.modalBuscarPorCoords()" style="background:#334155; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar por Coordenadas"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
+                            </div>
                         </div>
                     </div>
 
@@ -7245,6 +7258,7 @@ window.modalCarregarEnderecoForm = function(idx) {
     document.getElementById('modal-end-bairro').value = e.bairro || '';
     document.getElementById('modal-end-uf').value = e.uf || '';
     document.getElementById('modal-end-cidade').value = e.municipio || '';
+    document.getElementById('modal-end-coords').value = e.coordenadas || '';
     document.getElementById('modal-end-contato').value = e.contato || '';
     document.getElementById('modal-end-fone').value = e.telefone || '';
     document.getElementById('modal-end-ramal').value = e.ramal || '';
@@ -7268,6 +7282,7 @@ window.modalNovoEndereco = function() {
     document.getElementById('modal-end-bairro').value = '';
     document.getElementById('modal-end-uf').value = '';
     document.getElementById('modal-end-cidade').value = '';
+    document.getElementById('modal-end-coords').value = '';
     document.getElementById('modal-end-contato').value = '';
     document.getElementById('modal-end-fone').value = '';
     document.getElementById('modal-end-ramal').value = '';
@@ -7330,6 +7345,7 @@ window.modalSalvarEndereco = async function() {
         bairro: bairroVal,
         uf: ufVal,
         municipio: cidadeVal,
+        coordenadas: document.getElementById('modal-end-coords').value.trim(),
         contato: document.getElementById('modal-end-contato').value.trim(),
         telefone: document.getElementById('modal-end-fone').value.trim(),
         ramal: document.getElementById('modal-end-ramal').value.trim()
@@ -7576,7 +7592,7 @@ function _renderEnderecosInt() {
                 grid-template-columns: 1.2fr 3.5fr 2fr 2fr;
             }
             .cc-grid-end-row2 {
-                grid-template-columns: 1.5fr 4.2fr 1.1fr 3.2fr;
+                grid-template-columns: 1.5fr 3.5fr 1fr 2.5fr 2.5fr;
                 align-items: end;
             }
             .cc-grid-end-row3 {
@@ -7691,11 +7707,17 @@ function _renderEnderecosInt() {
                     </div>
                     <div>
                         <label class="prop-lbl-end">Nome do Local *</label>
-                        <input type="text" id="page-end-nome" class="cc-input-end" placeholder="Ex: FILIAL CAMPINAS">
+                        <div style="display:flex; gap:0.35rem;">
+                            <input type="text" id="page-end-nome" class="cc-input-end" placeholder="Ex: FILIAL CAMPINAS" style="flex:1;">
+                            <button type="button" onclick="window.pageBuscarPorNomeLocal()" style="background:#334155; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar por Nome do Local"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                        </div>
                     </div>
                     <div>
                         <label class="prop-lbl-end">CPF/CNPJ</label>
-                        <input type="text" id="page-end-cnpj" class="cc-input-end">
+                        <div style="display:flex; gap:0.35rem;">
+                            <input type="text" id="page-end-cnpj" class="cc-input-end" style="flex:1;">
+                            <button type="button" onclick="window.pageBuscarPorCNPJLocal()" style="background:#334155; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar CNPJ"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                        </div>
                     </div>
                     <div>
                         <label class="prop-lbl-end">Inscrição Estadual</label>
@@ -7722,6 +7744,13 @@ function _renderEnderecosInt() {
                     <div>
                         <label class="prop-lbl-end">Complemento</label>
                         <input type="text" id="page-end-comp" class="cc-input-end">
+                    </div>
+                    <div>
+                        <label class="prop-lbl-end">Lat/Long (Google Maps)</label>
+                        <div style="display:flex; gap:0.35rem;">
+                            <input type="text" id="page-end-coords" class="cc-input-end" placeholder="-23.55052; -46.633308" style="flex:1;">
+                            <button type="button" onclick="window.pageBuscarPorCoords()" style="background:#334155; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar por Coordenadas"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                        </div>
                     </div>
                 </div>
 
@@ -7868,6 +7897,7 @@ window.pageCarregarEnderecoForm = function(idx) {
     document.getElementById('page-end-bairro').value = e.bairro || '';
     document.getElementById('page-end-uf').value = e.uf || '';
     document.getElementById('page-end-cidade').value = e.municipio || '';
+    document.getElementById('page-end-coords').value = e.coordenadas || '';
     document.getElementById('page-end-contato').value = e.contato || '';
     document.getElementById('page-end-fone').value = e.telefone || '';
     document.getElementById('page-end-ramal').value = e.ramal || '';
@@ -7891,6 +7921,7 @@ window.pageNovoEndereco = function() {
     document.getElementById('page-end-bairro').value = '';
     document.getElementById('page-end-uf').value = '';
     document.getElementById('page-end-cidade').value = '';
+    document.getElementById('page-end-coords').value = '';
     document.getElementById('page-end-contato').value = '';
     document.getElementById('page-end-fone').value = '';
     document.getElementById('page-end-ramal').value = '';
@@ -7953,6 +7984,7 @@ window.pageSalvarEndereco = async function() {
         bairro: bairroVal,
         uf: ufVal,
         municipio: cidadeVal,
+        coordenadas: document.getElementById('page-end-coords').value.trim(),
         contato: document.getElementById('page-end-contato').value.trim(),
         telefone: document.getElementById('page-end-fone').value.trim(),
         ramal: document.getElementById('page-end-ramal').value.trim()
@@ -8012,6 +8044,23 @@ window.pageBuscarCEP = async function() {
         document.getElementById('page-end-bairro').value = data.bairro || '';
         document.getElementById('page-end-uf').value = data.uf || '';
         document.getElementById('page-end-cidade').value = data.localidade || '';
+
+        // Buscar coordenadas via OSM Nominatim
+        try {
+            const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${cep}&country=Brazil&format=json`, {
+                headers: { 'User-Agent': 'SistemaAmerica/1.0' }
+            });
+            if (nomRes.ok) {
+                const geo = await nomRes.json();
+                if (geo && geo.length > 0) {
+                    const lat = parseFloat(geo[0].lat).toFixed(6);
+                    const lon = parseFloat(geo[0].lon).toFixed(6);
+                    document.getElementById('page-end-coords').value = `${lat}; ${lon}`;
+                }
+            }
+        } catch (e) {
+            console.warn('Erro ao obter coordenadas do CEP:', e);
+        }
 
         if (typeof mostrarToastSucesso === 'function') {
             mostrarToastSucesso('Endereço importado com sucesso!');
@@ -10008,3 +10057,471 @@ window.renderizarProdutosPropostaGrid = function() {
 
 
 
+
+
+// ══════════════════════════════════════════════════════════════════════
+// GEOLOCATION & GEOCONVERSION HELPERS (OPENSTREETMAP / NOMINATIM)
+// ══════════════════════════════════════════════════════════════════════
+const ufMapping = {
+    'acre': 'AC', 'alagoas': 'AL', 'amapá': 'AP', 'amazonas': 'AM', 'bahia': 'BA',
+    'ceará': 'CE', 'distrito federal': 'DF', 'espírito santo': 'ES', 'goiás': 'GO',
+    'maranhão': 'MA', 'mato grosso': 'MT', 'mato grosso do sul': 'MS', 'minas gerais': 'MG',
+    'pará': 'PA', 'paraíba': 'PB', 'paraná': 'PR', 'pernambuco': 'PE', 'piauí': 'PI',
+    'rio de janeiro': 'RJ', 'rio grande do norte': 'RN', 'rio grande do sul': 'RS',
+    'rondônia': 'RO', 'roraima': 'RR', 'santa catarina': 'SC', 'são paulo': 'SP',
+    'sergipe': 'SE', 'tocantins': 'TO'
+};
+
+function formatCEP(cepStr) {
+    if (!cepStr) return '';
+    const clean = cepStr.replace(/\D/g, '');
+    if (clean.length === 8) {
+        return clean.substring(0, 5) + '-' + clean.substring(5);
+    }
+    return cepStr;
+}
+
+// ─── 1. BUSCA POR CEP ENTREGA NO MODAL ────────────────────────────────
+window.modalBuscarCEPEntrega = async function() {
+    const cepRaw = document.getElementById('modal-end-cep')?.value || '';
+    const cep = cepRaw.replace(/\D/g, '');
+    if (cep.length !== 8) {
+        alert('Por favor, informe um CEP válido com 8 dígitos.');
+        return;
+    }
+
+    try {
+        const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        if (!res.ok) throw new Error('CEP não encontrado.');
+        const data = await res.json();
+        if (data.erro) throw new Error('CEP inexistente.');
+
+        document.getElementById('modal-end-rua').value = data.logradouro || '';
+        document.getElementById('modal-end-bairro').value = data.bairro || '';
+        document.getElementById('modal-end-uf').value = data.uf || '';
+        document.getElementById('modal-end-cidade').value = data.localidade || '';
+
+        // Buscar coordenadas via OSM Nominatim
+        try {
+            const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${cep}&country=Brazil&format=json`, {
+                headers: { 'User-Agent': 'SistemaAmerica/1.0' }
+            });
+            if (nomRes.ok) {
+                const geo = await nomRes.json();
+                if (geo && geo.length > 0) {
+                    const lat = parseFloat(geo[0].lat).toFixed(6);
+                    const lon = parseFloat(geo[0].lon).toFixed(6);
+                    document.getElementById('modal-end-coords').value = `${lat}; ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
+                }
+            }
+        } catch (e) {
+            console.warn('Erro ao obter coordenadas do CEP:', e);
+        }
+
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Endereço importado com sucesso!');
+        }
+    } catch(e) {
+        console.error(e);
+        alert('Erro ao buscar CEP: ' + e.message);
+    }
+};
+
+// ─── 2. BUSCA POR NOME DO LOCAL (FORWARD GEOCONDING) ────────────────
+window.modalBuscarPorNomeLocal = async function() {
+    const query = document.getElementById('modal-end-nome')?.value.trim() || '';
+    if (!query) {
+        alert('Por favor, digite o Nome do Local para pesquisar.');
+        return;
+    }
+
+    try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&country=Brazil&format=json&addressdetails=1&limit=1`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'SistemaAmerica/1.0' } });
+        if (!res.ok) throw new Error('Serviço de busca indisponível.');
+        const data = await res.json();
+        if (!data || data.length === 0) {
+            alert('Nenhum local encontrado para a pesquisa informada.');
+            return;
+        }
+
+        const info = data[0];
+        const addr = info.address;
+        
+        // Coordenadas
+        const lat = parseFloat(info.lat).toFixed(6);
+        const lon = parseFloat(info.lon).toFixed(6);
+        document.getElementById('modal-end-coords').value = `${lat}; ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
+
+        // Endereço
+        if (addr.road) document.getElementById('modal-end-rua').value = addr.road;
+        if (addr.suburb || addr.neighbourhood) {
+            document.getElementById('modal-end-bairro').value = addr.suburb || addr.neighbourhood;
+        }
+        if (addr.city || addr.town || addr.village) {
+            document.getElementById('modal-end-cidade').value = addr.city || addr.town || addr.village;
+        }
+        if (addr.state) {
+            const stateLower = addr.state.toLowerCase();
+            document.getElementById('modal-end-uf').value = ufMapping[stateLower] || addr.state.substring(0,2).toUpperCase();
+        }
+        if (addr.postcode) {
+            document.getElementById('modal-end-cep').value = formatCEP(addr.postcode);
+        }
+        if (addr.house_number) {
+            document.getElementById('modal-end-num').value = addr.house_number;
+        }
+
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Local e coordenadas preenchidos com sucesso!');
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao buscar local: ' + e.message);
+    }
+};
+
+window.pageBuscarPorNomeLocal = async function() {
+    const query = document.getElementById('page-end-nome')?.value.trim() || '';
+    if (!query) {
+        alert('Por favor, digite o Nome do Local para pesquisar.');
+        return;
+    }
+
+    try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&country=Brazil&format=json&addressdetails=1&limit=1`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'SistemaAmerica/1.0' } });
+        if (!res.ok) throw new Error('Serviço de busca indisponível.');
+        const data = await res.json();
+        if (!data || data.length === 0) {
+            alert('Nenhum local encontrado para a pesquisa informada.');
+            return;
+        }
+
+        const info = data[0];
+        const addr = info.address;
+        
+        // Coordenadas
+        const lat = parseFloat(info.lat).toFixed(6);
+        const lon = parseFloat(info.lon).toFixed(6);
+        document.getElementById('page-end-coords').value = `${lat}; ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
+
+        // Endereço
+        if (addr.road) document.getElementById('page-end-rua').value = addr.road;
+        if (addr.suburb || addr.neighbourhood) {
+            document.getElementById('page-end-bairro').value = addr.suburb || addr.neighbourhood;
+        }
+        if (addr.city || addr.town || addr.village) {
+            document.getElementById('page-end-cidade').value = addr.city || addr.town || addr.village;
+        }
+        if (addr.state) {
+            const stateLower = addr.state.toLowerCase();
+            document.getElementById('page-end-uf').value = ufMapping[stateLower] || addr.state.substring(0,2).toUpperCase();
+        }
+        if (addr.postcode) {
+            document.getElementById('page-end-cep').value = formatCEP(addr.postcode);
+        }
+        if (addr.house_number) {
+            document.getElementById('page-end-num').value = addr.house_number;
+        }
+
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Local e coordenadas preenchidos com sucesso!');
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao buscar local: ' + e.message);
+    }
+};
+
+// ─── 3. BUSCA POR COORDENADAS (REVERSE GEOCONDING) ───────────────────
+window.modalBuscarPorCoords = async function() {
+    const coordsRaw = document.getElementById('modal-end-coords')?.value.trim() || '';
+    if (!coordsRaw) {
+        alert('Por favor, informe a latitude e longitude separadas por ; (Ex: -23.55052; -46.633308).');
+        return;
+    }
+
+    const parts = coordsRaw.split(/;/).map(p => p.trim());
+    if (parts.length < 2) {
+        alert('Formato inválido. Use: latitude; longitude');
+        return;
+    }
+
+    const lat = parseFloat(parts[0]);
+    const lon = parseFloat(parts[1]);
+    if (isNaN(lat) || isNaN(lon)) {
+        alert('Coordenadas numéricas inválidas.');
+        return;
+    }
+
+    try {
+        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'SistemaAmerica/1.0' } });
+        if (!res.ok) throw new Error('Serviço de busca reversa indisponível.');
+        const data = await res.json();
+        if (!data || !data.address) {
+            alert('Nenhum endereço encontrado para essas coordenadas.');
+            return;
+        }
+
+        const addr = data.address;
+        
+        // Preencher
+        if (addr.road) document.getElementById('modal-end-rua').value = addr.road;
+        if (addr.suburb || addr.neighbourhood) {
+            document.getElementById('modal-end-bairro').value = addr.suburb || addr.neighbourhood;
+        }
+        if (addr.city || addr.town || addr.village) {
+            document.getElementById('modal-end-cidade').value = addr.city || addr.town || addr.village;
+        }
+        if (addr.state) {
+            const stateLower = addr.state.toLowerCase();
+            document.getElementById('modal-end-uf').value = ufMapping[stateLower] || addr.state.substring(0,2).toUpperCase();
+        }
+        if (addr.postcode) {
+            document.getElementById('modal-end-cep').value = formatCEP(addr.postcode);
+        }
+        if (addr.house_number) {
+            document.getElementById('modal-end-num').value = addr.house_number;
+        }
+
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Endereço importado a partir das coordenadas!');
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Erro na busca reversa por coordenadas: ' + e.message);
+    }
+};
+
+window.pageBuscarPorCoords = async function() {
+    const coordsRaw = document.getElementById('page-end-coords')?.value.trim() || '';
+    if (!coordsRaw) {
+        alert('Por favor, informe a latitude e longitude separadas por ; (Ex: -23.55052; -46.633308).');
+        return;
+    }
+
+    const parts = coordsRaw.split(/;/).map(p => p.trim());
+    if (parts.length < 2) {
+        alert('Formato inválido. Use: latitude; longitude');
+        return;
+    }
+
+    const lat = parseFloat(parts[0]);
+    const lon = parseFloat(parts[1]);
+    if (isNaN(lat) || isNaN(lon)) {
+        alert('Coordenadas numéricas inválidas.');
+        return;
+    }
+
+    try {
+        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'SistemaAmerica/1.0' } });
+        if (!res.ok) throw new Error('Serviço de busca reversa indisponível.');
+        const data = await res.json();
+        if (!data || !data.address) {
+            alert('Nenhum endereço encontrado para essas coordenadas.');
+            return;
+        }
+
+        const addr = data.address;
+        
+        // Preencher
+        if (addr.road) document.getElementById('page-end-rua').value = addr.road;
+        if (addr.suburb || addr.neighbourhood) {
+            document.getElementById('page-end-bairro').value = addr.suburb || addr.neighbourhood;
+        }
+        if (addr.city || addr.town || addr.village) {
+            document.getElementById('page-end-cidade').value = addr.city || addr.town || addr.village;
+        }
+        if (addr.state) {
+            const stateLower = addr.state.toLowerCase();
+            document.getElementById('page-end-uf').value = ufMapping[stateLower] || addr.state.substring(0,2).toUpperCase();
+        }
+        if (addr.postcode) {
+            document.getElementById('page-end-cep').value = formatCEP(addr.postcode);
+        }
+        if (addr.house_number) {
+            document.getElementById('page-end-num').value = addr.house_number;
+        }
+
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Endereço importado a partir das coordenadas!');
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Erro na busca reversa por coordenadas: ' + e.message);
+    }
+};
+
+// ─── 4. BUSCA POR CNPJ DO LOCAL ──────────────────────────────────────
+window.modalBuscarPorCNPJLocal = async function() {
+    const cnpjRaw = document.getElementById('modal-end-cnpj')?.value || '';
+    const cnpj = cnpjRaw.replace(/\D/g, '');
+    if (cnpj.length !== 14) {
+        alert('Por favor, informe um CNPJ válido com 14 dígitos para buscar.');
+        return;
+    }
+
+    try {
+        const result = await apiGet('/consulta-cnpj/' + cnpj);
+        if (!result || !result.data) {
+            throw new Error('Retorno inválido do servidor.');
+        }
+
+        const data = result.data;
+        const source = result.source;
+
+        if (source === 'cnpjws') {
+            document.getElementById('modal-end-nome').value = data.estabelecimento?.nome_fantasia || data.razao_social || '';
+            document.getElementById('modal-end-cep').value = formatCEP(data.estabelecimento?.cep) || '';
+
+            const logradouro = data.estabelecimento?.logradouro || '';
+            const tipoLogradouro = data.estabelecimento?.tipo_logradouro || '';
+            const numero = data.estabelecimento?.numero || '';
+            
+            document.getElementById('modal-end-rua').value = `${tipoLogradouro} ${logradouro}`.trim();
+            document.getElementById('modal-end-num').value = numero || '';
+            document.getElementById('modal-end-comp').value = data.estabelecimento?.complemento || '';
+            document.getElementById('modal-end-bairro').value = data.estabelecimento?.bairro || '';
+            document.getElementById('modal-end-uf').value = data.estabelecimento?.estado?.sigla || '';
+            document.getElementById('modal-end-cidade').value = data.estabelecimento?.cidade?.nome || '';
+            
+            // Buscar coordenadas via CEP
+            if (data.estabelecimento?.cep) {
+                try {
+                    const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${data.estabelecimento.cep.replace(/\D/g,'')}&country=Brazil&format=json`, {
+                        headers: { 'User-Agent': 'SistemaAmerica/1.0' }
+                    });
+                    if (nomRes.ok) {
+                        const geo = await nomRes.json();
+                        if (geo && geo.length > 0) {
+                            const lat = parseFloat(geo[0].lat).toFixed(6);
+                            const lon = parseFloat(geo[0].lon).toFixed(6);
+                            document.getElementById('modal-end-coords').value = `${lat}; ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
+                        }
+                    }
+                } catch(e) {}
+            }
+        } else {
+            // brasilapi
+            document.getElementById('modal-end-nome').value = data.razao_social || '';
+            document.getElementById('modal-end-cep').value = formatCEP(data.cep) || '';
+            document.getElementById('modal-end-rua').value = data.logradouro || '';
+            document.getElementById('modal-end-num').value = data.numero || '';
+            document.getElementById('modal-end-bairro').value = data.bairro || '';
+            document.getElementById('modal-end-uf').value = data.uf || '';
+            document.getElementById('modal-end-cidade').value = data.municipio || '';
+
+            // Buscar coordenadas via CEP
+            if (data.cep) {
+                try {
+                    const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${data.cep.replace(/\D/g,'')}&country=Brazil&format=json`, {
+                        headers: { 'User-Agent': 'SistemaAmerica/1.0' }
+                    });
+                    if (nomRes.ok) {
+                        const geo = await nomRes.json();
+                        if (geo && geo.length > 0) {
+                            const lat = parseFloat(geo[0].lat).toFixed(6);
+                            const lon = parseFloat(geo[0].lon).toFixed(6);
+                            document.getElementById('modal-end-coords').value = `${lat}; ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
+                        }
+                    }
+                } catch(e) {}
+            }
+        }
+
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Dados do CNPJ importados com sucesso!');
+        }
+    } catch(e) {
+        console.error(e);
+        alert('Erro ao buscar CNPJ: ' + (e.message || 'Erro desconhecido.'));
+    }
+};
+
+window.pageBuscarPorCNPJLocal = async function() {
+    const cnpjRaw = document.getElementById('page-end-cnpj')?.value || '';
+    const cnpj = cnpjRaw.replace(/\D/g, '');
+    if (cnpj.length !== 14) {
+        alert('Por favor, informe um CNPJ válido com 14 dígitos para buscar.');
+        return;
+    }
+
+    try {
+        const result = await apiGet('/consulta-cnpj/' + cnpj);
+        if (!result || !result.data) {
+            throw new Error('Retorno inválido do servidor.');
+        }
+
+        const data = result.data;
+        const source = result.source;
+
+        if (source === 'cnpjws') {
+            document.getElementById('page-end-nome').value = data.estabelecimento?.nome_fantasia || data.razao_social || '';
+            document.getElementById('page-end-cep').value = formatCEP(data.estabelecimento?.cep) || '';
+
+            const logradouro = data.estabelecimento?.logradouro || '';
+            const tipoLogradouro = data.estabelecimento?.tipo_logradouro || '';
+            const numero = data.estabelecimento?.numero || '';
+            
+            document.getElementById('page-end-rua').value = `${tipoLogradouro} ${logradouro}`.trim();
+            document.getElementById('page-end-num').value = numero || '';
+            document.getElementById('page-end-comp').value = data.estabelecimento?.complemento || '';
+            document.getElementById('page-end-bairro').value = data.estabelecimento?.bairro || '';
+            document.getElementById('page-end-uf').value = data.estabelecimento?.estado?.sigla || '';
+            document.getElementById('page-end-cidade').value = data.estabelecimento?.cidade?.nome || '';
+            
+            // Buscar coordenadas via CEP
+            if (data.estabelecimento?.cep) {
+                try {
+                    const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${data.estabelecimento.cep.replace(/\D/g,'')}&country=Brazil&format=json`, {
+                        headers: { 'User-Agent': 'SistemaAmerica/1.0' }
+                    });
+                    if (nomRes.ok) {
+                        const geo = await nomRes.json();
+                        if (geo && geo.length > 0) {
+                            const lat = parseFloat(geo[0].lat).toFixed(6);
+                            const lon = parseFloat(geo[0].lon).toFixed(6);
+                            document.getElementById('page-end-coords').value = `${lat}; ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
+                        }
+                    }
+                } catch(e) {}
+            }
+        } else {
+            // brasilapi
+            document.getElementById('page-end-nome').value = data.razao_social || '';
+            document.getElementById('page-end-cep').value = formatCEP(data.cep) || '';
+            document.getElementById('page-end-rua').value = data.logradouro || '';
+            document.getElementById('page-end-num').value = data.numero || '';
+            document.getElementById('page-end-bairro').value = data.bairro || '';
+            document.getElementById('page-end-uf').value = data.uf || '';
+            document.getElementById('page-end-cidade').value = data.municipio || '';
+
+            // Buscar coordenadas via CEP
+            if (data.cep) {
+                try {
+                    const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${data.cep.replace(/\D/g,'')}&country=Brazil&format=json`, {
+                        headers: { 'User-Agent': 'SistemaAmerica/1.0' }
+                    });
+                    if (nomRes.ok) {
+                        const geo = await nomRes.json();
+                        if (geo && geo.length > 0) {
+                            const lat = parseFloat(geo[0].lat).toFixed(6);
+                            const lon = parseFloat(geo[0].lon).toFixed(6);
+                            document.getElementById('page-end-coords').value = `${lat}; ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
+                        }
+                    }
+                } catch(e) {}
+            }
+        }
+
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Dados do CNPJ importados com sucesso!');
+        }
+    } catch(e) {
+        console.error(e);
+        alert('Erro ao buscar CNPJ: ' + (e.message || 'Erro desconhecido.'));
+    }
+};
