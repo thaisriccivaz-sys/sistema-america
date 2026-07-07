@@ -7112,7 +7112,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                         <div>
                             <label class="prop-lbl-modal">Lat/Long (Google Maps)</label>
                             <div style="display:flex; gap:0.35rem;">
-                                <input type="text" id="modal-end-coords" class="cc-input-modal" placeholder="-23.55052; -46.633308" style="flex:1;">
+                                <input type="text" id="modal-end-coords" class="cc-input-modal" placeholder="-23.55052, -46.633308" style="flex:1;">
                                 <button type="button" onclick="window.modalBuscarPorCoords()" style="background:#334155; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar por Coordenadas"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
                             </div>
                         </div>
@@ -7748,7 +7748,7 @@ function _renderEnderecosInt() {
                     <div>
                         <label class="prop-lbl-end">Lat/Long (Google Maps)</label>
                         <div style="display:flex; gap:0.35rem;">
-                            <input type="text" id="page-end-coords" class="cc-input-end" placeholder="-23.55052; -46.633308" style="flex:1;">
+                            <input type="text" id="page-end-coords" class="cc-input-end" placeholder="-23.55052, -46.633308" style="flex:1;">
                             <button type="button" onclick="window.pageBuscarPorCoords()" style="background:#334155; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar por Coordenadas"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
                         </div>
                     </div>
@@ -8055,7 +8055,7 @@ window.pageBuscarCEP = async function() {
                 if (geo && geo.length > 0) {
                     const lat = parseFloat(geo[0].lat).toFixed(6);
                     const lon = parseFloat(geo[0].lon).toFixed(6);
-                    document.getElementById('page-end-coords').value = `${lat}; ${lon}`;
+                    document.getElementById('page-end-coords').value = `${lat}, ${lon}`;
                 }
             }
         } catch (e) {
@@ -10111,7 +10111,7 @@ window.modalBuscarCEPEntrega = async function() {
                 if (geo && geo.length > 0) {
                     const lat = parseFloat(geo[0].lat).toFixed(6);
                     const lon = parseFloat(geo[0].lon).toFixed(6);
-                    document.getElementById('modal-end-coords').value = `${lat}; ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
+                    document.getElementById('modal-end-coords').value = `${lat}, ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
                 }
             }
         } catch (e) {
@@ -10151,7 +10151,7 @@ window.modalBuscarPorNomeLocal = async function() {
         // Coordenadas
         const lat = parseFloat(info.lat).toFixed(6);
         const lon = parseFloat(info.lon).toFixed(6);
-        document.getElementById('modal-end-coords').value = `${lat}; ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
+        document.getElementById('modal-end-coords').value = `${lat}, ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
 
         // Endereço
         if (addr.road) document.getElementById('modal-end-rua').value = addr.road;
@@ -10204,7 +10204,7 @@ window.pageBuscarPorNomeLocal = async function() {
         // Coordenadas
         const lat = parseFloat(info.lat).toFixed(6);
         const lon = parseFloat(info.lon).toFixed(6);
-        document.getElementById('page-end-coords').value = `${lat}; ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
+        document.getElementById('page-end-coords').value = `${lat}, ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
 
         // Endereço
         if (addr.road) document.getElementById('page-end-rua').value = addr.road;
@@ -10238,13 +10238,13 @@ window.pageBuscarPorNomeLocal = async function() {
 window.modalBuscarPorCoords = async function() {
     const coordsRaw = document.getElementById('modal-end-coords')?.value.trim() || '';
     if (!coordsRaw) {
-        alert('Por favor, informe a latitude e longitude separadas por ; (Ex: -23.55052; -46.633308).');
+        alert('Por favor, informe a latitude e longitude separadas por vírgula (Ex: -23.55052, -46.633308).');
         return;
     }
 
-    const parts = coordsRaw.split(/;/).map(p => p.trim());
+    const parts = coordsRaw.split(',').map(p => p.trim());
     if (parts.length < 2) {
-        alert('Formato inválido. Use: latitude; longitude');
+        alert('Formato inválido. Use: latitude, longitude');
         return;
     }
 
@@ -10298,13 +10298,13 @@ window.modalBuscarPorCoords = async function() {
 window.pageBuscarPorCoords = async function() {
     const coordsRaw = document.getElementById('page-end-coords')?.value.trim() || '';
     if (!coordsRaw) {
-        alert('Por favor, informe a latitude e longitude separadas por ; (Ex: -23.55052; -46.633308).');
+        alert('Por favor, informe a latitude e longitude separadas por vírgula (Ex: -23.55052, -46.633308).');
         return;
     }
 
-    const parts = coordsRaw.split(/;/).map(p => p.trim());
+    const parts = coordsRaw.split(',').map(p => p.trim());
     if (parts.length < 2) {
-        alert('Formato inválido. Use: latitude; longitude');
+        alert('Formato inválido. Use: latitude, longitude');
         return;
     }
 
@@ -10399,7 +10399,7 @@ window.modalBuscarPorCNPJLocal = async function() {
                         if (geo && geo.length > 0) {
                             const lat = parseFloat(geo[0].lat).toFixed(6);
                             const lon = parseFloat(geo[0].lon).toFixed(6);
-                            document.getElementById('modal-end-coords').value = `${lat}; ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
+                            document.getElementById('modal-end-coords').value = `${lat}, ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
                         }
                     }
                 } catch(e) {}
@@ -10425,7 +10425,7 @@ window.modalBuscarPorCNPJLocal = async function() {
                         if (geo && geo.length > 0) {
                             const lat = parseFloat(geo[0].lat).toFixed(6);
                             const lon = parseFloat(geo[0].lon).toFixed(6);
-                            document.getElementById('modal-end-coords').value = `${lat}; ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
+                            document.getElementById('modal-end-coords').value = `${lat}, ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
                         }
                     }
                 } catch(e) {}
@@ -10484,7 +10484,7 @@ window.pageBuscarPorCNPJLocal = async function() {
                         if (geo && geo.length > 0) {
                             const lat = parseFloat(geo[0].lat).toFixed(6);
                             const lon = parseFloat(geo[0].lon).toFixed(6);
-                            document.getElementById('page-end-coords').value = `${lat}; ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
+                            document.getElementById('page-end-coords').value = `${lat}, ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
                         }
                     }
                 } catch(e) {}
@@ -10510,7 +10510,7 @@ window.pageBuscarPorCNPJLocal = async function() {
                         if (geo && geo.length > 0) {
                             const lat = parseFloat(geo[0].lat).toFixed(6);
                             const lon = parseFloat(geo[0].lon).toFixed(6);
-                            document.getElementById('page-end-coords').value = `${lat}; ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
+                            document.getElementById('page-end-coords').value = `${lat}, ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
                         }
                     }
                 } catch(e) {}
