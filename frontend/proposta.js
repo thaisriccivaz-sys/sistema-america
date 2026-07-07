@@ -2652,24 +2652,13 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
 
                                 <!-- Tabela de contatos cadastrados -->
                                 <div style="background:#fff; border-radius:10px; border:1px solid #e2e8f0; overflow-x:auto; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                                    <table style="width:100%; border-collapse:collapse; font-size:0.82rem; min-width:1200px; font-family:'Inter', sans-serif;">
+                                    <table style="width:100%; border-collapse:collapse; font-size:0.82rem; font-family:'Inter', sans-serif;">
                                         <thead>
                                             <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; text-align:left; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">Identificação</th>
                                                 <th style="padding:0.75rem 1rem; font-weight:700;">Nome</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">Departamento</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">Celular</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">Telefone/Ramal</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">E-mail</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">Dono</th>
                                                 <th style="padding:0.75rem 1rem; font-weight:700;">Cargo</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">Situação</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">NFe</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">Cobrança</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">OS</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">Contrato</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">Origem</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">Inativo</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">Celular</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700;">E-mail</th>
                                                 <th style="padding:0.75rem 1rem; font-weight:700; text-align:center;">Ações</th>
                                             </tr>
                                         </thead>
@@ -2749,7 +2738,7 @@ window.modalRenderTabelaContatos = function() {
     if (!window._modalClienteContatos || window._modalClienteContatos.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="16" style="padding:1rem; text-align:center; color:#94a3b8;">
+                <td colspan="5" style="padding:1rem; text-align:center; color:#94a3b8;">
                     Nenhum contato adicionado.
                 </td>
             </tr>
@@ -2759,28 +2748,17 @@ window.modalRenderTabelaContatos = function() {
     
     tbody.innerHTML = window._modalClienteContatos.map((c, idx) => `
         <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.identificacao || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#1e293b; font-weight:600;">${c.nome}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.departamento || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.celular || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.telefone_ramal || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.email || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.dono || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.cargo || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.situacao || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.nfe || 'Não'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.cobranca || 'Não'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.os || 'Não'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.contrato || 'Não'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.origem || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.inativo || 'Não'}</td>
+            <td style="padding:0.75rem 1rem; color:#1e293b; font-weight:600;">dots${c.nome}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">dots${c.cargo || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">dots${c.celular || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">dots${c.email || '—'}</td>
             <td style="padding:0.75rem 1rem; text-align:center;">
-                <button type="button" onclick="window.modalRemoverContato(${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fa5252'; this.style.color='#fff';" onmouseout="this.style.background='#ffe3e3'; this.style.color='#e03131';" title="Remover Contato">
+                <button type="button" onclick="window.modalRemoverContato(dots${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fa5252'; this.style.color='#fff';" onmouseout="this.style.background='#ffe3e3'; this.style.color='#e03131';" title="Remover Contato">
                     <i class="ph ph-trash" style="font-size:0.95rem;"></i>
                 </button>
             </td>
         </tr>
-    `).join('');
+    `).join('').replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
 };
 
 window.modalSalvarContatoInline = function() {
@@ -4252,24 +4230,13 @@ function _renderCadastroClienteInt() {
 
                             <!-- Tabela de contatos cadastrados -->
                             <div style="background:#fff; border-radius:10px; border:1px solid #e2e8f0; overflow-x:auto; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                                <table style="width:100%; border-collapse:collapse; font-size:0.82rem; min-width:1200px; font-family:'Inter', sans-serif;">
+                                <table style="width:100%; border-collapse:collapse; font-size:0.82rem; font-family:'Inter', sans-serif;">
                                     <thead>
                                         <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; text-align:left;">
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Identificação</th>
                                             <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Nome</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Departamento</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Celular</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Telefone/Ramal</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">E-mail</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Dono</th>
                                             <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Cargo</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Situação</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">NFe</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Cobrança</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">OS</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Contrato</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Origem</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Inativo</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Celular</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">E-mail</th>
                                             <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; text-align:center;">Ações</th>
                                         </tr>
                                     </thead>
@@ -4706,7 +4673,7 @@ window._renderTabelaContatos = function() {
     if (_clienteContatos.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="16" style="padding:1rem; text-align:center; color:#94a3b8;">
+                <td colspan="5" style="padding:1rem; text-align:center; color:#94a3b8;">
                     Nenhum contato adicionado.
                 </td>
             </tr>
@@ -4716,21 +4683,10 @@ window._renderTabelaContatos = function() {
     
     tbody.innerHTML = _clienteContatos.map((c, idx) => `
         <tr ondblclick="if (${c.id || 0}) window.editarContatoDeCliente(${c.id || 0})" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Duplo clique para editar contato">
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.identificacao || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#1e293b; font-weight:600;">${c.nome}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.departamento || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.celular || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.telefone_ramal || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.email || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.dono || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569;">${c.cargo || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.situacao || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.nfe || 'Não'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.cobranca || 'Não'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.os || 'Não'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.contrato || 'Não'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.origem || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.inativo || 'Não'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.celular || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569;">${c.email || '—'}</td>
             <td style="padding:0.75rem 1rem; text-align:center;">
                 <button onclick="removerContato(${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fa5252'; this.style.color='#fff';" onmouseout="this.style.background='#ffe3e3'; this.style.color='#e03131';" title="Remover Contato">
                     <i class="ph ph-trash" style="font-size:0.95rem;"></i>
