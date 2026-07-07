@@ -12806,7 +12806,7 @@ app.put('/api/logistica/notificacoes/:id/lida', authenticateToken, (req, res) =>
 app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
     db.get(`SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao, c.email_corporativo,
                    d.responsavel_id,
-                   (SELECT email_corporativo FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
+                   (SELECT COALESCE(NULLIF(email_corporativo, ''), NULLIF(email, '')) FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
                    (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
                    ef.id as form_id, ef.situacao
             FROM colaboradores c
@@ -12879,7 +12879,7 @@ function verificarExperienciasVencendo() {
 
     db.all(`SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao, c.email_corporativo,
                    d.responsavel_id,
-                   (SELECT email_corporativo FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
+                   (SELECT COALESCE(NULLIF(email_corporativo, ''), NULLIF(email, '')) FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
                    (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
                    ef.id as form_id, ef.notificacao_15d_enviada, ef.situacao
             FROM colaboradores c
