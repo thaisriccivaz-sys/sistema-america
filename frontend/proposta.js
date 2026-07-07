@@ -1561,18 +1561,18 @@ function _renderFormPropostaInt() {
                     </div>
 
                     <!-- Seção: Cliente e Contato -->
-                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:1rem 1.2rem; margin-bottom:1rem;">
-                        <h4 style="margin:0 0 0.85rem; font-size:0.88rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+                        <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-buildings" style="color:#7048e8;"></i> Dados do Cliente
                         </h4>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem 0.75rem;">
                             <div>
                                 <label class="prop-lbl">Cliente</label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <input type="text" id="prop-cliente" value="${v('cliente_nome')}"
                                         style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome ou razão do cliente">
-                                    <button type="button" onclick="pesquisarClienteProposta()" title="Pesquisar Cliente" style="background:#16a34a; color:white; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-                                        <i class="ph ph-magnifying-glass" style="font-size:1.1rem;"></i>
+                                    <button type="button" onclick="pesquisarClienteProposta()" title="Pesquisar Cliente" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                        <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
                                     </button>
                                 </div>
                             </div>
@@ -1581,11 +1581,11 @@ function _renderFormPropostaInt() {
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <input type="text" id="prop-contato" value="${v('contato_nome')}"
                                         style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome do contato">
-                                    <button type="button" onclick="pesquisarContatoProposta()" title="Pesquisar Contato" style="background:#16a34a; color:white; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-                                        <i class="ph ph-magnifying-glass" style="font-size:1.1rem;"></i>
+                                    <button type="button" onclick="pesquisarContatoProposta()" title="Pesquisar Contato" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                        <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
                                     </button>
-                                    <button type="button" onclick="verDetalhesContatoProposta()" title="Ver Detalhes do Contato" style="background:#0ea5e9; color:white; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'">
-                                        <i class="ph ph-eye" style="font-size:1.1rem;"></i>
+                                    <button type="button" onclick="verDetalhesContatoProposta()" title="Ver Detalhes do Contato" style="background:#0ea5e9; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'">
+                                        <i class="ph ph-eye" style="font-size:0.95rem;"></i>
                                     </button>
                                 </div>
                             </div>
@@ -1593,11 +1593,11 @@ function _renderFormPropostaInt() {
                     </div>
 
                     <!-- Seção: Período e Preços -->
-                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:1rem 1.2rem; margin-bottom:1rem;">
-                        <h4 style="margin:0 0 0.85rem; font-size:0.88rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+                        <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-calendar-blank" style="color:#7048e8;"></i> Período e Condições
                         </h4>
-                        <div style="display:grid; grid-template-columns:1.2fr 1.2fr 0.8fr 1.8fr; gap:1rem; margin-bottom:0.85rem;">
+                        <div style="display:grid; grid-template-columns:1.2fr 1.2fr 0.8fr 1.8fr; gap:0.5rem 0.75rem; margin-bottom:0.4rem;">
                             <div>
                                 <label class="prop-lbl">Período Início *</label>
                                 <input type="date" id="prop-periodo-ini" value="${v('periodo_inicio')}"
@@ -1626,7 +1626,7 @@ function _renderFormPropostaInt() {
                         </div>
 
                         <!-- Linha: Serviço Precificado -->
-                        <div style="display:grid; grid-template-columns:1fr; gap:1rem; margin-bottom:0.85rem;">
+                        <div style="display:grid; grid-template-columns:1fr; gap:0.5rem 0.75rem; margin-bottom:0.4rem;">
                             <div>
                                 <label class="prop-lbl">Serviço Precificado (Composição de Custo/Preço)</label>
                                 <select id="prop-servico-precificado" onchange="window.calcularValorTotalProposta()" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;font-weight:600;color:#1e293b;background:#fff;">
@@ -1637,7 +1637,7 @@ function _renderFormPropostaInt() {
                         </div>
 
                         <!-- Linha: Desconto %, Desconto R$, Condição Pagamento -->
-                        <div style="display:grid; grid-template-columns:1fr 1fr 1.5fr; gap:1rem; margin-bottom:1rem;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1.5fr; gap:0.5rem 0.75rem; margin-bottom:0.6rem;">
                             <div>
                                 <label class="prop-lbl">Desconto (%)</label>
                                 <input type="number" id="prop-desc-pct" value="${vn('desconto_percent','0')}" min="0" max="100" step="0.01"
@@ -1660,7 +1660,7 @@ function _renderFormPropostaInt() {
                         </div>
 
                         <!-- Linha: Endereço de Instalação, Manutenções e Dias da Semana (Largura Total da Linha) -->
-                        <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap; background:#f8fafc; padding:0.5rem 0.75rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box; width:100%; margin-bottom:1rem;">
+                        <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; background:#f8fafc; padding:0.35rem 0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box; width:100%; margin-bottom:0.6rem;">
                             
                             <!-- Endereço de Instalação -->
                             <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:320px;">
@@ -1668,9 +1668,9 @@ function _renderFormPropostaInt() {
                                 <input type="text" id="prop-endereco" value="${v('endereco_instalacao')}"
                                     onchange="window.classificarRegiaoEDias()"
                                     oninput="window.classificarRegiaoEDiasDebounced()"
-                                    style="flex:1;padding:0.4rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:34px;" placeholder="Rua, número, cidade, estado">
-                                <button type="button" onclick="window.abrirModalEnderecosEntrega()" style="background:#e2e8f0; color:#475569; border:none; padding:0 0.65rem; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; height:34px; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'" title="Consultar Endereços de Instalação">
-                                    <i class="ph ph-magnifying-glass" style="font-size:1.05rem;"></i>
+                                    style="flex:1;padding:0 0.45rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:28px;" placeholder="Rua, número, cidade, estado">
+                                <button type="button" onclick="window.abrirModalEnderecosEntrega()" style="background:#e2e8f0; color:#475569; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'" title="Consultar Endereços de Instalação">
+                                    <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
                                 </button>
                                 <span id="prop-regiao-ia-badge" style="display:none; font-weight:800; font-size:0.7rem; padding:2px 6px; border-radius:10px; font-family:'Inter',sans-serif; white-space:nowrap;"></span>
                             </div>
@@ -1700,33 +1700,33 @@ function _renderFormPropostaInt() {
                     </div>
 
                     <!-- Seção: Produtos da Proposta -->
-                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:1rem 1.2rem; margin-bottom:1rem;">
-                        <h4 style="margin:0 0 0.85rem; font-size:0.88rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+                        <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-package" style="color:#7048e8;"></i> Produtos da Proposta
                         </h4>
                         
                         <!-- Inputs para adicionar produto -->
-                        <div style="display:grid; grid-template-columns:1.5fr 3fr 1fr auto; gap:1rem; align-items:flex-end; margin-bottom:1rem;">
+                        <div style="display:grid; grid-template-columns:1.5fr 3fr 1fr auto; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.6rem;">
                             <div>
                                 <label class="prop-lbl">Código do Produto</label>
                                 <div style="display:flex; gap:0.25rem; align-items:center;">
-                                    <input type="text" id="prop-prod-codigo" placeholder="Código" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:36px;">
-                                    <button type="button" onclick="window.abrirModalBuscaProdutos()" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#475569; transition:all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Pesquisar Produto">
-                                        <i class="ph ph-magnifying-glass" style="font-size:1.1rem; font-weight:700;"></i>
+                                    <input type="text" id="prop-prod-codigo" placeholder="Código" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
+                                    <button type="button" onclick="window.abrirModalBuscaProdutos()" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#475569; transition:all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Pesquisar Produto">
+                                        <i class="ph ph-magnifying-glass" style="font-size:0.95rem; font-weight:700;"></i>
                                     </button>
                                 </div>
                             </div>
                             <div>
                                 <label class="prop-lbl">Descrição</label>
-                                <input type="text" id="prop-prod-descricao" placeholder="Descrição do produto..." style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:36px;">
+                                <input type="text" id="prop-prod-descricao" placeholder="Descrição do produto..." style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Quantidade</label>
-                                <input type="number" id="prop-prod-quantidade" value="1" min="1" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:36px;">
+                                <input type="number" id="prop-prod-quantidade" value="1" min="1" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
                             </div>
                             <div>
-                                <button type="button" onclick="window.adicionarProdutoProposta()" style="background:#7048e8; color:#fff; border:none; border-radius:6px; padding:0 1.2rem; height:36px; font-size:0.85rem; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
-                                    <i class="ph ph-plus-circle" style="font-size:1.1rem;"></i> Adicionar
+                                <button type="button" onclick="window.adicionarProdutoProposta()" style="background:#7048e8; color:#fff; border:none; border-radius:4px; padding:0 1.2rem; height:28px; font-size:0.76rem; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:4px;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
+                                    <i class="ph ph-plus-circle" style="font-size:0.95rem;"></i> Adicionar
                                 </button>
                             </div>
                         </div>
@@ -1752,11 +1752,11 @@ function _renderFormPropostaInt() {
                     </div>
 
                     <!-- Seção: Representante, Frete e Valor -->
-                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:1rem 1.2rem; margin-bottom:1rem;">
-                        <h4 style="margin:0 0 0.85rem; font-size:0.88rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+                        <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-user-check" style="color:#7048e8;"></i> Representante e Dados do Pedido
                         </h4>
-                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr; gap:1rem;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr; gap:0.5rem 0.75rem;">
                             <div style="grid-column:span 2;">
                                 <label class="prop-lbl">Representante *</label>
                                 <input type="text" id="prop-representante" value="${v('representante') || window.currentUser?.nome || window.currentUser?.username || window.currentUser?.email || ''}" readonly
@@ -1787,11 +1787,11 @@ function _renderFormPropostaInt() {
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                         </div>
-                        <div style="margin-top:1rem; display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                        <div style="margin-top:0.6rem; display:grid; grid-template-columns:1fr 1fr; gap:0.5rem 0.75rem;">
                             <div>
                                 <label class="prop-lbl">Valor Total (R$)</label>
                                 <input type="number" id="prop-valor-total" value="${vn('valor_total','0')}" min="0" step="0.01"
-                                    style="width:100%;padding:0.65rem;border:2px solid #7048e8;border-radius:6px;font-size:0.95rem;font-weight:700;color:#4c1d95;box-sizing:border-box;">
+                                    style="width:100%;padding:0.35rem 0.65rem;border:2px solid #7048e8;border-radius:6px;font-size:0.88rem;font-weight:700;color:#4c1d95;box-sizing:border-box;height:30px;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Status</label>
