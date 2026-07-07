@@ -177,6 +177,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     contato TEXT,
                     telefone TEXT,
                     ramal TEXT,
+                    coordenadas TEXT,
                     UNIQUE(cliente_id, sequencia),
                     FOREIGN KEY(cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
                 )
@@ -902,6 +903,15 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     const cols = rows.map(r => r.name);
                     if (!cols.includes('motivo_reprovacao')) {
                         db.run("ALTER TABLE propostas ADD COLUMN motivo_reprovacao TEXT");
+                    }
+                });
+
+                // Endereços de Entrega (Coordenadas)
+                db.all("PRAGMA table_info(clientes_enderecos_entrega)", (err, rows) => {
+                    if (err || !rows) return;
+                    const cols = rows.map(r => r.name);
+                    if (!cols.includes('coordenadas')) {
+                        db.run("ALTER TABLE clientes_enderecos_entrega ADD COLUMN coordenadas TEXT");
                     }
                 });
             });

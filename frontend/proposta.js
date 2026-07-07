@@ -7358,6 +7358,8 @@ window.modalSalvarEndereco = async function() {
                 mostrarToastSucesso('Endereço salvo com sucesso!');
             }
             window.modalCarregarEnderecos(window._modalSelectedClienteId);
+        } else {
+            alert('Erro ao salvar endereço: ' + (res && res.error ? res.error : 'Resposta inválida do servidor.'));
         }
     } catch(err) {
         console.error(err);
@@ -7997,6 +7999,8 @@ window.pageSalvarEndereco = async function() {
                 mostrarToastSucesso('Endereço salvo com sucesso!');
             }
             window.pageCarregarEnderecos(window._pageSelectedClienteId);
+        } else {
+            alert('Erro ao salvar endereço: ' + (res && res.error ? res.error : 'Resposta inválida do servidor.'));
         }
     } catch(err) {
         console.error(err);
