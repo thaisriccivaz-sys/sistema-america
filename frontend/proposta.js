@@ -521,24 +521,24 @@ function renderTelaPropostas() {
                 <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:1rem; margin-bottom:1rem;">
                     
                     <!-- Coluna 1: Rosca Status -->
-                    <div id="container-grafico-rosca" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; align-items:center; min-height:260px; box-sizing:border-box;">
+                    <div id="container-grafico-rosca" class="reveal-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; align-items:center; min-height:260px; box-sizing:border-box;">
                         <!-- Preenchido via JS -->
                     </div>
 
                     <!-- Coluna 2: Comparativo Financeiro -->
-                    <div id="container-grafico-conversao" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; min-height:260px; box-sizing:border-box;">
+                    <div id="container-grafico-conversao" class="reveal-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; min-height:260px; box-sizing:border-box;">
                         <!-- Preenchido via JS -->
                     </div>
 
                     <!-- Coluna 3: Pareto Motivos -->
-                    <div id="container-grafico-motivos" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; min-height:260px; box-sizing:border-box;">
+                    <div id="container-grafico-motivos" class="reveal-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; min-height:260px; box-sizing:border-box;">
                         <!-- Preenchido via JS -->
                     </div>
 
                 </div>
 
                 <!-- 1.1 Curva ABC de Clientes -->
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:1rem;">
+                <div class="reveal-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:1rem;">
                     <h3 style="margin:0 0 1rem 0; font-size:0.95rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
                         <i class="ph ph-chart-bar" style="color:#7048e8;"></i> Classificação de Clientes - Curva ABC (BI)
                     </h3>
@@ -560,7 +560,7 @@ function renderTelaPropostas() {
                 </div>
 
                 <!-- 2. Gestão de Qualidade: Kanban PDCA -->
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:1rem;">
+                <div class="reveal-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:1rem;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
                         <h3 style="margin:0; font-size:0.95rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-kanban" style="color:#7048e8;"></i> Kanban PDCA (Gestão de Qualidade)
@@ -609,7 +609,7 @@ function renderTelaPropostas() {
                 </div>
 
                 <!-- 2.2 Painel IA: Análise Inteligente de Melhoria -->
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:1rem;">
+                <div class="reveal-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:1rem;">
                     <h3 style="margin:0 0 0.8rem 0; font-size:0.95rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
                         <i class="ph ph-sparkle" style="color:#7048e8;"></i> Análise Inteligente de Melhoria (IA)
                     </h3>
@@ -626,18 +626,18 @@ function renderTelaPropostas() {
                 <!-- 3. Middle-Bottom Section (Active Operations & Revenue) -->
                 <div style="display:grid; grid-template-columns: 1.1fr 0.9fr; gap:1rem; margin-bottom:1rem;">
                     <!-- Line Chart Container -->
-                    <div id="container-grafico-linha" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
+                    <div id="container-grafico-linha" class="reveal-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
                         <!-- Preenchido via JS -->
                     </div>
                     
                     <!-- Stacked Bar Chart Container -->
-                    <div id="container-grafico-barra" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
+                    <div id="container-grafico-barra" class="reveal-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
                         <!-- Preenchido via JS -->
                     </div>
                 </div>
 
                 <!-- 4. Bottom Section (Filtros e Tabela de Propostas) -->
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:1rem;">
+                <div class="reveal-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:1rem;">
                     <h3 style="margin:0 0 1rem 0; font-size:0.95rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
                         <i class="ph ph-file-text" style="color:#7048e8;"></i> Gestão de Propostas Comerciais
                     </h3>
@@ -959,7 +959,7 @@ window.atualizarGraficosGlobais = function() {
     if (containerKpis) {
         containerKpis.innerHTML = `
             <!-- Card 1: Manutenção Crítica (Alerta Laranja) -->
-            <div style="background:linear-gradient(135deg, #f97316, #ea580c); color:white; border-radius:14px; padding:0.8rem 1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 10px 20px -5px rgba(234,88,12,0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+            <div class="reveal-card" style="background:linear-gradient(135deg, #f97316, #ea580c); color:white; border-radius:14px; padding:0.8rem 1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 10px 20px -5px rgba(234,88,12,0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                 <div>
                     <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; opacity:0.9;">Manutenção Crítica - 7 Dias</div>
                     <div style="font-size:2rem; font-weight:900; margin-top:0.25rem; letter-spacing:-0.5px;">${manutCriticaCount}</div>
@@ -970,7 +970,7 @@ window.atualizarGraficosGlobais = function() {
             </div>
             
             <!-- Card 2: Taxa de Ocupação de Ativos (Azul) -->
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:0.8rem 1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 6px -1px rgba(0,0,0,0.01), 0 2px 4px -1px rgba(0,0,0,0.01); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+            <div class="reveal-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:0.8rem 1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 6px -1px rgba(0,0,0,0.01), 0 2px 4px -1px rgba(0,0,0,0.01); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                 <div>
                     <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">Taxa Ocupação de Ativos</div>
                     <div style="font-size:2rem; font-weight:900; color:#1e293b; margin-top:0.25rem; display:flex; align-items:center; gap:0.5rem; letter-spacing:-0.5px;">
@@ -984,7 +984,7 @@ window.atualizarGraficosGlobais = function() {
             </div>
             
             <!-- Card 3: SLA de Serviços - Cumprimento (Verde) -->
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:0.8rem 1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 6px -1px rgba(0,0,0,0.01), 0 2px 4px -1px rgba(0,0,0,0.01); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+            <div class="reveal-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:0.8rem 1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 6px -1px rgba(0,0,0,0.01), 0 2px 4px -1px rgba(0,0,0,0.01); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                 <div>
                     <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">SLA de Serviços - Cumprimento</div>
                     <div style="font-size:2rem; font-weight:900; color:#1e293b; margin-top:0.25rem; letter-spacing:-0.5px;">${slaFmt}</div>
@@ -995,7 +995,7 @@ window.atualizarGraficosGlobais = function() {
             </div>
             
             <!-- Card 4: Inadimplência Atual (Vermelho/Rosa) -->
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:0.8rem 1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 6px -1px rgba(0,0,0,0.01), 0 2px 4px -1px rgba(0,0,0,0.01); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+            <div class="reveal-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:0.8rem 1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 6px -1px rgba(0,0,0,0.01), 0 2px 4px -1px rgba(0,0,0,0.01); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                 <div>
                     <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">Inadimplência Atual</div>
                     <div style="font-size:2rem; font-weight:900; color:#1e293b; margin-top:0.25rem; display:flex; align-items:center; gap:0.5rem; letter-spacing:-0.5px;">
@@ -1198,6 +1198,58 @@ window.atualizarGraficosGlobais = function() {
             </div>
         `;
     }
+
+    if (window.initGSAPAnimations) window.initGSAPAnimations();
+};
+
+window.initGSAPAnimations = function() {
+    if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+        gsap.registerPlugin(ScrollTrigger);
+        
+        // Limpa instâncias anteriores para evitar duplicações no re-render
+        ScrollTrigger.getAll().forEach(t => t.kill());
+
+        const cards = gsap.utils.toArray('.reveal-card');
+        if (cards.length === 0) return;
+
+        // Estado inicial
+        gsap.set(cards, { opacity: 0, y: 30 });
+
+        // Batch trigger para efeito de fade-up escalonado (150ms)
+        ScrollTrigger.batch(cards, {
+            onEnter: batch => gsap.to(batch, {
+                opacity: 1,
+                y: 0,
+                duration: 0.6,
+                stagger: 0.15,
+                ease: 'power2.out',
+                overwrite: 'auto'
+            }),
+            onLeaveBack: batch => gsap.to(batch, {
+                opacity: 0,
+                y: 30,
+                duration: 0.4,
+                overwrite: 'auto'
+            }),
+            // Fade-out simples quando os elementos saem pelo topo
+            onLeave: batch => gsap.to(batch, {
+                opacity: 0,
+                y: -30,
+                duration: 0.4,
+                overwrite: 'auto'
+            }),
+            onEnterBack: batch => gsap.to(batch, {
+                opacity: 1,
+                y: 0,
+                duration: 0.6,
+                stagger: 0.15,
+                ease: 'power2.out',
+                overwrite: 'auto'
+            }),
+            start: "top 95%",
+            end: "bottom 5%"
+        });
+    }
 };
 
 /* ── Atualização Dinâmica de Gráficos e BI ──────────────────────────────── */
@@ -1360,6 +1412,8 @@ window.atualizarGraficosComerciais = function(lista) {
     if (typeof window.atualizarTabelaCurvaABC === 'function') {
         window.atualizarTabelaCurvaABC(lista);
     }
+
+    if (window.initGSAPAnimations) window.initGSAPAnimations();
 };
 
 /* ── Filtros ────────────────────────────────────────────────────────── */
