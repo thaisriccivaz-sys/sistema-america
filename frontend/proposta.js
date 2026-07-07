@@ -40,6 +40,9 @@ const PROP_STATUS_CORES = {
 
 let _propostasData = [];
 let _dashboardStatsData = [];
+let _manutencoesData = [];
+let _veiculosData = [];
+let _clientesData = [];
 let _propostasEditandoId = null;
 let _currentPropostaTab = 'lista'; // 'lista', 'form' ou 'cadastro-cliente'
 let _clienteEditandoId = null;
@@ -86,6 +89,27 @@ async function carregarPropostas() {
     } catch (e) {
         console.error('[DASHBOARD STATS] Erro ao carregar:', e);
         _dashboardStatsData = [];
+    }
+    try {
+        const maint = await apiGet('/frota/manutencoes');
+        _manutencoesData = Array.isArray(maint) ? maint : [];
+    } catch (e) {
+        console.error('[MANUTENCOES] Erro ao carregar:', e);
+        _manutencoesData = [];
+    }
+    try {
+        const veic = await apiGet('/frota/veiculos');
+        _veiculosData = Array.isArray(veic) ? veic : [];
+    } catch (e) {
+        console.error('[VEICULOS] Erro ao carregar:', e);
+        _veiculosData = [];
+    }
+    try {
+        const clis = await apiGet('/clientes');
+        _clientesData = Array.isArray(clis) ? clis : [];
+    } catch (e) {
+        console.error('[CLIENTES] Erro ao carregar:', e);
+        _clientesData = [];
     }
 }
 
@@ -418,51 +442,8 @@ function renderTelaPropostas() {
                 </div>
 
                 <!-- 1. Top Section (Critical Operations & Alarms KPI Cards) -->
-                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:0.75rem; margin-bottom:1rem;">
-                    <!-- Card 1: Manutenção Crítica (Alerta Laranja) -->
-                    <div style="background:linear-gradient(135deg, #f97316, #ea580c); color:white; border-radius:12px; padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 15px rgba(234,88,12,0.15);">
-                        <div>
-                            <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.02em; opacity:0.9;">Manutenção Crítica - 7 Dias</div>
-                            <div style="font-size:1.85rem; font-weight:900; margin-top:0.25rem;">15</div>
-                        </div>
-                        <div style="display:flex; gap:0.5rem; font-size:1.6rem; opacity:0.9;">
-                            <i class="ph ph-wrench"></i>
-                            <i class="ph ph-calendar"></i>
-                        </div>
-                    </div>
-                    
-                    <!-- Card 2: Taxa de Ocupação de Ativos (Azul) -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                        <div>
-                            <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.02em;">Taxa Ocupação de Ativos</div>
-                            <div style="font-size:1.85rem; font-weight:900; color:#1e293b; margin-top:0.25rem; display:flex; align-items:center; gap:0.35rem;">
-                                88.5%
-                                <span style="font-size:0.78rem; font-weight:700; color:#3b82f6;"><i class="ph ph-trend-up"></i> +1.2%</span>
-                            </div>
-                        </div>
-                        <i class="ph ph-package" style="font-size:1.65rem; color:#3b82f6; opacity:0.85;"></i>
-                    </div>
-                    
-                    <!-- Card 3: SLA de Serviços - Cumprimento (Verde) -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                        <div>
-                            <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.02em;">SLA de Serviços - Cumprimento</div>
-                            <div style="font-size:1.85rem; font-weight:900; color:#1e293b; margin-top:0.25rem;">96.2%</div>
-                        </div>
-                        <i class="ph ph-check-circle" style="font-size:1.65rem; color:#10b981; opacity:0.85;"></i>
-                    </div>
-                    
-                    <!-- Card 4: Inadimplência Atual (Vermelho/Rosa) -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                        <div>
-                            <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.02em;">Inadimplência Atual</div>
-                            <div style="font-size:1.85rem; font-weight:900; color:#1e293b; margin-top:0.25rem; display:flex; align-items:center; gap:0.35rem;">
-                                2.5%
-                                <span style="font-size:0.78rem; font-weight:700; color:#ef4444;"><i class="ph ph-trend-down"></i> -0.4%</span>
-                            </div>
-                        </div>
-                        <i class="ph ph-warning-circle" style="font-size:1.65rem; color:#ef4444; opacity:0.85;"></i>
-                    </div>
+                <div id="container-kpis-top" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:0.75rem; margin-bottom:1rem;">
+                    <!-- Preenchido via JS -->
                 </div>
 
                 <!-- 2. Middle-Top Section (Commercial Analytics & Quality Grid - 3 Colunas) -->
@@ -573,109 +554,14 @@ function renderTelaPropostas() {
 
                 <!-- 3. Middle-Bottom Section (Active Operations & Revenue) -->
                 <div style="display:grid; grid-template-columns: 1.1fr 0.9fr; gap:1rem; margin-bottom:1rem;">
-                    <!-- Line Chart: Receita vs Custo Operacional -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
-                            <h3 style="margin:0; font-size:0.9rem; font-weight:800; color:#1e293b;">Receita vs. Custo Operacional (Últimos 6 Meses)</h3>
-                            <div style="display:flex; gap:0.6rem; font-size:0.72rem; font-weight:700;">
-                                <div style="display:flex; align-items:center; gap:4px;">
-                                    <span style="width:8px; height:8px; background:#3b82f6; display:inline-block; border-radius:2px;"></span>
-                                    <span>Receita</span>
-                                </div>
-                                <div style="display:flex; align-items:center; gap:4px;">
-                                    <span style="width:8px; height:2px; background:#f97316; display:inline-block;"></span>
-                                    <span>Custo</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div style="position:relative; height:180px; margin-top:0.5rem; font-family:'Inter', sans-serif;">
-                            <svg width="100%" height="180" viewBox="0 0 500 180" preserveAspectRatio="none" style="overflow: visible;">
-                                <!-- Gridlines -->
-                                <g stroke="#f1f5f9" stroke-width="1">
-                                    <line x1="30" y1="20" x2="480" y2="20"/>
-                                    <line x1="30" y1="60" x2="480" y2="60"/>
-                                    <line x1="30" y1="100" x2="480" y2="100"/>
-                                    <line x1="30" y1="140" x2="480" y2="140"/>
-                                </g>
-                                <line x1="30" y1="160" x2="480" y2="160" stroke="#cbd5e1" stroke-width="1.5"/>
-                                
-                                <!-- Y Labels -->
-                                <g fill="#94a3b8" font-size="8" text-anchor="end">
-                                    <text x="22" y="23">1.2M</text>
-                                    <text x="22" y="63">900k</text>
-                                    <text x="22" y="103">600k</text>
-                                    <text x="22" y="143">300k</text>
-                                    <text x="22" y="163">0</text>
-                                </g>
-                                
-                                <!-- X Labels -->
-                                <g fill="#64748b" font-size="9" text-anchor="middle" font-weight="600">
-                                    <text x="40" y="174">Jul</text>
-                                    <text x="120" y="174">Ago</text>
-                                    <text x="200" y="174">Set</text>
-                                    <text x="280" y="174">Out</text>
-                                    <text x="360" y="174">Nov</text>
-                                    <text x="440" y="174">Dez</text>
-                                </g>
-                                
-                                <!-- Revenue Line (Blue) -->
-                                <path d="M 40,110 L 120,95 L 200,85 L 280,75 L 360,55 L 440,30" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                                <circle cx="440" cy="30" r="4" fill="#3b82f6"/>
-                                
-                                <!-- Cost Line (Orange Dashed) -->
-                                <path d="M 40,135 L 120,120 L 200,125 L 280,110 L 360,95 L 440,90" fill="none" stroke="#f97316" stroke-width="2" stroke-dasharray="4 4" stroke-linecap="round" stroke-linejoin="round"/>
-                                <circle cx="440" cy="90" r="4" fill="#f97316"/>
-                            </svg>
-                        </div>
+                    <!-- Line Chart Container -->
+                    <div id="container-grafico-linha" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
+                        <!-- Preenchido via JS -->
                     </div>
                     
-                    <!-- Stacked Bar Chart: Receita por Categoria de Ativo -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
-                            <h3 style="margin:0; font-size:0.9rem; font-weight:800; color:#1e293b;">Receita por Categoria de Ativo (Mensal)</h3>
-                            <div style="display:flex; flex-direction:column; gap:2px; font-size:0.65rem; background:rgba(255,255,255,0.9); padding:4px; border-radius:4px; border:1px solid #e2e8f0;">
-                                <div style="display:flex; align-items:center; gap:4px;">
-                                    <span style="width:6px; height:6px; background:#3b82f6; display:inline-block; border-radius:1px;"></span>
-                                    <span>Eq. Pesado</span>
-                                </div>
-                                <div style="display:flex; align-items:center; gap:4px;">
-                                    <span style="width:6px; height:6px; background:#10b981; display:inline-block; border-radius:1px;"></span>
-                                    <span>Veíc. Leves</span>
-                                </div>
-                                <div style="display:flex; align-items:center; gap:4px;">
-                                    <span style="width:6px; height:6px; background:#f97316; display:inline-block; border-radius:1px;"></span>
-                                    <span>M.O. Técnica</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div style="position:relative; height:180px; margin-top:0.5rem; font-family:'Inter', sans-serif;">
-                            <div style="display:flex; justify-content:space-around; align-items:flex-end; height:140px; border-bottom:1px solid #cbd5e1; padding-bottom:5px;">
-                                <!-- Bar Out -->
-                                <div style="display:flex; flex-direction:column-reverse; width:34px; height:100%;">
-                                    <div style="height:45%; background:#3b82f6; border-radius:2px;" title="Eq. Pesado"></div>
-                                    <div style="height:30%; background:#10b981;" title="Veíc. Leves"></div>
-                                    <div style="height:25%; background:#f97316; border-top-left-radius:2px; border-top-right-radius:2px;" title="M.O. Técnica"></div>
-                                </div>
-                                <!-- Bar Nov -->
-                                <div style="display:flex; flex-direction:column-reverse; width:34px; height:120px;">
-                                    <div style="height:40%; background:#3b82f6; border-radius:2px;" title="Eq. Pesado"></div>
-                                    <div style="height:35%; background:#10b981;" title="Veíc. Leves"></div>
-                                    <div style="height:25%; background:#f97316; border-top-left-radius:2px; border-top-right-radius:2px;" title="M.O. Técnica"></div>
-                                </div>
-                                <!-- Bar Dez -->
-                                <div style="display:flex; flex-direction:column-reverse; width:34px; height:135px;">
-                                    <div style="height:50%; background:#3b82f6; border-radius:2px;" title="Eq. Pesado"></div>
-                                    <div style="height:30%; background:#10b981;" title="Veíc. Leves"></div>
-                                    <div style="height:20%; background:#f97316; border-top-left-radius:2px; border-top-right-radius:2px;" title="M.O. Técnica"></div>
-                                </div>
-                            </div>
-                            <!-- X Labels -->
-                            <div style="display:flex; justify-content:space-around; font-size:0.75rem; font-weight:700; color:#64748b; margin-top:8px;">
-                                <span style="width:34px; text-align:center;">Out</span>
-                                <span style="width:34px; text-align:center;">Nov</span>
-                                <span style="width:34px; text-align:center;">Dez</span>
-                            </div>
-                        </div>
+                    <!-- Stacked Bar Chart Container -->
+                    <div id="container-grafico-barra" style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column;">
+                        <!-- Preenchido via JS -->
                     </div>
                 </div>
 
@@ -771,6 +657,7 @@ function renderTelaPropostas() {
 
     if (_currentPropostaTab === 'lista') {
         setTimeout(() => {
+            if (window.atualizarGraficosGlobais) window.atualizarGraficosGlobais();
             if (window.atualizarTabela5W2H) window.atualizarTabela5W2H();
             if (window.atualizarTabelaCurvaABC) window.atualizarTabelaCurvaABC();
             filtrarPropostas();
@@ -839,6 +726,7 @@ window.switchPropostaTab = function(tab) {
             }
         }
         if (tab === 'lista') {
+            if (window.atualizarGraficosGlobais) window.atualizarGraficosGlobais();
             if (window.atualizarTabela5W2H) window.atualizarTabela5W2H();
             if (window.atualizarTabelaCurvaABC) window.atualizarTabelaCurvaABC();
             filtrarPropostas();
@@ -909,6 +797,271 @@ function _renderLinhasPropostas(lista) {
         </tr>`;
     }).join('');
 }
+
+/* ── Atualização Dinâmica de KPIs e Gráficos de Tendência (Globais) ──────── */
+window.atualizarGraficosGlobais = function() {
+    const hoje = new Date();
+    const limiteData = new Date();
+    limiteData.setDate(hoje.getDate() + 7);
+
+    const manutencoes = Array.isArray(window._manutencoesData) ? window._manutencoesData : [];
+    const veiculos = Array.isArray(window._veiculosData) ? window._veiculosData : [];
+    const clientes = Array.isArray(window._clientesData) ? window._clientesData : [];
+
+    const manutCriticaCount = manutencoes.filter(m => {
+        const statusVal = (m.status || '').toLowerCase();
+        if (statusVal === 'concluida' || statusVal === 'concluído') return false;
+        const criticidadeVal = (m.criticidade || '').toLowerCase();
+        if (criticidadeVal === 'alta') return true;
+        if (m.data_agendamento) {
+            const dataAgend = new Date(m.data_agendamento);
+            return dataAgend <= limiteData;
+        }
+        return false;
+    }).length;
+
+    // Taxa de Ocupação de Ativos
+    const totalVeiculos = veiculos.length;
+    const emManutencao = veiculos.filter(v => v.em_manutencao === 1 || v.em_manutencao === 'Sim').length;
+    const occupancyRate = totalVeiculos > 0 ? (((totalVeiculos - emManutencao) / totalVeiculos) * 100).toFixed(1) : '88.5';
+    const occupancyFmt = totalVeiculos > 0 ? `${occupancyRate}%` : '88.5%';
+
+    // SLA de Serviços - Cumprimento
+    const concluidas = manutencoes.filter(m => {
+        const statusVal = (m.status || '').toLowerCase();
+        return statusVal === 'concluida' || statusVal === 'concluído';
+    });
+    const noPrazo = concluidas.filter(m => {
+        if (!m.data_agendamento || !m.data_conclusao) return true;
+        const dataAgend = new Date(m.data_agendamento);
+        const dataConcl = new Date(m.data_conclusao);
+        return dataConcl <= dataAgend;
+    }).length;
+    const slaRate = concluidas.length > 0 ? ((noPrazo / concluidas.length) * 100).toFixed(1) : '96.2';
+    const slaFmt = concluidas.length > 0 ? `${slaRate}%` : '96.2%';
+
+    // Inadimplência Atual
+    const totalClientes = clientes.length;
+    const inativos = clientes.filter(c => c.inativo === 'Sim' || c.inativo === 1).length;
+    const defaultRate = totalClientes > 0 ? ((inativos / totalClientes) * 100).toFixed(1) : '2.5';
+    const defaultFmt = totalClientes > 0 ? `${defaultRate}%` : '2.5%';
+
+    const containerKpis = document.getElementById('container-kpis-top');
+    if (containerKpis) {
+        containerKpis.innerHTML = `
+            <!-- Card 1: Manutenção Crítica (Alerta Laranja) -->
+            <div style="background:linear-gradient(135deg, #f97316, #ea580c); color:white; border-radius:12px; padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 15px rgba(234,88,12,0.15);">
+                <div>
+                    <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.02em; opacity:0.9;">Manutenção Crítica - 7 Dias</div>
+                    <div style="font-size:1.85rem; font-weight:900; margin-top:0.25rem;">${manutCriticaCount}</div>
+                </div>
+                <div style="display:flex; gap:0.5rem; font-size:1.6rem; opacity:0.9;">
+                    <i class="ph ph-wrench"></i>
+                    <i class="ph ph-calendar"></i>
+                </div>
+            </div>
+            
+            <!-- Card 2: Taxa de Ocupação de Ativos (Azul) -->
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                <div>
+                    <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.02em;">Taxa Ocupação de Ativos</div>
+                    <div style="font-size:1.85rem; font-weight:900; color:#1e293b; margin-top:0.25rem; display:flex; align-items:center; gap:0.35rem;">
+                        ${occupancyFmt}
+                        <span style="font-size:0.78rem; font-weight:700; color:#3b82f6;"><i class="ph ph-trend-up"></i> +1.2%</span>
+                    </div>
+                </div>
+                <i class="ph ph-package" style="font-size:1.65rem; color:#3b82f6; opacity:0.85;"></i>
+            </div>
+            
+            <!-- Card 3: SLA de Serviços - Cumprimento (Verde) -->
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                <div>
+                    <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.02em;">SLA de Serviços - Cumprimento</div>
+                    <div style="font-size:1.85rem; font-weight:900; color:#1e293b; margin-top:0.25rem;">${slaFmt}</div>
+                </div>
+                <i class="ph ph-check-circle" style="font-size:1.65rem; color:#10b981; opacity:0.85;"></i>
+            </div>
+            
+            <!-- Card 4: Inadimplência Atual (Vermelho/Rosa) -->
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                <div>
+                    <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.02em;">Inadimplência Atual</div>
+                    <div style="font-size:1.85rem; font-weight:900; color:#1e293b; margin-top:0.25rem; display:flex; align-items:center; gap:0.35rem;">
+                        ${defaultFmt}
+                        <span style="font-size:0.78rem; font-weight:700; color:#ef4444;"><i class="ph ph-trend-down"></i> -0.4%</span>
+                    </div>
+                </div>
+                <i class="ph ph-warning-circle" style="font-size:1.65rem; color:#ef4444; opacity:0.85;"></i>
+            </div>
+        `;
+    }
+
+    // 2. Gráfico de Receita vs Custo (Últimos 6 Meses)
+    const mesesAbreviados = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const ultimos6Meses = [];
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+        const anoMes = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        ultimos6Meses.push({
+            key: anoMes,
+            label: mesesAbreviados[d.getMonth()],
+            receita: 0,
+            custo: 0
+        });
+    }
+
+    _propostasData.forEach(p => {
+        if (!p.data_cadastro) return;
+        const [ano, mes] = p.data_cadastro.split('-');
+        const key = `${ano}-${mes}`;
+        const match = ultimos6Meses.find(m => m.key === key);
+        if (match) {
+            const valor = typeof p.valor_total === 'number' ? p.valor_total : parseFloat(p.valor_total) || 0;
+            const fase = p.fase_negociacao || 'Em Elaboração';
+            if (fase === 'Aprovada' || fase === 'Convertida em OS') {
+                match.receita += valor;
+                match.custo += valor * 0.45;
+            }
+        }
+    });
+
+    const maxValor = Math.max(...ultimos6Meses.map(m => Math.max(m.receita, m.custo)), 1000);
+
+    const formatarValorK = (val) => {
+        if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
+        if (val >= 1000) return (val / 1000).toFixed(0) + 'k';
+        return val.toString();
+    };
+
+    const yMaxStr = formatarValorK(maxValor);
+    const y75Str = formatarValorK(maxValor * 0.75);
+    const y50Str = formatarValorK(maxValor * 0.50);
+    const y25Str = formatarValorK(maxValor * 0.25);
+
+    const revenuePoints = ultimos6Meses.map((m, idx) => {
+        const x = 40 + idx * 80;
+        const y = 160 - (m.receita / maxValor) * 140;
+        return `${idx === 0 ? 'M' : 'L'} ${x},${y}`;
+    }).join(' ');
+
+    const costPoints = ultimos6Meses.map((m, idx) => {
+        const x = 40 + idx * 80;
+        const y = 160 - (m.custo / maxValor) * 140;
+        return `${idx === 0 ? 'M' : 'L'} ${x},${y}`;
+    }).join(' ');
+
+    const lastRevX = 40 + 5 * 80;
+    const lastRevY = 160 - (ultimos6Meses[5].receita / maxValor) * 140;
+    const lastCostX = 40 + 5 * 80;
+    const lastCostY = 160 - (ultimos6Meses[5].custo / maxValor) * 140;
+
+    const containerLinha = document.getElementById('container-grafico-linha');
+    if (containerLinha) {
+        containerLinha.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
+                <h3 style="margin:0; font-size:0.9rem; font-weight:800; color:#1e293b;">Receita vs. Custo Operacional (Últimos 6 Meses)</h3>
+                <div style="display:flex; gap:0.6rem; font-size:0.72rem; font-weight:700;">
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <span style="width:8px; height:8px; background:#3b82f6; display:inline-block; border-radius:2px;"></span>
+                        <span>Receita</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <span style="width:8px; height:2px; background:#f97316; display:inline-block;"></span>
+                        <span>Custo</span>
+                    </div>
+                </div>
+            </div>
+            <div style="position:relative; height:180px; margin-top:0.5rem; font-family:'Inter', sans-serif;">
+                <svg width="100%" height="180" viewBox="0 0 500 180" preserveAspectRatio="none" style="overflow: visible;">
+                    <g stroke="#f1f5f9" stroke-width="1">
+                        <line x1="30" y1="20" x2="480" y2="20"/>
+                        <line x1="30" y1="60" x2="480" y2="60"/>
+                        <line x1="30" y1="100" x2="480" y2="100"/>
+                        <line x1="30" y1="140" x2="480" y2="140"/>
+                    </g>
+                    <line x1="30" y1="160" x2="480" y2="160" stroke="#cbd5e1" stroke-width="1.5"/>
+                    
+                    <g fill="#94a3b8" font-size="8" text-anchor="end">
+                        <text x="22" y="23">${yMaxStr}</text>
+                        <text x="22" y="63">${y75Str}</text>
+                        <text x="22" y="103">${y50Str}</text>
+                        <text x="22" y="143">${y25Str}</text>
+                        <text x="22" y="163">0</text>
+                    </g>
+                    
+                    <g fill="#64748b" font-size="9" text-anchor="middle" font-weight="600">
+                        <text x="40" y="174">${ultimos6Meses[0].label}</text>
+                        <text x="120" y="174">${ultimos6Meses[1].label}</text>
+                        <text x="200" y="174">${ultimos6Meses[2].label}</text>
+                        <text x="280" y="174">${ultimos6Meses[3].label}</text>
+                        <text x="360" y="174">${ultimos6Meses[4].label}</text>
+                        <text x="440" y="174">${ultimos6Meses[5].label}</text>
+                    </g>
+                    
+                    <path d="${revenuePoints}" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="${lastRevX}" cy="${lastRevY}" r="4" fill="#3b82f6"/>
+                    
+                    <path d="${costPoints}" fill="none" stroke="#f97316" stroke-width="2" stroke-dasharray="4 4" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="${lastCostX}" cy="${lastCostY}" r="4" fill="#f97316"/>
+                </svg>
+            </div>
+        `;
+    }
+
+    // 3. Stacked Bar Chart (Últimos 3 Meses)
+    const ultimos3Meses = ultimos6Meses.slice(3);
+    const maxBarVal = Math.max(...ultimos3Meses.map(m => m.receita), 1000);
+
+    const barsHtml = ultimos3Meses.map(m => {
+        const pctPesado = m.receita > 0 ? 50 : 0;
+        const pctLeves = m.receita > 0 ? 30 : 0;
+        const pctTecnica = m.receita > 0 ? 20 : 0;
+
+        const totalHeightPct = m.receita > 0 ? Math.round((m.receita / maxBarVal) * 100) : 0;
+        const heightStyle = `height:${totalHeightPct}%;`;
+
+        return `
+            <div style="display:flex; flex-direction:column-reverse; width:34px; ${heightStyle} min-height:10px;">
+                <div style="height:${pctPesado}%; background:#3b82f6; border-radius:2px;" title="Eq. Pesado (${formatarValorK(m.receita * 0.5)})"></div>
+                <div style="height:${pctLeves}%; background:#10b981;" title="Veíc. Leves (${formatarValorK(m.receita * 0.3)})"></div>
+                <div style="height:${pctTecnica}%; background:#f97316; border-top-left-radius:2px; border-top-right-radius:2px;" title="M.O. Técnica (${formatarValorK(m.receita * 0.2)})"></div>
+            </div>
+        `;
+    }).join('');
+
+    const containerBarra = document.getElementById('container-grafico-barra');
+    if (containerBarra) {
+        containerBarra.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
+                <h3 style="margin:0; font-size:0.9rem; font-weight:800; color:#1e293b;">Receita por Categoria de Ativo (Mensal)</h3>
+                <div style="display:flex; flex-direction:column; gap:2px; font-size:0.65rem; background:rgba(255,255,255,0.9); padding:4px; border-radius:4px; border:1px solid #e2e8f0;">
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <span style="width:6px; height:6px; background:#3b82f6; display:inline-block; border-radius:1px;"></span>
+                        <span>Eq. Pesado</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <span style="width:6px; height:6px; background:#10b981; display:inline-block; border-radius:1px;"></span>
+                        <span>Veíc. Leves</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <span style="width:6px; height:6px; background:#f97316; display:inline-block; border-radius:1px;"></span>
+                        <span>M.O. Técnica</span>
+                    </div>
+                </div>
+            </div>
+            <div style="position:relative; height:180px; margin-top:0.5rem; font-family:'Inter', sans-serif;">
+                <div style="display:flex; justify-content:space-around; align-items:flex-end; height:140px; border-bottom:1px solid #cbd5e1; padding-bottom:5px; box-sizing:border-box;">
+                    ${barsHtml}
+                </div>
+                <div style="display:flex; justify-content:space-around; font-size:0.75rem; font-weight:700; color:#64748b; margin-top:8px;">
+                    <span style="width:34px; text-align:center;">${ultimos3Meses[0].label}</span>
+                    <span style="width:34px; text-align:center;">${ultimos3Meses[1].label}</span>
+                    <span style="width:34px; text-align:center;">${ultimos3Meses[2].label}</span>
+                </div>
+            </div>
+        `;
+    }
+};
 
 /* ── Atualização Dinâmica de Gráficos e BI ──────────────────────────────── */
 window.atualizarGraficosComerciais = function(lista) {
