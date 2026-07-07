@@ -733,6 +733,28 @@ function renderTelaPropostas() {
             if (window.atualizarTabelaCurvaABC) window.atualizarTabelaCurvaABC();
             filtrarPropostas();
         }
+
+        // Rolagem imediata e precisa para fixar a barra de ferramentas (SaaS header acima)
+        const toolbarIdMap = {
+            'lista': 'prop-toolbar-principal',
+            'form': 'prop-toolbar-form',
+            'cadastro-cliente': 'prop-toolbar-cliente',
+            'cadastro-contatos': 'prop-toolbar-contatos',
+            'enderecos': 'prop-toolbar-enderecos',
+            'servicos-precificacao': 'prop-toolbar-servicos'
+        };
+        const toolbarId = toolbarIdMap[_currentPropostaTab];
+        const toolbar = document.getElementById(toolbarId);
+        if (toolbar) {
+            const targetY = toolbar.getBoundingClientRect().top + window.scrollY;
+            window.scrollTo({ top: targetY });
+        } else {
+            const activeContainer = document.getElementById(`prop-view-${_currentPropostaTab}`);
+            if (activeContainer) {
+                const targetY = activeContainer.getBoundingClientRect().top + window.scrollY;
+                window.scrollTo({ top: targetY });
+            }
+        }
     }, 150);
 }
 
@@ -803,8 +825,29 @@ window.switchPropostaTab = function(tab) {
             filtrarPropostas();
         }
         
-        // No auto scroll to prevent page jumps
-        const noop = () => {};
+        // Rolagem imediata e precisa na nova tela após ocultar a tela anterior (sem lag/pulos na antiga)
+        setTimeout(() => {
+            const toolbarIdMap = {
+                'lista': 'prop-toolbar-principal',
+                'form': 'prop-toolbar-form',
+                'cadastro-cliente': 'prop-toolbar-cliente',
+                'cadastro-contatos': 'prop-toolbar-contatos',
+                'enderecos': 'prop-toolbar-enderecos',
+                'servicos-precificacao': 'prop-toolbar-servicos'
+            };
+            const toolbarId = toolbarIdMap[tab];
+            const toolbar = document.getElementById(toolbarId);
+            if (toolbar) {
+                const targetY = toolbar.getBoundingClientRect().top + window.scrollY;
+                window.scrollTo({ top: targetY });
+            } else {
+                const activeContainer = document.getElementById(`prop-view-${tab}`);
+                if (activeContainer) {
+                    const targetY = activeContainer.getBoundingClientRect().top + window.scrollY;
+                    window.scrollTo({ top: targetY });
+                }
+            }
+        }, 10);
     } else {
         renderTelaPropostas();
     }
