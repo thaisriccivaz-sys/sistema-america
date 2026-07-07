@@ -423,27 +423,27 @@ function _buildRecibosLayout(mesAt, anoAt) {
     </div>
     <div style="display:flex;gap:.5rem;">
       <button id="btn-calcular-totais" onclick="window.calcularTotalRecibos()"
-        style="display:flex;align-items:center;gap:8px;padding:.65rem 1.4rem;background:#dcfce7;color:#166534;border:1px solid #bbf7d0;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .2s;"
+        style="display:flex;align-items:center;gap:6px;padding:.55rem 1rem;background:#dcfce7;color:#166534;border:1px solid #bbf7d0;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;transition:background .2s;"
         onmouseover="this.style.background='#bbf7d0'" onmouseout="this.style.background='#dcfce7'">
-        <i class="ph ph-calculator" style="font-size:1.1rem;"></i> Total
+        <i class="ph ph-calculator" style="font-size:1rem;"></i> Total
       </button>
       <button id="btn-conferencia-ponto" onclick="window.baixarConferenciaPonto()"
-        style="display:flex;align-items:center;gap:8px;padding:.65rem 1.4rem;background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .2s;"
+        style="display:flex;align-items:center;gap:6px;padding:.55rem 1rem;background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;transition:background .2s;"
         onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
-        <i class="ph ph-list-numbers" style="font-size:1.1rem;"></i> Conferência do Ponto
+        <i class="ph ph-list-numbers" style="font-size:1rem;"></i> Conferência do Ponto
       </button>
       <button id="btn-exportar-excel" onclick="window.exportarExcelRecibos()" title="Exportar Excel"
-        style="display:flex;align-items:center;justify-content:center;width:42px;height:42px;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:10px;cursor:pointer;transition:background .2s;flex-shrink:0;padding:0;"
+        style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:8px;cursor:pointer;transition:background .2s;flex-shrink:0;padding:0;"
         onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f0fdf4'">
-        <i class="ph ph-file-xls" style="font-size:1.4rem;"></i>
+        <i class="ph ph-file-xls" style="font-size:1.2rem;"></i>
       </button>
       <button id="btn-anexar-massa" onclick="window.anexarRecibosDocsMassa()"
-        style="display:none;align-items:center;gap:8px;padding:.65rem 1.4rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(16,185,129,.35);">
-        <i class="ph ph-paperclip" style="font-size:1.1rem;"></i> Anexar aos Docs. em Massa
+        style="display:none;align-items:center;gap:6px;padding:.55rem 1rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(16,185,129,.35);">
+        <i class="ph ph-paperclip" style="font-size:1rem;"></i> Anexar aos Docs. em Massa
       </button>
       <button id="btn-gerar-massa" onclick="window.gerarRecibosEmMassa()"
-        style="display:flex;align-items:center;gap:8px;padding:.65rem 1.4rem;background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(37,99,235,.35);">
-        <i class="ph ph-printer" style="font-size:1.1rem;"></i> Gerar Recibos Selecionados
+        style="display:flex;align-items:center;gap:6px;padding:.55rem 1rem;background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(37,99,235,.35);">
+        <i class="ph ph-printer" style="font-size:1rem;"></i> Gerar Recibos Selecionados
       </button>
     </div>
   </div>
