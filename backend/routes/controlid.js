@@ -392,19 +392,31 @@ router.get('/ponto-colaborador', async (req, res) => {
             }
 
             // Detecção 2 (SEMPRE roda): Férias por padrão de campos do RHID
-            // Critério: tem idJustification + zero trabalho real + TODAS marcações _typeRegister='I'
+            // Critério principal: tem idJustification + zero trabalho real + TODAS marcações _typeRegister='I'
+            // Critério extra (SAB/DOM): ControlID muitas vezes omite idJustification em finais de semana dentro das férias
+            //   → nesses dias chegam marcações hora=0 com _typeRegister='I' mas sem idJustification
             // Dias de esquecimento de ponto NÃO passam nesse filtro porque têm marcações 'O' (batidas reais)
             apuracaoData.forEach(d => {
                 if (d.isFerias) return; // já marcado pela lookup acima
-                if (!d.idJustification) return; // sem justificativa → não é férias
                 const marcacoesF = d.listAfdtManutencao || [];
                 const todasI = marcacoesF.length > 0 && marcacoesF.every(m => m._typeRegister === 'I');
                 const semTrabalho = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
-                // Finais de semana no meio das férias também recebem essas batidas automáticas, então não filtramos por folga
-                if (todasI && semTrabalho) {
+                if (!todasI || !semTrabalho) return;
+                // Com idJustification → definitivamente férias (qualquer dia)
+                if (d.idJustification) {
                     d.isFerias = true;
-                    d.toolTipAlert = 'Férias'; // propaga para detecção downstream
+                    d.toolTipAlert = 'Férias';
                     console.log(`[ControlID] Férias detectada por padrão: ${d.date || d.dateTimeStr} idJust=${d.idJustification}`);
+                    return;
+                }
+                // Sem idJustification mas é SAB (6) ou DOM (0): possível fim de semana dentro das férias
+                const dtStr = String(d.date || d.dateTimeStr || '').substring(0, 10);
+                const dtObj = new Date(dtStr + 'T12:00:00');
+                const diaSem = !isNaN(dtObj.getTime()) ? dtObj.getDay() : -1;
+                if (diaSem === 0 || diaSem === 6) {
+                    d.isFerias = true;
+                    d.toolTipAlert = 'Férias';
+                    console.log(`[ControlID] Férias detectada em fim de semana (sem idJust): ${d.date || d.dateTimeStr} diaSem=${diaSem}`);
                 }
             });
         }
