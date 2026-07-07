@@ -1315,8 +1315,8 @@ window.atualizarGraficosComerciais = function(lista) {
     }
 
     // 2. Comparativo Financeiro
-    const totalConvertidoFmt = totalConvertido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    const totalReprovadoFmt = totalReprovado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const totalConvertidoFmt = totalConvertido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const totalReprovadoFmt = totalReprovado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 });
     const maxVal = Math.max(totalConvertido, totalReprovado, 1);
     const pctConvertido = (totalConvertido / maxVal) * 90;
     const pctReprovado = (totalReprovado / maxVal) * 90;
