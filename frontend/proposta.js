@@ -839,6 +839,9 @@ window.switchPropostaTab = function(tab) {
                 const activeContainer = document.getElementById(`prop-view-${tab}`);
                 if (activeContainer) activeContainer.scrollIntoView({ block: 'start' });
             }
+
+            // Inicializar/re-sincronizar animações GSAP de entrada nos cards da nova tela
+            if (window.initGSAPAnimations) window.initGSAPAnimations();
         }, 150);
     } else {
         renderTelaPropostas();
@@ -1198,6 +1201,8 @@ window.atualizarGraficosGlobais = function() {
             </div>
         `;
     }
+
+    if (window.initGSAPAnimations) window.initGSAPAnimations();
 };
 
 
@@ -1362,6 +1367,8 @@ window.atualizarGraficosComerciais = function(lista) {
     if (typeof window.atualizarTabelaCurvaABC === 'function') {
         window.atualizarTabelaCurvaABC(lista);
     }
+
+    if (window.initGSAPAnimations) window.initGSAPAnimations();
 };
 
 /* ── Filtros ────────────────────────────────────────────────────────── */
@@ -7758,6 +7765,7 @@ function _renderFormPrecificacaoBase() {
         if (toolbar) {
             toolbar.scrollIntoView({ block: 'start' });
         }
+        if (window.initGSAPAnimations) window.initGSAPAnimations();
     }, 150);
 }
 
@@ -8515,6 +8523,82 @@ window.renderizarProdutosPropostaGrid = function() {
         </tr>
     `).join('');
 };
+
+(function() {
+    let timeout;
+    function runGSAP() {
+        if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
+        gsap.registerPlugin(ScrollTrigger);
+
+        // Seleciona e filtra apenas os elementos que AINDA NÃO foram inicializados
+        const targets = gsap.utils.toArray('.reveal-card, .card, .cc-container, .cc-container-end, .cost-card, .saas-card')
+            .filter(el => !el.dataset.gsapInitialized);
+            
+        if (targets.length === 0) {
+            ScrollTrigger.refresh();
+            return;
+        }
+
+        // Estado inicial de opacidade zero apenas para os novos elementos
+        targets.forEach(el => {
+            el.dataset.gsapInitialized = "true";
+            gsap.set(el, { opacity: 0, y: 20 });
+        });
+
+        // Batch trigger para efeito de fade-up escalonado rápido e moderno (50ms de stagger)
+        ScrollTrigger.batch(targets, {
+            onEnter: batch => gsap.to(batch, {
+                opacity: 1,
+                y: 0,
+                duration: 0.4,
+                stagger: 0.05,
+                ease: 'power2.out',
+                overwrite: 'auto'
+            }),
+            onLeaveBack: batch => gsap.to(batch, {
+                opacity: 0,
+                y: 20,
+                duration: 0.3,
+                overwrite: 'auto'
+            }),
+            // Fade-out simples quando os elementos saem pelo topo
+            onLeave: batch => gsap.to(batch, {
+                opacity: 0,
+                y: -20,
+                duration: 0.3,
+                overwrite: 'auto'
+            }),
+            onEnterBack: batch => gsap.to(batch, {
+                opacity: 1,
+                y: 0,
+                duration: 0.4,
+                stagger: 0.05,
+                ease: 'power2.out',
+                overwrite: 'auto'
+            }),
+            start: "top 95%",
+            end: "bottom 5%"
+        });
+
+        // Atualiza os cálculos de scroll para sincronizar posições
+        ScrollTrigger.refresh();
+    }
+
+    // Debounced init rápido (30ms) para renderização instantânea
+    window.initGSAPAnimations = function() {
+        clearTimeout(timeout);
+        timeout = setTimeout(runGSAP, 30);
+    };
+
+    // Auto run na carga inicial da página
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            window.initGSAPAnimations();
+        });
+    } else {
+        window.initGSAPAnimations();
+    }
+})();
 
 
 
