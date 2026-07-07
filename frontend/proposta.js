@@ -733,24 +733,6 @@ function renderTelaPropostas() {
             if (window.atualizarTabelaCurvaABC) window.atualizarTabelaCurvaABC();
             filtrarPropostas();
         }
-        
-        // Auto scroll active tab's toolbar to top
-        const toolbarIdMap = {
-            'lista': 'prop-toolbar-principal',
-            'form': 'prop-toolbar-form',
-            'cadastro-cliente': 'prop-toolbar-cliente',
-            'cadastro-contatos': 'prop-toolbar-contatos',
-            'enderecos': 'prop-toolbar-enderecos',
-            'servicos-precificacao': 'prop-toolbar-servicos'
-        };
-        const toolbarId = toolbarIdMap[_currentPropostaTab];
-        const toolbar = document.getElementById(toolbarId);
-        if (toolbar) {
-            toolbar.scrollIntoView({ block: 'start' });
-        } else {
-            const activeContainer = document.getElementById(`prop-view-${_currentPropostaTab}`);
-            if (activeContainer) activeContainer.scrollIntoView({ block: 'start' });
-        }
     }, 150);
 }
 
@@ -821,25 +803,8 @@ window.switchPropostaTab = function(tab) {
             filtrarPropostas();
         }
         
-        // Auto scroll active tab's toolbar to top
-        setTimeout(() => {
-            const toolbarIdMap = {
-                'lista': 'prop-toolbar-principal',
-                'form': 'prop-toolbar-form',
-                'cadastro-cliente': 'prop-toolbar-cliente',
-                'cadastro-contatos': 'prop-toolbar-contatos',
-                'enderecos': 'prop-toolbar-enderecos',
-                'servicos-precificacao': 'prop-toolbar-servicos'
-            };
-            const toolbarId = toolbarIdMap[tab];
-            const toolbar = document.getElementById(toolbarId);
-            if (toolbar) {
-                toolbar.scrollIntoView({ block: 'start' });
-            } else {
-                const activeContainer = document.getElementById(`prop-view-${tab}`);
-                if (activeContainer) activeContainer.scrollIntoView({ block: 'start' });
-            }
-        }, 150);
+        // No auto scroll to prevent page jumps
+        const noop = () => {};
     } else {
         renderTelaPropostas();
     }
@@ -7752,13 +7717,7 @@ function _renderFormPrecificacaoBase() {
     _recalcularPrecificacao();
     _renderSidebarList();
 
-    // Auto scroll to make sticky toolbar dock at top
-    setTimeout(() => {
-        const toolbar = document.getElementById('prop-toolbar-servicos');
-        if (toolbar) {
-            toolbar.scrollIntoView({ block: 'start' });
-        }
-    }, 150);
+    // No auto scroll to prevent page jumps
 }
 
 window._renderInsumosRows = function() {
