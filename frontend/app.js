@@ -1662,6 +1662,10 @@ window.deleteDepartamento = async function (id, nome) {
     }
 }
 
+document.getElementById('form-departamento')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') e.preventDefault();
+});
+
 document.getElementById('form-departamento')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const nome = document.getElementById('novo-departamento-nome').value.trim();
