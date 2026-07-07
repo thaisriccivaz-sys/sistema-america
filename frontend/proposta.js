@@ -2655,11 +2655,11 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                     <table style="width:100%; border-collapse:collapse; font-size:0.82rem; font-family:'Inter', sans-serif;">
                                         <thead>
                                             <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; text-align:left; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">Nome</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">Cargo</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">Celular</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700;">E-mail</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700; text-align:center;">Ações</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:30%;">Nome</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:20%; white-space:nowrap;">Cargo</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:15%; white-space:nowrap;">Celular</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:30%;">E-mail</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:5%; text-align:center; white-space:nowrap;">Ações</th>
                                             </tr>
                                         </thead>
                                         <tbody id="modal-cli-contatos-tbody">
@@ -2705,7 +2705,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                 const selectCentralizador = document.getElementById('modal-cli-centralizador');
                 if (selectCentralizador) {
                     selectCentralizador.innerHTML = '<option value="">-- Selecione --</option>' + 
-                        clientesList.map(c => `<option value="dots${c.nome_razao_social}" ${client && client.cliente_centralizador === c.nome_razao_social ? 'selected' : ''}>dots${c.nome_razao_social}</option>`).join('').replace(/\.\.\./g, '');
+                        clientesList.map(c => `<option value="${c.nome_razao_social}" ${client && client.cliente_centralizador === c.nome_razao_social ? 'selected' : ''}>${c.nome_razao_social}</option>`).join('').replace(/\.\.\./g, '');
                 }
             } catch (e) {
                 console.error('Erro ao carregar centralizadores no modal:', e);
@@ -2748,17 +2748,17 @@ window.modalRenderTabelaContatos = function() {
     
     tbody.innerHTML = window._modalClienteContatos.map((c, idx) => `
         <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-            <td style="padding:0.75rem 1rem; color:#1e293b; font-weight:600;">dots${c.nome}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">dots${c.cargo || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">dots${c.celular || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">dots${c.email || '—'}</td>
-            <td style="padding:0.75rem 1rem; text-align:center;">
-                <button type="button" onclick="window.modalRemoverContato(dots${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fa5252'; this.style.color='#fff';" onmouseout="this.style.background='#ffe3e3'; this.style.color='#e03131';" title="Remover Contato">
+            <td style="padding:0.75rem 1rem; color:#1e293b; font-weight:600; word-break:break-word;">${c.nome}</td>
+            <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.cargo || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.celular || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569; word-break:break-all;">${c.email || '—'}</td>
+            <td style="padding:0.75rem 1rem; text-align:center; white-space:nowrap;">
+                <button type="button" onclick="window.modalRemoverContato(${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fa5252'; this.style.color='#fff';" onmouseout="this.style.background='#ffe3e3'; this.style.color='#e03131';" title="Remover Contato">
                     <i class="ph ph-trash" style="font-size:0.95rem;"></i>
                 </button>
             </td>
         </tr>
-    `).join('').replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
+    `).join('');
 };
 
 window.modalSalvarContatoInline = function() {
@@ -4233,11 +4233,11 @@ function _renderCadastroClienteInt() {
                                 <table style="width:100%; border-collapse:collapse; font-size:0.82rem; font-family:'Inter', sans-serif;">
                                     <thead>
                                         <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; text-align:left;">
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Nome</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Cargo</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Celular</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">E-mail</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; text-align:center;">Ações</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:30%;">Nome</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:20%; white-space:nowrap;">Cargo</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:15%; white-space:nowrap;">Celular</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:30%;">E-mail</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; text-align:center; width:5%; white-space:nowrap;">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody id="cli-contatos-tbody">
@@ -4683,11 +4683,11 @@ window._renderTabelaContatos = function() {
     
     tbody.innerHTML = _clienteContatos.map((c, idx) => `
         <tr ondblclick="if (${c.id || 0}) window.editarContatoDeCliente(${c.id || 0})" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Duplo clique para editar contato">
-            <td style="padding:0.75rem 1rem; color:#1e293b; font-weight:600;">${c.nome}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.cargo || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.celular || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569;">${c.email || '—'}</td>
-            <td style="padding:0.75rem 1rem; text-align:center;">
+            <td style="padding:0.75rem 1rem; color:#1e293b; font-weight:600; word-break:break-word;">${c.nome}</td>
+            <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.cargo || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.celular || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569; word-break:break-all;">${c.email || '—'}</td>
+            <td style="padding:0.75rem 1rem; text-align:center; white-space:nowrap;">
                 <button onclick="removerContato(${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fa5252'; this.style.color='#fff';" onmouseout="this.style.background='#ffe3e3'; this.style.color='#e03131';" title="Remover Contato">
                     <i class="ph ph-trash" style="font-size:0.95rem;"></i>
                 </button>
