@@ -2075,22 +2075,7 @@ window.editarContatoDeCliente = async function(id) {
 window.pesquisarClienteProposta = async function() {
     const query = document.getElementById('prop-cliente').value.trim();
     if (!query) {
-        Swal.fire({
-            title: 'Cliente não informado',
-            text: 'Deseja abrir o formulário de Cadastro de Clientes?',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Sim, cadastrar',
-            cancelButtonText: 'Não',
-            confirmButtonColor: '#2e58a6',
-            cancelButtonColor: '#64748b'
-        }).then((res) => {
-            if (res.isConfirmed) {
-                _redirectAfterClientSave = true;
-                window.switchPropostaTab('cadastro-cliente');
-                window.limparFormCliente();
-            }
-        });
+        window.abrirModalCadastroCliente(null, '');
         return;
     }
 
@@ -2105,18 +2090,22 @@ window.pesquisarClienteProposta = async function() {
             return matchNome || matchCodigo || matchCnpjRaw || matchCnpjClean;
         });
 
-        if (filtrados.length >= 1) {
+        if (filtrados.length === 1) {
+            window.abrirModalCadastroCliente(filtrados[0].id, '');
+        } else if (filtrados.length > 1) {
             const rowsHtml = filtrados.map(c => `
-                <tr onclick="window.selectClienteProposta('${c.nome_razao_social.replace(/'/g, "\\'")}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                    <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#2e58a6;">${c.codigo}</td>
+                <tr onclick="window.selecionarEEditarClienteModal(${c.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                    <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo}</td>
                     <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social}</td>
                     <td style="padding:0.5rem; text-align:left;">${c.cpf_cnpj || '—'}</td>
                 </tr>
             `).join('');
 
-            window.selectClienteProposta = function(nome) {
-                document.getElementById('prop-cliente').value = nome;
+            window.selecionarEEditarClienteModal = function(id) {
                 Swal.close();
+                setTimeout(() => {
+                    window.abrirModalCadastroCliente(id, '');
+                }, 300);
             };
 
             Swal.fire({
@@ -2145,40 +2134,650 @@ window.pesquisarClienteProposta = async function() {
                 cancelButtonColor: '#64748b'
             }).then((res) => {
                 if (res.isConfirmed) {
-                    _redirectAfterClientSave = true;
-                    window.switchPropostaTab('cadastro-cliente');
-                    window.limparFormCliente();
-                    setTimeout(() => {
-                        const rSocialInput = document.getElementById('cli-razao-social');
-                        if (rSocialInput) rSocialInput.value = query;
-                    }, 300);
+                    window.abrirModalCadastroCliente(null, query);
                 }
             });
         } else {
-            Swal.fire({
-                title: 'Cliente não cadastrado',
-                text: `Nenhum cliente encontrado com "${query}". Deseja abrir o Cadastro de Clientes?`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Sim, cadastrar',
-                cancelButtonText: 'Cancelar',
-                confirmButtonColor: '#2e58a6',
-                cancelButtonColor: '#64748b'
-            }).then((res) => {
-                if (res.isConfirmed) {
-                    _redirectAfterClientSave = true;
-                    window.switchPropostaTab('cadastro-cliente');
-                    window.limparFormCliente();
-                    setTimeout(() => {
-                        const rSocialInput = document.getElementById('cli-razao-social');
-                        if (rSocialInput) rSocialInput.value = query;
-                    }, 300);
-                }
-            });
+            window.abrirModalCadastroCliente(null, query);
         }
     } catch (e) {
         console.error(e);
         Swal.fire('Erro', 'Não foi possível buscar clientes.', 'error');
+    }
+};
+
+window.abrirModalCadastroCliente = async function(clientId = null, prefilledName = '') {
+    let client = null;
+    let _modalClienteEditandoId = clientId;
+
+    if (_modalClienteEditandoId) {
+        try {
+            client = await apiGet(`/clientes/${_modalClienteEditandoId}`);
+        } catch (err) {
+            console.error(err);
+            Swal.fire('Erro', 'Não foi possível carregar dados do cliente.', 'error');
+            return;
+        }
+    }
+
+    const hoje = new Date().toISOString().split('T')[0];
+    const dataCadastro = client ? (client.data_cadastro || hoje) : hoje;
+    const inativoChecked = client ? (client.inativo === 1 ? 'checked' : '') : '';
+    const ufSelect = (selectedUf) => {
+        const ufs = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+        return ufs.map(uf => `<option value="${uf}" ${selectedUf === uf ? 'selected' : ''}>${uf}</option>`).join('');
+    };
+
+    const enquadramentoOptions = (selectedVal) => {
+        const options = ['Simples Nacional', 'Lucro Presumido', 'Lucro Real'];
+        return options.map(opt => `<option value="${opt}" ${selectedVal === opt ? 'selected' : ''}>${opt}</option>`).join('');
+    };
+
+    const grupoOptions = (selectedVal) => {
+        const options = ['1 - Diamante', '2 - Ouro', '3 - Prata', '4 - Bronze'];
+        return options.map(opt => `<option value="${opt}" ${selectedVal === opt ? 'selected' : ''}>${opt}</option>`).join('');
+    };
+
+    let parametros = { limite: false, retencao: false };
+    if (client && client.parametros) {
+        try {
+            parametros = JSON.parse(client.parametros);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    let fiscal = { enquadramento: 'Simples Nacional', regime_iss: '', cnae: '' };
+    if (client && client.fiscal) {
+        try {
+            fiscal = JSON.parse(client.fiscal);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    Swal.fire({
+        title: '',
+        width: '1100px',
+        customClass: {
+            popup: 'custom-swal-height-large'
+        },
+        showConfirmButton: false,
+        html: `
+            <style>
+                .mcli-container {
+                    background: #fff;
+                    width: 100%;
+                    text-align: left;
+                    font-family: 'Inter', sans-serif;
+                }
+                .mcli-toolbar {
+                    background: #f8fafc;
+                    border-bottom: 1px solid #e2e8f0;
+                    padding: 0.5rem 1rem;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 0.4rem;
+                    position: sticky;
+                    top: 0;
+                    z-index: 997;
+                    border-top-left-radius: 12px;
+                    border-top-right-radius: 12px;
+                }
+                .mcli-form-body {
+                    padding: 0.8rem 1.0rem;
+                    max-height: 420px;
+                    overflow-y: auto;
+                }
+                .mcli-section-title {
+                    font-size: 0.8rem !important;
+                    font-weight: 800 !important;
+                    color: #475569 !important;
+                    text-transform: uppercase !important;
+                    letter-spacing: 0.04em !important;
+                    border-bottom: 2px solid #e2e8f0 !important;
+                    padding-bottom: 0.25rem !important;
+                    margin: 0.8rem 0 0.5rem 0 !important;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+                .mcli-section-title.first {
+                    margin-top: 0 !important;
+                }
+                .mcli-grid {
+                    display: grid;
+                    gap: 0.4rem 0.6rem;
+                }
+                .mcli-field {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.2rem;
+                }
+                .mcli-field label {
+                    font-size: 0.7rem !important;
+                    font-weight: 700 !important;
+                    color: #64748b !important;
+                    text-transform: uppercase !important;
+                    letter-spacing: 0.02em !important;
+                    margin-bottom: 2px !important;
+                }
+                .mcli-input, .mcli-select {
+                    padding: 0.15rem 0.45rem !important;
+                    border: 1px solid #cbd5e1 !important;
+                    border-radius: 4px !important;
+                    font-size: 0.76rem !important;
+                    background: #fff !important;
+                    color: #1e293b !important;
+                    outline: none !important;
+                    transition: all 0.2s !important;
+                    box-sizing: border-box !important;
+                    width: 100% !important;
+                    height: 28px !important;
+                    font-family: 'Inter', sans-serif !important;
+                }
+                .mcli-input:focus, .mcli-select:focus {
+                    border-color: #3b82f6 !important;
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+                }
+                .mcli-input[readonly] {
+                    background: #f1f5f9 !important;
+                    color: #64748b !important;
+                    cursor: not-allowed !important;
+                }
+                .mcli-input-group {
+                    display: flex;
+                    gap: 0.35rem;
+                    width: 100%;
+                }
+                .mcli-btn-addon {
+                    background: #16a34a;
+                    color: #fff;
+                    border: none;
+                    padding: 0.2rem 0.5rem;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: 600;
+                    font-size: 0.76rem;
+                    transition: all 0.2s;
+                    height: 28px;
+                    box-sizing: border-box;
+                }
+                .mcli-btn-addon:hover {
+                    background: #15803d;
+                }
+                .mcli-btn-addon.secondary {
+                    background: #475569;
+                }
+                .mcli-btn-addon.secondary:hover {
+                    background: #334155;
+                }
+            </style>
+            <div class="mcli-container">
+                <!-- Toolbar/Header -->
+                <div class="mcli-toolbar">
+                    <div style="font-size:0.95rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-user-plus" style="color:#7048e8; font-size:1.2rem;"></i>
+                        <span>${_modalClienteEditandoId ? 'Editar Cliente' : 'Cadastrar Novo Cliente'}</span>
+                    </div>
+                    <div style="display:flex; gap:0.4rem; align-items:center;">
+                        <button onclick="window.modalSalvarCliente(${_modalClienteEditandoId || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px; height:28px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                            <i class="ph ph-check" style="font-size:0.9rem;"></i> Salvar
+                        </button>
+                        <button onclick="Swal.close()" style="background:#dc2626; color:white; border:none; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px; height:28px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+                            <i class="ph ph-x" style="font-size:0.9rem;"></i> Fechar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Form Body -->
+                <div class="mcli-form-body">
+                    <!-- Info bar -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#f0f7ff; border:1px solid #c2e0ff; padding:0.4rem 0.8rem; border-radius:6px; margin-bottom:0.8rem; font-size:0.78rem; color:#1e40af; gap:0.5rem;">
+                        <div style="font-weight:600; display:flex; align-items:center; gap:6px;">
+                            <i class="ph ph-info" style="font-size:1rem;"></i>
+                            Pesquise pelo CNPJ para completar o cadastro automaticamente.
+                        </div>
+                        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#1e293b; margin:0;">
+                            <input type="checkbox" id="modal-cli-inativo" ${inativoChecked} style="accent-color:#3b82f6;"> Inativo?
+                        </label>
+                    </div>
+
+                    <!-- Seção: Identificação -->
+                    <div class="mcli-section-title first">
+                        <i class="ph ph-identification-card"></i> Identificação
+                    </div>
+                    <div class="mcli-grid" style="grid-template-columns: 1fr; gap:0.6rem;">
+                        <!-- Linha 1: Código, Data Cadastro, CPF/CNPJ, IE -->
+                        <div style="display:grid; grid-template-columns:1.2fr 1.2fr 1.8fr 1.8fr; gap:0.75rem;">
+                            <div class="mcli-field">
+                                <label>Código</label>
+                                <input type="text" id="modal-cli-codigo" readonly value="${client ? (client.codigo || '') : ''}" placeholder="Auto">
+                            </div>
+                            <div class="mcli-field">
+                                <label>Data de Cadastro</label>
+                                <input type="date" id="modal-cli-data-cadastro" value="${dataCadastro}">
+                            </div>
+                            <div class="mcli-field">
+                                <label>CPF / CNPJ *</label>
+                                <div class="mcli-input-group">
+                                    <input type="text" id="modal-cli-cpf-cnpj" value="${client ? (client.cpf_cnpj || '') : ''}" placeholder="Apenas números">
+                                    <button type="button" onclick="window.modalBuscarCNPJ()" id="modal-btn-busca-cnpj" class="mcli-btn-addon" title="Buscar CNPJ">
+                                        <i class="ph ph-magnifying-glass"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mcli-field">
+                                <label>Inscrição Estadual</label>
+                                <input type="text" id="modal-cli-ie" value="${client ? (client.inscricao_estadual || '') : ''}" placeholder="ISENTO">
+                            </div>
+                        </div>
+
+                        <!-- Linha 2: IM, Grupo, Centralizador -->
+                        <div style="display:grid; grid-template-columns:1.2fr 1.5fr 2.3fr; gap:0.75rem;">
+                            <div class="mcli-field">
+                                <label>Inscrição Municipal</label>
+                                <input type="text" id="modal-cli-im" value="${client ? (client.inscricao_municipal || '') : ''}">
+                            </div>
+                            <div class="mcli-field">
+                                <label>Grupo de Clientes</label>
+                                <select id="modal-cli-grupo">
+                                    <option value="">-- Selecione --</option>
+                                    ${grupoOptions(client ? client.grupo_clientes : '')}
+                                </select>
+                            </div>
+                            <div class="mcli-field">
+                                <label>Cliente Centralizador</label>
+                                <select id="modal-cli-centralizador">
+                                    <option value="">-- Selecione --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Linha 3: Razão Social -->
+                        <div class="mcli-field">
+                            <label>Nome / Razão Social *</label>
+                            <input type="text" id="modal-cli-razao-social" value="${client ? (client.nome_razao_social || '') : prefilledName}">
+                        </div>
+
+                        <!-- Linha 4: Nome Fantasia -->
+                        <div class="mcli-field">
+                            <label>Nome Fantasia</label>
+                            <input type="text" id="modal-cli-nome-fantasia" value="${client ? (client.nome_fantasia || '') : ''}">
+                        </div>
+                    </div>
+
+                    <!-- Seção: Endereço -->
+                    <div class="mcli-section-title">
+                        <i class="ph ph-map-pin"></i> Endereço
+                    </div>
+                    <div class="mcli-grid" style="grid-template-columns: 1fr; gap:0.6rem;">
+                        <!-- Linha 1 CEP, Endereço, Número, Complemento -->
+                        <div style="display:grid; grid-template-columns:1.5fr 3fr 1fr 1.5fr; gap:0.75rem;">
+                            <div class="mcli-field">
+                                <label>CEP</label>
+                                <div class="mcli-input-group">
+                                    <input type="text" id="modal-cli-cep" value="${client ? (client.cep || '') : ''}" placeholder="00000-000">
+                                    <button type="button" onclick="window.modalBuscarCEP()" class="mcli-btn-addon" title="Buscar CEP">
+                                        <i class="ph ph-magnifying-glass"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mcli-field">
+                                <label>Endereço</label>
+                                <input type="text" id="modal-cli-endereco" value="${client ? (client.endereco || '') : ''}">
+                            </div>
+                            <div class="mcli-field">
+                                <label>Número</label>
+                                <input type="text" id="modal-cli-numero" value="${client ? (client.numero || '') : ''}">
+                            </div>
+                            <div class="mcli-field">
+                                <label>Complemento</label>
+                                <input type="text" id="modal-cli-complemento" value="${client ? (client.complemento || '') : ''}">
+                            </div>
+                        </div>
+
+                        <!-- Linha 2 Bairro, UF, Município, País -->
+                        <div style="display:grid; grid-template-columns:2fr 1fr 2fr 1fr; gap:0.75rem;">
+                            <div class="mcli-field">
+                                <label>Bairro</label>
+                                <input type="text" id="modal-cli-bairro" value="${client ? (client.bairro || '') : ''}">
+                            </div>
+                            <div class="mcli-field">
+                                <label>UF</label>
+                                <select id="modal-cli-uf">
+                                    <option value="">--</option>
+                                    ${ufSelect(client ? client.uf : '')}
+                                </select>
+                            </div>
+                            <div class="mcli-field">
+                                <label>Município</label>
+                                <input type="text" id="modal-cli-municipio" value="${client ? (client.municipio || '') : ''}">
+                            </div>
+                            <div class="mcli-field">
+                                <label>País</label>
+                                <input type="text" id="modal-cli-pais" value="${client ? (client.pais || 'BRASIL') : 'BRASIL'}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Seção: Contatos / Comunicação -->
+                    <div class="mcli-section-title">
+                        <i class="ph ph-phone"></i> Contatos / Comunicação
+                    </div>
+                    <div class="mcli-grid" style="grid-template-columns: 1fr; gap:0.6rem;">
+                        <!-- Linha 1 Telefones, Ramais, Fax, Website -->
+                        <div style="display:grid; grid-template-columns:1.5fr 0.8fr 1.5fr 0.8fr 1fr 1.5fr; gap:0.75rem;">
+                            <div class="mcli-field">
+                                <label>Telefone</label>
+                                <input type="text" id="modal-cli-telefone" value="${client ? (client.telefone || '') : ''}">
+                            </div>
+                            <div class="mcli-field">
+                                <label>Ramal</label>
+                                <input type="text" id="modal-cli-ramal" value="${client ? (client.ramal || '') : ''}">
+                            </div>
+                            <div class="mcli-field">
+                                <label>Telefone 2</label>
+                                <input type="text" id="modal-cli-telefone2" value="${client ? (client.telefone_2 || '') : ''}">
+                            </div>
+                            <div class="mcli-field">
+                                <label>Ramal</label>
+                                <input type="text" id="modal-cli-ramal2" value="${client ? (client.ramal_2 || '') : ''}">
+                            </div>
+                            <div class="mcli-field">
+                                <label>Fax</label>
+                                <input type="text" id="modal-cli-fax" value="${client ? (client.fax || '') : ''}">
+                            </div>
+                            <div class="mcli-field">
+                                <label>Website</label>
+                                <input type="text" id="modal-cli-website" value="${client ? (client.website || '') : ''}">
+                            </div>
+                        </div>
+
+                        <!-- Linha 2 DDI Celular, Celular -->
+                        <div style="display:grid; grid-template-columns:1.5fr 2fr; gap:0.75rem; max-width: 50%;">
+                            <div class="mcli-field">
+                                <label>DDI do Celular</label>
+                                <select id="modal-cli-celular-ddi">
+                                    <option value="+55 (BRASIL)" ${client && client.celular_ddi === '+55 (BRASIL)' ? 'selected' : ''}>+55 (BRASIL)</option>
+                                    <option value="+1 (EUA)" ${client && client.celular_ddi === '+1 (EUA)' ? 'selected' : ''}>+1 (EUA)</option>
+                                    <option value="+351 (PORTUGAL)" ${client && client.celular_ddi === '+351 (PORTUGAL)' ? 'selected' : ''}>+351 (PORTUGAL)</option>
+                                </select>
+                            </div>
+                            <div class="mcli-field">
+                                <label>Celular</label>
+                                <input type="text" id="modal-cli-celular" value="${client ? (client.celular || '') : ''}" placeholder="(XX)XXXXX-XXXX">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Seção: Parâmetros & Fiscal -->
+                    <div class="mcli-section-title">
+                        <i class="ph ph-gear"></i> Configurações & Fiscal
+                    </div>
+                    <div class="mcli-grid" style="grid-template-columns: 1fr; gap:0.8rem;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                            <label style="display:flex; align-items:center; gap:5px; font-size:0.78rem; font-weight:600; color:#475569; margin:0; cursor:pointer;">
+                                <input type="checkbox" id="modal-cli-p-limite" ${parametros.limite ? 'checked' : ''} style="accent-color:#3b82f6;"> Bloquear faturamento por limite de crédito
+                            </label>
+                            <label style="display:flex; align-items:center; gap:5px; font-size:0.78rem; font-weight:600; color:#475569; margin:0; cursor:pointer;">
+                                <input type="checkbox" id="modal-cli-p-retencao" ${parametros.retencao ? 'checked' : ''} style="accent-color:#3b82f6;"> Exigir retenção de impostos em notas fiscais
+                            </label>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1.5fr 1.5fr 1.5fr; gap:0.75rem;">
+                            <div class="mcli-field">
+                                <label>Enquadramento Tributário</label>
+                                <select id="modal-cli-f-tributario">
+                                    ${enquadramentoOptions(fiscal.enquadramento)}
+                                </select>
+                            </div>
+                            <div class="mcli-field">
+                                <label>Regime Especial ISS</label>
+                                <input type="text" id="modal-cli-f-iss" value="${fiscal.regime_iss}" placeholder="Ex: Nenhum">
+                            </div>
+                            <div class="mcli-field">
+                                <label>CNAE Principal</label>
+                                <input type="text" id="modal-cli-f-cnae" value="${fiscal.cnae}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `,
+        didOpen: async () => {
+            try {
+                const clientesList = await apiGet('/clientes') || [];
+                const selectCentralizador = document.getElementById('modal-cli-centralizador');
+                if (selectCentralizador) {
+                    selectCentralizador.innerHTML = '<option value="">-- Selecione --</option>' + 
+                        clientesList.map(c => `<option value="${c.nome_razao_social}" ${client && client.cliente_centralizador === c.nome_razao_social ? 'selected' : ''}>${c.nome_razao_social}</option>`).join('');
+                }
+            } catch (e) {
+                console.error('Erro ao carregar centralizadores no modal:', e);
+            }
+        }
+    });
+};
+
+window.modalBuscarCNPJ = async function() {
+    const cnpjRaw = document.getElementById('modal-cli-cpf-cnpj')?.value || '';
+    const cnpj = cnpjRaw.replace(/\D/g, '');
+    if (cnpj.length !== 14) {
+        Swal.fire('Aviso', 'Por favor, informe um CNPJ válido com 14 dígitos para buscar.', 'warning');
+        return;
+    }
+    
+    const btn = document.getElementById('modal-btn-busca-cnpj');
+    const origText = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+    btn.disabled = true;
+
+    try {
+        const result = await apiGet(`/consulta-cnpj/${cnpj}`);
+        if (!result || !result.data) {
+            throw new Error('Retorno inválido do servidor.');
+        }
+
+        const data = result.data;
+        const source = result.source;
+
+        if (source === 'cnpjws') {
+            document.getElementById('modal-cli-razao-social').value = data.razao_social || '';
+            document.getElementById('modal-cli-nome-fantasia').value = data.estabelecimento?.nome_fantasia || '';
+            document.getElementById('modal-cli-cep').value = data.estabelecimento?.cep || '';
+            
+            // Endereço
+            const logradouro = data.estabelecimento?.logradouro || '';
+            const tipoLogradouro = data.estabelecimento?.tipo_logradouro || '';
+            const numero = data.estabelecimento?.numero || '';
+            const compl = data.estabelecimento?.complemento || '';
+            
+            document.getElementById('modal-cli-endereco').value = `${tipoLogradouro} ${logradouro}`.trim() + (numero ? ', ' + numero : '');
+            document.getElementById('modal-cli-complemento').value = compl;
+            document.getElementById('modal-cli-bairro').value = data.estabelecimento?.bairro || '';
+            document.getElementById('modal-cli-uf').value = data.estabelecimento?.estado?.sigla || '';
+            document.getElementById('modal-cli-municipio').value = data.estabelecimento?.cidade?.nome || '';
+            document.getElementById('modal-cli-pais').value = 'BRASIL';
+            
+            // Telefone
+            if (data.estabelecimento?.ddd1 && data.estabelecimento?.telefone1) {
+                document.getElementById('modal-cli-telefone').value = `(${data.estabelecimento.ddd1}) ${data.estabelecimento.telefone1}`;
+            }
+
+            // Inscrição Estadual
+            let ie = 'ISENTO';
+            const ieList = data.estabelecimento?.inscricoes_estaduais;
+            if (Array.isArray(ieList) && ieList.length > 0) {
+                const activeIe = ieList.find(x => x.ativo);
+                if (activeIe) {
+                    ie = activeIe.inscricao_estadual;
+                } else {
+                    ie = ieList[0].inscricao_estadual;
+                }
+            }
+            document.getElementById('modal-cli-ie').value = ie;
+
+        } else {
+            // Source: brasilapi
+            document.getElementById('modal-cli-razao-social').value = data.razao_social || '';
+            document.getElementById('modal-cli-nome-fantasia').value = data.nome_fantasia || '';
+            document.getElementById('modal-cli-cep').value = data.cep || '';
+            document.getElementById('modal-cli-endereco').value = (data.logradouro || '') + (data.numero ? ', ' + data.numero : '');
+            document.getElementById('modal-cli-bairro').value = data.bairro || '';
+            document.getElementById('modal-cli-uf').value = data.uf || '';
+            document.getElementById('modal-cli-municipio').value = data.municipio || '';
+            document.getElementById('modal-cli-pais').value = 'BRASIL';
+            
+            if (data.ddd_telefone_1) {
+                document.getElementById('modal-cli-telefone').value = `(${data.ddd_telefone_1.substring(0,2)}) ${data.ddd_telefone_1.substring(2)}`;
+            }
+            document.getElementById('modal-cli-ie').value = 'ISENTO';
+        }
+
+        // Atualizar opções do centralizador
+        try {
+            const clientesList = await apiGet('/clientes') || [];
+            const selectCentralizador = document.getElementById('modal-cli-centralizador');
+            if (selectCentralizador) {
+                selectCentralizador.innerHTML = '<option value="">-- Selecione --</option>' + 
+                    clientesList.map(c => `<option value="${c.nome_razao_social}">${c.nome_razao_social}</option>`).join('');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+
+        if (typeof mostrarToastSucesso === 'function') {
+            const extra = source === 'cnpjws' ? '' : ' (Inscrição Estadual indisponível no fallback)';
+            mostrarToastSucesso('Dados do CNPJ importados com sucesso!' + extra);
+        }
+    } catch(e) {
+        console.error(e);
+        Swal.fire('Erro', 'Erro ao buscar CNPJ: ' + (e.message || 'Erro desconhecido.'), 'error');
+    } finally {
+        btn.innerHTML = origText;
+        btn.disabled = false;
+    }
+};
+
+window.modalBuscarCEP = async function() {
+    const cepRaw = document.getElementById('modal-cli-cep')?.value || '';
+    const cep = cepRaw.replace(/\D/g, '');
+    if (cep.length !== 8) {
+        Swal.fire('Aviso', 'Por favor, informe um CEP válido com 8 dígitos.', 'warning');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        if (!res.ok) throw new Error('CEP não encontrado.');
+        const data = await res.json();
+        if (data.erro) throw new Error('CEP inexistente.');
+        
+        document.getElementById('modal-cli-endereco').value = data.logradouro || '';
+        document.getElementById('modal-cli-bairro').value = data.bairro || '';
+        document.getElementById('modal-cli-uf').value = data.uf || '';
+        document.getElementById('modal-cli-municipio').value = data.localidade || '';
+        document.getElementById('modal-cli-pais').value = 'BRASIL';
+        
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Endereço importado com sucesso!');
+        }
+    } catch(e) {
+        console.error(e);
+        Swal.fire('Erro', 'Erro ao buscar CEP: ' + e.message, 'error');
+    }
+};
+
+window.modalSalvarCliente = async function(clientId) {
+    const cpfCnpj = document.getElementById('modal-cli-cpf-cnpj')?.value || '';
+    const razaoSocial = document.getElementById('modal-cli-razao-social')?.value || '';
+    
+    if (!cpfCnpj) {
+        Swal.fire('Aviso', 'Por favor, informe o CPF / CNPJ.', 'warning');
+        return;
+    }
+    if (!razaoSocial) {
+        Swal.fire('Aviso', 'Por favor, informe a Razão Social.', 'warning');
+        return;
+    }
+
+    const parametros = {
+        limite: document.getElementById('modal-cli-p-limite')?.checked || false,
+        retencao: document.getElementById('modal-cli-p-retencao')?.checked || false
+    };
+
+    const fiscal = {
+        enquadramento: document.getElementById('modal-cli-f-tributario')?.value || 'Simples Nacional',
+        regime_iss: document.getElementById('modal-cli-f-iss')?.value || '',
+        cnae: document.getElementById('modal-cli-f-cnae')?.value || ''
+    };
+
+    const payload = {
+        codigo: document.getElementById('modal-cli-codigo')?.value || null,
+        data_cadastro: document.getElementById('modal-cli-data-cadastro')?.value || '',
+        inativo: document.getElementById('modal-cli-inativo')?.checked ? 1 : 0,
+        cpf_cnpj: cpfCnpj,
+        inscricao_estadual: document.getElementById('modal-cli-ie')?.value || '',
+        inscricao_municipal: document.getElementById('modal-cli-im')?.value || '',
+        rg: '',
+        data_nascimento: '',
+        grupo_clientes: document.getElementById('modal-cli-grupo')?.value || '',
+        cliente_centralizador: document.getElementById('modal-cli-centralizador')?.value || '',
+        nome_razao_social: razaoSocial,
+        nome_fantasia: document.getElementById('modal-cli-nome-fantasia')?.value || '',
+        cep: document.getElementById('modal-cli-cep')?.value || '',
+        endereco: document.getElementById('modal-cli-endereco')?.value || '',
+        numero: document.getElementById('modal-cli-numero')?.value || '',
+        complemento: document.getElementById('modal-cli-complemento')?.value || '',
+        bairro: document.getElementById('modal-cli-bairro')?.value || '',
+        uf: document.getElementById('modal-cli-uf')?.value || '',
+        municipio: document.getElementById('modal-cli-municipio')?.value || '',
+        pais: document.getElementById('modal-cli-pais')?.value || 'BRASIL',
+        telefone: document.getElementById('modal-cli-telefone')?.value || '',
+        ramal: document.getElementById('modal-cli-ramal')?.value || '',
+        telefone_2: document.getElementById('modal-cli-telefone2')?.value || '',
+        ramal_2: document.getElementById('modal-cli-ramal2')?.value || '',
+        fax: document.getElementById('modal-cli-fax')?.value || '',
+        website: document.getElementById('modal-cli-website')?.value || '',
+        celular_ddi: document.getElementById('modal-cli-celular-ddi')?.value || '',
+        celular: document.getElementById('modal-cli-celular')?.value || '',
+        parametros: JSON.stringify(parametros),
+        fiscal: JSON.stringify(fiscal),
+        contatos: JSON.stringify([]),
+        validacao_dados: '',
+        anexo_arquivos: '',
+        criado_por: window.currentUser?.nome || window.currentUser?.email || ''
+    };
+
+    try {
+        let res;
+        if (clientId) {
+            res = await apiPut(`/clientes/${clientId}`, payload);
+        } else {
+            res = await apiPost('/clientes', payload);
+        }
+
+        if (res && res.success) {
+            _clientesCache = []; // Limpar cache para atualizar centralizadores
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso(clientId ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
+            }
+            // Atualizar o input de cliente na tela de proposta principal
+            const propClienteInput = document.getElementById('prop-cliente');
+            if (propClienteInput) propClienteInput.value = razaoSocial;
+            
+            Swal.close();
+        } else {
+            Swal.fire('Erro', 'Erro ao salvar cliente: ' + (res?.error || 'Erro desconhecido.'), 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Erro', 'Erro de comunicação com o servidor.', 'error');
     }
 };
 
