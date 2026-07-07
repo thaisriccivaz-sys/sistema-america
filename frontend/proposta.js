@@ -1202,55 +1202,7 @@ window.atualizarGraficosGlobais = function() {
     if (window.initGSAPAnimations) window.initGSAPAnimations();
 };
 
-window.initGSAPAnimations = function() {
-    if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
-        gsap.registerPlugin(ScrollTrigger);
-        
-        // Limpa instâncias anteriores para evitar duplicações no re-render
-        ScrollTrigger.getAll().forEach(t => t.kill());
 
-        const cards = gsap.utils.toArray('.reveal-card');
-        if (cards.length === 0) return;
-
-        // Estado inicial
-        gsap.set(cards, { opacity: 0, y: 30 });
-
-        // Batch trigger para efeito de fade-up escalonado (150ms)
-        ScrollTrigger.batch(cards, {
-            onEnter: batch => gsap.to(batch, {
-                opacity: 1,
-                y: 0,
-                duration: 0.6,
-                stagger: 0.15,
-                ease: 'power2.out',
-                overwrite: 'auto'
-            }),
-            onLeaveBack: batch => gsap.to(batch, {
-                opacity: 0,
-                y: 30,
-                duration: 0.4,
-                overwrite: 'auto'
-            }),
-            // Fade-out simples quando os elementos saem pelo topo
-            onLeave: batch => gsap.to(batch, {
-                opacity: 0,
-                y: -30,
-                duration: 0.4,
-                overwrite: 'auto'
-            }),
-            onEnterBack: batch => gsap.to(batch, {
-                opacity: 1,
-                y: 0,
-                duration: 0.6,
-                stagger: 0.15,
-                ease: 'power2.out',
-                overwrite: 'auto'
-            }),
-            start: "top 95%",
-            end: "bottom 5%"
-        });
-    }
-};
 
 /* ── Atualização Dinâmica de Gráficos e BI ──────────────────────────────── */
 window.atualizarGraficosComerciais = function(lista) {
@@ -8567,5 +8519,95 @@ window.renderizarProdutosPropostaGrid = function() {
         </tr>
     `).join('');
 };
+
+(function() {
+    let timeout;
+    function runGSAP() {
+        if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
+        gsap.registerPlugin(ScrollTrigger);
+        
+        // Limpa instâncias anteriores para evitar duplicações no re-render
+        ScrollTrigger.getAll().forEach(t => t.kill());
+
+        // Seleciona todos os cards e containers principais de todas as seções e tabelas
+        const targets = gsap.utils.toArray('.reveal-card, .card, .cc-container, .cc-container-end, .cost-card, .saas-card');
+        if (targets.length === 0) return;
+
+        // Estado inicial
+        gsap.set(targets, { opacity: 0, y: 30 });
+
+        // Batch trigger para efeito de fade-up escalonado (150ms)
+        ScrollTrigger.batch(targets, {
+            onEnter: batch => gsap.to(batch, {
+                opacity: 1,
+                y: 0,
+                duration: 0.6,
+                stagger: 0.15,
+                ease: 'power2.out',
+                overwrite: 'auto'
+            }),
+            onLeaveBack: batch => gsap.to(batch, {
+                opacity: 0,
+                y: 30,
+                duration: 0.4,
+                overwrite: 'auto'
+            }),
+            // Fade-out simples quando os elementos saem pelo topo
+            onLeave: batch => gsap.to(batch, {
+                opacity: 0,
+                y: -30,
+                duration: 0.4,
+                overwrite: 'auto'
+            }),
+            onEnterBack: batch => gsap.to(batch, {
+                opacity: 1,
+                y: 0,
+                duration: 0.6,
+                stagger: 0.15,
+                ease: 'power2.out',
+                overwrite: 'auto'
+            }),
+            start: "top 95%",
+            end: "bottom 5%"
+        });
+    }
+
+    // Debounced init function
+    window.initGSAPAnimations = function() {
+        clearTimeout(timeout);
+        timeout = setTimeout(runGSAP, 100);
+    };
+
+    // Auto run on MutationObserver to dynamically catch new tabs/renders
+    const observer = new MutationObserver((mutations) => {
+        let hasNewTarget = false;
+        for (let mutation of mutations) {
+            for (let node of mutation.addedNodes) {
+                if (node.nodeType === 1) { // Element node
+                    if ((node.matches && node.matches('.reveal-card, .card, .cc-container, .cc-container-end, .cost-card, .saas-card')) || 
+                        (node.querySelector && node.querySelector('.reveal-card, .card, .cc-container, .cc-container-end, .cost-card, .saas-card'))) {
+                        hasNewTarget = true;
+                        break;
+                    }
+                }
+            }
+            if (hasNewTarget) break;
+        }
+        if (hasNewTarget) {
+            window.initGSAPAnimations();
+        }
+    });
+
+    // Start observing when document is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            observer.observe(document.body, { childList: true, subtree: true });
+            window.initGSAPAnimations();
+        });
+    } else {
+        observer.observe(document.body, { childList: true, subtree: true });
+        window.initGSAPAnimations();
+    }
+})();
 
 
