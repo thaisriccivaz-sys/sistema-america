@@ -61,10 +61,11 @@ function isAitAntiga(ait) {
 // PRODUÇÃO:    SMTP_USER=americasistema48@gmail.com  | SMTP_PASS=<senha_producao>
 // HOMOLOGAÇÃO: SMTP_USER=sistemaamericarental@gmail.com | SMTP_PASS=<senha_homolog>
 // NUNCA colocar senhas diretamente aqui no código.
+const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 465;
 const SMTP_CONFIG = {
     host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 465,
-    secure: true, // Nota: porta 587 geralmente usa secure:false + STARTTLS, mas o nodemailer ajusta conforme necessário se configurado via env
+    port: smtpPort,
+    secure: smtpPort === 465, // Para port 587 (Office365), tem que ser false. O Nodemailer ativa STARTTLS automaticamente.
     auth: {
         user: process.env.SMTP_USER || "",
         pass: process.env.SMTP_PASS || ""
