@@ -644,7 +644,12 @@ function renderExperienciaList(lista) {
             if (fim2_sb && fim2_sb < hoje_sb) {
                 statusBadge = `<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;"><i class="ph ph-warning-circle"></i> Vencido</span>`;
             } else {
-                statusBadge = `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:10px;font-size:0.75rem;"><i class="ph ph-clock"></i> Andamento</span>`;
+                const diffSb = fim2_sb ? Math.ceil((fim2_sb - hoje_sb) / 86400000) : null;
+                if (diffSb !== null && diffSb <= 15) {
+                    statusBadge = `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;"><i class="ph ph-clock"></i> Andamento</span>`;
+                } else {
+                    statusBadge = `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:10px;font-size:0.75rem;"><i class="ph ph-clock"></i> Andamento</span>`;
+                }
             }
         }
 
@@ -710,7 +715,7 @@ function renderExperienciaList(lista) {
                 } else if (diff <= 15) {
                     const printDiff = diff + 1;
                     const word = printDiff === 1 ? 'dia restante' : 'dias restantes';
-                    diasRestantesHtml = `<br><span style="color:#dc2626;font-size:0.75rem;font-weight:700;"><i class="ph ph-warning"></i> ${printDiff} ${word}!</span>`;
+                    diasRestantesHtml = `<br><span style="color:#d97706;font-size:0.75rem;font-weight:700;"><i class="ph ph-warning"></i> ${printDiff} ${word}!</span>`;
                 }
             }
         }
