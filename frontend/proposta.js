@@ -664,20 +664,23 @@ function renderTelaPropostas() {
         }
         
         // Auto scroll active tab's toolbar to top
-        const activeContainer = document.getElementById(`prop-view-${_currentPropostaTab}`);
-        if (activeContainer) {
-            const toolbar = activeContainer.querySelector('[style*="position:sticky"]') || 
-                            activeContainer.querySelector('[style*="position: sticky"]') || 
-                            activeContainer.querySelector('.cc-toolbar') || 
-                            activeContainer.querySelector('.cc-toolbar-end') ||
-                            document.getElementById('prop-toolbar-principal');
-            if (toolbar) {
-                toolbar.scrollIntoView({ block: 'start' });
-            } else {
-                activeContainer.scrollIntoView({ block: 'start' });
-            }
+        const toolbarIdMap = {
+            'lista': 'prop-toolbar-principal',
+            'form': 'prop-toolbar-form',
+            'cadastro-cliente': 'prop-toolbar-cliente',
+            'cadastro-contatos': 'prop-toolbar-contatos',
+            'enderecos': 'prop-toolbar-enderecos',
+            'servicos-precificacao': 'prop-toolbar-servicos'
+        };
+        const toolbarId = toolbarIdMap[_currentPropostaTab];
+        const toolbar = document.getElementById(toolbarId);
+        if (toolbar) {
+            toolbar.scrollIntoView({ block: 'start' });
+        } else {
+            const activeContainer = document.getElementById(`prop-view-${_currentPropostaTab}`);
+            if (activeContainer) activeContainer.scrollIntoView({ block: 'start' });
         }
-    }, 50);
+    }, 150);
 }
 
 window.switchPropostaTab = function(tab) {
@@ -749,20 +752,23 @@ window.switchPropostaTab = function(tab) {
         
         // Auto scroll active tab's toolbar to top
         setTimeout(() => {
-            const activeContainer = document.getElementById(`prop-view-${tab}`);
-            if (activeContainer) {
-                const toolbar = activeContainer.querySelector('[style*="position:sticky"]') || 
-                                activeContainer.querySelector('[style*="position: sticky"]') || 
-                                activeContainer.querySelector('.cc-toolbar') || 
-                                activeContainer.querySelector('.cc-toolbar-end') ||
-                                document.getElementById('prop-toolbar-principal');
-                if (toolbar) {
-                    toolbar.scrollIntoView({ block: 'start' });
-                } else {
-                    activeContainer.scrollIntoView({ block: 'start' });
-                }
+            const toolbarIdMap = {
+                'lista': 'prop-toolbar-principal',
+                'form': 'prop-toolbar-form',
+                'cadastro-cliente': 'prop-toolbar-cliente',
+                'cadastro-contatos': 'prop-toolbar-contatos',
+                'enderecos': 'prop-toolbar-enderecos',
+                'servicos-precificacao': 'prop-toolbar-servicos'
+            };
+            const toolbarId = toolbarIdMap[tab];
+            const toolbar = document.getElementById(toolbarId);
+            if (toolbar) {
+                toolbar.scrollIntoView({ block: 'start' });
+            } else {
+                const activeContainer = document.getElementById(`prop-view-${tab}`);
+                if (activeContainer) activeContainer.scrollIntoView({ block: 'start' });
             }
-        }, 80);
+        }, 150);
     } else {
         renderTelaPropostas();
     }
@@ -1361,7 +1367,7 @@ function _renderFormPropostaInt() {
         <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0;">
 
             <!-- Toolbar -->
-            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
+            <div id="prop-toolbar-form" style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
                 
                 <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
                 <div class="saas-dropdown-container">
@@ -2848,7 +2854,7 @@ function _renderCadastroClienteInt() {
         <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif;">
             
             <!-- Toolbar -->
-            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
+            <div id="prop-toolbar-cliente" style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
                 
                 <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
                 <div class="saas-dropdown-container">
@@ -4281,7 +4287,7 @@ function _renderCadastroContatosInt() {
 
         <div class="cc-container">
             <!-- Barra de Ferramentas -->
-            <div class="cc-toolbar">
+            <div id="prop-toolbar-contatos" class="cc-toolbar">
                 <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
                 <div class="saas-dropdown-container">
                     <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
@@ -6033,7 +6039,7 @@ function _renderEnderecosInt() {
 
         <div class="cc-container-end">
             <!-- Barra de Ferramentas -->
-            <div class="cc-toolbar-end">
+            <div id="prop-toolbar-enderecos" class="cc-toolbar-end">
                 <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
                 <div class="saas-dropdown-container">
                     <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
@@ -7454,7 +7460,7 @@ function _renderFormPrecificacaoBase() {
         <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif;">
             
             <!-- Toolbar -->
-            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
+            <div id="prop-toolbar-servicos" style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
                 
                 <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
                 <div class="saas-dropdown-container">
