@@ -284,6 +284,15 @@ function renderTelaPropostas() {
                     padding: 0.35rem;
                     margin-top: 0.25rem;
                 }
+                .saas-dropdown-menu::before {
+                    content: '';
+                    position: absolute;
+                    top: -12px;
+                    left: 0;
+                    width: 100%;
+                    height: 12px;
+                    background: transparent;
+                }
                 .saas-dropdown-container:hover .saas-dropdown-menu {
                     display: block;
                 }
