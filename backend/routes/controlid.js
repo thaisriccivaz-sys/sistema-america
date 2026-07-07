@@ -358,10 +358,11 @@ router.get('/ponto-colaborador', async (req, res) => {
         }
 
         // ── PASSO 3b: Enriquecer dias de férias com nome da justificativa ────
-        // O ControlID não retorna toolTipAlert nem nomeJustificativa preenchidos
-        // nos dias de férias — apenas o idJustification (ex: 3416 = "Férias").
-        // Buscamos a lista de justificativas para mapear ID → nome.
-        if (Array.isArray(apuracaoData) && apuracaoData.some(d => d.idJustification)) {
+        // O ControlID não retorna toolTipAlert preenchido nos dias de férias.
+        // Tentamos buscar o nome via API de justificativas; se funcionar, ótimo.
+        // Independentemente, sempre rodamos a detecção por padrão de campos.
+        if (Array.isArray(apuracaoData) && apuracaoData.length > 0) {
+            // Tentativa 1: lookup de nome da justificativa via API
             try {
                 const justRes = await axios.get(`${RHID_BASE_URL}/justification`, {
                     headers: { ...RHID_GET_HEADERS, Authorization: authHeader },
@@ -369,44 +370,43 @@ router.get('/ponto-colaborador', async (req, res) => {
                 });
                 const justList = Array.isArray(justRes.data) ? justRes.data
                     : (justRes.data?.data || justRes.data?.list || justRes.data?.items || []);
-                // Monta mapa id → nome
                 const justMap = {};
                 justList.forEach(j => {
                     if (j.id != null) {
                         justMap[j.id] = (j.name || j.nome || j.descricao || j.description || '');
                     }
                 });
-                // Enriquece cada dia com o nome da justificativa
                 apuracaoData.forEach(d => {
                     if (d.idJustification && justMap[d.idJustification]) {
                         d.nomeJustificativa = justMap[d.idJustification];
-                        // Se o nome mencionar férias, marca explicitamente
                         const nomeLow = d.nomeJustificativa.toLowerCase();
                         if (nomeLow.includes('férias') || nomeLow.includes('ferias') || nomeLow.includes('vacation')) {
-                            d.toolTipAlert = d.nomeJustificativa; // garante detecção downstream
+                            d.toolTipAlert = d.nomeJustificativa;
                             d.isFerias = true;
                         }
                     }
                 });
-                console.log(`[ControlID] Justificativas mapeadas: ${Object.keys(justMap).length} IDs. Dias enriquecidos.`);
+                console.log(`[ControlID] Justificativas mapeadas: ${Object.keys(justMap).length} IDs.`);
             } catch (jErr) {
                 console.warn('[ControlID] Não foi possível buscar lista de justificativas:', jErr.message);
-                // Fallback: detectar férias pela combinação de campos sem nome
-                // Dias de férias: têm idJustification + não trabalharam + TODAS as marcações são _typeRegister=I
-                if (Array.isArray(apuracaoData)) {
-                    apuracaoData.forEach(d => {
-                        if (!d.idJustification) return;
-                        const marcacoes = d.listAfdtManutencao || [];
-                        const todasInseridas = marcacoes.length > 0 && marcacoes.every(m => m._typeRegister === 'I');
-                        const semTrabalho = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
-                        const naoEFolga = !d.folga && !(d.dsrConsideradoMinutos > 0);
-                        if (todasInseridas && semTrabalho && naoEFolga) {
-                            d.isFerias = true;
-                            d.toolTipAlert = 'Férias'; // força detecção downstream
-                        }
-                    });
-                }
             }
+
+            // Detecção 2 (SEMPRE roda): Férias por padrão de campos do RHID
+            // Critério: tem idJustification + zero trabalho real + TODAS marcações _typeRegister='I' + não é folga/DSR
+            // Dias de esquecimento de ponto NÃO passam nesse filtro porque têm marcações 'O' (batidas reais)
+            apuracaoData.forEach(d => {
+                if (d.isFerias) return; // já marcado pela lookup acima
+                if (!d.idJustification) return; // sem justificativa → não é férias
+                const marcacoesF = d.listAfdtManutencao || [];
+                const todasI = marcacoesF.length > 0 && marcacoesF.every(m => m._typeRegister === 'I');
+                const semTrabalho = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
+                const naoEFolga = !d.folga && (d.dsrConsideradoMinutos || 0) === 0;
+                if (todasI && semTrabalho && naoEFolga) {
+                    d.isFerias = true;
+                    d.toolTipAlert = 'Férias'; // propaga para detecção downstream
+                    console.log(`[ControlID] Férias detectada por padrão: ${d.date || d.dateTimeStr} idJust=${d.idJustification}`);
+                }
+            });
         }
 
         // ── PASSO 4: Processar resposta ───────────────────────────────────────

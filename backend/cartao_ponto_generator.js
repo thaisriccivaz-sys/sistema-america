@@ -94,15 +94,25 @@ function buildCartaoPontoHtml(c, apuracaoDiaria, mes, ano, mesNome) {
         const horasTrab   = (d.totalHorasTrabalhadas || 0) + (d.horasTotalNoturno || 0);
         const trabalhou   = (d.diasTrabalhados || 0) > 0 || horasTrab > 0;
 
-        // ── Detecção de Férias — SOMENTE pelo campo toolTipAlert do ControlID ────
-        // O ControlID grava "Férias" (ou variações) no toolTipAlert quando o dia é férias.
-        // NÃO usamos isPreAssigned (pode ser apontamento esquecido/automático)
-        // NÃO usamos ferias_programadas do banco (pode estar desatualizado)
-        // O backend também seta d.isFerias=true após lookup de justificativas
+        // ── Detecção de Férias ────────────────────────────────────────────────
+        // Fonte 1: d.isFerias (setado pelo backend) ou toolTipAlert contém "férias"
+        // Fonte 2 (fallback): idJustification + zero trabalho real + TODAS as marcações _typeRegister='I' + não é folga
+        // O fallback não afeta esquecimento de ponto (que tem marcações 'O' = batidas reais)
         const toolTipLower = (d.toolTipAlert || '').toLowerCase();
-        const isFerias_controlid = d.isFerias === true
+        let isFerias_controlid = d.isFerias === true
                                 || toolTipLower.includes('férias') || toolTipLower.includes('ferias')
                                 || toolTipLower.includes('vacation');
+
+        if (!isFerias_controlid && d.idJustification) {
+            // Padrão específico de férias: justificativa + nenhum trabalho real + só marcações inseridas
+            const marcacoesRaw = d.listAfdtManutencao || [];
+            const todasI = marcacoesRaw.length > 0 && marcacoesRaw.every(m => m._typeRegister === 'I');
+            const semTrabalhoReal = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
+            const naoFolgaDsr = !d.folga && (d.dsrConsideradoMinutos || 0) === 0;
+            if (todasI && semTrabalhoReal && naoFolgaDsr) {
+                isFerias_controlid = true;
+            }
+        }
 
         if (isFerias_controlid) {
 

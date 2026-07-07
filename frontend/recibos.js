@@ -2680,8 +2680,20 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
         const trabalhou3   = (d.diasTrabalhados || 0) > 0 || horasTrab3 > 0;
         const _tipLow3 = (d.toolTipAlert || '').toLowerCase();
 
-        // Férias: d.isFerias (setado pelo backend após lookup de justificativas) OU toolTipAlert contém 'férias'
-        if (d.isFerias || _tipLow3.includes('férias') || _tipLow3.includes('ferias') || _tipLow3.includes('vacation')) {
+        // Férias: d.isFerias (setado pelo backend) OU toolTipAlert contém 'férias'
+        let _isFerias3 = d.isFerias === true
+            || _tipLow3.includes('férias') || _tipLow3.includes('ferias') || _tipLow3.includes('vacation');
+
+        // Fallback: padrão de campos (funciona mesmo com dados do banco antigos sem isFerias)
+        if (!_isFerias3 && d.idJustification) {
+            const _mF = d.listAfdtManutencao || [];
+            const _todasI = _mF.length > 0 && _mF.every(m => m._typeRegister === 'I');
+            const _semTrab = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
+            const _naoFolga = !d.folga && (d.dsrConsideradoMinutos || 0) === 0;
+            if (_todasI && _semTrab && _naoFolga) _isFerias3 = true;
+        }
+
+        if (_isFerias3) {
             status = 'Férias';
         } else if (d.isHoliday) {
             status = 'Feriado: ' + (d.holidayName || '');
