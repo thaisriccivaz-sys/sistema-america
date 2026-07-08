@@ -432,9 +432,9 @@ const FORMULARIOS_POR_DEPARTAMENTO = {
                     'Tem bom comportamento em confraternizações e reuniões.'
                 ]
             }
-        ]
-    }
-};
+        ]\r
+    }\r
+};\r
 
 // Formulário padrão para departamentos sem template específico
 function getFormularioPadrao(depto) {
@@ -478,16 +478,36 @@ function getFormularioPadrao(depto) {
     };
 }
 
+function normalizarDepto(str) {
+    // Remove acentos e converte para minúsculas para comparação robusta
+    return (str || '').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .trim();
+}
+
 function getFormulario(departamento) {
     if (!departamento) return getFormularioPadrao('Geral');
     const dept = departamento.trim();
+    const deptNorm = normalizarDepto(dept);
+
+    // 1. Busca exata
     if (FORMULARIOS_POR_DEPARTAMENTO[dept]) return FORMULARIOS_POR_DEPARTAMENTO[dept];
-    // Tenta encontrar parcialmente
+
+    // 2. Busca exata sem acentos/case
     for (const key of Object.keys(FORMULARIOS_POR_DEPARTAMENTO)) {
-        if (dept.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(dept.toLowerCase())) {
+        if (normalizarDepto(key) === deptNorm) {
             return FORMULARIOS_POR_DEPARTAMENTO[key];
         }
     }
+
+    // 3. Busca parcial sem acentos/case
+    for (const key of Object.keys(FORMULARIOS_POR_DEPARTAMENTO)) {
+        const keyNorm = normalizarDepto(key);
+        if (deptNorm.includes(keyNorm) || keyNorm.includes(deptNorm)) {
+            return FORMULARIOS_POR_DEPARTAMENTO[key];
+        }
+    }
+
     return getFormularioPadrao(departamento);
 }
 
@@ -781,7 +801,10 @@ async function openExperienciaModal(colaboradorId) {
 
     const colab = resp.colaborador;
     const form = resp.formulario;
-    const formularioDef = getFormulario(colab.departamento || colab.cargo || '');
+    // Prioridade: template do banco de dados; fallback: mapa hardcoded
+    const formularioDef = (resp.template && resp.template.secoes && resp.template.secoes.length > 0)
+        ? resp.template
+        : getFormulario(colab.departamento || colab.cargo || '');
 
     const token = localStorage.getItem('erp_token') || window.currentToken;
     let payload;
@@ -1128,7 +1151,7 @@ window.loadPublicExperiencia = async function(token) {
             return;
         }
 
-        renderPublicExpForm(data.colaborador, data.formulario, token);
+        renderPublicExpForm(data.colaborador, data.formulario, token, data.template || null);
     } catch (e) {
         console.error(e);
         document.getElementById('public-exp-content').innerHTML = `<div style="text-align:center;color:#dc2626;">Erro de conexão.</div>`;
@@ -1136,7 +1159,7 @@ window.loadPublicExperiencia = async function(token) {
 };
 
 
-window.renderPublicExpForm = function(colab, form, token) {
+window.renderPublicExpForm = function(colab, form, token, templateBanco) {
     let html = `
         <div style="margin-bottom:2rem; border-bottom:1px solid #e2e8f0; padding-bottom:1rem;">
             <p style="margin:0 0 12px 0; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.85rem;">Colaborador</p>
@@ -1152,12 +1175,21 @@ window.renderPublicExpForm = function(colab, form, token) {
 
     const dpt = colab.departamento || '';
     let formConfig = null;
-    let fallback = null;
-    for (const [key, val] of Object.entries(FORMULARIOS_POR_DEPARTAMENTO)) {
-        if (dpt.toLowerCase().includes(key.toLowerCase())) formConfig = val;
-        if (key === 'Geral') fallback = val;
+
+    // Prioridade 1: template retornado pelo banco de dados
+    if (templateBanco && templateBanco.secoes && templateBanco.secoes.length > 0) {
+        formConfig = templateBanco;
     }
-    if (!formConfig) formConfig = fallback;
+
+    // Prioridade 2: mapa hardcoded (fallback para departamentos antigos)
+    if (!formConfig) {
+        let fallback = null;
+        for (const [key, val] of Object.entries(FORMULARIOS_POR_DEPARTAMENTO)) {
+            if (dpt.toLowerCase().includes(key.toLowerCase())) formConfig = val;
+            if (key === 'Geral') fallback = val;
+        }
+        if (!formConfig) formConfig = fallback;
+    }
 
     if (!formConfig) {
         html += `<div style="padding:1rem;background:#fee2e2;color:#991b1b;border-radius:8px;">Formulário não configurado para o departamento: ${dpt}</div>`;

@@ -12387,7 +12387,6 @@ function calcPrazoExp(dataAdmissao) {
 app.get('/api/experiencia/publico/info', (req, res) => {
     try {
         const payload = jwt.verify(req.query.token, SECRET_KEY);
-        // exp is handled automatically by jwt, but we included a custom one or just use standard
 
         db.get(`SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?`, [payload.colab_id], (err, colab) => {
             if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
@@ -12399,7 +12398,57 @@ app.get('/api/experiencia/publico/info', (req, res) => {
                     try { parsedForm.respostas = JSON.parse(form.respostas || '{}'); } catch (e) { parsedForm.respostas = {}; }
                 }
                 const prazos = calcPrazoExp(colab.data_admissao);
-                res.json({ colaborador: { ...colab, ...prazos }, formulario: parsedForm });
+                const dpt = (colab.departamento || '').toLowerCase().trim();
+
+                // Busca o template de experiência no banco, pelo departamento do colaborador
+                db.all(`SELECT * FROM avaliacao_templates WHERE tipo = 'experiencia' ORDER BY id`, [], (err3, allTemplates) => {
+                    let templateBanco = null;
+                    if (!err3 && allTemplates && allTemplates.length > 0) {
+                        // Tenta match exato ou parcial pelo grupo_key
+                        for (const t of allTemplates) {
+                            const keys = (t.grupo_key || '').split(',').map(k => k.trim().toLowerCase());
+                            if (keys.some(k => dpt.includes(k) || k.includes(dpt))) {
+                                templateBanco = t;
+                                break;
+                            }
+                        }
+                        // Se não achou, tenta match pelo nome do template
+                        if (!templateBanco) {
+                            for (const t of allTemplates) {
+                                const nomeTemplate = (t.nome || '').toLowerCase();
+                                if (nomeTemplate.includes(dpt) || dpt.includes((t.grupo_key || '').toLowerCase())) {
+                                    templateBanco = t;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    let templateRetornado = null;
+                    if (templateBanco) {
+                        try {
+                            const categorias = typeof templateBanco.categorias_json === 'string'
+                                ? JSON.parse(templateBanco.categorias_json)
+                                : templateBanco.categorias_json;
+                            templateRetornado = {
+                                titulo: templateBanco.nome,
+                                grupo_key: templateBanco.grupo_key,
+                                secoes: (categorias || []).map((cat, ci) => ({
+                                    nome: `${ci + 1}. ${cat.nome || cat.name || 'Seção'}`.toUpperCase(),
+                                    itens: (cat.itens || cat.items || cat.perguntas || [])
+                                }))
+                            };
+                        } catch (parseErr) {
+                            console.error('[PublicoInfo] Erro ao parsear categorias_json:', parseErr);
+                        }
+                    }
+
+                    res.json({
+                        colaborador: { ...colab, ...prazos },
+                        formulario: parsedForm,
+                        template: templateRetornado
+                    });
+                });
             });
         });
     } catch (e) {
@@ -12664,7 +12713,44 @@ app.get('/api/experiencia/:colaborador_id', authenticateToken, (req, res) => {
             }
 
             const prazos = calcPrazoExp(colab.data_admissao);
-            res.json({ colaborador: { ...colab, ...prazos }, formulario: parsedForm });
+            const dpt = (colab.departamento || '').toLowerCase().trim();
+
+            db.all(`SELECT * FROM avaliacao_templates WHERE tipo = 'experiencia' ORDER BY id`, [], (err3, allTemplates) => {
+                let templateBanco = null;
+                if (!err3 && allTemplates && allTemplates.length > 0) {
+                    for (const t of allTemplates) {
+                        const keys = (t.grupo_key || '').split(',').map(k => k.trim().toLowerCase());
+                        if (keys.some(k => dpt.includes(k) || k.includes(dpt))) { templateBanco = t; break; }
+                    }
+                    if (!templateBanco) {
+                        for (const t of allTemplates) {
+                            const nomeTemplate = (t.nome || '').toLowerCase();
+                            if (nomeTemplate.includes(dpt) || dpt.includes((t.grupo_key || '').toLowerCase())) { templateBanco = t; break; }
+                        }
+                    }
+                }
+
+                let templateRetornado = null;
+                if (templateBanco) {
+                    try {
+                        const categorias = typeof templateBanco.categorias_json === 'string'
+                            ? JSON.parse(templateBanco.categorias_json)
+                            : templateBanco.categorias_json;
+                        templateRetornado = {
+                            titulo: templateBanco.nome,
+                            grupo_key: templateBanco.grupo_key,
+                            secoes: (categorias || []).map((cat, ci) => ({
+                                nome: `${ci + 1}. ${cat.nome || cat.name || 'Seção'}`.toUpperCase(),
+                                itens: (cat.itens || cat.items || cat.perguntas || [])
+                            }))
+                        };
+                    } catch (parseErr) {
+                        console.error('[ExperienciaDetalhe] Erro ao parsear categorias_json:', parseErr);
+                    }
+                }
+
+                res.json({ colaborador: { ...colab, ...prazos }, formulario: parsedForm, template: templateRetornado });
+            });
         });
     });
 });
