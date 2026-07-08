@@ -9519,10 +9519,15 @@ function _renderTabFichaTecnica(container) {
                 <div class="prec-input-grid" style="grid-template-columns: 2fr 1fr 1fr; margin-bottom:1.5rem; border-bottom:1px dashed #e2e8f0; padding-bottom:1.25rem;">
                     <div class="prec-input-group">
                         <label>Vincular com Serviço Existente *</label>
-                        <select id="ficha-servico-select" onchange="_selecionarServicoFicha(this.value)">
-                            <option value="">-- Selecione o Serviço --</option>
-                            ${_precificacaoServicosList.map(s => `<option value="${s.id}">${s.nome} (${s.tabela_precos})</option>`).join('')}
-                        </select>
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <select id="ficha-servico-select" onchange="_selecionarServicoFicha(this.value)" style="flex:1;">
+                                <option value="">-- Selecione o Serviço --</option>
+                                ${_precificacaoServicosList.map(s => `<option value="${s.id}">${s.nome} (${s.tabela_precos})</option>`).join('')}
+                            </select>
+                            <button class="prec-btn prec-btn-secondary" onclick="_cadastrarNovoServicoMestre()" style="height:30px !important; padding:0 8px; font-weight:700; font-size:0.75rem; flex-shrink:0;" title="Cadastrar Novo Serviço">
+                                <i class="ph ph-plus" style="margin-right:2px;"></i> Novo Serviço
+                            </button>
+                        </div>
                     </div>
                     <div class="prec-input-group">
                         <label>Código do Serviço *</label>
@@ -9804,6 +9809,87 @@ window._excluirFicha = async function() {
         } catch(e) {
             console.error(e);
             Swal.fire('Erro', 'Erro ao excluir Ficha Técnica.', 'error');
+        }
+    }
+};
+
+window._cadastrarNovoServicoMestre = async function() {
+    const { value: formValues } = await Swal.fire({
+        title: 'Cadastrar Novo Serviço Mestre',
+        html:
+            '<div style="text-align:left; font-family:\'Inter\', sans-serif;">' +
+            '  <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Nome do Serviço *</label>' +
+            '  <input id="swal-serv-nome" class="swal2-input" placeholder="Ex: Manutenção Preventiva Gerador" style="width:100%; margin:0 0 1rem 0; height:36px; box-sizing:border-box; font-size:0.8rem; border:1px solid #cbd5e1; border-radius:6px; outline:none; padding: 0 10px;">' +
+            '  <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Tabela de Preços *</label>' +
+            '  <select id="swal-serv-tabela" class="swal2-select" style="width:100%; margin:0; height:36px; box-sizing:border-box; font-size:0.8rem; border:1px solid #cbd5e1; border-radius:6px; outline:none; padding: 0 10px;">' +
+            '    <option value="Tabela Padrão">Tabela Padrão</option>' +
+            '    <option value="Tabela Acordo">Tabela Acordo</option>' +
+            '    <option value="Tabela Especial">Tabela Especial</option>' +
+            '  </select>' +
+            '</div>',
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonColor: '#7048e8',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Cadastrar',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const nome = document.getElementById('swal-serv-nome').value.trim();
+            const tabela = document.getElementById('swal-serv-tabela').value;
+            if (!nome) {
+                Swal.showValidationMessage('Por favor, informe o nome do serviço.');
+                return false;
+            }
+            return { nome, tabela_precos: tabela };
+        }
+    });
+
+    if (formValues) {
+        Swal.fire({
+            title: 'Salvando serviço...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        try {
+            const payload = {
+                nome: formValues.nome,
+                tabela_precos: formValues.tabela_precos,
+                estrutura_produto: '[]',
+                custo_insumos: 0,
+                custos_fixos: '[]',
+                custo_mao_obra: 0,
+                markup_prc: 20,
+                markup_valores: '{}',
+                markup_tipo: 'divisor',
+                preco_venda: 0,
+                observacoes: 'Cadastrado via Ficha Técnica'
+            };
+
+            const res = await apiPost('/servicos-precificacao', payload);
+            Swal.close();
+
+            if (res && res.success) {
+                Swal.fire('Sucesso!', 'Serviço cadastrado com sucesso.', 'success');
+                // Reload list from backend
+                _precificacaoServicosList = await apiGet('/servicos-precificacao') || [];
+                
+                // Re-render Tab 2 to update the select list
+                _renderActivePrecSubTab();
+                
+                // Automatically select the newly created service
+                const selectElement = document.getElementById('ficha-servico-select');
+                if (selectElement) {
+                    selectElement.value = res.id;
+                    _selecionarServicoFicha(res.id);
+                }
+            } else {
+                Swal.fire('Erro', 'Falha ao salvar: ' + (res ? res.error : 'Erro desconhecido'), 'error');
+            }
+        } catch(e) {
+            Swal.close();
+            console.error(e);
+            Swal.fire('Erro', 'Erro ao conectar com o servidor.', 'error');
         }
     }
 };
