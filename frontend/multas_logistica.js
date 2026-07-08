@@ -360,11 +360,11 @@ function renderMultasLogistica(container) {
 
             <!-- Filtros em tempo real -->
             <div id="multas-filtros" style="display:flex; flex-wrap:wrap; gap:0.6rem; margin-bottom:1rem; padding:0.8rem; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
-                <input id="mf-motorista" type="text" placeholder="🔍 Motorista" oninput="filtrarMultasLogistica()"
+                <input id="mf-motorista" type="text" placeholder="🔍 Motorista" autocomplete="new-password" oninput="filtrarMultasLogistica()"
                     style="flex:1; min-width:140px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">
-                <input id="mf-ait" type="text" placeholder="🔍 Nº AIT" oninput="filtrarMultasLogistica()"
+                <input id="mf-ait" type="text" placeholder="🔍 Nº AIT" autocomplete="new-password" oninput="filtrarMultasLogistica()"
                     style="flex:1; min-width:130px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">
-                <input id="mf-placa" type="text" placeholder="🔍 Placa" oninput="filtrarMultasLogistica()"
+                <input id="mf-placa" type="text" placeholder="🔍 Placa" autocomplete="new-password" oninput="filtrarMultasLogistica()"
                     style="flex:1; min-width:100px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">
                 <input id="mf-de" type="date" title="Período de" oninput="filtrarMultasLogistica()"
                     style="flex:1; min-width:140px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">

@@ -50,7 +50,7 @@ window._rhSinBuildLayout = function() {
         '<div style="display:flex; flex-wrap:wrap; gap:0.6rem; margin-bottom:1rem; padding:0.8rem; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">',
         '<div style="position:relative; flex:2; min-width:200px;">',
         '<i class="ph ph-magnifying-glass" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8; pointer-events:none;"></i>',
-        '<input type="search" id="rh-sin-search" placeholder="Buscar por colaborador ou nº do BO..." oninput="window.rhSinFiltrarLista()" style="width:100%; padding:0.45rem 0.7rem 0.45rem 34px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none; box-sizing:border-box;" autocomplete="off">',
+        '<input type="search" id="rh-sin-search" placeholder="Buscar por colaborador ou nº do BO..." oninput="window.rhSinFiltrarLista()" style="width:100%; padding:0.45rem 0.7rem 0.45rem 34px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none; box-sizing:border-box;" autocomplete="new-password">',
         '</div>',
         '<select id="rh-sin-status" onchange="window.rhSinFiltrarLista()" style="flex:1; min-width:160px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">',
         '<option value="">Todos os Status</option>',
