@@ -21717,6 +21717,142 @@ app.delete('/api/comercial/itens-custo/:id', authenticateToken, (req, res) => {
   });
 });
 
+app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }).single('arquivo'), async (req, res) => {
+  const { tipo } = req.body;
+  if (!req.file) {
+    return res.status(400).json({ error: "Nenhum arquivo enviado." });
+  }
+
+  try {
+    let descricao = "";
+    let valor = 0;
+
+    if (tipo === 'Planilha MDO') {
+      const xlsx = require('xlsx');
+      const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const data = xlsx.utils.sheet_to_json(sheet);
+
+      if (!data || data.length === 0) {
+        return res.status(400).json({ error: "A planilha está vazia ou corrompida." });
+      }
+
+      // Search for column keys case-insensitive
+      for (const row of data) {
+        const keys = Object.keys(row);
+        const descKey = keys.find(k => k.toLowerCase().includes('desc') || k.toLowerCase().includes('item') || k.toLowerCase().includes('nome'));
+        const valKey = keys.find(k => k.toLowerCase().includes('val') || k.toLowerCase().includes('cust') || k.toLowerCase().includes('preço') || k.toLowerCase().includes('preco'));
+
+        if (descKey && valKey) {
+          descricao = String(row[descKey] || '').trim();
+          valor = parseFloat(String(row[valKey]).replace(/[^\d,.-]/g, '').replace(',', '.'));
+          if (descricao && !isNaN(valor)) {
+            break;
+          }
+        }
+      }
+
+      if (!descricao || isNaN(valor)) {
+        console.error("[IMPORT-MDO] Colunas de Descrição/Valor não localizadas. Amostra:", data[0]);
+        return res.status(400).json({ error: "Colunas não encontradas. O arquivo de Planilha MDO deve possuir colunas contendo as palavras 'Descrição' e 'Valor'." });
+      }
+
+    } else if (tipo === 'PDF Fatura') {
+      const pdfData = await pdfParse(req.file.buffer);
+      const text = pdfData.text;
+
+      if (!text || text.trim().length === 0) {
+        return res.status(400).json({ error: "O PDF não possui texto legível por OCR." });
+      }
+
+      // Extract value
+      const valorRegexes = [
+        /total.*?r\$\s*([\d.,]+)/i,
+        /valor.*?total.*?([\d.,]+)/i,
+        /r\$\s*([\d.,]+)/i,
+        /total\s*([\d.,]+)/i
+      ];
+      for (const rx of valorRegexes) {
+        const m = text.match(rx);
+        if (m) {
+          let rawVal = m[1].trim();
+          if (rawVal.includes('.') && rawVal.includes(',')) {
+            rawVal = rawVal.replace(/\./g, '').replace(',', '.');
+          } else if (rawVal.includes(',')) {
+            rawVal = rawVal.replace(',', '.');
+          }
+          const parsed = parseFloat(rawVal);
+          if (!isNaN(parsed) && parsed > 0) {
+            valor = parsed;
+            break;
+          }
+        }
+      }
+
+      // Extract description
+      const descRegexes = [
+        /(?:descrição|descricao)\s*(?:do|dos)?\s*(?:serviço|servicos|serviços|produtos|itens)[\s:]+([^\n]+)/i,
+        /(?:serviço|servico|prestado|fatura|referente a)[\s:]+([^\n]+)/i
+      ];
+      for (const rx of descRegexes) {
+        const m = text.match(rx);
+        if (m && m[1]) {
+          descricao = m[1].trim();
+          break;
+        }
+      }
+
+      if (!descricao) {
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 10);
+        if (lines.length > 0) {
+          descricao = lines[0].substring(0, 80);
+        } else {
+          descricao = "Fatura Importada (PDF)";
+        }
+      }
+
+      if (isNaN(valor) || valor === 0) {
+        console.error("[IMPORT-PDF] Texto bruto do PDF:", text.substring(0, 800));
+        return res.status(400).json({ error: "Não foi possível extrair o Valor Total da Fatura PDF. Certifique-se de que há um valor numérico precedido por 'R$' ou 'Total'." });
+      }
+
+    } else if (tipo === 'Nota XML') {
+      const xmlText = req.file.buffer.toString('utf8');
+
+      const vNFMatch = xmlText.match(/<vNF>([^<]+)<\/vNF>/);
+      const xProdMatch = xmlText.match(/<xProd>([^<]+)<\/xProd>/);
+      const vUnComMatch = xmlText.match(/<vUnCom>([^<]+)<\/vUnCom>/);
+
+      if (vUnComMatch) {
+        valor = parseFloat(vUnComMatch[1]);
+      } else if (vNFMatch) {
+        valor = parseFloat(vNFMatch[1]);
+      }
+
+      if (xProdMatch) {
+        descricao = xProdMatch[1].trim();
+      } else {
+        descricao = "Nota XML Importada";
+      }
+
+      if (!descricao || isNaN(valor) || valor === 0) {
+        console.error("[IMPORT-XML] Conteúdo XML:", xmlText.substring(0, 800));
+        return res.status(400).json({ error: "Não foi possível identificar as tags <vNF>/<vUnCom> ou <xProd> no XML da NFe." });
+      }
+
+    } else {
+      return res.status(400).json({ error: "Modo de importação de arquivo inválido." });
+    }
+
+    res.json({ success: true, descricao, valor });
+
+  } catch (err) {
+    console.error("[IMPORT-ERROR] Falha geral no parser:", err);
+    res.status(500).json({ error: "Erro de processamento no servidor: " + err.message });
+  }
+});
+
 app.get('/api/comercial/servicos-ficha', authenticateToken, (req, res) => {
   db.all('SELECT * FROM comercial_servicos_ficha ORDER BY servico_codigo ASC', [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });

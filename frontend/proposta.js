@@ -9270,7 +9270,7 @@ function _renderTabItensCusto(container) {
                             <div class="prec-input-grid" style="grid-template-columns: 1fr 1fr; margin-bottom:1rem;">
                                 <div class="prec-input-group">
                                     <label>Tipo de Dado Financeiro *</label>
-                                    <select id="ic-tipo-financeiro" required>
+                                    <select id="ic-tipo-financeiro" onchange="_onTipoFinanceiroChange(this.value)" required>
                                         <option value="Manual">Manual</option>
                                         <option value="Planilha MDO">Planilha MDO</option>
                                         <option value="PDF Fatura">PDF Fatura</option>
@@ -9287,6 +9287,17 @@ function _renderTabItensCusto(container) {
                                             <input type="radio" name="ic-natureza" value="Variável" style="height:auto; width:auto; margin:0;"> Variável
                                         </label>
                                     </div>
+                                </div>
+                                <!-- dynamic file upload container -->
+                                <div class="prec-input-group" id="import-upload-container" style="display:none; grid-column: span 2; margin-top: 0.5rem; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 0.75rem;">
+                                    <label id="import-upload-label" style="font-weight:700; color:#475569; display:block; margin-bottom:0.4rem;">Importar Arquivo (.xlsx/.csv)</label>
+                                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                                        <input type="file" id="import-file-input" style="flex:1; height:32px !important; padding:4px !important; font-size:0.75rem !important;" onchange="_onImportFileSelected()">
+                                        <button type="button" class="prec-btn prec-btn-secondary" id="btn-processar-import" onclick="_processarImportacaoArquivo()" style="height:32px !important; font-size:0.75rem; font-weight:700; display:none;">
+                                            <i class="ph ph-upload-simple" style="margin-right:2px;"></i> Processar
+                                        </button>
+                                    </div>
+                                    <div style="font-size:0.7rem; color:#64748b; margin-top:0.3rem;" id="import-helper-text">Mapeamento automático de colunas padrão (Descrição, Valor).</div>
                                 </div>
                             </div>
 
@@ -9383,6 +9394,11 @@ window._limparFormItemCusto = function() {
     const vigInput = document.getElementById('ic-vigencia');
     if (vigInput) vigInput.value = new Date().toISOString().substring(0, 10);
 
+    // Reset upload container
+    if (window._onTipoFinanceiroChange) {
+        _onTipoFinanceiroChange('Manual');
+    }
+
     document.querySelectorAll('.prec-sidebar-item').forEach(el => el.classList.remove('active'));
 };
 
@@ -9396,6 +9412,9 @@ window._carregarItemCustoParaEdicao = function(id) {
     document.getElementById('ic-codigo').value = item.codigo || '';
     document.getElementById('ic-descricao').value = item.descricao || '';
     document.getElementById('ic-tipo-financeiro').value = item.tipo_dado_financeiro || 'Manual';
+    if (window._onTipoFinanceiroChange) {
+        _onTipoFinanceiroChange(item.tipo_dado_financeiro || 'Manual');
+    }
     document.getElementById('ic-categoria').value = item.categoria || 'MDO';
     document.getElementById('ic-unidade').value = item.unidade_medida || '';
     document.getElementById('ic-custo-unitario').value = (item.custo_unitario || 0).toFixed(2);
@@ -9486,6 +9505,152 @@ window._excluirItemCusto = async function() {
             console.error(e);
             Swal.fire('Erro', 'Erro ao excluir item de custo.', 'error');
         }
+    }
+};
+
+window._onTipoFinanceiroChange = function(value) {
+    const container = document.getElementById('import-upload-container');
+    const label = document.getElementById('import-upload-label');
+    const helper = document.getElementById('import-helper-text');
+    const fileInput = document.getElementById('import-file-input');
+    const btnProcessar = document.getElementById('btn-processar-import');
+
+    if (!container) return;
+
+    if (value === 'Manual') {
+        container.style.display = 'none';
+        if (fileInput) fileInput.value = '';
+        if (btnProcessar) btnProcessar.style.display = 'none';
+    } else {
+        container.style.display = 'block';
+        if (btnProcessar) btnProcessar.style.display = 'none';
+        if (fileInput) {
+            fileInput.value = '';
+            if (value === 'Planilha MDO') {
+                label.innerText = 'Importar Planilha MDO (.xlsx, .csv) *';
+                helper.innerText = 'Mapeamento automático das colunas contendo "Descrição" e "Valor".';
+                fileInput.accept = '.xlsx, .xls, .csv';
+            } else if (value === 'PDF Fatura') {
+                label.innerText = 'Importar PDF Fatura (.pdf) *';
+                helper.innerText = 'Extração automática do Valor Total e Descrição da fatura.';
+                fileInput.accept = '.pdf';
+            } else if (value === 'Nota XML') {
+                label.innerText = 'Importar Nota XML (.xml) *';
+                helper.innerText = 'Extrator automático de tags de produto (<xProd>) e valores (<vNF>, <vUnCom>).';
+                fileInput.accept = '.xml';
+            }
+        }
+    }
+};
+
+window._onImportFileSelected = function() {
+    const fileInput = document.getElementById('import-file-input');
+    const btnProcessar = document.getElementById('btn-processar-import');
+    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+        btnProcessar.style.display = 'inline-flex';
+    } else {
+        btnProcessar.style.display = 'none';
+    }
+};
+
+window._processarImportacaoArquivo = async function() {
+    const fileInput = document.getElementById('import-file-input');
+    const tipo = document.getElementById('ic-tipo-financeiro').value;
+
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        Swal.fire('Aviso', 'Por favor, selecione um arquivo para importar.', 'warning');
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const extension = file.name.split('.').pop().toLowerCase();
+
+    // Validate extension matching the select box value
+    if (tipo === 'Planilha MDO' && !['xlsx', 'xls', 'csv'].includes(extension)) {
+        Swal.fire('Erro no formato do arquivo', 'Por favor, envie uma planilha válida (.xlsx, .xls, .csv).', 'error');
+        return;
+    }
+    if (tipo === 'PDF Fatura' && extension !== 'pdf') {
+        Swal.fire('Erro no formato do arquivo', 'Por favor, envie um arquivo PDF válido (.pdf).', 'error');
+        return;
+    }
+    if (tipo === 'Nota XML' && extension !== 'xml') {
+        Swal.fire('Erro no formato do arquivo', 'Por favor, envie um arquivo XML de NFe válido (.xml).', 'error');
+        return;
+    }
+
+    Swal.fire({
+        title: 'Importando e Processando...',
+        html: 'Lendo dados estruturados do arquivo...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    const formData = new FormData();
+    formData.append('arquivo', file);
+    formData.append('tipo', tipo);
+
+    try {
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch('/api/comercial/itens-custo/importar', {
+            method: 'POST',
+            headers: headers,
+            body: formData
+        });
+
+        const res = await response.json();
+        Swal.close();
+
+        if (response.ok && res.success) {
+            Swal.fire({
+                title: 'Importação Concluída com Sucesso!',
+                text: 'Os dados foram extraídos e preenchidos no formulário.',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+
+            // Auto-preenchimento
+            if (document.getElementById('ic-descricao')) {
+                document.getElementById('ic-descricao').value = res.descricao || '';
+            }
+            if (document.getElementById('ic-custo-unitario')) {
+                document.getElementById('ic-custo-unitario').value = parseFloat(res.valor || 0).toFixed(2);
+            }
+
+            // Tabela de-para (Mapping)
+            const descLower = (res.descricao || '').toLowerCase();
+            let categoriaSugerida = 'MDO';
+
+            if (descLower.includes('óleo') || descLower.includes('oleo') || descLower.includes('material') || descLower.includes('peça') || descLower.includes('peca') || descLower.includes('insumo') || descLower.includes('graxa') || descLower.includes('filtro') || descLower.includes('combustivel') || descLower.includes('combustível') || descLower.includes('produto')) {
+                categoriaSugerida = 'Insumo';
+            } else if (descLower.includes('frete') || descLower.includes('entrega') || descLower.includes('transporte') || descLower.includes('carreto') || descLower.includes('logistica') || descLower.includes('logística')) {
+                categoriaSugerida = 'Frete';
+            } else if (descLower.includes('imposto') || descLower.includes('taxa') || descLower.includes('aliquota') || descLower.includes('alíquota') || descLower.includes('iss') || descLower.includes('icms') || descLower.includes('darf') || descLower.includes('tributo')) {
+                categoriaSugerida = 'Imposto';
+            }
+
+            if (document.getElementById('ic-categoria')) {
+                document.getElementById('ic-categoria').value = categoriaSugerida;
+                document.getElementById('ic-categoria').dispatchEvent(new Event('change'));
+            }
+
+            // Clear file input
+            fileInput.value = '';
+            if (btnProcessar) btnProcessar.style.display = 'none';
+
+        } else {
+            Swal.fire('Falha na Importação', res.error || 'Erro ao processar arquivo no servidor.', 'error');
+        }
+    } catch(e) {
+        Swal.close();
+        console.error('[IMPORT-CLIENT-ERROR]', e);
+        Swal.fire('Erro', 'Ocorreu um erro ao enviar o arquivo para processamento.', 'error');
     }
 };
 
