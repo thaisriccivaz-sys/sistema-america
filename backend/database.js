@@ -183,6 +183,22 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `);
 
+            // Tabela de DRE (Demonstrativo do Resultado do Exercício) (América Rental)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS financeiro_dre (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    periodo TEXT UNIQUE NOT NULL,
+                    receita_bruta REAL DEFAULT 0,
+                    deducoes REAL DEFAULT 0,
+                    cmv_cpv REAL DEFAULT 0,
+                    despesas_operacionais REAL DEFAULT 0,
+                    despesas_administrativas REAL DEFAULT 0,
+                    despesas_financeiras REAL DEFAULT 0,
+                    criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+                    atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+                )
+            `);
+
             // Tabela de Propostas Comerciais (América Rental)
             db.run(`
                 CREATE TABLE IF NOT EXISTS propostas (

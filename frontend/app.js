@@ -795,6 +795,7 @@ const TAB_META = {
     'rh-agenda': { color: '#f503c5', icon: 'ph-calendar-check', title: 'Agenda RH' },
     // Financeiro - Azul
     'financeiro-em-breve': { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
+    'financeiro-dre': { color: '#1971c2', icon: 'ph-presentation-chart', title: 'DRE' },
     // Comercial - Roxo
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
     'comercial-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Proposta' },
@@ -1108,6 +1109,8 @@ function navigateTo(target) {
         if (typeof window.renderTreinamentosTable === 'function') setTimeout(() => window.renderTreinamentosTable(), 80);
     } else if (target === 'treinamento-presenca-terapia') {
         if (typeof window.initPresencaTreinamento === 'function') setTimeout(() => window.initPresencaTreinamento(), 80);
+    } else if (target === 'financeiro-dre') {
+        if (typeof window.initDRE === 'function') setTimeout(() => window.initDRE(), 80);
     }
 }
 

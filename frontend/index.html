@@ -217,8 +217,8 @@
                 <div class="dept-submenu">
                     <div class="dept-submenu-header" style="color:#1971c2;"><i class="ph ph-currency-dollar"></i>
                         Financeiro</div>
-                    <a href="#" class="nav-item" data-target="financeiro-em-breve"
-                        style="color:#94a3b8;pointer-events:none;"><i class="ph ph-hourglass"></i> Em breve...</a>
+                    <a href="#" class="nav-item" data-target="financeiro-dre"
+                        onclick="navigateTo('financeiro-dre'); return false;"><i class="ph ph-presentation-chart"></i> DRE</a>
                 </div>
             </div>
 
@@ -3728,6 +3728,14 @@
                     </div>
                 </section>
 
+                <!-- VIEW: FINANCEIRO - DRE -->
+                <section id="view-financeiro-dre" class="content-view">
+                    <div style="text-align:center; padding:3rem; color:#94a3b8;">
+                        <i class="ph ph-circle-notch" style="font-size:2rem;"></i>
+                        <p style="margin-top:0.5rem;">Carregando...</p>
+                    </div>
+                </section>
+
                 <!-- VIEW: RECIBOS -->
                 <section id="view-recibos" class="content-view" style="padding:0; background:#f8fafc;">
                     <div id="recibos-container"></div>
@@ -5429,6 +5437,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=1778869020176"></script>
+    <script src="dre.js?v=202607080000"></script>
     <script src="app.js?v=202606251404"></script>
     <script src="frota_resumo.js?v=1778869020176"></script>
     <!-- Global Scroll-to-Top Button -->

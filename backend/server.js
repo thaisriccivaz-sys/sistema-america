@@ -21613,6 +21613,63 @@ app.delete('/api/clientes/:clienteId/enderecos/:id', authenticateToken, (req, re
   });
 });
 
+// ─── ENDPOINTS DRE (DEMONSTRATIVO DO RESULTADO DO EXERCÍCIO) ──────
+app.get('/api/financeiro/dre/:periodo', authenticateToken, (req, res) => {
+  const { periodo } = req.params;
+  db.get('SELECT * FROM financeiro_dre WHERE periodo = ?', [periodo], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) {
+      return res.json({
+        periodo,
+        receita_bruta: 0,
+        deducoes: 0,
+        cmv_cpv: 0,
+        despesas_operacionais: 0,
+        despesas_administrativas: 0,
+        despesas_financeiras: 0
+      });
+    }
+    res.json(row);
+  });
+});
+
+app.post('/api/financeiro/dre/:periodo', authenticateToken, (req, res) => {
+  const { periodo } = req.params;
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  db.run(`INSERT INTO financeiro_dre (
+    periodo, receita_bruta, deducoes, cmv_cpv, despesas_operacionais, despesas_administrativas, despesas_financeiras, criado_em, atualizado_em
+  ) VALUES (?,?,?,?,?,?,?,?,?)
+  ON CONFLICT(periodo) DO UPDATE SET
+    receita_bruta=excluded.receita_bruta,
+    deducoes=excluded.deducoes,
+    cmv_cpv=excluded.cmv_cpv,
+    despesas_operacionais=excluded.despesas_operacionais,
+    despesas_administrativas=excluded.despesas_administrativas,
+    despesas_financeiras=excluded.despesas_financeiras,
+    atualizado_em=excluded.atualizado_em`,
+  [
+    periodo, d.receita_bruta || 0, d.deducoes || 0, d.cmv_cpv || 0,
+    d.despesas_operacionais || 0, d.despesas_administrativas || 0, d.despesas_financeiras || 0,
+    agora, agora
+  ], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, id: this.lastID });
+  });
+});
+
+app.get('/api/financeiro/dre-evolucao/:ano', authenticateToken, (req, res) => {
+  const { ano } = req.params;
+  const minPeriod = `${ano}-01`;
+  const maxPeriod = `${ano}-12`;
+  db.all('SELECT * FROM financeiro_dre WHERE periodo >= ? AND periodo <= ? ORDER BY periodo ASC', [minPeriod, maxPeriod], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+
 // POST /api/clientes - Criar novo cliente
 app.post('/api/clientes', authenticateToken, (req, res) => {
   const d = req.body;
