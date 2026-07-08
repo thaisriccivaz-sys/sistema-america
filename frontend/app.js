@@ -541,7 +541,7 @@ const BREADCRUMB_MAP = {
     'ferias': { path: 'Controle de Férias', code: 'RHFER01' },
     // Logística
     'logistica-dashboard': { path: 'Dashboard Logística', code: 'LOG000' },
-    'logistica-sinistros': { path: 'Sinistros Logística', code: 'LOG010' },
+    'logistica-sinistros': { path: 'Sinistros', code: 'LOG010' },
     'logistica-rota-redonda': { path: 'Logística → Rota Redonda → OS', code: 'LOG001' },
     'logistica-frota-resumo': { path: 'Resumo de Frota', code: 'LOG002' },
     'logistica-pipeline': { path: 'Logística → Rota Redonda → Pipeline OS', code: 'LOG003' },
@@ -774,7 +774,7 @@ const TAB_META = {
     // Logística - Verde
     'logistica-em-breve': { color: '#2d9e5f', icon: 'ph-truck', title: 'Logística' },
     'logistica-dashboard': { color: '#2d9e5f', icon: 'ph-chart-bar', title: 'Dashboard Logística' },
-    'logistica-sinistros': { color: '#059669', icon: 'ph-warning', title: 'Sinistros Logística' },
+    'logistica-sinistros': { color: '#059669', icon: 'ph-warning', title: 'Sinistros' },
     'logistica-rota-redonda': { color: '#2d9e5f', icon: 'ph-clipboard-text', title: 'OS' },
     'logistica-resumo-rota': { color: '#2d9e5f', icon: 'ph-list-bullets', title: 'Resumo de Rota' },
     'logistica-frota-resumo': { color: '#1e3a5f', icon: 'ph-truck', title: 'Resumo de Frota' },
