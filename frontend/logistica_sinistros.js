@@ -45,7 +45,7 @@ window.renderLogisticaSinistros = async function() {
         <!-- Lista global de sinistros -->
         <div style="margin-bottom:1rem; position:relative;">
             <i class="ph ph-magnifying-glass" style="position:absolute; left:12px; top:12px; color:#94a3b8; font-size:1.1rem;"></i>
-            <input type="text" id="log-sin-search" placeholder="Buscar sinistro por nome do colaborador ou BO..." onkeyup="window.logSinFiltrarLista()" class="form-control" style="padding:12px 12px 12px 36px; border-radius:8px; height:auto;" autocomplete="off" value="">
+            <input type="search" id="log-sin-search" name="busca_sinistro_log" placeholder="Buscar sinistro por nome do colaborador ou BO..." onkeyup="window.logSinFiltrarLista()" class="form-control" style="padding:12px 12px 12px 36px; border-radius:8px; height:auto;" autocomplete="new-password" role="presentation" value="">
         </div>
         <div id="log-sin-lista-area">
             <div style="text-align:center; padding:3rem; color:#94a3b8;">
