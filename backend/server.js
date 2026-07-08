@@ -5583,6 +5583,74 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                     notificarRHAuto(finalMotorista, status, finalParcelas, finalValor, finalData, finalAit, multaExtra)
                         .then((result) => { res.json({ ok: true, emailEnviado: true }); })
                         .catch(errEmail => { res.status(500).json({ error: 'Salvo, mas o e-mail não foi enviado: ' + errEmail.message }); });
+
+                // Rec. Indeferida: envia APENAS popup (sem e-mail) + insere no prontuário do colaborador
+                } else if (status && status === 'Rec. Indeferida' && oldData.status !== status) {
+                    const finalMotorista = motorista_id || oldData.motorista_id;
+                    const finalValor = valor_multa || oldData.valor_multa;
+                    const finalData = data_infracao || oldData.data_infracao;
+                    const finalAit = numero_ait || oldData.numero_ait;
+                    const finalParcelas = parcelas || oldData.parcelas || 1;
+                    const finalPlaca = placa || oldData.placa;
+                    const finalMotivo = motivo || oldData.motivo;
+                    const finalPontuacao = pontuacao || oldData.pontuacao;
+                    const finalHora = hora_infracao || oldData.hora_infracao;
+                    const finalLocal = local_infracao || oldData.local_infracao;
+
+                    // 1. Insere no prontuário (tabela multas) se motorista válido
+                    if (finalMotorista && finalMotorista != -1) {
+                        const numericStr = (finalValor || '0').toString().replace(/[^\d,-]/g, '').replace(',', '.');
+                        const valorOriginal = parseFloat(numericStr) || 0;
+                        const pontuacaoInt = parseInt(finalPontuacao) || 0;
+                        const tipoRes = (finalMotivo || 'Rec. Indeferida').substring(0, 50);
+
+                        db.run(
+                            `INSERT INTO multas (colaborador_id, codigo_infracao, descricao_infracao, placa, veiculo, data_infracao, hora_infracao, local_infracao, numero_ait, pontuacao, valor_multa, tipo_resolucao, parcelas, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente')`,
+                            [
+                                finalMotorista,
+                                'S/C',
+                                tipoRes,
+                                finalPlaca || '',
+                                '',
+                                finalData || '',
+                                finalHora || '',
+                                finalLocal || '',
+                                finalAit || '',
+                                pontuacaoInt,
+                                valorOriginal,
+                                'nic',
+                                finalParcelas
+                            ],
+                            function(errInsert) {
+                                if (errInsert) console.error('[RecIndeferida] Erro ao inserir no prontuário:', errInsert.message);
+                                else console.log(`[RecIndeferida] Multa inserida no prontuário. ID=${this.lastID}`);
+                            }
+                        );
+                    }
+
+                    // 2. Envia popup (sem e-mail) para usuários configurados com tipo 'multa_rec_indeferida'
+                    db.get('SELECT nome_completo, nome FROM colaboradores WHERE id = ?', [finalMotorista], (errColab, colab) => {
+                        const nomeColab = (colab && (colab.nome_completo || colab.nome)) || 'Colaborador não identificado';
+                        const msgNotif = `Recurso Indeferido: Multa AIT ${finalAit || 'S/N'} — ${nomeColab}. Multa enviada ao prontuário.`;
+                        const dadosNotif = JSON.stringify({ ait: finalAit, motorista: nomeColab, status: 'Rec. Indeferida', multa_id: req.params.id });
+
+                        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'multa_rec_indeferida'", [], (errN, rowsN) => {
+                            if (!errN && rowsN && rowsN.length > 0) {
+                                rowsN.forEach(c => {
+                                    db.run(
+                                        "INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                                        [c.usuario_id, 'multa_rec_indeferida', msgNotif, dadosNotif],
+                                        (errNotif) => { if (errNotif) console.error('[RecIndeferida] Erro ao inserir notificação popup:', errNotif.message); }
+                                    );
+                                });
+                                console.log(`[RecIndeferida] Popup enviado para ${rowsN.length} usuário(s).`);
+                            } else {
+                                console.log('[RecIndeferida] Nenhum usuário configurado para multa_rec_indeferida.');
+                            }
+                        });
+                    });
+
+                    res.json({ ok: true, recIndeferidaProcessado: true });
                 } else {
                     res.json({ ok: true });
                 }

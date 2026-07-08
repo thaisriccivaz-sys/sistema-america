@@ -136,6 +136,25 @@
                                 Docs. em Massa</a>
                         </div>
                     </div>
+                    <!-- ▸ Grupo: Logística RH (acordeão) -->
+                    <div class="nav-group" id="nav-group-rh-logistica">
+                        <button class="nav-group-label nav-group-toggle"
+                                onclick="toggleNavGroup('nav-group-rh-logistica')">
+                            <span style="display:flex;align-items:center;gap:0.55rem;">
+                                <i class="ph ph-truck"></i>
+                                Log&iacute;stica
+                            </span>
+                            <i class="ph ph-caret-right nav-group-chevron"></i>
+                        </button>
+                        <div class="nav-group-items" id="nav-group-items-rh-logistica">
+                            <a href="#" class="nav-item nav-item-sub" data-target="rh-logistica-sinistros"
+                               onclick="navigateTo('rh-logistica-sinistros'); return false;">
+                               <i class="ph ph-warning"></i> Sinistros</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="rh-logistica-multas"
+                               onclick="navigateTo('rh-logistica-multas'); return false;">
+                               <i class="ph ph-receipt"></i> Multas</a>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -3794,6 +3813,16 @@
                 </section>
 
                 <!-- VIEW: PAGAMENTOS EM MASSA -->
+                <!-- VIEW: RH LOGÍSTICA - SINISTROS -->
+                <section id="view-rh-logistica-sinistros" class="content-view" style="padding:0; background:#f8fafc;">
+                    <div id="rh-logistica-sinistros-container"></div>
+                </section>
+
+                <!-- VIEW: RH LOGÍSTICA - MULTAS -->
+                <section id="view-rh-logistica-multas" class="content-view" style="padding:1.5rem; background:#f1f5f9;">
+                    <div id="rh-multas-logistica-container"></div>
+                </section>
+
                 <section id="view-pagamentos-massa" class="content-view" style="padding:0;background:#f8fafc;">
                     <div id="main-content" style="height:100%;display:flex;flex-direction:column;"></div>
                 </section>
@@ -5507,6 +5536,7 @@
     <script src="proposta.js"></script>
     <script src="logistica_dashboard.js?v=1778869020176"></script>
     <script src="logistica_sinistros.js?v=1778869020176"></script>
+    <script src="rh_logistica.js?v=20260708v1"></script>
     <script src="licencas.js?v=1778869020176"></script>
     <script src="videos_os.js?v=20260701v10"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />

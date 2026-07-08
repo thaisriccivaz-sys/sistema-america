@@ -11,6 +11,7 @@ const TIPOS_NOTIFICACAO = [
     { id: 'licenca_vencida', nome: 'Aviso de Licença Vencida', icone: 'ph-warning-circle' },
     { id: 'novo_sinistro', nome: 'Novo Sinistro Registrado', icone: 'ph-warning' },
     { id: 'nova_multa_prontuario', nome: 'Nova Multa no Prontuário', icone: 'ph-traffic-cone' },
+    { id: 'multa_rec_indeferida', nome: 'Multa Rec. Indeferida (vai ao prontuário)', icone: 'ph-traffic-cone', descricao: 'Popup enviado quando uma multa tem o recurso indeferido (Rec. Indeferida). A multa é automaticamente inserida no prontuário do colaborador. Não envia e-mail.' },
     { id: 'nova_multa_monaco', nome: 'Nova Multa Integrada Mônaco', icone: 'ph-police-car' },
     { id: 'estoque_minimo', nome: 'Estoque mínimo para compra', icone: 'ph-shopping-cart-simple', descricao: 'Notificado quando um item em endereço do tipo "Pedido de Compra" atinge o estoque mínimo.' },
     { id: 'estoque_reposicao', nome: 'Mínimo para reposição de estoque', icone: 'ph-arrows-left-right', descricao: 'Notificado quando um item em endereço do tipo "Pedido de Reposição" atinge o estoque mínimo.' },
