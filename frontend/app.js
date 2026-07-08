@@ -538,6 +538,8 @@ const BREADCRUMB_MAP = {
     // Módulos adicionais
     'dissidio': { path: 'Dissídio', code: 'RHDIS01' },
     'recibos': { path: 'Recibos de Benefícios', code: 'RHREC01' },
+    'rh-logistica-sinistros': { path: 'RH → Logística → Sinistros', code: 'RHLOG01' },
+    'rh-logistica-multas': { path: 'RH → Logística → Multas', code: 'RHLOG02' },
     'ferias': { path: 'Controle de Férias', code: 'RHFER01' },
     // Logística
     'logistica-dashboard': { path: 'Dashboard Logística', code: 'LOG000' },
@@ -804,6 +806,8 @@ const TAB_META = {
     // Treinamento - Azul Turquesa
     'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais' },
     'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presenças' },
+    'rh-logistica-sinistros': { color: '#f503c5', icon: 'ph-warning', title: 'Sinistros Logística' },
+    'rh-logistica-multas': { color: '#f503c5', icon: 'ph-receipt', title: 'Multas Logística' }
 };
 
 
