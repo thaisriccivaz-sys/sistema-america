@@ -9608,58 +9608,104 @@ window._processarImportacaoArquivo = async function() {
         const res = await response.json();
         Swal.close();
 
-        if (response.ok && res.success) {
-            Swal.fire({
-                title: 'Importação Concluída com Sucesso!',
-                text: 'Os dados foram extraídos e preenchidos no formulário.',
-                icon: 'success',
-                timer: 2000,
-                showConfirmButton: false
-            });
+        if (response.ok && res.success && res.itens && res.itens.length > 0) {
+            const itens = res.itens;
 
-            // Auto-preenchimento
-            if (document.getElementById('ic-descricao')) {
-                document.getElementById('ic-descricao').value = res.descricao || '';
+            if (itens.length === 1) {
+                // Se for apenas 1 item, preenche o formulário para revisão do usuário
+                const item = itens[0];
+                if (document.getElementById('ic-descricao')) {
+                    document.getElementById('ic-descricao').value = item.descricao || '';
+                }
+                if (document.getElementById('ic-custo-unitario')) {
+                    document.getElementById('ic-custo-unitario').value = parseFloat(item.valor || 0).toFixed(2);
+                }
+                if (document.getElementById('ic-categoria')) {
+                    document.getElementById('ic-categoria').value = item.categoria || 'MDO';
+                    document.getElementById('ic-categoria').dispatchEvent(new Event('change'));
+                }
+                
+                const radios = document.getElementsByName('ic-natureza');
+                radios.forEach(r => {
+                    r.checked = (r.value === (item.natureza || 'Fixo'));
+                });
+
+                Swal.fire({
+                    title: 'Dados Extraídos!',
+                    text: 'O item foi pré-preenchido no formulário para sua revisão.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+
+            } else {
+                // Se forem múltiplos itens, oferece importação em lote
+                let htmlList = '<div style="max-height: 200px; overflow-y: auto; text-align: left; border: 1px solid #e2e8f0; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; background-color: #fff; margin-top: 0.5rem;">';
+                itens.forEach((it, idx) => {
+                    htmlList += `<div style="padding: 4px 0; border-bottom: 1px solid #f1f5f9;">
+                        <strong>${idx + 1}.</strong> ${it.descricao} - <span style="color: #0f766e; font-weight: 700;">R$ ${parseFloat(it.valor).toFixed(2)}</span>
+                        <span style="font-size: 0.7rem; color: #64748b; margin-left: 5px;">(${it.categoria} - ${it.natureza})</span>
+                    </div>`;
+                });
+                htmlList += '</div>';
+
+                const confirmResult = await Swal.fire({
+                    title: 'Múltiplos Itens Detectados',
+                    html: `<p style="margin-bottom: 0.75rem; font-size: 0.9rem; text-align: left;">Deseja importar todos os <strong>${itens.length}</strong> itens identificados nesta fatura de uma vez?</p>` + htmlList,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sim, importar todos',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#7048e8',
+                    cancelButtonColor: '#64748b'
+                });
+
+                if (confirmResult.isConfirmed) {
+                    Swal.fire({
+                        title: 'Importando...',
+                        text: 'Cadastrando itens de custo no banco de dados...',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    let importados = 0;
+                    for (const it of itens) {
+                        const payload = {
+                            descricao: it.descricao,
+                            tipo_dado_financeiro: tipo,
+                            natureza: it.natureza,
+                            categoria: it.categoria,
+                            unidade: 'UN',
+                            custo_unitario: it.valor,
+                            centro_custo: 'CC-IMPORTACAO',
+                            vigencia: new Date().toISOString().split('T')[0]
+                        };
+
+                        try {
+                            const postRes = await apiPost('/comercial/itens-custo', payload);
+                            if (postRes && postRes.success) {
+                                importados++;
+                            }
+                        } catch (err) {
+                            console.error("Erro ao importar item em lote:", it, err);
+                        }
+                    }
+
+                    Swal.close();
+
+                    if (importados > 0) {
+                        Swal.fire('Importação em Lote Concluída!', `Importamos ${importados} de ${itens.length} itens com sucesso.`, 'success');
+                        // Atualizar a lista de custos
+                        _comercialItensCusto = await apiGet('/comercial/itens-custo') || [];
+                        _limparFormItemCusto();
+                        _renderActivePrecSubTab();
+                    } else {
+                        Swal.fire('Erro', 'Nenhum item pôde ser importado devido a falhas no servidor.', 'error');
+                    }
+                }
             }
-            if (document.getElementById('ic-custo-unitario')) {
-                document.getElementById('ic-custo-unitario').value = parseFloat(res.valor || 0).toFixed(2);
-            }
-
-            // Tabela de-para (Mapping)
-            const descLower = (res.descricao || '').toLowerCase();
-            let categoriaSugerida = 'MDO';
-
-            if (descLower.includes('óleo') || descLower.includes('oleo') || descLower.includes('material') || descLower.includes('peça') || descLower.includes('peca') || descLower.includes('insumo') || descLower.includes('graxa') || descLower.includes('filtro') || descLower.includes('combustivel') || descLower.includes('combustível') || descLower.includes('produto') || descLower.includes('lubrificante') || descLower.includes('gasolina') || descLower.includes('diesel') || descLower.includes('etanol') || descLower.includes('conserto') || descLower.includes('reparo') || descLower.includes('manutencao') || descLower.includes('manutenção')) {
-                categoriaSugerida = 'Insumo';
-            } else if (descLower.includes('frete') || descLower.includes('entrega') || descLower.includes('transporte') || descLower.includes('carreto') || descLower.includes('logistica') || descLower.includes('logística')) {
-                categoriaSugerida = 'Frete';
-            } else if (descLower.includes('imposto') || descLower.includes('taxa') || descLower.includes('aliquota') || descLower.includes('alíquota') || descLower.includes('iss') || descLower.includes('icms') || descLower.includes('darf') || descLower.includes('tributo')) {
-                categoriaSugerida = 'Imposto';
-            }
-
-            if (document.getElementById('ic-categoria')) {
-                document.getElementById('ic-categoria').value = categoriaSugerida;
-                document.getElementById('ic-categoria').dispatchEvent(new Event('change'));
-            }
-
-            // Classification of Natureza (Fixo vs Variável) based on terms
-            let naturezaSugerida = 'Fixo';
-            const termosVariaveis = [
-                'combustivel', 'combustível', 'gasolina', 'diesel', 'etanol', 'lubrificante',
-                'frete', 'entrega', 'carreto', 'pedagio', 'pedágio', 'viagem', 'hospedagem',
-                'alimentacao', 'alimentação', 'refeicao', 'refeição', 'km', 'quilometragem',
-                'manutencao', 'manutenção', 'reparo', 'conserto', 'peça', 'peca', 'óleo', 'oleo',
-                'graxa', 'filtro', 'material', 'insumo', 'consumo', 'avulso', 'extra'
-            ];
-            const eVariavel = termosVariaveis.some(t => descLower.includes(t));
-            if (eVariavel) {
-                naturezaSugerida = 'Variável';
-            }
-
-            const radios = document.getElementsByName('ic-natureza');
-            radios.forEach(r => {
-                r.checked = (r.value === naturezaSugerida);
-            });
 
             // Clear file input
             fileInput.value = '';

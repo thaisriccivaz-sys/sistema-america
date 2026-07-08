@@ -21724,8 +21724,7 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
   }
 
   try {
-    let descricao = "";
-    let valor = 0;
+    let itens = [];
 
     if (tipo === 'Planilha MDO') {
       const xlsx = require('xlsx');
@@ -21738,24 +21737,51 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
         return res.status(400).json({ error: "A planilha está vazia ou corrompida." });
       }
 
-      // Search for column keys case-insensitive
       for (const row of data) {
         const keys = Object.keys(row);
-        const descKey = keys.find(k => k.toLowerCase().includes('desc') || k.toLowerCase().includes('item') || k.toLowerCase().includes('nome'));
+        const descKey = keys.find(k => k.toLowerCase().includes('desc') || k.toLowerCase().includes('item') || k.toLowerCase().includes('nome') || k.toLowerCase().includes('serviço') || k.toLowerCase().includes('servico'));
         const valKey = keys.find(k => k.toLowerCase().includes('val') || k.toLowerCase().includes('cust') || k.toLowerCase().includes('preço') || k.toLowerCase().includes('preco'));
 
         if (descKey && valKey) {
-          descricao = String(row[descKey] || '').trim();
-          valor = parseFloat(String(row[valKey]).replace(/[^\d,.-]/g, '').replace(',', '.'));
-          if (descricao && !isNaN(valor)) {
-            break;
+          const desc = String(row[descKey] || '').trim();
+          const val = parseFloat(String(row[valKey]).replace(/[^\d,.-]/g, '').replace(',', '.'));
+          if (desc && !isNaN(val)) {
+            // Suggest nature and category
+            const descLower = desc.toLowerCase();
+            let categoriaSugerida = 'MDO';
+            if (descLower.includes('óleo') || descLower.includes('oleo') || descLower.includes('material') || descLower.includes('peça') || descLower.includes('peca') || descLower.includes('insumo') || descLower.includes('graxa') || descLower.includes('filtro') || descLower.includes('combustivel') || descLower.includes('combustível') || descLower.includes('produto') || descLower.includes('lubrificante') || descLower.includes('gasolina') || descLower.includes('diesel') || descLower.includes('etanol') || descLower.includes('conserto') || descLower.includes('reparo') || descLower.includes('manutencao') || descLower.includes('manutenção')) {
+              categoriaSugerida = 'Insumo';
+            } else if (descLower.includes('frete') || descLower.includes('entrega') || descLower.includes('transporte') || descLower.includes('carreto') || descLower.includes('logistica') || descLower.includes('logística')) {
+              categoriaSugerida = 'Frete';
+            } else if (descLower.includes('imposto') || descLower.includes('taxa') || descLower.includes('aliquota') || descLower.includes('alíquota') || descLower.includes('iss') || descLower.includes('icms') || descLower.includes('darf') || descLower.includes('tributo')) {
+              categoriaSugerida = 'Imposto';
+            }
+
+            let naturezaSugerida = 'Fixo';
+            const termosVariaveis = [
+              'combustivel', 'combustível', 'gasolina', 'diesel', 'etanol', 'lubrificante',
+              'frete', 'entrega', 'carreto', 'pedagio', 'pedágio', 'viagem', 'hospedagem',
+              'alimentacao', 'alimentação', 'refeicao', 'refeição', 'km', 'quilometragem',
+              'manutencao', 'manutenção', 'reparo', 'conserto', 'peça', 'peca', 'óleo', 'oleo',
+              'graxa', 'filtro', 'material', 'insumo', 'consumo', 'avulso', 'extra'
+            ];
+            const eVariavel = termosVariaveis.some(t => descLower.includes(t));
+            if (eVariavel) {
+              naturezaSugerida = 'Variável';
+            }
+
+            itens.push({
+              descricao: desc,
+              valor: val,
+              natureza: naturezaSugerida,
+              categoria: categoriaSugerida
+            });
           }
         }
       }
 
-      if (!descricao || isNaN(valor)) {
-        console.error("[IMPORT-MDO] Colunas de Descrição/Valor não localizadas. Amostra:", data[0]);
-        return res.status(400).json({ error: "Colunas não encontradas. O arquivo de Planilha MDO deve possuir colunas contendo as palavras 'Descrição' e 'Valor'." });
+      if (itens.length === 0) {
+        return res.status(400).json({ error: "Colunas não encontradas ou nenhum item válido. O arquivo de Planilha MDO deve possuir colunas contendo as palavras 'Descrição' e 'Valor'." });
       }
 
     } else if (tipo === 'PDF Fatura') {
@@ -21768,142 +21794,239 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
         return res.status(400).json({ error: "O PDF não possui texto legível por OCR." });
       }
 
-      // Split text into lines to perform granular scoring
       const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      
-      let candidateValues = [];
-      let candidateDescriptions = [];
+      const lineValRegex = /(?:r\$\s*)?([\d.]+,\d{2})\b/i;
 
-      // Regex for values preceded by optional R$
-      const valRegex = /(?:r\$\s*)?([\d.]+,\d{2})\b/gi;
-
-      lines.forEach((line, idx) => {
+      lines.forEach((line) => {
         const lineLower = line.toLowerCase();
         
-        // Find currency-like numbers in this line
-        let match;
-        valRegex.lastIndex = 0;
-        while ((match = valRegex.exec(line)) !== null) {
-          let rawVal = match[1];
-          if (rawVal.includes('.') && rawVal.includes(',')) {
-            rawVal = rawVal.replace(/\./g, '').replace(',', '.');
-          } else if (rawVal.includes(',')) {
-            rawVal = rawVal.replace(',', '.');
-          }
-          const parsed = parseFloat(rawVal);
-          if (!isNaN(parsed) && parsed > 0) {
-            let score = 0;
-            if (line.includes('R$')) score += 50;
-            
-            // Check for total/invoice labels on the same line
-            if (lineLower.includes('total') || lineLower.includes('líquido') || lineLower.includes('liquido') || lineLower.includes('pagar') || lineLower.includes('fatura') || lineLower.includes('soma') || lineLower.includes('vlr') || lineLower.includes('vencimento')) {
-              score += 100;
-            }
-            if (lineLower.includes('unitário') || lineLower.includes('unidade') || lineLower.includes('unit')) {
-              score -= 40; // Penalize unit prices
-            }
-            
-            // Check adjacent lines for "total" keyword
-            const prevLine = idx > 0 ? lines[idx-1].toLowerCase() : '';
-            const nextLine = idx < lines.length - 1 ? lines[idx+1].toLowerCase() : '';
-            if (prevLine.includes('total') || prevLine.includes('pagar') || nextLine.includes('total') || nextLine.includes('pagar')) {
-              score += 40;
-            }
-
-            candidateValues.push({ value: parsed, score, line });
-          }
+        // Skip obvious document total/tax/header lines in line-by-line item extraction
+        if (lineLower.includes('valor total') || lineLower.includes('total a pagar') || lineLower.includes('total geral') || lineLower.includes('total da fatura') || lineLower.includes('total liquido') || lineLower.includes('total líquido') || lineLower.includes('cnpj') || lineLower.includes('inscricao') || lineLower.includes('inscrição')) {
+          return;
         }
 
-        // Search for description indicators
-        if (lineLower.includes('descrição') || lineLower.includes('descricao') || lineLower.includes('serviço') || lineLower.includes('servico') || lineLower.includes('produto') || lineLower.includes('especificação') || lineLower.includes('especificacao') || lineLower.includes('referente a') || lineLower.includes('detalhe') || lineLower.includes('histórico') || lineLower.includes('historico')) {
-          // If the text is on the same line after a colon
-          const colonIdx = line.indexOf(':');
-          if (colonIdx !== -1 && colonIdx < line.length - 1) {
-            const afterColon = line.substring(colonIdx + 1).trim();
-            const cleanText = afterColon.replace(/[_\-*#]/g, '').trim();
-            if (cleanText.length > 3) {
-              candidateDescriptions.push({ text: cleanText, score: 80, line });
-            }
+        const match = line.match(lineValRegex);
+        if (match) {
+          let rawVal = match[1];
+          let cleanVal = rawVal;
+          if (cleanVal.includes('.') && cleanVal.includes(',')) {
+            cleanVal = cleanVal.replace(/\./g, '').replace(',', '.');
+          } else if (cleanVal.includes(',')) {
+            cleanVal = cleanVal.replace(',', '.');
           }
+          const parsedVal = parseFloat(cleanVal);
           
-          // Also grab the next line (often containing the description details on subsequent lines)
-          if (idx < lines.length - 1) {
-            const nextLine = lines[idx+1].trim().replace(/[_\-*#]/g, '').trim();
-            if (nextLine.length > 5 && !nextLine.toLowerCase().includes('valor') && !nextLine.toLowerCase().includes('total') && !nextLine.toLowerCase().includes('preço') && !nextLine.toLowerCase().includes('preço') && !nextLine.toLowerCase().includes('r$')) {
-              candidateDescriptions.push({ text: nextLine, score: 100, line: lines[idx+1] });
+          if (!isNaN(parsedVal) && parsedVal > 0) {
+            // Remove the matched value block from the line to get description
+            let desc = line.replace(match[0], '').trim();
+            // clean up common punctuation and space separators at start/end
+            desc = desc.replace(/^[\s\-.:;=]+/g, '').replace(/[\s\-.:;=]+$/g, '').trim();
+            
+            // Only keep if it looks like a real description (minimum 3 alphabetical letters)
+            const letterCount = (desc.match(/[a-zA-Z\u00C0-\u00FF]/g) || []).length;
+            if (letterCount >= 3 && desc.length < 150) {
+              const descLower = desc.toLowerCase();
+              let categoriaSugerida = 'MDO';
+              if (descLower.includes('óleo') || descLower.includes('oleo') || descLower.includes('material') || descLower.includes('peça') || descLower.includes('peca') || descLower.includes('insumo') || descLower.includes('graxa') || descLower.includes('filtro') || descLower.includes('combustivel') || descLower.includes('combustível') || descLower.includes('produto') || descLower.includes('lubrificante') || descLower.includes('gasolina') || descLower.includes('diesel') || descLower.includes('etanol') || descLower.includes('conserto') || descLower.includes('reparo') || descLower.includes('manutencao') || descLower.includes('manutenção')) {
+                categoriaSugerida = 'Insumo';
+              } else if (descLower.includes('frete') || descLower.includes('entrega') || descLower.includes('transporte') || descLower.includes('carreto') || descLower.includes('logistica') || descLower.includes('logística')) {
+                categoriaSugerida = 'Frete';
+              } else if (descLower.includes('imposto') || descLower.includes('taxa') || descLower.includes('aliquota') || descLower.includes('alíquota') || descLower.includes('iss') || descLower.includes('icms') || descLower.includes('darf') || descLower.includes('tributo')) {
+                categoriaSugerida = 'Imposto';
+              }
+
+              let naturezaSugerida = 'Fixo';
+              const termosVariaveis = [
+                'combustivel', 'combustível', 'gasolina', 'diesel', 'etanol', 'lubrificante',
+                'frete', 'entrega', 'carreto', 'pedagio', 'pedágio', 'viagem', 'hospedagem',
+                'alimentacao', 'alimentação', 'refeicao', 'refeição', 'km', 'quilometragem',
+                'manutencao', 'manutenção', 'reparo', 'conserto', 'peça', 'peca', 'óleo', 'oleo',
+                'graxa', 'filtro', 'material', 'insumo', 'consumo', 'avulso', 'extra'
+              ];
+              const eVariavel = termosVariaveis.some(t => descLower.includes(t));
+              if (eVariavel) {
+                naturezaSugerida = 'Variável';
+              }
+
+              itens.push({
+                descricao: desc,
+                valor: parsedVal,
+                natureza: naturezaSugerida,
+                categoria: categoriaSugerida
+              });
             }
           }
         }
       });
 
-      // Sort candidate values by score (descending)
-      if (candidateValues.length > 0) {
-        candidateValues.sort((a, b) => b.score - a.score);
-        valor = candidateValues[0].value;
-      }
+      // Fallback: If line-by-line items extraction yielded nothing, fall back to extracting overall details
+      if (itens.length === 0) {
+        let singleDesc = "";
+        let singleVal = 0.00;
 
-      // Sort candidate descriptions by score
-      if (candidateDescriptions.length > 0) {
-        candidateDescriptions.sort((a, b) => b.score - a.score);
-        descricao = candidateDescriptions[0].text;
-      }
-
-      // If no description was found with keywords, search for lines containing service/expense keywords
-      if (!descricao) {
-        const keywords = ['internet', 'telefone', 'telefonia', 'energia', 'luz', 'água', 'agua', 'aluguel', 'locação', 'locacao', 'frete', 'transporte', 'combustível', 'combustivel', 'mão de obra', 'mao de obra', 'salário', 'salario', 'manutenção', 'manutencao', 'peça', 'peca', 'seguro'];
-        for (const line of lines) {
+        // Extract value
+        const valRegex = /(?:r\$\s*)?([\d.]+,\d{2})\b/gi;
+        let valCandidates = [];
+        lines.forEach((line, idx) => {
           const lineLower = line.toLowerCase();
-          const matchesKeyword = keywords.some(kw => lineLower.includes(kw));
-          if (matchesKeyword && line.length > 5 && line.length < 120 && !line.includes('R$')) {
-            descricao = line.trim();
-            break;
+          let match;
+          valRegex.lastIndex = 0;
+          while ((match = valRegex.exec(line)) !== null) {
+            let rawVal = match[1];
+            if (rawVal.includes('.') && rawVal.includes(',')) {
+              rawVal = rawVal.replace(/\./g, '').replace(',', '.');
+            } else if (rawVal.includes(',')) {
+              rawVal = rawVal.replace(',', '.');
+            }
+            const parsed = parseFloat(rawVal);
+            if (!isNaN(parsed) && parsed > 0) {
+              let score = 0;
+              if (line.includes('R$')) score += 50;
+              if (lineLower.includes('total') || lineLower.includes('líquido') || lineLower.includes('liquido') || lineLower.includes('pagar') || lineLower.includes('fatura') || lineLower.includes('soma') || lineLower.includes('vlr')) {
+                score += 100;
+              }
+              valCandidates.push({ value: parsed, score });
+            }
+          }
+        });
+        if (valCandidates.length > 0) {
+          valCandidates.sort((a, b) => b.score - a.score);
+          singleVal = valCandidates[0].value;
+        }
+
+        // Extract description
+        let descCandidates = [];
+        lines.forEach((line, idx) => {
+          const lineLower = line.toLowerCase();
+          if (lineLower.includes('descrição') || lineLower.includes('descricao') || lineLower.includes('serviço') || lineLower.includes('servico') || lineLower.includes('referente a')) {
+            const colonIdx = line.indexOf(':');
+            if (colonIdx !== -1 && colonIdx < line.length - 1) {
+              const afterColon = line.substring(colonIdx + 1).trim();
+              if (afterColon.replace(/[_\-*#]/g, '').trim().length > 3) {
+                descCandidates.push({ text: afterColon.replace(/[_\-*#]/g, '').trim(), score: 80 });
+              }
+            }
+            if (idx < lines.length - 1) {
+              const nextLine = lines[idx+1].trim().replace(/[_\-*#]/g, '').trim();
+              if (nextLine.length > 5 && !nextLine.toLowerCase().includes('valor') && !nextLine.toLowerCase().includes('total') && !nextLine.toLowerCase().includes('preço') && !nextLine.toLowerCase().includes('r$')) {
+                descCandidates.push({ text: nextLine, score: 100 });
+              }
+            }
+          }
+        });
+
+        if (descCandidates.length > 0) {
+          descCandidates.sort((a, b) => b.score - a.score);
+          singleDesc = descCandidates[0].text;
+        }
+
+        if (!singleDesc) {
+          const keywords = ['internet', 'telefone', 'telefonia', 'energia', 'luz', 'água', 'agua', 'aluguel', 'locação', 'locacao', 'frete', 'transporte', 'combustível', 'combustivel', 'mão de obra', 'salário', 'manutenção', 'seguro'];
+          for (const line of lines) {
+            const matchesKeyword = keywords.some(kw => line.toLowerCase().includes(kw));
+            if (matchesKeyword && line.length > 5 && line.length < 120 && !line.includes('R$')) {
+              singleDesc = line.trim();
+              break;
+            }
           }
         }
-      }
 
-      // Fallbacks
-      if (!descricao) {
-        const filteredLines = lines.filter(l => l.length > 10 && l.length < 100 && !l.includes('R$') && !l.includes('$') && !l.toLowerCase().includes('cnpj'));
-        if (filteredLines.length > 0) {
-          descricao = filteredLines[0];
-        } else {
-          descricao = "Fatura Importada (PDF)";
+        if (!singleDesc) {
+          const filteredLines = lines.filter(l => l.length > 10 && l.length < 100 && !l.includes('R$') && !l.includes('$') && !l.toLowerCase().includes('cnpj'));
+          singleDesc = filteredLines.length > 0 ? filteredLines[0] : "Fatura Importada (PDF)";
         }
-      }
 
-      if (isNaN(valor) || valor === 0) {
-        valor = 0.00;
+        itens.push({
+          descricao: singleDesc,
+          valor: singleVal,
+          natureza: "Fixo",
+          categoria: "MDO"
+        });
       }
 
     } else if (tipo === 'Nota XML') {
       const xmlText = req.file.buffer.toString('utf8');
+      
+      const prodRegex = /<prod>([\s\S]*?)<\/prod>/g;
+      let match;
+      while ((match = prodRegex.exec(xmlText)) !== null) {
+        const prodBlock = match[1];
+        const xProdMatch = prodBlock.match(/<xProd>([^<]+)<\/xProd>/);
+        const vUnComMatch = prodBlock.match(/<vUnCom>([^<]+)<\/vUnCom>/) || prodBlock.match(/<vProd>([^<]+)<\/vProd>/);
 
-      const vNFMatch = xmlText.match(/<vNF>([^<]+)<\/vNF>/);
-      const xProdMatch = xmlText.match(/<xProd>([^<]+)<\/xProd>/);
-      const vUnComMatch = xmlText.match(/<vUnCom>([^<]+)<\/vUnCom>/);
+        if (xProdMatch && vUnComMatch) {
+          const desc = xProdMatch[1].trim();
+          const val = parseFloat(vUnComMatch[1]);
+          if (desc && !isNaN(val)) {
+            const descLower = desc.toLowerCase();
+            let categoriaSugerida = 'MDO';
+            if (descLower.includes('óleo') || descLower.includes('oleo') || descLower.includes('material') || descLower.includes('peça') || descLower.includes('peca') || descLower.includes('insumo') || descLower.includes('graxa') || descLower.includes('filtro') || descLower.includes('combustivel') || descLower.includes('combustível') || descLower.includes('produto') || descLower.includes('lubrificante') || descLower.includes('gasolina') || descLower.includes('diesel') || descLower.includes('etanol') || descLower.includes('conserto') || descLower.includes('reparo') || descLower.includes('manutencao') || descLower.includes('manutenção')) {
+              categoriaSugerida = 'Insumo';
+            } else if (descLower.includes('frete') || descLower.includes('entrega') || descLower.includes('transporte') || descLower.includes('carreto') || descLower.includes('logistica') || descLower.includes('logística')) {
+              categoriaSugerida = 'Frete';
+            } else if (descLower.includes('imposto') || descLower.includes('taxa') || descLower.includes('aliquota') || descLower.includes('alíquota') || descLower.includes('iss') || descLower.includes('icms') || descLower.includes('darf') || descLower.includes('tributo')) {
+              categoriaSugerida = 'Imposto';
+            }
 
-      if (vUnComMatch) {
-        valor = parseFloat(vUnComMatch[1]);
-      } else if (vNFMatch) {
-        valor = parseFloat(vNFMatch[1]);
+            let naturezaSugerida = 'Fixo';
+            const termosVariaveis = [
+              'combustivel', 'combustível', 'gasolina', 'diesel', 'etanol', 'lubrificante',
+              'frete', 'entrega', 'carreto', 'pedagio', 'pedágio', 'viagem', 'hospedagem',
+              'alimentacao', 'alimentação', 'refeicao', 'refeição', 'km', 'quilometragem',
+              'manutencao', 'manutenção', 'reparo', 'conserto', 'peça', 'peca', 'óleo', 'oleo',
+              'graxa', 'filtro', 'material', 'insumo', 'consumo', 'avulso', 'extra'
+            ];
+            const eVariavel = termosVariaveis.some(t => descLower.includes(t));
+            if (eVariavel) {
+              naturezaSugerida = 'Variável';
+            }
+
+            itens.push({
+              descricao: desc,
+              valor: val,
+              natureza: naturezaSugerida,
+              categoria: categoriaSugerida
+            });
+          }
+        }
       }
 
-      if (xProdMatch) {
-        descricao = xProdMatch[1].trim();
-      } else {
-        descricao = "Nota XML Importada";
+      if (itens.length === 0) {
+        const vNFMatch = xmlText.match(/<vNF>([^<]+)<\/vNF>/);
+        const xProdMatch = xmlText.match(/<xProd>([^<]+)<\/xProd>/);
+        const vUnComMatch = xmlText.match(/<vUnCom>([^<]+)<\/vUnCom>/);
+        
+        let val = 0.00;
+        if (vUnComMatch) {
+          val = parseFloat(vUnComMatch[1]);
+        } else if (vNFMatch) {
+          val = parseFloat(vNFMatch[1]);
+        }
+        
+        let desc = "Nota XML Importada";
+        if (xProdMatch) {
+          desc = xProdMatch[1].trim();
+        }
+
+        if (desc && !isNaN(val)) {
+          itens.push({
+            descricao: desc,
+            valor: val,
+            natureza: "Fixo",
+            categoria: "MDO"
+          });
+        }
       }
 
-      if (!descricao || isNaN(valor) || valor === 0) {
-        console.error("[IMPORT-XML] Conteúdo XML:", xmlText.substring(0, 800));
-        return res.status(400).json({ error: "Não foi possível identificar as tags <vNF>/<vUnCom> ou <xProd> no XML da NFe." });
+      if (itens.length === 0) {
+        return res.status(400).json({ error: "Não foi possível extrair itens do XML da NFe." });
       }
 
     } else {
       return res.status(400).json({ error: "Modo de importação de arquivo inválido." });
     }
 
-    res.json({ success: true, descricao, valor });
+    res.json({ success: true, itens });
 
   } catch (err) {
     console.error("[IMPORT-ERROR] Falha geral no parser:", err);
