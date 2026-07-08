@@ -1017,6 +1017,10 @@ function navigateTo(target) {
         loadEscalas();
     } else if (target === 'faculdade') {
         loadFaculdadeCursos();
+    } else if (target === 'rh-logistica-sinistros') {
+        if (typeof window.initRhLogisticaSinistros === 'function') window.initRhLogisticaSinistros();
+    } else if (target === 'rh-logistica-multas') {
+        if (typeof window.initRhLogisticaMultas === 'function') window.initRhLogisticaMultas();
     } else if (target === 'chaves') {
         loadChaves();
     } else if (target === 'admissao') {

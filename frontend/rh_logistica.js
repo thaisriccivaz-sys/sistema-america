@@ -5,19 +5,6 @@
 // Multas: reutiliza o módulo multas_logistica com container alternativo.
 // ============================================================
 
-/* INTERCEPTA navigateTo PARA INICIALIZAR AS NOVAS VIEWS DO RH */
-(function() {
-    var _origNavigateTo = window.navigateTo;
-    window.navigateTo = function(target) {
-        if (_origNavigateTo) _origNavigateTo.apply(this, arguments);
-        if (target === 'rh-logistica-sinistros') {
-            setTimeout(function() { window.initRhLogisticaSinistros(); }, 80);
-        }
-        if (target === 'rh-logistica-multas') {
-            setTimeout(function() { window.initRhLogisticaMultas(); }, 80);
-        }
-    };
-})();
 
 // Variáveis globais do módulo
 var _rhSinListaTodos = [];
@@ -29,6 +16,8 @@ window.initRhLogisticaSinistros = async function() {
     var container = document.getElementById('rh-logistica-sinistros-container');
     if (!container) return;
 
+    container.innerHTML = window._rhSinBuildLayout();
+
     if (_rhSinListaColabs.length === 0) {
         try {
             var data = await apiGet('/colaboradores');
@@ -36,7 +25,6 @@ window.initRhLogisticaSinistros = async function() {
         } catch(e) { console.error('[RH-Sinistros]', e); }
     }
 
-    container.innerHTML = window._rhSinBuildLayout();
     await window.rhSinCarregarTodos();
 };
 
