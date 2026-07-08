@@ -33,6 +33,12 @@ window.renderLogisticaSinistros = async function() {
                 </div>
             </div>
             <div style="display:flex; gap:10px;">
+                <a href="https://sso-cidadao.policia-civil.sp.gov.br/realms/dipol-cidadao/protocol/openid-connect/auth?response_type=code&client_id=dipol-de&state=bnVCS1dCUC1LNnFHYUVZWXVhZWtOWVQxa0ZFaGtYdH5tTTJUVHdKeHFCcWtv%3B%252Farea-do-cidadao%253Ffocus%253Dacompanhar-bo&redirect_uri=https%3A%2F%2Fdelegaciadigital.policia-civil.sp.gov.br%2Farea-do-cidadao&scope=openid%20profile%20email&code_challenge=AJsiT-cVMuAZa3xEGvNfCpPb2bFDI94RGF3w_A_mq6I&code_challenge_method=S256&nonce=bnVCS1dCUC1LNnFHYUVZWXVhZWtOWVQxa0ZFaGtYdH5tTTJUVHdKeHFCcWtv" target="_blank" style="background:#0284c7; color:#fff; text-decoration:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:0.9rem; transition:all .2s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0284c7'">
+                    <i class="ph ph-magnifying-glass"></i> Acompanhar Andamento
+                </a>
+                <a href="https://sso-cidadao.policia-civil.sp.gov.br/realms/dipol-cidadao/protocol/openid-connect/auth?response_type=code&client_id=dipol-de&state=MWh0WUp0aFNWbTNJeUdLV35IUnNjblllTWExenozLUFqWnhING5FR25nRVlq%3B%252Fcomunicar-ocorrencia&redirect_uri=https%3A%2F%2Fdelegaciadigital.policia-civil.sp.gov.br%2Farea-do-cidadao&scope=openid%20profile%20email&code_challenge=s1h_YNlZJ4yV7DZZFYy3UhskE2KUpkpmMBRVDOlVbyQ&code_challenge_method=S256&nonce=MWh0WUp0aFNWbTNJeUdLV35IUnNjblllTWExenozLUFqWnhING5FR25nRVlq" target="_blank" style="background:#eab308; color:#fff; text-decoration:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:0.9rem; transition:all .2s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
+                    <i class="ph ph-warning-circle"></i> Comunicar Ocorrência
+                </a>
                 <button onclick="window.logSinAbrirModalNovo()" style="background:#059669; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:0.9rem; transition:all .2s;" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#059669'">
                     <i class="ph ph-plus"></i> Novo Sinistro
                 </button>
