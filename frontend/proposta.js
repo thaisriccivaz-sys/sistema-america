@@ -9555,6 +9555,7 @@ window._onImportFileSelected = function() {
 
 window._processarImportacaoArquivo = async function() {
     const fileInput = document.getElementById('import-file-input');
+    const btnProcessar = document.getElementById('btn-processar-import');
     const tipo = document.getElementById('ic-tipo-financeiro').value;
 
     if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
