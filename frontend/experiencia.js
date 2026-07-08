@@ -432,9 +432,9 @@ const FORMULARIOS_POR_DEPARTAMENTO = {
                     'Tem bom comportamento em confraternizações e reuniões.'
                 ]
             }
-        ]\r
-    }\r
-};\r
+        ]
+    }
+};
 
 // Formulário padrão para departamentos sem template específico
 function getFormularioPadrao(depto) {
