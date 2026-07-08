@@ -12383,6 +12383,25 @@ function calcPrazoExp(dataAdmissao) {
     };
 }
 
+// DEBUG TEMPORÁRIO — remover após diagnóstico
+app.get('/api/debug-exp-templates', (req, res) => {
+    db.all("SELECT id, nome, tipo, grupo_key, SUBSTR(categorias_json, 1, 200) as cat_preview FROM avaliacao_templates WHERE tipo = 'experiencia'", [], (e, r) => {
+        if (e) return res.json({ error: e.message });
+        const dept = req.query.dept || '';
+        const normKey = str => (str || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_');
+        const dptNormKey = normKey(dept);
+        const dptNorm = dept.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const matches = (r || []).map(t => {
+            const keys = (t.grupo_key || '').split(',').map(k => normKey(k));
+            const matchKey = keys.some(k => k && (dptNormKey === k || dptNormKey.includes(k) || k.includes(dptNormKey)));
+            const nomeNorm = normKey(t.nome).replace(/_/g, ' ');
+            const matchNome = nomeNorm.includes(dptNorm) || dptNorm.includes(normKey(t.grupo_key).replace(/_/g, ' '));
+            return { ...t, normKeys: keys, dptNormKey, matchKey, matchNome };
+        });
+        res.json({ dept, dptNormKey, templates: matches });
+    });
+});
+
 // --- PUBLIC ENDPOINTS ---
 app.get('/api/experiencia/publico/info', (req, res) => {
     try {
