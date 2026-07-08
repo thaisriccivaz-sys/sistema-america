@@ -147,6 +147,49 @@ window._rhSinRenderCard = function(s, container) {
             + '<span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; ' + cOk + '"><i class="ph ' + cIco + '"></i> Condutor</span>'
             + '</div>';
     }
+
+    // Montar links de anexos
+    var orcamentosLinks = '';
+    if (s.orcamentos_paths) {
+        try {
+            var orcs = JSON.parse(s.orcamentos_paths);
+            if (Array.isArray(orcs) && orcs.length > 0) {
+                orcamentosLinks = orcs.map(function(path, idx) {
+                    return '<a href="javascript:void(0)" onclick="window.abrirArquivoOneDrive(\'' + path + '\')" style="display:inline-flex; align-items:center; gap:4px; font-size:0.78rem; color:#0284c7; background:#e0f2fe; padding:3px 8px; border-radius:4px; text-decoration:none; margin:2px;">'
+                        + '<i class="ph ph-paperclip"></i> Orçamento ' + (idx + 1) + '</a>';
+                }).join('');
+            }
+        } catch(e) {}
+    }
+    var midiasLinks = '';
+    if (s.midias_paths) {
+        try {
+            var midias = JSON.parse(s.midias_paths);
+            if (Array.isArray(midias) && midias.length > 0) {
+                midiasLinks = midias.map(function(m, idx) {
+                    var isVideo = m.tipo && m.tipo.startsWith('video/');
+                    var texto = isVideo ? 'Vídeo ' + (idx + 1) : 'Foto ' + (idx + 1);
+                    return '<a href="' + m.url + '" target="_blank" style="display:inline-flex; align-items:center; gap:4px; font-size:0.78rem; color:#0369a1; background:#f0f9ff; padding:3px 8px; border-radius:4px; text-decoration:none; margin:2px;">'
+                        + '<i class="ph ph-' + (isVideo ? 'video' : 'image') + '"></i> ' + texto + '</a>';
+                }).join('');
+            }
+        } catch(e) {}
+    }
+
+    var temAnexos = !!(s.boletim_path || orcamentosLinks || midiasLinks);
+    var anexosHtml = '';
+    if (temAnexos) {
+        var boletimLink = s.boletim_path
+            ? '<a href="javascript:void(0)" onclick="window.abrirArquivoOneDrive(\'' + s.boletim_path + '\')" style="display:inline-flex; align-items:center; gap:4px; font-size:0.78rem; color:#f503c5; background:#fce4f8; padding:3px 8px; border-radius:4px; text-decoration:none; margin:2px;">'
+              + '<i class="ph ph-file-pdf"></i> Boletim de Ocorrência</a>'
+            : '';
+        anexosHtml = '<div style="margin-top:0.75rem; padding:0.75rem; background:#f8fafc; border-radius:8px; border:1px dashed #e2e8f0; display:none;" class="rh-sin-anexos-area">'
+            + '<p style="margin:0 0 6px; font-size:0.78rem; font-weight:600; color:#475569;"><i class="ph ph-paperclip"></i> Anexos:</p>'
+            + '<div style="display:flex; flex-wrap:wrap; gap:4px;">'
+            + boletimLink + orcamentosLinks + midiasLinks
+            + '</div></div>';
+    }
+
     var btns = '';
     if (s.status === 'pendente') {
         btns += '<button onclick="window.rhSinAbrirModalEditar(' + s.id + ',' + colabId + ')" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; font-size:0.82rem; font-weight:600; display:flex; align-items:center; gap:4px;"><i class="ph ph-pencil-simple"></i> Editar</button>';
@@ -161,6 +204,9 @@ window._rhSinRenderCard = function(s, container) {
     }
     if (s.documento_html || s.status === 'assinado') {
         btns += '<button onclick="window.verDocumentoSinistro(' + s.id + ',' + colabId + ')" style="background:#f0fdf4; color:#059669; border:1px solid #a7f3d0; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; font-size:0.82rem; font-weight:600; display:flex; align-items:center; gap:4px;"><i class="ph ph-file-text"></i> Ver Documento</button>';
+    }
+    if (temAnexos) {
+        btns += '<button onclick="var area=this.closest(\'div\').parentElement.querySelector(\'.rh-sin-anexos-area\'); var shown=area.style.display===\'flex\'; area.style.display=shown?\'none\':\'flex\'; this.querySelector(\'i\').className=\'ph \'+(shown?\'ph-paperclip\':\'ph-x\');" style="background:#fce4f8; color:#f503c5; border:1px solid #f5d0fe; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; font-size:0.82rem; font-weight:600; display:flex; align-items:center; gap:4px;" title="Ver Anexos"><i class="ph ph-paperclip"></i> Anexos</button>';
     }
     btns += '<button onclick="window.rhSinExcluirCard(' + s.id + ',' + colabId + ')" style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; font-size:0.82rem; font-weight:600; display:flex; align-items:center; gap:4px;"><i class="ph ph-trash"></i> Excluir</button>';
     var card = document.createElement('div');
@@ -184,7 +230,8 @@ window._rhSinRenderCard = function(s, container) {
         + signStatus
         + '</div>'
         + '<div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:flex-start;">' + btns + '</div>'
-        + '</div>';
+        + '</div>'
+        + anexosHtml;
     container.appendChild(card);
 };
 
