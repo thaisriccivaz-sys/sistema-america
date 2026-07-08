@@ -21759,8 +21759,10 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
       }
 
     } else if (tipo === 'PDF Fatura') {
-      const pdfData = await pdfParse(req.file.buffer);
-      const text = pdfData.text;
+      const { PDFParse } = require('pdf-parse');
+      const parser = new PDFParse({ verbosity: 0, data: req.file.buffer });
+      const pdfData = await parser.getText();
+      const text = pdfData.text || '';
 
       if (!text || text.trim().length === 0) {
         return res.status(400).json({ error: "O PDF não possui texto legível por OCR." });
