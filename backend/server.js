@@ -12398,25 +12398,28 @@ app.get('/api/experiencia/publico/info', (req, res) => {
                     try { parsedForm.respostas = JSON.parse(form.respostas || '{}'); } catch (e) { parsedForm.respostas = {}; }
                 }
                 const prazos = calcPrazoExp(colab.data_admissao);
-                const dpt = (colab.departamento || '').toLowerCase().trim();
+                const dptNorm = (colab.departamento || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
                 // Busca o template de experiência no banco, pelo departamento do colaborador
                 db.all(`SELECT * FROM avaliacao_templates WHERE tipo = 'experiencia' ORDER BY id`, [], (err3, allTemplates) => {
                     let templateBanco = null;
+                    const normKey = str => (str || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_');
+                    const dptNormKey = normKey(colab.departamento);
+
                     if (!err3 && allTemplates && allTemplates.length > 0) {
-                        // Tenta match exato ou parcial pelo grupo_key
+                        // Tenta match pelo grupo_key (normalizado sem acentos)
                         for (const t of allTemplates) {
-                            const keys = (t.grupo_key || '').split(',').map(k => k.trim().toLowerCase());
-                            if (keys.some(k => dpt.includes(k) || k.includes(dpt))) {
+                            const keys = (t.grupo_key || '').split(',').map(k => normKey(k));
+                            if (keys.some(k => k && (dptNormKey === k || dptNormKey.includes(k) || k.includes(dptNormKey)))) {
                                 templateBanco = t;
                                 break;
                             }
                         }
-                        // Se não achou, tenta match pelo nome do template
+                        // Tenta match pelo nome do template (normalizado)
                         if (!templateBanco) {
                             for (const t of allTemplates) {
-                                const nomeTemplate = (t.nome || '').toLowerCase();
-                                if (nomeTemplate.includes(dpt) || dpt.includes((t.grupo_key || '').toLowerCase())) {
+                                const nomeNorm = normKey(t.nome).replace(/_/g, ' ');
+                                if (nomeNorm.includes(dptNorm) || dptNorm.includes(normKey(t.grupo_key).replace(/_/g, ' '))) {
                                     templateBanco = t;
                                     break;
                                 }
@@ -12427,27 +12430,20 @@ app.get('/api/experiencia/publico/info', (req, res) => {
                     let templateRetornado = null;
                     if (templateBanco) {
                         try {
+                            // categorias_json é um OBJETO: { "Nome Categoria": ["pergunta1", ...] }
                             const categorias = typeof templateBanco.categorias_json === 'string'
                                 ? JSON.parse(templateBanco.categorias_json)
                                 : templateBanco.categorias_json;
-                            templateRetornado = {
-                                titulo: templateBanco.nome,
-                                grupo_key: templateBanco.grupo_key,
-                                secoes: (categorias || []).map((cat, ci) => ({
-                                    nome: `${ci + 1}. ${cat.nome || cat.name || 'Seção'}`.toUpperCase(),
-                                    itens: (cat.itens || cat.items || cat.perguntas || [])
-                                }))
-                            };
+                            const secoes = Array.isArray(categorias)
+                                ? categorias.map((cat, ci) => ({ nome: `${ci + 1}. ${cat.nome || cat.name || 'Seção'}`.toUpperCase(), itens: (cat.itens || cat.items || cat.perguntas || []) }))
+                                : Object.entries(categorias || {}).map(([nome, perguntas], ci) => ({ nome: `${ci + 1}. ${nome}`.toUpperCase(), itens: Array.isArray(perguntas) ? perguntas.filter(p => p) : [] }));
+                            templateRetornado = { titulo: templateBanco.nome, grupo_key: templateBanco.grupo_key, secoes };
                         } catch (parseErr) {
                             console.error('[PublicoInfo] Erro ao parsear categorias_json:', parseErr);
                         }
                     }
 
-                    res.json({
-                        colaborador: { ...colab, ...prazos },
-                        formulario: parsedForm,
-                        template: templateRetornado
-                    });
+                    res.json({ colaborador: { ...colab, ...prazos }, formulario: parsedForm, template: templateRetornado });
                 });
             });
         });
