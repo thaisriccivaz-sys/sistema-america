@@ -9591,13 +9591,14 @@ window._processarImportacaoArquivo = async function() {
     formData.append('tipo', tipo);
 
     try {
-        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        const token = window.currentToken || localStorage.getItem('erp_token');
         const headers = {};
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch('/api/comercial/itens-custo/importar', {
+        const apiUrl = window.API_URL || '/api';
+        const response = await fetch(`${apiUrl}/comercial/itens-custo/importar`, {
             method: 'POST',
             headers: headers,
             body: formData
