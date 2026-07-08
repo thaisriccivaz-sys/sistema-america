@@ -9629,7 +9629,7 @@ window._processarImportacaoArquivo = async function() {
             const descLower = (res.descricao || '').toLowerCase();
             let categoriaSugerida = 'MDO';
 
-            if (descLower.includes('óleo') || descLower.includes('oleo') || descLower.includes('material') || descLower.includes('peça') || descLower.includes('peca') || descLower.includes('insumo') || descLower.includes('graxa') || descLower.includes('filtro') || descLower.includes('combustivel') || descLower.includes('combustível') || descLower.includes('produto')) {
+            if (descLower.includes('óleo') || descLower.includes('oleo') || descLower.includes('material') || descLower.includes('peça') || descLower.includes('peca') || descLower.includes('insumo') || descLower.includes('graxa') || descLower.includes('filtro') || descLower.includes('combustivel') || descLower.includes('combustível') || descLower.includes('produto') || descLower.includes('lubrificante') || descLower.includes('gasolina') || descLower.includes('diesel') || descLower.includes('etanol') || descLower.includes('conserto') || descLower.includes('reparo') || descLower.includes('manutencao') || descLower.includes('manutenção')) {
                 categoriaSugerida = 'Insumo';
             } else if (descLower.includes('frete') || descLower.includes('entrega') || descLower.includes('transporte') || descLower.includes('carreto') || descLower.includes('logistica') || descLower.includes('logística')) {
                 categoriaSugerida = 'Frete';
@@ -9641,6 +9641,25 @@ window._processarImportacaoArquivo = async function() {
                 document.getElementById('ic-categoria').value = categoriaSugerida;
                 document.getElementById('ic-categoria').dispatchEvent(new Event('change'));
             }
+
+            // Classification of Natureza (Fixo vs Variável) based on terms
+            let naturezaSugerida = 'Fixo';
+            const termosVariaveis = [
+                'combustivel', 'combustível', 'gasolina', 'diesel', 'etanol', 'lubrificante',
+                'frete', 'entrega', 'carreto', 'pedagio', 'pedágio', 'viagem', 'hospedagem',
+                'alimentacao', 'alimentação', 'refeicao', 'refeição', 'km', 'quilometragem',
+                'manutencao', 'manutenção', 'reparo', 'conserto', 'peça', 'peca', 'óleo', 'oleo',
+                'graxa', 'filtro', 'material', 'insumo', 'consumo', 'avulso', 'extra'
+            ];
+            const eVariavel = termosVariaveis.some(t => descLower.includes(t));
+            if (eVariavel) {
+                naturezaSugerida = 'Variável';
+            }
+
+            const radios = document.getElementsByName('ic-natureza');
+            radios.forEach(r => {
+                r.checked = (r.value === naturezaSugerida);
+            });
 
             // Clear file input
             fileInput.value = '';

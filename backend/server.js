@@ -21768,17 +21768,23 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
         return res.status(400).json({ error: "O PDF não possui texto legível por OCR." });
       }
 
-      // Extract value
-      const valorRegexes = [
-        /total.*?r\$\s*([\d.,]+)/i,
-        /valor.*?total.*?([\d.,]+)/i,
-        /r\$\s*([\d.,]+)/i,
-        /total\s*([\d.,]+)/i
-      ];
-      for (const rx of valorRegexes) {
-        const m = text.match(rx);
-        if (m) {
-          let rawVal = m[1].trim();
+      // Split text into lines to perform granular scoring
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      
+      let candidateValues = [];
+      let candidateDescriptions = [];
+
+      // Regex for values preceded by optional R$
+      const valRegex = /(?:r\$\s*)?([\d.]+,\d{2})\b/gi;
+
+      lines.forEach((line, idx) => {
+        const lineLower = line.toLowerCase();
+        
+        // Find currency-like numbers in this line
+        let match;
+        valRegex.lastIndex = 0;
+        while ((match = valRegex.exec(line)) !== null) {
+          let rawVal = match[1];
           if (rawVal.includes('.') && rawVal.includes(',')) {
             rawVal = rawVal.replace(/\./g, '').replace(',', '.');
           } else if (rawVal.includes(',')) {
@@ -21786,37 +21792,87 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
           }
           const parsed = parseFloat(rawVal);
           if (!isNaN(parsed) && parsed > 0) {
-            valor = parsed;
+            let score = 0;
+            if (line.includes('R$')) score += 50;
+            
+            // Check for total/invoice labels on the same line
+            if (lineLower.includes('total') || lineLower.includes('líquido') || lineLower.includes('liquido') || lineLower.includes('pagar') || lineLower.includes('fatura') || lineLower.includes('soma') || lineLower.includes('vlr') || lineLower.includes('vencimento')) {
+              score += 100;
+            }
+            if (lineLower.includes('unitário') || lineLower.includes('unidade') || lineLower.includes('unit')) {
+              score -= 40; // Penalize unit prices
+            }
+            
+            // Check adjacent lines for "total" keyword
+            const prevLine = idx > 0 ? lines[idx-1].toLowerCase() : '';
+            const nextLine = idx < lines.length - 1 ? lines[idx+1].toLowerCase() : '';
+            if (prevLine.includes('total') || prevLine.includes('pagar') || nextLine.includes('total') || nextLine.includes('pagar')) {
+              score += 40;
+            }
+
+            candidateValues.push({ value: parsed, score, line });
+          }
+        }
+
+        // Search for description indicators
+        if (lineLower.includes('descrição') || lineLower.includes('descricao') || lineLower.includes('serviço') || lineLower.includes('servico') || lineLower.includes('produto') || lineLower.includes('especificação') || lineLower.includes('especificacao') || lineLower.includes('referente a') || lineLower.includes('detalhe') || lineLower.includes('histórico') || lineLower.includes('historico')) {
+          // If the text is on the same line after a colon
+          const colonIdx = line.indexOf(':');
+          if (colonIdx !== -1 && colonIdx < line.length - 1) {
+            const afterColon = line.substring(colonIdx + 1).trim();
+            const cleanText = afterColon.replace(/[_\-*#]/g, '').trim();
+            if (cleanText.length > 3) {
+              candidateDescriptions.push({ text: cleanText, score: 80, line });
+            }
+          }
+          
+          // Also grab the next line (often containing the description details on subsequent lines)
+          if (idx < lines.length - 1) {
+            const nextLine = lines[idx+1].trim().replace(/[_\-*#]/g, '').trim();
+            if (nextLine.length > 5 && !nextLine.toLowerCase().includes('valor') && !nextLine.toLowerCase().includes('total') && !nextLine.toLowerCase().includes('preço') && !nextLine.toLowerCase().includes('preço') && !nextLine.toLowerCase().includes('r$')) {
+              candidateDescriptions.push({ text: nextLine, score: 100, line: lines[idx+1] });
+            }
+          }
+        }
+      });
+
+      // Sort candidate values by score (descending)
+      if (candidateValues.length > 0) {
+        candidateValues.sort((a, b) => b.score - a.score);
+        valor = candidateValues[0].value;
+      }
+
+      // Sort candidate descriptions by score
+      if (candidateDescriptions.length > 0) {
+        candidateDescriptions.sort((a, b) => b.score - a.score);
+        descricao = candidateDescriptions[0].text;
+      }
+
+      // If no description was found with keywords, search for lines containing service/expense keywords
+      if (!descricao) {
+        const keywords = ['internet', 'telefone', 'telefonia', 'energia', 'luz', 'água', 'agua', 'aluguel', 'locação', 'locacao', 'frete', 'transporte', 'combustível', 'combustivel', 'mão de obra', 'mao de obra', 'salário', 'salario', 'manutenção', 'manutencao', 'peça', 'peca', 'seguro'];
+        for (const line of lines) {
+          const lineLower = line.toLowerCase();
+          const matchesKeyword = keywords.some(kw => lineLower.includes(kw));
+          if (matchesKeyword && line.length > 5 && line.length < 120 && !line.includes('R$')) {
+            descricao = line.trim();
             break;
           }
         }
       }
 
-      // Extract description
-      const descRegexes = [
-        /(?:descrição|descricao)\s*(?:do|dos)?\s*(?:serviço|servicos|serviços|produtos|itens)[\s:]+([^\n]+)/i,
-        /(?:serviço|servico|prestado|fatura|referente a)[\s:]+([^\n]+)/i
-      ];
-      for (const rx of descRegexes) {
-        const m = text.match(rx);
-        if (m && m[1]) {
-          descricao = m[1].trim();
-          break;
-        }
-      }
-
+      // Fallbacks
       if (!descricao) {
-        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 10);
-        if (lines.length > 0) {
-          descricao = lines[0].substring(0, 80);
+        const filteredLines = lines.filter(l => l.length > 10 && l.length < 100 && !l.includes('R$') && !l.includes('$') && !l.toLowerCase().includes('cnpj'));
+        if (filteredLines.length > 0) {
+          descricao = filteredLines[0];
         } else {
           descricao = "Fatura Importada (PDF)";
         }
       }
 
       if (isNaN(valor) || valor === 0) {
-        console.error("[IMPORT-PDF] Texto bruto do PDF:", text.substring(0, 800));
-        return res.status(400).json({ error: "Não foi possível extrair o Valor Total da Fatura PDF. Certifique-se de que há um valor numérico precedido por 'R$' ou 'Total'." });
+        valor = 0.00;
       }
 
     } else if (tipo === 'Nota XML') {
