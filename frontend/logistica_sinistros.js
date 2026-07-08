@@ -50,8 +50,12 @@ window.renderLogisticaSinistros = async function() {
 
         <!-- Lista global de sinistros -->
         <div style="margin-bottom:1rem; position:relative;">
+            <!-- Dummy inputs para capturar o autofill agressivo do Chrome -->
+            <input type="text" style="width:0; height:0; position:absolute; z-index:-1; opacity:0;" tabindex="-1" autocomplete="username">
+            <input type="password" style="width:0; height:0; position:absolute; z-index:-1; opacity:0;" tabindex="-1" autocomplete="current-password">
+            
             <i class="ph ph-magnifying-glass" style="position:absolute; left:12px; top:12px; color:#94a3b8; font-size:1.1rem;"></i>
-            <input type="search" id="log-sin-search" name="busca_sinistro_log" placeholder="Buscar sinistro por nome do colaborador ou BO..." onkeyup="window.logSinFiltrarLista()" class="form-control" style="padding:12px 12px 12px 36px; border-radius:8px; height:auto;" autocomplete="new-password" role="presentation" value="">
+            <input type="search" id="log-sin-search" name="log_sin_search_aleatorio" placeholder="Buscar sinistro por nome do colaborador ou BO..." onkeyup="window.logSinFiltrarLista()" class="form-control" style="padding:12px 12px 12px 36px; border-radius:8px; height:auto;" autocomplete="off" role="presentation" value="">
         </div>
         <div id="log-sin-lista-area">
             <div style="text-align:center; padding:3rem; color:#94a3b8;">
@@ -60,6 +64,12 @@ window.renderLogisticaSinistros = async function() {
             </div>
         </div>
     </div>`;
+
+    // Limpa o campo caso o Chrome atrase o autofill
+    setTimeout(() => {
+        const inp = document.getElementById('log-sin-search');
+        if (inp) inp.value = '';
+    }, 500);
 
     await window.logSinCarregarListaGeral();
 };
