@@ -1717,5 +1717,65 @@ db.run("PRAGMA foreign_keys = ON;");
                 }
             });
 
+            // 1. Tabela de Itens de Custo
+            db.run(`
+                CREATE TABLE IF NOT EXISTS comercial_itens_custo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE NOT NULL,
+                    descricao TEXT NOT NULL,
+                    tipo_dado_financeiro TEXT NOT NULL,
+                    natureza TEXT NOT NULL,
+                    categoria TEXT NOT NULL,
+                    unidade_medida TEXT,
+                    custo_unitario REAL DEFAULT 0,
+                    centro_custo TEXT,
+                    vigencia TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            // 2. Tabela de Ficha Técnica (Estrutura do Serviço)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS comercial_servicos_ficha (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    servico_codigo TEXT UNIQUE NOT NULL,
+                    servico_nome TEXT NOT NULL,
+                    tempo_execucao REAL DEFAULT 0,
+                    custo_direto_total REAL DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            // 3. Tabela de Itens da Ficha Técnica
+            db.run(`
+                CREATE TABLE IF NOT EXISTS comercial_servicos_ficha_itens (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ficha_id INTEGER NOT NULL,
+                    item_custo_id INTEGER NOT NULL,
+                    qtd_padrao REAL DEFAULT 0,
+                    FOREIGN KEY(ficha_id) REFERENCES comercial_servicos_ficha(id) ON DELETE CASCADE,
+                    FOREIGN KEY(item_custo_id) REFERENCES comercial_itens_custo(id)
+                )
+            `);
+
+            // 4. Tabela de Precificação e Ponto de Equilíbrio
+            db.run(`
+                CREATE TABLE IF NOT EXISTS comercial_precificacao_viabilidade (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    servico_codigo TEXT UNIQUE NOT NULL,
+                    rateio_despesas_fixas REAL DEFAULT 0,
+                    margem_lucro REAL DEFAULT 0,
+                    preco_sugerido_dia REAL DEFAULT 0,
+                    preco_sugerido_semana REAL DEFAULT 0,
+                    preco_sugerido_mes REAL DEFAULT 0,
+                    despesas_fixas_mensais REAL DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(servico_codigo) REFERENCES comercial_servicos_ficha(servico_codigo) ON DELETE CASCADE
+                )
+            `);
+
 module.exports = db;
 

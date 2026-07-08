@@ -11,7 +11,17 @@ const config = {
     }
 };
 
-const cca = new msal.ConfidentialClientApplication(config);
+let cca = null;
+if (process.env.ONEDRIVE_CLIENT_ID && process.env.ONEDRIVE_CLIENT_SECRET) {
+    try {
+        cca = new msal.ConfidentialClientApplication(config);
+    } catch (err) {
+        console.warn("Aviso: Falha ao inicializar MSAL OneDrive:", err.message);
+    }
+} else {
+    console.warn("Aviso: Variáveis de ambiente do OneDrive ausentes. Funcionalidades do OneDrive estarão desativadas.");
+}
+
 const CLIENT_ID = process.env.ONEDRIVE_CLIENT_ID;
 const USER_ID = process.env.ONEDRIVE_USER_EMAIL;
 // O Drive ID correto da pasta "Documentos - America Rental" no SharePoint (Site AmericaRental)
@@ -22,6 +32,9 @@ const ONEDRIVE_FIXED_BASE = "RH/1.Colaboradores/Sistema";
  * Obtém o token de acesso para o Microsoft Graph
  */
 async function getAccessToken() {
+    if (!cca) {
+        throw new Error("Cliente MSAL do OneDrive não configurado.");
+    }
     const tokenRequest = {
         scopes: ['https://graph.microsoft.com/.default'],
     };

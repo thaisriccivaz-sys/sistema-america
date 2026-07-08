@@ -21665,7 +21665,181 @@ app.get('/api/financeiro/dre-evolucao/:ano', authenticateToken, (req, res) => {
   const maxPeriod = `${ano}-12`;
   db.all('SELECT * FROM financeiro_dre WHERE periodo >= ? AND periodo <= ? ORDER BY periodo ASC', [minPeriod, maxPeriod], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
+  });
+});
+
+// ─── ENDPOINTS COMERCIAL - GESTÃO DE CUSTOS E PRECIFIÇÃO ──────────
+app.get('/api/comercial/itens-custo', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM comercial_itens_custo ORDER BY codigo ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
     res.json(rows || []);
+  });
+});
+
+app.post('/api/comercial/itens-custo', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  if (d.id) {
+    db.run(`UPDATE comercial_itens_custo SET
+      descricao = ?, tipo_dado_financeiro = ?, natureza = ?, categoria = ?,
+      unidade_medida = ?, custo_unitario = ?, centro_custo = ?, vigencia = ?, updated_at = ?
+      WHERE id = ?`,
+      [d.descricao, d.tipo_dado_financeiro, d.natureza, d.categoria, d.unidade_medida, d.custo_unitario || 0, d.centro_custo, d.vigencia, agora, d.id],
+      function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, id: d.id });
+      }
+    );
+  } else {
+    db.get('SELECT COUNT(*) as count FROM comercial_itens_custo', [], (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      const nextId = (row ? row.count : 0) + 1;
+      const codigo = `CST-${String(nextId).padStart(4, '0')}`;
+
+      db.run(`INSERT INTO comercial_itens_custo (
+        codigo, descricao, tipo_dado_financeiro, natureza, categoria, unidade_medida, custo_unitario, centro_custo, vigencia, created_at, updated_at
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+      [codigo, d.descricao, d.tipo_dado_financeiro, d.natureza, d.categoria, d.unidade_medida, d.custo_unitario || 0, d.centro_custo, d.vigencia, agora, agora],
+      function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, id: this.lastID, codigo });
+      });
+    });
+  }
+});
+
+app.delete('/api/comercial/itens-custo/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  db.run('DELETE FROM comercial_itens_custo WHERE id = ?', [id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+app.get('/api/comercial/servicos-ficha', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM comercial_servicos_ficha ORDER BY servico_codigo ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+app.get('/api/comercial/servicos-ficha/:codigo', authenticateToken, (req, res) => {
+  const { codigo } = req.params;
+  db.get('SELECT * FROM comercial_servicos_ficha WHERE servico_codigo = ?', [codigo], (err, ficha) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!ficha) return res.json(null);
+
+    db.all(`SELECT fi.*, ic.codigo as item_codigo, ic.descricao as item_descricao, ic.unidade_medida as item_unidade, ic.custo_unitario as item_custo
+            FROM comercial_servicos_ficha_itens fi
+            JOIN comercial_itens_custo ic ON fi.item_custo_id = ic.id
+            WHERE fi.ficha_id = ?`, [ficha.id], (err, items) => {
+      if (err) return res.status(500).json({ error: err.message });
+      ficha.itens = items || [];
+      res.json(ficha);
+    });
+  });
+});
+
+app.post('/api/comercial/servicos-ficha', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  db.serialize(() => {
+    db.run(`INSERT INTO comercial_servicos_ficha (
+      servico_codigo, servico_nome, tempo_execucao, custo_direto_total, created_at, updated_at
+    ) VALUES (?,?,?,?,?,?)
+    ON CONFLICT(servico_codigo) DO UPDATE SET
+      servico_nome = excluded.servico_nome,
+      tempo_execucao = excluded.tempo_execucao,
+      custo_direto_total = excluded.custo_direto_total,
+      updated_at = excluded.updated_at`,
+    [d.servico_codigo, d.servico_nome, d.tempo_execucao || 0, d.custo_direto_total || 0, agora, agora],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      const fichaId = this.lastID || d.id;
+
+      const saveItens = (actualFichaId) => {
+        db.run('DELETE FROM comercial_servicos_ficha_itens WHERE ficha_id = ?', [actualFichaId], (err) => {
+          if (err) return res.status(500).json({ error: err.message });
+
+          if (!d.itens || d.itens.length === 0) {
+            return res.json({ success: true, id: actualFichaId });
+          }
+
+          const stmt = db.prepare('INSERT INTO comercial_servicos_ficha_itens (ficha_id, item_custo_id, qtd_padrao) VALUES (?,?,?)');
+          d.itens.forEach(item => {
+            stmt.run(actualFichaId, item.item_custo_id, item.qtd_padrao || 0);
+          });
+          stmt.finalize((err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, id: actualFichaId });
+          });
+        });
+      };
+
+      if (this.lastID) {
+        saveItens(this.lastID);
+      } else {
+        db.get('SELECT id FROM comercial_servicos_ficha WHERE servico_codigo = ?', [d.servico_codigo], (err, row) => {
+          if (err) return res.status(500).json({ error: err.message });
+          if (!row) return res.status(404).json({ error: 'Ficha não encontrada' });
+          saveItens(row.id);
+        });
+      }
+    });
+  });
+});
+
+app.delete('/api/comercial/servicos-ficha/:codigo', authenticateToken, (req, res) => {
+  const { codigo } = req.params;
+  db.run('DELETE FROM comercial_servicos_ficha WHERE servico_codigo = ?', [codigo], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+app.get('/api/comercial/precificacao-viabilidade/:codigo', authenticateToken, (req, res) => {
+  const { codigo } = req.params;
+  db.get('SELECT * FROM comercial_precificacao_viabilidade WHERE servico_codigo = ?', [codigo], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) {
+      return res.json({
+        servico_codigo: codigo,
+        rateio_despesas_fixas: 0,
+        margem_lucro: 0,
+        preco_sugerido_dia: 0,
+        preco_sugerido_semana: 0,
+        preco_sugerido_mes: 0,
+        despesas_fixas_mensais: 0
+      });
+    }
+    res.json(row);
+  });
+});
+
+app.post('/api/comercial/precificacao-viabilidade', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  db.run(`INSERT INTO comercial_precificacao_viabilidade (
+    servico_codigo, rateio_despesas_fixas, margem_lucro, preco_sugerido_dia, preco_sugerido_semana, preco_sugerido_mes, despesas_fixas_mensais, created_at, updated_at
+  ) VALUES (?,?,?,?,?,?,?,?,?)
+  ON CONFLICT(servico_codigo) DO UPDATE SET
+    rateio_despesas_fixas = excluded.rateio_despesas_fixas,
+    margem_lucro = excluded.margem_lucro,
+    preco_sugerido_dia = excluded.preco_sugerido_dia,
+    preco_sugerido_semana = excluded.preco_sugerido_semana,
+    preco_sugerido_mes = excluded.preco_sugerido_mes,
+    despesas_fixas_mensais = excluded.despesas_fixas_mensais,
+    updated_at = excluded.updated_at`,
+  [
+    d.servico_codigo, d.rateio_despesas_fixas || 0, d.margem_lucro || 0,
+    d.preco_sugerido_dia || 0, d.preco_sugerido_semana || 0, d.preco_sugerido_mes || 0,
+    d.despesas_fixas_mensais || 0, agora, agora
+  ], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, id: this.lastID });
   });
 });
 

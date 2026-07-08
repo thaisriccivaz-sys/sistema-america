@@ -8951,730 +8951,518 @@ window.atualizarEstatisticasModal = function() {
     `;
 };
 
-/* ── Precificação de Serviços ────────────────────────────────────────── */
-
-let _precificacaoServicoEditandoId = null;
 let _precificacaoInsumos = [];
 let _precificacaoCustosFixos = [];
 let _precificacaoServicosList = [];
+
+// NEW STATE VARIABLES FOR COMMERCIAL COSTS AND PRICING
+let _precSubTab = 'itens-custo'; // 'itens-custo', 'ficha-tecnica', 'precificacao'
+let _comercialItensCusto = [];
+let _itemCustoEditandoId = null;
+let _comercialFichas = [];
+let _fichaEditandoId = null;
+let _fichaItens = [];
+let _precificacaoServicoCodigo = '';
+let _precificacaoDados = {
+    rateio_despesas_fixas: 0,
+    margem_lucro: 20,
+    despesas_fixas_mensais: 30000,
+    custo_direto_total: 0
+};
 
 window._renderServicosPrecificacaoInt = async function() {
     const container = document.getElementById('prop-view-servicos-precificacao');
     if (!container) return;
 
-    // Initialize/Reset State
-    _precificacaoServicoEditandoId = null;
-    _precificacaoInsumos = [];
-    _precificacaoCustosFixos = [];
+    Swal.fire({
+        title: 'Carregando dados comercial...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
 
-    await _carregarServicosPrecificadosList();
-    _renderFormPrecificacaoBase();
+    try {
+        // Load data from backend APIs
+        _comercialItensCusto = await apiGet('/comercial/itens-custo') || [];
+        _comercialFichas = await apiGet('/comercial/servicos-ficha') || [];
+        _precificacaoServicosList = await apiGet('/servicos-precificacao') || [];
+        Swal.close();
+    } catch (e) {
+        Swal.close();
+        console.error('[CUSTOS] Erro ao carregar dados:', e);
+    }
+
+    _renderPrecificacaoBaseLayout();
 };
 
-async function _carregarServicosPrecificadosList() {
-    try {
-        _precificacaoServicosList = await apiGet('/servicos-precificacao') || [];
-    } catch (e) {
-        console.error('[PRECIFICACAO] Erro ao carregar lista:', e);
-        _precificacaoServicosList = [];
-    }
-}
-
-function _renderFormPrecificacaoBase() {
+function _renderPrecificacaoBaseLayout() {
     const container = document.getElementById('prop-view-servicos-precificacao');
     if (!container) return;
 
     container.innerHTML = `
         <style>
-            #form-precificacao input:not([type="checkbox"]):not([type="radio"]),
-            #form-precificacao select {
-                padding: 0.15rem 0.45rem !important;
-                border: 1px solid #cbd5e1 !important;
-                border-radius: 4px !important;
-                font-size: 0.76rem !important;
-                background: #fff !important;
-                color: #1e293b !important;
-                outline: none !important;
-                transition: all 0.2s !important;
-                box-sizing: border-box !important;
-                width: 100% !important;
-                height: 28px !important;
+            .prec-subtab-bar {
+                display: flex;
+                gap: 1.5rem;
+                border-bottom: 2px solid #e2e8f0;
+                margin-bottom: 1.25rem;
+                padding-bottom: 0.25rem;
             }
-            #form-precificacao textarea {
-                padding: 0.3rem 0.45rem !important;
-                font-size: 0.76rem !important;
-                border-radius: 4px !important;
-                border: 1px solid #cbd5e1 !important;
-                color: #1e293b !important;
-                outline: none !important;
-                transition: all 0.2s !important;
-                box-sizing: border-box !important;
-                width: 100% !important;
-            }
-            #form-precificacao input:focus,
-            #form-precificacao select:focus,
-            #form-precificacao textarea:focus {
-                border-color: #7048e8 !important;
-                box-shadow: 0 0 0 3px rgba(112, 72, 232, 0.15) !important;
-            }
-            #form-precificacao input[readonly] {
-                background: #f1f5f9 !important;
-                color: #64748b !important;
-                cursor: not-allowed !important;
-            }
-            #form-precificacao button {
-                border-radius: 4px !important;
-                height: 28px !important;
-                box-sizing: border-box !important;
-                transition: all 0.2s !important;
-                display: inline-flex !important;
-                align-items: center !important;
-                justify-content: center !important;
+            .prec-subtab-item {
+                font-size: 0.85rem;
+                font-weight: 700;
+                color: #64748b;
                 cursor: pointer;
+                padding: 0.5rem 0.25rem;
+                position: relative;
+                transition: all 0.2s;
             }
-            .cost-card {
+            .prec-subtab-item:hover {
+                color: #7048e8;
+            }
+            .prec-subtab-item.active {
+                color: #7048e8;
+            }
+            .prec-subtab-item.active::after {
+                content: '';
+                position: absolute;
+                bottom: -4px;
+                left: 0;
+                right: 0;
+                height: 3px;
+                background: #7048e8;
+                border-radius: 2px;
+            }
+            .saas-card {
                 background: #fff;
                 border: 1px solid #e2e8f0;
-                border-radius: 8px;
-                padding: 0.75rem !important;
-                margin-bottom: 0.75rem !important;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+                border-radius: 12px;
+                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+                margin-bottom: 1.5rem;
             }
-            .cost-title {
-                font-size: 0.8rem !important;
+            .saas-card-header {
+                padding: 1rem 1.25rem;
+                border-bottom: 1px solid #f1f5f9;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: #f8fafc;
+                border-top-left-radius: 12px;
+                border-top-right-radius: 12px;
+            }
+            .saas-card-title {
+                font-size: 0.95rem;
                 font-weight: 700;
-                color: #334155;
-                margin-top: 0;
-                margin-bottom: 0.6rem !important;
+                color: #1e293b;
                 display: flex;
                 align-items: center;
                 gap: 6px;
-                border-bottom: 1px solid #f1f5f9;
-                padding-bottom: 4px !important;
             }
-            .prec-table {
+            .saas-card-body {
+                padding: 1.25rem;
+            }
+            .prec-input-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1rem;
+            }
+            .prec-input-group {
+                display: flex;
+                flex-direction: column;
+                gap: 0.4rem;
+            }
+            .prec-input-group label {
+                font-size: 0.76rem;
+                font-weight: 700;
+                color: #475569;
+            }
+            .prec-input-group input,
+            .prec-input-group select {
+                height: 36px;
+                padding: 0 0.75rem;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                outline: none;
+                font-size: 0.8rem;
+                font-weight: 500;
+                color: #1e293b;
+                background: #fff;
+                transition: border-color 0.2s;
+            }
+            .prec-input-group input:focus,
+            .prec-input-group select:focus {
+                border-color: #7048e8;
+                box-shadow: 0 0 0 3px rgba(112, 72, 232, 0.15);
+            }
+            .prec-input-group input[readonly] {
+                background: #f1f5f9;
+                color: #64748b;
+                cursor: not-allowed;
+            }
+            .prec-table-grid {
                 width: 100%;
                 border-collapse: collapse;
-                font-size: 0.76rem !important;
+                font-size: 0.78rem;
             }
-            .prec-table th {
-                text-align: left;
-                padding: 4px 6px !important;
+            .prec-table-grid th {
                 background: #f8fafc;
-                color: #64748b;
-                font-weight: 600;
-                border-bottom: 1px solid #e2e8f0;
+                color: #475569;
+                font-weight: 700;
+                text-transform: uppercase;
+                font-size: 0.7rem;
+                padding: 8px 12px;
+                border-bottom: 2px solid #e2e8f0;
+                text-align: left;
             }
-            .prec-table td {
-                padding: 4px 6px !important;
+            .prec-table-grid td {
+                padding: 8px 12px;
                 border-bottom: 1px solid #f1f5f9;
                 vertical-align: middle;
             }
-            .prec-list-item {
-                padding: 0.45rem 0.8rem !important;
+            .prec-table-grid tr:hover {
+                background: #f8fafc;
+            }
+            .prec-btn {
+                height: 34px;
+                padding: 0 1rem;
+                border-radius: 6px;
+                font-weight: 600;
+                font-size: 0.8rem;
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                cursor: pointer;
+                transition: all 0.2s;
+                border: 1px solid transparent;
+            }
+            .prec-btn-primary {
+                background: #7048e8;
+                color: #fff;
+            }
+            .prec-btn-primary:hover {
+                background: #5b36cb;
+            }
+            .prec-btn-secondary {
+                background: #f1f5f9;
+                color: #475569;
+                border-color: #cbd5e1;
+            }
+            .prec-btn-secondary:hover {
+                background: #e2e8f0;
+            }
+            .prec-btn-success {
+                background: #16a34a;
+                color: #fff;
+            }
+            .prec-btn-success:hover {
+                background: #15803d;
+            }
+            .prec-btn-danger {
+                background: #dc2626;
+                color: #fff;
+            }
+            .prec-btn-danger:hover {
+                background: #b91c1c;
+            }
+            .prec-sidebar-list {
+                max-height: 500px;
+                overflow-y: auto;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+            }
+            .prec-sidebar-item {
+                padding: 0.6rem 1rem;
                 border-bottom: 1px solid #e2e8f0;
                 cursor: pointer;
                 transition: all 0.2s;
-                display: flex;
-                flex-direction: column;
-                gap: 4px;
-                font-size: 0.76rem !important;
+                font-size: 0.78rem;
             }
-            .prec-list-item:hover {
+            .prec-sidebar-item:hover {
                 background: #f1f5f9;
             }
-            .prec-list-item.active {
+            .prec-sidebar-item.active {
                 background: #ede9fc;
                 border-left: 4px solid #7048e8;
+                font-weight: 600;
             }
         </style>
-        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif;">
+        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif; padding:1.25rem;">
             
-            <!-- Toolbar -->
-            <div id="prop-toolbar-servicos" style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
-                
-                <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
-                <div class="saas-dropdown-container">
-                    <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
-                        <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
-                    </div>
-                    <div class="saas-dropdown-menu">
-                        <div class="saas-dropdown-item" onclick="abrirFormProposta(null); event.stopPropagation();">
-                            <i class="ph ph-pencil-simple"></i> Nova Proposta
-                        </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
-                            <i class="ph ph-user-plus"></i> Cadastro de Clientes
-                        </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
-                            <i class="ph ph-identification-card"></i> Cadastro de Contatos
-                        </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
-                            <i class="ph ph-map-pin"></i> Endereços
-                        </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
-                            <i class="ph ph-calculator"></i> Precificação de Serviços
-                        </div>
-                    </div>
+            <!-- Tab Switcher Bar -->
+            <div class="prec-subtab-bar">
+                <div class="prec-subtab-item ${_precSubTab === 'itens-custo' ? 'active' : ''}" onclick="_switchPrecSubTab('itens-custo')">
+                    <i class="ph ph-tag" style="margin-right:4px;"></i> 1. Cadastro de Itens de Custo
                 </div>
-
-                <!-- Botões de Ação (Lado Direito) -->
-                <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
-                    <button onclick="_recarregarServicosPrecificacao()" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
-                        <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
-                    </button>
-                    <button onclick="_limparFormPrecificacaoNovo()" title="Novo" style="background:#475569; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'">
-                        <i class="ph ph-plus" style="font-size:1rem;"></i> Novo
-                    </button>
-
-                    <!-- Spacer -->
-                    <div style="width: 4px;"></div>
-
-                    <button onclick="_salvarServicoPrecificacao()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
-                        <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
-                    </button>
-                    <button onclick="_excluirServicoPrecificacao()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
-                        <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
-                    </button>
+                <div class="prec-subtab-item ${_precSubTab === 'ficha-tecnica' ? 'active' : ''}" onclick="_switchPrecSubTab('ficha-tecnica')">
+                    <i class="ph ph-file-text" style="margin-right:4px;"></i> 2. Ficha Técnica do Serviço
+                </div>
+                <div class="prec-subtab-item ${_precSubTab === 'precificacao' ? 'active' : ''}" onclick="_switchPrecSubTab('precificacao')">
+                    <i class="ph ph-calculator" style="margin-right:4px;"></i> 3. Precificação e Viabilidade
                 </div>
             </div>
 
-            <!-- Main Layout Grid -->
-            <div style="display:flex; width:100%; box-sizing:border-box;">
-                
-                <!-- Left Side: Form -->
-                <div style="width:70%; padding:1.5rem; border-right:1px solid #e2e8f0; box-sizing:border-box;">
-                    <form id="form-precificacao" onsubmit="return false;">
-                        
-                        <div style="display:grid; grid-template-columns: 2fr 1fr; gap:1.25rem; margin-bottom:1.25rem;">
-                            <div>
-                                <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:0.4rem;">Nome do Serviço *</label>
-                                <input type="text" id="prec-nome" placeholder="Ex: Manutenção Preventiva de Gerador" required style="box-sizing: border-box !important;">
-                            </div>
-                            <div>
-                                <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:0.4rem;">Tabela de Preços *</label>
-                                <select id="prec-tabela" required style="box-sizing: border-box !important;">
-                                    <option value="">-- Selecione --</option>
-                                    ${PROP_TABELAS.map(t => `<option value="${t}">${t}</option>`).join('')}
-                                </select>
-                            </div>
+            <!-- Tab Contents Container -->
+            <div id="prec-subtab-contents"></div>
+
+        </div>
+    `;
+
+    _renderActivePrecSubTab();
+}
+
+window._switchPrecSubTab = function(tab) {
+    _precSubTab = tab;
+    _renderPrecificacaoBaseLayout();
+};
+
+function _renderActivePrecSubTab() {
+    const container = document.getElementById('prec-subtab-contents');
+    if (!container) return;
+
+    if (_precSubTab === 'itens-custo') {
+        _renderTabItensCusto(container);
+    } else if (_precSubTab === 'ficha-tecnica') {
+        _renderTabFichaTecnica(container);
+    } else if (_precSubTab === 'precificacao') {
+        _renderTabPrecificacao(container);
+    }
+}
+
+/* =====================================================================
+   TAB 1: CADASTRO DE ITENS DE CUSTO (CRUD)
+   ===================================================================== */
+function _renderTabItensCusto(container) {
+    container.innerHTML = `
+        <div style="display:flex; gap:1.25rem; width:100%; box-sizing:border-box;">
+            
+            <!-- Left Side: Form -->
+            <div style="width:60%; box-sizing:border-box;">
+                <div class="saas-card">
+                    <div class="saas-card-header">
+                        <div class="saas-card-title">
+                            <i class="ph ph-tag" style="color:#7048e8; font-size:1.1rem;"></i>
+                            Item de Custo
                         </div>
-
-                        <!-- Datalist for Setores suggestion (Ponto de Equilíbrio base) -->
-                        <datalist id="datalist-setores">
-                            <option value="Operacional">
-                            <option value="Logística">
-                            <option value="Comercial">
-                            <option value="Financeiro">
-                            <option value="RH">
-                            <option value="Diretoria">
-                            <option value="Administrativo">
-                        </datalist>
-
-                        <!-- Card 1: Rateio de Custos Fixos por Setor -->
-                        <div class="cost-card">
-                            <div class="cost-title">
-                                <i class="ph ph-chart-pie" style="color:#7048e8; font-size:1.1rem;"></i>
-                                Rateio de Custos Fixos por Setor
-                            </div>
-                            <table class="prec-table">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 50%;">Setor</th>
-                                        <th style="width: 15%; text-align: right;">Percentual de Rateio (%)</th>
-                                        <th style="width: 18%; text-align: right;">Custo Base do Setor</th>
-                                        <th style="width: 17%; text-align: right;">Custo Total</th>
-                                        <th style="width: 5%; text-align: center;"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-prec-insumos"></tbody>
-                            </table>
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1rem;">
-                                <button type="button" onclick="_adicionarInsumoRow()" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:0 0.75rem; font-size:0.8rem; font-weight:600; height:32px !important;">
-                                    <i class="ph ph-plus" style="margin-right:4px;"></i> Adicionar Setor
-                                </button>
-                                <div style="font-size:0.85rem; font-weight:700; color:#475569;">
-                                    Custo Total Rateio: <span id="span-custo-insumos" style="color:#1e293b; font-size:0.95rem; margin-left:4px;">R$ 0,00</span>
+                        <div style="display:flex; gap:0.4rem;">
+                            <button class="prec-btn prec-btn-secondary" onclick="_limparFormItemCusto()">
+                                <i class="ph ph-plus"></i> Novo
+                            </button>
+                            <button class="prec-btn prec-btn-success" onclick="_salvarItemCusto()">
+                                <i class="ph ph-check"></i> Salvar
+                            </button>
+                            <button class="prec-btn prec-btn-danger" id="btn-excluir-item-custo" onclick="_excluirItemCusto()" style="display:none;">
+                                <i class="ph ph-trash"></i> Excluir
+                            </button>
+                        </div>
+                    </div>
+                    <div class="saas-card-body">
+                        <form id="form-item-custo" onsubmit="return false;">
+                            <div class="prec-input-grid" style="grid-template-columns: 1fr 1fr; margin-bottom:1rem;">
+                                <div class="prec-input-group">
+                                    <label>Código (Automático)</label>
+                                    <input type="text" id="ic-codigo" placeholder="Gerado ao salvar" readonly>
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- Card 2: Custos Variáveis Operacionais -->
-                        <div class="cost-card">
-                            <div class="cost-title">
-                                <i class="ph ph-wrench" style="color:#7048e8; font-size:1.1rem;"></i>
-                                Custos Variáveis Operacionais
-                            </div>
-                            <table class="prec-table">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 50%;">Descrição do Custo</th>
-                                        <th style="width: 15%; text-align: right;">Qtd / Horas</th>
-                                        <th style="width: 18%; text-align: right;">Custo Unitário</th>
-                                        <th style="width: 17%; text-align: right;">Custo Total</th>
-                                        <th style="width: 5%; text-align: center;"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-prec-fixos"></tbody>
-                            </table>
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1rem;">
-                                <button type="button" onclick="_adicionarFixoRow()" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:0 0.75rem; font-size:0.8rem; font-weight:600; height:32px !important;">
-                                    <i class="ph ph-plus" style="margin-right:4px;"></i> Adicionar Custo
-                                </button>
-                                <div style="font-size:0.85rem; font-weight:700; color:#475569;">
-                                    Custo Total Variável Direto: <span id="span-custo-fixos" style="color:#1e293b; font-size:0.95rem; margin-left:4px;">R$ 0,00</span>
+                                <div class="prec-input-group">
+                                    <label>Descrição do Insumo/Despesa *</label>
+                                    <input type="text" id="ic-descricao" placeholder="Ex: Técnico Mecânico, Óleo Lubrificante" required>
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- Card 3: Markup e Preço de Venda -->
-                        <div class="cost-card" style="border:1px solid #ddd6fe; background:#faf5ff;">
-                            <div class="cost-title" style="border-bottom:1px solid #edd9ff; color:#5b21b6;">
-                                <i class="ph ph-percent" style="color:#7048e8; font-size:1.1rem;"></i>
-                                Composição de Markup & Preço de Venda Final
                             </div>
                             
-                            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:1rem; margin-bottom:1.25rem;">
-                                <div>
-                                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#5b21b6; margin-bottom:0.3rem;">Despesa Adm. (%)</label>
-                                    <input type="number" id="prec-m-adm" value="10" min="0" max="100" step="0.1" oninput="_recalcularPrecificacao()" style="height:38px !important; box-sizing: border-box !important;">
-                                </div>
-                                <div>
-                                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#5b21b6; margin-bottom:0.3rem;">Impostos (%)</label>
-                                    <input type="number" id="prec-m-impostos" value="15" min="0" max="100" step="0.1" oninput="_recalcularPrecificacao()" style="height:38px !important; box-sizing: border-box !important;">
-                                </div>
-                                <div>
-                                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#5b21b6; margin-bottom:0.3rem;">Margem de Lucro (%)</label>
-                                    <input type="number" id="prec-m-lucro" value="20" min="0" max="100" step="0.1" oninput="_recalcularPrecificacao()" style="height:38px !important; box-sizing: border-box !important;">
-                                </div>
-                                <div>
-                                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#5b21b6; margin-bottom:0.3rem;">Outras Despesas (%)</label>
-                                    <input type="number" id="prec-m-outros" value="5" min="0" max="100" step="0.1" oninput="_recalcularPrecificacao()" style="height:38px !important; box-sizing: border-box !important;">
-                                </div>
-                            </div>
-
-                            <div style="display:grid; grid-template-columns: 1.2fr 1fr 1.5fr; gap:1.25rem; align-items:center; border-top:1px dashed #edd9ff; padding-top:1.25rem;">
-                                <div>
-                                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#5b21b6; margin-bottom:0.3rem;">Tipo de Cálculo (Markup)</label>
-                                    <select id="prec-m-tipo" onchange="_recalcularPrecificacao()" style="height:38px !important; box-sizing: border-box !important;">
-                                        <option value="divisor" selected>Markup Divisor (Margem interna)</option>
-                                        <option value="multiplicador">Markup Multiplicador (Cost-plus)</option>
+                            <div class="prec-input-grid" style="grid-template-columns: 1fr 1fr; margin-bottom:1rem;">
+                                <div class="prec-input-group">
+                                    <label>Tipo de Dado Financeiro *</label>
+                                    <select id="ic-tipo-financeiro" required>
+                                        <option value="Manual">Manual</option>
+                                        <option value="Planilha MDO">Planilha MDO</option>
+                                        <option value="PDF Fatura">PDF Fatura</option>
+                                        <option value="Nota XML">Nota XML</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#5b21b6; margin-bottom:0.3rem;">Markup Total</label>
-                                    <input type="text" id="prec-m-total" value="50.0%" readonly style="font-weight:700; text-align:center; height:38px !important; box-sizing: border-box !important;">
-                                </div>
-                                <div style="text-align:right;">
-                                    <span style="font-size:0.78rem; font-weight:700; color:#5b21b6; display:block; margin-bottom:2px;">PREÇO DE VENDA CALCULADO</span>
-                                    <span id="span-preco-venda-final" style="font-size:1.6rem; font-weight:900; color:#7048e8;">R$ 0,00</span>
+                                <div class="prec-input-group">
+                                    <label>Natureza do Custo *</label>
+                                    <div style="display:flex; gap:1.25rem; align-items:center; height:36px; padding-left:2px;">
+                                        <label style="font-weight:500; font-size:0.8rem; display:flex; align-items:center; gap:4px; cursor:pointer;">
+                                            <input type="radio" name="ic-natureza" value="Fixo" checked style="height:auto; width:auto; margin:0;"> Fixo
+                                        </label>
+                                        <label style="font-weight:500; font-size:0.8rem; display:flex; align-items:center; gap:4px; cursor:pointer;">
+                                            <input type="radio" name="ic-natureza" value="Variável" style="height:auto; width:auto; margin:0;"> Variável
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Observações -->
-                        <div>
-                            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:0.4rem;">Observações / Detalhes Adicionais</label>
-                            <textarea id="prec-observacoes" rows="3" placeholder="Insira aqui notas adicionais, justificativas ou detalhes da precificação..." style="box-sizing: border-box !important;"></textarea>
-                        </div>
-                    </form>
-                </div>
-                
-                <!-- Right Side: List -->
-                <div style="width:30%; background:#f8fafc; box-sizing:border-box; border-left: 1px solid #e2e8f0;">
-                    <div style="padding:1rem; border-bottom:1px solid #e2e8f0; font-size:0.88rem; font-weight:700; color:#334155; display:flex; align-items:center; gap:6px; background:#f1f5f9;">
-                        <i class="ph ph-list-bullets" style="color:#7048e8; font-size:1.1rem;"></i>
-                        Serviços Cadastrados
+                            <div class="prec-input-grid" style="grid-template-columns: 1fr 1fr; margin-bottom:1rem;">
+                                <div class="prec-input-group">
+                                    <label>Categoria *</label>
+                                    <select id="ic-categoria" required>
+                                        <option value="MDO">MDO (Mão de Obra)</option>
+                                        <option value="Insumo">Insumo</option>
+                                        <option value="Imposto">Imposto</option>
+                                        <option value="Frete">Frete</option>
+                                    </select>
+                                </div>
+                                <div class="prec-input-group">
+                                    <label>Unidade de Medida *</label>
+                                    <input type="text" id="ic-unidade" placeholder="Ex: UN, H, L, KG" required>
+                                </div>
+                            </div>
+
+                            <div class="prec-input-grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom:0.5rem;">
+                                <div class="prec-input-group">
+                                    <label>Custo Unitário (R$) *</label>
+                                    <input type="number" id="ic-custo-unitario" placeholder="0.00" step="0.01" value="0.00" required>
+                                </div>
+                                <div class="prec-input-group">
+                                    <label>Centro de Custo</label>
+                                    <input type="text" id="ic-centro-custo" placeholder="Ex: CC-COMERCIAL">
+                                </div>
+                                <div class="prec-input-group">
+                                    <label>Vigência da Taxa</label>
+                                    <input type="date" id="ic-vigencia">
+                                </div>
+                            </div>
+                        </form>
                     </div>
-                    <div id="prec-services-list-container" style="max-height:850px; overflow-y:auto;"></div>
                 </div>
-
+            </div>
+            
+            <!-- Right Side: Items List -->
+            <div style="width:40%; box-sizing:border-box;">
+                <div class="saas-card">
+                    <div class="saas-card-header">
+                        <div class="saas-card-title">
+                            <i class="ph ph-list-bullets" style="color:#7048e8; font-size:1.1rem;"></i>
+                            Insumos e Custos Cadastrados
+                        </div>
+                    </div>
+                    <div class="saas-card-body" style="padding:0.75rem;">
+                        <div class="prec-sidebar-list">
+                            ${_comercialItensCusto.length === 0 ? 
+                                `<div style="padding:2rem; text-align:center; color:#94a3b8; font-size:0.8rem;">Nenhum item de custo cadastrado.</div>` :
+                                _comercialItensCusto.map(item => {
+                                    const activeClass = _itemCustoEditandoId === item.id ? 'active' : '';
+                                    return `
+                                        <div class="prec-sidebar-item ${activeClass}" onclick="_carregarItemCustoParaEdicao(${item.id})">
+                                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                                                <strong style="color:#1e293b;">${item.descricao}</strong>
+                                                <span style="font-weight:700; color:#7048e8;">R$ ${(item.custo_unitario || 0).toFixed(2).replace('.', ',')} / ${item.unidade_medida}</span>
+                                            </div>
+                                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.7rem; color:#64748b;">
+                                                <span>${item.codigo} | ${item.categoria}</span>
+                                                <span class="badge" style="background:${item.natureza === 'Fixo' ? '#e2e8f0' : '#fee2e2'}; color:${item.natureza === 'Fixo' ? '#475569' : '#991b1b'}; padding:2px 6px; border-radius:4px; font-weight:600;">${item.natureza}</span>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')
+                            }
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </div>
     `;
 
-    _renderInsumosRows();
-    _renderFixosRows();
-    _recalcularPrecificacao();
-    _renderSidebarList();
-
-    // No auto scroll to prevent page jumps
+    // Make sure date of vigencia is set to today if blank
+    const vigInput = document.getElementById('ic-vigencia');
+    if (vigInput && !vigInput.value) {
+        vigInput.value = new Date().toISOString().substring(0, 10);
+    }
 }
 
-window._renderInsumosRows = function() {
-    const tbody = document.getElementById('tbody-prec-insumos');
-    if (!tbody) return;
-
-    if (_precificacaoInsumos.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.5rem;">Nenhum setor adicionado.</td></tr>`;
-        return;
-    }
-
-    tbody.innerHTML = _precificacaoInsumos.map((item, idx) => {
-        const total = ((item.qtd || 0) * (item.custo_unitario || 0)) / 100;
-        return `
-            <tr>
-                <td>
-                    <input type="text" list="datalist-setores" value="${item.nome || ''}" onchange="_atualizarInsumoSetor(${idx}, this.value)" style="height:28px !important; padding:2px 6px !important; font-size:0.76rem !important; border-radius:4px !important; box-sizing: border-box !important;" placeholder="Selecione ou digite o setor">
-                </td>
-                <td>
-                    <input type="number" value="${item.qtd}" min="0" max="100" step="any" oninput="_atualizarInsumo(${idx}, 'qtd', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:28px !important; text-align:right; padding:2px 6px !important; font-size:0.76rem !important; border-radius:4px !important; box-sizing: border-box !important;">
-                </td>
-                <td>
-                    <input type="number" value="${item.custo_unitario}" min="0" step="0.01" oninput="_atualizarInsumo(${idx}, 'custo_unitario', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:28px !important; text-align:right; padding:2px 6px !important; font-size:0.76rem !important; border-radius:4px !important; box-sizing: border-box !important;">
-                </td>
-                <td style="text-align:right; font-weight:600; color:#475569; padding-right:12px;">
-                    R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </td>
-                <td style="text-align:center;">
-                    <i class="ph ph-trash" onclick="_excluirInsumoRow(${idx})" style="color:#ef4444; font-size:1.1rem; cursor:pointer;" title="Remover Setor"></i>
-                </td>
-            </tr>
-        `;
-    }).join('');
-};
-
-window._atualizarInsumo = function(idx, field, val) {
-    if (_precificacaoInsumos[idx]) {
-        _precificacaoInsumos[idx][field] = val;
-    }
-};
-
-window._atualizarInsumoSetor = function(idx, val) {
-    if (!_precificacaoInsumos[idx]) return;
-    _precificacaoInsumos[idx].nome = val;
-    
-    // Ponto de Equilíbrio base values mapping
-    const defaultBases = {
-        'Operacional': 15000.00,
-        'Logística': 18000.00,
-        'Comercial': 8000.00,
-        'Financeiro': 7000.00,
-        'RH': 6000.00,
-        'Diretoria': 25000.00,
-        'Administrativo': 12000.00
-    };
-    
-    if (defaultBases[val] !== undefined) {
-        _precificacaoInsumos[idx].custo_unitario = defaultBases[val];
-        _renderInsumosRows();
-        _recalcularPrecificacao();
-    }
-};
-
-window._adicionarInsumoRow = function() {
-    _precificacaoInsumos.push({ nome: '', qtd: 1, custo_unitario: 0 });
-    _renderInsumosRows();
-    _recalcularPrecificacao();
-};
-
-window._excluirInsumoRow = function(idx) {
-    _precificacaoInsumos.splice(idx, 1);
-    _renderInsumosRows();
-    _recalcularPrecificacao();
-};
-
-window._renderFixosRows = function() {
-    const tbody = document.getElementById('tbody-prec-fixos');
-    if (!tbody) return;
-
-    if (_precificacaoCustosFixos.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.5rem;">Nenhum custo fixo / mão-de-obra adicionado.</td></tr>`;
-        return;
-    }
-
-    tbody.innerHTML = _precificacaoCustosFixos.map((item, idx) => {
-        const total = (item.qtd || 0) * (item.custo_unitario || 0);
-        return `
-            <tr>
-                <td>
-                    <input type="text" value="${item.descricao || ''}" onchange="_atualizarFixo(${idx}, 'descricao', this.value)" style="height:28px !important; padding:2px 6px !important; font-size:0.76rem !important; border-radius:4px !important; box-sizing: border-box !important;" placeholder="Ex: Técnico de Campo / Deslocamento">
-                </td>
-                <td>
-                    <input type="number" value="${item.qtd}" min="0.001" step="any" oninput="_atualizarFixo(${idx}, 'qtd', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:28px !important; text-align:right; padding:2px 6px !important; font-size:0.76rem !important; border-radius:4px !important; box-sizing: border-box !important;">
-                </td>
-                <td>
-                    <input type="number" value="${item.custo_unitario}" min="0" step="0.01" oninput="_atualizarFixo(${idx}, 'custo_unitario', parseFloat(this.value) || 0); _recalcularPrecificacao();" style="height:28px !important; text-align:right; padding:2px 6px !important; font-size:0.76rem !important; border-radius:4px !important; box-sizing: border-box !important;">
-                </td>
-                <td style="text-align:right; font-weight:600; color:#475569; padding-right:12px;">
-                    R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </td>
-                <td style="text-align:center;">
-                    <i class="ph ph-trash" onclick="_excluirFixoRow(${idx})" style="color:#ef4444; font-size:1.1rem; cursor:pointer;" title="Remover Custo"></i>
-                </td>
-            </tr>
-        `;
-    }).join('');
-};
-
-window._atualizarFixo = function(idx, field, val) {
-    if (_precificacaoCustosFixos[idx]) {
-        _precificacaoCustosFixos[idx][field] = val;
-    }
-};
-
-window._adicionarFixoRow = function() {
-    _precificacaoCustosFixos.push({ descricao: '', qtd: 1, custo_unitario: 0 });
-    _renderFixosRows();
-    _recalcularPrecificacao();
-};
-
-window._excluirFixoRow = function(idx) {
-    _precificacaoCustosFixos.splice(idx, 1);
-    _renderFixosRows();
-    _recalcularPrecificacao();
-};
-
-window._recalcularPrecificacao = function() {
-    let sumInsumos = 0;
-    _precificacaoInsumos.forEach(item => {
-        sumInsumos += ((item.qtd || 0) * (item.custo_unitario || 0)) / 100;
-    });
-    
-    const subtotalInsumos = document.getElementById('span-custo-insumos');
-    if (subtotalInsumos) {
-        subtotalInsumos.textContent = `R$ ${sumInsumos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    }
-
-    let sumFixos = 0;
-    _precificacaoCustosFixos.forEach(item => {
-        sumFixos += (item.qtd || 0) * (item.custo_unitario || 0);
-    });
-
-    const subtotalFixos = document.getElementById('span-custo-fixos');
-    if (subtotalFixos) {
-        subtotalFixos.textContent = `R$ ${sumFixos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    }
-
-    const getVal = (id) => parseFloat(document.getElementById(id)?.value || 0);
-    const mAdm = getVal('prec-m-adm');
-    const mImpostos = getVal('prec-m-impostos');
-    const mLucro = getVal('prec-m-lucro');
-    const mOutros = getVal('prec-m-outros');
-    const mTotal = mAdm + mImpostos + mLucro + mOutros;
-
-    const inputTotal = document.getElementById('prec-m-total');
-    if (inputTotal) {
-        inputTotal.value = mTotal.toFixed(1) + '%';
-    }
-
-    const mTipo = document.getElementById('prec-m-tipo')?.value || 'divisor';
-    const totalCusto = sumInsumos + sumFixos;
-    let precoVenda = 0;
-
-    if (mTipo === 'divisor') {
-        const divisor = 1 - (mTotal / 100);
-        if (divisor <= 0) {
-            precoVenda = totalCusto / 0.01;
-        } else {
-            precoVenda = totalCusto / divisor;
-        }
-    } else {
-        precoVenda = totalCusto * (1 + (mTotal / 100));
-    }
-
-    const spanPrecoFinal = document.getElementById('span-preco-venda-final');
-    if (spanPrecoFinal) {
-        spanPrecoFinal.textContent = `R$ ${precoVenda.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    }
-};
-
-window._renderSidebarList = function() {
-    const listContainer = document.getElementById('prec-services-list-container');
-    if (!listContainer) return;
-
-    if (_precificacaoServicosList.length === 0) {
-        listContainer.innerHTML = `<div style="text-align:center; color:#94a3b8; padding:2rem; font-size:0.8rem;">Nenhum serviço cadastrado.</div>`;
-        return;
-    }
-
-    listContainer.innerHTML = _precificacaoServicosList.map(s => {
-        const activeClass = (_precificacaoServicoEditandoId === s.id) ? 'active' : '';
-        const precoFmt = (s.preco_venda || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        return `
-            <div class="prec-list-item ${activeClass}" onclick="_carregarServicoParaEdicao(${s.id})">
-                <div style="font-weight:700; color:#1e293b; font-size:0.85rem;">${s.nome}</div>
-                <div style="font-size:0.75rem; color:#64748b; font-weight:600; display:flex; justify-content:space-between; align-items:center;">
-                    <span><i class="ph ph-handshake"></i> ${s.tabela_precos}</span>
-                    <span style="color:#7048e8; font-weight:800; font-size:0.82rem;">${precoFmt}</span>
-                </div>
-            </div>
-        `;
-    }).join('');
-};
-
-window._carregarServicoParaEdicao = async function(id) {
-    _precificacaoServicoEditandoId = id;
-    
-    document.querySelectorAll('.prec-list-item').forEach(el => el.classList.remove('active'));
-
-    Swal.fire({
-        title: 'Carregando...',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-    });
-
-    try {
-        const s = await apiGet(`/servicos-precificacao/${id}`);
-        Swal.close();
-        if (s) {
-            document.getElementById('prec-nome').value = s.nome || '';
-            document.getElementById('prec-tabela').value = s.tabela_precos || '';
-            document.getElementById('prec-observacoes').value = s.observacoes || '';
-            document.getElementById('prec-m-tipo').value = s.markup_tipo || 'divisor';
-
-            try {
-                _precificacaoInsumos = JSON.parse(s.estrutura_produto) || [];
-            } catch(e) {
-                _precificacaoInsumos = [];
-            }
-
-            try {
-                _precificacaoCustosFixos = JSON.parse(s.custos_fixos) || [];
-            } catch(e) {
-                _precificacaoCustosFixos = [];
-            }
-
-            try {
-                const mVals = JSON.parse(s.markup_valores) || { adm: 10, impostos: 15, lucro: 20, outros: 5 };
-                document.getElementById('prec-m-adm').value = mVals.adm ?? 10;
-                document.getElementById('prec-m-impostos').value = mVals.impostos ?? 15;
-                document.getElementById('prec-m-lucro').value = mVals.lucro ?? 20;
-                document.getElementById('prec-m-outros').value = mVals.outros ?? 5;
-            } catch (e) {
-                document.getElementById('prec-m-adm').value = 10;
-                document.getElementById('prec-m-impostos').value = 15;
-                document.getElementById('prec-m-lucro').value = 20;
-                document.getElementById('prec-m-outros').value = 5;
-            }
-
-            _renderInsumosRows();
-            _renderFixosRows();
-            _recalcularPrecificacao();
-            _renderSidebarList();
-        }
-    } catch(e) {
-        Swal.close();
-        console.error(e);
-        alert('Erro ao carregar os dados do serviço.');
-    }
-};
-
-window._recarregarServicosPrecificacao = async function() {
-    Swal.fire({
-        title: 'Atualizando...',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-    });
-    await _carregarServicosPrecificadosList();
-    Swal.close();
-    _renderSidebarList();
-    if (_precificacaoServicoEditandoId) {
-        _carregarServicoParaEdicao(_precificacaoServicoEditandoId);
-    } else {
-        _limparFormPrecificacaoNovo();
-    }
-};
-
-window._limparFormPrecificacaoNovo = function() {
-    _precificacaoServicoEditandoId = null;
-    _precificacaoInsumos = [];
-    _precificacaoCustosFixos = [];
-
-    const form = document.getElementById('form-precificacao');
+window._limparFormItemCusto = function() {
+    _itemCustoEditandoId = null;
+    const form = document.getElementById('form-item-custo');
     if (form) form.reset();
+    
+    const btnExcluir = document.getElementById('btn-excluir-item-custo');
+    if (btnExcluir) btnExcluir.style.display = 'none';
 
-    _renderInsumosRows();
-    _renderFixosRows();
-    _recalcularPrecificacao();
-    _renderSidebarList();
+    const codeInput = document.getElementById('ic-codigo');
+    if (codeInput) codeInput.value = '';
+
+    const vigInput = document.getElementById('ic-vigencia');
+    if (vigInput) vigInput.value = new Date().toISOString().substring(0, 10);
+
+    document.querySelectorAll('.prec-sidebar-item').forEach(el => el.classList.remove('active'));
 };
 
-window._salvarServicoPrecificacao = async function() {
-    const nome = document.getElementById('prec-nome')?.value.trim();
-    const tabela_precos = document.getElementById('prec-tabela')?.value;
-    if (!nome) { alert('Informe o Nome do Serviço.'); return; }
-    if (!tabela_precos) { alert('Selecione a Tabela de Preços.'); return; }
+window._carregarItemCustoParaEdicao = function(id) {
+    _itemCustoEditandoId = id;
+    const item = _comercialItensCusto.find(i => i.id === id);
+    if (!item) return;
 
-    const getVal = (id) => parseFloat(document.getElementById(id)?.value || 0);
-    const mAdm = getVal('prec-m-adm');
-    const mImpostos = getVal('prec-m-impostos');
-    const mLucro = getVal('prec-m-lucro');
-    const mOutros = getVal('prec-m-outros');
-    const mTotal = mAdm + mImpostos + mLucro + mOutros;
-    const mTipo = document.getElementById('prec-m-tipo')?.value || 'divisor';
+    _renderActivePrecSubTab();
 
-    let sumInsumos = 0;
-    _precificacaoInsumos.forEach(item => {
-        sumInsumos += ((item.qtd || 0) * (item.custo_unitario || 0)) / 100;
-    });
-    let sumFixos = 0;
-    _precificacaoCustosFixos.forEach(item => {
-        sumFixos += (item.qtd || 0) * (item.custo_unitario || 0);
+    document.getElementById('ic-codigo').value = item.codigo || '';
+    document.getElementById('ic-descricao').value = item.descricao || '';
+    document.getElementById('ic-tipo-financeiro').value = item.tipo_dado_financeiro || 'Manual';
+    document.getElementById('ic-categoria').value = item.categoria || 'MDO';
+    document.getElementById('ic-unidade').value = item.unidade_medida || '';
+    document.getElementById('ic-custo-unitario').value = (item.custo_unitario || 0).toFixed(2);
+    document.getElementById('ic-centro-custo').value = item.centro_custo || '';
+    document.getElementById('ic-vigencia').value = item.vigencia || '';
+
+    const radios = document.getElementsByName('ic-natureza');
+    radios.forEach(r => {
+        r.checked = (r.value === item.natureza);
     });
 
-    const totalCusto = sumInsumos + sumFixos;
-    let precoVenda = 0;
-    if (mTipo === 'divisor') {
-        const divisor = 1 - (mTotal / 100);
-        precoVenda = divisor <= 0 ? totalCusto / 0.01 : totalCusto / divisor;
-    } else {
-        precoVenda = totalCusto * (1 + (mTotal / 100));
-    }
+    const btnExcluir = document.getElementById('btn-excluir-item-custo');
+    if (btnExcluir) btnExcluir.style.display = 'inline-flex';
+};
+
+window._salvarItemCusto = async function() {
+    const descricao = document.getElementById('ic-descricao')?.value.trim();
+    const tipo_dado_financeiro = document.getElementById('ic-tipo-financeiro')?.value;
+    const categoria = document.getElementById('ic-categoria')?.value;
+    const unidade_medida = document.getElementById('ic-unidade')?.value.trim();
+    const custo_unitario = parseFloat(document.getElementById('ic-custo-unitario')?.value) || 0;
+    const centro_custo = document.getElementById('ic-centro-custo')?.value.trim();
+    const vigencia = document.getElementById('ic-vigencia')?.value;
+
+    let natureza = 'Fixo';
+    const radios = document.getElementsByName('ic-natureza');
+    radios.forEach(r => {
+        if (r.checked) natureza = r.value;
+    });
+
+    if (!descricao) { Swal.fire('Aviso', 'Por favor, digite a descrição do item.', 'warning'); return; }
+    if (!unidade_medida) { Swal.fire('Aviso', 'Por favor, digite a unidade de medida.', 'warning'); return; }
 
     const payload = {
-        nome,
-        tabela_precos,
-        estrutura_produto: JSON.stringify(_precificacaoInsumos),
-        custo_insumos: sumInsumos,
-        custos_fixos: JSON.stringify(_precificacaoCustosFixos),
-        custo_mao_obra: sumFixos,
-        markup_prc: mTotal,
-        markup_valores: JSON.stringify({ adm: mAdm, impostos: mImpostos, lucro: mLucro, outros: mOutros }),
-        markup_tipo: mTipo,
-        preco_venda: precoVenda,
-        observacoes: document.getElementById('prec-observacoes')?.value || ''
+        id: _itemCustoEditandoId,
+        descricao,
+        tipo_dado_financeiro,
+        natureza,
+        categoria,
+        unidade_medida,
+        custo_unitario,
+        centro_custo,
+        vigencia
     };
 
     try {
-        let resp;
-        if (_precificacaoServicoEditandoId) {
-            resp = await apiPut(`/servicos-precificacao/${_precificacaoServicoEditandoId}`, payload);
+        const res = await apiPost('/comercial/itens-custo', payload);
+        if (res && res.success) {
+            Swal.fire('Sucesso', 'Item de custo salvo com sucesso!', 'success');
+            _comercialItensCusto = await apiGet('/comercial/itens-custo') || [];
+            _limparFormItemCusto();
+            _renderActivePrecSubTab();
         } else {
-            resp = await apiPost('/servicos-precificacao', payload);
+            Swal.fire('Erro', 'Falha ao salvar: ' + (res ? res.error : 'Erro desconhecido'), 'error');
         }
-
-        if (resp && (resp.success || resp.id)) {
-            Swal.fire({
-                title: 'Sucesso!',
-                text: _precificacaoServicoEditandoId ? 'Serviço atualizado com sucesso!' : 'Serviço cadastrado com sucesso!',
-                icon: 'success',
-                confirmButtonColor: '#7048e8'
-            });
-            await _carregarServicosPrecificadosList();
-            _renderSidebarList();
-            if (!_precificacaoServicoEditandoId && resp.id) {
-                _precificacaoServicoEditandoId = resp.id;
-                _renderSidebarList();
-            }
-        } else {
-            alert('Erro ao salvar serviço: ' + (resp?.error || 'Erro desconhecido'));
-        }
-    } catch (e) {
+    } catch(e) {
         console.error(e);
-        alert('Erro ao comunicar com o servidor.');
+        Swal.fire('Erro', 'Erro de comunicação com o servidor.', 'error');
     }
 };
 
-window._excluirServicoPrecificacao = async function() {
-    if (!_precificacaoServicoEditandoId) {
-        Swal.fire('Aviso', 'Nenhum serviço selecionado para excluir.', 'warning');
-        return;
-    }
+window._excluirItemCusto = async function() {
+    if (!_itemCustoEditandoId) return;
 
     const result = await Swal.fire({
-        title: 'Tem certeza?',
-        text: 'Você não poderá reverter esta ação!',
+        title: 'Excluir Item de Custo?',
+        text: 'Esta ação não poderá ser desfeita!',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#dc2626',
@@ -9685,21 +9473,669 @@ window._excluirServicoPrecificacao = async function() {
 
     if (result.isConfirmed) {
         try {
-            const resp = await apiDelete(`/servicos-precificacao/${_precificacaoServicoEditandoId}`);
-            if (resp && resp.success) {
-                Swal.fire('Excluído!', 'O serviço foi excluído com sucesso.', 'success');
-                _limparFormPrecificacaoNovo();
-                await _carregarServicosPrecificadosList();
-                _renderSidebarList();
+            const res = await apiDelete(`/comercial/itens-custo/${_itemCustoEditandoId}`);
+            if (res && res.success) {
+                Swal.fire('Excluído!', 'O item foi excluído.', 'success');
+                _comercialItensCusto = await apiGet('/comercial/itens-custo') || [];
+                _limparFormItemCusto();
+                _renderActivePrecSubTab();
             } else {
-                alert('Erro ao excluir: ' + (resp?.error || 'Erro desconhecido'));
+                Swal.fire('Erro', 'Falha ao excluir: ' + (res ? res.error : 'Erro desconhecido'), 'error');
             }
-        } catch (e) {
+        } catch(e) {
             console.error(e);
-            alert('Erro ao comunicar com o servidor.');
+            Swal.fire('Erro', 'Erro ao excluir item de custo.', 'error');
         }
     }
 };
+
+/* =====================================================================
+   TAB 2: ESTRUTURA DO SERVIÇO (FICHA TÉCNICA)
+   ===================================================================== */
+function _renderTabFichaTecnica(container) {
+    container.innerHTML = `
+        <div class="saas-card">
+            <!-- Toolbar -->
+            <div class="saas-card-header">
+                <div class="saas-card-title">
+                    <i class="ph ph-file-text" style="color:#7048e8; font-size:1.1rem;"></i>
+                    Composição e Estrutura do Serviço
+                </div>
+                <div style="display:flex; gap:0.4rem;">
+                    <button class="prec-btn prec-btn-secondary" onclick="_limparFormFicha()">
+                        <i class="ph ph-plus"></i> Novo
+                    </button>
+                    <button class="prec-btn prec-btn-success" onclick="_salvarFicha()">
+                        <i class="ph ph-check"></i> Salvar
+                    </button>
+                    <button class="prec-btn prec-btn-danger" id="btn-excluir-ficha" onclick="_excluirFicha()" style="display:none;">
+                        <i class="ph ph-trash"></i> Excluir
+                    </button>
+                </div>
+            </div>
+            
+            <div class="saas-card-body">
+                <!-- Header Fields -->
+                <div class="prec-input-grid" style="grid-template-columns: 2fr 1fr 1fr; margin-bottom:1.5rem; border-bottom:1px dashed #e2e8f0; padding-bottom:1.25rem;">
+                    <div class="prec-input-group">
+                        <label>Vincular com Serviço Existente *</label>
+                        <select id="ficha-servico-select" onchange="_selecionarServicoFicha(this.value)">
+                            <option value="">-- Selecione o Serviço --</option>
+                            ${_precificacaoServicosList.map(s => `<option value="${s.id}">${s.nome} (${s.tabela_precos})</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="prec-input-group">
+                        <label>Código do Serviço *</label>
+                        <input type="text" id="ficha-servico-codigo" readonly placeholder="SVC-XXXX">
+                    </div>
+                    <div class="prec-input-group">
+                        <label>Tempo de Execução Total (Horas)</label>
+                        <input type="number" id="ficha-tempo-execucao" placeholder="0.0" step="0.1" value="0.0" oninput="_recalcularFichaTotal()">
+                    </div>
+                </div>
+
+                <div style="display:none;" id="ficha-detalhe-nome-container" style="margin-bottom:1rem;">
+                    <strong style="font-size:0.85rem; color:#475569;">Nome do Serviço: </strong>
+                    <span id="ficha-servico-nome" style="font-size:0.85rem; font-weight:700; color:#1e293b;"></span>
+                </div>
+
+                <!-- Grid Table of Items -->
+                <div style="font-size:0.8rem; font-weight:700; color:#334155; margin-bottom:0.75rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span>Grid de Itens de Custo</span>
+                    <button class="prec-btn prec-btn-secondary" onclick="_adicionarFichaItemRow()" style="height:28px !important; font-size:0.75rem;">
+                        <i class="ph ph-plus-circle"></i> Adicionar Item de Custo
+                    </button>
+                </div>
+                
+                <table class="prec-table-grid" style="margin-bottom:1.5rem;">
+                    <thead>
+                        <tr>
+                            <th style="width: 45%;">Item de Custo</th>
+                            <th style="width: 15%; text-align: right;">Qtd. Padrão</th>
+                            <th style="width: 10%; text-align: center;">Unidade</th>
+                            <th style="width: 15%; text-align: right;">Custo Unitário (R$)</th>
+                            <th style="width: 10%; text-align: right;">Total (R$)</th>
+                            <th style="width: 5%; text-align: center;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-ficha-itens">
+                        <tr>
+                            <td colspan="6" style="text-align:center; padding:1.5rem; color:#94a3b8;">
+                                Nenhum item de custo adicionado à composição.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Footer Summary Info -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:0.9rem; color:#334155;">
+                    <div>
+                        Tempo Execução: <span id="span-ficha-tempo-total" style="color:#7048e8; margin-right:1.5rem;">0.0 hrs</span>
+                        Soma das Horas MDO: <span id="span-ficha-soma-mdo" style="color:#22c55e;">0.0 hrs</span>
+                    </div>
+                    <div style="font-size:1rem;">
+                        Total Custo Direto: <span id="span-ficha-custo-direto" style="color:#1e3a8a; font-size:1.15rem; margin-left:6px;">R$ 0,00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+window._limparFormFicha = function() {
+    _fichaEditandoId = null;
+    _fichaItens = [];
+    
+    const sel = document.getElementById('ficha-servico-select');
+    if (sel) sel.value = '';
+    
+    const code = document.getElementById('ficha-servico-codigo');
+    if (code) code.value = '';
+    
+    const time = document.getElementById('ficha-tempo-execucao');
+    if (time) time.value = '0.0';
+
+    const lblNome = document.getElementById('ficha-servico-nome');
+    if (lblNome) lblNome.innerText = '';
+    
+    const containerNome = document.getElementById('ficha-detalhe-nome-container');
+    if (containerNome) containerNome.style.display = 'none';
+
+    const btnExcluir = document.getElementById('btn-excluir-ficha');
+    if (btnExcluir) btnExcluir.style.display = 'none';
+
+    _renderFichaItensTable();
+    _recalcularFichaTotal();
+};
+
+window._selecionarServicoFicha = async function(servicoId) {
+    _limparFormFicha();
+    if (!servicoId) return;
+
+    const s = _precificacaoServicosList.find(item => item.id == servicoId);
+    if (!s) return;
+
+    const servCodigo = `SVC-${String(s.id).padStart(4, '0')}`;
+    document.getElementById('ficha-servico-codigo').value = servCodigo;
+    document.getElementById('ficha-servico-nome').innerText = s.nome;
+    document.getElementById('ficha-detalhe-nome-container').style.display = 'block';
+
+    Swal.fire({
+        title: 'Carregando Ficha Técnica...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        const ficha = await apiGet(`/comercial/servicos-ficha/${servCodigo}`);
+        Swal.close();
+        if (ficha) {
+            _fichaEditandoId = ficha.id;
+            document.getElementById('ficha-tempo-execucao').value = (ficha.tempo_execucao || 0).toFixed(1);
+            _fichaItens = ficha.itens || [];
+            
+            const btnExcluir = document.getElementById('btn-excluir-ficha');
+            if (btnExcluir) btnExcluir.style.display = 'inline-flex';
+        } else {
+            _fichaEditandoId = null;
+            _fichaItens = [];
+        }
+    } catch(e) {
+        Swal.close();
+        console.error(e);
+    }
+
+    _renderFichaItensTable();
+    _recalcularFichaTotal();
+};
+
+window._adicionarFichaItemRow = function() {
+    _fichaItens.push({ item_custo_id: '', qtd_padrao: 1 });
+    _renderFichaItensTable();
+    _recalcularFichaTotal();
+};
+
+window._excluirFichaItemRow = function(idx) {
+    _fichaItens.splice(idx, 1);
+    _renderFichaItensTable();
+    _recalcularFichaTotal();
+};
+
+window._renderFichaItensTable = function() {
+    const tbody = document.getElementById('tbody-ficha-itens');
+    if (!tbody) return;
+
+    if (_fichaItens.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:1.5rem; color:#94a3b8;">Nenhum item de custo adicionado à composição.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = _fichaItens.map((item, idx) => {
+        const itemObj = _comercialItensCusto.find(i => i.id == item.item_custo_id);
+        const unidade = itemObj ? itemObj.unidade_medida : '-';
+        const custoUnitario = itemObj ? itemObj.custo_unitario : 0;
+        const total = (item.qtd_padrao || 0) * custoUnitario;
+
+        return `
+            <tr>
+                <td>
+                    <select onchange="_atualizarFichaItem(${idx}, 'item_custo_id', this.value)" style="height:30px; width:100%; border:1px solid #cbd5e1; border-radius:4px; font-size:0.78rem;">
+                        <option value="">-- Selecione o Item --</option>
+                        ${_comercialItensCusto.map(ic => {
+                            const isSel = (ic.id == item.item_custo_id) ? 'selected' : '';
+                            return `<option value="${ic.id}" ${isSel}>${ic.descricao} (${ic.codigo})</option>`;
+                        }).join('')}
+                    </select>
+                </td>
+                <td>
+                    <input type="number" value="${item.qtd_padrao}" step="any" min="0.0001" oninput="_atualizarFichaItem(${idx}, 'qtd_padrao', parseFloat(this.value) || 0); _recalcularFichaTotal();" style="height:30px; text-align:right; width:100%; border:1px solid #cbd5e1; border-radius:4px; padding:0 6px; font-size:0.78rem; box-sizing:border-box;">
+                </td>
+                <td style="text-align:center; font-weight:600; color:#64748b;">${unidade}</td>
+                <td style="text-align:right; color:#475569;">R$ ${custoUnitario.toFixed(2).replace('.', ',')}</td>
+                <td style="text-align:right; font-weight:700; color:#1e293b;">R$ ${total.toFixed(2).replace('.', ',')}</td>
+                <td style="text-align:center;">
+                    <i class="ph ph-trash" onclick="_excluirFichaItemRow(${idx})" style="color:#ef4444; font-size:1.15rem; cursor:pointer;" title="Remover Item"></i>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+
+window._atualizarFichaItem = function(idx, field, val) {
+    if (_fichaItens[idx]) {
+        _fichaItens[idx][field] = val;
+        if (field === 'item_custo_id') {
+            _renderFichaItensTable();
+            _recalcularFichaTotal();
+        }
+    }
+};
+
+window._recalcularFichaTotal = function() {
+    let custoDireto = 0;
+    let somaMDO = 0;
+
+    _fichaItens.forEach(item => {
+        const itemObj = _comercialItensCusto.find(i => i.id == item.item_custo_id);
+        if (itemObj) {
+            custoDireto += (item.qtd_padrao || 0) * (itemObj.custo_unitario || 0);
+            if (itemObj.categoria === 'MDO') {
+                somaMDO += (item.qtd_padrao || 0);
+            }
+        }
+    });
+
+    const tempoExec = parseFloat(document.getElementById('ficha-tempo-execucao')?.value) || 0;
+
+    const spanCusto = document.getElementById('span-ficha-custo-direto');
+    if (spanCusto) spanCusto.innerText = `R$ ${custoDireto.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    const spanTempo = document.getElementById('span-ficha-tempo-total');
+    if (spanTempo) spanTempo.innerText = `${tempoExec.toFixed(1)} hrs`;
+
+    const spanMDO = document.getElementById('span-ficha-soma-mdo');
+    if (spanMDO) spanMDO.innerText = `${somaMDO.toFixed(1)} hrs`;
+};
+
+window._salvarFicha = async function() {
+    const servico_codigo = document.getElementById('ficha-servico-codigo')?.value;
+    const servico_nome = document.getElementById('ficha-servico-nome')?.innerText;
+    const tempo_execucao = parseFloat(document.getElementById('ficha-tempo-execucao')?.value) || 0;
+
+    if (!servico_codigo) { Swal.fire('Aviso', 'Selecione ou vincule um Serviço para preencher a Ficha Técnica.', 'warning'); return; }
+
+    let custoDireto = 0;
+    _fichaItens.forEach(item => {
+        const itemObj = _comercialItensCusto.find(i => i.id == item.item_custo_id);
+        if (itemObj) {
+            custoDireto += (item.qtd_padrao || 0) * (itemObj.custo_unitario || 0);
+        }
+    });
+
+    const payload = {
+        id: _fichaEditandoId,
+        servico_codigo,
+        servico_nome,
+        tempo_execucao,
+        custo_direto_total: custoDireto,
+        itens: _fichaItens.filter(i => i.item_custo_id !== '')
+    };
+
+    try {
+        const res = await apiPost('/comercial/servicos-ficha', payload);
+        if (res && res.success) {
+            Swal.fire('Sucesso', 'Ficha Técnica do serviço salva com sucesso!', 'success');
+            _comercialFichas = await apiGet('/comercial/servicos-ficha') || [];
+            _limparFormFicha();
+        } else {
+            Swal.fire('Erro', 'Falha ao salvar ficha: ' + (res ? res.error : 'Erro desconhecido'), 'error');
+        }
+    } catch(e) {
+        console.error(e);
+        Swal.fire('Erro', 'Erro ao salvar Ficha Técnica.', 'error');
+    }
+};
+
+window._excluirFicha = async function() {
+    const servico_codigo = document.getElementById('ficha-servico-codigo')?.value;
+    if (!servico_codigo) return;
+
+    const result = await Swal.fire({
+        title: 'Excluir Ficha Técnica?',
+        text: 'Todos os itens de composição associados a este serviço serão removidos.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sim, excluir!',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
+        try {
+            const res = await apiDelete(`/comercial/servicos-ficha/${servico_codigo}`);
+            if (res && res.success) {
+                Swal.fire('Excluído!', 'A Ficha Técnica foi excluída.', 'success');
+                _comercialFichas = await apiGet('/comercial/servicos-ficha') || [];
+                _limparFormFicha();
+            } else {
+                Swal.fire('Erro', 'Falha ao excluir: ' + (res ? res.error : 'Erro desconhecido'), 'error');
+            }
+        } catch(e) {
+            console.error(e);
+            Swal.fire('Erro', 'Erro ao excluir Ficha Técnica.', 'error');
+        }
+    }
+};
+
+
+/* =====================================================================
+   TAB 3: PRECIFICAÇÃO E VIABILIDADE (PONTO DE EQUILÍBRIO)
+   ===================================================================== */
+function _renderTabPrecificacao(container) {
+    container.innerHTML = `
+        <div class="saas-card">
+            <div class="saas-card-header">
+                <div class="saas-card-title">
+                    <i class="ph ph-calculator" style="color:#7048e8; font-size:1.1rem;"></i>
+                    Precificação Final e Ponto de Equilíbrio
+                </div>
+                <div>
+                    <button class="prec-btn prec-btn-success" onclick="_salvarPrecificacaoViabilidade()">
+                        <i class="ph ph-check-square"></i> Salvar Precificação
+                    </button>
+                </div>
+            </div>
+            
+            <div class="saas-card-body">
+                <!-- Dropdown selector of composed service -->
+                <div style="margin-bottom:1.5rem; border-bottom:1px dashed #e2e8f0; padding-bottom:1rem;">
+                    <div class="prec-input-group" style="max-width:500px;">
+                        <label>Selecione o Serviço Estruturado (Ficha Técnica) *</label>
+                        <select id="prec-servico-select" onchange="_selecionarServicoPrec(this.value)">
+                            <option value="">-- Selecione o Serviço Composto --</option>
+                            ${_comercialFichas.map(f => `<option value="${f.servico_codigo}">${f.servico_nome} (${f.servico_codigo})</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 3 Columns Main Blocks Layout -->
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1.25rem;">
+                    
+                    <!-- BLOCK 1: CUSTO BASE -->
+                    <div class="saas-card" style="margin-bottom:0;">
+                        <div class="saas-card-header" style="background:rgba(112, 72, 232, 0.04);">
+                            <div class="saas-card-title"><i class="ph ph-money" style="color:#7048e8;"></i> Bloco 1: Custo Base</div>
+                        </div>
+                        <div class="saas-card-body" style="display:flex; flex-direction:column; gap:1rem;">
+                            <div class="prec-input-group">
+                                <label>Custo Direto Total (Ficha Técnica)</label>
+                                <input type="text" id="p-custo-direto" readonly value="R$ 0,00" style="font-weight:700; color:#1e3a8a;">
+                            </div>
+                            <div class="prec-input-group">
+                                <label>Rateio de Despesas Fixas (R$) *</label>
+                                <input type="number" id="p-rateio-fixas" value="0.00" step="0.01" oninput="_recalcularPrecificacaoViabilidade()">
+                            </div>
+                            <div class="prec-input-group">
+                                <label>Custo Total Unitário (Calculado)</label>
+                                <input type="text" id="p-custo-total" readonly value="R$ 0,00" style="font-weight:700; color:#475569;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BLOCK 2: MARGEM E VENDA -->
+                    <div class="saas-card" style="margin-bottom:0;">
+                        <div class="saas-card-header" style="background:rgba(22, 163, 74, 0.04);">
+                            <div class="saas-card-title"><i class="ph ph-trend-up" style="color:#16a34a;"></i> Bloco 2: Margem e Venda</div>
+                        </div>
+                        <div class="saas-card-body" style="display:flex; flex-direction:column; gap:0.75rem;">
+                            <div class="prec-input-group">
+                                <label>Margem de Lucro Desejada (%) *</label>
+                                <input type="number" id="p-margem-lucro" value="20" min="0" max="100" step="0.1" oninput="_recalcularPrecificacaoViabilidade()">
+                            </div>
+                            
+                            <div style="border-top:1px dashed #cbd5e1; padding-top:0.5rem; display:flex; flex-direction:column; gap:6px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:#475569;">
+                                    <span>Preço Sugerido DIA:</span>
+                                    <strong style="color:#1e293b; font-size:0.85rem;" id="p-sug-dia">R$ 0,00</strong>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:#475569;">
+                                    <span>Preço Sugerido SEMANA:</span>
+                                    <strong style="color:#1e293b; font-size:0.85rem;" id="p-sug-semana">R$ 0,00</strong>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; color:#1e293b;">
+                                    <strong>Preço Sugerido MÊS:</strong>
+                                    <strong style="color:#7048e8; font-size:1.1rem; font-weight:800;" id="p-sug-mes">R$ 0,00</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BLOCK 3: PONTO DE EQUILÍBRIO -->
+                    <div class="saas-card" style="margin-bottom:0;">
+                        <div class="saas-card-header" style="background:rgba(220, 38, 38, 0.04);">
+                            <div class="saas-card-title"><i class="ph ph-scales" style="color:#dc2626;"></i> Bloco 3: Viabilidade</div>
+                        </div>
+                        <div class="saas-card-body" style="display:flex; flex-direction:column; gap:1rem;">
+                            <div class="prec-input-group">
+                                <label>Total Despesas Fixas Mensais (R$) *</label>
+                                <input type="number" id="p-despesas-fixas-mensais" value="30000.00" step="0.01" oninput="_recalcularPrecificacaoViabilidade()">
+                            </div>
+                            <div class="prec-input-group">
+                                <label>Margem Contribuição Unitária (Mês)</label>
+                                <input type="text" id="p-margem-contribuicao" readonly value="R$ 0,00" style="font-weight:700; color:#475569;">
+                            </div>
+                            <div class="prec-input-group">
+                                <label>Ponto de Equilíbrio (Qtd Serviços/Mês)</label>
+                                <input type="text" id="p-ponto-equilibrio" readonly value="0 serviços" style="font-weight:800; color:#dc2626; font-size:0.95rem;">
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Commercial Proposal Generator Button -->
+                <div style="margin-top:1.5rem; text-align:right; border-top:1px solid #e2e8f0; padding-top:1.25rem;" id="prec-gerar-proposta-container">
+                    <button class="prec-btn prec-btn-primary" onclick="_gerarPropostaDePrecificacao()" style="background:#2563eb; height:40px; padding:0 1.25rem;">
+                        <i class="ph ph-handshake" style="font-size:1.1rem;"></i> Gerar Proposta Comercial
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    _recalcularPrecificacaoViabilidade();
+}
+
+window._selecionarServicoPrec = async function(codigo) {
+    if (!codigo) {
+        _precificacaoServicoCodigo = '';
+        _precificacaoDados = {
+            rateio_despesas_fixas: 0,
+            margem_lucro: 20,
+            despesas_fixas_mensais: 30000,
+            custo_direto_total: 0
+        };
+        _recalcularPrecificacaoViabilidade();
+        return;
+    }
+
+    _precificacaoServicoCodigo = codigo;
+    const ficha = _comercialFichas.find(f => f.servico_codigo === codigo);
+    const custoDireto = ficha ? (ficha.custo_direto_total || 0) : 0;
+
+    _precificacaoDados.custo_direto_total = custoDireto;
+
+    Swal.fire({
+        title: 'Carregando Viabilidade...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        const viab = await apiGet(`/comercial/precificacao-viabilidade/${codigo}`);
+        Swal.close();
+        if (viab) {
+            _precificacaoDados.rateio_despesas_fixas = viab.rateio_despesas_fixas || 0;
+            _precificacaoDados.margem_lucro = viab.margem_lucro || 20;
+            _precificacaoDados.despesas_fixas_mensais = viab.despesas_fixas_mensais || 30000;
+        } else {
+            _precificacaoDados.rateio_despesas_fixas = 0;
+            _precificacaoDados.margem_lucro = 20;
+            _precificacaoDados.despesas_fixas_mensais = 30000;
+        }
+    } catch(e) {
+        Swal.close();
+        console.error(e);
+    }
+
+    // Set values in inputs
+    document.getElementById('p-custo-direto').value = `R$ ${custoDireto.toFixed(2).replace('.', ',')}`;
+    document.getElementById('p-rateio-fixas').value = _precificacaoDados.rateio_despesas_fixas.toFixed(2);
+    document.getElementById('p-margem-lucro').value = _precificacaoDados.margem_lucro.toFixed(1);
+    document.getElementById('p-despesas-fixas-mensais').value = _precificacaoDados.despesas_fixas_mensais.toFixed(2);
+
+    _recalcularPrecificacaoViabilidade();
+};
+
+window._recalcularPrecificacaoViabilidade = function() {
+    const custoDireto = _precificacaoDados.custo_direto_total || 0;
+    const rateioFixas = parseFloat(document.getElementById('p-rateio-fixas')?.value) || 0;
+    const margemLucro = parseFloat(document.getElementById('p-margem-lucro')?.value) || 0;
+    const despesasFixasMensais = parseFloat(document.getElementById('p-despesas-fixas-mensais')?.value) || 0;
+
+    _precificacaoDados.rateio_despesas_fixas = rateioFixas;
+    _precificacaoDados.margem_lucro = margemLucro;
+    _precificacaoDados.despesas_fixas_mensais = despesasFixasMensais;
+
+    // 1. Custo Total Unitário
+    const custoTotalUnitario = custoDireto + rateioFixas;
+    const pCustoTotal = document.getElementById('p-custo-total');
+    if (pCustoTotal) pCustoTotal.value = `R$ ${custoTotalUnitario.toFixed(2).replace('.', ',')}`;
+
+    // 2. Preços Sugeridos (Escala)
+    // DIA = Custo Total Unitário / (1 - Margem/100)
+    let precoDia = 0;
+    const divisor = 1 - (margemLucro / 100);
+    if (divisor <= 0) {
+        precoDia = custoTotalUnitario / 0.01;
+    } else {
+        precoDia = custoTotalUnitario / divisor;
+    }
+
+    // SEMANA (Fator 5x com desconto de 12% por fidelidade/volume)
+    const precoSemana = precoDia * 5 * 0.88;
+
+    // MÊS (Fator 20x com desconto de 25% por fidelidade/volume)
+    const precoMes = precoDia * 20 * 0.75;
+
+    const spanSugDia = document.getElementById('p-sug-dia');
+    if (spanSugDia) spanSugDia.innerText = `R$ ${precoDia.toFixed(2).replace('.', ',')}`;
+
+    const spanSugSemana = document.getElementById('p-sug-semana');
+    if (spanSugSemana) spanSugSemana.innerText = `R$ ${precoSemana.toFixed(2).replace('.', ',')}`;
+
+    const spanSugMes = document.getElementById('p-sug-mes');
+    if (spanSugMes) spanSugMes.innerText = `R$ ${precoMes.toFixed(2).replace('.', ',')}`;
+
+    // 3. Ponto de Equilíbrio
+    // Margem de Contribuição Unitária (Mês) = Preço Mês - Custo Total Unitário
+    const margemContrib = precoMes - custoTotalUnitario;
+    const pMargemContrib = document.getElementById('p-margem-contribuicao');
+    if (pMargemContrib) pMargemContrib.value = `R$ ${margemContrib.toFixed(2).replace('.', ',')}`;
+
+    // PE Qtd = Despesas Fixas Mensais / Margem de Contribuição
+    let peQtd = 0;
+    if (margemContrib > 0) {
+        peQtd = Math.ceil(despesasFixasMensais / margemContrib);
+    }
+
+    const pPE = document.getElementById('p-ponto-equilibrio');
+    if (pPE) {
+        if (margemContrib <= 0) {
+            pPE.value = "Inviável (Margem Negativa)";
+            pPE.style.color = '#dc2626';
+        } else {
+            pPE.value = `${peQtd} serviço(s) / mês`;
+            pPE.style.color = peQtd > 50 ? '#e67700' : '#16a34a';
+        }
+    }
+};
+
+window._salvarPrecificacaoViabilidade = async function() {
+    if (!_precificacaoServicoCodigo) {
+        Swal.fire('Aviso', 'Selecione um serviço estruturado para salvar a precificação.', 'warning');
+        return;
+    }
+
+    const rateio_despesas_fixas = parseFloat(document.getElementById('p-rateio-fixas')?.value) || 0;
+    const margem_lucro = parseFloat(document.getElementById('p-margem-lucro')?.value) || 0;
+    const despesas_fixas_mensais = parseFloat(document.getElementById('p-despesas-fixas-mensais')?.value) || 0;
+
+    const custoDireto = _precificacaoDados.custo_direto_total || 0;
+    const custoTotalUnitario = custoDireto + rateio_despesas_fixas;
+
+    let precoDia = 0;
+    const divisor = 1 - (margem_lucro / 100);
+    if (divisor <= 0) precoDia = custoTotalUnitario / 0.01;
+    else precoDia = custoTotalUnitario / divisor;
+
+    const precoSemana = precoDia * 5 * 0.88;
+    const precoMes = precoDia * 20 * 0.75;
+
+    const payload = {
+        servico_codigo: _precificacaoServicoCodigo,
+        rateio_despesas_fixas,
+        margem_lucro,
+        preco_sugerido_dia: precoDia,
+        preco_sugerido_semana: precoSemana,
+        preco_sugerido_mes: precoMes,
+        despesas_fixas_mensais
+    };
+
+    try {
+        const res = await apiPost('/comercial/precificacao-viabilidade', payload);
+        if (res && res.success) {
+            Swal.fire('Sucesso', 'Precificação e Viabilidade salvas com sucesso!', 'success');
+            _precificacaoServicosList = await apiGet('/servicos-precificacao') || [];
+        } else {
+            Swal.fire('Erro', 'Erro ao salvar dados de viabilidade: ' + (res ? res.error : 'Erro desconhecido'), 'error');
+        }
+    } catch(e) {
+        console.error(e);
+        Swal.fire('Erro', 'Erro de rede ou comunicação com o servidor.', 'error');
+    }
+};
+
+window._gerarPropostaDePrecificacao = function() {
+    if (!_precificacaoServicoCodigo) {
+        Swal.fire('Aviso', 'Selecione um serviço estruturado com preços calculados primeiro.', 'warning');
+        return;
+    }
+
+    const ficha = _comercialFichas.find(f => f.servico_codigo === _precificacaoServicoCodigo);
+    if (!ficha) return;
+
+    const rateio_despesas_fixas = parseFloat(document.getElementById('p-rateio-fixas')?.value) || 0;
+    const margem_lucro = parseFloat(document.getElementById('p-margem-lucro')?.value) || 0;
+    const custoTotalUnitario = (_precificacaoDados.custo_direto_total || 0) + rateio_despesas_fixas;
+
+    let precoDia = 0;
+    const divisor = 1 - (margem_lucro / 100);
+    if (divisor <= 0) precoDia = custoTotalUnitario / 0.01;
+    else precoDia = custoTotalUnitario / divisor;
+
+    const precoMes = precoDia * 20 * 0.75;
+
+    Swal.fire({
+        title: 'Gerar Proposta Comercial?',
+        text: `Deseja criar uma nova proposta para o serviço "${ficha.servico_nome}" com o preço mensal sugerido de R$ ${precoMes.toFixed(2).replace('.', ',')}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#2563eb',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sim, criar proposta!',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            abrirFormProposta(null);
+
+            setTimeout(() => {
+                const inputServico = document.getElementById('prop-nome-projeto');
+                if (inputServico) inputServico.value = `Proposta Comercial: ${ficha.servico_nome}`;
+
+                const inputValor = document.getElementById('prop-valor-global');
+                if (inputValor) inputValor.value = precoMes.toFixed(2);
+
+                const txtDesc = document.getElementById('prop-descricao');
+                if (txtDesc) txtDesc.value = `Prestação de serviço: ${ficha.servico_nome}\nTempo estimado de execução: ${ficha.tempo_execucao} horas.\nCálculo de custos efetuado através da Ficha Técnica ${ficha.servico_codigo}.`;
+
+                Swal.fire('Proposta Iniciada!', 'Preenchemos o nome, descrição e valor da proposta baseados nos cálculos de viabilidade. Escolha o cliente e salve a proposta.', 'success');
+            }, 300);
+        }
+    });
+};
+
 
 /* ── Modal de Pesquisa de Propostas ───────────────────────────────────── */
 
