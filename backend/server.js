@@ -21723,6 +21723,49 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
     return res.status(400).json({ error: "Nenhum arquivo enviado." });
   }
 
+  // Helper function to dynamically classify category, nature and unit based on description
+  const sugerirClassificacao = (desc) => {
+    const descLower = (desc || '').toLowerCase();
+    
+    // 1. Categoria
+    let categoria = 'MDO';
+    if (descLower.includes('óleo') || descLower.includes('oleo') || descLower.includes('material') || descLower.includes('peça') || descLower.includes('peca') || descLower.includes('insumo') || descLower.includes('graxa') || descLower.includes('filtro') || descLower.includes('combustivel') || descLower.includes('combustível') || descLower.includes('produto') || descLower.includes('lubrificante') || descLower.includes('gasolina') || descLower.includes('diesel') || descLower.includes('etanol') || descLower.includes('conserto') || descLower.includes('reparo') || descLower.includes('manutencao') || descLower.includes('manutenção') || descLower.includes('equipamento') || descLower.includes('ferramenta') || descLower.includes('máquina') || descLower.includes('maquina')) {
+      categoria = 'Insumo';
+    } else if (descLower.includes('frete') || descLower.includes('entrega') || descLower.includes('transporte') || descLower.includes('carreto') || descLower.includes('logistica') || descLower.includes('logística') || descLower.includes('pedagio') || descLower.includes('pedágio')) {
+      categoria = 'Frete';
+    } else if (descLower.includes('imposto') || descLower.includes('taxa') || descLower.includes('aliquota') || descLower.includes('alíquota') || descLower.includes('iss') || descLower.includes('icms') || descLower.includes('darf') || descLower.includes('tributo') || descLower.includes('contribuição') || descLower.includes('contribuicao')) {
+      categoria = 'Imposto';
+    }
+
+    // 2. Natureza
+    let natureza = 'Fixo';
+    const termosVariaveis = [
+      'combustivel', 'combustível', 'gasolina', 'diesel', 'etanol', 'lubrificante',
+      'frete', 'entrega', 'carreto', 'pedagio', 'pedágio', 'viagem', 'hospedagem',
+      'alimentacao', 'alimentação', 'refeicao', 'refeição', 'km', 'quilometragem',
+      'manutencao', 'manutenção', 'reparo', 'conserto', 'peça', 'peca', 'óleo', 'oleo',
+      'graxa', 'filtro', 'material', 'insumo', 'consumo', 'avulso', 'extra'
+    ];
+    const eVariavel = termosVariaveis.some(t => descLower.includes(t));
+    if (eVariavel) {
+      natureza = 'Variável';
+    }
+
+    // 3. Unidade de Medida
+    let unidade = 'UN';
+    if (descLower.includes('design') || descLower.includes('consultoria') || descLower.includes('desenvolvimento') || descLower.includes('projeto') || descLower.includes('mão de obra') || descLower.includes('mao de obra') || descLower.includes('serviço') || descLower.includes('servico') || descLower.includes('técnico') || descLower.includes('tecnico') || descLower.includes('analista') || descLower.includes('programador') || descLower.includes('suporte') || descLower.includes('consultor') || descLower.includes('assessoria') || descLower.includes('treinamento') || descLower.includes('instrutor') || descLower.includes('palestra') || descLower.includes('aula') || descLower.includes('coordenação') || descLower.includes('coordenacao') || descLower.includes('gerente') || descLower.includes('gerenciamento') || descLower.includes('hora') || descLower.includes('horas') || descLower.includes('hr')) {
+      unidade = 'H';
+    } else if (descLower.includes('quilometragem') || descLower.includes('km') || descLower.includes('distância') || descLower.includes('distancia') || descLower.includes('rodado') || descLower.includes('deslocamento')) {
+      unidade = 'KM';
+    } else if (descLower.includes('combustível') || descLower.includes('combustivel') || descLower.includes('diesel') || descLower.includes('gasolina') || descLower.includes('etanol') || descLower.includes('lubrificante') || descLower.includes('óleo') || descLower.includes('oleo') || descLower.includes('litro') || descLower.includes('litros') || descLower.includes('agua') || descLower.includes('água')) {
+      unidade = 'L';
+    } else if (descLower.includes('kg') || descLower.includes('kilo') || descLower.includes('quilo') || descLower.includes('peso') || descLower.includes('grama') || descLower.includes('gramas')) {
+      unidade = 'KG';
+    }
+
+    return { categoria, natureza, unidade };
+  };
+
   try {
     let itens = [];
 
@@ -21746,35 +21789,13 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
           const desc = String(row[descKey] || '').trim();
           const val = parseFloat(String(row[valKey]).replace(/[^\d,.-]/g, '').replace(',', '.'));
           if (desc && !isNaN(val)) {
-            // Suggest nature and category
-            const descLower = desc.toLowerCase();
-            let categoriaSugerida = 'MDO';
-            if (descLower.includes('óleo') || descLower.includes('oleo') || descLower.includes('material') || descLower.includes('peça') || descLower.includes('peca') || descLower.includes('insumo') || descLower.includes('graxa') || descLower.includes('filtro') || descLower.includes('combustivel') || descLower.includes('combustível') || descLower.includes('produto') || descLower.includes('lubrificante') || descLower.includes('gasolina') || descLower.includes('diesel') || descLower.includes('etanol') || descLower.includes('conserto') || descLower.includes('reparo') || descLower.includes('manutencao') || descLower.includes('manutenção')) {
-              categoriaSugerida = 'Insumo';
-            } else if (descLower.includes('frete') || descLower.includes('entrega') || descLower.includes('transporte') || descLower.includes('carreto') || descLower.includes('logistica') || descLower.includes('logística')) {
-              categoriaSugerida = 'Frete';
-            } else if (descLower.includes('imposto') || descLower.includes('taxa') || descLower.includes('aliquota') || descLower.includes('alíquota') || descLower.includes('iss') || descLower.includes('icms') || descLower.includes('darf') || descLower.includes('tributo')) {
-              categoriaSugerida = 'Imposto';
-            }
-
-            let naturezaSugerida = 'Fixo';
-            const termosVariaveis = [
-              'combustivel', 'combustível', 'gasolina', 'diesel', 'etanol', 'lubrificante',
-              'frete', 'entrega', 'carreto', 'pedagio', 'pedágio', 'viagem', 'hospedagem',
-              'alimentacao', 'alimentação', 'refeicao', 'refeição', 'km', 'quilometragem',
-              'manutencao', 'manutenção', 'reparo', 'conserto', 'peça', 'peca', 'óleo', 'oleo',
-              'graxa', 'filtro', 'material', 'insumo', 'consumo', 'avulso', 'extra'
-            ];
-            const eVariavel = termosVariaveis.some(t => descLower.includes(t));
-            if (eVariavel) {
-              naturezaSugerida = 'Variável';
-            }
-
+            const classif = sugerirClassificacao(desc);
             itens.push({
               descricao: desc,
               valor: val,
-              natureza: naturezaSugerida,
-              categoria: categoriaSugerida
+              natureza: classif.natureza,
+              categoria: classif.categoria,
+              unidade: classif.unidade
             });
           }
         }
@@ -21795,13 +21816,14 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
       }
 
       const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      const lineValRegex = /(?:r\$\s*)?([\d.]+,\d{2})\b/i;
+      // accepts dots or commas as decimal separators
+      const lineValRegex = /(?:r\$\s*)?([\d.]+[.,]\d{2})\b/i;
 
       lines.forEach((line) => {
         const lineLower = line.toLowerCase();
         
         // Skip obvious document total/tax/header lines in line-by-line item extraction
-        if (lineLower.includes('valor total') || lineLower.includes('total a pagar') || lineLower.includes('total geral') || lineLower.includes('total da fatura') || lineLower.includes('total liquido') || lineLower.includes('total líquido') || lineLower.includes('cnpj') || lineLower.includes('inscricao') || lineLower.includes('inscrição')) {
+        if (lineLower.includes('valor total') || lineLower.includes('total a pagar') || lineLower.includes('total geral') || lineLower.includes('total da fatura') || lineLower.includes('total liquido') || lineLower.includes('total líquido') || lineLower.includes('cnpj') || lineLower.includes('inscricao') || lineLower.includes('inscrição') || lineLower.includes('sub-total') || lineLower.includes('subtotal') || lineLower.includes('imposto')) {
           return;
         }
 
@@ -21813,46 +21835,39 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
             cleanVal = cleanVal.replace(/\./g, '').replace(',', '.');
           } else if (cleanVal.includes(',')) {
             cleanVal = cleanVal.replace(',', '.');
+          } else if (cleanVal.includes('.')) {
+            const parts = cleanVal.split('.');
+            if (parts.length === 2 && parts[1].length === 2) {
+              // decimal separator
+            } else {
+              // thousands separator
+              cleanVal = cleanVal.replace(/\./g, '');
+            }
           }
           const parsedVal = parseFloat(cleanVal);
           
           if (!isNaN(parsedVal) && parsedVal > 0) {
-            // Remove the matched value block from the line to get description
-            let desc = line.replace(match[0], '').trim();
+            // Get everything before the matched value to keep the description clean and exclude Qty/Total after it
+            let desc = line.split(match[0])[0].trim();
             // clean up common punctuation and space separators at start/end
             desc = desc.replace(/^[\s\-.:;=]+/g, '').replace(/[\s\-.:;=]+$/g, '').trim();
             
+            // Skip total label lines
+            const descClean = desc.replace(/:/g, '').trim().toLowerCase();
+            if (descClean === 'total' || descClean === 'subtotal' || descClean === 'sub-total' || descClean.startsWith('total ') || descClean === 'total geral' || descClean === 'total a pagar') {
+              return;
+            }
+
             // Only keep if it looks like a real description (minimum 3 alphabetical letters)
             const letterCount = (desc.match(/[a-zA-Z\u00C0-\u00FF]/g) || []).length;
             if (letterCount >= 3 && desc.length < 150) {
-              const descLower = desc.toLowerCase();
-              let categoriaSugerida = 'MDO';
-              if (descLower.includes('óleo') || descLower.includes('oleo') || descLower.includes('material') || descLower.includes('peça') || descLower.includes('peca') || descLower.includes('insumo') || descLower.includes('graxa') || descLower.includes('filtro') || descLower.includes('combustivel') || descLower.includes('combustível') || descLower.includes('produto') || descLower.includes('lubrificante') || descLower.includes('gasolina') || descLower.includes('diesel') || descLower.includes('etanol') || descLower.includes('conserto') || descLower.includes('reparo') || descLower.includes('manutencao') || descLower.includes('manutenção')) {
-                categoriaSugerida = 'Insumo';
-              } else if (descLower.includes('frete') || descLower.includes('entrega') || descLower.includes('transporte') || descLower.includes('carreto') || descLower.includes('logistica') || descLower.includes('logística')) {
-                categoriaSugerida = 'Frete';
-              } else if (descLower.includes('imposto') || descLower.includes('taxa') || descLower.includes('aliquota') || descLower.includes('alíquota') || descLower.includes('iss') || descLower.includes('icms') || descLower.includes('darf') || descLower.includes('tributo')) {
-                categoriaSugerida = 'Imposto';
-              }
-
-              let naturezaSugerida = 'Fixo';
-              const termosVariaveis = [
-                'combustivel', 'combustível', 'gasolina', 'diesel', 'etanol', 'lubrificante',
-                'frete', 'entrega', 'carreto', 'pedagio', 'pedágio', 'viagem', 'hospedagem',
-                'alimentacao', 'alimentação', 'refeicao', 'refeição', 'km', 'quilometragem',
-                'manutencao', 'manutenção', 'reparo', 'conserto', 'peça', 'peca', 'óleo', 'oleo',
-                'graxa', 'filtro', 'material', 'insumo', 'consumo', 'avulso', 'extra'
-              ];
-              const eVariavel = termosVariaveis.some(t => descLower.includes(t));
-              if (eVariavel) {
-                naturezaSugerida = 'Variável';
-              }
-
+              const classif = sugerirClassificacao(desc);
               itens.push({
                 descricao: desc,
                 valor: parsedVal,
-                natureza: naturezaSugerida,
-                categoria: categoriaSugerida
+                natureza: classif.natureza,
+                categoria: classif.categoria,
+                unidade: classif.unidade
               });
             }
           }
@@ -21865,7 +21880,7 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
         let singleVal = 0.00;
 
         // Extract value
-        const valRegex = /(?:r\$\s*)?([\d.]+,\d{2})\b/gi;
+        const valRegex = /(?:r\$\s*)?([\d.]+[.,]\d{2})\b/gi;
         let valCandidates = [];
         lines.forEach((line, idx) => {
           const lineLower = line.toLowerCase();
@@ -21877,6 +21892,13 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
               rawVal = rawVal.replace(/\./g, '').replace(',', '.');
             } else if (rawVal.includes(',')) {
               rawVal = rawVal.replace(',', '.');
+            } else if (rawVal.includes('.')) {
+              const parts = rawVal.split('.');
+              if (parts.length === 2 && parts[1].length === 2) {
+                // decimal
+              } else {
+                rawVal = rawVal.replace(/\./g, '');
+              }
             }
             const parsed = parseFloat(rawVal);
             if (!isNaN(parsed) && parsed > 0) {
@@ -21936,11 +21958,13 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
           singleDesc = filteredLines.length > 0 ? filteredLines[0] : "Fatura Importada (PDF)";
         }
 
+        const classif = sugerirClassificacao(singleDesc);
         itens.push({
           descricao: singleDesc,
           valor: singleVal,
-          natureza: "Fixo",
-          categoria: "MDO"
+          natureza: classif.natureza,
+          categoria: classif.categoria,
+          unidade: classif.unidade
         });
       }
 
@@ -21958,34 +21982,13 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
           const desc = xProdMatch[1].trim();
           const val = parseFloat(vUnComMatch[1]);
           if (desc && !isNaN(val)) {
-            const descLower = desc.toLowerCase();
-            let categoriaSugerida = 'MDO';
-            if (descLower.includes('óleo') || descLower.includes('oleo') || descLower.includes('material') || descLower.includes('peça') || descLower.includes('peca') || descLower.includes('insumo') || descLower.includes('graxa') || descLower.includes('filtro') || descLower.includes('combustivel') || descLower.includes('combustível') || descLower.includes('produto') || descLower.includes('lubrificante') || descLower.includes('gasolina') || descLower.includes('diesel') || descLower.includes('etanol') || descLower.includes('conserto') || descLower.includes('reparo') || descLower.includes('manutencao') || descLower.includes('manutenção')) {
-              categoriaSugerida = 'Insumo';
-            } else if (descLower.includes('frete') || descLower.includes('entrega') || descLower.includes('transporte') || descLower.includes('carreto') || descLower.includes('logistica') || descLower.includes('logística')) {
-              categoriaSugerida = 'Frete';
-            } else if (descLower.includes('imposto') || descLower.includes('taxa') || descLower.includes('aliquota') || descLower.includes('alíquota') || descLower.includes('iss') || descLower.includes('icms') || descLower.includes('darf') || descLower.includes('tributo')) {
-              categoriaSugerida = 'Imposto';
-            }
-
-            let naturezaSugerida = 'Fixo';
-            const termosVariaveis = [
-              'combustivel', 'combustível', 'gasolina', 'diesel', 'etanol', 'lubrificante',
-              'frete', 'entrega', 'carreto', 'pedagio', 'pedágio', 'viagem', 'hospedagem',
-              'alimentacao', 'alimentação', 'refeicao', 'refeição', 'km', 'quilometragem',
-              'manutencao', 'manutenção', 'reparo', 'conserto', 'peça', 'peca', 'óleo', 'oleo',
-              'graxa', 'filtro', 'material', 'insumo', 'consumo', 'avulso', 'extra'
-            ];
-            const eVariavel = termosVariaveis.some(t => descLower.includes(t));
-            if (eVariavel) {
-              naturezaSugerida = 'Variável';
-            }
-
+            const classif = sugerirClassificacao(desc);
             itens.push({
               descricao: desc,
               valor: val,
-              natureza: naturezaSugerida,
-              categoria: categoriaSugerida
+              natureza: classif.natureza,
+              categoria: classif.categoria,
+              unidade: classif.unidade
             });
           }
         }
@@ -22009,11 +22012,13 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
         }
 
         if (desc && !isNaN(val)) {
+          const classif = sugerirClassificacao(desc);
           itens.push({
             descricao: desc,
             valor: val,
-            natureza: "Fixo",
-            categoria: "MDO"
+            natureza: classif.natureza,
+            categoria: classif.categoria,
+            unidade: classif.unidade
           });
         }
       }

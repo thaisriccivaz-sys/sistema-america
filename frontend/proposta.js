@@ -9624,6 +9624,9 @@ window._processarImportacaoArquivo = async function() {
                     document.getElementById('ic-categoria').value = item.categoria || 'MDO';
                     document.getElementById('ic-categoria').dispatchEvent(new Event('change'));
                 }
+                if (document.getElementById('ic-unidade')) {
+                    document.getElementById('ic-unidade').value = item.unidade || 'UN';
+                }
                 
                 const radios = document.getElementsByName('ic-natureza');
                 radios.forEach(r => {
@@ -9644,7 +9647,7 @@ window._processarImportacaoArquivo = async function() {
                 itens.forEach((it, idx) => {
                     htmlList += `<div style="padding: 4px 0; border-bottom: 1px solid #f1f5f9;">
                         <strong>${idx + 1}.</strong> ${it.descricao} - <span style="color: #0f766e; font-weight: 700;">R$ ${parseFloat(it.valor).toFixed(2)}</span>
-                        <span style="font-size: 0.7rem; color: #64748b; margin-left: 5px;">(${it.categoria} - ${it.natureza})</span>
+                        <span style="font-size: 0.7rem; color: #64748b; margin-left: 5px;">(${it.categoria} - ${it.natureza} - ${it.unidade || 'UN'})</span>
                     </div>`;
                 });
                 htmlList += '</div>';
@@ -9677,7 +9680,7 @@ window._processarImportacaoArquivo = async function() {
                             tipo_dado_financeiro: tipo,
                             natureza: it.natureza,
                             categoria: it.categoria,
-                            unidade: 'UN',
+                            unidade: it.unidade || 'UN',
                             custo_unitario: it.valor,
                             centro_custo: 'CC-IMPORTACAO',
                             vigencia: new Date().toISOString().split('T')[0]
