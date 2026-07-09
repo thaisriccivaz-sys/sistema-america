@@ -9965,11 +9965,14 @@ window._renderFichaItensTable = function() {
         return;
     }
 
+    const tempoExec = parseFloat(document.getElementById('ficha-tempo-execucao')?.value) || 0;
+
     tbody.innerHTML = _fichaItens.map((item, idx) => {
         const itemObj = _comercialItensCusto.find(i => i.id == item.item_custo_id);
         const unidade = itemObj ? itemObj.unidade_medida : '-';
         const custoUnitario = itemObj ? itemObj.custo_unitario : 0;
-        const total = (item.qtd_padrao || 0) * custoUnitario;
+        const isHourly = itemObj && ((itemObj.unidade_medida || '').toUpperCase() === 'H' || itemObj.categoria === 'MDO');
+        const total = (item.qtd_padrao || 0) * custoUnitario * (isHourly ? tempoExec : 1);
 
         return `
             <tr>
@@ -9987,7 +9990,7 @@ window._renderFichaItensTable = function() {
                 </td>
                 <td style="text-align:center; font-weight:600; color:#64748b;">${unidade}</td>
                 <td style="text-align:right; color:#475569;">R$ ${custoUnitario.toFixed(2).replace('.', ',')}</td>
-                <td style="text-align:right; font-weight:700; color:#1e293b;">R$ ${total.toFixed(2).replace('.', ',')}</td>
+                <td id="ficha-row-total-${idx}" style="text-align:right; font-weight:700; color:#1e293b;">R$ ${total.toFixed(2).replace('.', ',')}</td>
                 <td style="text-align:center;">
                     <i class="ph ph-trash" onclick="_excluirFichaItemRow(${idx})" style="color:#ef4444; font-size:1.15rem; cursor:pointer;" title="Remover Item"></i>
                 </td>
@@ -10007,20 +10010,28 @@ window._atualizarFichaItem = function(idx, field, val) {
 };
 
 window._recalcularFichaTotal = function() {
+    const tempoExec = parseFloat(document.getElementById('ficha-tempo-execucao')?.value) || 0;
     let custoDireto = 0;
     let somaMDO = 0;
 
-    _fichaItens.forEach(item => {
+    _fichaItens.forEach((item, idx) => {
         const itemObj = _comercialItensCusto.find(i => i.id == item.item_custo_id);
         if (itemObj) {
-            custoDireto += (item.qtd_padrao || 0) * (itemObj.custo_unitario || 0);
-            if (itemObj.categoria === 'MDO') {
-                somaMDO += (item.qtd_padrao || 0);
+            const isHourly = (itemObj.unidade_medida || '').toUpperCase() === 'H' || itemObj.categoria === 'MDO';
+            const total = (item.qtd_padrao || 0) * (itemObj.custo_unitario || 0) * (isHourly ? tempoExec : 1);
+            custoDireto += total;
+
+            if (itemObj.categoria === 'MDO' || (itemObj.unidade_medida || '').toUpperCase() === 'H') {
+                somaMDO += (item.qtd_padrao || 0) * tempoExec;
+            }
+
+            // Update row total cell directly without complete table re-rendering
+            const totalCell = document.getElementById(`ficha-row-total-${idx}`);
+            if (totalCell) {
+                totalCell.innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
             }
         }
     });
-
-    const tempoExec = parseFloat(document.getElementById('ficha-tempo-execucao')?.value) || 0;
 
     const spanCusto = document.getElementById('span-ficha-custo-direto');
     if (spanCusto) spanCusto.innerText = `R$ ${custoDireto.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -10043,7 +10054,8 @@ window._salvarFicha = async function() {
     _fichaItens.forEach(item => {
         const itemObj = _comercialItensCusto.find(i => i.id == item.item_custo_id);
         if (itemObj) {
-            custoDireto += (item.qtd_padrao || 0) * (itemObj.custo_unitario || 0);
+            const isHourly = (itemObj.unidade_medida || '').toUpperCase() === 'H' || itemObj.categoria === 'MDO';
+            custoDireto += (item.qtd_padrao || 0) * (itemObj.custo_unitario || 0) * (isHourly ? tempo_execucao : 1);
         }
     });
 
