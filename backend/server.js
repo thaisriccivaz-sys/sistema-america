@@ -21805,7 +21805,13 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
         return res.status(400).json({ error: "Colunas não encontradas ou nenhum item válido. O arquivo de Planilha MDO deve possuir colunas contendo as palavras 'Descrição' e 'Valor'." });
       }
 
-    } else if (tipo === 'PDF Fatura') {
+      const fs = require('fs');
+      try {
+        fs.writeFileSync('backend/last_uploaded_fatura.pdf', req.file.buffer);
+      } catch (err) {
+        console.error('[DEBUG-SAVE-PDF-ERROR]', err);
+      }
+
       const { PDFParse } = require('pdf-parse');
       const parser = new PDFParse({ verbosity: 0, data: req.file.buffer });
       const pdfData = await parser.getText();
