@@ -2147,7 +2147,17 @@ app.post('/api/auth/login', loginLimiter, (req, res) => {
         const valid = bcrypt.compareSync(password, user.password_hash);
         if (!valid) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
         const token = jwt.sign({ id: user.id, username: user.username, role: user.role, grupo_permissao_id: user.grupo_permissao_id, departamento: user.departamento, grupo_nome: user.grupo_nome }, SECRET_KEY, { expiresIn: '8h' });
-        res.json({ token, user: { id: user.id, username: user.username, role: user.role, grupo_permissao_id: user.grupo_permissao_id, departamento: user.departamento, grupo_nome: user.grupo_nome } });
+        res.json({ token, user: { id: user.id, username: user.username, role: user.role, grupo_permissao_id: user.grupo_permissao_id, departamento: user.departamento, grupo_nome: user.grupo_nome, page_bookmarks: user.page_bookmarks } });
+    });
+});
+
+app.post('/api/usuarios/bookmarks', authenticateToken, (req, res) => {
+    const { bookmarks } = req.body;
+    if (!Array.isArray(bookmarks)) return res.status(400).json({ error: 'Bookmarks must be an array' });
+    const bookmarksJson = JSON.stringify(bookmarks);
+    db.run(`UPDATE usuarios SET page_bookmarks = ? WHERE id = ?`, [bookmarksJson, req.user.id], function(err) {
+        if (err) return res.status(500).json({ error: 'Failed to save bookmarks' });
+        res.json({ success: true });
     });
 });
 
