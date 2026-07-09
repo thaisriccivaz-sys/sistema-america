@@ -8985,6 +8985,7 @@ window._renderServicosPrecificacaoInt = async function() {
         _comercialItensCusto = await apiGet('/comercial/itens-custo') || [];
         _comercialFichas = await apiGet('/comercial/servicos-ficha') || [];
         _precificacaoServicosList = await apiGet('/servicos-precificacao') || [];
+        await _loadRateioData();
         Swal.close();
     } catch (e) {
         Swal.close();
@@ -9787,6 +9788,26 @@ async function _loadRateioData() {
     }
 }
 
+function _obterCustoHoraItem(itemObj) {
+    if (!itemObj) return 0;
+    const sector = itemObj.centro_custo || 'Sem Centro de Custo';
+    const nature = itemObj.natureza; // 'Fixo' ou 'Variável'
+    
+    let hours = 220; // default fallback if no rateio or not configured
+    if (nature === 'Fixo') {
+        if (_rateioHorasFixas[sector] !== undefined) {
+            hours = _rateioHorasFixas[sector];
+        }
+    } else {
+        if (_rateioHorasVariaveis[sector] !== undefined) {
+            hours = _rateioHorasVariaveis[sector];
+        }
+    }
+    
+    return hours > 0 ? (itemObj.custo_unitario / hours) : itemObj.custo_unitario;
+}
+
+
 window._renderTabRateioCusto = async function(container) {
     Swal.fire({
         title: 'Carregando Rateio...',
@@ -10460,8 +10481,8 @@ window._renderFichaItensTable = function() {
     tbody.innerHTML = _fichaItens.map((item, idx) => {
         const itemObj = _comercialItensCusto.find(i => i.id == item.item_custo_id);
         const unidade = itemObj ? itemObj.unidade_medida : '-';
-        const custoUnitario = itemObj ? itemObj.custo_unitario : 0;
-        const isHourly = itemObj && ((itemObj.unidade_medida || '').toUpperCase() === 'H' || itemObj.categoria === 'MDO');
+        const custoUnitario = itemObj ? _obterCustoHoraItem(itemObj) : 0;
+        const isHourly = itemObj && ((itemObj.unidade_medida || '').toUpperCase() === 'H' || itemObj.categoria === 'MDO' || itemObj.natureza === 'Fixo');
         const total = (item.qtd_padrao || 0) * custoUnitario * (isHourly ? tempoExec : 1);
 
         return `
@@ -10507,8 +10528,9 @@ window._recalcularFichaTotal = function() {
     _fichaItens.forEach((item, idx) => {
         const itemObj = _comercialItensCusto.find(i => i.id == item.item_custo_id);
         if (itemObj) {
-            const isHourly = (itemObj.unidade_medida || '').toUpperCase() === 'H' || itemObj.categoria === 'MDO';
-            const total = (item.qtd_padrao || 0) * (itemObj.custo_unitario || 0) * (isHourly ? tempoExec : 1);
+            const custoUnitario = _obterCustoHoraItem(itemObj);
+            const isHourly = (itemObj.unidade_medida || '').toUpperCase() === 'H' || itemObj.categoria === 'MDO' || itemObj.natureza === 'Fixo';
+            const total = (item.qtd_padrao || 0) * custoUnitario * (isHourly ? tempoExec : 1);
             custoDireto += total;
 
             if (itemObj.categoria === 'MDO' || (itemObj.unidade_medida || '').toUpperCase() === 'H') {
@@ -10544,8 +10566,9 @@ window._salvarFicha = async function() {
     _fichaItens.forEach(item => {
         const itemObj = _comercialItensCusto.find(i => i.id == item.item_custo_id);
         if (itemObj) {
-            const isHourly = (itemObj.unidade_medida || '').toUpperCase() === 'H' || itemObj.categoria === 'MDO';
-            custoDireto += (item.qtd_padrao || 0) * (itemObj.custo_unitario || 0) * (isHourly ? tempo_execucao : 1);
+            const custoUnitario = _obterCustoHoraItem(itemObj);
+            const isHourly = (itemObj.unidade_medida || '').toUpperCase() === 'H' || itemObj.categoria === 'MDO' || itemObj.natureza === 'Fixo';
+            custoDireto += (item.qtd_padrao || 0) * custoUnitario * (isHourly ? tempo_execucao : 1);
         }
     });
 
