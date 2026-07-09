@@ -21816,6 +21816,7 @@ app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ stor
       }
 
       const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      console.log(`[COMERCIAL] Importando PDF: ${lines.length} linhas de texto extraídas.`);
       // accepts dots or commas as decimal separators
       const lineValRegex = /(?:r\$\s*)?([\d.]+[.,]\d{2})\b/i;
 
