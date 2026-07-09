@@ -10853,17 +10853,33 @@ window._selecionarServicoPrec = async function(codigo) {
         didOpen: () => Swal.showLoading()
     });
 
+    let viab = null;
+    let somaDespesasFixas = 0;
+
     try {
-        const viab = await apiGet(`/comercial/precificacao-viabilidade/${codigo}`);
+        viab = await apiGet(`/comercial/precificacao-viabilidade/${codigo}`);
+        
+        // Fetch Ficha details to sum proportional monthly fixed costs
+        const fichaDetalhes = await apiGet(`/comercial/servicos-ficha/${codigo}`);
+        if (fichaDetalhes && fichaDetalhes.itens) {
+            fichaDetalhes.itens.forEach(item => {
+                const itemObj = _comercialItensCusto.find(i => i.id == item.item_custo_id);
+                if (itemObj && itemObj.natureza === 'Fixo') {
+                    somaDespesasFixas += (item.qtd_padrao || 0) * (itemObj.custo_unitario || 0);
+                }
+            });
+        }
+        
         Swal.close();
+        
         if (viab) {
             _precificacaoDados.rateio_despesas_fixas = viab.rateio_despesas_fixas || 0;
             _precificacaoDados.margem_lucro = viab.margem_lucro || 20;
-            _precificacaoDados.despesas_fixas_mensais = viab.despesas_fixas_mensais || 30000;
+            _precificacaoDados.despesas_fixas_mensais = (somaDespesasFixas > 0) ? somaDespesasFixas : (viab.despesas_fixas_mensais || 30000);
         } else {
             _precificacaoDados.rateio_despesas_fixas = 0;
             _precificacaoDados.margem_lucro = 20;
-            _precificacaoDados.despesas_fixas_mensais = 30000;
+            _precificacaoDados.despesas_fixas_mensais = (somaDespesasFixas > 0) ? somaDespesasFixas : 30000;
         }
     } catch(e) {
         Swal.close();
