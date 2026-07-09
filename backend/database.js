@@ -1782,5 +1782,21 @@ db.run("PRAGMA foreign_keys = ON;");
                 )
             `);
 
+            // 5. Tabela de Rateio de Custos
+            db.run(`
+                CREATE TABLE IF NOT EXISTS comercial_rateio_custo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    periodo TEXT NOT NULL,
+                    centro_custo TEXT NOT NULL,
+                    tipo TEXT NOT NULL, -- 'Fixo' ou 'Variável'
+                    horas_periodo REAL DEFAULT 0,
+                    valor_total REAL DEFAULT 0,
+                    valor_hora REAL DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(periodo, centro_custo, tipo)
+                )
+            `);
+
 module.exports = db;
 

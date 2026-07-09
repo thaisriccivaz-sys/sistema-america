@@ -21717,6 +21717,52 @@ app.delete('/api/comercial/itens-custo/:id', authenticateToken, (req, res) => {
   });
 });
 
+// ─── ENDPOINTS COMERCIAL - RATEIO DE CUSTOS E DESPESAS ────────────────
+app.get('/api/comercial/rateio-custo', authenticateToken, (req, res) => {
+  const { periodo } = req.query;
+  let query = 'SELECT * FROM comercial_rateio_custo';
+  let params = [];
+  if (periodo) {
+    query += ' WHERE periodo = ?';
+    params.push(periodo);
+  }
+  db.all(query, params, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+app.post('/api/comercial/rateio-custo', authenticateToken, (req, res) => {
+  const items = Array.isArray(req.body) ? req.body : [req.body];
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  db.serialize(() => {
+    let errorOccurred = null;
+    const stmt = db.prepare(`
+      REPLACE INTO comercial_rateio_custo (
+        periodo, centro_custo, tipo, horas_periodo, valor_total, valor_hora, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const item of items) {
+      stmt.run(
+        [item.periodo, item.centro_custo, item.tipo, item.horas_periodo || 0, item.valor_total || 0, item.valor_hora || 0, agora, agora],
+        (err) => {
+          if (err) errorOccurred = err;
+        }
+      );
+    }
+
+    stmt.finalize((err) => {
+      if (err || errorOccurred) {
+        return res.status(500).json({ error: err ? err.message : errorOccurred.message });
+      }
+      res.json({ success: true });
+    });
+  });
+});
+
+
 app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }).single('arquivo'), async (req, res) => {
   const { tipo } = req.body;
   if (!req.file) {

@@ -8956,7 +8956,7 @@ let _precificacaoCustosFixos = [];
 let _precificacaoServicosList = [];
 
 // NEW STATE VARIABLES FOR COMMERCIAL COSTS AND PRICING
-let _precSubTab = 'itens-custo'; // 'itens-custo', 'ficha-tecnica', 'precificacao'
+let _precSubTab = 'itens-custo'; // 'itens-custo', 'rateio-custo', 'ficha-tecnica', 'precificacao'
 let _comercialItensCusto = [];
 let _itemCustoEditandoId = null;
 let _comercialFichas = [];
@@ -9098,63 +9098,41 @@ function _renderPrecificacaoBaseLayout() {
                 color: #64748b;
                 cursor: not-allowed;
             }
-            .prec-table-grid {
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 0.78rem;
-            }
-            .prec-table-grid th {
-                background: #f8fafc;
-                color: #475569;
-                font-weight: 700;
-                text-transform: uppercase;
-                font-size: 0.7rem;
-                padding: 8px 12px;
-                border-bottom: 2px solid #e2e8f0;
-                text-align: left;
-            }
-            .prec-table-grid td {
-                padding: 8px 12px;
-                border-bottom: 1px solid #f1f5f9;
-                vertical-align: middle;
-            }
-            .prec-table-grid tr:hover {
-                background: #f8fafc;
-            }
             .prec-btn {
-                height: 34px;
+                height: 32px;
                 padding: 0 1rem;
                 border-radius: 6px;
-                font-weight: 600;
-                font-size: 0.8rem;
+                font-size: 0.78rem;
+                font-weight: 700;
                 display: inline-flex;
                 align-items: center;
-                gap: 5px;
+                gap: 6px;
                 cursor: pointer;
+                border: none;
+                outline: none;
                 transition: all 0.2s;
-                border: 1px solid transparent;
             }
             .prec-btn-primary {
                 background: #7048e8;
                 color: #fff;
             }
             .prec-btn-primary:hover {
-                background: #5b36cb;
+                background: #5f3dc4;
             }
             .prec-btn-secondary {
                 background: #f1f5f9;
                 color: #475569;
-                border-color: #cbd5e1;
+                border: 1px solid #cbd5e1;
             }
             .prec-btn-secondary:hover {
                 background: #e2e8f0;
             }
             .prec-btn-success {
-                background: #16a34a;
+                background: #22c55e;
                 color: #fff;
             }
             .prec-btn-success:hover {
-                background: #15803d;
+                background: #16a34a;
             }
             .prec-btn-danger {
                 background: #dc2626;
@@ -9192,11 +9170,14 @@ function _renderPrecificacaoBaseLayout() {
                 <div class="prec-subtab-item ${_precSubTab === 'itens-custo' ? 'active' : ''}" onclick="_switchPrecSubTab('itens-custo')">
                     <i class="ph ph-tag" style="margin-right:4px;"></i> 1. Cadastro de Itens de Custo
                 </div>
+                <div class="prec-subtab-item ${_precSubTab === 'rateio-custo' ? 'active' : ''}" onclick="_switchPrecSubTab('rateio-custo')">
+                    <i class="ph ph-percent" style="margin-right:4px;"></i> 2. Rateio de Custos
+                </div>
                 <div class="prec-subtab-item ${_precSubTab === 'ficha-tecnica' ? 'active' : ''}" onclick="_switchPrecSubTab('ficha-tecnica')">
-                    <i class="ph ph-file-text" style="margin-right:4px;"></i> 2. Ficha Técnica do Serviço
+                    <i class="ph ph-file-text" style="margin-right:4px;"></i> 3. Ficha Técnica do Serviço
                 </div>
                 <div class="prec-subtab-item ${_precSubTab === 'precificacao' ? 'active' : ''}" onclick="_switchPrecSubTab('precificacao')">
-                    <i class="ph ph-calculator" style="margin-right:4px;"></i> 3. Precificação e Viabilidade
+                    <i class="ph ph-calculator" style="margin-right:4px;"></i> 4. Precificação e Viabilidade
                 </div>
             </div>
 
@@ -9220,6 +9201,8 @@ function _renderActivePrecSubTab() {
 
     if (_precSubTab === 'itens-custo') {
         _renderTabItensCusto(container);
+    } else if (_precSubTab === 'rateio-custo') {
+        _renderTabRateioCusto(container);
     } else if (_precSubTab === 'ficha-tecnica') {
         _renderTabFichaTecnica(container);
     } else if (_precSubTab === 'precificacao') {
@@ -9780,7 +9763,514 @@ window._processarImportacaoArquivo = async function() {
 };
 
 /* =====================================================================
-   TAB 2: ESTRUTURA DO SERVIÇO (FICHA TÉCNICA)
+   TAB 2: RATEIO DE CUSTOS E DESPESAS POR HORA
+   ===================================================================== */
+let _rateioPeriodo = new Date().toISOString().substring(0, 7);
+let _rateioHorasFixas = {};
+let _rateioHorasVariaveis = {};
+
+async function _loadRateioData() {
+    try {
+        const savedRateio = await apiGet(`/comercial/rateio-custo?periodo=${_rateioPeriodo}`) || [];
+        _rateioHorasFixas = {};
+        _rateioHorasVariaveis = {};
+        
+        savedRateio.forEach(r => {
+            if (r.tipo === 'Fixo') {
+                _rateioHorasFixas[r.centro_custo] = r.horas_periodo;
+            } else if (r.tipo === 'Variável') {
+                _rateioHorasVariaveis[r.centro_custo] = r.horas_periodo;
+            }
+        });
+    } catch (e) {
+        console.error('[RATEIO] Erro ao carregar rateio:', e);
+    }
+}
+
+window._renderTabRateioCusto = async function(container) {
+    Swal.fire({
+        title: 'Carregando Rateio...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+    
+    await _loadRateioData();
+    Swal.close();
+
+    // Group items from _comercialItensCusto by sector and nature
+    const fixedBySector = {};
+    const variableBySector = {};
+    
+    // Extract distinct sectors
+    const sectorsSet = new Set();
+    
+    _comercialItensCusto.forEach(item => {
+        const sector = item.centro_custo || 'Sem Centro de Custo';
+        sectorsSet.add(sector);
+        
+        if (item.natureza === 'Fixo') {
+            if (!fixedBySector[sector]) fixedBySector[sector] = [];
+            fixedBySector[sector].push(item);
+        } else {
+            if (!variableBySector[sector]) variableBySector[sector] = [];
+            variableBySector[sector].push(item);
+        }
+    });
+    
+    const sectors = Array.from(sectorsSet).sort();
+    
+    // Render the container HTML
+    container.innerHTML = `
+        <style>
+            .rateio-grid {
+                display: flex;
+                gap: 1.25rem;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .rateio-column-left {
+                width: 60%;
+                box-sizing: border-box;
+            }
+            .rateio-column-right {
+                width: 40%;
+                box-sizing: border-box;
+            }
+            .rateio-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 0.8rem;
+                margin-top: 0.5rem;
+            }
+            .rateio-table th {
+                background: #f8fafc;
+                color: #475569;
+                font-weight: 700;
+                padding: 0.6rem 0.5rem;
+                border-bottom: 2px solid #e2e8f0;
+                text-align: left;
+            }
+            .rateio-table td {
+                padding: 0.6rem 0.5rem;
+                border-bottom: 1px solid #f1f5f9;
+                vertical-align: middle;
+            }
+            .rateio-hour-input {
+                width: 80px;
+                height: 28px;
+                padding: 0 0.5rem;
+                border: 1px solid #cbd5e1;
+                border-radius: 4px;
+                font-size: 0.8rem;
+                text-align: right;
+            }
+            .rateio-hour-input:focus {
+                border-color: #7048e8;
+                outline: none;
+            }
+            /* Style for Details summary accordion */
+            details.rateio-tree {
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                margin-bottom: 0.5rem;
+                background: #fff;
+                overflow: hidden;
+            }
+            details.rateio-tree[open] {
+                border-color: #cbd5e1;
+            }
+            summary.rateio-tree-header {
+                padding: 0.75rem 1rem;
+                font-weight: 700;
+                color: #1e293b;
+                background: #f8fafc;
+                cursor: pointer;
+                user-select: none;
+                list-style: none;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                transition: background 0.2s;
+            }
+            summary.rateio-tree-header::-webkit-details-marker {
+                display: none;
+            }
+            summary.rateio-tree-header:hover {
+                background: #f1f5f9;
+            }
+            summary.rateio-tree-header .ph-caret-down {
+                transition: transform 0.2s ease;
+                color: #64748b;
+            }
+            details.rateio-tree[open] > summary.rateio-tree-header .ph-caret-down {
+                transform: rotate(180deg);
+                color: #7048e8;
+            }
+            .rateio-tree-body {
+                padding: 0.75rem 1rem;
+                border-top: 1px solid #e2e8f0;
+                background: #fff;
+            }
+            .rateio-item-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 0.4rem 0.5rem;
+                border-bottom: 1px dashed #f1f5f9;
+                font-size: 0.75rem;
+                color: #475569;
+            }
+            .rateio-item-row:last-child {
+                border-bottom: none;
+            }
+        </style>
+        
+        <!-- Period Bar -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <label style="font-size:0.8rem; font-weight:700; color:#475569;">Período de Referência:</label>
+                <input type="month" id="rateio-periodo-select" value="${_rateioPeriodo}" onchange="_onRateioPeriodoChange(this.value)" style="height:32px; padding:0 0.5rem; border:1px solid #cbd5e1; border-radius:6px; outline:none; font-size:0.8rem; font-weight:600; color:#1e293b;">
+            </div>
+            <div>
+                <button class="prec-btn prec-btn-success" onclick="_salvarRateioCompleto()">
+                    <i class="ph ph-check-square"></i> Salvar Configuração de Rateio
+                </button>
+            </div>
+        </div>
+        
+        <div class="rateio-grid">
+            <!-- LEFT COLUMN: FORMS -->
+            <div class="rateio-column-left">
+                <!-- FORM 1: FIXED COSTS -->
+                <div class="saas-card">
+                    <div class="saas-card-header">
+                        <div class="saas-card-title">
+                            <i class="ph ph-lock-key" style="color:#7048e8; font-size:1.1rem;"></i>
+                            Rateio de Custos e Despesas Fixos por Hora
+                        </div>
+                    </div>
+                    <div class="saas-card-body" style="padding:1rem;">
+                        <table class="rateio-table" id="table-rateio-fixo">
+                            <thead>
+                                <tr>
+                                    <th>Centro de Custo (Setor)</th>
+                                    <th style="text-align:right;">Valor Fixo Total</th>
+                                    <th style="text-align:right; width:120px;">Horas do Período</th>
+                                    <th style="text-align:right; width:120px;">Valor por Hora</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${sectors.map(sec => {
+                                    const items = fixedBySector[sec] || [];
+                                    const totalVal = items.reduce((sum, item) => sum + (item.custo_unitario || 0), 0);
+                                    if (totalVal === 0) return ''; // skip sector if it has no fixed costs
+                                    
+                                    const savedHours = _rateioHorasFixas[sec] !== undefined ? _rateioHorasFixas[sec] : 220;
+                                    const valHora = savedHours > 0 ? (totalVal / savedHours) : 0;
+                                    
+                                    // Keep tracks in local UI state
+                                    _rateioHorasFixas[sec] = savedHours;
+                                    
+                                    return `
+                                        <tr data-sector="${sec}">
+                                            <td style="font-weight:600; color:#1e293b;">${sec}</td>
+                                            <td style="text-align:right; font-weight:500; color:#475569;">R$ ${totalVal.toFixed(2).replace('.', ',')}</td>
+                                            <td style="text-align:right;">
+                                                <input type="number" class="rateio-hour-input" value="${savedHours}" min="0.1" step="0.1" oninput="_recalcularRateioItem('Fixo', '${sec}', this.value, ${totalVal})">
+                                            </td>
+                                            <td style="text-align:right; font-weight:700; color:#7048e8;" id="rateio-fixo-val-${sec}">
+                                                R$ ${valHora.toFixed(2).replace('.', ',')}
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('') || `<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:#94a3b8;">Nenhum custo fixo cadastrado.</td></tr>`}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- FORM 2: VARIABLE COSTS -->
+                <div class="saas-card">
+                    <div class="saas-card-header">
+                        <div class="saas-card-title">
+                            <i class="ph ph-activity" style="color:#7048e8; font-size:1.1rem;"></i>
+                            Rateio de Custos e Despesas Variáveis por Hora
+                        </div>
+                    </div>
+                    <div class="saas-card-body" style="padding:1rem;">
+                        <table class="rateio-table" id="table-rateio-variavel">
+                            <thead>
+                                <tr>
+                                    <th>Centro de Custo (Setor)</th>
+                                    <th style="text-align:right;">Valor Variável Total</th>
+                                    <th style="text-align:right; width:120px;">Horas do Período</th>
+                                    <th style="text-align:right; width:120px;">Valor por Hora</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${sectors.map(sec => {
+                                    const items = variableBySector[sec] || [];
+                                    const totalVal = items.reduce((sum, item) => sum + (item.custo_unitario || 0), 0);
+                                    if (totalVal === 0) return ''; // skip sector if it has no variable costs
+                                    
+                                    const savedHours = _rateioHorasVariaveis[sec] !== undefined ? _rateioHorasVariaveis[sec] : 220;
+                                    const valHora = savedHours > 0 ? (totalVal / savedHours) : 0;
+                                    
+                                    // Keep tracks in local UI state
+                                    _rateioHorasVariaveis[sec] = savedHours;
+                                    
+                                    return `
+                                        <tr data-sector="${sec}">
+                                            <td style="font-weight:600; color:#1e293b;">${sec}</td>
+                                            <td style="text-align:right; font-weight:500; color:#475569;">R$ ${totalVal.toFixed(2).replace('.', ',')}</td>
+                                            <td style="text-align:right;">
+                                                <input type="number" class="rateio-hour-input" value="${savedHours}" min="0.1" step="0.1" oninput="_recalcularRateioItem('Variável', '${sec}', this.value, ${totalVal})">
+                                            </td>
+                                            <td style="text-align:right; font-weight:700; color:#7048e8;" id="rateio-variavel-val-${sec}">
+                                                R$ ${valHora.toFixed(2).replace('.', ',')}
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('') || `<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:#94a3b8;">Nenhum custo variável cadastrado.</td></tr>`}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- RIGHT COLUMN: EXPANDABLE LISTVIEW -->
+            <div class="rateio-column-right">
+                <div class="saas-card" style="min-height:400px;">
+                    <div class="saas-card-header">
+                        <div class="saas-card-title">
+                            <i class="ph ph-tree-structure" style="color:#7048e8; font-size:1.1rem;"></i>
+                            Estrutura Detalhada de Custos
+                        </div>
+                    </div>
+                    <div class="saas-card-body" style="padding:1rem;" id="rateio-expandable-tree-container">
+                        ${_renderExpandableTree(fixedBySector, variableBySector)}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+// Global switcher function when reference period changes
+window._onRateioPeriodoChange = function(val) {
+    _rateioPeriodo = val;
+    _renderActivePrecSubTab();
+};
+
+// Recalculates cost/hour reactively when user updates sector hours in UI
+window._recalcularRateioItem = function(natureza, sector, hoursVal, totalVal) {
+    const hours = parseFloat(hoursVal) || 0;
+    const valHora = hours > 0 ? (totalVal / hours) : 0;
+    
+    // Update local variables
+    if (natureza === 'Fixo') {
+        _rateioHorasFixas[sector] = hours;
+    } else {
+        _rateioHorasVariaveis[sector] = hours;
+    }
+    
+    // Update UI cell value
+    const cellId = natureza === 'Fixo' ? `rateio-fixo-val-${sector}` : `rateio-variavel-val-${sector}`;
+    const cellEl = document.getElementById(cellId);
+    if (cellEl) {
+        cellEl.innerText = `R$ ${valHora.toFixed(2).replace('.', ',')}`;
+    }
+    
+    // Reactively update the text inside the expandable listview header for this sector
+    const labelId = natureza === 'Fixo' ? `lbl-tree-fixo-sec-${sector}` : `lbl-tree-variavel-sec-${sector}`;
+    const labelEl = document.getElementById(labelId);
+    if (labelEl) {
+        labelEl.innerHTML = `<strong>${sector}</strong> <span>R$ ${totalVal.toFixed(2).replace('.', ',')} (${hours > 0 ? 'R$ ' + valHora.toFixed(2).replace('.', ',') + '/h' : 'Sem horas'})</span>`;
+    }
+    
+    // Update overall totals in the ListView
+    _recalcularTreeTotals(natureza);
+};
+
+// Internal function to recalculate the main categories sum
+function _recalcularTreeTotals(natureza) {
+    let totalVal = 0;
+    _comercialItensCusto.forEach(item => {
+        if (item.natureza === natureza) {
+            totalVal += (item.custo_unitario || 0);
+        }
+    });
+    
+    const labelId = natureza === 'Fixo' ? 'lbl-tree-root-fixo' : 'lbl-tree-root-variavel';
+    const labelEl = document.getElementById(labelId);
+    if (labelEl) {
+        labelEl.innerText = `Custos e Despesas ${natureza}s (Total: R$ ${totalVal.toFixed(2).replace('.', ',')})`;
+    }
+}
+
+// Renders the details/summary tree hierarchy dynamically
+function _renderExpandableTree(fixedBySector, variableBySector) {
+    // 1. Calculate general fixed cost sum
+    let totalFixo = 0;
+    Object.keys(fixedBySector).forEach(sec => {
+        totalFixo += fixedBySector[sec].reduce((sum, item) => sum + (item.custo_unitario || 0), 0);
+    });
+    
+    // 2. Calculate general variable cost sum
+    let totalVariavel = 0;
+    Object.keys(variableBySector).forEach(sec => {
+        totalVariavel += variableBySector[sec].reduce((sum, item) => sum + (item.custo_unitario || 0), 0);
+    });
+    
+    return `
+        <!-- LEVEL 1: ROOT FIXED COSTS -->
+        <details class="rateio-tree" open>
+            <summary class="rateio-tree-header">
+                <span id="lbl-tree-root-fixo">Custos e Despesas Fixas (Total: R$ ${totalFixo.toFixed(2).replace('.', ',')})</span>
+                <i class="ph ph-caret-down"></i>
+            </summary>
+            <div class="rateio-tree-body" style="padding-left:0.75rem;">
+                ${Object.keys(fixedBySector).length === 0 ? 
+                    '<div style="font-size:0.75rem; color:#94a3b8; text-align:center;">Nenhum item fixo cadastrado.</div>' :
+                    Object.keys(fixedBySector).map(sec => {
+                        const items = fixedBySector[sec];
+                        const secSum = items.reduce((sum, i) => sum + (i.custo_unitario || 0), 0);
+                        const hours = _rateioHorasFixas[sec] || 220;
+                        const valHora = hours > 0 ? (secSum / hours) : 0;
+                        
+                        return `
+                            <!-- LEVEL 2: SECTOR FIXED -->
+                            <details class="rateio-tree" style="margin-left:0.5rem;" open>
+                                <summary class="rateio-tree-header" id="lbl-tree-fixo-sec-${sec}" style="padding:0.5rem 0.75rem; font-size:0.78rem; font-weight:normal; background:#fafafa;">
+                                    <strong>${sec}</strong>
+                                    <span>R$ ${secSum.toFixed(2).replace('.', ',')} (${hours > 0 ? 'R$ ' + valHora.toFixed(2).replace('.', ',') + '/h' : 'Sem horas'})</span>
+                                </summary>
+                                <div class="rateio-tree-body" style="padding:0.4rem 0.5rem; background:#fff;">
+                                    <!-- LEVEL 3: INDIVIDUAL ITEMS -->
+                                    ${items.map(item => `
+                                        <div class="rateio-item-row">
+                                            <span>${item.descricao} (${item.codigo})</span>
+                                            <strong>R$ ${(item.custo_unitario || 0).toFixed(2).replace('.', ',')} / ${item.unidade_medida}</strong>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </details>
+                        `;
+                    }).join('')
+                }
+            </div>
+        </details>
+        
+        <!-- LEVEL 1: ROOT VARIABLE COSTS -->
+        <details class="rateio-tree" open style="margin-top:1rem;">
+            <summary class="rateio-tree-header">
+                <span id="lbl-tree-root-variavel">Custos e Despesas Variáveis (Total: R$ ${totalVariavel.toFixed(2).replace('.', ',')})</span>
+                <i class="ph ph-caret-down"></i>
+            </summary>
+            <div class="rateio-tree-body" style="padding-left:0.75rem;">
+                ${Object.keys(variableBySector).length === 0 ? 
+                    '<div style="font-size:0.75rem; color:#94a3b8; text-align:center;">Nenhum item variável cadastrado.</div>' :
+                    Object.keys(variableBySector).map(sec => {
+                        const items = variableBySector[sec];
+                        const secSum = items.reduce((sum, i) => sum + (i.custo_unitario || 0), 0);
+                        const hours = _rateioHorasVariaveis[sec] || 220;
+                        const valHora = hours > 0 ? (secSum / hours) : 0;
+                        
+                        return `
+                            <!-- LEVEL 2: SECTOR VARIABLE -->
+                            <details class="rateio-tree" style="margin-left:0.5rem;" open>
+                                <summary class="rateio-tree-header" id="lbl-tree-variavel-sec-${sec}" style="padding:0.5rem 0.75rem; font-size:0.78rem; font-weight:normal; background:#fafafa;">
+                                    <strong>${sec}</strong>
+                                    <span>R$ ${secSum.toFixed(2).replace('.', ',')} (${hours > 0 ? 'R$ ' + valHora.toFixed(2).replace('.', ',') + '/h' : 'Sem horas'})</span>
+                                </summary>
+                                <div class="rateio-tree-body" style="padding:0.4rem 0.5rem; background:#fff;">
+                                    <!-- LEVEL 3: INDIVIDUAL ITEMS -->
+                                    ${items.map(item => `
+                                        <div class="rateio-item-row">
+                                            <span>${item.descricao} (${item.codigo})</span>
+                                            <strong>R$ ${(item.custo_unitario || 0).toFixed(2).replace('.', ',')} / ${item.unidade_medida}</strong>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </details>
+                        `;
+                    }).join('')
+                }
+            </div>
+        </details>
+    `;
+}
+
+// Saves the entire rateio configuration to database via bulk POST request
+window._salvarRateioCompleto = async function() {
+    // Build payload array
+    const payload = [];
+    
+    // Add Fixed Cost items
+    Object.keys(_rateioHorasFixas).forEach(sec => {
+        const totalVal = _comercialItensCusto
+            .filter(item => (item.centro_custo || 'Sem Centro de Custo') === sec && item.natureza === 'Fixo')
+            .reduce((sum, item) => sum + (item.custo_unitario || 0), 0);
+            
+        const hours = _rateioHorasFixas[sec];
+        const valHora = hours > 0 ? (totalVal / hours) : 0;
+        
+        payload.push({
+            periodo: _rateioPeriodo,
+            centro_custo: sec,
+            tipo: 'Fixo',
+            horas_periodo: hours,
+            valor_total: totalVal,
+            valor_hora: valHora
+        });
+    });
+    
+    // Add Variable Cost items
+    Object.keys(_rateioHorasVariaveis).forEach(sec => {
+        const totalVal = _comercialItensCusto
+            .filter(item => (item.centro_custo || 'Sem Centro de Custo') === sec && item.natureza === 'Variável')
+            .reduce((sum, item) => sum + (item.custo_unitario || 0), 0);
+            
+        const hours = _rateioHorasVariaveis[sec];
+        const valHora = hours > 0 ? (totalVal / hours) : 0;
+        
+        payload.push({
+            periodo: _rateioPeriodo,
+            centro_custo: sec,
+            tipo: 'Variável',
+            horas_periodo: hours,
+            valor_total: totalVal,
+            valor_hora: valHora
+        });
+    });
+    
+    if (payload.length === 0) {
+        Swal.fire('Aviso', 'Não há itens de custo cadastrados para ratear.', 'warning');
+        return;
+    }
+    
+    Swal.fire({
+        title: 'Salvando Rateio...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+    
+    try {
+        const res = await apiPost('/comercial/rateio-custo', payload);
+        Swal.close();
+        if (res && res.success) {
+            Swal.fire('Sucesso', 'Configuração de rateio salva com sucesso!', 'success');
+        } else {
+            Swal.fire('Erro', 'Falha ao salvar rateio.', 'error');
+        }
+    } catch (e) {
+        Swal.close();
+        console.error('[RATEIO] Erro ao salvar:', e);
+        Swal.fire('Erro', 'Erro de conexão ao salvar rateio.', 'error');
+    }
+};
+
+/* =====================================================================
+   TAB 3: ESTRUTURA DO SERVIÇO (FICHA TÉCNICA)
    ===================================================================== */
 function _renderTabFichaTecnica(container) {
     container.innerHTML = `
