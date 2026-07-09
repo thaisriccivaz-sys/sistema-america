@@ -62,9 +62,15 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT NOT NULL UNIQUE,
                     password_hash TEXT NOT NULL,
-                    role TEXT NOT NULL DEFAULT 'Operacional'
+                    role TEXT NOT NULL DEFAULT 'Operacional',
+                    page_bookmarks TEXT DEFAULT '[]'
                 )
             `);
+            
+            // Adiciona a coluna page_bookmarks se a tabela já existir e a coluna não existir
+            db.run(`ALTER TABLE usuarios ADD COLUMN page_bookmarks TEXT DEFAULT '[]'`, (err) => {
+                // Erro esperado se a coluna já existir
+            });
 
             // Tabela de Configurações (Cargos)
             db.run(`

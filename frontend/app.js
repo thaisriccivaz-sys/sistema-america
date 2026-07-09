@@ -245,6 +245,27 @@ if (formLogin) {
             localStorage.setItem('erp_token', currentToken);
             localStorage.setItem('erp_user', JSON.stringify(currentUser));
             localStorage.setItem('erp_login_time', Date.now().toString());
+            
+            // Sync bookmarks with DB
+            if (currentUser.page_bookmarks && currentUser.page_bookmarks !== '[]') {
+                try {
+                    const dbBookmarks = JSON.parse(currentUser.page_bookmarks);
+                    if (Array.isArray(dbBookmarks)) {
+                        window._pageBookmarks = dbBookmarks;
+                        localStorage.setItem('pageBookmarks', JSON.stringify(dbBookmarks));
+                    }
+                } catch(e) {}
+            } else {
+                // Se DB está vazio e temos local, manda o local pro DB
+                const localBks = JSON.parse(localStorage.getItem('pageBookmarks') || '[]');
+                if (localBks.length > 0) {
+                    fetch(`${API_URL.replace('/api', '')}/api/usuarios/bookmarks`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                        body: JSON.stringify({ bookmarks: localBks })
+                    }).catch(console.error);
+                }
+            }
 
             const nameEl = document.getElementById('logged-user-name');
             if (nameEl) nameEl.textContent = currentUser.username;
@@ -15666,6 +15687,16 @@ window.toggleBookmarkCurrentPage = function () {
         window._pageBookmarks.push(window.currentBreadcrumbKey);
     }
     localStorage.setItem('pageBookmarks', JSON.stringify(window._pageBookmarks));
+    
+    const tk = window.currentToken || localStorage.getItem('erp_token');
+    if (tk) {
+        fetch(`${API_URL.replace('/api', '')}/api/usuarios/bookmarks`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tk}` },
+            body: JSON.stringify({ bookmarks: window._pageBookmarks })
+        }).catch(console.error);
+    }
+    
     renderBookmarks();
 };
 
