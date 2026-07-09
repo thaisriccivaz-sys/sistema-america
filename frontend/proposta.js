@@ -9463,26 +9463,10 @@ window._salvarItemCusto = async function() {
     try {
         const res = await apiPost('/comercial/itens-custo', payload);
         if (res && res.success) {
+            Swal.fire('Sucesso', 'Item de custo salvo com sucesso!', 'success');
             _comercialItensCusto = await apiGet('/comercial/itens-custo') || [];
             _limparFormItemCusto();
             _renderActivePrecSubTab();
-
-            if (window._importQueue && window._importQueue.length > 0) {
-                Swal.fire({
-                    title: 'Item Salvo!',
-                    text: 'Item gravado com sucesso. Carregando o próximo...',
-                    icon: 'success',
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 1500
-                });
-                setTimeout(() => {
-                    window._carregarProximoItemImportacao();
-                }, 600);
-            } else {
-                Swal.fire('Sucesso', 'Item de custo salvo com sucesso!', 'success');
-            }
         } else {
             Swal.fire('Erro', 'Falha ao salvar: ' + (res ? res.error : 'Erro desconhecido'), 'error');
         }
@@ -9569,62 +9553,6 @@ window._onImportFileSelected = function() {
     }
 };
 
-window._carregarProximoItemImportacao = function() {
-    if (!window._importQueue || window._importQueue.length === 0) {
-        Swal.fire({
-            title: 'Importação Concluída!',
-            text: 'Todos os itens importados da fatura foram revisados e salvos com sucesso.',
-            icon: 'success'
-        });
-        window._importTotalCount = 0;
-        window._importCurrentIndex = 0;
-        return false;
-    }
-
-    const item = window._importQueue.shift();
-    window._importCurrentIndex++;
-
-    // Preenche os campos
-    if (document.getElementById('ic-descricao')) {
-        document.getElementById('ic-descricao').value = item.descricao || '';
-    }
-    if (document.getElementById('ic-custo-unitario')) {
-        document.getElementById('ic-custo-unitario').value = parseFloat(item.valor || 0).toFixed(2);
-    }
-    if (document.getElementById('ic-categoria')) {
-        document.getElementById('ic-categoria').value = item.categoria || 'MDO';
-        document.getElementById('ic-categoria').dispatchEvent(new Event('change'));
-    }
-    if (document.getElementById('ic-unidade')) {
-        document.getElementById('ic-unidade').value = item.unidade || 'UN';
-    }
-    if (document.getElementById('ic-tipo-financeiro')) {
-        document.getElementById('ic-tipo-financeiro').value = window._importQueueTipo || 'PDF Fatura';
-        if (window._onTipoFinanceiroChange) {
-            window._onTipoFinanceiroChange(window._importQueueTipo || 'PDF Fatura');
-        }
-    }
-    
-    const radios = document.getElementsByName('ic-natureza');
-    radios.forEach(r => {
-        r.checked = (r.value === (item.natureza || 'Fixo'));
-    });
-
-    const total = window._importTotalCount || 1;
-    const atual = window._importCurrentIndex;
-    Swal.fire({
-        title: `Revisando Item ${atual} de ${total}`,
-        text: `Carregado: "${item.descricao}". Revise os campos e clique em Salvar para prosseguir.`,
-        icon: 'info',
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 5000
-    });
-
-    return true;
-};
-
 window._processarImportacaoArquivo = async function() {
     const fileInput = document.getElementById('import-file-input');
     const btnProcessar = document.getElementById('btn-processar-import');
@@ -9681,12 +9609,161 @@ window._processarImportacaoArquivo = async function() {
         Swal.close();
 
         if (response.ok && res.success && res.itens && res.itens.length > 0) {
-            window._importQueue = res.itens;
-            window._importQueueTipo = tipo;
-            window._importTotalCount = res.itens.length;
-            window._importCurrentIndex = 0;
+            let htmlTable = `
+            <div style="text-align: left; margin-bottom: 1rem; font-size: 0.9rem; color: #475569;">
+                <p>Identificamos <strong>${res.itens.length}</strong> itens de custo nesta fatura. Você pode revisar e ajustar todos os dados diretamente na tabela abaixo antes de confirmar o salvamento:</p>
+            </div>
+            <div style="max-height: 400px; overflow-y: auto; overflow-x: auto; width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); background-color: #fff;">
+                <table style="width: 100%; border-collapse: collapse; font-family: inherit; font-size: 0.8rem; min-width: 950px; text-align: left;">
+                    <thead>
+                        <tr style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569;">
+                            <th style="padding: 10px 8px; font-weight: 600;">Descrição do Insumo/Despesa *</th>
+                            <th style="padding: 10px 8px; font-weight: 600; width: 100px;">Custo Unit. (R$) *</th>
+                            <th style="padding: 10px 8px; font-weight: 600; width: 80px;">Unidade *</th>
+                            <th style="padding: 10px 8px; font-weight: 600; width: 110px;">Natureza *</th>
+                            <th style="padding: 10px 8px; font-weight: 600; width: 130px;">Categoria *</th>
+                            <th style="padding: 10px 8px; font-weight: 600; width: 120px;">Centro Custo</th>
+                            <th style="padding: 10px 8px; font-weight: 600; width: 120px;">Vigência *</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
 
-            window._carregarProximoItemImportacao();
+            res.itens.forEach((it, idx) => {
+                htmlTable += `
+                <tr class="swal-import-row" style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 6px 4px;">
+                        <input type="text" class="swal-item-desc" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.8rem;" value="${it.descricao || ''}" required>
+                    </td>
+                    <td style="padding: 6px 4px;">
+                        <input type="number" step="0.01" class="swal-item-valor" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.8rem;" value="${parseFloat(it.valor || 0).toFixed(2)}" required>
+                    </td>
+                    <td style="padding: 6px 4px;">
+                        <input type="text" class="swal-item-unidade" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.8rem;" value="${it.unidade || 'UN'}" required>
+                    </td>
+                    <td style="padding: 6px 4px;">
+                        <select class="swal-item-natureza" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.8rem; background: white; height: 31px;">
+                            <option value="Fixo" ${it.natureza === 'Fixo' ? 'selected' : ''}>Fixo</option>
+                            <option value="Variável" ${it.natureza === 'Variável' ? 'selected' : ''}>Variável</option>
+                        </select>
+                    </td>
+                    <td style="padding: 6px 4px;">
+                        <select class="swal-item-categoria" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.8rem; background: white; height: 31px;">
+                            <option value="MDO" ${it.categoria === 'MDO' ? 'selected' : ''}>Mão-de-obra</option>
+                            <option value="Insumo" ${it.categoria === 'Insumo' ? 'selected' : ''}>Insumos</option>
+                            <option value="Imposto" ${it.categoria === 'Imposto' ? 'selected' : ''}>Imposto</option>
+                            <option value="Frete" ${it.categoria === 'Frete' ? 'selected' : ''}>Frete</option>
+                        </select>
+                    </td>
+                    <td style="padding: 6px 4px;">
+                        <input type="text" class="swal-item-cc" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.8rem;" value="CC-IMPORTACAO">
+                    </td>
+                    <td style="padding: 6px 4px;">
+                        <input type="date" class="swal-item-vigencia" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.8rem;" value="${new Date().toISOString().substring(0, 10)}" required>
+                    </td>
+                </tr>
+                `;
+            });
+
+            htmlTable += `
+                    </tbody>
+                </table>
+            </div>
+            `;
+
+            const resultConfirm = await Swal.fire({
+                title: 'Revisar Itens Importados',
+                html: htmlTable,
+                width: '1100px',
+                showCancelButton: true,
+                confirmButtonText: 'Confirmar e Salvar Tudo',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#7048e8',
+                cancelButtonColor: '#64748b',
+                allowOutsideClick: false,
+                preConfirm: () => {
+                    const rows = document.querySelectorAll('.swal-import-row');
+                    const items = [];
+                    let hasError = false;
+
+                    rows.forEach((row, idx) => {
+                        const desc = row.querySelector('.swal-item-desc').value.trim();
+                        const val = parseFloat(row.querySelector('.swal-item-valor').value) || 0;
+                        const un = row.querySelector('.swal-item-unidade').value.trim();
+                        const nat = row.querySelector('.swal-item-natureza').value;
+                        const cat = row.querySelector('.swal-item-categoria').value;
+                        const cc = row.querySelector('.swal-item-cc').value.trim();
+                        const vig = row.querySelector('.swal-item-vigencia').value;
+
+                        if (!desc) {
+                            Swal.showValidationMessage(`Linha ${idx + 1}: Descrição do item é obrigatória.`);
+                            hasError = true;
+                        }
+                        if (val < 0) {
+                            Swal.showValidationMessage(`Linha ${idx + 1}: Custo unitário inválido.`);
+                            hasError = true;
+                        }
+                        if (!un) {
+                            Swal.showValidationMessage(`Linha ${idx + 1}: Unidade de medida é obrigatória.`);
+                            hasError = true;
+                        }
+                        if (!vig) {
+                            Swal.showValidationMessage(`Linha ${idx + 1}: Vigência da taxa é obrigatória.`);
+                            hasError = true;
+                        }
+
+                        items.push({
+                            descricao: desc,
+                            tipo_dado_financeiro: tipo,
+                            natureza: nat,
+                            categoria: cat,
+                            unidade_medida: un,
+                            custo_unitario: val,
+                            centro_custo: cc || 'CC-IMPORTACAO',
+                            vigencia: vig
+                        });
+                    });
+
+                    if (hasError) return false;
+                    return items;
+                }
+            });
+
+            if (resultConfirm.isConfirmed && resultConfirm.value) {
+                Swal.fire({
+                    title: 'Salvando...',
+                    text: 'Cadastrando itens de custo no banco de dados...',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading()
+                });
+
+                let importados = 0;
+                for (const it of resultConfirm.value) {
+                    try {
+                        const postRes = await apiPost('/comercial/itens-custo', it);
+                        if (postRes && postRes.success) {
+                            importados++;
+                        }
+                    } catch (err) {
+                        console.error("Erro ao salvar item importado:", it, err);
+                    }
+                }
+
+                Swal.close();
+
+                if (importados > 0) {
+                    Swal.fire({
+                        title: 'Importação Concluída!',
+                        text: `Importamos ${importados} de ${resultConfirm.value.length} itens com sucesso.`,
+                        icon: 'success'
+                    });
+                    _comercialItensCusto = await apiGet('/comercial/itens-custo') || [];
+                    _limparFormItemCusto();
+                    _renderActivePrecSubTab();
+                } else {
+                    Swal.fire('Erro', 'Nenhum item pôde ser importado devido a falhas de comunicação.', 'error');
+                }
+            }
 
             // Clear file input
             fileInput.value = '';
