@@ -9463,10 +9463,26 @@ window._salvarItemCusto = async function() {
     try {
         const res = await apiPost('/comercial/itens-custo', payload);
         if (res && res.success) {
-            Swal.fire('Sucesso', 'Item de custo salvo com sucesso!', 'success');
             _comercialItensCusto = await apiGet('/comercial/itens-custo') || [];
             _limparFormItemCusto();
             _renderActivePrecSubTab();
+
+            if (window._importQueue && window._importQueue.length > 0) {
+                Swal.fire({
+                    title: 'Item Salvo!',
+                    text: 'Item gravado com sucesso. Carregando o próximo...',
+                    icon: 'success',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+                setTimeout(() => {
+                    window._carregarProximoItemImportacao();
+                }, 600);
+            } else {
+                Swal.fire('Sucesso', 'Item de custo salvo com sucesso!', 'success');
+            }
         } else {
             Swal.fire('Erro', 'Falha ao salvar: ' + (res ? res.error : 'Erro desconhecido'), 'error');
         }
@@ -9553,6 +9569,62 @@ window._onImportFileSelected = function() {
     }
 };
 
+window._carregarProximoItemImportacao = function() {
+    if (!window._importQueue || window._importQueue.length === 0) {
+        Swal.fire({
+            title: 'Importação Concluída!',
+            text: 'Todos os itens importados da fatura foram revisados e salvos com sucesso.',
+            icon: 'success'
+        });
+        window._importTotalCount = 0;
+        window._importCurrentIndex = 0;
+        return false;
+    }
+
+    const item = window._importQueue.shift();
+    window._importCurrentIndex++;
+
+    // Preenche os campos
+    if (document.getElementById('ic-descricao')) {
+        document.getElementById('ic-descricao').value = item.descricao || '';
+    }
+    if (document.getElementById('ic-custo-unitario')) {
+        document.getElementById('ic-custo-unitario').value = parseFloat(item.valor || 0).toFixed(2);
+    }
+    if (document.getElementById('ic-categoria')) {
+        document.getElementById('ic-categoria').value = item.categoria || 'MDO';
+        document.getElementById('ic-categoria').dispatchEvent(new Event('change'));
+    }
+    if (document.getElementById('ic-unidade')) {
+        document.getElementById('ic-unidade').value = item.unidade || 'UN';
+    }
+    if (document.getElementById('ic-tipo-financeiro')) {
+        document.getElementById('ic-tipo-financeiro').value = window._importQueueTipo || 'PDF Fatura';
+        if (window._onTipoFinanceiroChange) {
+            window._onTipoFinanceiroChange(window._importQueueTipo || 'PDF Fatura');
+        }
+    }
+    
+    const radios = document.getElementsByName('ic-natureza');
+    radios.forEach(r => {
+        r.checked = (r.value === (item.natureza || 'Fixo'));
+    });
+
+    const total = window._importTotalCount || 1;
+    const atual = window._importCurrentIndex;
+    Swal.fire({
+        title: `Revisando Item ${atual} de ${total}`,
+        text: `Carregado: "${item.descricao}". Revise os campos e clique em Salvar para prosseguir.`,
+        icon: 'info',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 5000
+    });
+
+    return true;
+};
+
 window._processarImportacaoArquivo = async function() {
     const fileInput = document.getElementById('import-file-input');
     const btnProcessar = document.getElementById('btn-processar-import');
@@ -9609,106 +9681,12 @@ window._processarImportacaoArquivo = async function() {
         Swal.close();
 
         if (response.ok && res.success && res.itens && res.itens.length > 0) {
-            const itens = res.itens;
+            window._importQueue = res.itens;
+            window._importQueueTipo = tipo;
+            window._importTotalCount = res.itens.length;
+            window._importCurrentIndex = 0;
 
-            if (itens.length === 1) {
-                // Se for apenas 1 item, preenche o formulário para revisão do usuário
-                const item = itens[0];
-                if (document.getElementById('ic-descricao')) {
-                    document.getElementById('ic-descricao').value = item.descricao || '';
-                }
-                if (document.getElementById('ic-custo-unitario')) {
-                    document.getElementById('ic-custo-unitario').value = parseFloat(item.valor || 0).toFixed(2);
-                }
-                if (document.getElementById('ic-categoria')) {
-                    document.getElementById('ic-categoria').value = item.categoria || 'MDO';
-                    document.getElementById('ic-categoria').dispatchEvent(new Event('change'));
-                }
-                if (document.getElementById('ic-unidade')) {
-                    document.getElementById('ic-unidade').value = item.unidade || 'UN';
-                }
-                
-                const radios = document.getElementsByName('ic-natureza');
-                radios.forEach(r => {
-                    r.checked = (r.value === (item.natureza || 'Fixo'));
-                });
-
-                Swal.fire({
-                    title: 'Dados Extraídos!',
-                    text: 'O item foi pré-preenchido no formulário para sua revisão.',
-                    icon: 'success',
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-
-            } else {
-                // Se forem múltiplos itens, oferece importação em lote
-                let htmlList = '<div style="max-height: 200px; overflow-y: auto; text-align: left; border: 1px solid #e2e8f0; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; background-color: #fff; margin-top: 0.5rem;">';
-                itens.forEach((it, idx) => {
-                    htmlList += `<div style="padding: 4px 0; border-bottom: 1px solid #f1f5f9;">
-                        <strong>${idx + 1}.</strong> ${it.descricao} - <span style="color: #0f766e; font-weight: 700;">R$ ${parseFloat(it.valor).toFixed(2)}</span>
-                        <span style="font-size: 0.7rem; color: #64748b; margin-left: 5px;">(${it.categoria} - ${it.natureza} - ${it.unidade || 'UN'})</span>
-                    </div>`;
-                });
-                htmlList += '</div>';
-
-                const confirmResult = await Swal.fire({
-                    title: 'Múltiplos Itens Detectados',
-                    html: `<p style="margin-bottom: 0.75rem; font-size: 0.9rem; text-align: left;">Deseja importar todos os <strong>${itens.length}</strong> itens identificados nesta fatura de uma vez?</p>` + htmlList,
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'Sim, importar todos',
-                    cancelButtonText: 'Cancelar',
-                    confirmButtonColor: '#7048e8',
-                    cancelButtonColor: '#64748b'
-                });
-
-                if (confirmResult.isConfirmed) {
-                    Swal.fire({
-                        title: 'Importando...',
-                        text: 'Cadastrando itens de custo no banco de dados...',
-                        allowOutsideClick: false,
-                        didOpen: () => {
-                            Swal.showLoading();
-                        }
-                    });
-
-                    let importados = 0;
-                    for (const it of itens) {
-                        const payload = {
-                            descricao: it.descricao,
-                            tipo_dado_financeiro: tipo,
-                            natureza: it.natureza,
-                            categoria: it.categoria,
-                            unidade: it.unidade || 'UN',
-                            custo_unitario: it.valor,
-                            centro_custo: 'CC-IMPORTACAO',
-                            vigencia: new Date().toISOString().split('T')[0]
-                        };
-
-                        try {
-                            const postRes = await apiPost('/comercial/itens-custo', payload);
-                            if (postRes && postRes.success) {
-                                importados++;
-                            }
-                        } catch (err) {
-                            console.error("Erro ao importar item em lote:", it, err);
-                        }
-                    }
-
-                    Swal.close();
-
-                    if (importados > 0) {
-                        Swal.fire('Importação em Lote Concluída!', `Importamos ${importados} de ${itens.length} itens com sucesso.`, 'success');
-                        // Atualizar a lista de custos
-                        _comercialItensCusto = await apiGet('/comercial/itens-custo') || [];
-                        _limparFormItemCusto();
-                        _renderActivePrecSubTab();
-                    } else {
-                        Swal.fire('Erro', 'Nenhum item pôde ser importado devido a falhas no servidor.', 'error');
-                    }
-                }
-            }
+            window._carregarProximoItemImportacao();
 
             // Clear file input
             fileInput.value = '';
