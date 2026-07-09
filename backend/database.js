@@ -1273,7 +1273,12 @@ const db = new sqlite3.Database(dbPath, (err) => {
                             db.run(
                                 `INSERT OR REPLACE INTO permissoes_grupo (grupo_id, modulo, pagina_id, pagina_nome, visualizar, alterar, incluir, excluir)
                                  VALUES (?, ?, ?, ?, 1, 1, 1, 1)`,
-                                [grupoId, t.modulo, t.pagina_id, t.pagina_nome]
+                                [grupoId, t.modulo, t.pagina_id, t.pagina_nome],
+                                (err) => {
+                                    if (err) {
+                                        console.warn(`[MIGRAÇÃO-WARN] Não foi possível aplicar permissão para o grupo ${grupoId}: ${err.message}`);
+                                    }
+                                }
                             );
                         });
                         console.log(`[MIGRAÇÃO] Permissões completas aplicadas ao grupo ${grupoId} (usuário teste.2)`);
