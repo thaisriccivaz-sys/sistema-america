@@ -16,8 +16,7 @@ const PROP_MODELOS = [
     'Locação Obra', 'Locação Evento', 'Proposta Simplificada', 'Proposta Completa'
 ];
 const PROP_TABELAS = [
-    'Locação Mensal Obra (5)', 'Locação Mensal Obra (10)', 'Locação Mensal Obra (20+)',
-    'Locação Evento STD', 'Locação Evento LX', 'Tabela Especial Cliente'
+    'Locação Diária', 'Locação Semanal', 'Locação Mensal'
 ];
 const PROP_COND_PAG = [
     'À Vista', 'DD 28 Dias', 'DD 30 Dias', 'DD 45 Dias', 'DD 60 Dias',
@@ -1426,6 +1425,58 @@ function limparFiltrosPropostas() {
     filtrarPropostas();
 }
 
+window._carregarServicosPrecificadosList = async function() {
+    try {
+        _precificacaoServicosList = await apiGet('/servicos-precificacao') || [];
+        _comercialViabilidades = await apiGet('/comercial/precificacao-viabilidade') || [];
+    } catch (e) {
+        console.error('[PROPOSTA] Erro ao carregar serviços precificados/viabilidades:', e);
+    }
+};
+
+window._filtrarServicosPrecificadosPorTabela = function(tabelaPreco, selectedServiceId = null) {
+    const selectServico = document.getElementById('prop-servico-precificado');
+    if (!selectServico) return;
+
+    // Save current selection if any
+    const currentVal = selectedServiceId || selectServico.value;
+
+    // Clear options except first placeholder
+    selectServico.innerHTML = '<option value="">-- Nenhum Serviço Precificado Selecionado (Manter Valor Manual) --</option>';
+
+    // Filter and populate
+    (_precificacaoServicosList || []).forEach(s => {
+        const code = `SVC-${String(s.id).padStart(4, '0')}`;
+        const viab = (_comercialViabilidades || []).find(v => v.servico_codigo === code);
+        
+        let price = s.preco_venda || 0;
+        let shouldInclude = true;
+
+        if (tabelaPreco === 'Locação Diária') {
+            price = viab ? viab.preco_sugerido_dia : 0;
+            shouldInclude = price > 0;
+        } else if (tabelaPreco === 'Locação Semanal') {
+            price = viab ? viab.preco_sugerido_semana : 0;
+            shouldInclude = price > 0;
+        } else if (tabelaPreco === 'Locação Mensal') {
+            price = viab ? viab.preco_sugerido_mes : 0;
+            shouldInclude = price > 0;
+        }
+
+        if (shouldInclude) {
+            const option = document.createElement('option');
+            option.value = s.id;
+            option.setAttribute('data-preco', price);
+            const formattedPrice = Number(price).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            option.textContent = `${s.nome} (R$ ${formattedPrice})`;
+            if (String(s.id) === String(currentVal)) {
+                option.selected = true;
+            }
+            selectServico.appendChild(option);
+        }
+    });
+};
+
 /* ── Formulário (Modal) ─────────────────────────────────────────────── */
 async function abrirFormProposta(id) {
     _propostasEditandoId = id;
@@ -1661,7 +1712,7 @@ function _renderFormPropostaInt() {
                             </div>
                             <div>
                                 <label class="prop-lbl">Tabela de Preços *</label>
-                                <select id="prop-tabela" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                                <select id="prop-tabela" onchange="window._filtrarServicosPrecificadosPorTabela(this.value)" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                                     <option value="">-- Selecione --</option>
                                     ${PROP_TABELAS.map(t => `<option value="${t}" ${v('tabela_precos')===t?'selected':''}>${t}</option>`).join('')}
                                 </select>
@@ -1674,7 +1725,6 @@ function _renderFormPropostaInt() {
                                 <label class="prop-lbl">Serviço Precificado (Composição de Custo/Preço)</label>
                                 <select id="prop-servico-precificado" onchange="window.calcularValorTotalProposta()" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;font-weight:600;color:#1e293b;background:#fff;">
                                     <option value="">-- Nenhum Serviço Precificado Selecionado (Manter Valor Manual) --</option>
-                                    ${(_precificacaoServicosList || []).map(s => `<option value="${s.id}" data-preco="${s.preco_venda}" ${prop && prop.servico_precificacao_id === s.id ? 'selected' : ''}>${s.nome} (${'R$ ' + Number(s.preco_venda).toLocaleString('pt-BR', {minimumFractionDigits:2})})</option>`).join('')}
                                 </select>
                             </div>
                         </div>
@@ -1857,6 +1907,13 @@ function _renderFormPropostaInt() {
     
     if (typeof window.renderizarProdutosPropostaGrid === 'function') {
         window.renderizarProdutosPropostaGrid();
+    }
+
+    // Filter services based on loaded proposal's table pricing
+    const initialTabela = prop && prop.tabela_precos ? prop.tabela_precos : '';
+    const initialServicoId = prop && prop.servico_precificacao_id ? prop.servico_precificacao_id : null;
+    if (typeof window._filtrarServicosPrecificadosPorTabela === 'function') {
+        window._filtrarServicosPrecificadosPorTabela(initialTabela, initialServicoId);
     }
     
     // Auto-trigger region classification if address is already pre-filled
@@ -8954,6 +9011,8 @@ window.atualizarEstatisticasModal = function() {
 let _precificacaoInsumos = [];
 let _precificacaoCustosFixos = [];
 let _precificacaoServicosList = [];
+let _comercialViabilidades = [];
+
 
 // NEW STATE VARIABLES FOR COMMERCIAL COSTS AND PRICING
 let _precSubTab = 'itens-custo'; // 'itens-custo', 'rateio-custo', 'ficha-tecnica', 'precificacao'

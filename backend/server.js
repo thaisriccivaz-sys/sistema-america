@@ -22175,6 +22175,13 @@ app.delete('/api/comercial/servicos-ficha/:codigo', authenticateToken, (req, res
   });
 });
 
+app.get('/api/comercial/precificacao-viabilidade', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM comercial_precificacao_viabilidade', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
 app.get('/api/comercial/precificacao-viabilidade/:codigo', authenticateToken, (req, res) => {
   const { codigo } = req.params;
   db.get('SELECT * FROM comercial_precificacao_viabilidade WHERE servico_codigo = ?', [codigo], (err, row) => {
