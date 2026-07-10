@@ -11046,14 +11046,8 @@ window._recalcularPrecificacaoViabilidade = function() {
     if (pCustoTotal) pCustoTotal.value = `R$ ${custoTotalUnitario.toFixed(2).replace('.', ',')}`;
 
     // 2. Preços Sugeridos (Escala)
-    // DIA = Custo Total Unitário / (1 - Margem/100)
-    let precoDia = 0;
-    const divisor = 1 - (margemLucro / 100);
-    if (divisor <= 0) {
-        precoDia = custoTotalUnitario / 0.01;
-    } else {
-        precoDia = custoTotalUnitario / divisor;
-    }
+    // DIA = Custo Total Unitário * (1 + Margem/100)
+    const precoDia = custoTotalUnitario * (1 + (margemLucro / 100));
 
     // SEMANA (Fator 5x com desconto de 12% por fidelidade/volume)
     const precoSemana = precoDia * 5 * 0.88;
@@ -11106,10 +11100,7 @@ window._salvarPrecificacaoViabilidade = async function() {
 
     const custoTotalUnitario = _precificacaoValores.custoFixo + _precificacaoValores.custoVariavel + _precificacaoValores.despesaFixa + _precificacaoValores.despesaVariavel;
 
-    let precoDia = 0;
-    const divisor = 1 - (margem_lucro / 100);
-    if (divisor <= 0) precoDia = custoTotalUnitario / 0.01;
-    else precoDia = custoTotalUnitario / divisor;
+    const precoDia = custoTotalUnitario * (1 + (margem_lucro / 100));
 
     const precoSemana = precoDia * 5 * 0.88;
     const precoMes = precoDia * 20 * 0.75;
@@ -11147,14 +11138,10 @@ window._gerarPropostaDePrecificacao = function() {
     const ficha = _comercialFichas.find(f => f.servico_codigo === _precificacaoServicoCodigo);
     if (!ficha) return;
 
-    const rateio_despesas_fixas = parseFloat(document.getElementById('p-rateio-fixas')?.value) || 0;
     const margem_lucro = parseFloat(document.getElementById('p-margem-lucro')?.value) || 0;
-    const custoTotalUnitario = (_precificacaoDados.custo_direto_total || 0) + rateio_despesas_fixas;
+    const custoTotalUnitario = _precificacaoValores.custoFixo + _precificacaoValores.custoVariavel + _precificacaoValores.despesaFixa + _precificacaoValores.despesaVariavel;
 
-    let precoDia = 0;
-    const divisor = 1 - (margem_lucro / 100);
-    if (divisor <= 0) precoDia = custoTotalUnitario / 0.01;
-    else precoDia = custoTotalUnitario / divisor;
+    const precoDia = custoTotalUnitario * (1 + (margem_lucro / 100));
 
     const precoMes = precoDia * 20 * 0.75;
 
