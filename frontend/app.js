@@ -14949,7 +14949,7 @@ window.abrirAssinaturaEpi = async function (fichaId) {
                     <p style="font-size:0.8rem;color:#64748b;margin:0 0 8px;">Assine abaixo. Será aplicada em todos os itens entregues.</p>
                     <div style="border:2px dashed #94a3b8;border-radius:10px;background:#fafafa;position:relative;flex:1;display:flex;">
                         <canvas id="epi-signature-canvas" width="900" height="450" style="width:100%;height:100%;min-height:220px;border-radius:8px;touch-action:none;cursor:crosshair;display:block;"></canvas>
-                        <button onclick="window._limparAssinatura()" style="position:absolute;top:8px;right:8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:4px 12px;font-size:0.78rem;color:#475569;cursor:pointer;">Limpar</button>
+                        <button id="btn-limpar-epi-assinatura" style="position:absolute;top:8px;right:8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:4px 12px;font-size:0.78rem;color:#475569;cursor:pointer;z-index:10;">Limpar</button>
                     </div>
                     <p id="epi-assin-warn" style="color:#dc2626;font-size:0.82rem;margin:0.5rem 0 0;display:none;">A assinatura é obrigatória.</p>
                 </div>
@@ -15241,6 +15241,16 @@ window._initSignatureCanvas = function () {
     canvas.onmousedown=canvas.ontouchstart=(e)=>{e.preventDefault();drawing=true;const p=getPos(e);lastX=p.x;lastY=p.y;};
     canvas.onmousemove=canvas.ontouchmove=(e)=>{e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y;};
     canvas.onmouseup=canvas.ontouchend=()=>{drawing=false;}; canvas.onmouseleave=()=>{drawing=false;};
+    // Conectar o botão Limpar via addEventListener (mais confiável que onclick inline)
+    const btnLimpar = document.getElementById('btn-limpar-epi-assinatura');
+    if (btnLimpar) {
+        btnLimpar.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            canvas.width = canvas.width; // reset completo do canvas
+            ctx.strokeStyle='#1e3a5f'; ctx.lineWidth=4; ctx.lineCap='round'; ctx.lineJoin='round';
+        });
+    }
 };
 window._limparAssinatura=function(){
     const c=document.getElementById('epi-signature-canvas');
