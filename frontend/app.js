@@ -15242,7 +15242,17 @@ window._initSignatureCanvas = function () {
     canvas.onmousemove=canvas.ontouchmove=(e)=>{e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y;};
     canvas.onmouseup=canvas.ontouchend=()=>{drawing=false;}; canvas.onmouseleave=()=>{drawing=false;};
 };
-window._limparAssinatura=function(){const c=document.getElementById('epi-signature-canvas');if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);};
+window._limparAssinatura=function(){
+    const c=document.getElementById('epi-signature-canvas');
+    if(!c)return;
+    // Resetar width força limpeza total do canvas (inclusive transforms e estado de desenho)
+    c.width=c.width;
+    const ctx=c.getContext('2d');
+    ctx.strokeStyle='#1e3a5f';
+    ctx.lineWidth=4;
+    ctx.lineCap='round';
+    ctx.lineJoin='round';
+};
 window._assinaturaTemConteudo=function(){const c=document.getElementById('epi-signature-canvas');if(!c)return false;const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;for(let i=3;i<d.length;i+=4)if(d[i]>0)return true;return false;};
 
 window.gerarNovaFichaEpi = async function () {
