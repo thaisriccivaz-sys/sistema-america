@@ -8969,6 +8969,12 @@ let _precificacaoDados = {
     despesas_fixas_mensais: 30000,
     custo_direto_total: 0
 };
+let _precificacaoValores = {
+    custoFixo: 0,
+    custoVariavel: 0,
+    despesaFixa: 0,
+    despesaVariavel: 0
+};
 
 window._renderServicosPrecificacaoInt = async function() {
     const container = document.getElementById('prop-view-servicos-precificacao');
@@ -10748,18 +10754,26 @@ function _renderTabPrecificacao(container) {
                         <div class="saas-card-header" style="background:rgba(112, 72, 232, 0.04);">
                             <div class="saas-card-title"><i class="ph ph-money" style="color:#7048e8;"></i> Bloco 1: Custo Base</div>
                         </div>
-                        <div class="saas-card-body" style="display:flex; flex-direction:column; gap:1rem;">
+                        <div class="saas-card-body" style="display:flex; flex-direction:column; gap:0.75rem;">
                             <div class="prec-input-group">
-                                <label>Custo Direto Total (Ficha Técnica)</label>
-                                <input type="text" id="p-custo-direto" readonly value="R$ 0,00" style="font-weight:700; color:#1e3a8a;">
+                                <label>Custo Fixo</label>
+                                <input type="text" id="p-custo-fixo" readonly value="R$ 0,00" style="font-weight:600; color:#475569;">
                             </div>
                             <div class="prec-input-group">
-                                <label>Rateio de Despesas Fixas (R$) *</label>
-                                <input type="number" id="p-rateio-fixas" value="0.00" step="0.01" oninput="_recalcularPrecificacaoViabilidade()">
+                                <label>Custo Variável</label>
+                                <input type="text" id="p-custo-variavel" readonly value="R$ 0,00" style="font-weight:600; color:#475569;">
                             </div>
                             <div class="prec-input-group">
+                                <label>Despesa Fixa</label>
+                                <input type="text" id="p-despesa-fixa" readonly value="R$ 0,00" style="font-weight:600; color:#475569;">
+                            </div>
+                            <div class="prec-input-group">
+                                <label>Despesa Variável</label>
+                                <input type="text" id="p-despesa-variavel" readonly value="R$ 0,00" style="font-weight:600; color:#475569;">
+                            </div>
+                            <div style="border-top: 1px dashed #cbd5e1; padding-top: 0.5rem;" class="prec-input-group">
                                 <label>Custo Total Unitário (Calculado)</label>
-                                <input type="text" id="p-custo-total" readonly value="R$ 0,00" style="font-weight:700; color:#475569;">
+                                <input type="text" id="p-custo-total" readonly value="R$ 0,00" style="font-weight:700; color:#1e3a8a; font-size:0.9rem;">
                             </div>
                         </div>
                     </div>
@@ -10837,6 +10851,23 @@ window._selecionarServicoPrec = async function(codigo) {
             despesas_fixas_mensais: 30000,
             custo_direto_total: 0
         };
+        _precificacaoValores = {
+            custoFixo: 0,
+            custoVariavel: 0,
+            despesaFixa: 0,
+            despesaVariavel: 0
+        };
+        // Reset inputs
+        const fields = ['p-custo-fixo', 'p-custo-variavel', 'p-despesa-fixa', 'p-despesa-variavel', 'p-custo-total'];
+        fields.forEach(f => {
+            const el = document.getElementById(f);
+            if (el) el.value = 'R$ 0,00';
+        });
+        const dFm = document.getElementById('p-despesas-fixas-mensais');
+        if (dFm) dFm.value = '30000,00';
+        const mL = document.getElementById('p-margem-lucro');
+        if (mL) mL.value = '20.0';
+        
         _recalcularPrecificacaoViabilidade();
         return;
     }
@@ -10855,17 +10886,51 @@ window._selecionarServicoPrec = async function(codigo) {
 
     let viab = null;
     let somaDespesasFixas = 0;
+    
+    // Reset values
+    _precificacaoValores = {
+        custoFixo: 0,
+        custoVariavel: 0,
+        despesaFixa: 0,
+        despesaVariavel: 0
+    };
 
     try {
         viab = await apiGet(`/comercial/precificacao-viabilidade/${codigo}`);
         
         // Fetch Ficha details to sum proportional monthly fixed costs
         const fichaDetalhes = await apiGet(`/comercial/servicos-ficha/${codigo}`);
+        const tempoExec = fichaDetalhes ? (fichaDetalhes.tempo_execucao || 0) : 0;
+        
         if (fichaDetalhes && fichaDetalhes.itens) {
             fichaDetalhes.itens.forEach(item => {
                 const itemObj = _comercialItensCusto.find(i => i.id == item.item_custo_id);
-                if (itemObj && itemObj.natureza === 'Fixo') {
-                    somaDespesasFixas += (item.qtd_padrao || 0) * (itemObj.custo_unitario || 0);
+                if (itemObj) {
+                    // 1. Calculate proportional monthly fixed cost for the despesas_fixas_mensais field
+                    if (itemObj.natureza === 'Fixo') {
+                        somaDespesasFixas += (item.qtd_padrao || 0) * (itemObj.custo_unitario || 0);
+                    }
+                    
+                    // 2. Calculate hourly cost for this specific item in the Ficha
+                    const custoHora = _obterCustoHoraItem(itemObj);
+                    const isHourly = (itemObj.unidade_medida || '').toUpperCase() === 'H' || itemObj.categoria === 'MDO' || itemObj.natureza === 'Fixo';
+                    const itemTotal = (item.qtd_padrao || 0) * custoHora * (isHourly ? tempoExec : 1);
+                    
+                    // 3. Classify as Custo or Despesa
+                    const isCusto = ['MDO', 'Insumo'].includes(itemObj.categoria);
+                    if (isCusto) {
+                        if (itemObj.natureza === 'Fixo') {
+                            _precificacaoValores.custoFixo += itemTotal;
+                        } else {
+                            _precificacaoValores.custoVariavel += itemTotal;
+                        }
+                    } else {
+                        if (itemObj.natureza === 'Fixo') {
+                            _precificacaoValores.despesaFixa += itemTotal;
+                        } else {
+                            _precificacaoValores.despesaVariavel += itemTotal;
+                        }
+                    }
                 }
             });
         }
@@ -10887,26 +10952,37 @@ window._selecionarServicoPrec = async function(codigo) {
     }
 
     // Set values in inputs
-    document.getElementById('p-custo-direto').value = `R$ ${custoDireto.toFixed(2).replace('.', ',')}`;
-    document.getElementById('p-rateio-fixas').value = _precificacaoDados.rateio_despesas_fixas.toFixed(2);
-    document.getElementById('p-margem-lucro').value = _precificacaoDados.margem_lucro.toFixed(1);
+    const pCustoFixo = document.getElementById('p-custo-fixo');
+    if (pCustoFixo) pCustoFixo.value = `R$ ${_precificacaoValores.custoFixo.toFixed(2).replace('.', ',')}`;
+    
+    const pCustoVariavel = document.getElementById('p-custo-variavel');
+    if (pCustoVariavel) pCustoVariavel.value = `R$ ${_precificacaoValores.custoVariavel.toFixed(2).replace('.', ',')}`;
+    
+    const pDespesaFixa = document.getElementById('p-despesa-fixa');
+    if (pDespesaFixa) pDespesaFixa.value = `R$ ${_precificacaoValores.despesaFixa.toFixed(2).replace('.', ',')}`;
+    
+    const pDespesaVariavel = document.getElementById('p-despesa-variavel');
+    if (pDespesaVariavel) pDespesaVariavel.value = `R$ ${_precificacaoValores.despesaVariavel.toFixed(2).replace('.', ',')}`;
+
     document.getElementById('p-despesas-fixas-mensais').value = _precificacaoDados.despesas_fixas_mensais.toFixed(2);
+    document.getElementById('p-margem-lucro').value = _precificacaoDados.margem_lucro.toFixed(1);
 
     _recalcularPrecificacaoViabilidade();
 };
 
 window._recalcularPrecificacaoViabilidade = function() {
-    const custoDireto = _precificacaoDados.custo_direto_total || 0;
-    const rateioFixas = parseFloat(document.getElementById('p-rateio-fixas')?.value) || 0;
+    const custoFixo = _precificacaoValores.custoFixo || 0;
+    const custoVariavel = _precificacaoValores.custoVariavel || 0;
+    const despesaFixa = _precificacaoValores.despesaFixa || 0;
+    const despesaVariavel = _precificacaoValores.despesaVariavel || 0;
     const margemLucro = parseFloat(document.getElementById('p-margem-lucro')?.value) || 0;
     const despesasFixasMensais = parseFloat(document.getElementById('p-despesas-fixas-mensais')?.value) || 0;
 
-    _precificacaoDados.rateio_despesas_fixas = rateioFixas;
     _precificacaoDados.margem_lucro = margemLucro;
     _precificacaoDados.despesas_fixas_mensais = despesasFixasMensais;
 
     // 1. Custo Total Unitário
-    const custoTotalUnitario = custoDireto + rateioFixas;
+    const custoTotalUnitario = custoFixo + custoVariavel + despesaFixa + despesaVariavel;
     const pCustoTotal = document.getElementById('p-custo-total');
     if (pCustoTotal) pCustoTotal.value = `R$ ${custoTotalUnitario.toFixed(2).replace('.', ',')}`;
 
@@ -10965,12 +11041,11 @@ window._salvarPrecificacaoViabilidade = async function() {
         return;
     }
 
-    const rateio_despesas_fixas = parseFloat(document.getElementById('p-rateio-fixas')?.value) || 0;
+    const fixedSum = _precificacaoValores.custoFixo + _precificacaoValores.despesaFixa;
     const margem_lucro = parseFloat(document.getElementById('p-margem-lucro')?.value) || 0;
     const despesas_fixas_mensais = parseFloat(document.getElementById('p-despesas-fixas-mensais')?.value) || 0;
 
-    const custoDireto = _precificacaoDados.custo_direto_total || 0;
-    const custoTotalUnitario = custoDireto + rateio_despesas_fixas;
+    const custoTotalUnitario = _precificacaoValores.custoFixo + _precificacaoValores.custoVariavel + _precificacaoValores.despesaFixa + _precificacaoValores.despesaVariavel;
 
     let precoDia = 0;
     const divisor = 1 - (margem_lucro / 100);
@@ -10982,7 +11057,7 @@ window._salvarPrecificacaoViabilidade = async function() {
 
     const payload = {
         servico_codigo: _precificacaoServicoCodigo,
-        rateio_despesas_fixas,
+        rateio_despesas_fixas: fixedSum,
         margem_lucro,
         preco_sugerido_dia: precoDia,
         preco_sugerido_semana: precoSemana,
