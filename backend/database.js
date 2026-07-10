@@ -1776,11 +1776,16 @@ db.run("PRAGMA foreign_keys = ON;");
                     preco_sugerido_semana REAL DEFAULT 0,
                     preco_sugerido_mes REAL DEFAULT 0,
                     despesas_fixas_mensais REAL DEFAULT 0,
+                    modelo_calculo TEXT DEFAULT 'por_fora',
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY(servico_codigo) REFERENCES comercial_servicos_ficha(servico_codigo) ON DELETE CASCADE
                 )
-            `);
+            `, (err) => {
+                if (!err) {
+                    db.run("ALTER TABLE comercial_precificacao_viabilidade ADD COLUMN modelo_calculo TEXT DEFAULT 'por_fora'", () => {});
+                }
+            });
 
             // 5. Tabela de Rateio de Custos
             db.run(`

@@ -22194,7 +22194,8 @@ app.get('/api/comercial/precificacao-viabilidade/:codigo', authenticateToken, (r
         preco_sugerido_dia: 0,
         preco_sugerido_semana: 0,
         preco_sugerido_mes: 0,
-        despesas_fixas_mensais: 0
+        despesas_fixas_mensais: 0,
+        modelo_calculo: 'por_fora'
       });
     }
     res.json(row);
@@ -22206,8 +22207,8 @@ app.post('/api/comercial/precificacao-viabilidade', authenticateToken, (req, res
   const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
 
   db.run(`INSERT INTO comercial_precificacao_viabilidade (
-    servico_codigo, rateio_despesas_fixas, margem_lucro, preco_sugerido_dia, preco_sugerido_semana, preco_sugerido_mes, despesas_fixas_mensais, created_at, updated_at
-  ) VALUES (?,?,?,?,?,?,?,?,?)
+    servico_codigo, rateio_despesas_fixas, margem_lucro, preco_sugerido_dia, preco_sugerido_semana, preco_sugerido_mes, despesas_fixas_mensais, modelo_calculo, created_at, updated_at
+  ) VALUES (?,?,?,?,?,?,?,?,?,?)
   ON CONFLICT(servico_codigo) DO UPDATE SET
     rateio_despesas_fixas = excluded.rateio_despesas_fixas,
     margem_lucro = excluded.margem_lucro,
@@ -22215,11 +22216,12 @@ app.post('/api/comercial/precificacao-viabilidade', authenticateToken, (req, res
     preco_sugerido_semana = excluded.preco_sugerido_semana,
     preco_sugerido_mes = excluded.preco_sugerido_mes,
     despesas_fixas_mensais = excluded.despesas_fixas_mensais,
+    modelo_calculo = excluded.modelo_calculo,
     updated_at = excluded.updated_at`,
   [
     d.servico_codigo, d.rateio_despesas_fixas || 0, d.margem_lucro || 0,
     d.preco_sugerido_dia || 0, d.preco_sugerido_semana || 0, d.preco_sugerido_mes || 0,
-    d.despesas_fixas_mensais || 0, agora, agora
+    d.despesas_fixas_mensais || 0, d.modelo_calculo || 'por_fora', agora, agora
   ], function(err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true, id: this.lastID });

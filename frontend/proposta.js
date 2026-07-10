@@ -9026,7 +9026,8 @@ let _precificacaoDados = {
     rateio_despesas_fixas: 0,
     margem_lucro: 20,
     despesas_fixas_mensais: 30000,
-    custo_direto_total: 0
+    custo_direto_total: 0,
+    modelo_calculo: 'por_fora'
 };
 let _precificacaoValores = {
     custoFixo: 0,
@@ -10847,6 +10848,13 @@ function _renderTabPrecificacao(container) {
                                 <label>Margem de Lucro Desejada (%) *</label>
                                 <input type="number" id="p-margem-lucro" value="20" min="0" max="100" step="0.1" oninput="_recalcularPrecificacaoViabilidade()">
                             </div>
+                            <div class="prec-input-group">
+                                <label>Modelo de Cálculo *</label>
+                                <select id="p-modelo-calculo" onchange="_recalcularPrecificacaoViabilidade()" style="width:100%; border:1px solid #cbd5e1; border-radius:6px; height:34px; padding:0 8px; font-size:0.8rem; outline:none; background:#fff;">
+                                    <option value="por_fora">Margem por Fora (Margem sobre Custo)</option>
+                                    <option value="por_dentro">Margem por Dentro (Margem sobre Venda)</option>
+                                </select>
+                            </div>
                             
                             <div style="border-top:1px dashed #cbd5e1; padding-top:0.5rem; display:flex; flex-direction:column; gap:6px;">
                                 <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:#475569;">
@@ -10908,7 +10916,8 @@ window._selecionarServicoPrec = async function(codigo) {
             rateio_despesas_fixas: 0,
             margem_lucro: 20,
             despesas_fixas_mensais: 30000,
-            custo_direto_total: 0
+            custo_direto_total: 0,
+            modelo_calculo: 'por_fora'
         };
         _precificacaoValores = {
             custoFixo: 0,
@@ -10926,6 +10935,8 @@ window._selecionarServicoPrec = async function(codigo) {
         if (dFm) dFm.value = '30000,00';
         const mL = document.getElementById('p-margem-lucro');
         if (mL) mL.value = '20.0';
+        const pMod = document.getElementById('p-modelo-calculo');
+        if (pMod) pMod.value = 'por_fora';
         
         _recalcularPrecificacaoViabilidade();
         return;
@@ -11000,10 +11011,12 @@ window._selecionarServicoPrec = async function(codigo) {
             _precificacaoDados.rateio_despesas_fixas = viab.rateio_despesas_fixas || 0;
             _precificacaoDados.margem_lucro = viab.margem_lucro || 20;
             _precificacaoDados.despesas_fixas_mensais = (somaDespesasFixas > 0) ? somaDespesasFixas : (viab.despesas_fixas_mensais || 30000);
+            _precificacaoDados.modelo_calculo = viab.modelo_calculo || 'por_fora';
         } else {
             _precificacaoDados.rateio_despesas_fixas = 0;
             _precificacaoDados.margem_lucro = 20;
             _precificacaoDados.despesas_fixas_mensais = (somaDespesasFixas > 0) ? somaDespesasFixas : 30000;
+            _precificacaoDados.modelo_calculo = 'por_fora';
         }
     } catch(e) {
         Swal.close();
@@ -11025,6 +11038,9 @@ window._selecionarServicoPrec = async function(codigo) {
 
     document.getElementById('p-despesas-fixas-mensais').value = _precificacaoDados.despesas_fixas_mensais.toFixed(2);
     document.getElementById('p-margem-lucro').value = _precificacaoDados.margem_lucro.toFixed(1);
+    
+    const pMod = document.getElementById('p-modelo-calculo');
+    if (pMod) pMod.value = _precificacaoDados.modelo_calculo || 'por_fora';
 
     _recalcularPrecificacaoViabilidade();
 };
@@ -11036,9 +11052,11 @@ window._recalcularPrecificacaoViabilidade = function() {
     const despesaVariavel = _precificacaoValores.despesaVariavel || 0;
     const margemLucro = parseFloat(document.getElementById('p-margem-lucro')?.value) || 0;
     const despesasFixasMensais = parseFloat(document.getElementById('p-despesas-fixas-mensais')?.value) || 0;
+    const modeloCalculo = document.getElementById('p-modelo-calculo')?.value || 'por_fora';
 
     _precificacaoDados.margem_lucro = margemLucro;
     _precificacaoDados.despesas_fixas_mensais = despesasFixasMensais;
+    _precificacaoDados.modelo_calculo = modeloCalculo;
 
     // 1. Custo Total Unitário
     const custoTotalUnitario = custoFixo + custoVariavel + despesaFixa + despesaVariavel;
@@ -11046,8 +11064,17 @@ window._recalcularPrecificacaoViabilidade = function() {
     if (pCustoTotal) pCustoTotal.value = `R$ ${custoTotalUnitario.toFixed(2).replace('.', ',')}`;
 
     // 2. Preços Sugeridos (Escala)
-    // DIA = Custo Total Unitário * (1 + Margem/100)
-    const precoDia = custoTotalUnitario * (1 + (margemLucro / 100));
+    let precoDia = 0;
+    if (modeloCalculo === 'por_dentro') {
+        const divisor = 1 - (margemLucro / 100);
+        if (divisor <= 0) {
+            precoDia = custoTotalUnitario / 0.01;
+        } else {
+            precoDia = custoTotalUnitario / divisor;
+        }
+    } else {
+        precoDia = custoTotalUnitario * (1 + (margemLucro / 100));
+    }
 
     // SEMANA (Fator 5x com desconto de 12% por fidelidade/volume)
     const precoSemana = precoDia * 5 * 0.88;
@@ -11097,10 +11124,18 @@ window._salvarPrecificacaoViabilidade = async function() {
     const fixedSum = _precificacaoValores.custoFixo + _precificacaoValores.despesaFixa;
     const margem_lucro = parseFloat(document.getElementById('p-margem-lucro')?.value) || 0;
     const despesas_fixas_mensais = parseFloat(document.getElementById('p-despesas-fixas-mensais')?.value) || 0;
+    const modelo_calculo = document.getElementById('p-modelo-calculo')?.value || 'por_fora';
 
     const custoTotalUnitario = _precificacaoValores.custoFixo + _precificacaoValores.custoVariavel + _precificacaoValores.despesaFixa + _precificacaoValores.despesaVariavel;
 
-    const precoDia = custoTotalUnitario * (1 + (margem_lucro / 100));
+    let precoDia = 0;
+    if (modelo_calculo === 'por_dentro') {
+        const divisor = 1 - (margem_lucro / 100);
+        if (divisor <= 0) precoDia = custoTotalUnitario / 0.01;
+        else precoDia = custoTotalUnitario / divisor;
+    } else {
+        precoDia = custoTotalUnitario * (1 + (margem_lucro / 100));
+    }
 
     const precoSemana = precoDia * 5 * 0.88;
     const precoMes = precoDia * 20 * 0.75;
@@ -11112,7 +11147,8 @@ window._salvarPrecificacaoViabilidade = async function() {
         preco_sugerido_dia: precoDia,
         preco_sugerido_semana: precoSemana,
         preco_sugerido_mes: precoMes,
-        despesas_fixas_mensais
+        despesas_fixas_mensais,
+        modelo_calculo
     };
 
     try {
@@ -11139,9 +11175,17 @@ window._gerarPropostaDePrecificacao = function() {
     if (!ficha) return;
 
     const margem_lucro = parseFloat(document.getElementById('p-margem-lucro')?.value) || 0;
+    const modelo_calculo = document.getElementById('p-modelo-calculo')?.value || 'por_fora';
     const custoTotalUnitario = _precificacaoValores.custoFixo + _precificacaoValores.custoVariavel + _precificacaoValores.despesaFixa + _precificacaoValores.despesaVariavel;
 
-    const precoDia = custoTotalUnitario * (1 + (margem_lucro / 100));
+    let precoDia = 0;
+    if (modelo_calculo === 'por_dentro') {
+        const divisor = 1 - (margem_lucro / 100);
+        if (divisor <= 0) precoDia = custoTotalUnitario / 0.01;
+        else precoDia = custoTotalUnitario / divisor;
+    } else {
+        precoDia = custoTotalUnitario * (1 + (margem_lucro / 100));
+    }
 
     const precoMes = precoDia * 20 * 0.75;
 
