@@ -405,10 +405,30 @@ window.logSinAbrirModalNovo = function() {
     window._logSinistroAtualColabId = null;
     if (typeof window._logSinAtualizarPreviewMidias === 'function') window._logSinAtualizarPreviewMidias();
 
-    // Preencher dados fixos do declarante e ocultar seções dinâmicas
+    // Preencher dados fixos do declarante e ocultar/limpar seções dinâmicas
     window._logSinPreencherDeclarante();
-    var dadosColabSection = document.getElementById('log-sin-dados-colab-section');
-    if (dadosColabSection) dadosColabSection.style.display = 'none';
+
+    // Ocultar e limpar seção de colaborador (Step 1 e Step 2)
+    var colabS1 = document.getElementById('log-sin-dados-colab-section-s1');
+    var colabS1Rows = document.getElementById('log-sin-dados-colab-rows-s1');
+    if (colabS1) { colabS1.style.display = 'none'; }
+    if (colabS1Rows) { colabS1Rows.innerHTML = ''; }
+
+    var colabS2 = document.getElementById('log-sin-dados-colab-section');
+    var colabS2Rows = document.getElementById('log-sin-dados-colab-rows');
+    if (colabS2) { colabS2.style.display = 'none'; }
+    if (colabS2Rows) { colabS2Rows.innerHTML = ''; }
+
+    // Ocultar e limpar seção de veículo (Step 1 e Step 2)
+    var veicS1 = document.getElementById('log-sin-veiculo-dados-step1');
+    var veicS1Rows = document.getElementById('log-sin-veiculo-dados-step1-rows');
+    if (veicS1) { veicS1.style.display = 'none'; }
+    if (veicS1Rows) { veicS1Rows.innerHTML = ''; }
+
+    var veicS2 = document.getElementById('log-sin-dados-veiculo-section');
+    var veicS2Rows = document.getElementById('log-sin-dados-veiculo-rows');
+    if (veicS2) { veicS2.style.display = 'none'; }
+    if (veicS2Rows) { veicS2Rows.innerHTML = ''; }
 
     // Ao selecionar colaborador, atualizar dados exibidos
     var selColab = document.getElementById('log-sin-colab-select');
