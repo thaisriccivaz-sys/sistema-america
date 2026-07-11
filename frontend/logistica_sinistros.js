@@ -239,6 +239,23 @@ window.logSinAbrirModalNovo = function() {
                                 ${colabsOptions}
                             </select>
                         </div>
+                        <!-- Busca de veículo por placa -->
+                        <div class="input-group" style="margin-bottom:1rem;">
+                            <label><i class="ph ph-truck" style="color:#d97706;"></i> Selecionar Veículo (buscar por placa)</label>
+                            <div style="position:relative;">
+                                <input type="text" id="log-sin-placa-search" class="form-control" placeholder="Digite a placa ou modelo..." autocomplete="off"
+                                    oninput="window._logSinFiltrarVeiculos(this.value)"
+                                    style="padding-right:2rem;">
+                                <i class="ph ph-magnifying-glass" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;"></i>
+                            </div>
+                            <div id="log-sin-veiculo-dropdown" style="display:none;position:absolute;z-index:9999;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-height:200px;overflow-y:auto;width:calc(100% - 2.2rem);margin-top:2px;"></div>
+                        </div>
+                        <!-- Dados do veículo selecionado (step 1 preview) -->
+                        <div id="log-sin-veiculo-dados-step1" style="display:none;background:linear-gradient(135deg,#78350f,#b45309);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem;">
+                            <p style="margin:0 0 0.5rem;font-weight:700;font-size:0.82rem;color:#fcd34d;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-truck"></i> Veículo Selecionado</p>
+                            <div id="log-sin-veiculo-dados-step1-rows" style="display:grid;grid-template-columns:1fr;gap:0.35rem;"></div>
+                        </div>
+
                         <p style="font-size:0.9rem; color:#475569; margin-bottom:1rem;">Anexe o Boletim de Ocorrência (PDF). O sistema tentará extrair os dados automaticamente.</p>
                         <div class="input-group">
                             <label>Arquivo do BO *</label>
@@ -258,6 +275,14 @@ window.logSinAbrirModalNovo = function() {
                                 <i class="ph ph-user"></i> Dados do Colaborador
                             </p>
                             <div id="log-sin-dados-colab-rows" style="display:grid; grid-template-columns:1fr; gap:0.35rem;"></div>
+                        </div>
+
+                        <!-- Dados do Veículo Selecionado (dinâmico) -->
+                        <div id="log-sin-dados-veiculo-section" style="display:none; background:linear-gradient(135deg,#78350f,#b45309); border-radius:10px; padding:1rem 1.1rem; margin-bottom:0.75rem;">
+                            <p style="margin:0 0 0.5rem; font-weight:700; font-size:0.82rem; color:#fcd34d; text-transform:uppercase; letter-spacing:0.5px;">
+                                <i class="ph ph-truck"></i> Dados do Veículo
+                            </p>
+                            <div id="log-sin-dados-veiculo-rows" style="display:grid; grid-template-columns:1fr; gap:0.35rem;"></div>
                         </div>
 
                         <!-- Dados do Declarante (fixos, para copiar no BO) -->
@@ -360,7 +385,7 @@ window.logSinAbrirModalNovo = function() {
     window._logSinMidiasFiles = [];
     if (typeof window._logSinAtualizarPreviewMidias === 'function') window._logSinAtualizarPreviewMidias();
 
-    // Preencher dados fixos do declarante e ocultar seção do colaborador (nenhum selecionado)
+    // Preencher dados fixos do declarante e ocultar seções dinâmicas
     window._logSinPreencherDeclarante();
     var dadosColabSection = document.getElementById('log-sin-dados-colab-section');
     if (dadosColabSection) dadosColabSection.style.display = 'none';
@@ -370,6 +395,15 @@ window.logSinAbrirModalNovo = function() {
     if (selColab) {
         selColab.onchange = function() { window._logSinAtualizarDadosColab(this.value); };
     }
+
+    // Reset veículo e carregar lista
+    window._logSinVeiculoSelecionado = null;
+    var logPlacaInp = document.getElementById('log-sin-placa-search');
+    if (logPlacaInp) logPlacaInp.value = '';
+    var logVeicDD = document.getElementById('log-sin-veiculo-dropdown');
+    if (logVeicDD) logVeicDD.style.display = 'none';
+    window._logSinPreencherDadosVeiculo();
+    window._logSinCarregarVeiculos();
 
     m.style.display = 'flex';
 };
@@ -412,6 +446,71 @@ window._logSinAtualizarDadosColab = function(colabId) {
     if (!dados.length) { section.style.display = 'none'; return; }
     el.innerHTML = dados.map(function(d) { return window._logSinLinhaCopiavel(d.label, d.value, '#6ee7b7'); }).join('');
     section.style.display = 'block';
+};
+
+// ---- VEÍCULO (Logística) ----
+window._logSinListaVeiculos = [];
+
+window._logSinCarregarVeiculos = async function() {
+    if (window._logSinListaVeiculos.length) return;
+    try {
+        var data = await apiGet('/frota/veiculos');
+        if (Array.isArray(data)) window._logSinListaVeiculos = data;
+    } catch(e) { console.warn('[logSinistros] Erro ao carregar veículos', e); }
+};
+
+window._logSinFiltrarVeiculos = function(q) {
+    var dd = document.getElementById('log-sin-veiculo-dropdown');
+    if (!dd) return;
+    var lista = window._logSinListaVeiculos;
+    if (!q || q.length < 1) { dd.style.display = 'none'; return; }
+    var termo = q.toLowerCase();
+    var filtrados = lista.filter(function(v) {
+        return (v.placa || '').toLowerCase().includes(termo) || (v.marca_modelo_versao || '').toLowerCase().includes(termo);
+    }).slice(0, 12);
+    if (!filtrados.length) { dd.style.display = 'none'; return; }
+    dd.innerHTML = filtrados.map(function(v) {
+        return '<div onclick="window._logSinSelecionarVeiculo(' + v.id + ')" ' +
+            'style="padding:0.5rem 0.75rem;cursor:pointer;border-bottom:1px solid #f1f5f9;font-size:0.85rem;" ' +
+            'onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'#fff\'">' +
+            '<strong style="color:#1e293b;">' + (v.placa || '') + '</strong>' +
+            '<span style="color:#64748b;margin-left:8px;">' + (v.marca_modelo_versao || '') + '</span>' +
+            '</div>';
+    }).join('');
+    dd.style.display = 'block';
+};
+
+window._logSinSelecionarVeiculo = function(id) {
+    var v = (window._logSinListaVeiculos || []).find(function(x) { return x.id === id; });
+    var dd = document.getElementById('log-sin-veiculo-dropdown');
+    var inp = document.getElementById('log-sin-placa-search');
+    if (dd) dd.style.display = 'none';
+    if (!v) return;
+    if (inp) inp.value = (v.placa || '') + (v.marca_modelo_versao ? ' — ' + v.marca_modelo_versao : '');
+    window._logSinVeiculoSelecionado = v;
+    window._logSinPreencherDadosVeiculo();
+};
+
+window._logSinPreencherDadosVeiculo = function() {
+    var v = window._logSinVeiculoSelecionado;
+    var s1 = document.getElementById('log-sin-veiculo-dados-step1');
+    var r1 = document.getElementById('log-sin-veiculo-dados-step1-rows');
+    var s2 = document.getElementById('log-sin-dados-veiculo-section');
+    var r2 = document.getElementById('log-sin-dados-veiculo-rows');
+    if (!v) {
+        if (s1) s1.style.display = 'none';
+        if (s2) s2.style.display = 'none';
+        return;
+    }
+    var dados = [];
+    if (v.placa) dados.push({ label: 'Placa', value: v.placa });
+    if (v.marca_modelo_versao) dados.push({ label: 'Modelo', value: v.marca_modelo_versao });
+    if (v.ano_fabricacao) dados.push({ label: 'Ano Fabricação', value: v.ano_fabricacao });
+    if (v.renavam) dados.push({ label: 'Renavam', value: v.renavam });
+    if (v.cor_predominante) dados.push({ label: 'Cor', value: v.cor_predominante });
+    var html = dados.map(function(d) { return window._logSinLinhaCopiavel(d.label, d.value, '#fcd34d'); }).join('');
+    if (s1 && r1) { r1.innerHTML = html; s1.style.display = 'block'; }
+    if (s2 && r2) { r2.innerHTML = html; s2.style.display = 'block'; }
 };
 
 // _addLogSinOrcField removido - usar _logSinAdicionarOrcs com drag-and-drop
