@@ -269,18 +269,32 @@ window.abrirModalNovoSinistro = function() {
                             <div id="sin-dados-declarante-rows-s1" style="display:grid;grid-template-columns:1fr;gap:0.3rem;"></div>
                         </div>
 
-                        <p style="font-size:0.9rem; color:#475569; margin-bottom:1rem;">Anexe o Boletim de Ocorrência (PDF). O sistema tentará extrair os dados automaticamente.</p>
-                        <div class="input-group">
-                            <label>Arquivo do BO *</label>
-                            <input type="file" id="sinistro-file-bo" accept=".pdf,image/*" class="form-control">
+                        <!-- Nº do Protocolo -->
+                        <div class="input-group" style="margin-bottom:1rem;">
+                            <label><i class="ph ph-hash" style="color:#475569;"></i> Nº do Protocolo / Boletim <span style="font-size:0.78rem;color:#94a3b8;font-weight:400;">(opcional)</span></label>
+                            <input type="text" id="sin-protocolo" class="form-control" placeholder="Ex: 2026.00123456">
                         </div>
-                        <button type="button" class="btn btn-primary" onclick="window.processarLeituraBO()" style="width:100%; margin-top:0.5rem;">
-                            <i class="ph ph-scan"></i> Analisar BO e Continuar
+
+                        <button type="button" class="btn btn-primary" onclick="window.salvarSinistroIniciado()" id="sin-btn-iniciar" style="width:100%;margin-top:0.25rem;background:#0f172a;border:none;">
+                            <i class="ph ph-floppy-disk"></i> Salvar — Status: Iniciado
                         </button>
                     </div>
 
                     <div id="sinistro-step-2" style="display:none;">
                         <div id="sin-bo-notif" style="display:none; border-radius:8px; padding:0.5rem 0.75rem; margin-bottom:1rem; font-size:0.85rem;"></div>
+
+                        <!-- BO Upload (Step 2) -->
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.9rem;">
+                            <p style="margin:0 0 0.5rem;font-weight:600;font-size:0.85rem;color:#334155;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Boletim de Ocorrência (PDF)</p>
+                            <div style="display:flex;gap:0.5rem;align-items:flex-end;">
+                                <div style="flex:1;">
+                                    <input type="file" id="sinistro-file-bo" accept=".pdf,image/*" class="form-control" style="font-size:0.82rem;">
+                                </div>
+                                <button type="button" class="btn btn-secondary" onclick="window.processarLeituraBO()" style="white-space:nowrap;font-size:0.82rem;padding:0.45rem 0.8rem;">
+                                    <i class="ph ph-scan"></i> Analisar BO
+                                </button>
+                            </div>
+                        </div>
 
                         <!-- Dados do Colaborador (step 2) -->
                         <div id="sin-dados-colab-section" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.75rem;">
@@ -400,8 +414,8 @@ window.abrirModalNovoSinistro = function() {
                             <p id="sin-midias-count" style="margin:6px 0 0; font-size:0.75rem; color:#0369a1; display:none;"></p>
                         </div>
 
-                        <button type="button" class="btn btn-primary" onclick="window.salvarSinistroFinal()" style="width:100%; background:#059669; border:none;">
-                            <i class="ph ph-check"></i> Concluir Registro
+                        <button type="button" class="btn btn-primary" onclick="window.finalizarSinistro()" id="sin-btn-finalizar" style="width:100%; background:#059669; border:none;">
+                            <i class="ph ph-check"></i> Finalizar e Salvar
                         </button>
                     </div>
                 </div>
@@ -413,8 +427,14 @@ window.abrirModalNovoSinistro = function() {
     // reset estado
     document.getElementById('sinistro-step-1').style.display = 'block';
     document.getElementById('sinistro-step-2').style.display = 'none';
-    document.getElementById('sinistro-file-bo').value = '';
+    var boInput = document.getElementById('sinistro-file-bo');
+    if (boInput) boInput.value = '';
+    var protoInput = document.getElementById('sin-protocolo');
+    if (protoInput) protoInput.value = '';
     window._sinMidiasFiles = [];
+    window._sinOrcFiles = [];
+    window._sinistroAtualId = null;
+    window._sinistroAtualColabId = null;
 // ============================================================
 // GERENCIADOR DE ORÇAMENTOS DO RH - drag-and-drop, JPG/PNG
 // ============================================================
@@ -623,15 +643,15 @@ window.toggleSinistroDesconto = function(show) {
 
 window.processarLeituraBO = async function() {
     const fileInput = document.getElementById('sinistro-file-bo');
-    if (!fileInput.files.length) return alert('Selecione o arquivo do BO.');
+    if (!fileInput || !fileInput.files.length) return alert('Selecione o arquivo do BO.');
 
     const formData = new FormData();
     formData.append('arquivo', fileInput.files[0]);
 
-    const btn = document.querySelector('#sinistro-step-1 button');
-    const oldText = btn.innerHTML;
-    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Lendo documento...';
-    btn.disabled = true;
+    const btn = document.querySelector('#sin-btn-finalizar') ||
+                document.querySelector('#sinistro-step-2 button.btn-secondary');
+    const oldText = btn ? btn.innerHTML : '';
+    if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Lendo...'; btn.disabled = true; }
 
     let boletimData = {};
     try {
@@ -640,43 +660,23 @@ window.processarLeituraBO = async function() {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
             body: formData
         });
-        if (res.status === 401 || res.status === 403) {
-            alert("Aviso: Sua sessão expirou. Por favor, recarregue a página e faça login novamente para enviar o documento.");
-            location.reload();
-            return;
-        }
-
+        if (res.status === 401 || res.status === 403) { alert('Sessão expirada. Faça login novamente.'); location.reload(); return; }
         const data = await res.json();
-        
-        if (!res.ok) {
-            throw new Error(data.error || 'Erro interno no servidor.');
-        }
-
-
-        // Log diagnóstico no console (não mais alert)
-        if (data._debug_text) {
-            console.log('====== [ DIAGNÓSTICO BO ] ======');
-            console.log('Dados extraídos:', data);
-            console.log('Texto bruto lido do PDF (copie isso se não preencheu):');
-            console.log(data._debug_text);
-            console.log('================================');
-        }
+        if (!res.ok) throw new Error(data.error || 'Erro interno.');
+        if (data._debug_text) { console.log('[DIAGNÓSTICO BO]', data); }
         boletimData = data;
-
     } catch(e) {
         console.warn('Leitura BO falhou, modo manual:', e.message);
     } finally {
-        btn.innerHTML = oldText;
-        btn.disabled = false;
+        if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
 
-        // Preenche campos com o que foi extraído (pode ser vazio — usuário preenche)
-        document.getElementById('sin-bo').value = boletimData.boletim || '';
-        document.getElementById('sin-data').value = boletimData.data_hora || '';
-        document.getElementById('sin-natureza').value = boletimData.natureza || '';
-        document.getElementById('sin-veiculo').value = boletimData.marca_modelo || '';
-        document.getElementById('sin-placa').value = boletimData.placa || '';
+        // Preenche campos
+        var fbo  = document.getElementById('sin-bo');      if (fbo)  fbo.value  = boletimData.boletim    || fbo.value  || '';
+        var fdt  = document.getElementById('sin-data');    if (fdt)  fdt.value  = boletimData.data_hora  || fdt.value  || '';
+        var fnat = document.getElementById('sin-natureza');if (fnat) fnat.value = boletimData.natureza   || fnat.value || '';
+        var fvei = document.getElementById('sin-veiculo'); if (fvei) fvei.value = boletimData.marca_modelo|| fvei.value|| '';
+        var fpla = document.getElementById('sin-placa');   if (fpla) fpla.value = boletimData.placa      || fpla.value || '';
 
-        // Notificação inline suave (sem alert)
         const temDados = boletimData.boletim || boletimData.natureza || boletimData.placa || boletimData.marca_modelo;
         const notifEl = document.getElementById('sin-bo-notif');
         if (notifEl) {
@@ -685,114 +685,157 @@ window.processarLeituraBO = async function() {
                 notifEl.innerHTML = '<i class="ph ph-check-circle"></i> Dados extraídos. Confira ou edite se necessário.';
                 notifEl.style.cssText = 'display:block;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:1rem;font-size:0.85rem;';
             } else {
-                notifEl.innerHTML = '<i class="ph ph-warning"></i> Preenchimento automático não disponível para este PDF. Preencha os campos abaixo manualmente.';
+                notifEl.innerHTML = '<i class="ph ph-warning"></i> Preenchimento automático não disponível. Preencha manualmente.';
                 notifEl.style.cssText = 'display:block;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:1rem;font-size:0.85rem;';
             }
         }
-
-        // Avança para etapa 2
-        document.getElementById('sinistro-step-1').style.display = 'none';
-        document.getElementById('sinistro-step-2').style.display = 'block';
     }
 };
 
+// STEP 1: Salva sinistro com status 'Iniciado'
+window.salvarSinistroIniciado = async function() {
+    const colab = typeof viewedColaborador !== 'undefined' ? viewedColaborador : null;
+    if (!colab) return alert('Colaborador não identificado.');
 
-window.salvarSinistroFinal = async function() {
-    const colab = viewedColaborador;
-    if (!colab) return;
+    const btn = document.getElementById('sin-btn-iniciar');
+    const oldText = btn ? btn.innerHTML : '';
+    if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; btn.disabled = true; }
 
-    const fileBO = document.getElementById('sinistro-file-bo').files[0];
-    if (!fileBO) return alert('O arquivo do BO não foi encontrado. Volte ao passo anterior.');
+    try {
+        const formData = new FormData();
+        formData.append('status', 'iniciado');
+        const proto = document.getElementById('sin-protocolo');
+        if (proto && proto.value) formData.append('numero_boletim', proto.value);
+        if (window._sinVeiculoSelecionado) {
+            formData.append('placa', window._sinVeiculoSelecionado.placa || '');
+            formData.append('veiculo', window._sinVeiculoSelecionado.marca_modelo_versao || '');
+        }
 
-    const desconto = document.querySelector('input[name="sin-desconto"]:checked').value;
+        const res = await fetch(`${API_URL}/colaboradores/${colab.id}/sinistros`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
+            body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao salvar.');
 
-    const formData = new FormData();
-    formData.append('arquivo', fileBO);
-    formData.append('numero_boletim', document.getElementById('sin-bo').value || '');
-    formData.append('data_hora', document.getElementById('sin-data').value || '');
-    formData.append('natureza', document.getElementById('sin-natureza').value || '');
-    formData.append('veiculo', document.getElementById('sin-veiculo').value || '');
-    formData.append('placa', document.getElementById('sin-placa').value || '');
-    formData.append('desconto', desconto);
+        window._sinistroAtualId = data.id;
+        window._sinistroAtualColabId = colab.id;
 
-    if (desconto === 'Sim') {
-        formData.append('tipo_sinistro', document.getElementById('sin-tipo-sinistro').value);
-        formData.append('parcelas', document.getElementById('sin-parcelas').value);
-        formData.append('valor_parcela', document.getElementById('sin-parcelas').dataset.valor_parcela || '0,00');
-        formData.append('valor_total', document.getElementById('sin-valor-total').value);
+        // Transitar para Step 2
+        document.getElementById('sinistro-step-1').style.display = 'none';
+        document.getElementById('sinistro-step-2').style.display = 'block';
+        const notif = document.getElementById('sin-bo-notif');
+        if (notif) {
+            notif.innerHTML = '<i class="ph ph-check-circle"></i> Sinistro criado com <strong>Status: Iniciado</strong>. Agora anexe o BO e complete as informações abaixo (opcional).';
+            notif.style.cssText = 'display:block;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:8px;padding:0.6rem 0.85rem;margin-bottom:1rem;font-size:0.85rem;';
+        }
+        // Preencher campos do veículo nos campos de Step 2
+        if (window._sinVeiculoSelecionado) {
+            var fv = document.getElementById('sin-veiculo'); if (fv) fv.value = window._sinVeiculoSelecionado.marca_modelo_versao || '';
+            var fp = document.getElementById('sin-placa');   if (fp) fp.value = window._sinVeiculoSelecionado.placa || '';
+        }
+        // Atualizar lista de sinistros em background
+        if (typeof window._recarregarListaSinistros === 'function') window._recarregarListaSinistros(colab.id);
 
-        const cOrc = document.querySelector('input[name="sin-orcamento"]:checked')?.value;
-        if (cOrc === 'Sim') {
-            const filesOrc = window._sinOrcFiles || [];
-            if (filesOrc.length > 0) {
+    } catch(e) {
+        alert('Erro ao salvar: ' + e.message);
+    } finally {
+        if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+    }
+};
+
+// STEP 2: Finaliza sinistro (PATCH sobre o registro Iniciado)
+window.finalizarSinistro = async function() {
+    const sinId   = window._sinistroAtualId;
+    const colabId = window._sinistroAtualColabId;
+    const colab   = typeof viewedColaborador !== 'undefined' ? viewedColaborador : null;
+    const cId     = colabId || (colab ? colab.id : null);
+    if (!sinId || !cId) return alert('Sinistro não identificado. Salve o Passo 1 primeiro.');
+
+    const btn = document.getElementById('sin-btn-finalizar');
+    const oldText = btn ? btn.innerHTML : '';
+    if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; btn.disabled = true; }
+
+    try {
+        const formData = new FormData();
+        formData.append('status', 'pendente');
+
+        const fbo  = document.getElementById('sin-bo');       if (fbo && fbo.value)  formData.append('numero_boletim', fbo.value);
+        const fdt  = document.getElementById('sin-data');     if (fdt && fdt.value)  formData.append('data_hora', fdt.value);
+        const fnat = document.getElementById('sin-natureza'); if (fnat && fnat.value) formData.append('natureza', fnat.value);
+        const fvei = document.getElementById('sin-veiculo');  if (fvei && fvei.value) formData.append('veiculo', fvei.value);
+        const fpla = document.getElementById('sin-placa');    if (fpla && fpla.value) formData.append('placa', fpla.value);
+
+        const descRad = document.querySelector('input[name="sin-desconto"]:checked');
+        const desconto = descRad ? descRad.value : 'Não';
+        formData.append('desconto', desconto);
+        if (desconto === 'Sim') {
+            const tipo = document.getElementById('sin-tipo-sinistro');  if (tipo)  formData.append('tipo_sinistro', tipo.value);
+            const parc = document.getElementById('sin-parcelas');       if (parc)  formData.append('parcelas', parc.value);
+            const vtot = document.getElementById('sin-valor-total');    if (vtot)  formData.append('valor_total', vtot.value);
+            formData.append('valor_parcela', parc ? (parc.dataset.valor_parcela || '0,00') : '0,00');
+            const orcRad = document.querySelector('input[name="sin-orcamento"]:checked');
+            if (orcRad && orcRad.value === 'Sim' && (window._sinOrcFiles || []).length) {
                 const orcsBase64 = [];
-                for (const f of filesOrc) {
+                for (const f of window._sinOrcFiles) {
                     const b64 = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(f); });
                     orcsBase64.push(b64);
                 }
                 formData.append('orcamentos_base64', JSON.stringify(orcsBase64));
             }
         }
-    }
 
-    const btn = document.querySelector('#sinistro-step-2 button.btn-primary');
-    const oldText = btn.innerHTML;
-    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
-    btn.disabled = true;
+        // Arquivo BO
+        const boFile = document.getElementById('sinistro-file-bo');
+        if (boFile && boFile.files.length) formData.append('arquivo', boFile.files[0]);
 
-    try {
-        const res = await fetch(`${API_URL}/colaboradores/${colab.id}/sinistros`, {
-            method: 'POST',
+        const res = await fetch(`${API_URL}/colaboradores/${cId}/sinistros/${sinId}`, {
+            method: 'PATCH',
             headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
             body: formData
         });
-        const responseData = await res.json();
-        if (responseData.error) throw new Error(responseData.error);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao finalizar.');
 
+        // Gerar documento se houver desconto
         if (desconto === 'Sim') {
-            await fetch(`${API_URL}/colaboradores/${colab.id}/sinistros/${responseData.id}/gerar-documento`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
+            await fetch(`${API_URL}/colaboradores/${cId}/sinistros/${sinId}/gerar-documento`, {
+                method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
             });
         }
 
+        // Upload de mídias
         const filesMidia = window._sinMidiasFiles || [];
-
-        // Upload media files to R2
-        if (filesMidia.length > 0 && responseData.id) {
-            btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando Mídias...';
+        if (filesMidia.length > 0) {
+            if (btn) btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando Mídias...';
             for (let i = 0; i < filesMidia.length; i++) {
-                btn.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Enviando Mídias (${i+1}/${filesMidia.length})...`;
+                if (btn) btn.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Mídias (${i+1}/${filesMidia.length})...`;
                 const mfData = new FormData();
                 mfData.append('file', filesMidia[i]);
                 try {
-                    const rMidia = await fetch(`${API_URL}/sinistros/${responseData.id}/midia`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
-                        body: mfData
+                    const rM = await fetch(`${API_URL}/sinistros/${sinId}/midia`, {
+                        method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }, body: mfData
                     });
-                    if (!rMidia.ok) {
-                        const err = await rMidia.json();
-                        throw new Error(err.error || 'Erro ao enviar mídia.');
-                    }
-                } catch(e) {
-                    console.error('Falha ao enviar mídia:', e);
-                    alert('Falha ao enviar arquivo ' + filesMidia[i].name + ': ' + e.message);
-                }
+                    if (!rM.ok) { const e = await rM.json(); console.error('Erro mídia:', e); }
+                } catch(e) { console.error('Falha mídia:', e); }
             }
         }
 
         document.getElementById('modal-novo-sinistro').style.display = 'none';
-        if (typeof Toastify !== 'undefined') Toastify({ text: 'Sinistro registrado com sucesso!', backgroundColor: '#059669' }).showToast();
-        await window._recarregarListaSinistros(colab.id);
+        if (typeof Toastify !== 'undefined') Toastify({ text: 'Sinistro finalizado com sucesso!', backgroundColor: '#059669' }).showToast();
+        if (typeof window._recarregarListaSinistros === 'function') await window._recarregarListaSinistros(cId);
 
     } catch(e) {
-        alert('Erro ao salvar: ' + e.message);
+        alert('Erro ao finalizar: ' + e.message);
     } finally {
-        btn.innerHTML = oldText;
-        btn.disabled = false;
+        if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
     }
 };
+
+// Manter alias para compatibilidade
+window.salvarSinistroFinal = window.finalizarSinistro;
+
 
 window.gerarDocumentoSinistro = async function(sinId, colabId) {
     try {

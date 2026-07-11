@@ -4206,16 +4206,17 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
         }
 
         const stmt = `INSERT INTO sinistros (colaborador_id, numero_boletim, data_hora, natureza, placa, veiculo,
-            desconto, parcelas, valor_parcela, valor_total, tipo_sinistro, boletim_path, processo_iniciado, usuario_abertura) 
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+            desconto, parcelas, valor_parcela, valor_total, tipo_sinistro, boletim_path, processo_iniciado, usuario_abertura, status) 
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
         // Nome padrão do doc: Sinistro_Datadoocorrido_Nome_do_Colaborador.pdf
         const pnome = 'BO_Sinistro_' + (pastaDataStr || dataFormatada).replace(/-/g, '') + '_' + nomeFormatado + '.pdf';
         const docOnedrivePath = targetDir + '/' + pnome;
         const usuarioAbertura = req.user ? (req.user.nome || req.user.username) : 'Sistema';
+        const statusInserir = body.status || (req.file ? 'pendente' : 'iniciado');
 
         db.run(stmt, [id, body.numero_boletim, body.data_hora, body.natureza, body.placa, body.veiculo,
-            body.desconto, body.parcelas || null, body.valor_parcela, body.valor_total || null, body.tipo_sinistro, docOnedrivePath, 0, usuarioAbertura],
+            body.desconto, body.parcelas || null, body.valor_parcela, body.valor_total || null, body.tipo_sinistro, docOnedrivePath, 0, usuarioAbertura, statusInserir],
             async function (err) {
                 if (err) return res.status(500).json({ error: err.message });
                 const sinId = this.lastID;
@@ -4350,7 +4351,7 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
 // ─────────────────────────────────────────────────────────────────────────────
 // PATCH: Editar sinistro (somente se status = 'pendente' — sem assinaturas)
 // ─────────────────────────────────────────────────────────────────────────────
-app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, multerUploadMemoria.none(), async (req, res) => {
+app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, multerUploadMemoria.single('arquivo'), async (req, res) => {
     try {
         const { id: colabId, sinistroId } = req.params;
         const body = req.body;
@@ -4363,19 +4364,29 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
         });
 
         if (!sinistro) return res.status(404).json({ error: 'Sinistro não encontrado.' });
-        if (sinistro.status !== 'pendente') {
+        if (sinistro.status !== 'pendente' && sinistro.status !== 'iniciado') {
             return res.status(403).json({ error: 'Edição não permitida: sinistro já possui assinaturas.' });
         }
+
+        const novoStatus = body.status || sinistro.status;
+        const processoIniciado = (novoStatus === 'pendente') ? 1 : sinistro.processo_iniciado;
 
         // Atualizar campos básicos
         await new Promise((resolve, reject) => {
             db.run(
                 `UPDATE sinistros SET
-                    numero_boletim = COALESCE(?, numero_boletim),
-                    data_hora      = COALESCE(?, data_hora),
-                    natureza       = COALESCE(?, natureza),
-                    veiculo        = COALESCE(?, veiculo),
-                    placa          = COALESCE(?, placa)
+                    numero_boletim   = COALESCE(?, numero_boletim),
+                    data_hora        = COALESCE(?, data_hora),
+                    natureza         = COALESCE(?, natureza),
+                    veiculo          = COALESCE(?, veiculo),
+                    placa            = COALESCE(?, placa),
+                    tipo_sinistro    = COALESCE(?, tipo_sinistro),
+                    desconto         = COALESCE(?, desconto),
+                    parcelas         = COALESCE(?, parcelas),
+                    valor_parcela    = COALESCE(?, valor_parcela),
+                    valor_total      = COALESCE(?, valor_total),
+                    status           = ?,
+                    processo_iniciado = ?
                 WHERE id = ?`,
                 [
                     body.numero_boletim || null,
@@ -4383,11 +4394,33 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                     body.natureza       || null,
                     body.veiculo        || null,
                     body.placa          || null,
+                    body.tipo_sinistro  || null,
+                    body.desconto       || null,
+                    body.parcelas       || null,
+                    body.valor_parcela  || null,
+                    body.valor_total    || null,
+                    novoStatus,
+                    processoIniciado,
                     sinistroId
                 ],
                 err => { if (err) reject(err); else resolve(); }
             );
         });
+
+        // Upload do arquivo BO se enviado
+        if (req.file && typeof onedrive !== 'undefined' && sinistro.boletim_path) {
+            try {
+                try {
+                    const { censorBOPdfBuffer } = require('./censorPDF.js');
+                    const censored = await censorBOPdfBuffer(req.file.buffer);
+                    if (censored) req.file.buffer = Buffer.from(censored);
+                } catch (e) { console.error('[CENSOR]', e.message); }
+
+                const targetDir = sinistro.boletim_path.substring(0, sinistro.boletim_path.lastIndexOf('/'));
+                const pnome = sinistro.boletim_path.substring(sinistro.boletim_path.lastIndexOf('/') + 1);
+                await onedrive.uploadToOneDrive(targetDir, pnome, req.file.buffer);
+            } catch(e) { console.error('Erro OneDrive BO (PATCH):', e); }
+        }
 
         // Novos orçamentos (acrescentar à lista existente)
         if (body.orcamentos_base64) {
