@@ -296,23 +296,6 @@ window.abrirModalNovoSinistro = function() {
                             </div>
                         </div>
 
-                        <!-- Dados do Colaborador (step 2) -->
-                        <div id="sin-dados-colab-section" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.75rem;">
-                            <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#15803d;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-user"></i> Dados do Colaborador</p>
-                            <div id="sin-dados-colab-rows" style="display:grid;grid-template-columns:1fr;gap:0.3rem;"></div>
-                        </div>
-
-                        <!-- Dados do Veículo (step 2) -->
-                        <div id="sin-dados-veiculo-section" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.75rem;">
-                            <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#b45309;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-truck"></i> Dados do Veículo</p>
-                            <div id="sin-dados-veiculo-rows" style="display:grid;grid-template-columns:1fr;gap:0.3rem;"></div>
-                        </div>
-
-                        <!-- Dados do Declarante (step 2) -->
-                        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.75rem;">
-                            <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-identification-card"></i> Dados do Declarante</p>
-                            <div id="sin-dados-declarante-rows" style="display:grid;grid-template-columns:1fr;gap:0.3rem;"></div>
-                        </div>
 
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                             <div class="input-group">
