@@ -242,13 +242,13 @@ window.logSinAbrirModalNovo = function() {
                         <!-- Busca de veículo por placa -->
                         <div class="input-group" style="margin-bottom:1rem;">
                             <label><i class="ph ph-truck" style="color:#d97706;"></i> Selecionar Veículo (buscar por placa)</label>
-                            <div style="position:relative;">
+                            <div style="position:relative;width:100%;">
                                 <input type="text" id="log-sin-placa-search" class="form-control" placeholder="Digite a placa ou modelo..." autocomplete="off"
                                     oninput="window._logSinFiltrarVeiculos(this.value)"
-                                    style="padding-right:2rem;">
+                                    style="width:100%;box-sizing:border-box;padding-right:2.2rem;">
                                 <i class="ph ph-magnifying-glass" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;"></i>
                             </div>
-                            <div id="log-sin-veiculo-dropdown" style="display:none;position:absolute;z-index:9999;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-height:200px;overflow-y:auto;width:calc(100% - 2.2rem);margin-top:2px;"></div>
+                            <div id="log-sin-veiculo-dropdown" style="display:none;position:absolute;z-index:9999;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-height:200px;overflow-y:auto;width:100%;margin-top:2px;"></div>
                         </div>
                         <!-- Dados do veículo selecionado (step 1 preview) -->
                         <div id="log-sin-veiculo-dados-step1" style="display:none;background:linear-gradient(135deg,#78350f,#b45309);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem;">
