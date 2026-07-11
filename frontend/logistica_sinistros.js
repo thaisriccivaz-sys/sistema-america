@@ -222,7 +222,11 @@ window.logSinAbrirModalNovo = function() {
         m.id = 'modal-logistica-novo-sinistro';
         m.className = 'modal';
         
-        const colabsOptions = _logSinListaColabs.map(c => `<option value="${c.id}">${c.nome_completo} (${c.cpf || ''})</option>`).join('');
+        const colabsOptions = _logSinListaColabs
+            .slice()
+            .sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''))
+            .map(c => `<option value="${c.id}">${c.nome_completo} (${c.cpf || ''})</option>`)
+            .join('');
 
         m.innerHTML = `
             <div class="modal-content" style="max-width:640px;">
