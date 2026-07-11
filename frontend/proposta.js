@@ -911,11 +911,9 @@ function _renderLinhasPropostas(lista) {
         const regiaoHtml = p.regiao ? `
             <div style="margin-top: 3px;">
                 <span style="font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; display: inline-block; ${
-                    p.regiao === 'Zona Leste' ? 'background:#e0f2fe; color:#0369a1;' :
-                    p.regiao === 'Zona Oeste' ? 'background:#fef3c7; color:#b45309;' :
-                    p.regiao === 'Zona Sul' ? 'background:#dcfce7; color:#15803d;' :
-                    p.regiao === 'Zona Norte' ? 'background:#f3e8ff; color:#6d28d9;' :
-                    p.regiao === 'Guarulhos' ? 'background:#fee2e2; color:#b91c1c;' :
+                    p.regiao === 'Zona Central' ? 'background:#cffafe; color:#0891b2;' :
+                    p.regiao === 'Zona Amarela' ? 'background:#fef9c3; color:#ca8a04;' :
+                    p.regiao === 'Zona Vermelha' ? 'background:#f3e8ff; color:#7e22ce;' :
                     'background:#f1f5f9; color:#475569;'
                 }">${p.regiao}</span>
             </div>
@@ -8743,21 +8741,15 @@ window.classificarRegiaoEDias = async function() {
                 badge.style.display = 'inline-block';
                 badge.innerText = `Região: ${regiao} (IA)`;
                 
-                if (regiao === 'Zona Leste') {
-                    badge.style.background = '#e0f2fe';
-                    badge.style.color = '#0369a1';
-                } else if (regiao === 'Zona Oeste') {
-                    badge.style.background = '#fef3c7';
-                    badge.style.color = '#b45309';
-                } else if (regiao === 'Zona Sul') {
-                    badge.style.background = '#dcfce7';
-                    badge.style.color = '#15803d';
-                } else if (regiao === 'Zona Norte') {
+                if (regiao === 'Zona Central') {
+                    badge.style.background = '#cffafe';
+                    badge.style.color = '#0891b2';
+                } else if (regiao === 'Zona Amarela') {
+                    badge.style.background = '#fef9c3';
+                    badge.style.color = '#ca8a04';
+                } else if (regiao === 'Zona Vermelha') {
                     badge.style.background = '#f3e8ff';
-                    badge.style.color = '#6d28d9';
-                } else if (regiao === 'Guarulhos') {
-                    badge.style.background = '#fee2e2';
-                    badge.style.color = '#b91c1c';
+                    badge.style.color = '#7e22ce';
                 } else {
                     badge.style.background = '#f1f5f9';
                     badge.style.color = '#475569';
@@ -8766,22 +8758,17 @@ window.classificarRegiaoEDias = async function() {
             }
 
             // Regras temporárias de dias conforme Qtd. de Manutenções Semanais e Região
-            if (regiao === 'Zona Leste') {
-                // Zona Leste - Segunda, quarta e sexta
+            if (regiao === 'Zona Central') {
+                // Zona Central - Segunda, quarta e sexta
                 if (qtdManut >= 1 && chkSeg) chkSeg.checked = true;
                 if (qtdManut >= 2 && chkQua) chkQua.checked = true;
                 if (qtdManut >= 3 && chkSex) chkSex.checked = true;
-            } else if (regiao === 'Zona Oeste' || regiao === 'Zona Sul') {
-                // Zona Oeste & Zona Sul - Terça e Quinta
+            } else if (regiao === 'Zona Amarela') {
+                // Zona Amarela - Terça e Quinta
                 if (qtdManut >= 1 && chkTer) chkTer.checked = true;
                 if (qtdManut >= 2 && chkQui) chkQui.checked = true;
-            } else if (regiao === 'Zona Norte') {
-                // Zona Norte - Quarta - Quinta e Sexta
-                if (qtdManut >= 1 && chkQua) chkQua.checked = true;
-                if (qtdManut >= 2 && chkQui) chkQui.checked = true;
-                if (qtdManut >= 3 && chkSex) chkSex.checked = true;
-            } else if (regiao === 'Guarulhos') {
-                // Guarulhos - Segunda e Sexta
+            } else if (regiao === 'Zona Vermelha') {
+                // Zona Vermelha - Segunda e Sexta
                 if (qtdManut >= 1 && chkSeg) chkSeg.checked = true;
                 if (qtdManut >= 2 && chkSex) chkSex.checked = true;
             }
@@ -8835,23 +8822,53 @@ window._geocodingQueue = window._geocodingQueue || {};
 function obterRegiaoLocal(enderecoCompleto) {
     const e = enderecoCompleto.toLowerCase();
     
-    // Heuristics mapping keywords to region (mirrors backend comprehensive database)
-    const lesteKw = ["leste", "itaquera", "penha", "tatuape", "tatuapé", "mooca", "moca", "itaim paulista", "sao miguel", "são miguel", "carrao", "carrão", "sapopemba", "mateo bei", "arthur alvim", "patriarca", "vila prudente", "zl", "aricanduva", "california", "califórnia", "belem", "belém", "bras", "brás", "cangaiba", "cangaíba", "cidade lider", "cidade líder", "tiradentes", "ermelino", "guaianases", "helena", "bonifacio", "bonifácio", "lajeado", "parque do carmo", "ponte rasa", "sao lucas", "são lucas", "mateus", "curuca", "curuça", "curuçá", "formosa", "jacui", "jacuí", "matilde", "pari", "agua rasa", "água rasa", "belenzinho", "artur alvim", "ermelino matarazzo", "parque novo mundo"];
+    const centralKw = [
+        "guarulhos", "gopouva", "gopóuva", "cumbica", "pimentas", "macedo", "cecilia", "cecília", 
+        "gru", "bosque maia", "taboao", "taboão", "vila galvão", "vila galvao", "bonsucesso", 
+        "lavras", "soberana", "haras", "recreio", "parque cecap", "cecap",
+        "lapa", "perdizes", "barra funda", "pinheiros", "alto de pinheiros", "vila madalena", "mooca", "moóca", 
+        "belém", "belem", "belenzinho", "bras", "brás", "pari", "cambuci", "sé", "se", "republica", "república", 
+        "bela vista", "consolação", "consolacao", "santa cecilia", "santa cecília", "bom retiro",
+        "vila mariana", "ipiranga", "sacoma", "sacomã", "cursino", "saude", "saúde", "moema", "itaim bibi", 
+        "vila olimpia", "vila olímpia", "chacara santo antonio", "chácara santo antônio", "brooklin", "campo belo", "santo amaro",
+        "santana", "tucuruvi", "casa verde", "limao", "limão", "freguesia do o", "freguesia do ó", "tremembe", 
+        "tremembé", "mandaqui", "vila maria", "vila guilherme", "medeiros", "vila medeiros", "parada inglesa", 
+        "jardim sao paulo", "jardim são paulo",
+        "penha", "tatuape", "tatuapé", "carrão", "carrao", "vila formosa", "aricanduva", "cangaiba", "cangaíba", 
+        "vila prudente", "itaquera", "artur alvim", "arthur alvim", "patriarca", "sao miguel", "são miguel", 
+        "itaim paulista", "ermelino matarazzo", "ermelino", "cidade lider", "cidade líder", "cidade tiradentes", 
+        "tiradentes", "guaianases", "jardim helena", "helena", "sao mateus", "são mateus", "parque do carmo"
+    ];
     
-    const oesteKw = ["oeste", "lapa", "pinheiros", "butanta", "butantã", "perdizes", "pompeia", "pompéia", "alto de pinheiros", "barra funda", "vila madalena", "jaguare", "jaguaré", "rio pequeno", "zo", "raposo tavares", "bonfiglioli", "osasco", "barueri", "carapicuiba", "carapicuíba", "itapevi", "jandira", "alphaville", "tambore", "tamboré", "cotia", "granja viana", "sonia", "sônia", "jardim paulista", "cerqueira cesar", "cerqueira césar", "vila sonia", "vila sônia"];
+    const amarelaKw = [
+        "butanta", "butantã", "rio pequeno", "raposo tavares", "bonfiglioli", "vila sonia", "vila sônia", 
+        "jaguare", "jaguaré", "jardim paulista", "cerqueira cesar", "cerqueira césar",
+        "campo limpo", "capao redondo", "capão redondo", "vila andrade", "andrade",
+        "jabaquara", "cidade ademar", "socorro",
+        "sapopemba", "sao rafael", "são rafael", "iguatemi",
+        "pirituba",
+        "aruja", "arujá", "itaquaquecetuba", "itaquá", "poa", "poá", "ferraz de vasconcelos", "ferraz", 
+        "taboao da serra", "taboão da serra"
+    ];
     
-    const sulKw = ["sul", "santo amaro", "morumbi", "interlagos", "moema", "itaim bibi", "vila mariana", "saude", "saúde", "jabaquara", "brooklin", "campo belo", "grajau", "grajaú", "socorro", "capao redondo", "capão redondo", "zs", "ipiranga", "sacoma", "sacomã", "cursino", "cidade ademar", "pedreira", "parelheiros", "campo limpo", "vila olimpia", "vila olímpia", "chacara santo antonio", "chácara santo antônio", "andrade", "ibira", "ibirapuera", "aeroporto", "panamby", "chacara flora", "chácara flora"];
-    
-    const norteKw = ["norte", "santana", "tucuruvi", "casa verde", "limao", "limão", "freguesia", "freguesia do o", "freguesia do ó", "tremembe", "tremembé", "jaçanã", "jacana", "mandaqui", "vila maria", "vila guilherme", "zn", "cachoeirinha", "imbirim", "parada inglesa", "jardim sao paulo", "jardim são paulo", "brasilandia", "brasilândia", "anhanguera", "perus", "jaragua", "jaraguá", "pirituba", "medeiros", "vila medeiros"];
-    
-    const guarulhosKw = ["guarulhos", "gopouva", "cumbica", "pimentas", "macedo", "cecilia", "cecília", "gru", "bosque maia", "taboao", "taboão", "vila galvão", "vila galvao", "bonsucesso", "lavras", "soberana", "haras", "recreio", "parque cecap", "cecap"];
+    const vermelhaKw = [
+        "osasco", "barueri", "santana de parnaiba", "santana de parnaíba", "cajamar", "caieiras", 
+        "franco da rocha", "francisco morato", "mairipora", "mairiporã", "santa isabel",
+        "cotia", "granja viana", "itapevi", "jandira", "carapicuiba", "carapicuíba", "alphaville", 
+        "tambore", "tamboré", "embu das artes", "embu", "itapecerica da serra", "itapecerica", 
+        "embu-guaçu", "embu-guacu", "são lourenço da serra", "sao lourenço da serra",
+        "diadema", "sao bernardo do campo", "são bernardo do campo", "sbc", "santo andre", "santo andré", 
+        "sao caetano do sul", "são caetano do sul", "são caetano", "sao caetano", "maua", "mauá", 
+        "ribeirao pires", "ribeirão pires", "rio grande da serra",
+        "suzano", "mogi das cruzes", "mogi",
+        "perus", "jaragua", "jaraguá", "anhaguera", "brasilandia", "brasilândia", "cachoeirinha", 
+        "grajau", "grajaú", "parelheiros", "marsilac", "cidade dutra", "jardim angela", "jardim ângela", "pedreira"
+    ];
 
     const classes = [
-        { name: "Zona Leste", keywords: lesteKw },
-        { name: "Zona Oeste", keywords: oesteKw },
-        { name: "Zona Sul", keywords: sulKw },
-        { name: "Zona Norte", keywords: norteKw },
-        { name: "Guarulhos", keywords: guarulhosKw }
+        { name: "Zona Central", keywords: centralKw },
+        { name: "Zona Amarela", keywords: amarelaKw },
+        { name: "Zona Vermelha", keywords: vermelhaKw }
     ];
 
     let maxScore = -1;
@@ -8944,20 +8961,16 @@ window.atualizarEstatisticasModal = function() {
     }
 
     const regioesCount = {
-        'Zona Leste': 0,
-        'Zona Sul': 0,
-        'Zona Oeste': 0,
-        'Zona Norte': 0,
-        'Guarulhos': 0,
+        'Zona Central': 0,
+        'Zona Amarela': 0,
+        'Zona Vermelha': 0,
         'Outra': 0
     };
 
     const regioesKm = {
-        'Zona Leste': 0,
-        'Zona Sul': 0,
-        'Zona Oeste': 0,
-        'Zona Norte': 0,
-        'Guarulhos': 0,
+        'Zona Central': 0,
+        'Zona Amarela': 0,
+        'Zona Vermelha': 0,
         'Outra': 0
     };
 
@@ -8978,11 +8991,11 @@ window.atualizarEstatisticasModal = function() {
             distance = calcularDistanciaHaversine(LAT_A, LON_A, coords.lat, coords.lon);
         } else {
             // Fallback estimates
-            if (reg === 'Zona Leste') distance = 12;
-            else if (reg === 'Zona Sul') distance = 28;
-            else if (reg === 'Zona Oeste') distance = 22;
-            else if (reg === 'Zona Norte') distance = 18;
-            else if (reg === 'Guarulhos') distance = 7;
+            if (reg === 'Zona Central') {
+                distance = (fullAddress.toLowerCase().includes('guarulhos') ? 7 : 12);
+            }
+            else if (reg === 'Zona Amarela') distance = 18;
+            else if (reg === 'Zona Vermelha') distance = 28;
             else distance = 15;
 
             obterCoordenadasEnderecoAsync(cacheKey);
@@ -9000,24 +9013,16 @@ window.atualizarEstatisticasModal = function() {
                 <i class="ph ph-hash" style="font-weight:700;"></i> Total: <b>${totalCount}</b>
             </div>
             
-            <div style="background:#e0f2fe; color:#0369a1; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #bae6fd;">
-                <span style="display:inline-block; width:6px; height:6px; background:#0284c7; border-radius:50%;"></span> Z. Leste: <b>${regioesCount['Zona Leste']}</b> (${regioesKm['Zona Leste'].toFixed(1)} km)
+            <div style="background:#cffafe; color:#0891b2; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #a5f3fc;">
+                <span style="display:inline-block; width:6px; height:6px; background:#0891b2; border-radius:50%;"></span> Z. Central: <b>${regioesCount['Zona Central']}</b> (${regioesKm['Zona Central'].toFixed(1)} km)
             </div>
             
-            <div style="background:#dcfce7; color:#15803d; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #bbf7d0;">
-                <span style="display:inline-block; width:6px; height:6px; background:#16a34a; border-radius:50%;"></span> Z. Sul: <b>${regioesCount['Zona Sul']}</b> (${regioesKm['Zona Sul'].toFixed(1)} km)
+            <div style="background:#fef9c3; color:#ca8a04; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #fef08a;">
+                <span style="display:inline-block; width:6px; height:6px; background:#ca8a04; border-radius:50%;"></span> Z. Amarela: <b>${regioesCount['Zona Amarela']}</b> (${regioesKm['Zona Amarela'].toFixed(1)} km)
             </div>
             
-            <div style="background:#fef3c7; color:#b45309; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #fde68a;">
-                <span style="display:inline-block; width:6px; height:6px; background:#d97706; border-radius:50%;"></span> Z. Oeste: <b>${regioesCount['Zona Oeste']}</b> (${regioesKm['Zona Oeste'].toFixed(1)} km)
-            </div>
-            
-            <div style="background:#f3e8ff; color:#6d28d9; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #e9d5ff;">
-                <span style="display:inline-block; width:6px; height:6px; background:#8b5cf6; border-radius:50%;"></span> Z. Norte: <b>${regioesCount['Zona Norte']}</b> (${regioesKm['Zona Norte'].toFixed(1)} km)
-            </div>
-
-            <div style="background:#fee2e2; color:#b91c1c; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #fecaca;">
-                <span style="display:inline-block; width:6px; height:6px; background:#dc2626; border-radius:50%;"></span> Guarulhos: <b>${regioesCount['Guarulhos']}</b> (${regioesKm['Guarulhos'].toFixed(1)} km)
+            <div style="background:#f3e8ff; color:#7e22ce; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #e9d5ff;">
+                <span style="display:inline-block; width:6px; height:6px; background:#7e22ce; border-radius:50%;"></span> Z. Vermelha: <b>${regioesCount['Zona Vermelha']}</b> (${regioesKm['Zona Vermelha'].toFixed(1)} km)
             </div>
             
             <div style="background:#eceff1; color:#37474f; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #cfd8dc; font-weight:700;">
