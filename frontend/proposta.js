@@ -43,6 +43,7 @@ let _manutencoesData = [];
 let _veiculosData = [];
 let _clientesData = [];
 let _propostasEditandoId = null;
+let _propRegiaoIdentificada = '';
 let _currentPropostaTab = 'lista'; // 'lista', 'form' ou 'cadastro-cliente'
 let _clienteEditandoId = null;
 let _clienteContatos = [];
@@ -907,13 +908,27 @@ function _renderLinhasPropostas(lista) {
         const valorTotal = typeof p.valor_total === 'number' ? p.valor_total : parseFloat(p.valor_total) || 0;
         const valorFmt = valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+        const regiaoHtml = p.regiao ? `
+            <div style="margin-top: 3px;">
+                <span style="font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; display: inline-block; ${
+                    p.regiao === 'Zona Leste' ? 'background:#e0f2fe; color:#0369a1;' :
+                    p.regiao === 'Zona Oeste' ? 'background:#fef3c7; color:#b45309;' :
+                    p.regiao === 'Zona Sul' ? 'background:#dcfce7; color:#15803d;' :
+                    p.regiao === 'Zona Norte' ? 'background:#f3e8ff; color:#6d28d9;' :
+                    p.regiao === 'Guarulhos' ? 'background:#fee2e2; color:#b91c1c;' :
+                    'background:#f1f5f9; color:#475569;'
+                }">${p.regiao}</span>
+            </div>
+        ` : '';
+
         return `
         <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
             <td style="padding:0.6rem 0.75rem; font-weight:700; color:#7048e8; white-space:nowrap;">
                 ${p.codigo || '—'}
             </td>
             <td style="padding:0.6rem 0.75rem; color:#1e293b; font-weight:600; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${p.cliente_nome||''}">
-                ${p.cliente_nome || '<span style="color:#94a3b8">—</span>'}
+                <div>${p.cliente_nome || '<span style="color:#94a3b8">—</span>'}</div>
+                ${regiaoHtml}
             </td>
             <td style="padding:0.6rem 0.75rem; color:#475569; font-size:0.83rem; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${p.tipo||''}">
                 ${p.tipo || '—'}
@@ -1496,6 +1511,7 @@ async function abrirFormProposta(id) {
 function _renderFormPropostaInt() {
     const id = _propostasEditandoId;
     const prop = id ? _propostasData.find(p => p.id === id) : null;
+    _propRegiaoIdentificada = prop && prop.regiao ? prop.regiao : '';
     const isNovo = !prop;
     const hoje = new Date().toISOString().split('T')[0];
     const dataCadastroVal = prop && prop.data_cadastro ? prop.data_cadastro : hoje;
@@ -3503,6 +3519,7 @@ window.salvarPropostaNova = async function() {
         criado_por: window.currentUser?.nome || window.currentUser?.email || '',
         itens: window._propProdutosAdicionados || [],
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
+        regiao: _propRegiaoIdentificada || null
     };
 
     try {
@@ -3584,6 +3601,7 @@ window.estornarPropostaEdicao = async function() {
         criado_por: window.currentUser?.nome || window.currentUser?.email || '',
         itens: window._propProdutosAdicionados || [],
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
+        regiao: _propRegiaoIdentificada || null
     };
 
     try {
@@ -8719,6 +8737,7 @@ window.classificarRegiaoEDias = async function() {
         const res = await apiPost('/ia/classificar-regiao', { endereco });
         if (res && res.regiao) {
             const regiao = res.regiao;
+            _propRegiaoIdentificada = regiao;
 
             if (badge) {
                 badge.style.display = 'inline-block';

@@ -21038,8 +21038,8 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         tabela_precos, endereco_instalacao, desconto_percent, desconto_reais,
         condicao_pagamento, representante, transportadora, tipo_frete,
         valor_frete_ida, valor_frete_volta, observacoes, valor_total,
-        status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, regiao, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
         d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
@@ -21051,6 +21051,7 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         d.valor_total||0, d.status||'Ativa', d.motivo_reprovacao||null, d.criado_por,
         d.itens ? (typeof d.itens === 'string' ? d.itens : JSON.stringify(d.itens)) : '[]',
         d.servico_precificacao_id || null,
+        d.regiao || null,
         agora, agora
       ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -21084,7 +21085,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       tabela_precos=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
       condicao_pagamento=?, representante=?, transportadora=?, tipo_frete=?,
       valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
-      status=?, motivo_reprovacao=?, itens=?, servico_precificacao_id=?, atualizado_em=?
+      status=?, motivo_reprovacao=?, itens=?, servico_precificacao_id=?, regiao=?, atualizado_em=?
       WHERE id=?`,
     [
       d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
@@ -21097,6 +21098,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       d.valor_total||0, d.status||'Ativa', d.motivo_reprovacao||null,
       d.itens ? (typeof d.itens === 'string' ? d.itens : JSON.stringify(d.itens)) : '[]',
       d.servico_precificacao_id || null,
+      d.regiao || null,
       agora, proposalId
     ], function(errUpdate) {
       if (errUpdate) return res.status(500).json({ error: errUpdate.message });

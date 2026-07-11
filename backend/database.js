@@ -236,11 +236,15 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     criado_por TEXT,
                     itens TEXT,
                     servico_precificacao_id INTEGER,
+                    regiao TEXT,
                     criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
                     atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
                 )
             `);
             db.run(`ALTER TABLE propostas ADD COLUMN itens TEXT`, (err) => {
+                // Ignore error if already exists
+            });
+            db.run(`ALTER TABLE propostas ADD COLUMN regiao TEXT`, (err) => {
                 // Ignore error if already exists
             });
             db.run(`ALTER TABLE propostas ADD COLUMN servico_precificacao_id INTEGER`, (err) => {
