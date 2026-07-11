@@ -252,6 +252,22 @@ window.logSinAbrirModalNovo = function() {
                     <div id="log-sinistro-step-2" style="display:none;">
                         <div id="log-sin-bo-notif" style="display:none; border-radius:8px; padding:0.5rem 0.75rem; margin-bottom:1rem; font-size:0.85rem;"></div>
 
+                        <!-- Dados do Colaborador Selecionado (dinâmico) -->
+                        <div id="log-sin-dados-colab-section" style="display:none; background:linear-gradient(135deg,#065f46,#047857); border-radius:10px; padding:1rem 1.1rem; margin-bottom:0.75rem;">
+                            <p style="margin:0 0 0.5rem; font-weight:700; font-size:0.82rem; color:#6ee7b7; text-transform:uppercase; letter-spacing:0.5px;">
+                                <i class="ph ph-user"></i> Dados do Colaborador
+                            </p>
+                            <div id="log-sin-dados-colab-rows" style="display:grid; grid-template-columns:1fr; gap:0.35rem;"></div>
+                        </div>
+
+                        <!-- Dados do Declarante (fixos, para copiar no BO) -->
+                        <div style="background:linear-gradient(135deg,#1e3a5f,#1e40af); border-radius:10px; padding:1rem 1.1rem; margin-bottom:1rem;">
+                            <p style="margin:0 0 0.5rem; font-weight:700; font-size:0.82rem; color:#93c5fd; text-transform:uppercase; letter-spacing:0.5px;">
+                                <i class="ph ph-identification-card"></i> Dados do Declarante
+                            </p>
+                            <div id="log-sin-dados-declarante-rows" style="display:grid; grid-template-columns:1fr; gap:0.35rem;"></div>
+                        </div>
+
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                             <div class="input-group">
                                 <label>Boletim Nº</label>
@@ -344,7 +360,58 @@ window.logSinAbrirModalNovo = function() {
     window._logSinMidiasFiles = [];
     if (typeof window._logSinAtualizarPreviewMidias === 'function') window._logSinAtualizarPreviewMidias();
 
+    // Preencher dados fixos do declarante e ocultar seção do colaborador (nenhum selecionado)
+    window._logSinPreencherDeclarante();
+    var dadosColabSection = document.getElementById('log-sin-dados-colab-section');
+    if (dadosColabSection) dadosColabSection.style.display = 'none';
+
+    // Ao selecionar colaborador, atualizar dados exibidos
+    var selColab = document.getElementById('log-sin-colab-select');
+    if (selColab) {
+        selColab.onchange = function() { window._logSinAtualizarDadosColab(this.value); };
+    }
+
     m.style.display = 'flex';
+};
+
+// Helper compartilhado com sinistros.js - usa _sinLinhaCopiavel se disponível
+window._logSinLinhaCopiavel = function(label, value, corLabel) {
+    if (typeof window._sinLinhaCopiavel === 'function') return window._sinLinhaCopiavel(label, value, corLabel);
+    return '<div style="display:flex;align-items:center;background:rgba(255,255,255,0.08);border-radius:6px;padding:0.3rem 0.6rem;gap:0.5rem;">' +
+        '<span style="font-size:0.74rem;color:' + corLabel + ';font-weight:600;min-width:95px;flex-shrink:0;">' + label + '</span>' +
+        '<span style="font-size:0.82rem;color:#f1f5f9;font-weight:700;flex:1;">' + value + '</span>' +
+        '<button type="button" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent.trim()).then(function(){var b=this;b.innerHTML=\'<i class=&quot;ph ph-check&quot;></i>\';b.style.background=\'#16a34a\';setTimeout(function(){b.innerHTML=\'<i class=&quot;ph ph-copy&quot;></i>\';b.style.background=\'rgba(255,255,255,0.15)\';},1200);}.bind(this))" ' +
+        'style="background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:5px;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.85rem;">' +
+        '<i class="ph ph-copy"></i></button></div>';
+};
+
+window._logSinPreencherDeclarante = function() {
+    var el = document.getElementById('log-sin-dados-declarante-rows');
+    if (!el || el.children.length) return; // preencher apenas uma vez (dados fixos)
+    var dados = [
+        { label: 'Nome da Mãe', value: 'Sandra Regina Mezuraro' },
+        { label: 'CNH', value: '04130394162' },
+        { label: 'Validade CNH', value: '16/10/2034' },
+        { label: 'Profissão', value: 'Publicitario' },
+        { label: 'Celular', value: '11 94788-4343' }
+    ];
+    el.innerHTML = dados.map(function(d) { return window._logSinLinhaCopiavel(d.label, d.value, '#93c5fd'); }).join('');
+};
+
+window._logSinAtualizarDadosColab = function(colabId) {
+    var section = document.getElementById('log-sin-dados-colab-section');
+    var el = document.getElementById('log-sin-dados-colab-rows');
+    if (!section || !el) return;
+    if (!colabId) { section.style.display = 'none'; return; }
+    var c = (_logSinListaColabs || []).find(function(x) { return String(x.id) === String(colabId); });
+    if (!c) { section.style.display = 'none'; return; }
+    var dados = [];
+    if (c.nome_completo) dados.push({ label: 'Nome Completo', value: c.nome_completo });
+    if (c.endereco) dados.push({ label: 'Endereço', value: c.endereco });
+    if (c.telefone) dados.push({ label: 'Telefone/Cel', value: c.telefone });
+    if (!dados.length) { section.style.display = 'none'; return; }
+    el.innerHTML = dados.map(function(d) { return window._logSinLinhaCopiavel(d.label, d.value, '#6ee7b7'); }).join('');
+    section.style.display = 'block';
 };
 
 // _addLogSinOrcField removido - usar _logSinAdicionarOrcs com drag-and-drop
