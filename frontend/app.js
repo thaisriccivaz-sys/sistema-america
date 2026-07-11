@@ -14993,10 +14993,54 @@ window._renderEpiGrid = function (filtro) {
     });
 };
 
+// EPIs que exigem pergunta de devolução do item anterior
+window._EPIS_RETORNAVEIS = ['CA 14.781', 'CA 46.468', 'CA 42.291'];
+window._requiresReturnQuestion = function(epi) {
+    return window._EPIS_RETORNAVEIS.some(ca => epi.toUpperCase().includes(ca));
+};
+// Armazena se o colaborador devolveu o anterior (por nome do EPI)
+window._assinRetornosConfirmados = window._assinRetornosConfirmados || {};
+
 window._requiresSize = function(epi) { const e=epi.toUpperCase(); if(['CAMISETA','POLO','CALÇA','BLUSA','JAQUETA','COLETE','BLUSAO','BLUSÃO','UNIFORME'].some(k=>e.includes(k))) return 'roupa'; if(e.includes('BOTA')) return 'bota'; return false; };
 
 window._setEpiQty = async function (epi, qty) {
     const prevQty = (window._assinQtds||{})[epi]||0;
+
+    // Pergunta de devolução para EPIs retornáveis (apenas na primeira adição)
+    if (qty > prevQty && prevQty === 0 && window._requiresReturnQuestion(epi)) {
+        let swalStyleEl = document.getElementById('swal-epi-zindex-fix');
+        if (!swalStyleEl) { swalStyleEl = document.createElement('style'); swalStyleEl.id = 'swal-epi-zindex-fix'; document.head.appendChild(swalStyleEl); }
+        swalStyleEl.textContent = '.swal2-container { z-index: 999999 !important; }';
+        const {value: devolveu} = await Swal.fire({
+            title: 'EPI Retornável',
+            html: `<div style="text-align:center;"><i class="ph ph-arrow-u-up-left" style="font-size:2.5rem;color:#d97706;display:block;margin-bottom:0.5rem;"></i><p style="color:#475569;font-size:0.95rem;margin:0;">O colaborador devolveu o <strong>${epi}</strong> anterior?</p></div>`,
+            showDenyButton: true,
+            showCancelButton: false,
+            confirmButtonText: '<i class="ph ph-check"></i> Sim, devolveu',
+            denyButtonText: '<i class="ph ph-x"></i> Não devolveu',
+            confirmButtonColor: '#16a34a',
+            denyButtonColor: '#dc2626',
+        });
+        if (swalStyleEl) swalStyleEl.textContent = '';
+        // devolveu = true (Sim), false (Não), undefined (fechou)
+        if (devolveu === undefined) return; // usuário fechou o diálogo sem responder
+        window._assinRetornosConfirmados[epi] = devolveu === true;
+        // Se não devolveu, mostrar aviso mas continuar
+        if (!devolveu) {
+            let swalStyleEl2 = document.getElementById('swal-epi-zindex-fix');
+            if (!swalStyleEl2) { swalStyleEl2 = document.createElement('style'); swalStyleEl2.id = 'swal-epi-zindex-fix'; document.head.appendChild(swalStyleEl2); }
+            swalStyleEl2.textContent = '.swal2-container { z-index: 999999 !important; }';
+            await Swal.fire({
+                icon: 'warning',
+                title: 'Atenção!',
+                html: `<p style="color:#374151;font-size:0.92rem;">O colaborador <strong>não devolveu</strong> o ${epi} anterior.<br>A entrega será registrada com observação de pendência de devolução.</p>`,
+                confirmButtonText: 'Entendido, continuar',
+                confirmButtonColor: '#d97706',
+            });
+            if (swalStyleEl2) swalStyleEl2.textContent = '';
+        }
+    }
+
     if (qty>prevQty && prevQty===0 && window._requiresSize(epi)) {
         const tipoSize=window._requiresSize(epi); const opcoes=tipoSize==='bota'?['33','34','35','36','37','38','39','40','41','42','43','44','45','46']:['PP','P','M','G','GG','XG','XXG'];
         // Garantir que o Swal apareça acima do overlay de EPI (z-index 99990)
