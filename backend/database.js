@@ -237,6 +237,11 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     itens TEXT,
                     servico_precificacao_id INTEGER,
                     regiao TEXT,
+                    percentual_zona REAL DEFAULT 0,
+                    valor_km REAL DEFAULT 0,
+                    distancia_km REAL DEFAULT 0,
+                    valor_zona_calculado REAL DEFAULT 0,
+                    valor_distancia_calculado REAL DEFAULT 0,
                     criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
                     atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
                 )
@@ -248,6 +253,21 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 // Ignore error if already exists
             });
             db.run(`ALTER TABLE propostas ADD COLUMN servico_precificacao_id INTEGER`, (err) => {
+                // Ignore error if already exists
+            });
+            db.run(`ALTER TABLE propostas ADD COLUMN percentual_zona REAL DEFAULT 0`, (err) => {
+                // Ignore error if already exists
+            });
+            db.run(`ALTER TABLE propostas ADD COLUMN valor_km REAL DEFAULT 0`, (err) => {
+                // Ignore error if already exists
+            });
+            db.run(`ALTER TABLE propostas ADD COLUMN distancia_km REAL DEFAULT 0`, (err) => {
+                // Ignore error if already exists
+            });
+            db.run(`ALTER TABLE propostas ADD COLUMN valor_zona_calculado REAL DEFAULT 0`, (err) => {
+                // Ignore error if already exists
+            });
+            db.run(`ALTER TABLE propostas ADD COLUMN valor_distancia_calculado REAL DEFAULT 0`, (err) => {
                 // Ignore error if already exists
             });
 

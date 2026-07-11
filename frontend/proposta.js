@@ -1858,6 +1858,42 @@ function _renderFormPropostaInt() {
                         </div>
                     </div>
 
+                    <!-- Seção: Adicionais de Logística (Zona & KM) -->
+                    <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+                        <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#166534; font-weight:700; display:flex; align-items:center; gap:6px;">
+                            <i class="ph ph-map-trifold" style="color:#16a34a;"></i> Adicionais de Logística (Zona & KM)
+                        </h4>
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr; gap:0.5rem 0.75rem;">
+                            <div>
+                                <label class="prop-lbl">Percentual Zona (%)</label>
+                                <input type="number" id="prop-percentual-zona" value="${vn('percentual_zona','0')}" min="0" max="100" step="0.1"
+                                    oninput="window.calcularValorTotalProposta()"
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Acréscimo Zona (R$)</label>
+                                <input type="text" id="prop-valor-zona-calculado" value="R$ 0,00" readonly
+                                    style="width:100%;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box;font-weight:600;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Valor por KM (R$)</label>
+                                <input type="number" id="prop-valor-km" value="${vn('valor_km','0')}" min="0" step="0.01"
+                                    oninput="window.calcularValorTotalProposta()"
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Distância (KM)</label>
+                                <input type="text" id="prop-distancia-km" value="0.00 km" readonly
+                                    style="width:100%;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box;font-weight:600;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Acréscimo KM (R$)</label>
+                                <input type="text" id="prop-valor-distancia-calculado" value="R$ 0,00" readonly
+                                    style="width:100%;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box;font-weight:600;">
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Seção: Representante, Frete e Valor -->
                     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                         <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
@@ -3443,7 +3479,40 @@ window.calcularValorTotalProposta = function() {
     const freteIda = parseFloat(freteIdaEl?.value || 0);
     const freteVolta = parseFloat(freteVoltaEl?.value || 0);
 
-    const subtotal = precoServico + freteIda + freteVolta;
+    // Adicionais de Logística (Zona & KM)
+    const pctZona = parseFloat(document.getElementById('prop-percentual-zona')?.value || 0);
+    const valorKm = parseFloat(document.getElementById('prop-valor-km')?.value || 0);
+    const endereco = document.getElementById('prop-endereco')?.value || '';
+
+    let distancia = 0;
+    if (endereco.trim()) {
+        const cacheKey = endereco.trim();
+        if (window._enderecoCoordenadasCache && window._enderecoCoordenadasCache[cacheKey]) {
+            const coords = window._enderecoCoordenadasCache[cacheKey];
+            // Depot Point A: -23.433829134957392, -46.42011977802175
+            distancia = calcularDistanciaHaversine(-23.433829134957392, -46.42011977802175, coords.lat, coords.lon);
+        }
+    }
+
+    // Atualizar inputs de visualização de distância e adicionais
+    const distEl = document.getElementById('prop-distancia-km');
+    if (distEl) {
+        distEl.value = `${distancia.toFixed(2).replace('.', ',')} km`;
+    }
+
+    const valorZona = precoServico * (pctZona / 100);
+    const valZonaEl = document.getElementById('prop-valor-zona-calculado');
+    if (valZonaEl) {
+        valZonaEl.value = `R$ ${valorZona.toFixed(2).replace('.', ',')}`;
+    }
+
+    const valorDist = distancia * valorKm;
+    const valDistEl = document.getElementById('prop-valor-distancia-calculado');
+    if (valDistEl) {
+        valDistEl.value = `R$ ${valorDist.toFixed(2).replace('.', ',')}`;
+    }
+
+    const subtotal = precoServico + freteIda + freteVolta + valorZona + valorDist;
 
     let desconto = 0;
     if (descPctEl && parseFloat(descPctEl.value) > 0) {
@@ -3517,7 +3586,12 @@ window.salvarPropostaNova = async function() {
         criado_por: window.currentUser?.nome || window.currentUser?.email || '',
         itens: window._propProdutosAdicionados || [],
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
-        regiao: _propRegiaoIdentificada || null
+        regiao: _propRegiaoIdentificada || null,
+        percentual_zona: obterN('prop-percentual-zona'),
+        valor_km: obterN('prop-valor-km'),
+        distancia_km: parseFloat(obter('prop-distancia-km').replace(' km', '').replace(',', '.')) || 0,
+        valor_zona_calculado: parseFloat(obter('prop-valor-zona-calculado').replace('R$ ', '').replace(',', '.')) || 0,
+        valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0
     };
 
     try {
@@ -8937,6 +9011,9 @@ async function obterCoordenadasEnderecoAsync(enderecoCompleto) {
                 // Refresh rendering to calculate real distances
                 if (typeof window.atualizarEstatisticasModal === 'function') {
                     window.atualizarEstatisticasModal();
+                }
+                if (typeof window.calcularValorTotalProposta === 'function') {
+                    window.calcularValorTotalProposta();
                 }
             }
         }

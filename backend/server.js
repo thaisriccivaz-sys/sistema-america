@@ -21036,8 +21036,10 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         tabela_precos, endereco_instalacao, desconto_percent, desconto_reais,
         condicao_pagamento, representante, transportadora, tipo_frete,
         valor_frete_ida, valor_frete_volta, observacoes, valor_total,
-        status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, regiao, criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, regiao,
+        percentual_zona, valor_km, distancia_km, valor_zona_calculado, valor_distancia_calculado,
+        criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
         d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
@@ -21050,6 +21052,11 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         d.itens ? (typeof d.itens === 'string' ? d.itens : JSON.stringify(d.itens)) : '[]',
         d.servico_precificacao_id || null,
         d.regiao || null,
+        d.percentual_zona || 0,
+        d.valor_km || 0,
+        d.distancia_km || 0,
+        d.valor_zona_calculado || 0,
+        d.valor_distancia_calculado || 0,
         agora, agora
       ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -21083,7 +21090,9 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       tabela_precos=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
       condicao_pagamento=?, representante=?, transportadora=?, tipo_frete=?,
       valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
-      status=?, motivo_reprovacao=?, itens=?, servico_precificacao_id=?, regiao=?, atualizado_em=?
+      status=?, motivo_reprovacao=?, itens=?, servico_precificacao_id=?, regiao=?,
+      percentual_zona=?, valor_km=?, distancia_km=?, valor_zona_calculado=?, valor_distancia_calculado=?,
+      atualizado_em=?
       WHERE id=?`,
     [
       d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
@@ -21097,6 +21106,11 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       d.itens ? (typeof d.itens === 'string' ? d.itens : JSON.stringify(d.itens)) : '[]',
       d.servico_precificacao_id || null,
       d.regiao || null,
+      d.percentual_zona || 0,
+      d.valor_km || 0,
+      d.distancia_km || 0,
+      d.valor_zona_calculado || 0,
+      d.valor_distancia_calculado || 0,
       agora, proposalId
     ], function(errUpdate) {
       if (errUpdate) return res.status(500).json({ error: errUpdate.message });
@@ -21131,7 +21145,12 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
         { field: 'observacoes', label: 'Observações' },
         { field: 'valor_total', label: 'Valor Total' },
         { field: 'status', label: 'Status' },
-        { field: 'motivo_reprovacao', label: 'Motivo de Reprovação' }
+        { field: 'motivo_reprovacao', label: 'Motivo de Reprovação' },
+        { field: 'percentual_zona', label: 'Percentual Zona' },
+        { field: 'valor_km', label: 'Valor por KM' },
+        { field: 'distancia_km', label: 'Distância (KM)' },
+        { field: 'valor_zona_calculado', label: 'Valor Zona' },
+        { field: 'valor_distancia_calculado', label: 'Valor Distância' }
       ];
 
       fieldsToCompare.forEach(item => {
@@ -21142,7 +21161,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
         if (item.field === 'hora_inicio' || item.field === 'hora_fim') {
           if (!newVal) newVal = '00:00';
         }
-        if (['dias_contrato', 'desconto_percent', 'desconto_reais', 'valor_frete_ida', 'valor_frete_volta', 'valor_total'].includes(item.field)) {
+        if (['dias_contrato', 'desconto_percent', 'desconto_reais', 'valor_frete_ida', 'valor_frete_volta', 'valor_total', 'percentual_zona', 'valor_km', 'distancia_km', 'valor_zona_calculado', 'valor_distancia_calculado'].includes(item.field)) {
           if (!newVal) newVal = '0';
           if (!oldVal) oldVal = '0';
           if (parseFloat(oldVal) === parseFloat(newVal)) return;
