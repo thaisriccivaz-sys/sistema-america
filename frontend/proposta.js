@@ -8805,6 +8805,8 @@ window.classificarRegiaoEDias = async function() {
         return;
     }
 
+    obterCoordenadasEnderecoAsync(endereco);
+
     try {
         const res = await apiPost('/ia/classificar-regiao', { endereco });
         if (res && res.regiao) {
