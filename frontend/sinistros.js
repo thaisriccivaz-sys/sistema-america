@@ -252,9 +252,21 @@ window.abrirModalNovoSinistro = function() {
                             <div id="sin-veiculo-dropdown" style="display:none;position:absolute;z-index:9999;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-height:200px;overflow-y:auto;width:100%;margin-top:2px;"></div>
                         </div>
                         <!-- Dados do veículo selecionado (step 1) -->
-                        <div id="sin-veiculo-dados-step1" style="display:none;background:linear-gradient(135deg,#78350f,#b45309);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem;">
-                            <p style="margin:0 0 0.5rem;font-weight:700;font-size:0.82rem;color:#fcd34d;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-truck"></i> Veículo Selecionado</p>
-                            <div id="sin-veiculo-dados-step1-rows" style="display:grid;grid-template-columns:1fr;gap:0.35rem;"></div>
+                        <div id="sin-veiculo-dados-step1" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.75rem;">
+                            <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#b45309;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-truck"></i> Veículo Selecionado</p>
+                            <div id="sin-veiculo-dados-step1-rows" style="display:grid;grid-template-columns:1fr;gap:0.3rem;"></div>
+                        </div>
+
+                        <!-- Dados do Colaborador (step 1) -->
+                        <div id="sin-dados-colab-section-s1" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.75rem;">
+                            <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#15803d;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-user"></i> Dados do Colaborador</p>
+                            <div id="sin-dados-colab-rows-s1" style="display:grid;grid-template-columns:1fr;gap:0.3rem;"></div>
+                        </div>
+
+                        <!-- Dados do Declarante (step 1, sempre visível) -->
+                        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.75rem;">
+                            <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-identification-card"></i> Dados do Declarante</p>
+                            <div id="sin-dados-declarante-rows-s1" style="display:grid;grid-template-columns:1fr;gap:0.3rem;"></div>
                         </div>
 
                         <p style="font-size:0.9rem; color:#475569; margin-bottom:1rem;">Anexe o Boletim de Ocorrência (PDF). O sistema tentará extrair os dados automaticamente.</p>
@@ -270,28 +282,22 @@ window.abrirModalNovoSinistro = function() {
                     <div id="sinistro-step-2" style="display:none;">
                         <div id="sin-bo-notif" style="display:none; border-radius:8px; padding:0.5rem 0.75rem; margin-bottom:1rem; font-size:0.85rem;"></div>
 
-                        <!-- Dados do Colaborador (dinâmico, preenchido via JS) -->
-                        <div id="sin-dados-colab-section" style="display:none; background:linear-gradient(135deg,#065f46,#047857); border-radius:10px; padding:1rem 1.1rem; margin-bottom:0.75rem;">
-                            <p style="margin:0 0 0.5rem; font-weight:700; font-size:0.82rem; color:#6ee7b7; text-transform:uppercase; letter-spacing:0.5px;">
-                                <i class="ph ph-user"></i> Dados do Colaborador
-                            </p>
-                            <div id="sin-dados-colab-rows" style="display:grid; grid-template-columns:1fr; gap:0.35rem;"></div>
+                        <!-- Dados do Colaborador (step 2) -->
+                        <div id="sin-dados-colab-section" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.75rem;">
+                            <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#15803d;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-user"></i> Dados do Colaborador</p>
+                            <div id="sin-dados-colab-rows" style="display:grid;grid-template-columns:1fr;gap:0.3rem;"></div>
                         </div>
 
-                        <!-- Dados do Veículo (dinâmico, preenchido via JS) -->
-                        <div id="sin-dados-veiculo-section" style="display:none; background:linear-gradient(135deg,#78350f,#b45309); border-radius:10px; padding:1rem 1.1rem; margin-bottom:0.75rem;">
-                            <p style="margin:0 0 0.5rem; font-weight:700; font-size:0.82rem; color:#fcd34d; text-transform:uppercase; letter-spacing:0.5px;">
-                                <i class="ph ph-truck"></i> Dados do Veículo
-                            </p>
-                            <div id="sin-dados-veiculo-rows" style="display:grid; grid-template-columns:1fr; gap:0.35rem;"></div>
+                        <!-- Dados do Veículo (step 2) -->
+                        <div id="sin-dados-veiculo-section" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.75rem;">
+                            <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#b45309;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-truck"></i> Dados do Veículo</p>
+                            <div id="sin-dados-veiculo-rows" style="display:grid;grid-template-columns:1fr;gap:0.3rem;"></div>
                         </div>
 
-                        <!-- Dados do Declarante (fixos, para copiar no BO) -->
-                        <div style="background:linear-gradient(135deg,#1e3a5f,#1e40af); border-radius:10px; padding:1rem 1.1rem; margin-bottom:1rem;">
-                            <p style="margin:0 0 0.5rem; font-weight:700; font-size:0.82rem; color:#93c5fd; text-transform:uppercase; letter-spacing:0.5px;">
-                                <i class="ph ph-identification-card"></i> Dados do Declarante
-                            </p>
-                            <div id="sin-dados-declarante-rows" style="display:grid; grid-template-columns:1fr; gap:0.35rem;"></div>
+                        <!-- Dados do Declarante (step 2) -->
+                        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.75rem;">
+                            <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-identification-card"></i> Dados do Declarante</p>
+                            <div id="sin-dados-declarante-rows" style="display:grid;grid-template-columns:1fr;gap:0.3rem;"></div>
                         </div>
 
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
@@ -485,20 +491,24 @@ window._sinAtualizarPreviewOrcs = function() {
     m.style.display = 'flex';
 };
 
-// Helper: gera HTML de uma linha copiável (fundo escuro)
-window._sinLinhaCopiavel = function(label, value, corLabel) {
-    return '<div style="display:flex;align-items:center;background:rgba(255,255,255,0.08);border-radius:6px;padding:0.3rem 0.6rem;gap:0.5rem;">' +
-        '<span style="font-size:0.74rem;color:' + corLabel + ';font-weight:600;min-width:95px;flex-shrink:0;">' + label + '</span>' +
-        '<span style="font-size:0.82rem;color:#f1f5f9;font-weight:700;flex:1;">' + value + '</span>' +
-        '<button type="button" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent.trim()).then(function(){var b=this;b.innerHTML=\'<i class=&quot;ph ph-check&quot;></i>\';b.style.background=\'#16a34a\';setTimeout(function(){b.innerHTML=\'<i class=&quot;ph ph-copy&quot;></i>\';b.style.background=\'rgba(255,255,255,0.15)\';},1200);}.bind(this))" ' +
-        'style="background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:5px;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.85rem;">' +
+// Helper: gera HTML de uma linha copiável (tema claro, scheme: 'colab'|'veiculo'|'declarante')
+window._sinLinhaCopiavel = function(label, value, scheme) {
+    var sc = {
+        colab:      { row:'#dcfce7', lbl:'#15803d', val:'#166534', btn:'#bbf7d0', ok:'#16a34a' },
+        veiculo:    { row:'#fef3c7', lbl:'#b45309', val:'#78350f', btn:'#fde68a', ok:'#b45309' },
+        declarante: { row:'#dbeafe', lbl:'#1d4ed8', val:'#1e40af', btn:'#bfdbfe', ok:'#1d4ed8' }
+    };
+    var s = sc[scheme] || sc.declarante;
+    return '<div style="display:flex;align-items:center;background:' + s.row + ';border-radius:5px;padding:0.28rem 0.55rem;gap:0.5rem;">' +
+        '<span style="font-size:0.73rem;color:' + s.lbl + ';font-weight:600;min-width:95px;flex-shrink:0;">' + label + '</span>' +
+        '<span style="font-size:0.81rem;color:' + s.val + ';font-weight:700;flex:1;">' + value + '</span>' +
+        '<button type="button" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent.trim()).then(function(){var b=this;b.innerHTML=\'<i class=&quot;ph ph-check&quot;></i>\';b.style.background=\'' + s.ok + '\';b.style.color=\'#fff\';setTimeout(function(){b.innerHTML=\'<i class=&quot;ph ph-copy&quot;></i>\';b.style.background=\'' + s.btn + '\';b.style.color=\'' + s.lbl + '\';},1200);}.bind(this))" ' +
+        'style="background:' + s.btn + ';border:none;color:' + s.lbl + ';border-radius:5px;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.85rem;">' +
         '<i class="ph ph-copy"></i></button></div>';
 };
 
-// Preenche os dados fixos do declarante
+// Preenche os dados fixos do declarante (Step 1 e Step 2)
 window._sinPreencherDeclarante = function() {
-    var el = document.getElementById('sin-dados-declarante-rows');
-    if (!el) return;
     var dados = [
         { label: 'Nome da Mãe', value: 'Sandra Regina Mezuraro' },
         { label: 'CNH', value: '04130394162' },
@@ -506,23 +516,38 @@ window._sinPreencherDeclarante = function() {
         { label: 'Profissão', value: 'Publicitario' },
         { label: 'Celular', value: '11 94788-4343' }
     ];
-    el.innerHTML = dados.map(function(d) { return window._sinLinhaCopiavel(d.label, d.value, '#93c5fd'); }).join('');
+    var html = dados.map(function(d) { return window._sinLinhaCopiavel(d.label, d.value, 'declarante'); }).join('');
+    ['sin-dados-declarante-rows', 'sin-dados-declarante-rows-s1'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.innerHTML = html;
+    });
 };
 
-// Preenche os dados do colaborador atual (viewedColaborador)
+// Preenche os dados do colaborador atual (viewedColaborador) — Step 1 e Step 2
 window._sinPreencherDadosColab = function() {
-    var section = document.getElementById('sin-dados-colab-section');
-    var el = document.getElementById('sin-dados-colab-rows');
-    if (!section || !el) return;
     var c = typeof viewedColaborador !== 'undefined' ? viewedColaborador : null;
-    if (!c) { section.style.display = 'none'; return; }
+    var pares = [
+        { section: 'sin-dados-colab-section-s1', rows: 'sin-dados-colab-rows-s1' },
+        { section: 'sin-dados-colab-section',    rows: 'sin-dados-colab-rows' }
+    ];
+    if (!c) {
+        pares.forEach(function(p) { var s = document.getElementById(p.section); if (s) s.style.display='none'; });
+        return;
+    }
     var dados = [];
     if (c.nome_completo) dados.push({ label: 'Nome Completo', value: c.nome_completo });
-    if (c.endereco) dados.push({ label: 'Endereço', value: c.endereco });
-    if (c.telefone) dados.push({ label: 'Telefone/Cel', value: c.telefone });
-    if (!dados.length) { section.style.display = 'none'; return; }
-    el.innerHTML = dados.map(function(d) { return window._sinLinhaCopiavel(d.label, d.value, '#6ee7b7'); }).join('');
-    section.style.display = 'block';
+    if (c.endereco)      dados.push({ label: 'Endereço',      value: c.endereco });
+    if (c.telefone)      dados.push({ label: 'Telefone/Cel',  value: c.telefone });
+    if (!dados.length) {
+        pares.forEach(function(p) { var s = document.getElementById(p.section); if (s) s.style.display='none'; });
+        return;
+    }
+    var html = dados.map(function(d) { return window._sinLinhaCopiavel(d.label, d.value, 'colab'); }).join('');
+    pares.forEach(function(p) {
+        var section = document.getElementById(p.section);
+        var rows    = document.getElementById(p.rows);
+        if (section && rows) { rows.innerHTML = html; section.style.display = 'block'; }
+    });
 };
 
 // ---- VEÍCULO ----
@@ -570,26 +595,26 @@ window._sinSelecionarVeiculo = function(id) {
 
 window._sinPreencherDadosVeiculo = function() {
     var v = window._sinVeiculoSelecionado;
-    // Step 1 preview
-    var s1 = document.getElementById('sin-veiculo-dados-step1');
-    var r1 = document.getElementById('sin-veiculo-dados-step1-rows');
-    // Step 2 section
-    var s2 = document.getElementById('sin-dados-veiculo-section');
-    var r2 = document.getElementById('sin-dados-veiculo-rows');
+    var pares = [
+        { section: 'sin-veiculo-dados-step1',   rows: 'sin-veiculo-dados-step1-rows' },
+        { section: 'sin-dados-veiculo-section',  rows: 'sin-dados-veiculo-rows' }
+    ];
     if (!v) {
-        if (s1) s1.style.display = 'none';
-        if (s2) s2.style.display = 'none';
+        pares.forEach(function(p) { var s = document.getElementById(p.section); if (s) s.style.display='none'; });
         return;
     }
     var dados = [];
-    if (v.placa) dados.push({ label: 'Placa', value: v.placa });
-    if (v.marca_modelo_versao) dados.push({ label: 'Modelo', value: v.marca_modelo_versao });
-    if (v.ano_fabricacao) dados.push({ label: 'Ano Fabricação', value: v.ano_fabricacao });
-    if (v.renavam) dados.push({ label: 'Renavam', value: v.renavam });
-    if (v.cor_predominante) dados.push({ label: 'Cor', value: v.cor_predominante });
-    var html = dados.map(function(d) { return window._sinLinhaCopiavel(d.label, d.value, '#fcd34d'); }).join('');
-    if (s1 && r1) { r1.innerHTML = html; s1.style.display = 'block'; }
-    if (s2 && r2) { r2.innerHTML = html; s2.style.display = 'block'; }
+    if (v.placa)              dados.push({ label: 'Placa',          value: v.placa });
+    if (v.marca_modelo_versao)dados.push({ label: 'Modelo',         value: v.marca_modelo_versao });
+    if (v.ano_fabricacao)     dados.push({ label: 'Ano Fabricação', value: v.ano_fabricacao });
+    if (v.renavam)            dados.push({ label: 'Renavam',        value: v.renavam });
+    if (v.cor_predominante)   dados.push({ label: 'Cor',            value: v.cor_predominante });
+    var html = dados.map(function(d) { return window._sinLinhaCopiavel(d.label, d.value, 'veiculo'); }).join('');
+    pares.forEach(function(p) {
+        var section = document.getElementById(p.section);
+        var rows    = document.getElementById(p.rows);
+        if (section && rows) { rows.innerHTML = html; section.style.display = 'block'; }
+    });
 };
 
 window.toggleSinistroDesconto = function(show) {
