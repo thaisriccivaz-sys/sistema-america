@@ -8849,6 +8849,34 @@ window.classificarRegiaoEDias = async function() {
             
             // Atualizar o campo de observações com o planejamento sugerido
             window.atualizarDiasManutencaoObs();
+
+            // Carregar automaticamente percentual e valor_km da configuração se for nova proposta ou se o endereço mudou
+            const propOriginal = _propostasEditandoId ? _propostasData.find(p => p.id === _propostasEditandoId) : null;
+            const enderecoOriginal = propOriginal ? (propOriginal.endereco_instalacao || '') : '';
+            if (!_propostasEditandoId || endereco.trim() !== enderecoOriginal.trim()) {
+                try {
+                    const configs = await apiGet('/config/logistica');
+                    if (configs) {
+                        let pct = 0;
+                        if (regiao === 'Zona Central') pct = configs.logistica_porcentagem_central;
+                        else if (regiao === 'Zona Amarela') pct = configs.logistica_porcentagem_amarela;
+                        else if (regiao === 'Zona Vermelha') pct = configs.logistica_porcentagem_vermelha;
+                        else pct = configs.logistica_porcentagem_outra;
+
+                        const pctInput = document.getElementById('prop-percentual-zona');
+                        if (pctInput) pctInput.value = pct;
+
+                        const kmInput = document.getElementById('prop-valor-km');
+                        if (kmInput) kmInput.value = configs.logistica_valor_km;
+
+                        if (typeof window.calcularValorTotalProposta === 'function') {
+                            window.calcularValorTotalProposta();
+                        }
+                    }
+                } catch (cfgErr) {
+                    console.error("Erro ao carregar configurações de logística para autocompletar:", cfgErr);
+                }
+            }
         }
     } catch(e) {
         console.error("Erro ao classificar região da proposta:", e);
@@ -9347,6 +9375,9 @@ function _renderPrecificacaoBaseLayout() {
                 <div class="prec-subtab-item ${_precSubTab === 'precificacao' ? 'active' : ''}" onclick="_switchPrecSubTab('precificacao')">
                     <i class="ph ph-calculator" style="margin-right:4px;"></i> 4. Precificação e Viabilidade
                 </div>
+                <div class="prec-subtab-item ${_precSubTab === 'config-logistica' ? 'active' : ''}" onclick="_switchPrecSubTab('config-logistica')">
+                    <i class="ph ph-gear" style="margin-right:4px;"></i> 5. Parâmetros de Logística
+                </div>
             </div>
 
             <!-- Tab Contents Container -->
@@ -9375,8 +9406,141 @@ function _renderActivePrecSubTab() {
         _renderTabFichaTecnica(container);
     } else if (_precSubTab === 'precificacao') {
         _renderTabPrecificacao(container);
+    } else if (_precSubTab === 'config-logistica') {
+        _renderTabConfigLogistica(container);
     }
 }
+
+async function _renderTabConfigLogistica(container) {
+    container.innerHTML = `
+        <div class="saas-card" style="max-width:800px; margin: 0 auto;">
+            <div class="saas-card-header" style="background:rgba(22, 163, 74, 0.04);">
+                <div class="saas-card-title">
+                    <i class="ph ph-map-trifold" style="color:#16a34a; font-size:1.1rem;"></i>
+                    Configuração de Parâmetros de Logística (Zona & KM)
+                </div>
+            </div>
+            <div class="saas-card-body" style="padding:1.5rem; display:flex; flex-direction:column; gap:1.25rem;">
+                <p style="font-size:0.8rem; color:#64748b; margin:0;">
+                    Cadastre os valores padrão de acréscimo percentual para cada zona do mapa e o valor por quilômetro. 
+                    Estes valores serão carregados de forma automática no formulário de Propostas após a IA identificar a região do endereço de instalação.
+                </p>
+                
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.25rem;">
+                    <!-- Bloco: Percentuais de Zona -->
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; display:flex; flex-direction:column; gap:0.75rem;">
+                        <h5 style="margin:0 0 0.25rem; font-size:0.82rem; color:#1e293b; font-weight:700;">Acréscimos por Zona do Mapa (%)</h5>
+                        
+                        <div class="prec-input-group">
+                            <label style="display:flex; align-items:center; gap:6px;">
+                                <span style="display:inline-block; width:8px; height:8px; background:#0891b2; border-radius:50%;"></span>
+                                Zona Central (Ciano) *
+                            </label>
+                            <input type="number" id="cfg-pct-central" value="0" min="0" max="100" step="0.1">
+                        </div>
+                        
+                        <div class="prec-input-group">
+                            <label style="display:flex; align-items:center; gap:6px;">
+                                <span style="display:inline-block; width:8px; height:8px; background:#ca8a04; border-radius:50%;"></span>
+                                Zona Amarela (Amarelo) *
+                            </label>
+                            <input type="number" id="cfg-pct-amarela" value="0" min="0" max="100" step="0.1">
+                        </div>
+                        
+                        <div class="prec-input-group">
+                            <label style="display:flex; align-items:center; gap:6px;">
+                                <span style="display:inline-block; width:8px; height:8px; background:#7e22ce; border-radius:50%;"></span>
+                                Zona Vermelha (Roxo) *
+                            </label>
+                            <input type="number" id="cfg-pct-vermelha" value="0" min="0" max="100" step="0.1">
+                        </div>
+                        
+                        <div class="prec-input-group">
+                            <label style="display:flex; align-items:center; gap:6px;">
+                                <span style="display:inline-block; width:8px; height:8px; background:#64748b; border-radius:50%;"></span>
+                                Outra Região (Cinza) *
+                            </label>
+                            <input type="number" id="cfg-pct-outra" value="0" min="0" max="100" step="0.1">
+                        </div>
+                    </div>
+                    
+                    <!-- Bloco: Quilometragem -->
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; display:flex; flex-direction:column; gap:0.75rem;">
+                        <h5 style="margin:0 0 0.25rem; font-size:0.82rem; color:#1e293b; font-weight:700;">Parâmetro de Quilometragem (KM)</h5>
+                        
+                        <div class="prec-input-group">
+                            <label>Valor padrão por KM (R$) *</label>
+                            <input type="number" id="cfg-valor-km" value="0" min="0" step="0.01">
+                        </div>
+                        
+                        <div style="margin-top:auto; padding-top:1rem; border-top:1px dashed #cbd5e1; font-size:0.75rem; color:#64748b; line-height:1.4;">
+                            <i class="ph ph-info" style="color:#7048e8; font-size:0.95rem; vertical-align:middle; margin-right:4px;"></i>
+                            O cálculo do valor por KM multiplicará esta taxa pela distância calculada via fórmula geodésica do depósito até o local do serviço.
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="text-align:right; border-top:1px solid #e2e8f0; padding-top:1rem;">
+                    <button class="prec-btn prec-btn-success" onclick="_salvarConfigLogistica()" style="height:36px; padding:0 1.5rem; font-size:0.82rem;">
+                        <i class="ph ph-floppy-disk"></i> Salvar Configurações
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Carregar configurações atuais
+    Swal.fire({
+        title: 'Carregando configurações...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        const res = await apiGet('/config/logistica');
+        Swal.close();
+        if (res) {
+            document.getElementById('cfg-pct-central').value = res.logistica_porcentagem_central || 0;
+            document.getElementById('cfg-pct-amarela').value = res.logistica_porcentagem_amarela || 0;
+            document.getElementById('cfg-pct-vermelha').value = res.logistica_porcentagem_vermelha || 0;
+            document.getElementById('cfg-pct-outra').value = res.logistica_porcentagem_outra || 0;
+            document.getElementById('cfg-valor-km').value = res.logistica_valor_km || 0;
+        }
+    } catch (e) {
+        Swal.close();
+        console.error("Erro ao obter configurações de logística:", e);
+    }
+}
+
+window._salvarConfigLogistica = async function() {
+    const payload = {
+        logistica_porcentagem_central: parseFloat(document.getElementById('cfg-pct-central')?.value || 0),
+        logistica_porcentagem_amarela: parseFloat(document.getElementById('cfg-pct-amarela')?.value || 0),
+        logistica_porcentagem_vermelha: parseFloat(document.getElementById('cfg-pct-vermelha')?.value || 0),
+        logistica_porcentagem_outra: parseFloat(document.getElementById('cfg-pct-outra')?.value || 0),
+        logistica_valor_km: parseFloat(document.getElementById('cfg-valor-km')?.value || 0)
+    };
+
+    Swal.fire({
+        title: 'Salvando configurações...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        const res = await apiPut('/config/logistica', payload);
+        Swal.close();
+        if (res && res.success) {
+            Swal.fire('Sucesso', 'Configurações de Logística salvas com sucesso!', 'success');
+        } else {
+            Swal.fire('Erro', 'Houve uma falha ao salvar as configurações.', 'error');
+        }
+    } catch(e) {
+        Swal.close();
+        console.error(e);
+        Swal.fire('Erro', 'Não foi possível salvar as configurações devido a um erro de rede.', 'error');
+    }
+};
 
 /* =====================================================================
    TAB 1: CADASTRO DE ITENS DE CUSTO (CRUD)

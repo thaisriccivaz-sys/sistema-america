@@ -20418,6 +20418,50 @@ app.post('/api/config/sigor/testar', authenticateToken, async (req, res) => {
   }
 });
 
+// ── GET /api/config/logistica - Retorna configurações de logística ──────────────
+app.get('/api/config/logistica', authenticateToken, (req, res) => {
+  db.all("SELECT chave, valor FROM config_sistema WHERE chave IN ('logistica_porcentagem_central', 'logistica_porcentagem_amarela', 'logistica_porcentagem_vermelha', 'logistica_porcentagem_outra', 'logistica_valor_km')", [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    const cfg = {
+      logistica_porcentagem_central: 0,
+      logistica_porcentagem_amarela: 0,
+      logistica_porcentagem_vermelha: 0,
+      logistica_porcentagem_outra: 0,
+      logistica_valor_km: 0
+    };
+    if (rows) {
+      rows.forEach(r => {
+        cfg[r.chave] = parseFloat(r.valor) || 0;
+      });
+    }
+    res.json(cfg);
+  });
+});
+
+// ── PUT /api/config/logistica - Salva configurações de logística no banco ────────
+app.put('/api/config/logistica', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date().toISOString();
+  const keys = [
+    'logistica_porcentagem_central',
+    'logistica_porcentagem_amarela',
+    'logistica_porcentagem_vermelha',
+    'logistica_porcentagem_outra',
+    'logistica_valor_km'
+  ];
+  const promises = keys.map(k => {
+    const val = d[k] !== undefined ? String(d[k]) : '0';
+    return new Promise((resolve, reject) => {
+      db.run(`INSERT INTO config_sistema (chave, valor, updated_at) VALUES (?,?,?)
+              ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor, updated_at=excluded.updated_at`,
+        [k, val, agora], err => err ? reject(err) : resolve());
+    });
+  });
+  Promise.all(promises)
+    .then(() => res.json({ success: true }))
+    .catch(err => res.status(500).json({ error: err.message }));
+});
+
 // Dados fixos do Destinador padrao
 const SIGOR_DESTINADOR = {
   cnpj: '05380441000260',
