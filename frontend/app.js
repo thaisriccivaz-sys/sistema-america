@@ -14966,7 +14966,7 @@ window.abrirAssinaturaEpi = async function (fichaId) {
             <button id="btn-assin-next" onclick="window._assinNextStep()" class="btn btn-primary" style="padding:0.65rem 2rem;font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:8px;">Próximo <i class="ph ph-arrow-right"></i></button>
         </div>`;
     document.body.appendChild(overlay);
-    window._assinCurrentStep = 1; window._assinFichaId = fichaId; window._assinColabId = colabId; window._assinEpisDisponiveis = epis; window._assinQtds = {}; window._assinSelfieBase64 = null; window._assinSelfieTs = null; window._assinBase64 = null;
+    window._assinCurrentStep = 1; window._assinFichaId = fichaId; window._assinColabId = colabId; window._assinEpisDisponiveis = epis; window._assinQtds = {}; window._assinEmprestimos = {}; window._assinSelfieBase64 = null; window._assinSelfieTs = null; window._assinBase64 = null;
     setTimeout(() => { window._initSignatureCanvas(); const today = new Date(); const di = document.getElementById('epi-data-entrega'); if (di) { di.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'); } window._renderEpiGrid(''); }, 100);
 };
 
@@ -15000,6 +15000,14 @@ window._requiresReturnQuestion = function(epi) {
 };
 // Armazena se o colaborador devolveu o anterior (por nome do EPI)
 window._assinRetornosConfirmados = window._assinRetornosConfirmados || {};
+// Armazena EPIs que precisam ser devolvidos com data prevista { epiNome: 'dd/mm/yyyy' }
+window._assinEmprestimos = window._assinEmprestimos || {};
+// EPIs que são emprestáveis (precisam de devolução ao estoque)
+window._EPI_EMPRESTAVEIS_KEYWORDS = ['BOTA DE PVC', 'AVENTAL LONGO', 'MASCARA RESPIRADOR', 'MÁSCARA RESPIRADOR'];
+window._requiresEmprestimoQuestion = function(epi) {
+    const eu = epi.toUpperCase().trim();
+    return window._EPI_EMPRESTAVEIS_KEYWORDS.some(k => eu.includes(k));
+};
 
 window._requiresSize = function(epi) { const e=epi.toUpperCase(); if(['CAMISETA','POLO','CALÇA','BLUSA','JAQUETA','COLETE','BLUSAO','BLUSÃO','UNIFORME'].some(k=>e.includes(k))) return 'roupa'; if(e.includes('BOTA')) return 'bota'; return false; };
 
@@ -15039,6 +15047,45 @@ window._setEpiQty = async function (epi, qty) {
             });
             if (swalStyleEl2) swalStyleEl2.textContent = '';
         }
+    }
+
+    // Pergunta de empréstimo para EPIs que devem ser devolvidos após o uso
+    if (qty > prevQty && prevQty === 0 && window._requiresEmprestimoQuestion(epi)) {
+        window._assinEmprestimos = window._assinEmprestimos || {};
+        let swalStyleEmp = document.getElementById('swal-epi-zindex-fix');
+        if (!swalStyleEmp) { swalStyleEmp = document.createElement('style'); swalStyleEmp.id = 'swal-epi-zindex-fix'; document.head.appendChild(swalStyleEmp); }
+        swalStyleEmp.textContent = '.swal2-container { z-index: 999999 !important; }';
+        const resDevol = await Swal.fire({
+            title: 'Equipamento Emprestável',
+            html: `<div style="text-align:center;"><i class="ph ph-arrow-u-up-left" style="font-size:2.5rem;color:#d97706;display:block;margin-bottom:0.5rem;"></i><p style="color:#64748b;font-size:0.88rem;margin-bottom:16px;"><strong>${epi}</strong> &mdash; este equipamento deve ser devolvido após o uso?</p></div>`,
+            showDenyButton: true,
+            showCancelButton: false,
+            confirmButtonText: '<i class="ph ph-check"></i> Sim, deve devolver',
+            denyButtonText: '<i class="ph ph-x"></i> Não precisa devolver',
+            confirmButtonColor: '#16a34a',
+            denyButtonColor: '#64748b',
+        });
+        if (swalStyleEmp) swalStyleEmp.textContent = '';
+        if (resDevol.isConfirmed) {
+            let swalStyleEmp2 = document.getElementById('swal-epi-zindex-fix');
+            if (!swalStyleEmp2) { swalStyleEmp2 = document.createElement('style'); swalStyleEmp2.id = 'swal-epi-zindex-fix'; document.head.appendChild(swalStyleEmp2); }
+            swalStyleEmp2.textContent = '.swal2-container { z-index: 999999 !important; }';
+            const todayEmp = new Date(); const todayEmpStr = todayEmp.toISOString().split('T')[0];
+            const resData = await Swal.fire({
+                title: 'Data de Devolução Prevista',
+                html: `<p style="color:#475569;font-size:0.9rem;margin-bottom:12px;">Informe a data prevista para devolução de <strong>${epi}</strong>:</p><input type="date" id="swal-data-devolucao" class="swal2-input" value="${todayEmpStr}" min="${todayEmpStr}">`,
+                showCancelButton: true,
+                confirmButtonText: '<i class="ph ph-check"></i> Confirmar',
+                cancelButtonText: 'Pular',
+                confirmButtonColor: '#1e3a5f',
+                preConfirm: () => document.getElementById('swal-data-devolucao')?.value || null
+            });
+            if (swalStyleEmp2) swalStyleEmp2.textContent = '';
+            if (resData.isConfirmed && resData.value) {
+                const [yy, mm, dd] = resData.value.split('-');
+                window._assinEmprestimos[epi] = `${dd}/${mm}/${yy}`;
+            } else { window._assinEmprestimos[epi] = null; }
+        } else { window._assinEmprestimos[epi] = null; }
     }
 
     if (qty>prevQty && prevQty===0 && window._requiresSize(epi)) {
@@ -15156,8 +15203,9 @@ window._assinNextStep = async function () {
             const canvas=document.getElementById('epi-signature-canvas'); const assinaturaBase64=canvas?canvas.toDataURL('image/png'):'';
             const di=document.getElementById('epi-data-entrega'); const dataVal=di?di.value:new Date().toISOString().split('T')[0]; const[y,m,d]=dataVal.split('-'); const dataFormatada=`${d}/${m}/${y}`;
             const episSelecionados=[]; Object.entries(window._assinQtds||{}).forEach(([nome,qty])=>{for(let i=0;i<qty;i++)episSelecionados.push(nome);});
+            const episParaDevolver = Object.entries(window._assinEmprestimos || {}).filter(([,v]) => v).map(([nome, data_devolucao_prevista]) => ({ nome, data_devolucao_prevista }));
             const controller=new AbortController(); const timeout=setTimeout(()=>controller.abort(),30000);
-            const res=await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`,{method:'POST',headers:{'Authorization':`Bearer ${currentToken}`,'Content-Type':'application/json'},body:JSON.stringify({data_entrega:dataFormatada,epis_entregues:episSelecionados,assinatura_base64:assinaturaBase64,selfie_base64:window._assinSelfieBase64||null,colaborador_id:window._assinColabId,registrado_por:currentUser?.nome||currentUser?.email||'Sistema', gps_lat:window._currentGpsLat||'', gps_lon:window._currentGpsLon||''}),signal:controller.signal});
+            const res=await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`,{method:'POST',headers:{'Authorization':`Bearer ${currentToken}`,'Content-Type':'application/json'},body:JSON.stringify({data_entrega:dataFormatada,epis_entregues:episSelecionados,assinatura_base64:assinaturaBase64,selfie_base64:window._assinSelfieBase64||null,colaborador_id:window._assinColabId,registrado_por:currentUser?.nome||currentUser?.email||'Sistema', gps_lat:window._currentGpsLat||'', gps_lon:window._currentGpsLon||'', epis_para_devolver:episParaDevolver}),signal:controller.signal});
 
             if (res.ok && window._assinSelfieBase64) {
                  try {
