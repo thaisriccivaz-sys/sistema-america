@@ -564,7 +564,8 @@ const MENU_HIERARQUIA = [
                 titulo: 'Telas',
                 telas: [
                     'dashboard', 'colaboradores', 'assinaturas-digitais', 'ferias', 'experiencia',
-                    'admissao', 'integracao', 'faculdade', 'dissidio', 'rh-agenda', 'recibos', 'pagamentos-massa'
+                    'admissao', 'integracao', 'faculdade', 'dissidio', 'rh-agenda', 'recibos', 'pagamentos-massa',
+                    'rh-logistica-sinistros', 'rh-logistica-multas'
                 ]
             },
             {
