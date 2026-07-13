@@ -888,7 +888,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
         sinistro = (lista || []).find(function(s) { return s.id === sinId; });
     } catch(e) { alert('Erro ao carregar sinistro.'); return; }
     if (!sinistro) { alert('Sinistro não encontrado.'); return; }
-    if (sinistro.status !== 'pendente') {
+    if (sinistro.status !== 'pendente' && sinistro.status !== 'iniciado') {
         alert('Este sinistro já possui assinaturas e não pode ser editado.');
         return;
     }

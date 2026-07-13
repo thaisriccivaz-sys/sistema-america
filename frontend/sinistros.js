@@ -1765,7 +1765,7 @@ window.rhSinAbrirModalEditar = async function(sinId, colabId) {
         sinistro = (lista || []).find(s => s.id == sinId);
     } catch(e) { return alert('Erro ao carregar sinistro.'); }
     if (!sinistro) return alert('Sinistro não encontrado.');
-    if (sinistro.status !== 'pendente') {
+    if (sinistro.status !== 'pendente' && sinistro.status !== 'iniciado') {
         return alert('Este sinistro já possui assinaturas e não pode ser editado.');
     }
 
