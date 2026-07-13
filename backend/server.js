@@ -5730,8 +5730,8 @@ app.post('/api/logistica/multas/:id/salvar-declaracao', authenticateToken, async
     const multaId = req.params.id;
     const { opcao, parcelas, assinatura_base64, selfie_base64 } = req.body;
 
-    if (!opcao || !['indicacao', 'nic'].includes(opcao)) {
-        return res.status(400).json({ error: 'Opção inválida. Use "indicacao" ou "nic".' });
+    if (!opcao || !['indicacao', 'nic', 'prazo_perdido'].includes(opcao)) {
+        return res.status(400).json({ error: 'Opção inválida. Use "indicacao", "nic" ou "prazo_perdido".' });
     }
 
     db.get(`SELECT ml.*, c.nome_completo as colab_nome, c.cpf as colab_cpf
@@ -5751,10 +5751,12 @@ app.post('/api/logistica/multas/:id/salvar-declaracao', authenticateToken, async
         const valorTotal = valorOriginal + valorNIC;
         const fmtMoney = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const numParcelas = parseInt(parcelas) || 1;
-        const valorParcela = opcao === 'nic' ? valorTotal / numParcelas : valorOriginal / numParcelas;
+        const valorBase = (opcao === 'nic') ? valorTotal : valorOriginal;
+        const valorParcela = valorBase / numParcelas;
 
-        const checkInd = opcao === 'indicacao' ? '✓' : '&nbsp;';
-        const checkNic = opcao === 'nic'       ? '✓' : '&nbsp;';
+        const checkInd  = opcao === 'indicacao'    ? '✓' : '&nbsp;';
+        const checkNic  = opcao === 'nic'           ? '✓' : '&nbsp;';
+        const checkPraz = opcao === 'prazo_perdido' ? '✓' : '&nbsp;';
 
         const now = new Date();
         const dataDeclFmt = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
@@ -5833,6 +5835,13 @@ p{line-height:1.5;margin:5px 0}
   <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'✓':' '}) 1x &nbsp; (${numParcelas===2?'✓':' '}) 2x &nbsp; (${numParcelas===3?'✓':' '}) 3x &nbsp; (${numParcelas>3?'✓':' '}) Outro: ${numParcelas>3?numParcelas+'x':''}</p>
   <p><strong>Valor da Parcela:</strong> <span class="vd">${fmtMoney(valorParcela)}</span></p>
 </div>
+<div class="opcao ${opcao === 'prazo_perdido' ? 'selecionada' : ''}" style="${opcao === 'prazo_perdido' ? 'border-color:#d97706;background:#fffbeb;' : ''}">
+  <div class="opcao-titulo">OPÇÃO 3 – COBRANÇA DE MULTA, PRAZO DE INDICAÇÃO PERDIDO</div>
+  <p>(${checkPraz}) Declaro que estou ciente e autorizo o desconto em folha referente ao pagamento da multa, conforme acordado. Além disso, estou ciente de que não será feita nenhuma indicação de pontuação na minha carteira de habilitação, porém assumo integralmente as responsabilidades legais.</p>
+  <p><strong>Valor:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span></p>
+  <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'✓':' '}) 1x &nbsp; (${numParcelas===2?'✓':' '}) 2x &nbsp; (${numParcelas===3?'✓':' '}) 3x</p>
+  <p><strong>Valor da Parcela:</strong> <span class="vd">${fmtMoney(valorParcela)}</span></p>
+</div>
 <div style="margin-top:30px; display:flex; justify-content:space-around; align-items:end;">
   <div style="flex:1; text-align:center;">
     <p style="margin-bottom:14px; font-weight:bold;">Assinatura do Colaborador</p>
@@ -5864,7 +5873,9 @@ p{line-height:1.5;margin:5px 0}
             db.run('UPDATE multas_logistica SET documentos_extras = ? WHERE id = ?', [JSON.stringify(extras), multaId], (errUpd) => {
                 if (errUpd) return res.status(500).json({ error: 'Erro ao salvar documento.' });
 
-                const novoStatus = opcao === 'indicacao' ? 'Indicado' : 'Multa NIC';
+                const novoStatus = opcao === 'indicacao' ? 'Indicado'
+                                 : opcao === 'prazo_perdido' ? 'Cobrada - Pz. Perdido'
+                                 : 'Multa NIC';
                 const oldStatus = m.status;
 
                 db.run(`UPDATE multas_logistica SET status = ?, status_updated_at = ?, parcelas = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`,

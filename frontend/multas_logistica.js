@@ -1917,7 +1917,7 @@ window.abrirFluxoAssinatura = function(multaId) {
           </div>
           <div style="padding:28px;">
             <p style="color:#475569;margin:0 0 20px;font-size:0.95rem;font-weight:600;">Selecione como o colaborador deseja responder à infração:</p>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
               
               <div onclick="_fluxoEscolher('indicacao')" style="border:2px solid #e2e8f0;border-radius:12px;padding:24px 20px;cursor:pointer;transition:all 0.2s;text-align:center;" 
                    onmouseover="this.style.borderColor='#2563eb';this.style.background='#eff6ff'" 
@@ -1937,6 +1937,16 @@ window.abrirFluxoAssinatura = function(multaId) {
                 <div style="font-size:0.8rem;color:#64748b;">Não se identifica. Valor dobrado será descontado.</div>
                 <div style="margin-top:12px;background:#fff1f2;color:#dc2626;padding:6px 12px;border-radius:20px;font-size:0.85rem;font-weight:700;">${fmtMoney(valorTotal)}</div>
               </div>
+
+              <div onclick="_fluxoEscolher('prazo_perdido')" style="border:2px solid #e2e8f0;border-radius:12px;padding:24px 20px;cursor:pointer;transition:all 0.2s;text-align:center;"
+                   onmouseover="this.style.borderColor='#d97706';this.style.background='#fffbeb'"
+                   onmouseout="this.style.borderColor='#e2e8f0';this.style.background='#fff'">
+                <div style="font-size:2.5rem;margin-bottom:12px;">⏰</div>
+                <div style="font-weight:700;color:#1e293b;font-size:1rem;margin-bottom:8px;">Prazo de Identificação Perdido</div>
+                <div style="font-size:0.8rem;color:#64748b;">Prazo expirado. Multa original descontada. Sem pontuação na CNH.</div>
+                <div style="margin-top:12px;background:#fffbeb;color:#d97706;padding:6px 12px;border-radius:20px;font-size:0.85rem;font-weight:700;">${fmtMoney(valorOrig)}</div>
+              </div>
+
             </div>
           </div>
         </div>`;
@@ -1944,12 +1954,15 @@ window.abrirFluxoAssinatura = function(multaId) {
 
     // ---- Renderiza Etapa 2: Confirmação ----
     function renderEtapa2(opcao) {
-        const isInd = opcao === 'indicacao';
-        const corFundo = isInd ? '#eff6ff' : '#fff1f2';
-        const corBorda = isInd ? '#2563eb' : '#dc2626';
-        const corTexto = isInd ? '#1e3a5f' : '#7f1d1d';
-        const titulo = isInd ? '⚠️ Confirmação — Indicação do Condutor' : '⚠️ Confirmação — Multa NIC';
-        const icone = isInd ? '🪪' : '🚫';
+        const isInd  = opcao === 'indicacao';
+        const isPraz = opcao === 'prazo_perdido';
+        const corFundo = isInd ? '#eff6ff' : isPraz ? '#fffbeb' : '#fff1f2';
+        const corBorda = isInd ? '#2563eb' : isPraz ? '#d97706' : '#dc2626';
+        const corTexto = isInd ? '#1e3a5f' : isPraz ? '#78350f' : '#7f1d1d';
+        const titulo = isInd ? '⚠️ Confirmação — Indicação do Condutor'
+                     : isPraz ? '⚠️ Confirmação — Prazo de Identificação Perdido'
+                     : '⚠️ Confirmação — Multa NIC';
+        const icone = isInd ? '🪪' : isPraz ? '⏰' : '🚫';
 
         const mensagem = isInd
             ? `<p><strong>Você optou por indicar o real condutor nesta infração. Deseja prosseguir?</strong></p>
@@ -1965,6 +1978,19 @@ window.abrirFluxoAssinatura = function(multaId) {
                    <div style="font-size:0.75rem;color:#64748b;margin-bottom:4px;">PONTUAÇÃO NA CNH</div>
                    <div style="font-size:1.5rem;font-weight:800;color:#b45309;">${multa.pontuacao} pts</div>
                  </div>` : ''}
+               </div>`
+            : isPraz
+            ? `<p><strong>Você selecionou: Prazo de Identificação Perdido. Deseja prosseguir?</strong></p>
+               <p>O prazo para identificação do condutor expirou. Nenhuma indicação de pontuação será feita na CNH, mas o colaborador assume as responsabilidades legais e autoriza o desconto do valor original em folha.</p>
+               <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;">
+                 <div style="background:#fffbeb;border:2px solid #d97706;border-radius:10px;padding:10px 18px;text-align:center;">
+                   <div style="font-size:0.75rem;color:#64748b;margin-bottom:4px;">VALOR A DESCONTAR</div>
+                   <div style="font-size:1.5rem;font-weight:800;color:#d97706;">${fmtMoney(valorOrig)}</div>
+                 </div>
+                 <div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:10px;padding:10px 18px;text-align:center;">
+                   <div style="font-size:0.75rem;color:#64748b;margin-bottom:4px;">PONTUAÇÃO NA CNH</div>
+                   <div style="font-size:1.1rem;font-weight:800;color:#16a34a;">Nenhuma</div>
+                 </div>
                </div>`
             : `<p><strong>Você optou por não se indicar nessa infração. Deseja prosseguir?</strong></p>
                <p>Se não houver identificação do infrator real, uma nova multa (NIC/Remulta) será emitida, com o valor equivalente ao dobro da multa original. É importante ressaltar que, mesmo optando por não se identificar, será necessário assinar o termo de desconto, seguindo o procedimento de reembolso da empresa.</p>
@@ -1983,7 +2009,7 @@ window.abrirFluxoAssinatura = function(multaId) {
                  </div>
                </div>`;
 
-        const valorCalc = isInd ? valorOrig : valorTotal;
+        const valorCalc = (isInd || isPraz) ? valorOrig : valorTotal;
         const parcelasHtml = `
                <div style="margin-top:20px;border-top:1px solid rgba(0,0,0,0.1);padding-top:16px;">
                  <label style="font-size:0.85rem;font-weight:600;color:${corTexto};display:block;margin-bottom:8px;">Forma de pagamento (parcelas):</label>
@@ -2022,17 +2048,19 @@ window.abrirFluxoAssinatura = function(multaId) {
 
     // ---- Renderiza Etapa 3: Termo + Assinatura ----
     function renderEtapa3(opcao) {
-        const isInd = opcao === 'indicacao';
+        const isInd  = opcao === 'indicacao';
+        const isPraz = opcao === 'prazo_perdido';
         const fmtData = (d) => {
             if (!d) return '—';
             if (d.includes('/')) return d;
             const [y, mo, dy] = d.split('-');
             return dy ? `${dy}/${mo}/${y}` : d;
         };
-        const checkInd = isInd ? '✓' : '&nbsp;&nbsp;&nbsp;';
-        const checkNic = !isInd ? '✓' : '&nbsp;&nbsp;&nbsp;';
-        const valorDesc = isInd ? fmtMoney(valorOrig) : fmtMoney(valorTotal);
-        const parcelaValor = isInd ? valorOrig / _parcelas : valorTotal / _parcelas;
+        const checkInd  = isInd  ? '✓' : '&nbsp;&nbsp;&nbsp;';
+        const checkNic  = (!isInd && !isPraz) ? '✓' : '&nbsp;&nbsp;&nbsp;';
+        const checkPraz = isPraz ? '✓' : '&nbsp;&nbsp;&nbsp;';
+        const valorDesc   = (isInd || isPraz) ? fmtMoney(valorOrig) : fmtMoney(valorTotal);
+        const parcelaValor = (isInd || isPraz) ? valorOrig / _parcelas : valorTotal / _parcelas;
 
         overlay.innerHTML = `
         <div style="background:#fff;border-radius:16px;width:100%;max-width:800px;box-shadow:0 25px 50px rgba(0,0,0,0.4);overflow:hidden;max-height:95vh;display:flex;flex-direction:column;">
@@ -2064,6 +2092,12 @@ window.abrirFluxoAssinatura = function(multaId) {
                 <p style="margin:6px 0 0;">Declaro que opto pela indicação como condutor infrator, autorizando a empresa a realizar a devida identificação junto ao órgão competente. Estou ciente de que assumo integralmente as responsabilidades legais, inclusive pontuação na CNH.</p>
                 <p><strong>Valor:</strong> <span style="color:#dc2626;font-weight:700;">${fmtMoney(valorOrig)}</span> &nbsp;&nbsp; ${multa.pontuacao ? `<strong>Pontuação:</strong> <span style="color:#b45309;font-weight:700;">${multa.pontuacao} pts</span>` : ''}</p>
                 <p><strong>Parcelas:</strong> ${_parcelas}x de <span style="color:#dc2626;font-weight:700;">${fmtMoney(parcelaValor)}</span></p>
+              </div>` : isPraz ? `
+              <div style="border:2px solid #d97706;border-radius:8px;padding:12px;margin:8px 0;background:#fffbeb;">
+                <strong>(✓) OPÇÃO 3 — COBRANÇA DE MULTA, PRAZO DE INDICAÇÃO PERDIDO</strong>
+                <p style="margin:6px 0 0;">Declaro que estou ciente e autorizo o desconto em folha referente ao pagamento da multa, conforme acordado. Além disso, estou ciente de que não será feita nenhuma indicação de pontuação na minha carteira de habilitação, porém assumo integralmente as responsabilidades legais.</p>
+                <p><strong>Valor:</strong> <span style="color:#d97706;font-weight:700;">${fmtMoney(valorOrig)}</span></p>
+                <p><strong>Parcelas:</strong> ${_parcelas}x de <span style="color:#d97706;font-weight:700;">${fmtMoney(parcelaValor)}</span></p>
               </div>` : `
               <div style="border:2px solid #dc2626;border-radius:8px;padding:12px;margin:8px 0;background:#fff1f2;">
                 <strong>(✓) OPÇÃO 2 — NÃO INDICAÇÃO (NIC)</strong>
@@ -2150,10 +2184,11 @@ window.abrirFluxoAssinatura = function(multaId) {
         });
         const btn = document.getElementById(`parc-btn-${n}`);
         if (btn) {
-            const isInd = _opcaoEscolhida === 'indicacao';
-            btn.style.borderColor = isInd ? '#2563eb' : '#dc2626';
-            btn.style.color = isInd ? '#2563eb' : '#dc2626';
-            btn.style.background = isInd ? '#eff6ff' : '#fff1f2';
+            const isInd  = _opcaoEscolhida === 'indicacao';
+            const isPraz = _opcaoEscolhida === 'prazo_perdido';
+            btn.style.borderColor = isInd ? '#2563eb' : isPraz ? '#d97706' : '#dc2626';
+            btn.style.color       = isInd ? '#2563eb' : isPraz ? '#d97706' : '#dc2626';
+            btn.style.background  = isInd ? '#eff6ff' : isPraz ? '#fffbeb' : '#fff1f2';
         }
     };
     window._fluxoVoltar = function() {
