@@ -122,7 +122,8 @@ window._logSinRenderCardGeral = function(s, container) {
 
     const statusMap = {
         'pendente': { text: 'Aguardando Assinaturas (RH)', color: '#f59e0b', bg: '#fef3c7' },
-        'assinado': { text: 'Finalizado e Assinado',  color: '#10b981', bg: '#d1fae5' }
+        'assinado': { text: 'Finalizado e Assinado',  color: '#10b981', bg: '#d1fae5' },
+        'iniciado': { text: 'Iniciado', color: '#b45309', bg: '#fef08a' }
     };
     const st = statusMap[s.status] || { text: s.status, color: '#64748b', bg: '#f1f5f9' };
 
@@ -880,6 +881,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
     window._logSinEditColabId      = colabId;
     window._logSinEditOrcFiles     = [];
     window._logSinEditNovasMidias  = [];
+    window._logSinEditBOFile       = null;
 
     // Buscar dados atuais do sinistro
     let sinistro = null;
@@ -927,6 +929,18 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                 <div style="background:#fef9c3; border:1px solid #fde047; border-radius:8px; padding:0.6rem 0.85rem; font-size:0.82rem; color:#713f12; display:flex; align-items:center; gap:6px;">
                     <i class="ph ph-warning"></i>
                     Edição disponível apenas antes das assinaturas do colaborador e da testemunha.
+                </div>
+
+                <div id="edit-sin-msg" style="display:none; margin-bottom:0.5rem;"></div>
+
+                <div class="input-group" style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:0.25rem;">
+                    <label style="color:#0f172a; margin-bottom:6px;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Boletim de Ocorrência (PDF) - <span style="color:#64748b;font-weight:normal;">Opcional (Extrair Dados)</span></label>
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <input type="file" id="edit-sin-file-bo" accept="application/pdf" class="form-control" style="flex:1;">
+                        <button type="button" class="btn btn-secondary" onclick="window.logSinEditProcessarLeituraBO(this)" style="white-space:nowrap;font-size:0.82rem;padding:0.45rem 0.8rem;">
+                            <i class="ph ph-scan"></i> Analisar BO
+                        </button>
+                    </div>
                 </div>
 
                 <!-- DADOS BÁSICOS -->
@@ -1043,6 +1057,51 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
 
     // Renderizar grade de mídias existentes
     window._logSinEditRenderMidiasExistentes();
+};
+
+window.logSinEditProcessarLeituraBO = async function(btn) {
+    const fileInput = document.getElementById('edit-sin-file-bo');
+    if (!fileInput || !fileInput.files.length) return alert('Selecione o arquivo do BO em PDF.');
+
+    const formData = new FormData();
+    formData.append('arquivo', fileInput.files[0]);
+
+    const oldText = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Lendo...'; 
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_URL}/extrair-bo`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
+            body: formData
+        });
+        if (res.status === 401 || res.status === 403) { alert('Sessão expirada.'); location.reload(); return; }
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro na leitura.');
+
+        const fbo = document.getElementById('edit-sin-bo');
+        if (fbo && data.protocolo && !fbo.value) fbo.value = data.protocolo;
+        
+        const fdt = document.getElementById('edit-sin-data'); 
+        if (fdt && data.data_hora) fdt.value = data.data_hora;
+        
+        const fnat = document.getElementById('edit-sin-natureza'); 
+        if (fnat && data.natureza) fnat.value = data.natureza.replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim();
+
+        window._logSinEditBOFile = fileInput.files[0];
+
+        const notif = document.getElementById('edit-sin-msg');
+        if (notif) {
+            notif.innerHTML = '<i class="ph ph-check-circle"></i> Leitura concluída! O PDF também será salvo ao enviar.';
+            notif.style.cssText = 'display:block; padding:0.6rem 0.85rem; border-radius:8px; font-size:0.82rem; background:#d1fae5; border:1px solid #6ee7b7; color:#065f46; margin-bottom:10px;';
+        }
+    } catch(e) {
+        alert('Erro ao analisar BO: ' + e.message);
+    } finally {
+        btn.innerHTML = oldText;
+        btn.disabled = false;
+    }
 };
 
 window._logSinEditRenderMidiasExistentes = function() {
@@ -1276,6 +1335,15 @@ window.logSinSalvarEdicao = async function() {
         if (document.getElementById('edit-sin-natureza')) formData.append('natureza', document.getElementById('edit-sin-natureza').value);
         if (document.getElementById('edit-sin-veiculo')) formData.append('veiculo', document.getElementById('edit-sin-veiculo').value);
         if (document.getElementById('edit-sin-placa')) formData.append('placa', document.getElementById('edit-sin-placa').value);
+
+        if (window._logSinEditBOFile) {
+            formData.append('arquivo', window._logSinEditBOFile);
+        } else {
+            var fFile = document.getElementById('edit-sin-file-bo');
+            if (fFile && fFile.files.length > 0) {
+                formData.append('arquivo', fFile.files[0]);
+            }
+        }
 
         if (window._logSinEditOrcFiles && window._logSinEditOrcFiles.length > 0) {
             if (btn) btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando orçamentos...';
