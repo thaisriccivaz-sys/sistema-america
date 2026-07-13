@@ -1101,7 +1101,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                         </div>
                         <hr style="border-color:#e2e8f0; margin:0 0 10px;">
                         <p style="margin:0 0 5px; font-size:0.78rem; font-weight:600; color:#475569;"><i class="ph ph-plus-circle"></i> Nova Observação</p>
-                        <textarea id="edit-sin-nova-obs" class="form-control" rows="8" placeholder="Escreva uma nova observação aqui..." style="resize:vertical; font-size:0.85rem; min-height:180px;"></textarea>
+                        <textarea id="edit-sin-nova-obs" class="form-control" rows="8" placeholder="Escreva uma nova observação aqui..." style="resize:vertical; font-size:0.85rem; min-height:180px; width:100%; box-sizing:border-box;"></textarea>
                     </div>
 
                     <!-- Botões -->
