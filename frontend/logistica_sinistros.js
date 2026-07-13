@@ -236,12 +236,12 @@ window.logSinAbrirModalNovo = function() {
             .join('');
 
         m.innerHTML = `
-            <div class="modal-content" style="max-width:640px;">
-                <div class="modal-header">
-                    <h3><i class="ph ph-warning" style="color:#059669;"></i> Registrar Novo Sinistro</h3>
-                    <button onclick="document.getElementById('modal-logistica-novo-sinistro').style.display='none'" class="btn-close"><i class="ph ph-x"></i></button>
+            <div class="modal-content" style="max-width:100vw; width:100vw; height:100vh; max-height:100vh; margin:0; border-radius:0; display:flex; flex-direction:column; overflow:hidden;">
+                <div class="modal-header" style="background:linear-gradient(135deg,#0f172a,#1e293b); z-index:10; flex-shrink:0;">
+                    <h3 style="color:#fff; margin:0; display:flex; align-items:center; gap:8px;"><i class="ph ph-warning" style="color:#34d399;"></i> Registrar Novo Sinistro</h3>
+                    <button onclick="document.getElementById('modal-logistica-novo-sinistro').style.display='none'" class="btn-close" style="background:rgba(255,255,255,0.15); color:#fff;"><i class="ph ph-x"></i></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="flex:1; overflow-y:auto; padding:1.5rem;">
                     <div id="log-sinistro-step-1">
                         <div class="input-group" style="margin-bottom: 1rem;">
                             <label>Selecionar Colaborador *</label>
@@ -291,98 +291,111 @@ window.logSinAbrirModalNovo = function() {
                     </div>
 
                     <div id="log-sinistro-step-2" style="display:none;">
-                        <div id="log-sin-bo-notif" style="display:none; border-radius:8px; padding:0.5rem 0.75rem; margin-bottom:1rem; font-size:0.85rem;"></div>
+                        <div style="display:flex; gap:1.5rem; align-items:flex-start; min-height:calc(100vh - 160px);">
+                            <!-- COLUNA ESQUERDA: Dados do BO e Arquivos -->
+                            <div style="flex:1.1; min-width:0; display:flex; flex-direction:column; gap:0.85rem;">
+                                <div id="log-sin-bo-notif" style="display:none; border-radius:8px; padding:0.5rem 0.75rem; font-size:0.85rem;"></div>
 
-                        <!-- BO Upload (Step 2) -->
-                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.9rem;">
-                            <p style="margin:0 0 0.5rem;font-weight:600;font-size:0.85rem;color:#334155;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Boletim de Ocorrência (PDF)</p>
-                            <div style="display:flex;gap:0.5rem;align-items:flex-end;">
-                                <div style="flex:1;">
-                                    <input type="file" id="log-sinistro-file-bo" accept=".pdf,image/*" class="form-control" style="font-size:0.82rem;">
+                                <!-- BO Upload -->
+                                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.9rem 1rem;">
+                                    <p style="margin:0 0 0.5rem;font-weight:600;font-size:0.85rem;color:#334155;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Boletim de Ocorrência (PDF)</p>
+                                    <div style="display:flex;gap:0.5rem;align-items:flex-end;">
+                                        <div style="flex:1;"><input type="file" id="log-sinistro-file-bo" accept=".pdf,image/*" class="form-control" style="font-size:0.82rem;"></div>
+                                        <button type="button" class="btn btn-secondary" onclick="window.logSinProcessarLeituraBO()" style="white-space:nowrap;font-size:0.82rem;padding:0.45rem 0.8rem;"><i class="ph ph-scan"></i> Analisar BO</button>
+                                    </div>
                                 </div>
-                                <button type="button" class="btn btn-secondary" onclick="window.logSinProcessarLeituraBO()" style="white-space:nowrap;font-size:0.82rem;padding:0.45rem 0.8rem;">
-                                    <i class="ph ph-scan"></i> Analisar BO
+
+                                <!-- Campos do BO -->
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                                    <div class="input-group"><label>Boletim Nº</label><input type="text" id="log-sin-bo" class="form-control"></div>
+                                    <div class="input-group"><label>Data e Hora da Ocorrência</label><input type="text" id="log-sin-data" class="form-control" placeholder="13/04/2026 às 13:30"></div>
+                                </div>
+                                <div class="input-group"><label>Natureza da Ocorrência</label><input type="text" id="log-sin-natureza" class="form-control"></div>
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                                    <div class="input-group"><label>Marca/Modelo</label><input type="text" id="log-sin-veiculo" class="form-control"></div>
+                                    <div class="input-group"><label>Placa</label><input type="text" id="log-sin-placa" class="form-control"></div>
+                                </div>
+
+                                <hr style="border-color:#e2e8f0; margin:0.25rem 0;">
+                                <div id="area-log-sinistro-desconto" style="display:none;"></div>
+
+                                <!-- Orçamentos -->
+                                <div style="background:#f8fafc; padding:1rem; border-radius:8px; border:1px solid #e2e8f0;">
+                                    <p style="margin:0 0 8px; font-weight:600; font-size:0.9rem;"><i class="ph ph-receipt"></i> Orçamentos (fotos JPG/PNG)</p>
+                                    <div id="log-sin-orc-dropzone"
+                                        style="border:2px dashed #cbd5e1; border-radius:10px; background:#f1f5f9; padding:1.2rem 1rem; text-align:center; cursor:pointer; transition:all .2s;"
+                                        onclick="document.getElementById('log-sin-orcs-file').click()"
+                                        ondragover="event.preventDefault(); this.style.background='#e2e8f0'; this.style.borderColor='#94a3b8';"
+                                        ondragleave="this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1';"
+                                        ondrop="event.preventDefault(); this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1'; window._logSinAdicionarOrcs(event.dataTransfer.files);">
+                                        <i class="ph ph-image" style="font-size:1.8rem; color:#94a3b8; display:block; margin-bottom:4px;"></i>
+                                        <p style="margin:0; font-weight:600; font-size:0.82rem; color:#475569;">Arraste fotos dos orçamentos aqui</p>
+                                        <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique para selecionar &bull; apenas JPG e PNG &bull; múltiplos de uma vez</p>
+                                        <input type="file" id="log-sin-orcs-file" multiple accept="image/jpeg,image/png,.jpg,.png" style="display:none;" onchange="window._logSinAdicionarOrcs(this.files); this.value='';">
+                                    </div>
+                                    <div id="log-sin-orcs-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+                                    <p id="log-sin-orcs-count" style="margin:6px 0 0; font-size:0.75rem; color:#475569; display:none;"></p>
+                                </div>
+
+                                <!-- Fotos e Vídeos -->
+                                <div style="background:#f0f9ff; padding:1rem; border-radius:8px; border:1px solid #bae6fd;">
+                                    <p style="margin:0 0 8px; font-weight:600; font-size:0.9rem; color:#0369a1;"><i class="ph ph-camera"></i> Fotos e Vídeos dos Itens Danificados</p>
+                                    <div id="log-sin-dropzone"
+                                        style="border:2px dashed #7dd3fc; border-radius:10px; background:#e0f2fe; padding:1.5rem 1rem; text-align:center; cursor:pointer; transition:all .2s;"
+                                        onclick="document.getElementById('log-sin-midias-file').click()"
+                                        ondragover="event.preventDefault(); this.style.background='#bae6fd'; this.style.borderColor='#0ea5e9';"
+                                        ondragleave="this.style.background='#e0f2fe'; this.style.borderColor='#7dd3fc';"
+                                        ondrop="event.preventDefault(); this.style.background='#e0f2fe'; this.style.borderColor='#7dd3fc'; window._logSinAdicionarMidias(event.dataTransfer.files);">
+                                        <i class="ph ph-upload-simple" style="font-size:2rem; color:#0ea5e9; display:block; margin-bottom:6px;"></i>
+                                        <p style="margin:0; font-weight:600; font-size:0.85rem; color:#0369a1;">Arraste fotos e vídeos aqui</p>
+                                        <p style="margin:2px 0 0; font-size:0.75rem; color:#38bdf8;">ou clique para selecionar &bull; múltiplos arquivos &bull; Máx. 500MB cada</p>
+                                        <input type="file" id="log-sin-midias-file" multiple accept="image/*,video/*" style="display:none;" onchange="window._logSinAdicionarMidias(this.files); this.value='';">
+                                    </div>
+                                    <div id="log-sin-midias-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+                                    <p id="log-sin-midias-count" style="margin:6px 0 0; font-size:0.75rem; color:#0369a1; display:none;"></p>
+                                </div>
+                            </div>
+
+                            <!-- COLUNA DIREITA: Tipo de Sinistro + Observações -->
+                            <div style="width:380px; flex-shrink:0; display:flex; flex-direction:column; gap:0.85rem; position:sticky; top:0;">
+                                <!-- Tipo de Sinistro -->
+                                <div class="input-group" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:1rem;">
+                                    <label style="color:#c2410c;font-weight:700;"><i class="ph ph-tag"></i> Tipo de Sinistro</label>
+                                    <select id="log-sin-tipo" class="form-control" style="font-size:0.9rem;">
+                                        <option value="">-- Selecione o tipo --</option>
+                                        <option value="Colisão">Colisão</option>
+                                        <option value="Roubo">Roubo</option>
+                                        <option value="Furto">Furto</option>
+                                        <option value="Incêndio">Incêndio</option>
+                                        <option value="Alagamento">Alagamento</option>
+                                        <option value="Avaria">Avaria</option>
+                                        <option value="Danos em Terceiros">Danos em Terceiros</option>
+                                        <option value="Outros">Outros</option>
+                                    </select>
+                                </div>
+
+                                <!-- Observações -->
+                                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:1rem;flex:1;">
+                                    <p style="margin:0 0 8px;font-weight:700;font-size:0.85rem;color:#334155;"><i class="ph ph-note-pencil" style="color:#6366f1;"></i> Observações</p>
+                                    <textarea id="log-sin-observacoes" class="form-control" rows="8" placeholder="Descreva os detalhes do sinistro, informações adicionais, notas importantes..." style="resize:vertical; min-height:180px;"></textarea>
+                                </div>
+
+                                <!-- Aviso RH -->
+                                <div class="alert alert-warning" style="font-size: 0.82rem; margin:0;">
+                                    <i class="ph ph-warning"></i> Assinaturas e acordos de desconto devem ser finalizados pelo RH. O RH será notificado deste registro.
+                                </div>
+
+                                <!-- Botão Finalizar -->
+                                <button type="button" class="btn btn-primary" onclick="window.logSinFinalizarSinistro()" id="log-sin-btn-finalizar" style="width:100%; background:#059669; border:none; padding:0.75rem;">
+                                    <i class="ph ph-check"></i> Finalizar e Salvar
                                 </button>
                             </div>
                         </div>
-
-
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-                            <div class="input-group">
-                                <label>Boletim Nº</label>
-                                <input type="text" id="log-sin-bo" class="form-control">
-                            </div>
-                            <div class="input-group">
-                                <label>Data e Hora da Ocorrência</label>
-                                <input type="text" id="log-sin-data" class="form-control" placeholder="13/04/2026 às 13:30">
-                            </div>
-                        </div>
-                        <div class="input-group">
-                            <label>Natureza da Ocorrência</label>
-                            <input type="text" id="log-sin-natureza" class="form-control">
-                        </div>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-                            <div class="input-group">
-                                <label>Marca/Modelo</label>
-                                <input type="text" id="log-sin-veiculo" class="form-control">
-                            </div>
-                            <div class="input-group">
-                                <label>Placa</label>
-                                <input type="text" id="log-sin-placa" class="form-control">
-                            </div>
-                        </div>
-
-                        <hr style="border-color:#e2e8f0; margin:1.25rem 0;"/>
-
-                        <div id="area-log-sinistro-desconto" style="display:none;"></div>
-                        
-                        <div style="background:#f8fafc; padding:1rem; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:1rem;">
-                            <p style="margin:0 0 8px; font-weight:600; font-size:0.9rem;"><i class="ph ph-receipt"></i> Orçamentos (fotos JPG/PNG)</p>
-                            <div id="log-sin-orc-dropzone"
-                                style="border:2px dashed #cbd5e1; border-radius:10px; background:#f1f5f9; padding:1.2rem 1rem; text-align:center; cursor:pointer; transition:all .2s;"
-                                onclick="document.getElementById('log-sin-orcs-file').click()"
-                                ondragover="event.preventDefault(); this.style.background='#e2e8f0'; this.style.borderColor='#94a3b8';"
-                                ondragleave="this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1';"
-                                ondrop="event.preventDefault(); this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1'; window._logSinAdicionarOrcs(event.dataTransfer.files);">
-                                <i class="ph ph-image" style="font-size:1.8rem; color:#94a3b8; display:block; margin-bottom:4px;"></i>
-                                <p style="margin:0; font-weight:600; font-size:0.82rem; color:#475569;">Arraste fotos dos orçamentos aqui</p>
-                                <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique para selecionar &bull; apenas JPG e PNG &bull; múltiplos de uma vez</p>
-                                <input type="file" id="log-sin-orcs-file" multiple accept="image/jpeg,image/png,.jpg,.png" style="display:none;"
-                                    onchange="window._logSinAdicionarOrcs(this.files); this.value='';">
-                            </div>
-                            <div id="log-sin-orcs-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
-                            <p id="log-sin-orcs-count" style="margin:6px 0 0; font-size:0.75rem; color:#475569; display:none;"></p>
-                        </div>
-
-                        <div style="background:#f0f9ff; padding:1rem; border-radius:8px; border:1px solid #bae6fd; margin-bottom:1rem;">
-                            <p style="margin:0 0 8px; font-weight:600; font-size:0.9rem; color:#0369a1;"><i class="ph ph-camera"></i> Fotos e Vídeos dos Itens Danificados</p>
-                            <div id="log-sin-dropzone"
-                                style="border:2px dashed #7dd3fc; border-radius:10px; background:#e0f2fe; padding:1.5rem 1rem; text-align:center; cursor:pointer; transition:all .2s;"
-                                onclick="document.getElementById('log-sin-midias-file').click()"
-                                ondragover="event.preventDefault(); this.style.background='#bae6fd'; this.style.borderColor='#0ea5e9';"
-                                ondragleave="this.style.background='#e0f2fe'; this.style.borderColor='#7dd3fc';"
-                                ondrop="event.preventDefault(); this.style.background='#e0f2fe'; this.style.borderColor='#7dd3fc'; window._logSinAdicionarMidias(event.dataTransfer.files);">
-                                <i class="ph ph-upload-simple" style="font-size:2rem; color:#0ea5e9; display:block; margin-bottom:6px;"></i>
-                                <p style="margin:0; font-weight:600; font-size:0.85rem; color:#0369a1;">Arraste fotos e vídeos aqui</p>
-                                <p style="margin:2px 0 0; font-size:0.75rem; color:#38bdf8;">ou clique para selecionar &bull; múltiplos arquivos &bull; Máx. 500MB cada</p>
-                                <input type="file" id="log-sin-midias-file" multiple accept="image/*,video/*" style="display:none;"
-                                    onchange="window._logSinAdicionarMidias(this.files); this.value='';">
-                            </div>
-                            <div id="log-sin-midias-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
-                            <p id="log-sin-midias-count" style="margin:6px 0 0; font-size:0.75rem; color:#0369a1; display:none;"></p>
-                        </div>
-
-                        <div class="alert alert-warning" style="font-size: 0.85rem; margin-bottom: 1rem;">
-                            <i class="ph ph-warning"></i> Assinaturas e acordos de desconto devem ser finalizados exclusivamente pelo departamento de Recursos Humanos. O RH será notificado deste registro e fará a coleta da assinatura do colaborador.
-                        </div>
-
-                        <button type="button" class="btn btn-primary" onclick="window.logSinFinalizarSinistro()" id="log-sin-btn-finalizar" style="width:100%; background:#059669; border:none;">
-                            <i class="ph ph-check"></i> Finalizar e Salvar
-                        </button>
                     </div>
                 </div>
             </div>
         `;
+
         document.body.appendChild(m);
     }
 
@@ -811,6 +824,8 @@ window.logSinFinalizarSinistro = async function() {
         var fpla = document.getElementById('log-sin-placa');   if (fpla && fpla.value) formData.append('placa', fpla.value);
         var fpar = document.getElementById('log-sin-parcelas');if (fpar) formData.append('parcelas', fpar.value);
         var fvtot= document.getElementById('log-sin-valor-total');if (fvtot && fvtot.value) formData.append('valor_total', fvtot.value);
+        var ftipo = document.getElementById('log-sin-tipo'); if (ftipo && ftipo.value) formData.append('tipo_sinistro', ftipo.value);
+        var fobs = document.getElementById('log-sin-observacoes'); if (fobs && fobs.value.trim()) formData.append('observacoes', fobs.value.trim());
 
         // Orçamentos
         const filesOrc = window._logSinOrcFiles || [];
@@ -925,139 +940,192 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                 </h3>
                 <button onclick="document.getElementById('modal-log-sin-editar').style.display='none'" class="btn-close" style="background:rgba(255,255,255,0.15); color:#fff;"><i class="ph ph-x"></i></button>
             </div>
-            <div class="modal-body" style="display:flex; flex-direction:column; gap:1rem; flex:1; overflow-y:auto; padding:1.5rem;">
+            <div class="modal-body" style="display:flex; gap:1.5rem; align-items:flex-start; flex:1; overflow-y:auto; padding:1.5rem;">
 
-                <div style="background:#fef9c3; border:1px solid #fde047; border-radius:8px; padding:0.6rem 0.85rem; font-size:0.82rem; color:#713f12; display:flex; align-items:center; gap:6px;">
-                    <i class="ph ph-warning"></i>
-                    Edição disponível apenas antes das assinaturas do colaborador e da testemunha.
+                <!-- COLUNA ESQUERDA: Dados do BO e Arquivos -->
+                <div style="flex:1.1; min-width:0; display:flex; flex-direction:column; gap:0.9rem;">
+
+                    <div style="background:#fef9c3; border:1px solid #fde047; border-radius:8px; padding:0.6rem 0.85rem; font-size:0.82rem; color:#713f12; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-warning"></i>
+                        Edição disponível apenas antes das assinaturas do colaborador e da testemunha.
+                    </div>
+
+                    <div id="edit-sin-msg" style="display:none; margin-bottom:0.5rem;"></div>
+
+                    <!-- BO Upload -->
+                    <div class="input-group" style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+                        <label style="color:#0f172a; margin-bottom:6px;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Boletim de Ocorrência (PDF) - <span style="color:#64748b;font-weight:normal;">Opcional (Extrair Dados)</span></label>
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <input type="file" id="edit-sin-file-bo" accept="application/pdf" class="form-control" style="flex:1;">
+                            <button type="button" class="btn btn-secondary" onclick="window.logSinEditProcessarLeituraBO(this)" style="white-space:nowrap;font-size:0.82rem;padding:0.45rem 0.8rem;">
+                                <i class="ph ph-scan"></i> Analisar BO
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- DADOS BÁSICOS -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem;">
+                        <div class="input-group">
+                            <label>Boletim Nº</label>
+                            <input type="text" id="edit-sin-bo" class="form-control" value="${sinistro.numero_boletim || ''}">
+                        </div>
+                        <div class="input-group">
+                            <label>Data e Hora da Ocorrência</label>
+                            <input type="text" id="edit-sin-data" class="form-control" value="${sinistro.data_hora || ''}">
+                        </div>
+                        <div class="input-group">
+                            <label>Natureza da Ocorrência</label>
+                            <input type="text" id="edit-sin-natureza" class="form-control" value="${(sinistro.natureza || '').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim()}">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                        <div class="input-group">
+                            <label>Marca/Modelo</label>
+                            <input type="text" id="edit-sin-veiculo" class="form-control" value="${sinistro.veiculo || ''}">
+                        </div>
+                        <div class="input-group">
+                            <label>Placa</label>
+                            <input type="text" id="edit-sin-placa" class="form-control" value="${sinistro.placa || ''}">
+                        </div>
+                    </div>
+
+                    <hr style="border-color:#e2e8f0; margin:0;">
+
+                    <!-- FOTOS E VÍDEOS EXISTENTES -->
+                    <div>
+                        <p style="font-size:0.85rem; font-weight:700; color:#1e293b; margin:0 0 8px; display:flex; align-items:center; gap:6px;">
+                            <i class="ph ph-camera" style="color:#0369a1;"></i>
+                            Fotos e Vídeos Anexados
+                            <span id="edit-midias-count-badge" style="background:#e0f2fe; color:#0369a1; border-radius:12px; padding:1px 8px; font-size:0.72rem; font-weight:700;">
+                                ${midiasExistentes.length}
+                            </span>
+                        </p>
+                        <div id="edit-sin-midias-grid" style="display:flex; flex-wrap:wrap; gap:8px; min-height:40px;">
+                            ${midiasExistentes.length === 0
+                                ? '<p style="font-size:0.8rem; color:#94a3b8; margin:0;">Nenhuma mídia anexada ainda.</p>'
+                                : ''}
+                        </div>
+                    </div>
+
+                    <!-- ADICIONAR NOVAS MÍDIAS -->
+                    <div style="background:#f0f9ff; padding:0.85rem; border-radius:8px; border:1px solid #bae6fd;">
+                        <p style="margin:0 0 8px; font-weight:600; font-size:0.85rem; color:#0369a1;"><i class="ph ph-upload-simple"></i> Adicionar fotos e vídeos</p>
+                        <div id="edit-sin-midia-dropzone"
+                            style="border:2px dashed #7dd3fc; border-radius:10px; background:#e0f2fe; padding:1rem; text-align:center; cursor:pointer; transition:all .2s;"
+                            onclick="document.getElementById('edit-sin-midias-file').click()"
+                            ondragover="event.preventDefault(); this.style.background='#bae6fd';"
+                            ondragleave="this.style.background='#e0f2fe';"
+                            ondrop="event.preventDefault(); this.style.background='#e0f2fe'; window._logSinEditAdicionarMidias(event.dataTransfer.files);">
+                            <i class="ph ph-upload-simple" style="font-size:1.8rem; color:#0ea5e9; display:block; margin-bottom:4px;"></i>
+                            <p style="margin:0; font-weight:600; font-size:0.82rem; color:#0369a1;">Arraste fotos e vídeos aqui</p>
+                            <p style="margin:2px 0 0; font-size:0.72rem; color:#38bdf8;">ou clique &bull; múltiplos arquivos &bull; Máx. 500MB cada</p>
+                            <input type="file" id="edit-sin-midias-file" multiple accept="image/*,video/*" style="display:none;"
+                                onchange="window._logSinEditAdicionarMidias(this.files); this.value='';">
+                        </div>
+                        <div id="edit-sin-novas-midias-preview" style="display:none; margin-top:10px; flex-wrap:wrap; gap:8px;"></div>
+                    </div>
+
+                    <hr style="border-color:#e2e8f0; margin:0;">
+
+                    <!-- ORÇAMENTOS EXISTENTES -->
+                    ${orcsExistentes.length > 0 ? `
+                    <div>
+                        <p style="font-size:0.85rem; font-weight:700; color:#374151; margin:0 0 6px;"><i class="ph ph-receipt"></i> Orçamentos já anexados (${orcsExistentes.length})</p>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            ${orcsExistentes.map(function(p, idx) {
+                                return '<a href="javascript:void(0)" onclick="window.abrirArquivoOneDrive(\'' + p + '\')" style="display:inline-flex;align-items:center;gap:4px;font-size:0.78rem;color:#0369a1;background:#e0f2fe;padding:4px 8px;border-radius:4px;text-decoration:none;"><i class=\"ph ph-image\"></i> Orç. ' + (idx + 1) + '</a>';
+                            }).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <!-- ADICIONAR NOVOS ORÇAMENTOS -->
+                    <div style="background:#f8fafc; padding:0.85rem; border-radius:8px; border:1px solid #e2e8f0;">
+                        <p style="margin:0 0 8px; font-weight:600; font-size:0.85rem;"><i class="ph ph-image"></i> Adicionar orçamentos (JPG/PNG)</p>
+                        <div id="edit-sin-orc-dropzone"
+                            style="border:2px dashed #cbd5e1; border-radius:10px; background:#f1f5f9; padding:1rem; text-align:center; cursor:pointer; transition:all .2s;"
+                            onclick="document.getElementById('edit-sin-orcs-file').click()"
+                            ondragover="event.preventDefault(); this.style.background='#e2e8f0';"
+                            ondragleave="this.style.background='#f1f5f9';"
+                            ondrop="event.preventDefault(); this.style.background='#f1f5f9'; window._logSinEditAdicionarOrcs(event.dataTransfer.files);">
+                            <i class="ph ph-upload-simple" style="font-size:1.8rem; color:#94a3b8; display:block; margin-bottom:4px;"></i>
+                            <p style="margin:0; font-size:0.82rem; font-weight:600; color:#475569;">Arraste fotos dos orçamentos aqui</p>
+                            <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique &bull; apenas JPG e PNG</p>
+                            <input type="file" id="edit-sin-orcs-file" multiple accept="image/jpeg,image/png,.jpg,.png" style="display:none;"
+                                onchange="window._logSinEditAdicionarOrcs(this.files); this.value='';">
+                        </div>
+                        <div id="edit-sin-orcs-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+                        <p id="edit-sin-orcs-count" style="margin:6px 0 0; font-size:0.75rem; color:#475569; display:none;"></p>
+                    </div>
+
                 </div>
 
-                <div id="edit-sin-msg" style="display:none; margin-bottom:0.5rem;"></div>
+                <!-- COLUNA DIREITA: Tipo de Sinistro + Observações + Histórico -->
+                <div style="width:400px; flex-shrink:0; display:flex; flex-direction:column; gap:0.9rem; position:sticky; top:0; align-self:flex-start;">
 
-                <div class="input-group" style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:0.25rem;">
-                    <label style="color:#0f172a; margin-bottom:6px;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Boletim de Ocorrência (PDF) - <span style="color:#64748b;font-weight:normal;">Opcional (Extrair Dados)</span></label>
-                    <div style="display:flex; gap:0.5rem; align-items:center;">
-                        <input type="file" id="edit-sin-file-bo" accept="application/pdf" class="form-control" style="flex:1;">
-                        <button type="button" class="btn btn-secondary" onclick="window.logSinEditProcessarLeituraBO(this)" style="white-space:nowrap;font-size:0.82rem;padding:0.45rem 0.8rem;">
-                            <i class="ph ph-scan"></i> Analisar BO
+                    <!-- Tipo de Sinistro -->
+                    <div class="input-group" style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:1rem;">
+                        <label style="color:#c2410c; font-weight:700;"><i class="ph ph-tag"></i> Tipo de Sinistro</label>
+                        <select id="edit-sin-tipo" class="form-control" style="font-size:0.9rem;">
+                            <option value="">-- Selecione o tipo --</option>
+                            <option value="Colisão" ${sinistro.tipo_sinistro === 'Colisão' ? 'selected' : ''}>Colisão</option>
+                            <option value="Roubo" ${sinistro.tipo_sinistro === 'Roubo' ? 'selected' : ''}>Roubo</option>
+                            <option value="Furto" ${sinistro.tipo_sinistro === 'Furto' ? 'selected' : ''}>Furto</option>
+                            <option value="Incêndio" ${sinistro.tipo_sinistro === 'Incêndio' ? 'selected' : ''}>Incêndio</option>
+                            <option value="Alagamento" ${sinistro.tipo_sinistro === 'Alagamento' ? 'selected' : ''}>Alagamento</option>
+                            <option value="Avaria" ${sinistro.tipo_sinistro === 'Avaria' ? 'selected' : ''}>Avaria</option>
+                            <option value="Danos em Terceiros" ${sinistro.tipo_sinistro === 'Danos em Terceiros' ? 'selected' : ''}>Danos em Terceiros</option>
+                            <option value="Outros" ${sinistro.tipo_sinistro === 'Outros' ? 'selected' : ''}>Outros</option>
+                        </select>
+                    </div>
+
+                    <!-- Histórico de Observações -->
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1rem; flex:1;">
+                        <p style="margin:0 0 10px; font-weight:700; font-size:0.85rem; color:#334155; display:flex; align-items:center; gap:6px;">
+                            <i class="ph ph-chat-text" style="color:#6366f1;"></i> Histórico de Observações
+                        </p>
+                        <div id="edit-sin-historico-obs" style="max-height:260px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; margin-bottom:10px;">
+                            ${(function() {
+                                let hist = [];
+                                try { if (sinistro.observacoes_historico) hist = JSON.parse(sinistro.observacoes_historico); } catch(e) {}
+                                if (!hist.length && sinistro.observacoes) {
+                                    return '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;font-size:0.82rem;color:#1e40af;">'
+                                        + '<p style="margin:0 0 3px;font-size:0.7rem;color:#64748b;">Observação inicial</p>'
+                                        + '<p style="margin:0;">' + sinistro.observacoes.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p></div>';
+                                }
+                                if (!hist.length) return '<p style="font-size:0.8rem;color:#94a3b8;margin:0;text-align:center;padding:1rem;">Nenhuma observação registrada ainda.</p>';
+                                return hist.map(function(h) {
+                                    return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">'
+                                        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
+                                        + '<span style="font-size:0.73rem;font-weight:700;color:#6366f1;"><i class="ph ph-user-circle"></i> ' + (h.autor || 'Sistema') + '</span>'
+                                        + '<span style="font-size:0.68rem;color:#94a3b8;">' + (h.data || '') + '</span>'
+                                        + '</div>'
+                                        + '<p style="margin:0;font-size:0.83rem;color:#334155;line-height:1.5;">' + (h.texto || '').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>'
+                                        + '</div>';
+                                }).join('');
+                            })()}
+                        </div>
+                        <hr style="border-color:#e2e8f0; margin:0 0 10px;">
+                        <p style="margin:0 0 5px; font-size:0.78rem; font-weight:600; color:#475569;"><i class="ph ph-plus-circle"></i> Nova Observação</p>
+                        <textarea id="edit-sin-nova-obs" class="form-control" rows="4" placeholder="Escreva uma nova observação aqui..." style="resize:vertical; font-size:0.85rem;"></textarea>
+                    </div>
+
+                    <!-- Botões -->
+                    <div style="display:flex; gap:0.5rem;">
+                        <button onclick="document.getElementById('modal-log-sin-editar').style.display='none'"
+                            style="flex:1; border:1px solid #e2e8f0; background:#fff; color:#374151; border-radius:8px; padding:0.6rem 1rem; font-size:0.85rem; font-weight:600; cursor:pointer;">
+                            Cancelar
+                        </button>
+                        <button id="btn-edit-sin-salvar" onclick="window.logSinSalvarEdicao()"
+                            style="flex:2; border:none; background:#059669; color:#fff; border-radius:8px; padding:0.6rem 1.25rem; font-size:0.85rem; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                            <i class="ph ph-floppy-disk"></i> Salvar Alterações
                         </button>
                     </div>
                 </div>
-
-                <!-- DADOS BÁSICOS -->
-                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem;">
-                    <div class="input-group">
-                        <label>Boletim Nº</label>
-                        <input type="text" id="edit-sin-bo" class="form-control" value="${sinistro.numero_boletim || ''}">
-                    </div>
-                    <div class="input-group">
-                        <label>Data e Hora da Ocorrência</label>
-                        <input type="text" id="edit-sin-data" class="form-control" value="${sinistro.data_hora || ''}">
-                    </div>
-                    <div class="input-group">
-                        <label>Natureza da Ocorrência</label>
-                        <input type="text" id="edit-sin-natureza" class="form-control" value="${(sinistro.natureza || '').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim()}">
-                    </div>
-                </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-                    <div class="input-group">
-                        <label>Marca/Modelo</label>
-                        <input type="text" id="edit-sin-veiculo" class="form-control" value="${sinistro.veiculo || ''}">
-                    </div>
-                    <div class="input-group">
-                        <label>Placa</label>
-                        <input type="text" id="edit-sin-placa" class="form-control" value="${sinistro.placa || ''}">
-                    </div>
-                </div>
-
-                <div class="input-group">
-                    <label>Observações</label>
-                    <textarea id="edit-sin-observacoes" class="form-control" rows="3" placeholder="Informações adicionais ou notas importantes...">${sinistro.observacoes || ''}</textarea>
-                </div>
-
-                <hr style="border-color:#e2e8f0; margin:0;">
-
-                <!-- FOTOS E VÍDEOS EXISTENTES -->
-                <div>
-                    <p style="font-size:0.85rem; font-weight:700; color:#1e293b; margin:0 0 8px; display:flex; align-items:center; gap:6px;">
-                        <i class="ph ph-camera" style="color:#0369a1;"></i>
-                        Fotos e Vídeos Anexados
-                        <span id="edit-midias-count-badge" style="background:#e0f2fe; color:#0369a1; border-radius:12px; padding:1px 8px; font-size:0.72rem; font-weight:700;">
-                            ${midiasExistentes.length}
-                        </span>
-                    </p>
-                    <div id="edit-sin-midias-grid" style="display:flex; flex-wrap:wrap; gap:8px; min-height:40px;">
-                        ${midiasExistentes.length === 0
-                            ? '<p style="font-size:0.8rem; color:#94a3b8; margin:0;">Nenhuma mídia anexada ainda.</p>'
-                            : ''}
-                    </div>
-                </div>
-
-                <!-- ADICIONAR NOVAS MÍDIAS -->
-                <div style="background:#f0f9ff; padding:0.85rem; border-radius:8px; border:1px solid #bae6fd;">
-                    <p style="margin:0 0 8px; font-weight:600; font-size:0.85rem; color:#0369a1;"><i class="ph ph-upload-simple"></i> Adicionar fotos e vídeos</p>
-                    <div id="edit-sin-midia-dropzone"
-                        style="border:2px dashed #7dd3fc; border-radius:10px; background:#e0f2fe; padding:1rem; text-align:center; cursor:pointer; transition:all .2s;"
-                        onclick="document.getElementById('edit-sin-midias-file').click()"
-                        ondragover="event.preventDefault(); this.style.background='#bae6fd';"
-                        ondragleave="this.style.background='#e0f2fe';"
-                        ondrop="event.preventDefault(); this.style.background='#e0f2fe'; window._logSinEditAdicionarMidias(event.dataTransfer.files);">
-                        <i class="ph ph-upload-simple" style="font-size:1.8rem; color:#0ea5e9; display:block; margin-bottom:4px;"></i>
-                        <p style="margin:0; font-weight:600; font-size:0.82rem; color:#0369a1;">Arraste fotos e vídeos aqui</p>
-                        <p style="margin:2px 0 0; font-size:0.72rem; color:#38bdf8;">ou clique &bull; múltiplos arquivos &bull; Máx. 500MB cada</p>
-                        <input type="file" id="edit-sin-midias-file" multiple accept="image/*,video/*" style="display:none;"
-                            onchange="window._logSinEditAdicionarMidias(this.files); this.value='';">
-                    </div>
-                    <div id="edit-sin-novas-midias-preview" style="display:none; margin-top:10px; flex-wrap:wrap; gap:8px;"></div>
-                </div>
-
-                <hr style="border-color:#e2e8f0; margin:0;">
-
-                <!-- ORÇAMENTOS EXISTENTES -->
-                ${orcsExistentes.length > 0 ? `
-                <div>
-                    <p style="font-size:0.85rem; font-weight:700; color:#374151; margin:0 0 6px;"><i class="ph ph-receipt"></i> Orçamentos já anexados (${orcsExistentes.length})</p>
-                    <div style="display:flex; flex-wrap:wrap; gap:6px;">
-                        ${orcsExistentes.map(function(p, idx) {
-                            return '<a href="javascript:void(0)" onclick="window.abrirArquivoOneDrive(\'' + p + '\')" style="display:inline-flex;align-items:center;gap:4px;font-size:0.78rem;color:#0369a1;background:#e0f2fe;padding:4px 8px;border-radius:4px;text-decoration:none;"><i class=\"ph ph-image\"></i> Orç. ' + (idx + 1) + '</a>';
-                        }).join('')}
-                    </div>
-                </div>
-                ` : ''}
-
-                <!-- ADICIONAR NOVOS ORÇAMENTOS -->
-                <div style="background:#f8fafc; padding:0.85rem; border-radius:8px; border:1px solid #e2e8f0;">
-                    <p style="margin:0 0 8px; font-weight:600; font-size:0.85rem;"><i class="ph ph-image"></i> Adicionar orçamentos (JPG/PNG)</p>
-                    <div id="edit-sin-orc-dropzone"
-                        style="border:2px dashed #cbd5e1; border-radius:10px; background:#f1f5f9; padding:1rem; text-align:center; cursor:pointer; transition:all .2s;"
-                        onclick="document.getElementById('edit-sin-orcs-file').click()"
-                        ondragover="event.preventDefault(); this.style.background='#e2e8f0';"
-                        ondragleave="this.style.background='#f1f5f9';"
-                        ondrop="event.preventDefault(); this.style.background='#f1f5f9'; window._logSinEditAdicionarOrcs(event.dataTransfer.files);">
-                        <i class="ph ph-upload-simple" style="font-size:1.8rem; color:#94a3b8; display:block; margin-bottom:4px;"></i>
-                        <p style="margin:0; font-size:0.82rem; font-weight:600; color:#475569;">Arraste fotos dos orçamentos aqui</p>
-                        <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique &bull; apenas JPG e PNG</p>
-                        <input type="file" id="edit-sin-orcs-file" multiple accept="image/jpeg,image/png,.jpg,.png" style="display:none;"
-                            onchange="window._logSinEditAdicionarOrcs(this.files); this.value='';">
-                    </div>
-                    <div id="edit-sin-orcs-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
-                    <p id="edit-sin-orcs-count" style="margin:6px 0 0; font-size:0.75rem; color:#475569; display:none;"></p>
-                </div>
-
-                <div id="edit-sin-msg" style="display:none; padding:0.6rem 0.85rem; border-radius:8px; font-size:0.82rem;"></div>
-            </div>
-            <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:0.5rem; padding:1rem 1.25rem; border-top:1px solid #e2e8f0; background:#f8fafc; position:sticky; bottom:0; z-index:10;">
-                <button onclick="document.getElementById('modal-log-sin-editar').style.display='none'"
-                    style="border:1px solid #e2e8f0; background:#fff; color:#374151; border-radius:8px; padding:0.5rem 1rem; font-size:0.85rem; font-weight:600; cursor:pointer;">
-                    Cancelar
-                </button>
-                <button id="btn-edit-sin-salvar" onclick="window.logSinSalvarEdicao()"
-                    style="border:none; background:#059669; color:#fff; border-radius:8px; padding:0.5rem 1.25rem; font-size:0.85rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
-                    <i class="ph ph-floppy-disk"></i> Salvar Alterações
-                </button>
             </div>
         </div>
     `;
+
 
     modal.style.display = 'flex';
 
@@ -1341,7 +1409,12 @@ window.logSinSalvarEdicao = async function() {
         if (document.getElementById('edit-sin-natureza')) formData.append('natureza', document.getElementById('edit-sin-natureza').value);
         if (document.getElementById('edit-sin-veiculo')) formData.append('veiculo', document.getElementById('edit-sin-veiculo').value);
         if (document.getElementById('edit-sin-placa')) formData.append('placa', document.getElementById('edit-sin-placa').value);
-        if (document.getElementById('edit-sin-observacoes')) formData.append('observacoes', document.getElementById('edit-sin-observacoes').value);
+        var fTipo = document.getElementById('edit-sin-tipo'); if (fTipo && fTipo.value) formData.append('tipo_sinistro', fTipo.value);
+        var fNovaObs = document.getElementById('edit-sin-nova-obs');
+        if (fNovaObs && fNovaObs.value.trim()) {
+            formData.append('nova_observacao', fNovaObs.value.trim());
+            formData.append('autor_observacao', typeof currentUser !== 'undefined' ? (currentUser.nome || currentUser.email || 'Sistema') : 'Sistema');
+        }
 
         if (window._logSinEditBOFile) {
             formData.append('arquivo', window._logSinEditBOFile);

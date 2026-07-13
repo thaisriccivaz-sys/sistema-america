@@ -421,6 +421,7 @@ db.run(`CREATE TABLE IF NOT EXISTS sinistros (
         db.run('ALTER TABLE sinistros ADD COLUMN midias_paths TEXT', (e) => { });
         db.run('ALTER TABLE sinistros ADD COLUMN valor_total TEXT', (e) => { });
         db.run('ALTER TABLE sinistros ADD COLUMN observacoes TEXT', (e) => { });
+        db.run('ALTER TABLE sinistros ADD COLUMN observacoes_historico TEXT', (e) => { });
     }
 });
 
@@ -4373,6 +4374,21 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
         const novoStatus = body.status || sinistro.status;
         const processoIniciado = (novoStatus === 'pendente') ? 1 : sinistro.processo_iniciado;
 
+        // Calcular novo histórico de observações
+        let novoHistorico = null;
+        if (body.nova_observacao && body.nova_observacao.trim()) {
+            let historico = [];
+            try { if (sinistro.observacoes_historico) historico = JSON.parse(sinistro.observacoes_historico); } catch(e) {}
+            const agora = new Date();
+            const dataBR = agora.toLocaleDateString('pt-BR') + ' às ' + agora.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+            historico.push({
+                autor: body.autor_observacao || (req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema'),
+                data: dataBR,
+                texto: body.nova_observacao.trim()
+            });
+            novoHistorico = JSON.stringify(historico);
+        }
+
         // Atualizar campos básicos
         await new Promise((resolve, reject) => {
             db.run(
@@ -4388,6 +4404,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                     valor_parcela    = COALESCE(?, valor_parcela),
                     valor_total      = COALESCE(?, valor_total),
                     observacoes      = COALESCE(?, observacoes),
+                    observacoes_historico = COALESCE(?, observacoes_historico),
                     status           = ?,
                     processo_iniciado = ?
                 WHERE id = ?`,
@@ -4403,6 +4420,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                     body.valor_parcela  || null,
                     body.valor_total    || null,
                     body.observacoes    || null,
+                    novoHistorico       || null,
                     novoStatus,
                     processoIniciado,
                     sinistroId
