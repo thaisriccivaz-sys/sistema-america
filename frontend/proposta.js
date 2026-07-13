@@ -8823,7 +8823,7 @@ window.classificarRegiaoEDias = async function() {
                 } else if (regiao.includes('Amarela')) {
                     badge.style.background = '#fef9c3';
                     badge.style.color = '#ca8a04';
-                } else if (regiao.includes('Vermelha')) {
+                } else if (regiao.includes('Vermelha') || regiao.includes('Roxa')) {
                     badge.style.background = '#f3e8ff';
                     badge.style.color = '#7e22ce';
                 } else {
@@ -8843,7 +8843,7 @@ window.classificarRegiaoEDias = async function() {
                 // Zona Amarela - Terça e Quinta
                 if (qtdManut >= 1 && chkTer) chkTer.checked = true;
                 if (qtdManut >= 2 && chkQui) chkQui.checked = true;
-            } else if (regiao.includes('Vermelha')) {
+            } else if (regiao.includes('Vermelha') || regiao.includes('Roxa')) {
                 // Zona Vermelha - Segunda e Sexta
                 if (qtdManut >= 1 && chkSeg) chkSeg.checked = true;
                 if (qtdManut >= 2 && chkSex) chkSex.checked = true;
@@ -8862,7 +8862,7 @@ window.classificarRegiaoEDias = async function() {
                         let pct = 0;
                         if (regiao.includes('Central')) pct = configs.logistica_porcentagem_central;
                         else if (regiao.includes('Amarela')) pct = configs.logistica_porcentagem_amarela;
-                        else if (regiao.includes('Vermelha')) pct = configs.logistica_porcentagem_vermelha;
+                        else if (regiao.includes('Vermelha') || regiao.includes('Roxa')) pct = configs.logistica_porcentagem_vermelha;
                         else pct = configs.logistica_porcentagem_outra;
 
                         const pctInput = document.getElementById('prop-percentual-zona');
@@ -8972,9 +8972,9 @@ function obterRegiaoLocal(enderecoCompleto) {
     ];
 
     const classes = [
-        { name: "Zona Central (Verde)", keywords: centralKw },
-        { name: "Zona Amarela (Amarela)", keywords: amarelaKw },
-        { name: "Zona Vermelha (Roxa)", keywords: vermelhaKw }
+        { name: "Zona Central", keywords: centralKw },
+        { name: "Zona Amarela", keywords: amarelaKw },
+        { name: "Zona Roxa", keywords: vermelhaKw }
     ];
 
     let maxScore = -1;
@@ -9070,16 +9070,16 @@ window.atualizarEstatisticasModal = function() {
     }
 
     const regioesCount = {
-        'Zona Central (Verde)': 0,
-        'Zona Amarela (Amarela)': 0,
-        'Zona Vermelha (Roxa)': 0,
+        'Zona Central': 0,
+        'Zona Amarela': 0,
+        'Zona Roxa': 0,
         'Outra': 0
     };
 
     const regioesKm = {
-        'Zona Central (Verde)': 0,
-        'Zona Amarela (Amarela)': 0,
-        'Zona Vermelha (Roxa)': 0,
+        'Zona Central': 0,
+        'Zona Amarela': 0,
+        'Zona Roxa': 0,
         'Outra': 0
     };
 
@@ -9104,7 +9104,7 @@ window.atualizarEstatisticasModal = function() {
                 distance = (fullAddress.toLowerCase().includes('guarulhos') ? 7 : 12);
             }
             else if (reg.includes('Amarela')) distance = 18;
-            else if (reg.includes('Vermelha')) distance = 28;
+            else if (reg.includes('Vermelha') || reg.includes('Roxa')) distance = 28;
             else distance = 15;
 
             obterCoordenadasEnderecoAsync(cacheKey);
@@ -9123,15 +9123,15 @@ window.atualizarEstatisticasModal = function() {
             </div>
             
             <div style="background:#cffafe; color:#0891b2; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #a5f3fc;">
-                <span style="display:inline-block; width:6px; height:6px; background:#0891b2; border-radius:50%;"></span> Z. Central (Verde): <b>${regioesCount['Zona Central (Verde)']}</b> (${regioesKm['Zona Central (Verde)'].toFixed(1)} km)
+                <span style="display:inline-block; width:6px; height:6px; background:#0891b2; border-radius:50%;"></span> Zona Central: <b>${regioesCount['Zona Central']}</b> (${regioesKm['Zona Central'].toFixed(1)} km)
             </div>
             
             <div style="background:#fef9c3; color:#ca8a04; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #fef08a;">
-                <span style="display:inline-block; width:6px; height:6px; background:#ca8a04; border-radius:50%;"></span> Z. Amarela (Amarela): <b>${regioesCount['Zona Amarela (Amarela)']}</b> (${regioesKm['Zona Amarela (Amarela)'].toFixed(1)} km)
+                <span style="display:inline-block; width:6px; height:6px; background:#ca8a04; border-radius:50%;"></span> Zona Amarela: <b>${regioesCount['Zona Amarela']}</b> (${regioesKm['Zona Amarela'].toFixed(1)} km)
             </div>
             
             <div style="background:#f3e8ff; color:#7e22ce; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #e9d5ff;">
-                <span style="display:inline-block; width:6px; height:6px; background:#7e22ce; border-radius:50%;"></span> Z. Vermelha (Roxa): <b>${regioesCount['Zona Vermelha (Roxa)']}</b> (${regioesKm['Zona Vermelha (Roxa)'].toFixed(1)} km)
+                <span style="display:inline-block; width:6px; height:6px; background:#7e22ce; border-radius:50%;"></span> Zona Roxa: <b>${regioesCount['Zona Roxa']}</b> (${regioesKm['Zona Roxa'].toFixed(1)} km)
             </div>
             
             <div style="background:#eceff1; color:#37474f; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #cfd8dc; font-weight:700;">

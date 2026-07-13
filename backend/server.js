@@ -2623,7 +2623,7 @@ app.post('/api/ia/classificar-regiao', authenticateToken, (req, res) => {
 
     const classes = [
         {
-            name: "Zona Central (Verde)",
+            name: "Zona Central",
             keywords: [
                 "guarulhos", "gopouva", "cumbica", "pimentas", "macedo", "cecilia", 
                 "gru", "bosque maia", "taboao", "vila galvao", "bonsucesso", 
@@ -2640,7 +2640,7 @@ app.post('/api/ia/classificar-regiao', authenticateToken, (req, res) => {
             ]
         },
         {
-            name: "Zona Amarela (Amarela)",
+            name: "Zona Amarela",
             keywords: [
                 "butanta", "rio pequeno", "raposo tavares", "bonfiglioli", "vila sonia", 
                 "jaguare", "jardim paulista", "cerqueira cesar",
@@ -2658,7 +2658,7 @@ app.post('/api/ia/classificar-regiao', authenticateToken, (req, res) => {
             ]
         },
         {
-            name: "Zona Vermelha (Roxa)",
+            name: "Zona Roxa",
             keywords: [
                 "osasco", "barueri", "santana de parnaiba", "cajamar", "caieiras", 
                 "franco da rocha", "francisco morato", "mairipora", "santa isabel",
