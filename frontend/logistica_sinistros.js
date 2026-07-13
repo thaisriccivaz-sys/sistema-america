@@ -261,22 +261,23 @@ window.logSinAbrirModalNovo = function() {
                             </div>
                             <div id="log-sin-veiculo-dropdown" style="display:none;position:absolute;z-index:9999;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-height:200px;overflow-y:auto;width:100%;margin-top:2px;"></div>
                         </div>
-                        <!-- Dados do veículo selecionado (step 1 preview) -->
-                        <div id="log-sin-veiculo-dados-step1" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.75rem;">
-                            <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#b45309;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-truck"></i> Veículo Selecionado</p>
-                            <div id="log-sin-veiculo-dados-step1-rows" style="display:grid;grid-template-columns:1fr;gap:0.3rem;"></div>
-                        </div>
-
-                        <!-- Dados do Colaborador (step 1 - aparece ao selecionar) -->
-                        <div id="log-sin-dados-colab-section-s1" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.75rem;">
-                            <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#15803d;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-user"></i> Dados do Colaborador</p>
-                            <div id="log-sin-dados-colab-rows-s1" style="display:grid;grid-template-columns:1fr;gap:0.3rem;"></div>
-                        </div>
-
-                        <!-- Dados do Declarante (step 1, sempre visível) -->
-                        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.75rem;">
-                            <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-identification-card"></i> Dados do Declarante</p>
-                            <div id="log-sin-dados-declarante-rows-s1" style="display:grid;grid-template-columns:1fr;gap:0.3rem;"></div>
+                        <!-- 3 painéis lado a lado -->
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem; margin-bottom:0.75rem;">
+                            <!-- Veículo Selecionado -->
+                            <div id="log-sin-veiculo-dados-step1" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:0.9rem 1rem;min-height:60px;">
+                                <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#b45309;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-truck"></i> Veículo Selecionado</p>
+                                <div id="log-sin-veiculo-dados-step1-rows" style="display:flex;flex-direction:column;gap:0.3rem;"></div>
+                            </div>
+                            <!-- Dados do Colaborador -->
+                            <div id="log-sin-dados-colab-section-s1" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:0.9rem 1rem;min-height:60px;">
+                                <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#15803d;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-user"></i> Dados do Colaborador</p>
+                                <div id="log-sin-dados-colab-rows-s1" style="display:flex;flex-direction:column;gap:0.3rem;"></div>
+                            </div>
+                            <!-- Dados do Declarante -->
+                            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:0.9rem 1rem;min-height:60px;">
+                                <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-identification-card"></i> Dados do Declarante</p>
+                                <div id="log-sin-dados-declarante-rows-s1" style="display:flex;flex-direction:column;gap:0.3rem;"></div>
+                            </div>
                         </div>
 
                         <!-- Nº do Protocolo -->
@@ -363,14 +364,10 @@ window.logSinAbrirModalNovo = function() {
                                     <label style="color:#c2410c;font-weight:700;"><i class="ph ph-tag"></i> Tipo de Sinistro</label>
                                     <select id="log-sin-tipo" class="form-control" style="font-size:0.9rem;">
                                         <option value="">-- Selecione o tipo --</option>
-                                        <option value="Colisão">Colisão</option>
-                                        <option value="Roubo">Roubo</option>
-                                        <option value="Furto">Furto</option>
-                                        <option value="Incêndio">Incêndio</option>
-                                        <option value="Alagamento">Alagamento</option>
-                                        <option value="Avaria">Avaria</option>
+                                        <option value="Danos em Terceiros e Nosso">Danos em Terceiros e Nosso</option>
                                         <option value="Danos em Terceiros">Danos em Terceiros</option>
-                                        <option value="Outros">Outros</option>
+                                        <option value="Danos no Nosso Veículo">Danos no Nosso Veículo</option>
+                                        <option value="Outros Danos">Outros Danos</option>
                                     </select>
                                 </div>
 
@@ -1068,14 +1065,10 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                         <label style="color:#c2410c; font-weight:700;"><i class="ph ph-tag"></i> Tipo de Sinistro</label>
                         <select id="edit-sin-tipo" class="form-control" style="font-size:0.9rem;">
                             <option value="">-- Selecione o tipo --</option>
-                            <option value="Colisão" ${sinistro.tipo_sinistro === 'Colisão' ? 'selected' : ''}>Colisão</option>
-                            <option value="Roubo" ${sinistro.tipo_sinistro === 'Roubo' ? 'selected' : ''}>Roubo</option>
-                            <option value="Furto" ${sinistro.tipo_sinistro === 'Furto' ? 'selected' : ''}>Furto</option>
-                            <option value="Incêndio" ${sinistro.tipo_sinistro === 'Incêndio' ? 'selected' : ''}>Incêndio</option>
-                            <option value="Alagamento" ${sinistro.tipo_sinistro === 'Alagamento' ? 'selected' : ''}>Alagamento</option>
-                            <option value="Avaria" ${sinistro.tipo_sinistro === 'Avaria' ? 'selected' : ''}>Avaria</option>
+                            <option value="Danos em Terceiros e Nosso" ${sinistro.tipo_sinistro === 'Danos em Terceiros e Nosso' ? 'selected' : ''}>Danos em Terceiros e Nosso</option>
                             <option value="Danos em Terceiros" ${sinistro.tipo_sinistro === 'Danos em Terceiros' ? 'selected' : ''}>Danos em Terceiros</option>
-                            <option value="Outros" ${sinistro.tipo_sinistro === 'Outros' ? 'selected' : ''}>Outros</option>
+                            <option value="Danos no Nosso Veículo" ${sinistro.tipo_sinistro === 'Danos no Nosso Veículo' ? 'selected' : ''}>Danos no Nosso Veículo</option>
+                            <option value="Outros Danos" ${sinistro.tipo_sinistro === 'Outros Danos' ? 'selected' : ''}>Outros Danos</option>
                         </select>
                     </div>
 
@@ -1107,7 +1100,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                         </div>
                         <hr style="border-color:#e2e8f0; margin:0 0 10px;">
                         <p style="margin:0 0 5px; font-size:0.78rem; font-weight:600; color:#475569;"><i class="ph ph-plus-circle"></i> Nova Observação</p>
-                        <textarea id="edit-sin-nova-obs" class="form-control" rows="4" placeholder="Escreva uma nova observação aqui..." style="resize:vertical; font-size:0.85rem;"></textarea>
+                        <textarea id="edit-sin-nova-obs" class="form-control" rows="8" placeholder="Escreva uma nova observação aqui..." style="resize:vertical; font-size:0.85rem; min-height:180px;"></textarea>
                     </div>
 
                     <!-- Botões -->
