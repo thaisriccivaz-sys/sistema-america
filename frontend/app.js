@@ -738,7 +738,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota' || key === 'rh-logistica-sinistros' || key === 'rh-logistica-multas';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -827,8 +827,8 @@ const TAB_META = {
     // Treinamento - Azul Turquesa
     'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais' },
     'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presenças' },
-    'rh-logistica-sinistros': { color: '#f503c5', icon: 'ph-warning', title: 'Sinistros Logística' },
-    'rh-logistica-multas': { color: '#f503c5', icon: 'ph-receipt', title: 'Multas Logística' }
+    'rh-logistica-sinistros': { color: '#f503c5', icon: 'ph-warning', title: 'Sinistros' },
+    'rh-logistica-multas': { color: '#f503c5', icon: 'ph-receipt', title: 'Multas' }
 };
 
 
