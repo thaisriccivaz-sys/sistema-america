@@ -945,7 +945,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                 </div>
 
                 <!-- DADOS BÁSICOS -->
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem;">
                     <div class="input-group">
                         <label>Boletim Nº</label>
                         <input type="text" id="edit-sin-bo" class="form-control" value="${sinistro.numero_boletim || ''}">
@@ -954,10 +954,10 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                         <label>Data e Hora da Ocorrência</label>
                         <input type="text" id="edit-sin-data" class="form-control" value="${sinistro.data_hora || ''}">
                     </div>
-                </div>
-                <div class="input-group">
-                    <label>Natureza da Ocorrência</label>
-                    <input type="text" id="edit-sin-natureza" class="form-control" value="${(sinistro.natureza || '').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim()}">
+                    <div class="input-group">
+                        <label>Natureza da Ocorrência</label>
+                        <input type="text" id="edit-sin-natureza" class="form-control" value="${(sinistro.natureza || '').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim()}">
+                    </div>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                     <div class="input-group">

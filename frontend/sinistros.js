@@ -1831,7 +1831,7 @@ window.rhSinAbrirModalEditar = async function(sinId, colabId) {
                     <p style="font-weight:700; font-size:0.85rem; color:#1e293b; margin:0 0 8px; display:flex; align-items:center; gap:6px;">
                         <i class="ph ph-file-text" style="color:#d97706;"></i> Dados do Boletim
                     </p>
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:0.75rem;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem; margin-bottom:0.75rem;">
                         <div class="input-group">
                             <label>Boletim Nº</label>
                             <input type="text" id="rh-edit-bo" class="form-control" value="${sinistro.numero_boletim || ''}">
@@ -1840,10 +1840,10 @@ window.rhSinAbrirModalEditar = async function(sinId, colabId) {
                             <label>Data e Hora da Ocorrência</label>
                             <input type="text" id="rh-edit-data" class="form-control" value="${sinistro.data_hora || ''}">
                         </div>
-                    </div>
-                    <div class="input-group" style="margin-bottom:0.75rem;">
-                        <label>Natureza da Ocorrência</label>
-                        <input type="text" id="rh-edit-natureza" class="form-control" value="${(sinistro.natureza || '').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim()}">
+                        <div class="input-group">
+                            <label>Natureza da Ocorrência</label>
+                            <input type="text" id="rh-edit-natureza" class="form-control" value="${(sinistro.natureza || '').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim()}">
+                        </div>
                     </div>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                         <div class="input-group">
