@@ -307,7 +307,8 @@ async function carregarColaboradoresMultas() {
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
         const response = await fetch('/api/colaboradores', {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${token}` },
+            cache: 'no-store'
         });
         if (response.ok) {
             colaboradoresMultas = await response.json();
@@ -326,7 +327,8 @@ async function carregarMultasLogistica() {
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
         const response = await fetch('/api/logistica/multas', {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${token}` },
+            cache: 'no-store'
         });
         if (response.ok) {
             multasLogistica = await response.json();

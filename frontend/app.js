@@ -18894,7 +18894,8 @@ window.renderMultasMotoristaTab = async function (container) {
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || currentToken || '';
         const resp = await fetch(`/api/logistica/multas?motorista_id=${colab.id}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${token}` },
+            cache: 'no-store'
         });
         if (resp.ok) {
             const todas = await resp.json();
