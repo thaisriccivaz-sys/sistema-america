@@ -16,6 +16,8 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'rh-agenda',              pagina_nome: 'Agenda RH', icone: 'ph-calendar-check' },
     { modulo: 'RH', pagina_id: 'recibos',                pagina_nome: 'Recibos', icone: 'ph-receipt' },
     { modulo: 'RH', pagina_id: 'pagamentos-massa',       pagina_nome: 'Docs. em Massa', icone: 'ph-files' },
+    { modulo: 'RH', pagina_id: 'rh-logistica-sinistros', pagina_nome: 'Sinistros (RH)', icone: 'ph-warning-circle' },
+    { modulo: 'RH', pagina_id: 'rh-logistica-multas',    pagina_nome: 'Multas (RH)', icone: 'ph-receipt' },
     // Prontuário Digital Abas
     { modulo: 'RH', pagina_id: 'prontuario-checklist', pagina_nome: '00. CheckList', icone: 'ph-list-checks' },
     { modulo: 'RH', pagina_id: 'prontuario-ficha', pagina_nome: 'Ficha Cadastral', icone: 'ph-file-text' },
