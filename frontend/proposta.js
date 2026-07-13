@@ -98,6 +98,12 @@ async function carregarPropostas() {
         _propostasData = [];
     }
     try {
+        window._comercialModelosContrato = await apiGet('/comercial/modelos-contrato') || [];
+    } catch (e) {
+        console.error('[CONTRATOS] Erro ao carregar modelos para dropdown:', e);
+        window._comercialModelosContrato = [];
+    }
+    try {
         const stats = await apiGet('/dashboard/stats');
         _dashboardStatsData = Array.isArray(stats) ? stats : [];
     } catch (e) {
@@ -521,6 +527,9 @@ function renderTelaPropostas() {
                             <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                                 <i class="ph ph-calculator"></i> Precificação de Serviços
                             </div>
+                            <div class="saas-dropdown-item" id="tab-prop-modelos-contrato" onclick="switchPropostaTab('modelos-contrato'); event.stopPropagation();">
+                                <i class="ph ph-file-text"></i> Modelos de Contrato
+                            </div>
                         </div>
                     </div>
                     
@@ -746,6 +755,9 @@ function renderTelaPropostas() {
             <!-- VIEW: PRECIFICACAO SERVICOS -->
             <div id="prop-view-servicos-precificacao" style="display:${_currentPropostaTab === 'servicos-precificacao' ? 'block' : 'none'};"></div>
 
+            <!-- VIEW: MODELOS CONTRATO -->
+            <div id="prop-view-modelos-contrato" style="display:${_currentPropostaTab === 'modelos-contrato' ? 'block' : 'none'};"></div>
+
         </div>
     `;
 
@@ -759,6 +771,8 @@ function renderTelaPropostas() {
         _renderEnderecosInt();
     } else if (_currentPropostaTab === 'servicos-precificacao') {
         _renderServicosPrecificacaoInt();
+    } else if (_currentPropostaTab === 'modelos-contrato') {
+        _renderModelosContratoInt();
     }
 
     setTimeout(() => {
@@ -802,14 +816,16 @@ window.switchPropostaTab = function(tab) {
     const viewCadastroContatos = document.getElementById('prop-view-cadastro-contatos');
     const viewEnderecos = document.getElementById('prop-view-enderecos');
     const viewServicosPrecificacao = document.getElementById('prop-view-servicos-precificacao');
+    const viewModelosContrato = document.getElementById('prop-view-modelos-contrato');
     const tabLista = document.getElementById('tab-prop-lista');
     const tabForm = document.getElementById('tab-prop-form');
     const tabCadastroCliente = document.getElementById('tab-prop-cadastro-cliente');
     const tabCadastroContatos = document.getElementById('tab-prop-cadastro-contatos');
     const tabEnderecos = document.getElementById('tab-prop-enderecos');
     const tabServicosPrecificacao = document.getElementById('tab-prop-servicos-precificacao');
+    const tabModelosContrato = document.getElementById('tab-prop-modelos-contrato');
 
-    const elementsExist = viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && viewEnderecos && viewServicosPrecificacao;
+    const elementsExist = viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && viewEnderecos && viewServicosPrecificacao && viewModelosContrato;
     if (elementsExist) {
         if (tab === 'form' && viewForm.innerHTML.trim() === '') {
             _renderFormPropostaInt();
@@ -826,6 +842,9 @@ window.switchPropostaTab = function(tab) {
         if (tab === 'servicos-precificacao' && viewServicosPrecificacao.innerHTML.trim() === '') {
             _renderServicosPrecificacaoInt();
         }
+        if (tab === 'modelos-contrato' && viewModelosContrato.innerHTML.trim() === '') {
+            _renderModelosContratoInt();
+        }
 
         viewLista.style.display = tab === 'lista' ? 'block' : 'none';
         viewForm.style.display = tab === 'form' ? 'block' : 'none';
@@ -833,6 +852,7 @@ window.switchPropostaTab = function(tab) {
         viewCadastroContatos.style.display = tab === 'cadastro-contatos' ? 'block' : 'none';
         viewEnderecos.style.display = tab === 'enderecos' ? 'block' : 'none';
         viewServicosPrecificacao.style.display = tab === 'servicos-precificacao' ? 'block' : 'none';
+        viewModelosContrato.style.display = tab === 'modelos-contrato' ? 'block' : 'none';
 
         // Update active class in SaaS Header
         document.querySelectorAll('.saas-nav-item, .saas-dropdown-item').forEach(item => {
@@ -851,6 +871,8 @@ window.switchPropostaTab = function(tab) {
             else if (tab === 'enderecos' && tabEnderecos) tabEnderecos.classList.add('active');
             else if (tab === 'servicos-precificacao') {
                 document.querySelectorAll('#tab-prop-servicos-precificacao').forEach(el => el.classList.add('active'));
+            } else if (tab === 'modelos-contrato') {
+                document.querySelectorAll('#tab-prop-modelos-contrato').forEach(el => el.classList.add('active'));
             }
         }
         if (tab === 'lista') {
@@ -1580,6 +1602,9 @@ function _renderFormPropostaInt() {
                         <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                             <i class="ph ph-calculator"></i> Precificação de Serviços
                         </div>
+                        <div class="saas-dropdown-item" id="tab-prop-modelos-contrato" onclick="switchPropostaTab('modelos-contrato'); event.stopPropagation();">
+                            <i class="ph ph-file-text"></i> Modelos de Contrato
+                        </div>
                     </div>
                 </div>
 
@@ -1676,7 +1701,7 @@ function _renderFormPropostaInt() {
                             <label class="prop-lbl">Modelo de Impressão</label>
                             <select id="prop-modelo" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                                 <option value="">-- Selecione --</option>
-                                ${PROP_MODELOS.map(m => `<option value="${m}" ${v('modelo_impressao')===m?'selected':''}>${m}</option>`).join('')}
+                                ${(window._comercialModelosContrato && window._comercialModelosContrato.length > 0 ? window._comercialModelosContrato : PROP_MODELOS.map(x => ({ nome: x }))).map(m => `<option value="${m.nome}" ${v('modelo_impressao')===m.nome?'selected':''}>${m.nome}</option>`).join('')}
                             </select>
                         </div>
                     </div>
@@ -3853,108 +3878,226 @@ async function excluirProposta(id) {
 }
 
 /* ── Impressão / PDF ────────────────────────────────────────────────── */
-function imprimirProposta(id) {
+async function imprimirProposta(id) {
     const p = _propostasData.find(pr => pr.id === id);
     if (!p) { alert('Proposta não encontrada.'); return; }
+
+    Swal.fire({
+        title: 'Preparando impressão...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    let modelObj = null;
+    let textosLegais = [];
+    let cnpj = '—';
+
+    try {
+        const models = await apiGet('/comercial/modelos-contrato') || [];
+        modelObj = models.find(m => m.nome === p.modelo_impressao);
+        
+        if (modelObj) {
+            textosLegais = await apiGet('/comercial/textos-legais') || [];
+            const clients = await apiGet('/clientes') || [];
+            const client = clients.find(c => c.nome_razao_social === p.cliente_nome || c.nome_fantasia === p.cliente_nome);
+            if (client) {
+                cnpj = client.cpf_cnpj || '—';
+            }
+        }
+        Swal.close();
+    } catch (err) {
+        Swal.close();
+        console.error("Erro ao carregar dados para impressão do contrato:", err);
+    }
 
     const win = window.open('', '_blank', 'width=900,height=700');
     const fmtMoeda = (v) => 'R$ ' + Number(v||0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
     const fmtData = (s) => _fmtData(s);
 
-    win.document.write(`<!DOCTYPE html><html lang="pt-BR">
-    <head>
-        <meta charset="UTF-8">
-        <title>Proposta ${p.codigo}</title>
-        <style>
-            * { box-sizing: border-box; margin: 0; padding: 0; }
-            body { font-family: Arial, sans-serif; font-size: 11pt; color: #1e293b; background: #fff; padding: 20px; }
-            .header { background: #4c1d95; color: white; padding: 20px 24px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-            .header h1 { font-size: 16pt; margin-bottom: 4px; }
-            .header .sub { font-size: 10pt; opacity: 0.85; }
-            .badge { background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 10pt; font-weight: bold; }
-            .section { margin-bottom: 18px; }
-            .section h3 { font-size: 10pt; font-weight: 700; color: #6d28d9; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e0e7ff; padding-bottom: 5px; margin-bottom: 10px; }
-            .grid { display: grid; gap: 8px; }
-            .grid-2 { grid-template-columns: 1fr 1fr; }
-            .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
-            .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
-            .field { background: #f8fafc; border-radius: 5px; padding: 8px 10px; }
-            .field label { display: block; font-size: 8pt; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 3px; }
-            .field span { font-size: 10.5pt; color: #1e293b; font-weight: 600; }
-            .valor-box { background: #4c1d95; color: white; border-radius: 8px; padding: 14px 18px; text-align: center; margin-top: 16px; }
-            .valor-box .label { font-size: 9pt; opacity: 0.8; margin-bottom: 4px; }
-            .valor-box .val { font-size: 22pt; font-weight: 800; }
-            .footer { border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 16px; font-size: 8pt; color: #94a3b8; text-align: center; }
-            .obs { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 10px 12px; font-size: 10pt; color: #78350f; }
-            @media print { body { padding: 10px; } .no-print { display: none; } }
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <div>
-                <h1>📋 Proposta de Locação</h1>
-                <div class="sub">América Rental Equipamentos · ${fmtData(p.data_cadastro)}</div>
-            </div>
-            <div class="badge">${p.codigo || 'S/N'}</div>
-        </div>
+    if (modelObj) {
+        // Render custom contract layout
+        let caputs = [];
+        try {
+            caputs = JSON.parse(modelObj.caputs || '[]');
+        } catch (e) {
+            console.error("Erro ao fazer parse dos caputs:", e);
+        }
 
-        <div class="section">
-            <h3>Informações Gerais</h3>
-            <div class="grid grid-4">
-                <div class="field"><label>Tipo</label><span>${p.tipo||'—'}</span></div>
-                <div class="field"><label>Fase</label><span>${p.fase_negociacao||'—'}</span></div>
-                <div class="field"><label>Atendente</label><span>${p.atendente||'—'}</span></div>
-                <div class="field"><label>Previsão Fechamento</label><span>${fmtData(p.previsao_fechamento)||'—'}</span></div>
-            </div>
-        </div>
+        let clausesHtml = '';
+        caputs.forEach((cpt, idx) => {
+            let text = cpt.conteudo || '';
+            if (cpt.tipo === 'TEXTO_LEGAL') {
+                const legal = textosLegais.find(l => l.id === Number(cpt.textoLegalId));
+                text = legal ? legal.texto_legal : '—';
+            }
 
-        <div class="section">
-            <h3>Cliente</h3>
-            <div class="grid grid-2">
-                <div class="field"><label>Cliente</label><span>${p.cliente_nome||'—'}</span></div>
-                <div class="field"><label>Contato</label><span>${p.contato_nome||'—'}</span></div>
-            </div>
-        </div>
+            // Replace placeholders
+            text = text.replace(/\{\{CLIENTE_RAZAO\}\}/g, p.cliente_nome || '—')
+                       .replace(/\{\{CLIENTE_NOME\}\}/g, p.cliente_nome || '—')
+                       .replace(/\{\{CLIENTE_CNPJ\}\}/g, cnpj)
+                       .replace(/\{\{CLIENTE_ENDERECO\}\}/g, p.endereco_instalacao || '—')
+                       .replace(/\{\{VALOR_TOTAL\}\}/g, fmtMoeda(p.valor_total))
+                       .replace(/\{\{VALOR_EXTENSO\}\}/g, valorPorExtenso(p.valor_total))
+                       .replace(/\{\{TABELA_PRECO\}\}/g, p.tabela_precos || '—')
+                       .replace(/\{\{CONDICAO_PAGAMENTO\}\}/g, p.condicao_pagamento || '—')
+                       .replace(/\{\{PERIODO_INICIO\}\}/g, fmtData(p.periodo_inicio))
+                       .replace(/\{\{PERIODO_FIM\}\}/g, fmtData(p.periodo_fim))
+                       .replace(/\{\{DIAS_CONTRATO\}\}/g, p.dias_contrato || 0);
 
-        <div class="section">
-            <h3>Período e Local</h3>
-            <div class="grid grid-4">
-                <div class="field"><label>Período Início</label><span>${fmtData(p.periodo_inicio)||'—'}</span></div>
-                <div class="field"><label>Período Fim</label><span>${fmtData(p.periodo_fim)||'—'}</span></div>
-                <div class="field"><label>Hora Início / Fim</label><span>${p.hora_inicio||'00:00'} — ${p.hora_fim||'00:00'}</span></div>
-                <div class="field"><label>Dias de Contrato</label><span>${p.dias_contrato||0}</span></div>
-            </div>
-            <div class="grid grid-1" style="margin-top:8px;">
-                <div class="field"><label>Endereço de Instalação</label><span>${p.endereco_instalacao||'—'}</span></div>
-            </div>
-        </div>
+            clausesHtml += `
+                <div class="section" style="margin-bottom: 20px; line-height: 1.5; text-align: justify;">
+                    <h3 style="font-size: 11pt; font-weight: bold; color: #1e293b; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
+                        Cláusula ${idx + 1}ª: ${cpt.titulo || ''}
+                    </h3>
+                    <p style="margin: 0; font-size: 10.5pt; color: #334155;">${text}</p>
+                </div>
+            `;
+        });
 
-        <div class="section">
-            <h3>Condições Comerciais</h3>
-            <div class="grid grid-4">
-                <div class="field"><label>Tabela de Preços</label><span>${p.tabela_precos||'—'}</span></div>
-                <div class="field"><label>Condição Pagamento</label><span>${p.condicao_pagamento||'—'}</span></div>
-                <div class="field"><label>Desconto (%)</label><span>${Number(p.desconto_percent||0).toFixed(2)}%</span></div>
-                <div class="field"><label>Desconto (R$)</label><span>${fmtMoeda(p.desconto_reais)}</span></div>
+        win.document.write(`<!DOCTYPE html><html lang="pt-BR">
+        <head>
+            <meta charset="UTF-8">
+            <title>Contrato - ${p.codigo}</title>
+            <style>
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                body { font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #111827; background: #fff; padding: 40px; }
+                .header-contrato { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #111827; padding-bottom: 15px; }
+                .header-contrato h1 { font-size: 15pt; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
+                .header-contrato p { font-size: 10pt; color: #4b5563; }
+                .signatures { margin-top: 50px; display: grid; grid-template-columns: 1fr 1fr; gap: 50px; page-break-inside: avoid; }
+                .sig-box { border-top: 1px solid #111827; padding-top: 8px; text-align: center; }
+                .sig-box p { font-size: 10pt; font-weight: bold; }
+                .sig-box span { font-size: 9pt; color: #4b5563; display: block; margin-top: 2px; }
+                @media print { body { padding: 20px; } .no-print { display: none; } }
+            </style>
+        </head>
+        <body>
+            <div class="header-contrato">
+                <h1>Instrumento Particular de Contrato de Locação</h1>
+                <p>Vinculado à Proposta Comercial nº ${p.codigo || '—'} · América Rental Equipamentos</p>
             </div>
-        </div>
 
-        <div class="section">
-            <h3>Representante e Frete</h3>
-            <div class="grid grid-4">
-                <div class="field"><label>Representante</label><span>${p.representante||'—'}</span></div>
-                <div class="field"><label>Transportadora</label><span>${p.transportadora||'—'}</span></div>
-                <div class="field"><label>Frete Ida</label><span>${fmtMoeda(p.valor_frete_ida)}</span></div>
-                <div class="field"><label>Frete Volta</label><span>${fmtMoeda(p.valor_frete_volta)}</span></div>
+            <div class="contrato-body" style="margin-top: 15px;">
+                ${clausesHtml}
             </div>
-        </div>
 
-        <div class="no-print" style="text-align:center; margin-top:20px;">
-            <button onclick="window.print(); window.close();" style="background:#4c1d95;color:white;border:none;padding:10px 24px;border-radius:8px;cursor:pointer;font-size:12pt;font-weight:700;">
-                🖨️ Imprimir / Salvar PDF
-            </button>
-        </div>
-    </body></html>`);
+            <div class="signatures">
+                <div class="sig-box">
+                    <p>CONTRATANTE</p>
+                    <span>${p.cliente_nome}</span>
+                    <span>CNPJ/CPF: ${cnpj}</span>
+                </div>
+                <div class="sig-box">
+                    <p>CONTRATADA</p>
+                    <span>AMÉRICA RENTAL EQUIPAMENTOS LTDA</span>
+                    <span>CNPJ: 02.089.969/0001-06</span>
+                </div>
+            </div>
+
+            <div class="no-print" style="text-align:center; margin-top:40px;">
+                <button onclick="window.print(); window.close();" style="background:#111827;color:white;border:none;padding:10px 24px;border-radius:6px;cursor:pointer;font-size:11pt;font-weight:700;">
+                    🖨️ Imprimir Contrato / Salvar PDF
+                </button>
+            </div>
+        </body></html>`);
+    } else {
+        // Fallback default simple layout
+        win.document.write(`<!DOCTYPE html><html lang="pt-BR">
+        <head>
+            <meta charset="UTF-8">
+            <title>Proposta ${p.codigo}</title>
+            <style>
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                body { font-family: Arial, sans-serif; font-size: 11pt; color: #1e293b; background: #fff; padding: 20px; }
+                .header { background: #4c1d95; color: white; padding: 20px 24px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+                .header h1 { font-size: 16pt; margin-bottom: 4px; }
+                .header .sub { font-size: 10pt; opacity: 0.85; }
+                .badge { background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 10pt; font-weight: bold; }
+                .section { margin-bottom: 18px; }
+                .section h3 { font-size: 10pt; font-weight: 700; color: #6d28d9; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e0e7ff; padding-bottom: 5px; margin-bottom: 10px; }
+                .grid { display: grid; gap: 8px; }
+                .grid-2 { grid-template-columns: 1fr 1fr; }
+                .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+                .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+                .field { background: #f8fafc; border-radius: 5px; padding: 8px 10px; }
+                .field label { display: block; font-size: 8pt; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 3px; }
+                .field span { font-size: 10.5pt; color: #1e293b; font-weight: 600; }
+                .valor-box { background: #4c1d95; color: white; border-radius: 8px; padding: 14px 18px; text-align: center; margin-top: 16px; }
+                .valor-box .label { font-size: 9pt; opacity: 0.8; margin-bottom: 4px; }
+                .valor-box .val { font-size: 22pt; font-weight: 800; }
+                .footer { border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 16px; font-size: 8pt; color: #94a3b8; text-align: center; }
+                .obs { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 10px 12px; font-size: 10pt; color: #78350f; }
+                @media print { body { padding: 10px; } .no-print { display: none; } }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div>
+                    <h1>📋 Proposta de Locação</h1>
+                    <div class="sub">América Rental Equipamentos · ${fmtData(p.data_cadastro)}</div>
+                </div>
+                <div class="badge">${p.codigo || 'S/N'}</div>
+            </div>
+
+            <div class="section">
+                <h3>Informações Gerais</h3>
+                <div class="grid grid-4">
+                    <div class="field"><label>Tipo</label><span>${p.tipo||'—'}</span></div>
+                    <div class="field"><label>Fase</label><span>${p.fase_negociacao||'—'}</span></div>
+                    <div class="field"><label>Atendente</label><span>${p.atendente||'—'}</span></div>
+                    <div class="field"><label>Previsão Fechamento</label><span>${fmtData(p.previsao_fechamento)||'—'}</span></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Cliente</h3>
+                <div class="grid grid-2">
+                    <div class="field"><label>Cliente</label><span>${p.cliente_nome||'—'}</span></div>
+                    <div class="field"><label>Contato</label><span>${p.contato_nome||'—'}</span></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Período e Local</h3>
+                <div class="grid grid-4">
+                    <div class="field"><label>Período Início</label><span>${fmtData(p.periodo_inicio)||'—'}</span></div>
+                    <div class="field"><label>Período Fim</label><span>${fmtData(p.periodo_fim)||'—'}</span></div>
+                    <div class="field"><label>Hora Início / Fim</label><span>${p.hora_inicio||'00:00'} — ${p.hora_fim||'00:00'}</span></div>
+                    <div class="field"><label>Dias de Contrato</label><span>${p.dias_contrato||0}</span></div>
+                </div>
+                <div class="grid grid-1" style="margin-top:8px;">
+                    <div class="field"><label>Endereço de Instalação</label><span>${p.endereco_instalacao||'—'}</span></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Condições Comerciais</h3>
+                <div class="grid grid-4">
+                    <div class="field"><label>Tabela de Preços</label><span>${p.tabela_precos||'—'}</span></div>
+                    <div class="field"><label>Condição Pagamento</label><span>${p.condicao_pagamento||'—'}</span></div>
+                    <div class="field"><label>Desconto (%)</label><span>${Number(p.desconto_percent||0).toFixed(2)}%</span></div>
+                    <div class="field"><label>Desconto (R$)</label><span>${fmtMoeda(p.desconto_reais)}</span></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Representante e Frete</h3>
+                <div class="grid grid-4">
+                    <div class="field"><label>Representante</label><span>${p.representante||'—'}</span></div>
+                    <div class="field"><label>Transportadora</label><span>${p.transportadora||'—'}</span></div>
+                    <div class="field"><label>Frete Ida</label><span>${fmtMoeda(p.valor_frete_ida)}</span></div>
+                    <div class="field"><label>Frete Volta</label><span>${fmtMoeda(p.valor_frete_volta)}</span></div>
+                </div>
+            </div>
+
+            <div class="no-print" style="text-align:center; margin-top:20px;">
+                <button onclick="window.print(); window.close();" style="background:#4c1d95;color:white;border:none;padding:10px 24px;border-radius:8px;cursor:pointer;font-size:12pt;font-weight:700;">
+                    🖨️ Imprimir / Salvar PDF
+                </button>
+            </div>
+        </body></html>`);
+    }
+
     win.document.close();
     win.focus();
 }
@@ -4060,6 +4203,9 @@ function _renderCadastroClienteInt() {
                         </div>
                         <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                             <i class="ph ph-calculator"></i> Precificação de Serviços
+                        </div>
+                        <div class="saas-dropdown-item" id="tab-prop-modelos-contrato" onclick="switchPropostaTab('modelos-contrato'); event.stopPropagation();">
+                            <i class="ph ph-file-text"></i> Modelos de Contrato
                         </div>
                     </div>
                 </div>
@@ -5956,6 +6102,9 @@ function _renderCadastroContatosInt() {
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                             <i class="ph ph-calculator"></i> Precificação de Serviços
                         </div>
+                        <div class="saas-dropdown-item" id="tab-prop-modelos-contrato" onclick="switchPropostaTab('modelos-contrato'); event.stopPropagation();">
+                            <i class="ph ph-file-text"></i> Modelos de Contrato
+                        </div>
                     </div>
                 </div>
 
@@ -7726,6 +7875,9 @@ function _renderEnderecosInt() {
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                             <i class="ph ph-calculator"></i> Precificação de Serviços
+                        </div>
+                        <div class="saas-dropdown-item" id="tab-prop-modelos-contrato" onclick="switchPropostaTab('modelos-contrato'); event.stopPropagation();">
+                            <i class="ph ph-file-text"></i> Modelos de Contrato
                         </div>
                     </div>
                 </div>
@@ -12247,3 +12399,826 @@ window.pageBuscarPorCNPJLocal = async function() {
         alert('Erro ao buscar CNPJ: ' + (e.message || 'Erro desconhecido.'));
     }
 };
+
+/* ── Modelos de Contrato & Cláusulas ────────────────────────────────── */
+function valorPorExtenso(valor) {
+    const unidades = ["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
+    const dezenas = ["", "dez", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
+    const dezoito = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
+    const centenas = ["", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"];
+
+    const singular = ["centavo", "real", "milhão", "bilhão"];
+    const plural = ["centavos", "reais", "milhões", "bilhões"];
+
+    let valorStr = String(Number(valor).toFixed(2));
+    let partes = valorStr.split('.');
+    let inteiro = parseInt(partes[0], 10);
+    let centavos = parseInt(partes[1], 10);
+
+    if (inteiro === 0 && centavos === 0) return "zero reais";
+
+    let texto = "";
+
+    function escreverGrupo(valorGrupo) {
+        let u = valorGrupo % 10;
+        let d = Math.floor((valorGrupo % 100) / 10);
+        let c = Math.floor(valorGrupo / 100);
+        let t = "";
+
+        if (c > 0) {
+            if (c === 1 && d === 0 && u === 0) {
+                t += "cem";
+            } else {
+                t += centenas[c];
+            }
+        }
+
+        if (d > 0) {
+            if (t !== "") t += " e ";
+            if (d === 1) {
+                t += dezoito[u];
+                return t;
+            } else {
+                t += dezenas[d];
+            }
+        }
+
+        if (u > 0) {
+            if (t !== "") t += " e ";
+            t += unidades[u];
+        }
+
+        return t;
+    }
+
+    if (inteiro > 0) {
+        let milhoes = Math.floor((inteiro % 1000000000) / 1000000);
+        let milhares = Math.floor((inteiro % 1000000) / 1000);
+        let unidadesSimples = inteiro % 1000;
+
+        let partsArr = [];
+
+        if (milhoes > 0) {
+            partsArr.push(escreverGrupo(milhoes) + " " + (milhoes === 1 ? singular[2] : plural[2]));
+        }
+        if (milhares > 0) {
+            partsArr.push(escreverGrupo(milhares) + " mil");
+        }
+        if (unidadesSimples > 0 || partsArr.length === 0) {
+            partsArr.push(escreverGrupo(unidadesSimples));
+        }
+
+        texto += partsArr.join(" e ");
+        texto += " " + (inteiro === 1 ? singular[1] : plural[1]);
+    }
+
+    if (centavos > 0) {
+        if (texto !== "") texto += " e ";
+        texto += escreverGrupo(centavos) + " " + (centavos === 1 ? singular[0] : plural[0]);
+    }
+
+    return texto;
+}
+
+window._renderModelosContratoInt = async function() {
+    const container = document.getElementById('prop-view-modelos-contrato');
+    if (!container) return;
+
+    Swal.fire({
+        title: 'Carregando Modelos e Cláusulas...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        window._modelosContratoList = await apiGet('/comercial/modelos-contrato') || [];
+        window._textosLegaisList = await apiGet('/comercial/textos-legais') || [];
+        Swal.close();
+    } catch (e) {
+        Swal.close();
+        console.error('[CONTRATOS] Erro ao carregar dados:', e);
+        Swal.fire('Erro', 'Erro ao carregar dados de modelos/cláusulas: ' + e.message, 'error');
+    }
+
+    _renderModelosContratoBaseLayout();
+};
+
+function _renderModelosContratoBaseLayout() {
+    const container = document.getElementById('prop-view-modelos-contrato');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div style="font-family:'Inter', sans-serif; padding:1.5rem; background:#f8fafc; border-radius:12px; box-sizing:border-box;">
+            <!-- Subtabs -->
+            <div style="display:flex; gap:1.5rem; border-bottom:2px solid #e2e8f0; margin-bottom:1.5rem; padding-bottom:0.25rem;">
+                <span id="subtab-modelos" onclick="switchModelosSubtab('modelos')" style="font-size:0.88rem; font-weight:700; color:#4f46e5; cursor:pointer; border-bottom:2px solid #4f46e5; padding:0.5rem 0.25rem; margin-bottom:-6px; transition:all 0.2s;">
+                    Modelos de Contrato <i class="ph ph-file-text"></i>
+                </span>
+                <span id="subtab-textos" onclick="switchModelosSubtab('textos')" style="font-size:0.88rem; font-weight:700; color:#64748b; cursor:pointer; padding:0.5rem 0.25rem; transition:all 0.2s;">
+                    Textos Legais (Cláusulas) <i class="ph ph-shield-check"></i>
+                </span>
+            </div>
+
+            <!-- PANEL: MODELOS -->
+            <div id="panel-modelos-contrato" style="display:flex; gap:1.5rem; flex-wrap:wrap;">
+                <!-- Left Column: List -->
+                <div style="flex: 0 0 320px; background:white; padding:1.25rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); box-sizing:border-box;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                        <h3 style="font-size:0.95rem; font-weight:700; color:#1e293b; margin:0;">Meus Modelos</h3>
+                        <button onclick="criarNovoModeloContrato()" style="background:#4f46e5; color:white; border:none; padding:0.4rem 0.75rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.78rem; display:flex; align-items:center; gap:4px; height:28px;">
+                            <i class="ph ph-plus"></i> Novo
+                        </button>
+                    </div>
+                    <div id="modelos-lista-container" style="display:flex; flex-direction:column; gap:0.5rem; max-height:600px; overflow-y:auto;">
+                        <!-- Filled dynamically -->
+                    </div>
+                </div>
+
+                <!-- Right Column: Editor -->
+                <div id="modelo-editor-container" style="flex:1; min-width:400px; background:white; padding:1.5rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); box-sizing:border-box; display:none;">
+                    <!-- Active Model Editor filled dynamically -->
+                </div>
+                <div id="modelo-editor-empty" style="flex:1; min-width:400px; background:white; padding:3rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); text-align:center; color:#64748b; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+                    <i class="ph ph-file-text" style="font-size:3rem; color:#cbd5e1;"></i>
+                    <p style="margin:0; font-weight:600; font-size:0.92rem;">Nenhum modelo selecionado.</p>
+                    <p style="margin:0; font-size:0.8rem; color:#94a3b8;">Escolha um modelo na lista à esquerda ou crie um novo para editá-lo.</p>
+                </div>
+            </div>
+
+            <!-- PANEL: TEXTOS LEGAIS -->
+            <div id="panel-textos-legais" style="display:none; background:white; padding:1.5rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); box-sizing:border-box;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+                    <div>
+                        <h3 style="font-size:1.05rem; font-weight:700; color:#1e293b; margin:0;">Textos Legais Cadastrados</h3>
+                        <p style="margin:0.25rem 0 0 0; font-size:0.78rem; color:#64748b;">Cláusulas e termos do ERP que podem ser adicionados aos seus modelos de contrato.</p>
+                    </div>
+                    <button onclick="abrirModalTextoLegal(null)" style="background:#4f46e5; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:flex; align-items:center; gap:6px; height:32px;">
+                        <i class="ph ph-plus"></i> Novo Texto Legal
+                    </button>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="saas-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.82rem;">
+                        <thead>
+                            <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
+                                <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; width:80px;">Código</th>
+                                <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; width:220px;">Descrição</th>
+                                <th style="padding:0.75rem 1rem; font-weight:700; color:#475569;">Resumo do Texto</th>
+                                <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; width:100px; text-align:center;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="textos-legais-tbody">
+                            <!-- Filled dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Render Left List of Models
+    const listContainer = document.getElementById('modelos-lista-container');
+    if (listContainer) {
+        listContainer.innerHTML = '';
+        if (window._modelosContratoList.length === 0) {
+            listContainer.innerHTML = '<div style="text-align:center; padding:1.5rem; color:#94a3b8; font-size:0.8rem; font-style:italic;">Nenhum modelo cadastrado.</div>';
+        } else {
+            window._modelosContratoList.forEach(m => {
+                const isActive = window._activeModel && window._activeModel.id === m.id;
+                const row = document.createElement('div');
+                row.className = 'modelo-item-row';
+                row.style.cssText = `
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 0.65rem 0.85rem;
+                    border: 1px solid ${isActive ? '#c7d2fe' : '#e2e8f0'};
+                    background: ${isActive ? '#f5f7ff' : 'white'};
+                    border-radius: 6px;
+                    cursor: pointer;
+                    transition: all 0.15s;
+                    margin-bottom: 0.25rem;
+                `;
+                row.innerHTML = `
+                    <span style="font-size:0.82rem; font-weight:600; color:${isActive ? '#4338ca' : '#334155'}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;" onclick="selecionarModeloContrato(${m.id})">
+                        ${m.nome}
+                    </span>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <i class="ph ph-trash" title="Excluir Modelo" onclick="excluirModeloContrato(${m.id}); event.stopPropagation();" style="font-size:0.95rem; color:#ef4444; cursor:pointer; opacity:0.75; padding:2px;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.75"></i>
+                    </div>
+                `;
+                listContainer.appendChild(row);
+            });
+        }
+    }
+    
+    // Render Legal Texts table
+    _renderTextosLegaisTable();
+    
+    if (window._activeModel) {
+        window.selecionarModeloContrato(window._activeModel.id);
+    }
+}
+
+window.switchModelosSubtab = function(subtab) {
+    const tabModelos = document.getElementById('subtab-modelos');
+    const tabTextos = document.getElementById('subtab-textos');
+    const panelModelos = document.getElementById('panel-modelos-contrato');
+    const panelTextos = document.getElementById('panel-textos-legais');
+
+    if (subtab === 'modelos') {
+        tabModelos.style.color = '#4f46e5';
+        tabModelos.style.borderBottom = '2px solid #4f46e5';
+        tabTextos.style.color = '#64748b';
+        tabTextos.style.borderBottom = 'none';
+        panelModelos.style.display = 'flex';
+        panelTextos.style.display = 'none';
+    } else {
+        tabTextos.style.color = '#4f46e5';
+        tabTextos.style.borderBottom = '2px solid #4f46e5';
+        tabModelos.style.color = '#64748b';
+        tabModelos.style.borderBottom = 'none';
+        panelModelos.style.display = 'none';
+        panelTextos.style.display = 'block';
+        _renderTextosLegaisTable();
+    }
+};
+
+function _renderLeftListActiveOnly(activeId) {
+    document.querySelectorAll('.modelo-item-row').forEach(row => {
+        row.style.background = 'white';
+        row.style.borderColor = '#e2e8f0';
+        const span = row.querySelector('span');
+        if (span) span.style.color = '#334155';
+    });
+    
+    const rows = document.querySelectorAll('.modelo-item-row');
+    rows.forEach(row => {
+        const span = row.querySelector('span');
+        if (span && span.getAttribute('onclick') && span.getAttribute('onclick').includes(activeId)) {
+            row.style.background = '#f5f7ff';
+            row.style.borderColor = '#c7d2fe';
+            span.style.color = '#4338ca';
+        }
+    });
+}
+
+window.selecionarModeloContrato = function(id) {
+    const model = window._modelosContratoList.find(m => m.id === id);
+    if (!model) return;
+    
+    window._activeModel = model;
+    window._activeModelCaputs = JSON.parse(model.caputs || '[]');
+    
+    // Show editor
+    document.getElementById('modelo-editor-empty').style.display = 'none';
+    const editor = document.getElementById('modelo-editor-container');
+    editor.style.display = 'block';
+    
+    editor.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:0.75rem; margin-bottom:1.25rem;">
+            <h3 style="font-size:1rem; font-weight:700; color:#1e293b; margin:0;">Editar Modelo de Contrato</h3>
+            <div style="display:flex; gap:8px;">
+                <button onclick="salvarModeloContrato()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:flex; align-items:center; gap:5px; height:32px;">
+                    <i class="ph ph-floppy-disk"></i> Salvar Alterações
+                </button>
+            </div>
+        </div>
+
+        <div style="margin-bottom:1.25rem;">
+            <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:0.35rem;">Nome do Modelo *</label>
+            <input type="text" id="editor-modelo-nome" value="${model.nome}" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box;">
+        </div>
+
+        <div>
+            <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:0.5rem;">Estrutura do Contrato (Arrastar para reordenar)</label>
+            
+            <!-- Adicionar Caputs Buttons -->
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:1rem; background:#f8fafc; padding:0.5rem; border-radius:8px; border:1px solid #e2e8f0;">
+                <button onclick="adicionarCaputAoModelo('CONTRATANTE')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                    <i class="ph ph-user-circle-plus" style="color:#2563eb;"></i> + Contratante
+                </button>
+                <button onclick="adicionarCaputAoModelo('CONTRATADO')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                    <i class="ph ph-buildings" style="color:#059669;"></i> + Contratado
+                </button>
+                <button onclick="adicionarCaputAoModelo('VALORES')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                    <i class="ph ph-currency-dollar" style="color:#d97706;"></i> + Valores
+                </button>
+                <button onclick="adicionarCaputAoModelo('TEXTO_LEGAL')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                    <i class="ph ph-shield-check" style="color:#7c3aed;"></i> + Texto Legal
+                </button>
+                <button onclick="adicionarCaputAoModelo('CUSTOM')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                    <i class="ph ph-plus" style="color:#4b5563;"></i> + Personalizada
+                </button>
+            </div>
+
+            <!-- List of blocks -->
+            <div id="editor-blocos-list" style="display:flex; flex-direction:column; gap:0.75rem; min-height:100px; background:#f8fafc; border:2px dashed #cbd5e1; border-radius:8px; padding:0.75rem; box-sizing:border-box;">
+                <!-- Block items rendered here -->
+            </div>
+        </div>
+    `;
+
+    _renderEditorBlocksList();
+    _renderLeftListActiveOnly(id);
+};
+
+function _renderEditorBlocksList() {
+    const listContainer = document.getElementById('editor-blocos-list');
+    if (!listContainer) return;
+
+    listContainer.innerHTML = '';
+    const caputs = window._activeModelCaputs || [];
+
+    if (caputs.length === 0) {
+        listContainer.innerHTML = `
+            <div style="text-align:center; padding:2rem; color:#94a3b8; font-size:0.8rem; font-style:italic;">
+                Nenhuma cláusula adicionada. Clique nos botões acima para estruturar o seu contrato.
+            </div>
+        `;
+        return;
+    }
+
+    caputs.forEach((cpt, idx) => {
+        const item = document.createElement('div');
+        item.className = 'editor-block-item';
+        item.setAttribute('draggable', 'true');
+        item.style.cssText = `
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0.85rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            cursor: grab;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            position: relative;
+        `;
+
+        // Drag events
+        item.ondragstart = (e) => {
+            e.dataTransfer.setData("text/plain", idx);
+            item.style.opacity = '0.5';
+        };
+        item.ondragend = () => {
+            item.style.opacity = '1';
+        };
+        item.ondragover = (e) => {
+            e.preventDefault();
+        };
+        item.ondrop = (e) => {
+            e.preventDefault();
+            const sourceIndex = parseInt(e.dataTransfer.getData("text/plain"));
+            if (sourceIndex !== idx && !isNaN(sourceIndex)) {
+                const dragged = window._activeModelCaputs.splice(sourceIndex, 1)[0];
+                window._activeModelCaputs.splice(idx, 0, dragged);
+                _renderEditorBlocksList();
+            }
+        };
+
+        let badgeColor = '#4b5563';
+        if (cpt.tipo === 'CONTRATANTE') badgeColor = '#2563eb';
+        else if (cpt.tipo === 'CONTRATADO') badgeColor = '#059669';
+        else if (cpt.tipo === 'VALORES') badgeColor = '#d97706';
+        else if (cpt.tipo === 'TEXTO_LEGAL') badgeColor = '#7c3aed';
+
+        let innerContent = '';
+        if (cpt.tipo === 'TEXTO_LEGAL') {
+            const options = window._textosLegaisList.map(tl => `
+                <option value="${tl.id}" ${Number(cpt.textoLegalId) === tl.id ? 'selected' : ''}>[${tl.codigo}] ${tl.descricao}</option>
+            `).join('');
+            innerContent = `
+                <div style="margin-top:0.25rem;">
+                    <label style="display:block; font-size:0.75rem; color:#64748b; font-weight:600; margin-bottom:2px;">Selecionar Texto Legal:</label>
+                    <select onchange="window.updateCaputTextoLegal(${idx}, this.value)" style="width:100%; padding:0.4rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.8rem; box-sizing:border-box;">
+                        <option value="">-- Selecione a Cláusula --</option>
+                        ${options}
+                    </select>
+                </div>
+            `;
+        } else {
+            innerContent = `
+                <div style="margin-top:0.25rem;">
+                    <textarea oninput="window.updateCaputConteudo(${idx}, this.value)" style="width:100%; min-height:80px; padding:0.4rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.8rem; font-family:sans-serif; box-sizing:border-box; resize:vertical;">${cpt.conteudo || ''}</textarea>
+                </div>
+            `;
+        }
+
+        item.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:0.35rem; pointer-events:none;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="ph ph-dots-six-vertical" style="font-size:1.15rem; color:#94a3b8; cursor:grab;"></i>
+                    <span style="font-size:0.78rem; font-weight:700; color:${badgeColor}; background:${badgeColor}15; padding:2px 8px; border-radius:4px;">
+                        ${cpt.tipo}
+                    </span>
+                    <span style="font-size:0.82rem; font-weight:700; color:#334155; pointer-events:auto;">
+                        Cláusula ${idx + 1}ª: 
+                        <input type="text" value="${cpt.titulo || ''}" oninput="window.updateCaputTitulo(${idx}, this.value)" style="border:none; border-bottom:1px dashed #cbd5e1; font-size:0.82rem; font-weight:700; color:#334155; padding:1px 4px; outline:none; width:180px;">
+                    </span>
+                </div>
+                <div style="display:flex; gap:6px; align-items:center; pointer-events:auto;">
+                    <button onclick="window.moverCaputDoModelo(${idx}, -1)" title="Mover para Cima" style="background:#f1f5f9; border:none; padding:4px 6px; border-radius:4px; cursor:pointer;"><i class="ph ph-arrow-up" style="font-size:0.8rem;"></i></button>
+                    <button onclick="window.moverCaputDoModelo(${idx}, 1)" title="Mover para Baixo" style="background:#f1f5f9; border:none; padding:4px 6px; border-radius:4px; cursor:pointer;"><i class="ph ph-arrow-down" style="font-size:0.8rem;"></i></button>
+                    <button onclick="window.removerCaputDoModelo(${idx})" title="Remover Cláusula" style="background:#fee2e2; color:#ef4444; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="ph ph-trash" style="font-size:0.88rem;"></i></button>
+                </div>
+            </div>
+            <div style="pointer-events:auto;">
+                ${innerContent}
+            </div>
+        `;
+
+        listContainer.appendChild(item);
+    });
+}
+
+window.updateCaputTitulo = function(idx, val) {
+    if (window._activeModelCaputs[idx]) {
+        window._activeModelCaputs[idx].titulo = val;
+    }
+};
+
+window.updateCaputConteudo = function(idx, val) {
+    if (window._activeModelCaputs[idx]) {
+        window._activeModelCaputs[idx].conteudo = val;
+    }
+};
+
+window.updateCaputTextoLegal = function(idx, val) {
+    if (window._activeModelCaputs[idx]) {
+        window._activeModelCaputs[idx].textoLegalId = val;
+    }
+};
+
+window.adicionarCaputAoModelo = function(tipo) {
+    if (!window._activeModelCaputs) window._activeModelCaputs = [];
+    
+    let defaultTitle = '';
+    let defaultContent = '';
+    
+    if (tipo === 'CONTRATANTE') {
+        defaultTitle = 'CONTRATANTE';
+        defaultContent = 'CONTRATANTE: {{CLIENTE_RAZAO}}, inscrito(a) no CNPJ/CPF sob nº {{CLIENTE_CNPJ}}, com sede/endereço de instalação em {{CLIENTE_ENDERECO}}.';
+    } else if (tipo === 'CONTRATADO') {
+        defaultTitle = 'CONTRATADO';
+        defaultContent = 'CONTRATADO: AMERICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ sob nº 02.089.969/0001-06, com sede na Rua Bom Jardim, 201 - Residencial Parque Cumbica, Guarulhos - SP.';
+    } else if (tipo === 'VALORES') {
+        defaultTitle = 'DO VALOR E CONDIÇÕES';
+        defaultContent = 'Os valores locatícios dos equipamentos e serviços estão detalhados na proposta comercial. O montante estimado é de {{VALOR_TOTAL}} ({{VALOR_EXTENSO}}), faturado de acordo com a tabela de preços {{TABELA_PRECO}} e condições de pagamento pactuadas em {{CONDICAO_PAGAMENTO}}.';
+    } else if (tipo === 'TEXTO_LEGAL') {
+        defaultTitle = 'DADOS LEGAIS';
+    } else {
+        defaultTitle = 'CLÁUSULA PERSONALIZADA';
+        defaultContent = 'Texto da cláusula personalizada...';
+    }
+    
+    const newCaput = {
+        id: "cpt_" + Date.now() + "_" + Math.floor(Math.random()*1000),
+        tipo: tipo,
+        titulo: defaultTitle,
+        conteudo: defaultContent
+    };
+    
+    if (tipo === 'TEXTO_LEGAL') {
+        newCaput.textoLegalId = '';
+    }
+    
+    window._activeModelCaputs.push(newCaput);
+    _renderEditorBlocksList();
+};
+
+window.removerCaputDoModelo = function(index) {
+    window._activeModelCaputs.splice(index, 1);
+    _renderEditorBlocksList();
+};
+
+window.moverCaputDoModelo = function(index, direcao) {
+    const newIndex = index + direcao;
+    if (newIndex < 0 || newIndex >= window._activeModelCaputs.length) return;
+    
+    const temp = window._activeModelCaputs[index];
+    window._activeModelCaputs[index] = window._activeModelCaputs[newIndex];
+    window._activeModelCaputs[newIndex] = temp;
+    
+    _renderEditorBlocksList();
+};
+
+window.salvarModeloContrato = async function() {
+    const nome = document.getElementById('editor-modelo-nome').value.trim();
+    if (!nome) {
+        Swal.fire('Aviso', 'Por favor, insira o nome do modelo.', 'warning');
+        return;
+    }
+
+    Swal.fire({
+        title: 'Salvando modelo...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        const body = {
+            nome: nome,
+            caputs: window._activeModelCaputs
+        };
+        
+        if (window._activeModel.id === 'NEW') {
+            const res = await apiPost('/comercial/modelos-contrato', body);
+            if (res && res.success) {
+                Swal.fire('Sucesso', 'Modelo criado com sucesso!', 'success');
+                window._modelosContratoList = await apiGet('/comercial/modelos-contrato') || [];
+                const newModel = window._modelosContratoList.find(m => m.id === res.id);
+                if (newModel) {
+                    window.selecionarModeloContrato(newModel.id);
+                } else {
+                    window._activeModel = null;
+                }
+            } else {
+                throw new Error(res.error || 'Erro desconhecido');
+            }
+        } else {
+            const res = await apiPut(`/comercial/modelos-contrato/${window._activeModel.id}`, body);
+            if (res && res.success) {
+                Swal.fire('Sucesso', 'Modelo atualizado com sucesso!', 'success');
+                window._modelosContratoList = await apiGet('/comercial/modelos-contrato') || [];
+                const updated = window._modelosContratoList.find(m => m.id === window._activeModel.id);
+                if (updated) window._activeModel = updated;
+            } else {
+                throw new Error(res.error || 'Erro desconhecido');
+            }
+        }
+        
+        window._comercialModelosContrato = await apiGet('/comercial/modelos-contrato') || [];
+        
+        _renderModelosContratoBaseLayout();
+        if (window._activeModel) {
+            window.selecionarModeloContrato(window._activeModel.id);
+        }
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Erro', 'Erro ao salvar modelo: ' + e.message, 'error');
+    }
+};
+
+window.criarNovoModeloContrato = function() {
+    window._activeModel = { id: 'NEW', nome: 'Novo Modelo' };
+    window._activeModelCaputs = [];
+    
+    document.getElementById('modelo-editor-empty').style.display = 'none';
+    const editor = document.getElementById('modelo-editor-container');
+    editor.style.display = 'block';
+    
+    editor.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:0.75rem; margin-bottom:1.25rem;">
+            <h3 style="font-size:1rem; font-weight:700; color:#1e293b; margin:0;">Criar Novo Modelo de Contrato</h3>
+            <div style="display:flex; gap:8px;">
+                <button onclick="salvarModeloContrato()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:flex; align-items:center; gap:5px; height:32px;">
+                    <i class="ph ph-floppy-disk"></i> Salvar Modelo
+                </button>
+            </div>
+        </div>
+
+        <div style="margin-bottom:1.25rem;">
+            <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:0.35rem;">Nome do Modelo *</label>
+            <input type="text" id="editor-modelo-nome" value="Novo Modelo" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box;">
+        </div>
+
+        <div>
+            <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:0.5rem;">Estrutura do Contrato (Arrastar para reordenar)</label>
+            
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:1rem; background:#f8fafc; padding:0.5rem; border-radius:8px; border:1px solid #e2e8f0;">
+                <button onclick="adicionarCaputAoModelo('CONTRATANTE')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                    <i class="ph ph-user-circle-plus" style="color:#2563eb;"></i> + Contratante
+                </button>
+                <button onclick="adicionarCaputAoModelo('CONTRATADO')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                    <i class="ph ph-buildings" style="color:#059669;"></i> + Contratado
+                </button>
+                <button onclick="adicionarCaputAoModelo('VALORES')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                    <i class="ph ph-currency-dollar" style="color:#d97706;"></i> + Valores
+                </button>
+                <button onclick="adicionarCaputAoModelo('TEXTO_LEGAL')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                    <i class="ph ph-shield-check" style="color:#7c3aed;"></i> + Texto Legal
+                </button>
+                <button onclick="adicionarCaputAoModelo('CUSTOM')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                    <i class="ph ph-plus" style="color:#4b5563;"></i> + Personalizada
+                </button>
+            </div>
+
+            <div id="editor-blocos-list" style="display:flex; flex-direction:column; gap:0.75rem; min-height:100px; background:#f8fafc; border:2px dashed #cbd5e1; border-radius:8px; padding:0.75rem; box-sizing:border-box;">
+                <!-- Block items -->
+            </div>
+        </div>
+    `;
+    
+    _renderEditorBlocksList();
+};
+
+window.excluirModeloContrato = async function(id) {
+    const model = window._modelosContratoList.find(m => m.id === id);
+    if (!model) return;
+
+    const confirm = await Swal.fire({
+        title: 'Excluir modelo?',
+        text: `Deseja realmente excluir o modelo "${model.nome}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sim, excluir!',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (confirm.isConfirmed) {
+        Swal.fire({
+            title: 'Excluindo modelo...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        try {
+            const res = await apiDelete(`/comercial/modelos-contrato/${id}`);
+            if (res && res.success) {
+                Swal.fire('Excluído!', 'O modelo foi excluído.', 'success');
+                window._modelosContratoList = await apiGet('/comercial/modelos-contrato') || [];
+                window._comercialModelosContrato = await apiGet('/comercial/modelos-contrato') || [];
+                if (window._activeModel && window._activeModel.id === id) {
+                    window._activeModel = null;
+                    document.getElementById('modelo-editor-container').style.display = 'none';
+                    document.getElementById('modelo-editor-empty').style.display = 'flex';
+                }
+                _renderModelosContratoBaseLayout();
+            } else {
+                throw new Error(res.error || 'Erro desconhecido');
+            }
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Erro', 'Erro ao excluir modelo: ' + e.message, 'error');
+        }
+    }
+};
+
+function _renderTextosLegaisTable() {
+    const tbody = document.getElementById('textos-legais-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    if (window._textosLegaisList.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align:center; padding:1.5rem; color:#94a3b8; font-style:italic;">
+                    Nenhum texto legal cadastrado.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    window._textosLegaisList.forEach(tl => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid #f1f5f9';
+        
+        const maxLen = 120;
+        const textPreview = tl.texto_legal.length > maxLen ? tl.texto_legal.substring(0, maxLen) + '...' : tl.texto_legal;
+        
+        tr.innerHTML = `
+            <td style="padding:0.75rem 1rem; color:#334155; font-weight:600;">${tl.codigo}</td>
+            <td style="padding:0.75rem 1rem; color:#334155; font-weight:700;">${tl.descricao}</td>
+            <td style="padding:0.75rem 1rem; color:#64748b; max-width:400px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${tl.texto_legal.replace(/"/g, '&quot;')}">${textPreview}</td>
+            <td style="padding:0.75rem 1rem; text-align:center;">
+                <div style="display:inline-flex; gap:8px;">
+                    <i class="ph ph-pencil-simple" title="Editar Texto" onclick="abrirModalTextoLegal(${tl.id})" style="font-size:1.1rem; color:#4f46e5; cursor:pointer; opacity:0.8;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8"></i>
+                    <i class="ph ph-trash" title="Excluir Texto" onclick="excluirTextoLegal(${tl.id})" style="font-size:1.1rem; color:#ef4444; cursor:pointer; opacity:0.8;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8"></i>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+window.abrirModalTextoLegal = async function(id) {
+    const isEdit = id !== null;
+    let tl = { codigo: '', descricao: '', texto_legal: '' };
+    
+    if (isEdit) {
+        tl = window._textosLegaisList.find(x => x.id === id);
+        if (!tl) return;
+    } else {
+        const maxCode = window._textosLegaisList.reduce((max, item) => item.codigo > max ? item.codigo : max, 0);
+        tl.codigo = maxCode + 1;
+    }
+
+    const { value: formValues } = await Swal.fire({
+        title: isEdit ? 'Editar Texto Legal' : 'Novo Texto Legal',
+        html: `
+            <div style="text-align:left; font-family:'Inter', sans-serif;">
+                <div style="margin-bottom:0.75rem;">
+                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:0.25rem;">Código</label>
+                    <input id="swal-tl-codigo" type="number" class="swal2-input" value="${tl.codigo}" style="width:100%; margin:0; height:36px; font-size:0.85rem;" ${isEdit ? 'disabled' : ''}>
+                </div>
+                <div style="margin-bottom:0.75rem;">
+                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:0.25rem;">Descrição / Identificação *</label>
+                    <input id="swal-tl-descricao" type="text" class="swal2-input" value="${tl.descricao}" style="width:100%; margin:0; height:36px; font-size:0.85rem;" placeholder="Ex: Proposta Evento">
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:0.25rem;">Texto Legal / Cláusula Contratual *</label>
+                    <textarea id="swal-tl-texto" class="swal2-textarea" style="width:100%; margin:0; height:180px; font-size:0.85rem; font-family:sans-serif; box-sizing:border-box; padding:8px;" placeholder="Digite o texto legal completo...">${tl.texto_legal}</textarea>
+                </div>
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Confirmar',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            return {
+                codigo: document.getElementById('swal-tl-codigo').value,
+                descricao: document.getElementById('swal-tl-descricao').value.trim(),
+                texto_legal: document.getElementById('swal-tl-texto').value.trim()
+            }
+        }
+    });
+
+    if (formValues) {
+        if (!formValues.descricao || !formValues.texto_legal) {
+            Swal.fire('Erro', 'Descrição e Texto Legal são obrigatórios.', 'error');
+            return;
+        }
+
+        Swal.fire({
+            title: 'Salvando...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        try {
+            if (isEdit) {
+                const res = await apiPut(`/comercial/textos-legais/${id}`, {
+                    descricao: formValues.descricao,
+                    texto_legal: formValues.texto_legal
+                });
+                if (res && res.success) {
+                    Swal.fire('Sucesso', 'Texto legal atualizado!', 'success');
+                } else {
+                    throw new Error(res.error || 'Erro desconhecido');
+                }
+            } else {
+                const res = await apiPost('/comercial/textos-legais', formValues);
+                if (res && res.success) {
+                    Swal.fire('Sucesso', 'Texto legal cadastrado!', 'success');
+                } else {
+                    throw new Error(res.error || 'Erro desconhecido');
+                }
+            }
+            window._textosLegaisList = await apiGet('/comercial/textos-legais') || [];
+            _renderTextosLegaisTable();
+            
+            if (window._activeModel) {
+                _renderEditorBlocksList();
+            }
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Erro', 'Erro ao salvar texto legal: ' + e.message, 'error');
+        }
+    }
+};
+
+window.excluirTextoLegal = async function(id) {
+    const tl = window._textosLegaisList.find(x => x.id === id);
+    if (!tl) return;
+
+    const confirm = await Swal.fire({
+        title: 'Excluir texto legal?',
+        text: `Deseja realmente excluir a cláusula "${tl.descricao}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sim, excluir!',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (confirm.isConfirmed) {
+        Swal.fire({
+            title: 'Excluindo...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        try {
+            const res = await apiDelete(`/comercial/textos-legais/${id}`);
+            if (res && res.success) {
+                Swal.fire('Excluído!', 'O texto legal foi removido.', 'success');
+                window._textosLegaisList = await apiGet('/comercial/textos-legais') || [];
+                _renderTextosLegaisTable();
+                if (window._activeModel) {
+                    _renderEditorBlocksList();
+                }
+            } else {
+                throw new Error(res.error || 'Erro desconhecido');
+            }
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Erro', 'Erro ao excluir: ' + e.message, 'error');
+        }
+    }
+};
+

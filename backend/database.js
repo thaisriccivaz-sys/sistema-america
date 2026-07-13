@@ -44,6 +44,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
         console.error('Erro fatal ao conectar ao banco de dados SQLite:', err.message);
         process.exit(1);
     } else {
+        db.configure("busyTimeout", 30000);
         console.log('--------------------------------------------------');
         console.log('Banco SQLite carregado: backend/data/hr_system_v2.sqlite');
         console.log(`Caminho Real: ${dbPath}`);
@@ -1825,7 +1826,149 @@ db.run("PRAGMA foreign_keys = ON;");
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(periodo, centro_custo, tipo)
                 )
-            `);
+            `, (err) => {
+                if (!err) {
+                    criarTabelasContratos();
+                }
+            });
+
+            function criarTabelasContratos() {
+                // Tabela de Textos Legais
+                db.run(`
+                    CREATE TABLE IF NOT EXISTS comercial_textos_legais (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        codigo INTEGER UNIQUE,
+                        descricao TEXT NOT NULL,
+                        texto_legal TEXT NOT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                `, (errTextos) => {
+                    if (!errTextos) {
+                        // Semeamento de Textos Legais
+                        db.get("SELECT COUNT(*) as count FROM comercial_textos_legais", [], (errCount, row) => {
+                            if (!errCount && row.count === 0) {
+                                const textosSeed = [
+                                    { codigo: 1, descricao: "Proposta Evento", texto: "Cláusula Legal Padrão para Eventos: O locatário declara estar ciente de que a instalação dos equipamentos ocorrerá em conformidade com as normas técnicas de segurança vigente, responsabilizando-se civil e criminalmente por qualquer alteração estrutural não autorizada." },
+                                    { codigo: 2, descricao: "Proposta Obra Mensal", texto: "Cláusula Legal Padrão para Obras Mensais: Fica acordado que a manutenção preventiva dos equipamentos será realizada mensalmente pela locadora. O locatário deverá garantir livre acesso e condições seguras de trabalho para os técnicos no local." },
+                                    { codigo: 3, descricao: "Proposta Limpa Fossa", texto: "Cláusula Legal Padrão para Limpa Fossa: Os serviços de esgotamento e transporte de efluentes serão realizados conforme regulamentação dos órgãos ambientais competentes. O contratante garante a procedência não-industrial dos resíduos." },
+                                    { codigo: 4, descricao: "Proposta VAC", texto: "Cláusula Legal Padrão para VAC: Os termos de limpeza e higienização seguem rigorosamente os parâmetros de vazão e sucção projetados. Eventuais custos de descarte de efluentes em estações homologadas correm por conta do contratante." },
+                                    { codigo: 5, descricao: "ADITIVO", texto: "Cláusula de Aditivo Contratual: Este termo adita o contrato original para prorrogar o prazo de vigência ou alterar a quantidade de equipamentos, mantendo-se inalteradas as demais cláusulas não conflitantes." },
+                                    { codigo: 6, descricao: "TERCEIROS", texto: "Cláusula de Serviços de Terceiros: A contratação de terceiros para a execução de serviços complementares exige prévia anuência por escrito da contratada, respondendo a contratante pelos atos desses terceiros." },
+                                    { codigo: 7, descricao: "Proposta de Venda", texto: "Cláusula Legal para Proposta de Venda: A propriedade dos bens objeto da presente venda só se transferirá em definitivo ao comprador após a quitação integral das parcelas pactuadas nesta proposta." },
+                                    { codigo: 8, descricao: "Proposta Locação Container", texto: "Cláusula Legal para Locação de Container: O container locado destina-se exclusivamente a depósito de materiais de construção, sendo vedada a estocagem de inflamáveis, explosivos, resíduos biológicos ou uso como habitação." },
+                                    { codigo: 9, descricao: "Proposta Obra Quinzenal", texto: "Cláusula Legal para Obras Quinzenais: O ciclo de manutenção e vistorias ocorrerá a cada 15 dias corridos. Falhas na disponibilização do equipamento para equipe técnica sujeitam o locatário a multa contratual." },
+                                    { codigo: 10, descricao: "Proposta Obra Semanal", texto: "Cláusula Legal para Obras Semanais: As vistorias técnicas serão realizadas uma vez por semana. O cronograma de visitas será ajustado previamente para minimizar interferências na atividade produtiva do canteiro." },
+                                    { codigo: 11, descricao: "Proposta Limpa Fossa Mensal", texto: "Cláusula Legal para Limpa Fossa Mensal: O contrato engloba serviços programados mensais de esgotamento de fossas sépticas, limitados ao volume máximo contratado por intervenção." }
+                                ];
+                                const stmt = db.prepare("INSERT INTO comercial_textos_legais (codigo, descricao, texto_legal) VALUES (?, ?, ?)");
+                                textosSeed.forEach(item => {
+                                    stmt.run(item.codigo, item.descricao, item.texto);
+                                });
+                                stmt.finalize();
+                                console.log("[DATABASE] Semeado comercial_textos_legais com sucesso.");
+                            }
+                        });
+                    }
+                });
+
+                // Tabela de Modelos de Contrato
+                db.run(`
+                    CREATE TABLE IF NOT EXISTS comercial_modelos_contrato (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        nome TEXT UNIQUE NOT NULL,
+                        caputs TEXT NOT NULL, -- JSON string contendo o array estruturado de caputs
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                `, (errModelos) => {
+                    if (!errModelos) {
+                        // Semeamento de Modelos de Contrato
+                        db.get("SELECT COUNT(*) as count FROM comercial_modelos_contrato", [], (errCount, row) => {
+                            if (!errCount && row.count === 0) {
+                                const caputsPadrao = JSON.stringify([
+                                    {
+                                        id: "cpt_contratante",
+                                        tipo: "CONTRATANTE",
+                                        titulo: "CONTRATANTE (DADOS DO CLIENTE)",
+                                        conteudo: "CONTRATANTE: {{CLIENTE_RAZAO}}, inscrito(a) no CNPJ/CPF sob nº {{CLIENTE_CNPJ}}, com sede/endereço de instalação em {{CLIENTE_ENDERECO}}."
+                                    },
+                                    {
+                                        id: "cpt_contratado",
+                                        tipo: "CONTRATADO",
+                                        titulo: "CONTRATADO (DADOS DO LOCADOR)",
+                                        conteudo: "CONTRATADO: AMERICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ sob nº 02.089.969/0001-06, com sede na Rua Bom Jardim, 201 - Residencial Parque Cumbica, Guarulhos - SP."
+                                    },
+                                    {
+                                        id: "cpt_valores",
+                                        tipo: "VALORES",
+                                        titulo: "DO VALOR E FATURAMENTO",
+                                        conteudo: "Os valores locatícios dos equipamentos e serviços estão detalhados na proposta comercial. O montante estimado é de {{VALOR_TOTAL}} ({{VALOR_EXTENSO}}), faturado de acordo com a tabela de preços {{TABELA_PRECO}} e condições de pagamento pactuadas em {{CONDICAO_PAGAMENTO}}."
+                                    },
+                                    {
+                                        id: "cpt_legal",
+                                        tipo: "TEXTO_LEGAL",
+                                        titulo: "DISPOSIÇÕES LEGAIS E CONTRATUAIS",
+                                        textoLegalId: 2
+                                    }
+                                ]);
+
+                                const modelosSeed = [
+                                    { nome: "Locação Obra", caputs: caputsPadrao },
+                                    { nome: "Locação Evento", caputs: JSON.stringify([
+                                        {
+                                            id: "cpt_contratante",
+                                            tipo: "CONTRATANTE",
+                                            titulo: "CONTRATANTE",
+                                            conteudo: "CONTRATANTE: {{CLIENTE_RAZAO}}, inscrito(a) no CNPJ/CPF sob nº {{CLIENTE_CNPJ}}."
+                                        },
+                                        {
+                                            id: "cpt_contratado",
+                                            tipo: "CONTRATADO",
+                                            titulo: "CONTRATADA",
+                                            conteudo: "CONTRATADA: AMERICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ sob nº 02.089.969/0001-06."
+                                        },
+                                        {
+                                            id: "cpt_valores",
+                                            tipo: "VALORES",
+                                            titulo: "VALORES DO EVENTO",
+                                            conteudo: "Para a realização do evento temporário, o valor total pactuado é de {{VALOR_TOTAL}} ({{VALOR_EXTENSO}}), compreendendo o período de início em {{PERIODO_INICIO}} até {{PERIODO_FIM}}."
+                                        },
+                                        {
+                                            id: "cpt_legal",
+                                            tipo: "TEXTO_LEGAL",
+                                            titulo: "NORMAS PARA EVENTOS",
+                                            textoLegalId: 1
+                                        }
+                                    ]) },
+                                    { nome: "Proposta Simplificada", caputs: JSON.stringify([
+                                        {
+                                            id: "cpt_contratante",
+                                            tipo: "CONTRATANTE",
+                                            titulo: "CONTRATANTE",
+                                            conteudo: "CONTRATANTE: {{CLIENTE_RAZAO}} (CNPJ/CPF: {{CLIENTE_CNPJ}})."
+                                        },
+                                        {
+                                            id: "cpt_valores",
+                                            tipo: "VALORES",
+                                            titulo: "VALORES E CONDIÇÕES",
+                                            conteudo: "Valor Total Estimado: {{VALOR_TOTAL}} com faturamento via {{CONDICAO_PAGAMENTO}}."
+                                        }
+                                    ]) },
+                                    { nome: "Proposta Completa", caputs: caputsPadrao }
+                                ];
+
+                                const stmt = db.prepare("INSERT INTO comercial_modelos_contrato (nome, caputs) VALUES (?, ?)");
+                                modelosSeed.forEach(item => {
+                                    stmt.run(item.nome, item.caputs);
+                                });
+                                stmt.finalize();
+                                console.log("[DATABASE] Semeado comercial_modelos_contrato com sucesso.");
+                            }
+                        });
+                    }
+                });
+            }
 
 module.exports = db;
 

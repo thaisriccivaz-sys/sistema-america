@@ -22627,9 +22627,154 @@ app.delete('/api/servicos-precificacao/:id', authenticateToken, (req, res) => {
   });
 });
 
+// ── ENDPOINTS DE TEXTOS LEGAIS ──────────────────────────────────────────
+// GET /api/comercial/textos-legais - Listar todos os textos legais
+app.get('/api/comercial/textos-legais', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM comercial_textos_legais ORDER BY codigo ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// GET /api/comercial/textos-legais/:id - Obter um texto legal específico
+app.get('/api/comercial/textos-legais/:id', authenticateToken, (req, res) => {
+  db.get('SELECT * FROM comercial_textos_legais WHERE id = ?', [req.params.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Texto legal não encontrado' });
+    res.json(row);
+  });
+});
+
+// POST /api/comercial/textos-legais - Criar um texto legal
+app.post('/api/comercial/textos-legais', authenticateToken, (req, res) => {
+  const { codigo, descricao, texto_legal } = req.body;
+  if (!descricao || !texto_legal) {
+    return res.status(400).json({ error: 'Descrição e texto legal são obrigatórios.' });
+  }
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  
+  // Obter o maior código se não fornecido
+  const runInsert = (code) => {
+    db.run('INSERT INTO comercial_textos_legais (codigo, descricao, texto_legal, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      [code, descricao, texto_legal, agora, agora],
+      function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, id: this.lastID, codigo: code });
+      }
+    );
+  };
+
+  if (codigo) {
+    runInsert(codigo);
+  } else {
+    db.get('SELECT MAX(codigo) as maxCode FROM comercial_textos_legais', [], (err, row) => {
+      const nextCode = (row && row.maxCode ? row.maxCode : 0) + 1;
+      runInsert(nextCode);
+    });
+  }
+});
+
+// PUT /api/comercial/textos-legais/:id - Atualizar um texto legal
+app.put('/api/comercial/textos-legais/:id', authenticateToken, (req, res) => {
+  const { descricao, texto_legal } = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  db.run('UPDATE comercial_textos_legais SET descricao = ?, texto_legal = ?, updated_at = ? WHERE id = ?',
+    [descricao, texto_legal, agora, req.params.id],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Texto legal não encontrado' });
+      res.json({ success: true });
+    }
+  );
+});
+
+// DELETE /api/comercial/textos-legais/:id - Remover um texto legal
+app.delete('/api/comercial/textos-legais/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM comercial_textos_legais WHERE id = ?', [req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Texto legal não encontrado' });
+    res.json({ success: true });
+  });
+});
+
+// ── ENDPOINTS DE MODELOS DE CONTRATOS ───────────────────────────────────
+// GET /api/comercial/modelos-contrato - Listar todos os modelos de contrato
+app.get('/api/comercial/modelos-contrato', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM comercial_modelos_contrato ORDER BY nome ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// GET /api/comercial/modelos-contrato/:id - Obter detalhes de um modelo
+app.get('/api/comercial/modelos-contrato/:id', authenticateToken, (req, res) => {
+  db.get('SELECT * FROM comercial_modelos_contrato WHERE id = ?', [req.params.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Modelo não encontrado' });
+    res.json(row);
+  });
+});
+
+// POST /api/comercial/modelos-contrato - Criar um modelo de contrato
+app.post('/api/comercial/modelos-contrato', authenticateToken, (req, res) => {
+  const { nome, caputs } = req.body;
+  if (!nome || !caputs) {
+    return res.status(400).json({ error: 'Nome e caputs (JSON) são obrigatórios.' });
+  }
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  const caputsStr = typeof caputs === 'string' ? caputs : JSON.stringify(caputs);
+  
+  db.run('INSERT INTO comercial_modelos_contrato (nome, caputs, created_at, updated_at) VALUES (?, ?, ?, ?)',
+    [nome, caputsStr, agora, agora],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE')) {
+          return res.status(400).json({ error: 'Já existe um modelo de contrato com este nome.' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ success: true, id: this.lastID });
+    }
+  );
+});
+
+// PUT /api/comercial/modelos-contrato/:id - Atualizar um modelo de contrato
+app.put('/api/comercial/modelos-contrato/:id', authenticateToken, (req, res) => {
+  const { nome, caputs } = req.body;
+  if (!nome || !caputs) {
+    return res.status(400).json({ error: 'Nome e caputs (JSON) são obrigatórios.' });
+  }
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  const caputsStr = typeof caputs === 'string' ? caputs : JSON.stringify(caputs);
+
+  db.run('UPDATE comercial_modelos_contrato SET nome = ?, caputs = ?, updated_at = ? WHERE id = ?',
+    [nome, caputsStr, agora, req.params.id],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE')) {
+          return res.status(400).json({ error: 'Já existe um modelo de contrato com este nome.' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) return res.status(404).json({ error: 'Modelo não encontrado' });
+      res.json({ success: true });
+    }
+  );
+});
+
+// DELETE /api/comercial/modelos-contrato/:id - Remover um modelo de contrato
+app.delete('/api/comercial/modelos-contrato/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM comercial_modelos_contrato WHERE id = ?', [req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Modelo não encontrado' });
+    res.json({ success: true });
+  });
+});
+
 console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
 console.log('[CLIENTES] Módulo de cadastro de clientes carregado.');
 console.log('[COMERCIAL] Módulo de precificação de serviços carregado.');
+console.log('[CONTRATOS] Módulo de gerenciamento de modelos de contratos carregado.');
 
 try { require('../rescue_estoque.js'); } catch(e) { console.error('Rescue script error:', e); }
 
