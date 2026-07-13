@@ -2509,81 +2509,68 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                         </label>
                     </div>
 
-                    <!-- Main Grid: Campos (Esquerda) e Foto (Direita) -->
-                    <div style="display:flex; gap:1.5rem; flex-wrap:wrap; margin-bottom:0.85rem;">
-                        <!-- Coluna dos Campos (Esquerda) -->
-                        <div style="flex:1; min-width:300px; display:grid; gap:0.85rem;">
-                            <!-- Linha 1: Código, Data Cadastro, CPF/CNPJ, IE -->
-                            <div style="display:grid; grid-template-columns:1.2fr 1fr 1.5fr 1.5fr; gap:0.75rem;">
-                                <div class="mcli-field">
-                                    <label>Código</label>
-                                    <div style="display:flex; gap:3px;">
-                                        <input type="text" id="modal-cli-codigo" readonly value="${client ? (client.codigo || '') : ''}" placeholder="Auto" class="mcli-input">
-                                        <button type="button" onclick="window.modalAbrirPesquisaCliente()" title="Buscar Cliente" class="mcli-btn-addon" style="background:#16a34a;"><i class="ph ph-magnifying-glass"></i></button>
-                                        <button type="button" onclick="window.modalLimparFormCliente()" title="Limpar/Novo" class="mcli-btn-addon" style="background:#475569;"><i class="ph ph-arrows-counter-clockwise"></i></button>
-                                    </div>
-                                </div>
-                                <div class="mcli-field">
-                                    <label>Data de Cadastro</label>
-                                    <input type="date" id="modal-cli-data-cadastro" value="${dataCadastro}" class="mcli-input">
-                                </div>
-                                <div class="mcli-field">
-                                    <label>CPF / CNPJ *</label>
-                                    <div class="mcli-input-group">
-                                        <input type="text" id="modal-cli-cpf-cnpj" value="${client ? (client.cpf_cnpj || '') : ''}" placeholder="Apenas números" class="mcli-input">
-                                        <button type="button" onclick="window.modalBuscarCNPJ()" id="modal-btn-busca-cnpj" class="mcli-btn-addon" title="Buscar CNPJ">
-                                            <i class="ph ph-magnifying-glass"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="mcli-field">
-                                    <label>Inscrição Estadual</label>
-                                    <input type="text" id="modal-cli-ie" value="${client ? (client.inscricao_estadual || '') : ''}" placeholder="ISENTO" class="mcli-input">
-                                </div>
-                            </div>
-
-                            <!-- Linha 2: IM, Grupo, Centralizador -->
-                            <div style="display:grid; grid-template-columns:1.2fr 1.5fr 2.3fr; gap:0.75rem;">
-                                <div class="mcli-field">
-                                    <label>Inscrição Municipal</label>
-                                    <input type="text" id="modal-cli-im" value="${client ? (client.inscricao_municipal || '') : ''}" class="mcli-input">
-                                </div>
-                                <div class="mcli-field">
-                                    <label>Grupo de Clientes</label>
-                                    <select id="modal-cli-grupo" class="mcli-select">
-                                        <option value="">-- Selecione --</option>
-                                        ${grupoOptions(client ? client.grupo_clientes : '')}
-                                    </select>
-                                </div>
-                                <div class="mcli-field">
-                                    <label>Cliente Centralizador</label>
-                                    <select id="modal-cli-centralizador" class="mcli-select">
-                                        <option value="">-- Selecione --</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <!-- Linha 3: Razão Social -->
+                    <!-- Main Grid: Campos -->
+                    <div style="margin-bottom:0.85rem; display:grid; gap:0.85rem;">
+                        <!-- Linha 1: Código, Data Cadastro, CPF/CNPJ, IE -->
+                        <div style="display:grid; grid-template-columns:1.2fr 1fr 1.5fr 1.5fr; gap:0.75rem;">
                             <div class="mcli-field">
-                                <label>Nome / Razão Social *</label>
-                                <input type="text" id="modal-cli-razao-social" value="${client ? (client.nome_razao_social || '') : prefilledName}" class="mcli-input">
+                                <label>Código</label>
+                                <div style="display:flex; gap:3px;">
+                                    <input type="text" id="modal-cli-codigo" readonly value="${client ? (client.codigo || '') : ''}" placeholder="Auto" class="mcli-input">
+                                    <button type="button" onclick="window.modalAbrirPesquisaCliente()" title="Buscar Cliente" class="mcli-btn-addon" style="background:#16a34a;"><i class="ph ph-magnifying-glass"></i></button>
+                                    <button type="button" onclick="window.modalLimparFormCliente()" title="Limpar/Novo" class="mcli-btn-addon" style="background:#475569;"><i class="ph ph-arrows-counter-clockwise"></i></button>
+                                </div>
                             </div>
-
-                            <!-- Linha 4: Nome Fantasia -->
                             <div class="mcli-field">
-                                <label>Nome Fantasia</label>
-                                <input type="text" id="modal-cli-nome-fantasia" value="${client ? (client.nome_fantasia || '') : ''}" class="mcli-input">
+                                <label>Data de Cadastro</label>
+                                <input type="date" id="modal-cli-data-cadastro" value="${dataCadastro}" class="mcli-input">
+                            </div>
+                            <div class="mcli-field">
+                                <label>CPF / CNPJ *</label>
+                                <div class="mcli-input-group">
+                                    <input type="text" id="modal-cli-cpf-cnpj" value="${client ? (client.cpf_cnpj || '') : ''}" placeholder="Apenas números" class="mcli-input">
+                                    <button type="button" onclick="window.modalBuscarCNPJ()" id="modal-btn-busca-cnpj" class="mcli-btn-addon" title="Buscar CNPJ">
+                                        <i class="ph ph-magnifying-glass"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mcli-field">
+                                <label>Inscrição Estadual</label>
+                                <input type="text" id="modal-cli-ie" value="${client ? (client.inscricao_estadual || '') : ''}" placeholder="ISENTO" class="mcli-input">
                             </div>
                         </div>
 
-                        <!-- Foto/Avatar (Direita) -->
-                        <div style="flex:0 0 160px; display:flex; flex-direction:column; align-items:center; justify-content:center; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; padding:1rem; box-sizing:border-box; height: fit-content; align-self: center;">
-                            <div style="width:100px; height:100px; border-radius:50%; background:#e2e8f0; display:flex; align-items:center; justify-content:center; margin-bottom:0.75rem; border:2px solid #cbd5e1; overflow:hidden;">
-                                <i class="ph ph-user" style="font-size:3rem; color:#94a3b8;"></i>
+                        <!-- Linha 2: IM, Grupo, Centralizador -->
+                        <div style="display:grid; grid-template-columns:1.2fr 1.5fr 2.3fr; gap:0.75rem;">
+                            <div class="mcli-field">
+                                <label>Inscrição Municipal</label>
+                                <input type="text" id="modal-cli-im" value="${client ? (client.inscricao_municipal || '') : ''}" class="mcli-input">
                             </div>
-                            <button type="button" onclick="alert('Funcionalidade de foto em desenvolvimento')" style="background:#495057;color:white;border:none;padding:0.4rem 0.8rem;border-radius:4px;font-size:0.75rem;font-weight:600;cursor:pointer; height:28px; display:inline-flex; align-items:center; justify-content:center; font-family:'Inter', sans-serif !important;">
-                                Alterar Foto
-                            </button>
+                            <div class="mcli-field">
+                                <label>Grupo de Clientes</label>
+                                <select id="modal-cli-grupo" class="mcli-select">
+                                    <option value="">-- Selecione --</option>
+                                    ${grupoOptions(client ? client.grupo_clientes : '')}
+                                </select>
+                            </div>
+                            <div class="mcli-field">
+                                <label>Cliente Centralizador</label>
+                                <select id="modal-cli-centralizador" class="mcli-select">
+                                    <option value="">-- Selecione --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Linha 3: Razão Social -->
+                        <div class="mcli-field">
+                            <label>Nome / Razão Social *</label>
+                            <input type="text" id="modal-cli-razao-social" value="${client ? (client.nome_razao_social || '') : prefilledName}" class="mcli-input">
+                        </div>
+
+                        <!-- Linha 4: Nome Fantasia -->
+                        <div class="mcli-field">
+                            <label>Nome Fantasia</label>
+                            <input type="text" id="modal-cli-nome-fantasia" value="${client ? (client.nome_fantasia || '') : ''}" class="mcli-input">
                         </div>
                     </div>
 
@@ -2635,43 +2622,11 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                         </div>
                     </div>
 
-                    <!-- Linha 7 Telefones, Ramais, Fax, Website -->
-                    <div style="display:grid; grid-template-columns:1.5fr 0.8fr 1.5fr 0.8fr 1fr 1.5fr; gap:0.75rem; margin-top:0.85rem;">
+                    <!-- Linha 7 Contatos: Telefone, Celular, Whatsapp, CRM -->
+                    <div style="display:grid; grid-template-columns:1.5fr 2fr auto 1.5fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
                         <div class="mcli-field">
                             <label>Telefone</label>
                             <input type="text" id="modal-cli-telefone" value="${client ? (client.telefone || '') : ''}" class="mcli-input">
-                        </div>
-                        <div class="mcli-field">
-                            <label>Ramal</label>
-                            <input type="text" id="modal-cli-ramal" value="${client ? (client.ramal || '') : ''}" class="mcli-input">
-                        </div>
-                        <div class="mcli-field">
-                            <label>Telefone 2</label>
-                            <input type="text" id="modal-cli-telefone2" value="${client ? (client.telefone_2 || '') : ''}" class="mcli-input">
-                        </div>
-                        <div class="mcli-field">
-                            <label>Ramal</label>
-                            <input type="text" id="modal-cli-ramal2" value="${client ? (client.ramal_2 || '') : ''}" class="mcli-input">
-                        </div>
-                        <div class="mcli-field">
-                            <label>Fax</label>
-                            <input type="text" id="modal-cli-fax" value="${client ? (client.fax || '') : ''}" class="mcli-input">
-                        </div>
-                        <div class="mcli-field">
-                            <label>Website</label>
-                            <input type="text" id="modal-cli-website" value="${client ? (client.website || '') : ''}" class="mcli-input">
-                        </div>
-                    </div>
-
-                    <!-- Linha 8 DDI Celular, Celular, Whatsapp, CRM -->
-                    <div style="display:grid; grid-template-columns:1.5fr 2fr auto 1.5fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
-                        <div class="mcli-field">
-                            <label>DDI do Celular</label>
-                            <select id="modal-cli-celular-ddi" class="mcli-select">
-                                <option value="+55 (BRASIL)" ${client && client.celular_ddi === '+55 (BRASIL)' ? 'selected' : ''}>+55 (BRASIL)</option>
-                                <option value="+1 (EUA)" ${client && client.celular_ddi === '+1 (EUA)' ? 'selected' : ''}>+1 (EUA)</option>
-                                <option value="+351 (PORTUGAL)" ${client && client.celular_ddi === '+351 (PORTUGAL)' ? 'selected' : ''}>+351 (PORTUGAL)</option>
-                            </select>
                         </div>
                         <div class="mcli-field">
                             <label>Celular</label>
@@ -4146,84 +4101,69 @@ function _renderCadastroClienteInt() {
 
                 <form id="form-cadastro-cliente" onsubmit="return false;" style="margin-bottom:1.5rem;">
                     
-                    <!-- Grid Principal: Campos e Foto -->
-                    <div style="display:flex; gap:1.5rem; flex-wrap:wrap;">
-                        
-                        <!-- Coluna dos Campos (Esquerda) -->
-                        <div style="flex:1; min-width:300px; display:grid; gap:0.85rem;">
-                            
-                            <!-- Linha 1: Código, Data Cadastro, CPF/CNPJ, IE -->
-                            <div style="display:grid; grid-template-columns:1.2fr 1fr 1.5fr 1.5fr; gap:0.75rem;">
-                                <div>
-                                    <label class="prop-lbl">Código</label>
-                                    <div style="display:flex; gap:3px;">
-                                        <input type="text" id="cli-codigo" readonly placeholder="Auto" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;background:#f1f5f9;color:#64748b;box-sizing:border-box;">
-                                        <button onclick="abrirModalPesquisaCliente()" title="Buscar Cliente" style="background:#82c91e;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
-                                        <button onclick="limparFormCliente()" title="Limpar/Novo" style="background:#495057;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-arrows-counter-clockwise"></i></button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="prop-lbl">Data de Cadastro</label>
-                                    <input type="date" id="cli-data-cadastro" value="${hoje}" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                </div>
-                                <div>
-                                    <label class="prop-lbl">CPF / CNPJ *</label>
-                                    <div style="display:flex; gap:3px;">
-                                        <input type="text" id="cli-cpf-cnpj" placeholder="Apenas números" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                        <button onclick="buscarCNPJ()" id="btn-busca-cnpj" title="Buscar CNPJ" style="background:#82c91e;color:white;border:none;padding:0.45rem 0.6rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:bold;gap:3px;"><i class="ph ph-magnifying-glass"></i></button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="prop-lbl">Inscrição Estadual</label>
-                                    <input type="text" id="cli-ie" placeholder="ISENTO" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                </div>
-                            </div>
-
-                            <!-- Linha 2: IM, Grupo, Centralizador -->
-                            <div style="display:grid; grid-template-columns:1.2fr 1.5fr 2.3fr; gap:0.75rem;">
-                                <div>
-                                    <label class="prop-lbl">Inscrição Municipal</label>
-                                    <input type="text" id="cli-im" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                </div>
-                                <div>
-                                    <label class="prop-lbl">Grupo de Clientes</label>
-                                    <select id="cli-grupo" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                        <option value="">-- Selecione --</option>
-                                        <option value="1 - Diamante">1 - Diamante</option>
-                                        <option value="2 - Ouro">2 - Ouro</option>
-                                        <option value="3 - Prata">3 - Prata</option>
-                                        <option value="4 - Bronze">4 - Bronze</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="prop-lbl">Cliente Centralizador</label>
-                                    <select id="cli-centralizador" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                        <option value="">-- Selecione --</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <!-- Linha 3: Razão Social -->
+                    <!-- Grid Principal: Campos -->
+                    <div style="margin-bottom:1.5rem; display:grid; gap:0.85rem;">
+                        <!-- Linha 1: Código, Data Cadastro, CPF/CNPJ, IE -->
+                        <div style="display:grid; grid-template-columns:1.2fr 1fr 1.5fr 1.5fr; gap:0.75rem;">
                             <div>
-                                <label class="prop-lbl">Nome / Razão Social *</label>
-                                <input type="text" id="cli-razao-social" oninput="atualizarClienteCentralizadorOptions()" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                <label class="prop-lbl">Código</label>
+                                <div style="display:flex; gap:3px;">
+                                    <input type="text" id="cli-codigo" readonly placeholder="Auto" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;background:#f1f5f9;color:#64748b;box-sizing:border-box;">
+                                    <button onclick="abrirModalPesquisaCliente()" title="Buscar Cliente" style="background:#82c91e;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
+                                    <button onclick="limparFormCliente()" title="Limpar/Novo" style="background:#495057;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-arrows-counter-clockwise"></i></button>
+                                </div>
                             </div>
-
-                            <!-- Linha 4: Nome Fantasia -->
                             <div>
-                                <label class="prop-lbl">Nome Fantasia</label>
-                                <input type="text" id="cli-nome-fantasia" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                <label class="prop-lbl">Data de Cadastro</label>
+                                <input type="date" id="cli-data-cadastro" value="${hoje}" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">CPF / CNPJ *</label>
+                                <div style="display:flex; gap:3px;">
+                                    <input type="text" id="cli-cpf-cnpj" placeholder="Apenas números" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                    <button onclick="buscarCNPJ()" id="btn-busca-cnpj" title="Buscar CNPJ" style="background:#82c91e;color:white;border:none;padding:0.45rem 0.6rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:bold;gap:3px;"><i class="ph ph-magnifying-glass"></i></button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Inscrição Estadual</label>
+                                <input type="text" id="cli-ie" placeholder="ISENTO" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                         </div>
 
-                        <!-- Foto/Avatar (Direita) -->
-                        <div style="flex:0 0 160px; display:flex; flex-direction:column; align-items:center; justify-content:center; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; padding:1rem; box-sizing:border-box;">
-                            <div style="width:100px; height:100px; border-radius:50%; background:#e2e8f0; display:flex; align-items:center; justify-content:center; margin-bottom:0.75rem; border:2px solid #cbd5e1; overflow:hidden;">
-                                <i class="ph ph-user" style="font-size:3rem; color:#94a3b8;"></i>
+                        <!-- Linha 2: IM, Grupo, Centralizador -->
+                        <div style="display:grid; grid-template-columns:1.2fr 1.5fr 2.3fr; gap:0.75rem;">
+                            <div>
+                                <label class="prop-lbl">Inscrição Municipal</label>
+                                <input type="text" id="cli-im" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
-                            <button onclick="alert('Funcionalidade de foto em desenvolvimento')" style="background:#495057;color:white;border:none;padding:0.4rem 0.8rem;border-radius:4px;font-size:0.75rem;font-weight:600;cursor:pointer;">
-                                Alterar Foto
-                            </button>
+                            <div>
+                                <label class="prop-lbl">Grupo de Clientes</label>
+                                <select id="cli-grupo" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                    <option value="">-- Selecione --</option>
+                                    <option value="1 - Diamante">1 - Diamante</option>
+                                    <option value="2 - Ouro">2 - Ouro</option>
+                                    <option value="3 - Prata">3 - Prata</option>
+                                    <option value="4 - Bronze">4 - Bronze</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Cliente Centralizador</label>
+                                <select id="cli-centralizador" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                    <option value="">-- Selecione --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Linha 3: Razão Social -->
+                        <div>
+                            <label class="prop-lbl">Nome / Razão Social *</label>
+                            <input type="text" id="cli-razao-social" oninput="atualizarClienteCentralizadorOptions()" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+
+                        <!-- Linha 4: Nome Fantasia -->
+                        <div>
+                            <label class="prop-lbl">Nome Fantasia</label>
+                            <input type="text" id="cli-nome-fantasia" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                     </div>
 
@@ -4274,43 +4214,11 @@ function _renderCadastroClienteInt() {
                         </div>
                     </div>
 
-                    <!-- Contatos / Tel -->
-                    <div style="display:grid; grid-template-columns:1.5fr 0.8fr 1.5fr 0.8fr 1fr 1.5fr; gap:0.75rem; margin-top:0.85rem;">
+                    <!-- Contatos: Telefone, Celular, Whatsapp, CRM -->
+                    <div style="display:grid; grid-template-columns:1.5fr 2fr auto 1.5fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
                         <div>
                             <label class="prop-lbl">Telefone</label>
                             <input type="text" id="cli-telefone" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label class="prop-lbl">Ramal</label>
-                            <input type="text" id="cli-ramal" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label class="prop-lbl">Telefone 2</label>
-                            <input type="text" id="cli-telefone2" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label class="prop-lbl">Ramal</label>
-                            <input type="text" id="cli-ramal2" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label class="prop-lbl">Fax</label>
-                            <input type="text" id="cli-fax" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label class="prop-lbl">Website</label>
-                            <input type="text" id="cli-website" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-                    </div>
-
-                    <!-- Celular e WhatsApp -->
-                    <div style="display:grid; grid-template-columns:1.5fr 2fr auto 1.5fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
-                        <div>
-                            <label class="prop-lbl">DDI do Celular</label>
-                            <select id="cli-celular-ddi" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                <option value="+55 (BRASIL)">+55 (BRASIL)</option>
-                                <option value="+1 (EUA)">+1 (EUA)</option>
-                                <option value="+351 (PORTUGAL)">+351 (PORTUGAL)</option>
-                            </select>
                         </div>
                         <div>
                             <label class="prop-lbl">Celular</label>
@@ -4726,12 +4634,13 @@ window.carregarClienteParaEdicao = async function(id) {
         document.getElementById('cli-municipio').value = c.municipio || '';
         document.getElementById('cli-pais').value = c.pais || 'BRASIL';
         document.getElementById('cli-telefone').value = c.telefone || '';
-        document.getElementById('cli-ramal').value = c.ramal || '';
-        document.getElementById('cli-telefone2').value = c.telefone_2 || '';
-        document.getElementById('cli-ramal2').value = c.ramal_2 || '';
-        document.getElementById('cli-fax').value = c.fax || '';
-        document.getElementById('cli-website').value = c.website || '';
-        document.getElementById('cli-celular-ddi').value = c.celular_ddi || '+55 (BRASIL)';
+        const setElVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        setElVal('cli-ramal', c.ramal || '');
+        setElVal('cli-telefone2', c.telefone_2 || '');
+        setElVal('cli-ramal2', c.ramal_2 || '');
+        setElVal('cli-fax', c.fax || '');
+        setElVal('cli-website', c.website || '');
+        setElVal('cli-celular-ddi', c.celular_ddi || '+55 (BRASIL)');
         document.getElementById('cli-celular').value = c.celular || '';
 
         // Carregar contatos e acordeões com mesclagem da tabela contatos
