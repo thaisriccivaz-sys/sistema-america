@@ -950,6 +950,36 @@ window.closeAppTab = function (tabId) {
 // navigateTo: abre uma aba ÚNICA por target (telas de lista/config).
 // Para colaborador/prontuário, use openColaboradorTab / openProntuarioTab.
 function navigateTo(target) {
+    if (target === 'comercial-proposta-nova') {
+        navigateTo('comercial-proposta');
+        if (typeof window.abrirFormProposta === 'function') {
+            window.abrirFormProposta(null);
+        }
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        const targetNavObj = document.querySelector(`[data-target="comercial-proposta-nova"]`);
+        if (targetNavObj) targetNavObj.classList.add('active');
+        return;
+    }
+    if (target === 'comercial-clientes') {
+        navigateTo('comercial-proposta');
+        if (typeof window.switchPropostaTab === 'function') {
+            window.switchPropostaTab('cadastro-cliente');
+        }
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        const targetNavObj = document.querySelector(`[data-target="comercial-clientes"]`);
+        if (targetNavObj) targetNavObj.classList.add('active');
+        return;
+    }
+    if (target === 'comercial-contatos') {
+        navigateTo('comercial-proposta');
+        if (typeof window.switchPropostaTab === 'function') {
+            window.switchPropostaTab('cadastro-contatos');
+        }
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        const targetNavObj = document.querySelector(`[data-target="comercial-contatos"]`);
+        if (targetNavObj) targetNavObj.classList.add('active');
+        return;
+    }
     if (target === 'comercial-enderecos') {
         navigateTo('comercial-proposta');
         if (typeof window.switchPropostaTab === 'function') {
@@ -967,6 +997,16 @@ function navigateTo(target) {
         }
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         const targetNavObj = document.querySelector(`[data-target="comercial-servicos-precificacao"]`);
+        if (targetNavObj) targetNavObj.classList.add('active');
+        return;
+    }
+    if (target === 'comercial-modelos-contrato') {
+        navigateTo('comercial-proposta');
+        if (typeof window.switchPropostaTab === 'function') {
+            window.switchPropostaTab('modelos-contrato');
+        }
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        const targetNavObj = document.querySelector(`[data-target="comercial-modelos-contrato"]`);
         if (targetNavObj) targetNavObj.classList.add('active');
         return;
     }

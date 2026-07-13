@@ -1535,6 +1535,7 @@ window._filtrarServicosPrecificadosPorTabela = function(tabelaPreco, selectedSer
 };
 
 /* ── Formulário (Modal) ─────────────────────────────────────────────── */
+window.abrirFormProposta = abrirFormProposta;
 async function abrirFormProposta(id) {
     _propostasEditandoId = id;
     _currentPropostaTab = 'form';
