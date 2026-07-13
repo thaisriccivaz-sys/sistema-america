@@ -25,7 +25,12 @@ const PROP_MODELOS = [
     'Locação Obra', 'Locação Evento', 'Proposta Simplificada', 'Proposta Completa'
 ];
 const PROP_TABELAS = [
-    'Locação Diária', 'Locação Semanal', 'Locação Mensal'
+    'TABELA DE PREÇO[1]',
+    'LOCAÇÃO DIÁRIA EVENTO[2]',
+    'LOCAÇÃO SEMANAL OBRA[3]',
+    'LOCAÇÃO QUINZENAL OBRA[4]',
+    'LOCAÇÃO MENSAL OBRA[5]',
+    'PRODUTO VENDA[6]'
 ];
 const PROP_COND_PAG = [
     'À Vista', 'DD 28 Dias', 'DD 30 Dias', 'DD 45 Dias', 'DD 60 Dias',
@@ -1474,15 +1479,23 @@ window._filtrarServicosPrecificadosPorTabela = function(tabelaPreco, selectedSer
         let price = s.preco_venda || 0;
         let shouldInclude = true;
 
-        if (tabelaPreco === 'Locação Diária') {
+        const tp = (tabelaPreco || '').toUpperCase();
+        if (tp.includes('DIÁRIA') || tp.includes('DIARIA') || tp.includes('EVENTO')) {
             price = viab ? viab.preco_sugerido_dia : 0;
             shouldInclude = price > 0;
-        } else if (tabelaPreco === 'Locação Semanal') {
+        } else if (tp.includes('SEMANAL')) {
             price = viab ? viab.preco_sugerido_semana : 0;
             shouldInclude = price > 0;
-        } else if (tabelaPreco === 'Locação Mensal') {
+        } else if (tp.includes('QUINZENAL')) {
+            price = viab ? viab.preco_sugerido_semana * 2 : 0;
+            shouldInclude = price > 0;
+        } else if (tp.includes('MENSAL')) {
             price = viab ? viab.preco_sugerido_mes : 0;
             shouldInclude = price > 0;
+        } else {
+            // Outras tabelas (ex: TABELA DE PREÇO[1] ou PRODUTO VENDA[6]) -> usa o preço de venda padrão do serviço
+            price = s.preco_venda || 0;
+            shouldInclude = true;
         }
 
         if (shouldInclude) {
