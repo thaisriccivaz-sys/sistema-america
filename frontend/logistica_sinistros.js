@@ -199,12 +199,17 @@ window._logSinRenderCardGeral = function(s, container) {
 
                 ${s.tipo_sinistro ? `<strong>Tipo:</strong> ${s.tipo_sinistro}` : ''}
             </div>
-            ${s.status === 'pendente' ? `
-            <button onclick="window.logSinAbrirModalEditar(${s.id}, ${s.colaborador_id})" title="Editar sinistro"
-                style="background:#f1f5f9; border:1.5px solid #cbd5e1; color:#475569; border-radius:8px; padding:5px 14px; font-size:0.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all .2s;"
-                onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b'" onmouseout="this.style.background='#f1f5f9'; this.style.color='#475569'">
-                <i class="ph ph-pencil-simple"></i> Editar
-            </button>` : `
+            ${(s.status === 'pendente' || s.status === 'iniciado') ? `
+            <div style="display:flex; gap:8px;">
+                <button onclick="window.logSinExcluirSinistro(${s.id}, ${s.colaborador_id})" title="Excluir sinistro" style="background:#fef2f2; border:1px solid #fecaca; color:#ef4444; border-radius:8px; padding:5px 14px; font-size:0.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all .2s;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'">
+                    <i class="ph ph-trash"></i> Excluir
+                </button>
+                <button onclick="window.logSinAbrirModalEditar(${s.id}, ${s.colaborador_id})" title="Editar sinistro"
+                    style="background:#f1f5f9; border:1.5px solid #cbd5e1; color:#475569; border-radius:8px; padding:5px 14px; font-size:0.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all .2s;"
+                    onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b'" onmouseout="this.style.background='#f1f5f9'; this.style.color='#475569'">
+                    <i class="ph ph-pencil-simple"></i> Editar
+                </button>
+            </div>` : `
             <span style="font-size:0.72rem; color:#94a3b8; display:flex; align-items:center; gap:4px;">
                 <i class="ph ph-lock"></i> Assinado — edição bloqueada
             </span>`}
@@ -1329,6 +1334,40 @@ window.logSinSalvarEdicao = async function() {
         if (btn) { btn.disabled = false; btn.innerHTML = oldTxt; }
     }
 }
+
+// ============================================================
+// EXCLUSÃO DE SINISTRO
+// ============================================================
+window.logSinExcluirSinistro = async function(sinId, colabId) {
+    if (!confirm('Tem certeza que deseja excluir este sinistro permanentemente?')) return;
+    
+    const senha = prompt('Para excluir o sinistro, digite a senha de autorização:');
+    if (senha !== 'EXL2499!') {
+        return alert('Senha incorreta. Exclusão cancelada.');
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}`, {
+            method: 'DELETE',
+            headers: { 
+                'Authorization': `Bearer ${localStorage.getItem('erp_token')}`,
+                'x-delete-password': senha
+            }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao excluir sinistro.');
+
+        if (typeof Toastify !== 'undefined') {
+            Toastify({ text: 'Sinistro excluído com sucesso!', backgroundColor: '#10b981' }).showToast();
+        } else {
+            alert('Sinistro excluído com sucesso!');
+        }
+
+        await window.logSinCarregarListaGeral();
+    } catch (e) {
+        alert('Erro ao excluir: ' + e.message);
+    }
+};
 
 // ============================================================
 // MODAL DE VÍDEO EXPLICATIVO

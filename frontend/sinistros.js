@@ -118,7 +118,7 @@ window._renderSinistroCard = function(s, colabId, container) {
         actionsHtml = `<div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;width:100%;">`;
         if (isRH) {
             // Botão Editar — apenas antes de qualquer assinatura
-            if (s.status === 'pendente') {
+            if (s.status === 'pendente' || s.status === 'iniciado') {
                 actionsHtml += `<button class="btn btn-sm" onclick="window.rhSinAbrirModalEditar(${s.id}, ${colabId})"
                     style="background:#f1f5f9; border:1.5px solid #cbd5e1; color:#475569; font-weight:700; padding:5px 12px;"
                     title="Editar sinistro (disponível apenas antes das assinaturas)">
@@ -132,7 +132,7 @@ window._renderSinistroCard = function(s, colabId, container) {
         if (s.documento_html) {
             actionsHtml += `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#64748b;background:#f1f5f9;border:none;"><i class="ph ph-eye"></i> Preview</button>`;
         }
-        if (isRH) {
+        if (isRH || s.status === 'pendente' || s.status === 'iniciado') {
             actionsHtml += `<button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent;"><i class="ph ph-trash"></i> Excluir</button>`;
         }
         actionsHtml += `</div>`;
