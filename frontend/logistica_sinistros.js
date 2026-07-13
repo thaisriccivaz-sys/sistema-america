@@ -937,10 +937,10 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                 </h3>
                 <button onclick="document.getElementById('modal-log-sin-editar').style.display='none'" class="btn-close" style="background:rgba(255,255,255,0.15); color:#fff;"><i class="ph ph-x"></i></button>
             </div>
-            <div class="modal-body" style="display:flex; gap:1.5rem; align-items:flex-start; flex:1; overflow-y:auto; padding:1.5rem;">
+            <div class="modal-body" style="display:flex; gap:1.5rem; flex:1; overflow-y:auto; padding:1.5rem;">
 
                 <!-- COLUNA ESQUERDA: Dados do BO e Arquivos -->
-                <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:0.9rem;">
+                <div style="width:calc(50% - 0.75rem); flex-shrink:0; min-width:0; display:flex; flex-direction:column; gap:0.9rem;">
 
                     <div style="background:#fef9c3; border:1px solid #fde047; border-radius:8px; padding:0.6rem 0.85rem; font-size:0.82rem; color:#713f12; display:flex; align-items:center; gap:6px;">
                         <i class="ph ph-warning"></i>
@@ -1058,7 +1058,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                 </div>
 
                 <!-- COLUNA DIREITA: Tipo de Sinistro + Observações + Histórico -->
-                <div style="flex:1; flex-shrink:0; display:flex; flex-direction:column; gap:0.9rem; position:sticky; top:0; align-self:flex-start;">
+                <div style="width:calc(50% - 0.75rem); flex-shrink:0; min-width:0; display:flex; flex-direction:column; gap:0.9rem;">
 
                     <!-- Tipo de Sinistro -->
                     <div class="input-group" style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:1rem;">
