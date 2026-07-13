@@ -188,6 +188,7 @@ window._renderSinistroCard = function(s, colabId, container) {
                     <h5 style="margin:0; font-size:1.1rem; color:#0f172a; font-weight:700;"><i class="ph ph-file-text" style="color:#d97706;"></i> BO: ${s.numero_boletim || 'N/A'}</h5>
                     <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;"><i class="ph ph-calendar"></i> Ocorrido: ${s.data_hora || '—'} &nbsp;|&nbsp; ${naturezaDisplay}</p>
                     <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;">${s.veiculo || '—'} &nbsp;|&nbsp; Placa: ${s.placa || '—'}</p>
+                    ${s.observacoes ? `<p style="margin:6px 0 0; font-size:0.85rem; color:#334155; background:#f1f5f9; padding:6px 10px; border-radius:6px;"><i class="ph ph-info"></i> <strong>Obs:</strong> ${s.observacoes}</p>` : ''}
                     ${signStatus}
                 </div>
             </div>
@@ -1796,8 +1797,8 @@ window.rhSinAbrirModalEditar = async function(sinId, colabId) {
     }
 
     modal.innerHTML = `
-        <div class="modal-content" style="max-width:680px; max-height:92vh; overflow-y:auto;">
-            <div class="modal-header" style="background:linear-gradient(135deg,#0f172a,#1e293b); position:sticky; top:0; z-index:10;">
+        <div class="modal-content" style="max-width:100vw; width:100vw; height:100vh; max-height:100vh; margin:0; border-radius:0; display:flex; flex-direction:column; overflow:hidden;">
+            <div class="modal-header" style="background:linear-gradient(135deg,#0f172a,#1e293b); z-index:10; flex-shrink:0;">
                 <h3 style="color:#fff; margin:0; display:flex; align-items:center; gap:8px;">
                     <i class="ph ph-pencil-simple" style="color:#fbbf24;"></i> Editar Sinistro #${sinId}
                     <span style="font-size:0.72rem; background:#fbbf24; color:#1e293b; border-radius:12px; padding:2px 10px; font-weight:700; margin-left:4px;">PENDENTE</span>
@@ -1806,7 +1807,7 @@ window.rhSinAbrirModalEditar = async function(sinId, colabId) {
                     <i class="ph ph-x"></i>
                 </button>
             </div>
-            <div class="modal-body" style="display:flex; flex-direction:column; gap:1rem;">
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:1rem; flex:1; overflow-y:auto; padding:1.5rem;">
 
                 <div style="background:#fef9c3; border:1px solid #fde047; border-radius:8px; padding:0.6rem 0.85rem; font-size:0.82rem; color:#713f12; display:flex; align-items:center; gap:6px;">
                     <i class="ph ph-lock-open"></i>
@@ -1853,6 +1854,10 @@ window.rhSinAbrirModalEditar = async function(sinId, colabId) {
                             <label>Placa</label>
                             <input type="text" id="rh-edit-placa" class="form-control" value="${sinistro.placa || ''}">
                         </div>
+                    </div>
+                    <div class="input-group" style="margin-top:0.75rem;">
+                        <label>Observações</label>
+                        <textarea id="rh-edit-observacoes" class="form-control" rows="3" placeholder="Informações adicionais ou notas importantes...">${sinistro.observacoes || ''}</textarea>
                     </div>
                 </div>
 
@@ -2160,6 +2165,7 @@ window.rhSinSalvar = async function() {
         if (document.getElementById('rh-edit-natureza')) form.append('natureza', document.getElementById('rh-edit-natureza').value);
         if (document.getElementById('rh-edit-veiculo')) form.append('veiculo', document.getElementById('rh-edit-veiculo').value);
         if (document.getElementById('rh-edit-placa')) form.append('placa', document.getElementById('rh-edit-placa').value);
+        if (document.getElementById('rh-edit-observacoes')) form.append('observacoes', document.getElementById('rh-edit-observacoes').value);
 
         if (window._rhEdit.boFile) {
             form.append('arquivo', window._rhEdit.boFile);
