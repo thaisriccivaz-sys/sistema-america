@@ -2094,12 +2094,12 @@ window.rhSinSalvar = async function() {
 
     try {
         // 1) Campos básicos + orçamentos base64
-        const form = new URLSearchParams();
-        form.set('numero_boletim', document.getElementById('rh-edit-bo')?.value || '');
-        form.set('data_hora',      document.getElementById('rh-edit-data')?.value || '');
-        form.set('natureza',       document.getElementById('rh-edit-natureza')?.value || '');
-        form.set('veiculo',        document.getElementById('rh-edit-veiculo')?.value || '');
-        form.set('placa',          document.getElementById('rh-edit-placa')?.value || '');
+        const form = new FormData();
+        if (document.getElementById('rh-edit-bo')) form.append('numero_boletim', document.getElementById('rh-edit-bo').value);
+        if (document.getElementById('rh-edit-data')) form.append('data_hora', document.getElementById('rh-edit-data').value);
+        if (document.getElementById('rh-edit-natureza')) form.append('natureza', document.getElementById('rh-edit-natureza').value);
+        if (document.getElementById('rh-edit-veiculo')) form.append('veiculo', document.getElementById('rh-edit-veiculo').value);
+        if (document.getElementById('rh-edit-placa')) form.append('placa', document.getElementById('rh-edit-placa').value);
 
         if (orcFiles.length > 0) {
             if (btn) btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando orçamentos...';
@@ -2108,16 +2108,15 @@ window.rhSinSalvar = async function() {
                 const b64 = await new Promise(res => { const rd = new FileReader(); rd.onload = () => res(rd.result); rd.readAsDataURL(f); });
                 b64arr.push(b64);
             }
-            form.set('orcamentos_base64', JSON.stringify(b64arr));
+            form.append('orcamentos_base64', JSON.stringify(b64arr));
         }
 
         const r1 = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}`, {
             method: 'PATCH',
             headers: {
-                'Authorization': `Bearer ${localStorage.getItem('erp_token')}`,
-                'Content-Type': 'application/x-www-form-urlencoded'
+                'Authorization': `Bearer ${localStorage.getItem('erp_token')}`
             },
-            body: form.toString()
+            body: form
         });
         const d1 = await r1.json();
         if (!r1.ok) throw new Error(d1.error || 'Erro ao salvar campos.');
