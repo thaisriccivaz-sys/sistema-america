@@ -1077,7 +1077,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                         <p style="margin:0 0 10px; font-weight:700; font-size:0.85rem; color:#334155; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-chat-text" style="color:#6366f1;"></i> Histórico de Observações
                         </p>
-                        <div id="edit-sin-historico-obs" style="max-height:300px; overflow-y:auto; display:flex; flex-direction:column-reverse; gap:8px; margin-bottom:10px;">
+                        <div id="edit-sin-historico-obs" style="max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; margin-bottom:10px;">
                             ${(function() {
                                 let hist = [];
                                 try { if (sinistro.observacoes_historico) hist = JSON.parse(sinistro.observacoes_historico); } catch(e) {}
@@ -1500,7 +1500,7 @@ window.logSinSalvarEdicao = async function() {
                                     + '</div>';
                             }).join('');
                         }
-                        histContainer.scrollTop = 0; // Vai para o topo (mais recente)
+                        histContainer.scrollTop = 0; // Topo = mais recente
                     }
                 }
             }
