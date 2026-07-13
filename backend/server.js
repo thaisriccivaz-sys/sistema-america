@@ -2628,18 +2628,15 @@ app.post('/api/ia/classificar-regiao', authenticateToken, (req, res) => {
                 "guarulhos", "gopouva", "cumbica", "pimentas", "macedo", "cecilia", 
                 "gru", "bosque maia", "taboao", "vila galvao", "bonsucesso", 
                 "lavras", "soberana", "haras", "recreio", "cecap",
-                "lapa", "perdizes", "barra funda", "pinheiros", "alto de pinheiros", "vila madalena", "mooca", 
-                "belem", "belenzinho", "bras", "pari", "cambuci", "se", "republica", 
+                "mooca", "belem", "belenzinho", "bras", "pari", "cambuci", "se", "republica", 
                 "bela vista", "consolacao", "santa cecilia", "bom retiro",
-                "vila mariana", "ipiranga", "sacoma", "cursino", "saude", "moema", "itaim bibi", 
-                "vila olimpia", "chacara santo antonio", "brooklin", "campo belo", "santo amaro",
                 "santana", "tucuruvi", "casa verde", "limao", "freguesia do o", "tremembe", 
                 "mandaqui", "vila maria", "vila guilherme", "medeiros", "vila medeiros", "parada inglesa", 
                 "jardim sao paulo",
                 "penha", "tatuape", "carrao", "vila formosa", "aricanduva", "cangaiba", 
                 "vila prudente", "itaquera", "artur alvim", "patriarca", "sao miguel", 
                 "itaim paulista", "ermelino matarazzo", "ermelino", "cidade lider", "cidade tiradentes", 
-                "tiradentes", "guaianases", "jardim helena", "helena", "sao mateus", "parque do carmo"
+                "tiradentes", "guaianases", "jardim helena", "helena", "parque do carmo"
             ]
         },
         {
@@ -2652,7 +2649,12 @@ app.post('/api/ia/classificar-regiao', authenticateToken, (req, res) => {
                 "sapopemba", "sao rafael", "iguatemi",
                 "pirituba",
                 "aruja", "itaquaquecetuba", "itaqua", "poa", "ferraz de vasconcelos", "ferraz", 
-                "taboao da serra"
+                "taboao da serra",
+                "sao caetano do sul", "sao caetano",
+                "lapa", "perdizes", "barra funda", "pinheiros", "alto de pinheiros", "vila madalena",
+                "vila mariana", "ipiranga", "sacoma", "cursino", "saude", "moema", "itaim bibi", 
+                "vila olimpia", "chacara santo antonio", "brooklin", "campo belo", "santo amaro",
+                "sao mateus"
             ]
         },
         {
@@ -2664,7 +2666,7 @@ app.post('/api/ia/classificar-regiao', authenticateToken, (req, res) => {
                 "tambore", "embu das artes", "embu", "itapecerica da serra", "itapecerica", 
                 "embu-guacu", "sao lourenco da serra",
                 "diadema", "sao bernardo do campo", "sbc", "santo andre", 
-                "sao caetano do sul", "sao caetano", "maua", "ribeirao pires", "rio grande da serra",
+                "maua", "ribeirao pires", "rio grande da serra",
                 "suzano", "mogi das cruzes", "mogi",
                 "perus", "jaragua", "anhaguera", "brasilandia", "cachoeirinha", 
                 "grajau", "parelheiros", "marsilac", "cidade dutra", "jardim angela", "pedreira"

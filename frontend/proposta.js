@@ -8930,18 +8930,16 @@ function obterRegiaoLocal(enderecoCompleto) {
         "guarulhos", "gopouva", "gopóuva", "cumbica", "pimentas", "macedo", "cecilia", "cecília", 
         "gru", "bosque maia", "taboao", "taboão", "vila galvão", "vila galvao", "bonsucesso", 
         "lavras", "soberana", "haras", "recreio", "parque cecap", "cecap",
-        "lapa", "perdizes", "barra funda", "pinheiros", "alto de pinheiros", "vila madalena", "mooca", "moóca", 
+        "mooca", "moóca", 
         "belém", "belem", "belenzinho", "bras", "brás", "pari", "cambuci", "sé", "se", "republica", "república", 
         "bela vista", "consolação", "consolacao", "santa cecilia", "santa cecília", "bom retiro",
-        "vila mariana", "ipiranga", "sacoma", "sacomã", "cursino", "saude", "saúde", "moema", "itaim bibi", 
-        "vila olimpia", "vila olímpia", "chacara santo antonio", "chácara santo antônio", "brooklin", "campo belo", "santo amaro",
         "santana", "tucuruvi", "casa verde", "limao", "limão", "freguesia do o", "freguesia do ó", "tremembe", 
         "tremembé", "mandaqui", "vila maria", "vila guilherme", "medeiros", "vila medeiros", "parada inglesa", 
         "jardim sao paulo", "jardim são paulo",
         "penha", "tatuape", "tatuapé", "carrão", "carrao", "vila formosa", "aricanduva", "cangaiba", "cangaíba", 
         "vila prudente", "itaquera", "artur alvim", "arthur alvim", "patriarca", "sao miguel", "são miguel", 
         "itaim paulista", "ermelino matarazzo", "ermelino", "cidade lider", "cidade líder", "cidade tiradentes", 
-        "tiradentes", "guaianases", "jardim helena", "helena", "sao mateus", "são mateus", "parque do carmo"
+        "tiradentes", "guaianases", "jardim helena", "helena", "parque do carmo"
     ];
     
     const amarelaKw = [
@@ -8952,7 +8950,12 @@ function obterRegiaoLocal(enderecoCompleto) {
         "sapopemba", "sao rafael", "são rafael", "iguatemi",
         "pirituba",
         "aruja", "arujá", "itaquaquecetuba", "itaquá", "poa", "poá", "ferraz de vasconcelos", "ferraz", 
-        "taboao da serra", "taboão da serra"
+        "taboao da serra", "taboão da serra",
+        "sao caetano do sul", "são caetano do sul", "são caetano", "sao caetano",
+        "lapa", "perdizes", "barra funda", "pinheiros", "alto de pinheiros", "vila madalena",
+        "vila mariana", "ipiranga", "sacoma", "sacomã", "cursino", "saude", "saúde", "moema", "itaim bibi", 
+        "vila olimpia", "vila olímpia", "chacara santo antonio", "chácara santo antônio", "brooklin", "campo belo", "santo amaro",
+        "sao mateus", "são mateus"
     ];
     
     const vermelhaKw = [
@@ -8962,8 +8965,7 @@ function obterRegiaoLocal(enderecoCompleto) {
         "tambore", "tamboré", "embu das artes", "embu", "itapecerica da serra", "itapecerica", 
         "embu-guaçu", "embu-guacu", "são lourenço da serra", "sao lourenço da serra",
         "diadema", "sao bernardo do campo", "são bernardo do campo", "sbc", "santo andre", "santo andré", 
-        "sao caetano do sul", "são caetano do sul", "são caetano", "sao caetano", "maua", "mauá", 
-        "ribeirao pires", "ribeirão pires", "rio grande da serra",
+        "maua", "mauá", "ribeirao pires", "ribeirão pires", "rio grande da serra",
         "suzano", "mogi das cruzes", "mogi",
         "perus", "jaragua", "jaraguá", "anhaguera", "brasilandia", "brasilândia", "cachoeirinha", 
         "grajau", "grajaú", "parelheiros", "marsilac", "cidade dutra", "jardim angela", "jardim ângela", "pedreira"
