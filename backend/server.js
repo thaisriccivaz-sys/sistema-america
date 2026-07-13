@@ -4380,7 +4380,8 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
             let historico = [];
             try { if (sinistro.observacoes_historico) historico = JSON.parse(sinistro.observacoes_historico); } catch(e) {}
             const agora = new Date();
-            const dataBR = agora.toLocaleDateString('pt-BR') + ' às ' + agora.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+            const tzOpts = { timeZone: 'America/Sao_Paulo' };
+            const dataBR = agora.toLocaleDateString('pt-BR', tzOpts) + ' às ' + agora.toLocaleTimeString('pt-BR', { ...tzOpts, hour:'2-digit', minute:'2-digit' });
             historico.push({
                 autor: body.autor_observacao || (req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema'),
                 data: dataBR,
