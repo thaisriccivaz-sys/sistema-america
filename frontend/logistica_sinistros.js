@@ -940,7 +940,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
             <div class="modal-body" style="display:flex; gap:1.5rem; align-items:flex-start; flex:1; overflow-y:auto; padding:1.5rem;">
 
                 <!-- COLUNA ESQUERDA: Dados do BO e Arquivos -->
-                <div style="flex:1.1; min-width:0; display:flex; flex-direction:column; gap:0.9rem;">
+                <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:0.9rem;">
 
                     <div style="background:#fef9c3; border:1px solid #fde047; border-radius:8px; padding:0.6rem 0.85rem; font-size:0.82rem; color:#713f12; display:flex; align-items:center; gap:6px;">
                         <i class="ph ph-warning"></i>
@@ -1058,7 +1058,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                 </div>
 
                 <!-- COLUNA DIREITA: Tipo de Sinistro + Observações + Histórico -->
-                <div style="width:400px; flex-shrink:0; display:flex; flex-direction:column; gap:0.9rem; position:sticky; top:0; align-self:flex-start;">
+                <div style="flex:1; flex-shrink:0; display:flex; flex-direction:column; gap:0.9rem; position:sticky; top:0; align-self:flex-start;">
 
                     <!-- Tipo de Sinistro -->
                     <div class="input-group" style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:1rem;">
@@ -1077,7 +1077,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                         <p style="margin:0 0 10px; font-weight:700; font-size:0.85rem; color:#334155; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-chat-text" style="color:#6366f1;"></i> Histórico de Observações
                         </p>
-                        <div id="edit-sin-historico-obs" style="max-height:260px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; margin-bottom:10px;">
+                        <div id="edit-sin-historico-obs" style="max-height:300px; overflow-y:auto; display:flex; flex-direction:column-reverse; gap:8px; margin-bottom:10px;">
                             ${(function() {
                                 let hist = [];
                                 try { if (sinistro.observacoes_historico) hist = JSON.parse(sinistro.observacoes_historico); } catch(e) {}
@@ -1087,11 +1087,12 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                                         + '<p style="margin:0;">' + sinistro.observacoes.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p></div>';
                                 }
                                 if (!hist.length) return '<p style="font-size:0.8rem;color:#94a3b8;margin:0;text-align:center;padding:1rem;">Nenhuma observação registrada ainda.</p>';
-                                return hist.map(function(h) {
+                                // Mostrar do mais novo ao mais antigo
+                                return hist.slice().reverse().map(function(h) {
                                     return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">'
                                         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
                                         + '<span style="font-size:0.73rem;font-weight:700;color:#6366f1;"><i class="ph ph-user-circle"></i> ' + (h.autor || 'Sistema') + '</span>'
-                                        + '<span style="font-size:0.68rem;color:#94a3b8;">' + (h.data || '') + '</span>'
+                                        + '<span style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;margin-left:6px;">' + (h.data || '') + '</span>'
                                         + '</div>'
                                         + '<p style="margin:0;font-size:0.83rem;color:#334155;line-height:1.5;">' + (h.texto || '').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>'
                                         + '</div>';
@@ -1406,7 +1407,10 @@ window.logSinSalvarEdicao = async function() {
         var fNovaObs = document.getElementById('edit-sin-nova-obs');
         if (fNovaObs && fNovaObs.value.trim()) {
             formData.append('nova_observacao', fNovaObs.value.trim());
-            formData.append('autor_observacao', typeof currentUser !== 'undefined' ? (currentUser.nome || currentUser.email || 'Sistema') : 'Sistema');
+            var nomeAutor = (typeof currentUser !== 'undefined' && currentUser)
+                ? (currentUser.nome || currentUser.username || 'Sistema')
+                : 'Sistema';
+            formData.append('autor_observacao', nomeAutor);
         }
 
         if (window._logSinEditBOFile) {
@@ -1463,10 +1467,47 @@ window.logSinSalvarEdicao = async function() {
         }
 
         showMsg('Sinistro atualizado com sucesso!', true);
-        setTimeout(async function() {
-            document.getElementById('modal-log-sin-editar').style.display = 'none';
-            await window.logSinCarregarListaGeral();
-        }, 1200);
+
+        // Limpar campo de nova observação e recarregar histórico
+        var obsField = document.getElementById('edit-sin-nova-obs');
+        if (obsField) obsField.value = '';
+
+        // Atualizar o histórico de observações sem fechar o modal
+        try {
+            var resSin = await fetch(API_URL + '/colaboradores/' + colabId + '/sinistros', {
+                headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('erp_token') || '') }
+            });
+            if (resSin.ok) {
+                var listaSin = await resSin.json();
+                var sinAtual = Array.isArray(listaSin) ? listaSin.find(function(s) { return s.id == sinId; }) : null;
+                if (sinAtual) {
+                    var histContainer = document.getElementById('edit-sin-historico-obs');
+                    if (histContainer) {
+                        var hist = [];
+                        try { if (sinAtual.observacoes_historico) hist = JSON.parse(sinAtual.observacoes_historico); } catch(e) {}
+                        if (!hist.length && sinAtual.observacoes) {
+                            histContainer.innerHTML = '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;font-size:0.82rem;color:#1e40af;"><p style="margin:0 0 3px;font-size:0.7rem;color:#64748b;">Observação inicial</p><p style="margin:0;">' + sinAtual.observacoes.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p></div>';
+                        } else if (!hist.length) {
+                            histContainer.innerHTML = '<p style="font-size:0.8rem;color:#94a3b8;margin:0;text-align:center;padding:1rem;">Nenhuma observação registrada ainda.</p>';
+                        } else {
+                            histContainer.innerHTML = hist.slice().reverse().map(function(h) {
+                                return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">'
+                                    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
+                                    + '<span style="font-size:0.73rem;font-weight:700;color:#6366f1;"><i class="ph ph-user-circle"></i> ' + (h.autor || 'Sistema') + '</span>'
+                                    + '<span style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;margin-left:6px;">' + (h.data || '') + '</span>'
+                                    + '</div>'
+                                    + '<p style="margin:0;font-size:0.83rem;color:#334155;line-height:1.5;">' + (h.texto || '').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>'
+                                    + '</div>';
+                            }).join('');
+                        }
+                        histContainer.scrollTop = 0; // Vai para o topo (mais recente)
+                    }
+                }
+            }
+        } catch(eHist) { console.warn('Erro ao recarregar histórico:', eHist); }
+
+        // Atualizar lista geral em background sem fechar o modal
+        if (typeof window.logSinCarregarListaGeral === 'function') window.logSinCarregarListaGeral();
 
     } catch(e) {
         showMsg(e.message, false);
