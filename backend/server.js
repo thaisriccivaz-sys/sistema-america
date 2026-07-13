@@ -2438,32 +2438,52 @@ app.post('/api/ia/classificar-tipo', authenticateToken, (req, res) => {
         // Classes mapping with weights based on typical construction & rental business context
         const classes = [
             {
-                name: "Proposta Obra Mensal",
-                keywords: ["obra", "canteiro", "mensal", "meses", "mês", "mes", "construcao", "construção", "predial", "edificacao", "edificação", "faturado mensal", "longo prazo", "locação mensal"]
+                name: "ADITIVO",
+                keywords: ["aditivo", "aditar", "termo aditivo", "prorrogacao", "prorrogação"]
             },
             {
-                name: "Proposta Evento",
-                keywords: ["evento", "show", "festa", "casamento", "feira", "congresso", "exposicao", "exposição", "festival", "palco", "aniversario", "aniversário", "sabado", "sábado", "domingo", "fim de semana", "fds", "diária de evento"]
+                name: "EQUIPAMENTOS",
+                keywords: ["equipamento", "equipamentos", "maquina", "maquinas", "locacao de maquinas"]
             },
             {
-                name: "Proposta Obra Diária",
-                keywords: ["diaria", "diária", "diarias", "diárias", "obra", "dias", "dia", "curto prazo", "obra rápida", "reparo rápido", "rápida"]
+                name: "PROPOSTA EVENTO",
+                keywords: ["evento", "show", "festa", "casamento", "feira", "congresso", "exposicao", "festival", "palco", "aniversario", "fim de semana"]
             },
             {
-                name: "Proposta Serviço Avulso",
-                keywords: ["servico", "serviço", "avulso", "manutencao", "manutenção", "visita", "tecnica", "técnica", "conserto", "instalacao", "instalação", "reparo", "suporte", "assistencia", "assistência", "limpeza", "avulsa"]
+                name: "PROPOSTA LIMPA FOSSA",
+                keywords: ["limpa fossa", "limpeza de fossa", "esgotamento", "fossa"]
             },
             {
-                name: "Proposta Locação Longa",
-                keywords: ["longa", "longo prazo", "anual", "semestral", "permanente", "contrato longo", "ano", "anos", "indeterminado", "12 meses", "6 meses"]
+                name: "PROPOSTA LIMPA FOSSA MENSAL",
+                keywords: ["limpa fossa mensal", "fossa mensal", "esgotamento mensal"]
             },
             {
-                name: "Proposta Reforma",
-                keywords: ["reforma", "reformar", "pintura", "retrofit", "restauro", "adequacao", "adequação", "reparacao", "reparação", "acabamento", "adequar"]
+                name: "PROPOSTA LOCAÇÃO CONTAINER",
+                keywords: ["container", "conteiner", "modulo", "módulo"]
+            },
+            {
+                name: "PROPOSTA OBRA MENSAL",
+                keywords: ["mensal", "meses", "mês", "mes", "construcao", "construção", "predial", "edificacao", "longo prazo", "locação mensal"]
+            },
+            {
+                name: "PROPOSTA OBRA QUINZENAL",
+                keywords: ["quinzenal", "quinzena", "quinzenas", "a cada 15 dias", "quinze dias"]
+            },
+            {
+                name: "PROPOSTA OBRA SEMANAL",
+                keywords: ["semanal", "semana", "semanas", "a cada 7 dias", "a cada semana"]
+            },
+            {
+                name: "PROPOSTA VENDA",
+                keywords: ["venda", "comprar", "compra", "adquirir", "vender"]
+            },
+            {
+                name: "VISITA TÉCNICA",
+                keywords: ["visita", "visita tecnica", "visita técnica", "vistoria", "tecnico", "técnico"]
             }
         ];
 
-        let bestClass = "Proposta Obra Mensal"; // default fallback
+        let bestClass = "PROPOSTA OBRA MENSAL"; // default fallback
         let maxScore = -1;
 
         classes.forEach(c => {
@@ -2484,10 +2504,12 @@ app.post('/api/ia/classificar-tipo', authenticateToken, (req, res) => {
 
         // Special context sub-rules for co-occurrences
         if (t.includes('obra')) {
-            if (t.includes('diaria') || t.includes('diária') || t.includes('dias') || t.includes('dia')) {
-                bestClass = "Proposta Obra Diária";
-            } else if (t.includes('mensal') || t.includes('meses') || t.includes('mês') || t.includes('mes')) {
-                bestClass = "Proposta Obra Mensal";
+            if (t.includes('semanal') || t.includes('semana')) {
+                bestClass = "PROPOSTA OBRA SEMANAL";
+            } else if (t.includes('quinzenal') || t.includes('quinzena')) {
+                bestClass = "PROPOSTA OBRA QUINZENAL";
+            } else if (t.includes('mensal') || t.includes('mes') || t.includes('mês')) {
+                bestClass = "PROPOSTA OBRA MENSAL";
             }
         }
 

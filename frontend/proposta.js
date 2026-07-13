@@ -5,8 +5,17 @@
 
 /* ── Dados de configuração ─────────────────────────────────────────── */
 const PROP_TIPOS = [
-    'Proposta Obra Mensal', 'Proposta Evento', 'Proposta Obra Diária',
-    'Proposta Serviço Avulso', 'Proposta Locação Longa', 'Proposta Reforma'
+    'ADITIVO',
+    'EQUIPAMENTOS',
+    'PROPOSTA EVENTO',
+    'PROPOSTA LIMPA FOSSA',
+    'PROPOSTA LIMPA FOSSA MENSAL',
+    'PROPOSTA LOCAÇÃO CONTAINER',
+    'PROPOSTA OBRA MENSAL',
+    'PROPOSTA OBRA QUINZENAL',
+    'PROPOSTA OBRA SEMANAL',
+    'PROPOSTA VENDA',
+    'VISITA TÉCNICA'
 ];
 const PROP_FASES = [
     'Em Elaboração', 'Proposta Enviada', 'Em Negociação',
