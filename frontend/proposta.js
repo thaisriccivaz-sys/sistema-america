@@ -380,17 +380,22 @@ function renderTelaPropostas() {
                     border-radius: 6px;
                 }
 
-                /* Rótulos dos Campos (Labels) */
+                /* Rótulos dos Campos (Labels) - Padronizados com Rota Redonda */
                 .prop-lbl,
                 .prop-lbl-end,
+                .prop-lbl-modal,
+                .mcli-field label,
+                .prec-input-group label,
+                .mcon-field label,
                 [id^="prop-view-"] label {
+                    font-weight: 600 !important;
                     font-size: 0.7rem !important;
-                    font-weight: 700 !important;
                     color: #475569 !important;
-                    text-transform: uppercase !important;
-                    letter-spacing: 0.03em !important;
                     display: block !important;
-                    margin-bottom: 0.15rem !important;
+                    margin-bottom: 2px !important;
+                    white-space: nowrap !important;
+                    text-transform: none !important;
+                    letter-spacing: normal !important;
                 }
 
                 /* Títulos de Seção / Painéis */
@@ -411,56 +416,106 @@ function renderTelaPropostas() {
                     gap: 0.4rem !important;
                 }
 
-                /* Estilo Profissional de ERP Web (Densa e Compacta) para todos os formulários comerciais */
+                /* Estilo Densa e Compacta (Rota Redonda 26px) para todos os formulários comerciais */
                 [id^="prop-view-"] input:not([type="checkbox"]):not([type="radio"]),
-                [id^="prop-view-"] select {
-                    height: 28px !important;
-                    padding: 0.15rem 0.45rem !important;
-                    font-size: 0.76rem !important;
+                [id^="prop-view-"] select,
+                #form-cadastro-cliente input:not([type="checkbox"]):not([type="radio"]),
+                #form-cadastro-cliente select,
+                .mcli-input, .mcli-select,
+                .cc-container-modal input:not([type="checkbox"]):not([type="radio"]),
+                .cc-container-modal select,
+                .cc-container-end input:not([type="checkbox"]):not([type="radio"]),
+                .cc-container-end select,
+                .mcon-container input:not([type="checkbox"]):not([type="radio"]),
+                .mcon-container select,
+                .mcon-input, .mcon-select,
+                .prec-input-group input:not([type="checkbox"]):not([type="radio"]),
+                .prec-input-group select {
+                    height: 26px !important;
+                    padding: 2px 6px !important;
+                    font-size: 0.75rem !important;
                     border-radius: 4px !important;
                     border: 1px solid #cbd5e1 !important;
+                    background: white !important;
                     color: #1e293b !important;
                     box-sizing: border-box !important;
                     line-height: normal !important;
                     font-family: 'Inter', sans-serif !important;
+                    outline: none !important;
+                    transition: all 0.2s !important;
                 }
-                [id^="prop-view-"] textarea {
-                    padding: 0.3rem 0.45rem !important;
-                    font-size: 0.76rem !important;
+
+                [id^="prop-view-"] input:not([type="checkbox"]):not([type="radio"]):focus,
+                [id^="prop-view-"] select:focus,
+                #form-cadastro-cliente input:not([type="checkbox"]):not([type="radio"]):focus,
+                #form-cadastro-cliente select:focus,
+                .mcli-input:focus, .mcli-select:focus,
+                .cc-container-modal input:not([type="checkbox"]):not([type="radio"]):focus,
+                .cc-container-modal select:focus,
+                .cc-container-end input:not([type="checkbox"]):not([type="radio"]):focus,
+                .cc-container-end select:focus,
+                .mcon-container input:not([type="checkbox"]):not([type="radio"]):focus,
+                .mcon-container select:focus,
+                .mcon-input:focus, .mcon-select:focus,
+                .prec-input-group input:not([type="checkbox"]):not([type="radio"]):focus,
+                .prec-input-group select:focus {
+                    border-color: #3b82f6 !important;
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+                }
+
+                [id^="prop-view-"] textarea,
+                #form-cadastro-cliente textarea,
+                .mcli-container textarea,
+                .cc-container-modal textarea,
+                .cc-container-end textarea,
+                .mcon-container textarea,
+                .mcon-container textarea,
+                .prec-input-group textarea {
+                    padding: 4px 6px !important;
+                    font-size: 0.75rem !important;
                     border-radius: 4px !important;
                     border: 1px solid #cbd5e1 !important;
+                    background: white !important;
                     color: #1e293b !important;
                     box-sizing: border-box !important;
                     font-family: 'Inter', sans-serif !important;
+                    outline: none !important;
                 }
 
-                /* Alinhamento de botões de busca / addon / whatsapp com a altura de 28px */
+                /* Alinhamento de botões de busca / addon / whatsapp com a altura de 26px */
+                [id^="prop-view-"] button,
                 [id^="prop-view-"] form button,
                 [id^="prop-view-"] .prec-container button,
                 [id^="prop-view-"] .cc-grid-end-row1 button,
                 [id^="prop-view-"] .cc-grid-contact-row1 button,
-                [id^="prop-view-"] button[style*="height:36px"],
-                [id^="prop-view-"] button[style*="height: 36px"],
-                [id^="prop-view-"] button[style*="height:38px"],
-                [id^="prop-view-"] button[style*="height: 38px"],
-                [id^="prop-view-"] button[class*="btn-addon"] {
-                    height: 28px !important;
-                    font-size: 0.76rem !important;
-                    padding: 0 0.65rem !important;
+                [id^="prop-view-"] button[class*="btn-addon"],
+                .mcli-container button,
+                .cc-container-modal button,
+                .cc-container-end button,
+                .mcon-container button,
+                #form-cadastro-cliente button,
+                .prec-input-group button,
+                .prec-btn {
+                    height: 26px !important;
+                    font-size: 0.75rem !important;
+                    padding: 0 10px !important;
                     border-radius: 4px !important;
                     display: inline-flex !important;
                     align-items: center !important;
                     justify-content: center !important;
                     gap: 4px !important;
+                    font-weight: 600 !important;
+                    font-family: 'Inter', sans-serif !important;
+                    cursor: pointer !important;
                 }
                 
                 [id^="prop-view-"] form button i,
                 [id^="prop-view-"] .prec-container button i,
                 [id^="prop-view-"] button[class*="btn-addon"] i {
-                    font-size: 0.9rem !important;
+                    font-size: 0.85rem !important;
                 }
 
-                /* Definir largura fixa de 28px para botões que contêm apenas ícones de busca, whatsapp e visualização */
+                /* Definir largura fixa de 26px para botões que contêm apenas ícones */
                 [id^="prop-view-"] form button[title*="Pesquisar"],
                 [id^="prop-view-"] form button[onclick*="WhatsApp"],
                 [id^="prop-view-"] form button[onclick*="abrirWhatsApp"],
@@ -469,9 +524,45 @@ function renderTelaPropostas() {
                 [id^="prop-view-"] form button[title*="Buscar"],
                 [id^="prop-view-"] form button[onclick*="verDetalhesContato"],
                 [id^="prop-view-"] form button[onclick*="recarregar"],
-                [id^="prop-view-"] form button[title*="Recarregar"] {
-                    width: 28px !important;
+                [id^="prop-view-"] form button[title*="Recarregar"],
+                [id^="prop-view-"] form button[title*="Detalhes"],
+                [id^="prop-view-"] form button[onclick*="verDetalhesCliente"] {
+                    width: 26px !important;
                     padding: 0 !important;
+                }
+
+                /* Cores padrão dos botões do Comercial */
+                button.btn-sucesso, button[style*="background:#16a34a"], button[style*="background: #16a34a"], button[style*="background:rgb(22, 163, 74)"], button[style*="background: rgb(22, 163, 74)"], .prec-btn-success {
+                    background: #16a34a !important;
+                    color: white !important;
+                    border: none !important;
+                }
+                button.btn-sucesso:hover, button[style*="background:#16a34a"]:hover, .prec-btn-success:hover {
+                    background: #15803d !important;
+                }
+                button.btn-danger, button[style*="background:#dc2626"], button[style*="background: #dc2626"], button[style*="background:rgb(220, 38, 38)"], button[style*="background: rgb(220, 38, 38)"], .prec-btn-danger {
+                    background: #dc2626 !important;
+                    color: white !important;
+                    border: none !important;
+                }
+                button.btn-danger:hover, button[style*="background:#dc2626"]:hover, .prec-btn-danger:hover {
+                    background: #b91c1c !important;
+                }
+                button.btn-alerta, button[style*="background:#f59e0b"], button[style*="background: #f59e0b"], button[style*="background:rgb(245, 158, 11)"], button[style*="background: rgb(245, 158, 11)"], .prec-btn-secondary {
+                    background: #f59e0b !important;
+                    color: white !important;
+                    border: none !important;
+                }
+                button.btn-alerta:hover, button[style*="background:#f59e0b"]:hover, .prec-btn-secondary:hover {
+                    background: #d97706 !important;
+                }
+                button.btn-info, button[style*="background:#0ea5e9"], button[style*="background: #0ea5e9"], button[style*="background:rgb(14, 165, 233)"], button[style*="background: rgb(14, 165, 233)"], .prec-btn-primary {
+                    background: #0ea5e9 !important;
+                    color: white !important;
+                    border: none !important;
+                }
+                button.btn-info:hover, button[style*="background:#0ea5e9"]:hover, .prec-btn-primary:hover {
+                    background: #0284c7 !important;
                 }
 
                 /* Compactar espaçamento vertical e horizontal nos grids e painéis */
