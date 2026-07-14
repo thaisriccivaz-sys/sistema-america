@@ -1667,6 +1667,21 @@ async function salvarGerenciamentoMulta(e, id) {
         // O usuário fecha pelo botão X
         await carregarMultasLogistica();
         
+        // Atualiza a view do histórico no modal sem fechar
+        const updated = multasLogistica.find(m => m.id === id);
+        if (updated) {
+            let hist = [];
+            try { if (updated.obs_historico) hist = JSON.parse(updated.obs_historico); } catch(_) {}
+            const container = document.getElementById('gm-historico-obs');
+            if (container) {
+                container.innerHTML = _renderHistItem(hist);
+                container.scrollTop = 0;
+            }
+            // Limpa o campo de novo comentário para não re-enviar
+            const textarea = document.getElementById('gm-novo-comentario');
+            if (textarea) textarea.value = '';
+        }
+        
         if (tipo === 'sucesso') mostrarToastSucesso(msg);
         else mostrarToastAviso(msg);
         
