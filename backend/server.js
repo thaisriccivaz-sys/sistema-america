@@ -492,6 +492,24 @@ db.run("UPDATE multas_logistica SET status = 'Em Andamento' WHERE status = 'Conf
     else if (this.changes > 0) console.log(`[MIGRATION] ${this.changes} multa(s) renomeada(s) de Conferido para Em Andamento.`);
 });
 
+// AUTO-PATCH: Move declarações HTML do slot 0 para slot 1 (Termo Assinado) nas multas existentes
+db.all("SELECT id, documentos_extras FROM multas_logistica WHERE documentos_extras IS NOT NULL AND documentos_extras != '[]' AND documentos_extras != ''", [], (err, rows) => {
+    if (err) return;
+    let fixed = 0;
+    rows.forEach(row => {
+        let extras = [];
+        try { extras = JSON.parse(row.documentos_extras || '[]'); } catch(_) { return; }
+        // Se slot 0 for uma declaração HTML e slot 1 estiver vazio, move para slot 1
+        if (extras[0] && extras[0].tipo === 'text/html' && extras[0].nome && extras[0].nome.includes('Declaracao') && !extras[1]) {
+            extras[1] = extras[0];
+            extras[0] = null;
+            db.run('UPDATE multas_logistica SET documentos_extras = ? WHERE id = ?', [JSON.stringify(extras), row.id]);
+            fixed++;
+        }
+    });
+    if (fixed > 0) console.log(`[MIGRATION] ${fixed} declaração(ões) movida(s) do slot 0 para slot 1 (Termo Assinado).`);
+});
+
 function getNowBR() {
     const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
     const pad = n => n.toString().padStart(2, '0');
@@ -6143,6 +6161,19 @@ app.delete('/api/logistica/multas/:id/documento-extra/:idx', authenticateToken, 
                 documentos_extras: extras.map((d, i) => ({ nome: d.nome, tipo: d.tipo, idx: i, adicionado_em: d.adicionado_em }))
             });
         });
+    });
+});
+
+// GET /api/logistica/multas/:id/documento-extra-meta/:idx — retorna metadados do documento (tipo, nome) sem o conteúdo
+app.get('/api/logistica/multas/:id/documento-extra-meta/:idx', authenticateToken, (req, res) => {
+    db.get('SELECT documentos_extras FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
+        let extras = [];
+        try { extras = JSON.parse(row.documentos_extras || '[]'); } catch (_) { }
+        const idx = parseInt(req.params.idx);
+        const doc = extras[idx];
+        if (!doc) return res.status(404).json({ error: 'Documento não encontrado' });
+        res.json({ tipo: doc.tipo || 'application/octet-stream', nome: doc.nome || 'documento' });
     });
 });
 

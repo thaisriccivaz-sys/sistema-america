@@ -246,8 +246,8 @@ function _buildMultaRow(m) {
 
     // Termo Assinado (extra[1]) — olho roxo
     const olhoVerde = docsExtrasList[1]
-        ? `<button onclick="visualizarDocExtra(${m.id}, 1)" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:6px;" title="Termo Assinado"><i class="ph ph-pen-nib" style="font-size:1.2rem;"></i></button>`
-        : `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Termo Assinado (não anexado)"><i class="ph ph-pen-nib" style="font-size:1.2rem;"></i></button>`;
+        ? `<button onclick="visualizarDocExtra(${m.id}, 1)" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:6px;" title="Termo Assinado"><i class="ph ph-signature" style="font-size:1.2rem;"></i></button>`
+        : `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Termo Assinado (não anexado)"><i class="ph ph-signature" style="font-size:1.2rem;"></i></button>`;
 
     // Documento de Notificação (documento principal da mônaco)
     const btnDoc = (m.documento_base64 || m.documento_path)
@@ -1184,7 +1184,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                             <!-- Card 1: Termo Assinado (roxo) -->
                             <div style="flex:1; min-width:180px; border:1.5px solid #c4b5fd; border-radius:10px; padding:0.8rem; background:#f5f3ff;">
                                 <div style="display:flex; align-items:center; gap:6px; margin-bottom:0.5rem;">
-                                    <i class="ph ph-pen-nib" style="color:#7c3aed; font-size:1.4rem;"></i>
+                                    <i class="ph ph-signature" style="color:#7c3aed; font-size:1.4rem;"></i>
                                     <span style="font-size:0.82rem; font-weight:700; color:#6d28d9;">Termo Assinado</span>
                                 </div>
                                 <div style="margin-bottom:6px; display:flex; gap:5px; flex-wrap:wrap;">
@@ -1466,6 +1466,38 @@ window.excluirDocExtra = async function(multaId, idx) {
 async function visualizarDocExtra(multaId, idx) {
     const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
     const url = `/api/logistica/multas/${multaId}/documento-extra/${idx}?token=${encodeURIComponent(token)}`;
+
+    // Verifica tipo do documento para abrir em modal (HTML) ou nova aba (PDF/imagem)
+    try {
+        const resp = await fetch(`/api/logistica/multas/${multaId}/documento-extra-meta/${idx}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (resp.ok) {
+            const meta = await resp.json();
+            if (meta.tipo === 'text/html') {
+                // Abre HTML do termo assinado em modal
+                document.getElementById('modal-doc-extra-viewer')?.remove();
+                const overlay = document.createElement('div');
+                overlay.id = 'modal-doc-extra-viewer';
+                overlay.style.cssText = 'position:fixed;inset:0;z-index:10005;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:1rem;';
+                overlay.innerHTML = `
+                    <div style="background:#fff;border-radius:14px;width:100%;max-width:860px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.4);overflow:hidden;">
+                        <div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+                            <span style="color:#fff;font-weight:700;font-size:1rem;"><i class="ph ph-signature" style="margin-right:8px;"></i>${meta.nome || 'Termo Assinado'}</span>
+                            <div style="display:flex;gap:8px;">
+                                <button onclick="window.open('${url}','_blank')" style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;"><i class="ph ph-arrow-square-out"></i> Abrir em nova aba</button>
+                                <button onclick="document.getElementById('modal-doc-extra-viewer').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">&times;</button>
+                            </div>
+                        </div>
+                        <iframe src="${url}" style="flex:1;border:none;width:100%;min-height:70vh;"></iframe>
+                    </div>`;
+                overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+                document.body.appendChild(overlay);
+                return;
+            }
+        }
+    } catch(_) {}
+    // Fallback: abre em nova aba (PDF, imagem, etc.)
     window.open(url, '_blank');
 }
 
