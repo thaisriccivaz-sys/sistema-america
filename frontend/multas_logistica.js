@@ -189,6 +189,16 @@ function _csdSelect(containerId, selectId, value) {
     document.getElementById(containerId)?.classList.remove('open');
 }
 
+function _csdRhSelect(value) {
+    const bg  = value === 'Cobrado' ? '#dcfce7' : value === 'Recebido' ? '#fef9c3' : '#f1f5f9';
+    const fg  = value === 'Cobrado' ? '#16a34a' : value === 'Recebido' ? '#d97706' : '#64748b';
+    const badge = document.getElementById('csd-gm-status-rh-badge');
+    if (badge) { badge.textContent = value || '-- Sem Status --'; badge.style.background = bg; badge.style.color = fg; }
+    const hidden = document.getElementById('gm-status-rh');
+    if (hidden) hidden.value = value;
+    document.getElementById('csd-gm-status-rh')?.classList.remove('open');
+}
+
 // Fecha dropdown ao clicar fora
 document.addEventListener('click', function(e) {
     if (!e.target.closest('.custom-status-dropdown')) {
@@ -238,7 +248,8 @@ function _buildMultaRow(m) {
     // Botão Assinar — Declaração de Responsabilidade por Infração
     const temMotorista = m.motorista_id && parseInt(m.motorista_id) !== -1;
     const isFinalizado = m.status === 'Indicado' || m.status === 'Multa NIC' || m.status === 'Antiga' || m.status === 'Ex Colaborador';
-    const btnAssinar = (temMotorista && !isFinalizado)
+    const isMultaNIC = (m.motivo || '').toUpperCase().includes('NAO IDENTIFICACAO') || (m.motivo || '').toUpperCase().includes('N\u00c3O IDENTIFICA');
+    const btnAssinar = ((temMotorista && !isFinalizado) || isMultaNIC)
         ? `<button onclick="abrirFluxoAssinatura(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#7c3aed; margin-right:8px;" title="Assinar Declaração de Responsabilidade"><i class="ph ph-pen-nib" style="font-size:1.2rem;"></i></button>`
         : '';
 
@@ -1034,11 +1045,18 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                         <div style="flex:1; min-width:160px;" id="gm-status-rh-container">
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Status RH</label>
                             ${window._isRhContext
-                                ? `<select id="gm-status-rh" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.9rem;">
-                                    <option value="">-- Sem Status --</option>
-                                    <option value="Recebido" ${multa.status_rh === 'Recebido' ? 'selected' : ''}>Recebido</option>
-                                    <option value="Cobrado" ${multa.status_rh === 'Cobrado' ? 'selected' : ''}>Cobrado</option>
-                                  </select>`
+                                ? `<div class="custom-status-dropdown" id="csd-gm-status-rh">
+                                    <div class="csd-trigger" onclick="_csdToggle('csd-gm-status-rh')">
+                                        <span class="csd-badge" id="csd-gm-status-rh-badge" style="background:${multa.status_rh === 'Cobrado' ? '#dcfce7' : multa.status_rh === 'Recebido' ? '#fef9c3' : '#f1f5f9'}; color:${multa.status_rh === 'Cobrado' ? '#16a34a' : multa.status_rh === 'Recebido' ? '#d97706' : '#64748b'};">${multa.status_rh || '-- Sem Status --'}</span>
+                                        <span class="csd-arrow">▼</span>
+                                    </div>
+                                    <div class="csd-list">
+                                        <div class="csd-item" data-val="" onclick="_csdRhSelect('')"><span class="csd-badge" style="background:#f1f5f9;color:#64748b;">-- Sem Status --</span></div>
+                                        <div class="csd-item" data-val="Recebido" onclick="_csdRhSelect('Recebido')"><span class="csd-badge" style="background:#fef9c3;color:#d97706;font-weight:700;">Recebido</span></div>
+                                        <div class="csd-item" data-val="Cobrado" onclick="_csdRhSelect('Cobrado')"><span class="csd-badge" style="background:#dcfce7;color:#16a34a;font-weight:700;">Cobrado</span></div>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="gm-status-rh" value="${multa.status_rh || ''}">`
                                 : `<div style="padding:0.6rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; min-height:38px; display:flex; align-items:center;">${_statusRhBadge(multa.status_rh)}</div><input type="hidden" id="gm-status-rh" value="${multa.status_rh || ''}">`
                             }
                         </div>
