@@ -2238,77 +2238,218 @@ window.editarContatoDeCliente = async function(id) {
 };
 
 window.pesquisarClienteProposta = async function() {
-    const query = document.getElementById('prop-cliente').value.trim();
-    if (!query) {
-        window.abrirModalCadastroCliente(null, '');
-        return;
-    }
+    const query = document.getElementById('prop-cliente')?.value.trim() || '';
 
     try {
-        const clientes = await apiGet('/clientes');
-        const queryClean = query.replace(/\D/g, '');
-        const filtrados = clientes.filter(c => {
-            const matchNome = c.nome_razao_social && c.nome_razao_social.toLowerCase().includes(query.toLowerCase());
-            const matchCodigo = c.codigo && c.codigo.toString() === query;
-            const matchCnpjRaw = c.cpf_cnpj && c.cpf_cnpj.toLowerCase().includes(query.toLowerCase());
-            const matchCnpjClean = c.cpf_cnpj && queryClean && c.cpf_cnpj.replace(/\D/g, '').includes(queryClean);
-            return matchNome || matchCodigo || matchCnpjRaw || matchCnpjClean;
+        // Show loading indicator
+        Swal.fire({
+            title: 'Carregando clientes...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
         });
 
-        if (filtrados.length === 1) {
-            window.abrirModalCadastroCliente(filtrados[0].id, '');
-        } else if (filtrados.length > 1) {
-            const rowsHtml = filtrados.map(c => `
-                <tr onclick="window.selecionarEEditarClienteModal(${c.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                    <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo}</td>
-                    <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social}</td>
-                    <td style="padding:0.5rem; text-align:left;">${c.cpf_cnpj || '—'}</td>
-                </tr>
-            `).join('');
+        // Fetch all clients
+        const clientes = await apiGet('/clientes') || [];
+        Swal.close();
 
-            window.selecionarEEditarClienteModal = function(id) {
-                Swal.close();
-                setTimeout(() => {
-                    window.abrirModalCadastroCliente(id, '');
-                }, 300);
-            };
+        // If no clients exist at all
+        if (clientes.length === 0) {
+            const confirmCad = await Swal.fire({
+                title: 'Nenhum cliente cadastrado',
+                text: 'Não há cadastro para o cliente. Deseja realizar o cadastro?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sim',
+                cancelButtonText: 'Não',
+                confirmButtonColor: '#16a34a',
+                cancelButtonColor: '#64748b'
+            });
+            if (confirmCad.isConfirmed) {
+                window.abrirModalCadastroCliente(null, query);
+            }
+            return;
+        }
 
-            Swal.fire({
-                title: 'Selecione o Cliente',
-                html: `
-                    <div style="max-height:300px; overflow-y:auto; width:100%;">
-                        <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left; font-family:'Inter', sans-serif;">
+        // If there's a search term, let's pre-check if there are any matches
+        if (query) {
+            const queryClean = query.replace(/\D/g, '');
+            const initialMatches = clientes.filter(c => {
+                const matchNome = c.nome_razao_social && c.nome_razao_social.toLowerCase().includes(query.toLowerCase());
+                const matchCodigo = c.codigo && c.codigo.toString() === query;
+                const matchCnpjRaw = c.cpf_cnpj && c.cpf_cnpj.toLowerCase().includes(query.toLowerCase());
+                const matchCnpjClean = c.cpf_cnpj && queryClean && c.cpf_cnpj.replace(/\D/g, '').includes(queryClean);
+                return matchNome || matchCodigo || matchCnpjRaw || matchCnpjClean;
+            });
+
+            // If no match found for the typed text
+            if (initialMatches.length === 0) {
+                const confirmCad = await Swal.fire({
+                    title: 'Cliente não encontrado',
+                    text: 'Não há cadastro para o cliente. Deseja realizar o cadastro?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sim',
+                    cancelButtonText: 'Não',
+                    confirmButtonColor: '#16a34a',
+                    cancelButtonColor: '#64748b'
+                });
+                if (confirmCad.isConfirmed) {
+                    window.abrirModalCadastroCliente(null, query);
+                }
+                return;
+            }
+        }
+
+        // Render the search modal
+        window._tempClientesParaPesquisa = clientes;
+
+        Swal.fire({
+            title: 'Pesquisa de Clientes',
+            width: '800px',
+            html: `
+                <div style="text-align:left; font-family:'Inter', sans-serif;">
+                    <!-- Filtros -->
+                    <div style="display:grid; grid-template-columns: 1fr 1.5fr 2fr; gap:0.5rem; margin-bottom:1rem;">
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:bold; color:#475569; text-transform:uppercase; display:block; margin-bottom:2px;">Código</label>
+                            <input type="text" id="filtro-cli-codigo" oninput="window.filtrarClientesGrid()" placeholder="Filtrar por código" style="width:100%; padding:0.45rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.8rem; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:bold; color:#475569; text-transform:uppercase; display:block; margin-bottom:2px;">CNPJ / CPF</label>
+                            <input type="text" id="filtro-cli-cnpj" oninput="window.filtrarClientesGrid()" placeholder="Filtrar por CNPJ/CPF" style="width:100%; padding:0.45rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.8rem; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; font-weight:bold; color:#475569; text-transform:uppercase; display:block; margin-bottom:2px;">Razão Social / Nome</label>
+                            <input type="text" id="filtro-cli-razao" oninput="window.filtrarClientesGrid()" placeholder="Filtrar por Razão Social" style="width:100%; padding:0.45rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.8rem; box-sizing:border-box;">
+                        </div>
+                    </div>
+
+                    <!-- Tabela Gridview -->
+                    <div style="max-height:350px; overflow-y:auto; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
                             <thead>
-                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
-                                    <th style="padding:0.5rem;">Código</th>
-                                    <th style="padding:0.5rem;">Razão Social</th>
-                                    <th style="padding:0.5rem;">CPF / CNPJ</th>
+                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; position:sticky; top:0; z-index:1;">
+                                    <th style="padding:0.6rem; width:80px;">Código</th>
+                                    <th style="padding:0.6rem;">Razão Social / Nome</th>
+                                    <th style="padding:0.6rem; width:150px;">CNPJ / CPF</th>
+                                    <th style="padding:0.6rem; width:100px;">Cidade/UF</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                ${rowsHtml}
+                            <tbody id="grid-clientes-body">
+                                <!-- Dynamic rows -->
                             </tbody>
                         </table>
                     </div>
-                `,
-                showConfirmButton: true,
-                confirmButtonText: '<i class="ph ph-plus-circle"></i> Cadastrar Novo',
-                confirmButtonColor: '#16a34a',
-                showCancelButton: true,
-                cancelButtonText: 'Fechar',
-                cancelButtonColor: '#64748b'
-            }).then((res) => {
-                if (res.isConfirmed) {
-                    window.abrirModalCadastroCliente(null, query);
+                </div>
+            `,
+            showConfirmButton: false,
+            showCancelButton: true,
+            cancelButtonText: 'Fechar',
+            cancelButtonColor: '#64748b',
+            didOpen: () => {
+                const filtroRazao = document.getElementById('filtro-cli-razao');
+                const filtroCnpj = document.getElementById('filtro-cli-cnpj');
+                const filtroCodigo = document.getElementById('filtro-cli-codigo');
+
+                if (query) {
+                    if (/^\d+$/.test(query)) {
+                        if (filtroCodigo) filtroCodigo.value = query;
+                    } else if (query.replace(/\D/g, '').length >= 11) {
+                        if (filtroCnpj) filtroCnpj.value = query;
+                    } else {
+                        if (filtroRazao) filtroRazao.value = query;
+                    }
                 }
-            });
-        } else {
+                window.filtrarClientesGrid();
+            }
+        });
+
+    } catch (err) {
+        console.error(err);
+        Swal.fire('Erro', 'Não foi possível carregar os clientes: ' + err.message, 'error');
+    }
+};
+
+window.filtrarClientesGrid = function() {
+    const codVal = document.getElementById('filtro-cli-codigo')?.value.trim().toLowerCase() || '';
+    const cnpjVal = document.getElementById('filtro-cli-cnpj')?.value.trim().toLowerCase() || '';
+    const razaoVal = document.getElementById('filtro-cli-razao')?.value.trim().toLowerCase() || '';
+
+    const cleanCnpjVal = cnpjVal.replace(/\D/g, '');
+
+    const filtered = (window._tempClientesParaPesquisa || []).filter(c => {
+        if (codVal) {
+            const codeStr = String(c.codigo || '').toLowerCase();
+            if (!codeStr.includes(codVal)) return false;
+        }
+        if (cnpjVal) {
+            const cnpjStr = String(c.cpf_cnpj || '').toLowerCase();
+            const cleanCnpjStr = cnpjStr.replace(/\D/g, '');
+            if (!cnpjStr.includes(cnpjVal) && !cleanCnpjStr.includes(cleanCnpjVal)) return false;
+        }
+        if (razaoVal) {
+            const nameStr = String(c.nome_razao_social || '').toLowerCase();
+            const fantStr = String(c.nome_fantasia || '').toLowerCase();
+            if (!nameStr.includes(razaoVal) && !fantStr.includes(razaoVal)) return false;
+        }
+        return true;
+    });
+
+    const tbody = document.getElementById('grid-clientes-body');
+    if (!tbody) return;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" style="padding:2rem; text-align:center; color:#64748b;">
+                    <div style="font-weight:600; margin-bottom:0.5rem;">Nenhum cliente correspondente aos filtros.</div>
+                    <button type="button" onclick="window.confirmarCriarNovoClienteFiltro()" style="background:#16a34a; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; font-weight:600; cursor:pointer; font-size:0.75rem;">
+                        <i class="ph ph-plus-circle"></i> Cadastrar Novo Cliente?
+                    </button>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(c => `
+        <tr onclick="window.selecionarClienteGrid('${c.nome_razao_social.replace(/'/g, "\\'")}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+            <td style="padding:0.55rem; font-weight:bold; color:#7048e8;">${c.codigo}</td>
+            <td style="padding:0.55rem; font-weight:600; color:#1e293b;">${c.nome_razao_social}</td>
+            <td style="padding:0.55rem; color:#475569;">${c.cpf_cnpj || '—'}</td>
+            <td style="padding:0.55rem; color:#475569;">${c.cidade || '—'}/${c.uf || '—'}</td>
+        </tr>
+    `).join('');
+};
+
+window.selecionarClienteGrid = function(razaoSocial) {
+    const input = document.getElementById('prop-cliente');
+    if (input) {
+        input.value = razaoSocial;
+        input.dispatchEvent(new Event('input'));
+        input.dispatchEvent(new Event('change'));
+    }
+    Swal.close();
+};
+
+window.confirmarCriarNovoClienteFiltro = async function() {
+    Swal.close();
+    setTimeout(async () => {
+        const query = document.getElementById('prop-cliente')?.value.trim() || '';
+        const confirmCad = await Swal.fire({
+            title: 'Cliente não encontrado',
+            text: 'Não há cadastro para o cliente. Deseja realizar o cadastro?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sim',
+            cancelButtonText: 'Não',
+            confirmButtonColor: '#16a34a',
+            cancelButtonColor: '#64748b'
+        });
+        if (confirmCad.isConfirmed) {
             window.abrirModalCadastroCliente(null, query);
         }
-    } catch (e) {
-        console.error(e);
-        Swal.fire('Erro', 'Não foi possível buscar clientes.', 'error');
-    }
+    }, 300);
 };
 
 window.abrirModalCadastroCliente = async function(clientId = null, prefilledName = '') {
