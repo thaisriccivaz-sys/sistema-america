@@ -127,14 +127,19 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
         const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
         const attachments = mailOpts.attachments || [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }];
 
+        // Busca todos os usuários configurados para o tipo, com múltiplas fontes de e-mail
         db.all(`
-            SELECT u.id as uid, u.nome as unome, u.username, u.email as uemail,
-                   cn1.email_corporativo as ec_by_nome, cn1.email as ce_by_nome,
-                   cn2.email_corporativo as ec_by_username, cn2.email as ce_by_username
+            SELECT
+                u.id as uid, u.nome as unome, u.username, u.email as uemail,
+                u.colaborador_id as ucolab_id,
+                cn1.email_corporativo as ec_by_nome,   cn1.email as ce_by_nome,
+                cn2.email_corporativo as ec_by_uname,  cn2.email as ce_by_uname,
+                cn3.email_corporativo as ec_by_colabid, cn3.email as ce_by_colabid
             FROM config_notificacoes cn
             JOIN usuarios u ON u.id = cn.usuario_id
             LEFT JOIN colaboradores cn1 ON LOWER(TRIM(cn1.nome_completo)) = LOWER(TRIM(u.nome))
             LEFT JOIN colaboradores cn2 ON LOWER(TRIM(cn2.nome_completo)) = LOWER(TRIM(u.username))
+            LEFT JOIN colaboradores cn3 ON cn3.id = u.colaborador_id
             WHERE cn.tipo = ? AND u.ativo = 1
         `, [tipo], async (err, rows) => {
             if (err) {
@@ -147,24 +152,28 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
             }
             const emails = new Set();
             rows.forEach(r => {
-                // Estratégia 1: email_corporativo via JOIN por nome
-                if (r.ec_by_nome && r.ec_by_nome.includes('@')) { emails.add(r.ec_by_nome.trim()); return; }
+                // Estratégia 0 (mais confiável): colaborador vinculado direto ao usuário pelo ID
+                if (r.ec_by_colabid && r.ec_by_colabid.includes('@')) emails.add(r.ec_by_colabid.trim());
+                else if (r.ce_by_colabid && r.ce_by_colabid.includes('@')) emails.add(r.ce_by_colabid.trim());
+                // Estratégia 1: email_corporativo via JOIN por nome completo
+                else if (r.ec_by_nome && r.ec_by_nome.includes('@')) emails.add(r.ec_by_nome.trim());
                 // Estratégia 2: email do colaborador via JOIN por nome
-                if (r.ce_by_nome && r.ce_by_nome.includes('@')) { emails.add(r.ce_by_nome.trim()); return; }
+                else if (r.ce_by_nome && r.ce_by_nome.includes('@')) emails.add(r.ce_by_nome.trim());
                 // Estratégia 3: email_corporativo via JOIN por username
-                if (r.ec_by_username && r.ec_by_username.includes('@')) { emails.add(r.ec_by_username.trim()); return; }
+                else if (r.ec_by_uname && r.ec_by_uname.includes('@')) emails.add(r.ec_by_uname.trim());
                 // Estratégia 4: email do colaborador via JOIN por username
-                if (r.ce_by_username && r.ce_by_username.includes('@')) { emails.add(r.ce_by_username.trim()); return; }
+                else if (r.ce_by_uname && r.ce_by_uname.includes('@')) emails.add(r.ce_by_uname.trim());
                 // Estratégia 5: email direto na tabela usuarios
-                if (r.uemail && r.uemail.includes('@')) { emails.add(r.uemail.trim()); return; }
+                else if (r.uemail && r.uemail.includes('@')) emails.add(r.uemail.trim());
                 // Estratégia 6: username parece um e-mail
-                if (r.username && r.username.includes('@')) { emails.add(r.username.trim()); return; }
-                console.warn(`[Notif Email] Nenhum e-mail encontrado para usuario_id=${r.uid} (username="${r.username}", nome="${r.unome}")`);
+                else if (r.username && r.username.includes('@')) emails.add(r.username.trim());
+                else console.warn(`[Notif Email] Nenhum e-mail encontrado para usuario_id=${r.uid} (username="${r.username}", nome="${r.unome}")`);
             });
             if (emails.size === 0) {
                 console.warn(`[Notif Email] Nenhum e-mail resolvido para tipo="${tipo}". Verifique se os colaboradores têm email_corporativo cadastrado.`);
                 return;
             }
+            console.log(`[Notif Email] Tipo="${tipo}" — enviando para ${emails.size} destinatário(s): ${[...emails].join(', ')}`);
             try {
                 await sendMailHelper({
                     to: [...emails].join(', '),
@@ -172,7 +181,7 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
                     html: mailOpts.html,
                     attachments
                 });
-                console.log(`[Notif Email] Tipo="${tipo}" enviado para: ${[...emails].join(', ')}`);
+                console.log(`[Notif Email] Tipo="${tipo}" enviado com sucesso para: ${[...emails].join(', ')}`);
             } catch (mailErr) {
                 console.error(`[Notif Email] Erro ao enviar email tipo="${tipo}":`, mailErr.message);
             }
@@ -5891,6 +5900,12 @@ p{line-height:1.5;margin:5px 0}
                 db.run(`UPDATE multas_logistica SET status = ?, status_updated_at = ?, parcelas = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`,
                     [novoStatus, getNowBR(), numParcelas, multaId], (errStatus) => {
                         if (errStatus) return res.status(500).json({ error: 'Erro ao atualizar status.' });
+
+                        // Auto status_rh = Recebido se ainda não definido
+                        const autoRhStatuses = ['Indicado', 'Multa NIC', 'Cobrada - Pz. Perdido'];
+                        if (autoRhStatuses.includes(novoStatus)) {
+                            db.run("UPDATE multas_logistica SET status_rh = 'Recebido' WHERE id = ? AND (status_rh IS NULL OR status_rh = '')", [multaId]);
+                        }
 
                         if (oldStatus !== novoStatus && m.motorista_id && m.motorista_id != -1) {
                             const val2 = parseFloat((m.valor_multa || '0').toString().replace(/[^\d,.]/g, '').replace(',', '.')) || 0;
