@@ -13437,35 +13437,35 @@ window.selecionarModeloContrato = function(id) {
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:0.75rem; margin-bottom:1.25rem;">
             <h3 style="font-size:1rem; font-weight:700; color:#1e293b; margin:0;">Editar Modelo de Contrato</h3>
             <div style="display:flex; gap:8px;">
-                <button onclick="salvarModeloContrato()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:flex; align-items:center; gap:5px; height:32px;">
+                <button onclick="salvarModeloContrato()" style="background:#16a34a; color:white; border:none; padding:0 10px; border-radius:4px; cursor:pointer; font-weight:600; font-size:0.75rem; display:flex; align-items:center; gap:5px; height:26px;">
                     <i class="ph ph-floppy-disk"></i> Salvar Alterações
                 </button>
             </div>
         </div>
 
         <div style="margin-bottom:1.25rem;">
-            <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:0.35rem;">Nome do Modelo *</label>
-            <input type="text" id="editor-modelo-nome" value="${model.nome}" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box;">
+            <label style="font-weight:600; font-size:0.7rem; color:#475569; display:block; margin-bottom:2px; text-transform:none;">Nome do Modelo *</label>
+            <input type="text" id="editor-modelo-nome" value="${model.nome}" style="background:white; border:1px solid #cbd5e1; border-radius:4px; padding:2px 6px; font-size:0.75rem; height:26px; width:100%; box-sizing:border-box; outline:none;">
         </div>
 
         <div>
-            <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:0.5rem;">Estrutura do Contrato (Arrastar para reordenar)</label>
+            <label style="font-weight:600; font-size:0.7rem; color:#475569; display:block; margin-bottom:2px; text-transform:none;">Estrutura do Contrato (Arrastar para reordenar)</label>
             
             <!-- Adicionar Caputs Buttons -->
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:1rem; background:#f8fafc; padding:0.5rem; border-radius:8px; border:1px solid #e2e8f0;">
-                <button onclick="adicionarCaputAoModelo('CONTRATANTE')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                <button onclick="adicionarCaputAoModelo('CONTRATANTE')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
                     <i class="ph ph-user-circle-plus" style="color:#2563eb;"></i> + Contratante
                 </button>
-                <button onclick="adicionarCaputAoModelo('CONTRATADO')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                <button onclick="adicionarCaputAoModelo('CONTRATADO')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
                     <i class="ph ph-buildings" style="color:#059669;"></i> + Contratado
                 </button>
-                <button onclick="adicionarCaputAoModelo('VALORES')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                <button onclick="adicionarCaputAoModelo('VALORES')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
                     <i class="ph ph-currency-dollar" style="color:#d97706;"></i> + Valores
                 </button>
-                <button onclick="adicionarCaputAoModelo('TEXTO_LEGAL')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                <button onclick="adicionarCaputAoModelo('TEXTO_LEGAL')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
                     <i class="ph ph-shield-check" style="color:#7c3aed;"></i> + Texto Legal
                 </button>
-                <button onclick="adicionarCaputAoModelo('CUSTOM')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                <button onclick="adicionarCaputAoModelo('CUSTOM')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
                     <i class="ph ph-plus" style="color:#4b5563;"></i> + Personalizada
                 </button>
             </div>
@@ -13730,34 +13730,34 @@ window.criarNovoModeloContrato = function() {
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:0.75rem; margin-bottom:1.25rem;">
             <h3 style="font-size:1rem; font-weight:700; color:#1e293b; margin:0;">Criar Novo Modelo de Contrato</h3>
             <div style="display:flex; gap:8px;">
-                <button onclick="salvarModeloContrato()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:flex; align-items:center; gap:5px; height:32px;">
+                <button onclick="salvarModeloContrato()" style="background:#16a34a; color:white; border:none; padding:0 10px; border-radius:4px; cursor:pointer; font-weight:600; font-size:0.75rem; display:flex; align-items:center; gap:5px; height:26px;">
                     <i class="ph ph-floppy-disk"></i> Salvar Modelo
                 </button>
             </div>
         </div>
 
         <div style="margin-bottom:1.25rem;">
-            <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:0.35rem;">Nome do Modelo *</label>
-            <input type="text" id="editor-modelo-nome" value="Novo Modelo" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box;">
+            <label style="font-weight:600; font-size:0.7rem; color:#475569; display:block; margin-bottom:2px; text-transform:none;">Nome do Modelo *</label>
+            <input type="text" id="editor-modelo-nome" value="Novo Modelo" style="background:white; border:1px solid #cbd5e1; border-radius:4px; padding:2px 6px; font-size:0.75rem; height:26px; width:100%; box-sizing:border-box; outline:none;">
         </div>
 
         <div>
-            <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:0.5rem;">Estrutura do Contrato (Arrastar para reordenar)</label>
+            <label style="font-weight:600; font-size:0.7rem; color:#475569; display:block; margin-bottom:2px; text-transform:none;">Estrutura do Contrato (Arrastar para reordenar)</label>
             
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:1rem; background:#f8fafc; padding:0.5rem; border-radius:8px; border:1px solid #e2e8f0;">
-                <button onclick="adicionarCaputAoModelo('CONTRATANTE')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                <button onclick="adicionarCaputAoModelo('CONTRATANTE')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
                     <i class="ph ph-user-circle-plus" style="color:#2563eb;"></i> + Contratante
                 </button>
-                <button onclick="adicionarCaputAoModelo('CONTRATADO')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                <button onclick="adicionarCaputAoModelo('CONTRATADO')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
                     <i class="ph ph-buildings" style="color:#059669;"></i> + Contratado
                 </button>
-                <button onclick="adicionarCaputAoModelo('VALORES')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                <button onclick="adicionarCaputAoModelo('VALORES')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
                     <i class="ph ph-currency-dollar" style="color:#d97706;"></i> + Valores
                 </button>
-                <button onclick="adicionarCaputAoModelo('TEXTO_LEGAL')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                <button onclick="adicionarCaputAoModelo('TEXTO_LEGAL')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
                     <i class="ph ph-shield-check" style="color:#7c3aed;"></i> + Texto Legal
                 </button>
-                <button onclick="adicionarCaputAoModelo('CUSTOM')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0.35rem 0.65rem; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;">
+                <button onclick="adicionarCaputAoModelo('CUSTOM')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
                     <i class="ph ph-plus" style="color:#4b5563;"></i> + Personalizada
                 </button>
             </div>
