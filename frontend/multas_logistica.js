@@ -374,7 +374,7 @@ function renderMultasLogistica(container) {
                     style="flex:1; min-width:140px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">
                 <div class="custom-multi-select" style="position:relative; flex:1; min-width:180px;">
                     <div class="select-box" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='block' ? 'none' : 'block'" style="padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; background:#fff; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
-                        <span id="lbl-status-rh" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Todos Status RH</span>
+                        <span id="lbl-status-rh" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Todos Status Logística</span>
                         <i class="ph ph-caret-down"></i>
                     </div>
                     <div class="options-container" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #cbd5e1; border-radius:6px; margin-top:4px; z-index:10; box-shadow:0 4px 6px rgba(0,0,0,0.1); max-height:200px; overflow-y:auto; padding:0.5rem;">
@@ -395,7 +395,7 @@ function renderMultasLogistica(container) {
                             <th class="multa-th-sort" data-col="data_infracao" onclick="ordenarMultas('data_infracao')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data/Hora <i class="sort-ico ph ph-arrow-down" style="color:#2563eb;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="motivo" onclick="ordenarMultas('motivo')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motivo <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="motorista_nome" onclick="ordenarMultas('motorista_nome')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motorista <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
-                            <th class="multa-th-sort" data-col="status" onclick="ordenarMultas('status')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status RH <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
+                            <th class="multa-th-sort" data-col="status" onclick="ordenarMultas('status')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status Logística <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="status_monaco" onclick="ordenarMultas('status_monaco')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status Mônaco <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="data_limite" onclick="ordenarMultas('data_limite')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data Limite <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th style="padding:1rem; font-weight:600; color:#475569; text-align:center;">Ações</th>
@@ -529,7 +529,7 @@ function limparFiltrosMultas() {
 window.atualizarLabelStatusRH = function() {
     const chks = Array.from(document.querySelectorAll('.chk-status-rh:checked')).map(c => c.value);
     const lbl = document.getElementById('lbl-status-rh');
-    if (chks.length === 0) lbl.textContent = 'Todos Status RH';
+    if (chks.length === 0) lbl.textContent = 'Todos Status Logística';
     else if (chks.length === 1) lbl.textContent = chks[0];
     else lbl.textContent = `${chks.length} selecionados (RH)`;
 };
