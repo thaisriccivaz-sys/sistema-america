@@ -203,17 +203,16 @@ function _buildMultaRow(m) {
 
     let motoristaHtml = '';
     if (m.motorista_id && m.motorista_nome) {
-        const nomeCurto = m.motorista_nome.length > 15 ? m.motorista_nome.substring(0, 15) + '...' : m.motorista_nome;
         if (String(m.motorista_id) === '-1') {
-            motoristaHtml = `<span style="font-weight:600; color:#ef4444;" title="Ex Colaborador: ${m.motorista_nome}">${nomeCurto}</span>`;
+            motoristaHtml = `<span style="font-weight:600; color:#ef4444; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:normal; max-width:120px; font-size:0.82rem;" title="Ex Colaborador: ${m.motorista_nome}">${m.motorista_nome}</span>`;
         } else {
-            motoristaHtml = `<span style="font-weight:600; color:#0f172a;" title="${m.motorista_nome}">${nomeCurto}</span>`;
+            motoristaHtml = `<span style="font-weight:600; color:#0f172a; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:normal; max-width:120px; font-size:0.82rem;" title="${m.motorista_nome}">${m.motorista_nome}</span>`;
         }
     } else {
         if (m.status === 'Indicado' || m.status === 'Multa NIC') {
             motoristaHtml = `<span style="color:#94a3b8; font-size:0.8rem;">—</span>`;
         } else {
-            motoristaHtml = `<button onclick="abrirModalGerenciarMulta(${m.id}, true)" style="background:#f1f5f9; color:#2563eb; border:1px solid #cbd5e1; padding:0.3rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:600;">+ Adicionar Motorista</button>`;
+            motoristaHtml = `<button onclick="abrirModalGerenciarMulta(${m.id}, true)" style="background:#f1f5f9; color:#2563eb; border:1px solid #cbd5e1; padding:0.3rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.78rem; font-weight:600;">+ Adicionar Motorista</button>`;
         }
     }
 
@@ -245,24 +244,25 @@ function _buildMultaRow(m) {
 
     return `
         <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-            <td style="padding:1rem;">
+            <td style="padding:0.6rem 0.75rem;">
                 ${window._ultimoIdMultaEditada === m.id 
-                    ? `<strong style="font-weight:900;">${m.numero_ait || '—'}</strong>` 
-                    : `<span>${m.numero_ait || '—'}</span>`}
+                    ? `<strong style="font-weight:900; font-size:0.82rem;">${m.numero_ait || '—'}</strong>` 
+                    : `<span style="font-size:0.82rem;">${m.numero_ait || '—'}</span>`}
             </td>
-            <td style="padding:1rem; font-weight:600; color:#334155; white-space:nowrap;">${m.placa || '—'}</td>
-            <td style="padding:1rem;">${dataInfracao}<br><span style="color:#64748b; font-size:0.8rem;">${m.hora_infracao || '—'}</span></td>
-            <td style="padding:1rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${m.motivo || ''}">${m.motivo || '—'}</td>
-            <td style="padding:1rem;">${motoristaHtml}</td>
-            <td style="padding:1rem;">
+            <td style="padding:0.6rem 0.75rem; font-weight:600; color:#334155; white-space:nowrap; font-size:0.82rem;">${m.placa || '—'}</td>
+            <td style="padding:0.6rem 0.75rem; font-size:0.82rem;">${dataInfracao}<br><span style="color:#64748b; font-size:0.75rem;">${m.hora_infracao || '—'}</span></td>
+            <td style="padding:0.6rem 0.75rem; max-width:160px; font-size:0.82rem;" title="${m.motivo || ''}">
+                <div style="display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:normal; word-break:break-word;">${m.motivo || '—'}</div>
+            </td>
+            <td style="padding:0.6rem 0.75rem; max-width:130px; font-size:0.82rem;">${motoristaHtml}</td>
+            <td style="padding:0.6rem 0.75rem;">
                 <div style="display:inline-block; margin-bottom:${m.status_updated_at ? '4px' : '0'};">
-                    <span style="background:${statusColor}; color:#0f172a; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">${m.status || '—'}</span>
+                    <span style="background:${statusColor}; color:#0f172a; padding:3px 7px; border-radius:12px; font-size:0.78rem; font-weight:600; white-space:nowrap;">${m.status || '—'}</span>
                 </div>
-                ${m.status_updated_at ? `<div style="color:#64748b; font-size:0.8rem; font-weight:400; white-space:nowrap;">${m.status_updated_at}</div>` : ''}
+                ${m.status_updated_at ? `<div style="color:#64748b; font-size:0.75rem; font-weight:400; white-space:nowrap;">${m.status_updated_at}</div>` : ''}
             </td>
-            <td style="padding:1rem; white-space:nowrap;">${_statusRhBadge(m.status_rh)}</td>
-            <td style="padding:1rem;">${_statusMonacoBadge(m)}</td>
-            <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite, m.motivo)}</td>
+            <td style="padding:0.6rem 0.75rem; white-space:nowrap;">${_statusRhBadge(m.status_rh)}</td>
+            <td style="padding:0.6rem 0.75rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite, m.motivo)}</td>
             <td style="padding:1rem; text-align:center; min-width:140px; white-space:nowrap;">
                 ${btnEditar}${btnAssinar}${olhoAzul}${olhoVerde}${btnDoc}${btnTermo}${btnLink}${btnExcluir}
             </td>
@@ -397,19 +397,18 @@ function renderMultasLogistica(container) {
             </div>
 
             <div style="overflow-y:auto; height:calc(100vh - 340px);">
-                <table style="width:100%; border-collapse:collapse; min-width:1000px; font-size:0.9rem;">
+                <table style="width:100%; border-collapse:collapse; min-width:820px; font-size:0.82rem;">
                     <thead style="position:sticky; top:0; z-index:2; background:#f8fafc; outline:1px solid #e2e8f0;">
                         <tr style="text-align:left;">
-                            <th class="multa-th-sort" data-col="numero_ait" onclick="ordenarMultas('numero_ait')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">AIT <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
-                            <th style="padding:1rem; font-weight:600; color:#475569;">Placa</th>
-                            <th class="multa-th-sort" data-col="data_infracao" onclick="ordenarMultas('data_infracao')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data/Hora <i class="sort-ico ph ph-arrow-down" style="color:#2563eb;font-size:0.8rem;"></i></th>
-                            <th class="multa-th-sort" data-col="motivo" onclick="ordenarMultas('motivo')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motivo <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
-                            <th class="multa-th-sort" data-col="motorista_nome" onclick="ordenarMultas('motorista_nome')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motorista <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
-                            <th class="multa-th-sort" data-col="status" onclick="ordenarMultas('status')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status Logística <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
-                            <th style="padding:1rem; font-weight:600; color:#475569; white-space:nowrap;">Status RH</th>
-                            <th class="multa-th-sort" data-col="status_monaco" onclick="ordenarMultas('status_monaco')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status Mônaco <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
-                            <th class="multa-th-sort" data-col="data_limite" onclick="ordenarMultas('data_limite')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data Limite <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
-                            <th style="padding:1rem; font-weight:600; color:#475569; text-align:center;">Ações</th>
+                            <th class="multa-th-sort" data-col="numero_ait" onclick="ordenarMultas('numero_ait')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">AIT <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
+                            <th style="padding:0.75rem; font-weight:600; color:#475569;">Placa</th>
+                            <th class="multa-th-sort" data-col="data_infracao" onclick="ordenarMultas('data_infracao')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data/Hora <i class="sort-ico ph ph-arrow-down" style="color:#2563eb;font-size:0.8rem;"></i></th>
+                            <th class="multa-th-sort" data-col="motivo" onclick="ordenarMultas('motivo')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motivo <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
+                            <th class="multa-th-sort" data-col="motorista_nome" onclick="ordenarMultas('motorista_nome')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motorista <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
+                            <th class="multa-th-sort" data-col="status" onclick="ordenarMultas('status')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status Logística <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
+                            <th style="padding:0.75rem; font-weight:600; color:#475569; white-space:nowrap;">Status RH</th>
+                            <th class="multa-th-sort" data-col="data_limite" onclick="ordenarMultas('data_limite')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data Limite <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
+                            <th style="padding:0.75rem; font-weight:600; color:#475569; text-align:center;">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="multas-tbody">
