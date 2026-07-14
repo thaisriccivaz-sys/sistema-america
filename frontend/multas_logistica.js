@@ -369,7 +369,9 @@ async function carregarMultasLogistica() {
 }
 
 function renderMultasLogistica(container) {
-    const STATUS_OPTS = ['Conferência', 'Em Andamento', 'Indicado', 'Multa NIC', 'Id. Deferida', 'Id. Indeferida', 'Recorrida', 'Rec. Deferida', 'Rec. Indeferida', 'Não Se Aplica', 'Antiga'];
+    const ALL_STATUS_OPTS = ['Conferência', 'Em Andamento', 'Indicado', 'Multa NIC', 'Id. Deferida', 'Id. Indeferida', 'Recorrida', 'Rec. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido', 'Não Se Aplica', 'Antiga'];
+    const RH_STATUS_OPTS  = ['Indicado', 'Multa NIC', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
+    const STATUS_OPTS = window._isRhContext ? RH_STATUS_OPTS : ALL_STATUS_OPTS;
     const optsStatus = STATUS_OPTS.map(s => `<option value="${s}">${s}</option>`).join('');
 
     let html = `
@@ -552,7 +554,7 @@ window.atualizarLabelStatusRH = function() {
     const lbl = document.getElementById('lbl-status-rh');
     if (chks.length === 0) lbl.textContent = 'Todos Status Logística';
     else if (chks.length === 1) lbl.textContent = chks[0];
-    else lbl.textContent = `${chks.length} selecionados (RH)`;
+    else lbl.textContent = `${chks.length} selecionados`;
 };
 
 function _buildOptionsMotoristas(motorista_id_atual) {

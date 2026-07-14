@@ -5601,6 +5601,12 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 if (errUpdate) return res.status(500).json({ error: errUpdate.message });
                 if (this.changes === 0) return res.status(404).json({ error: 'Multa não atualizada' });
 
+                // Auto-definir status_rh = 'Recebido' quando status muda para Indicado, Multa NIC ou Cobrada - Pz. Perdido
+                const autoRhStatuses = ['Indicado', 'Multa NIC', 'Cobrada - Pz. Perdido'];
+                if (status && autoRhStatuses.includes(status) && oldData.status !== status && !oldData.status_rh) {
+                    db.run("UPDATE multas_logistica SET status_rh = 'Recebido' WHERE id = ? AND (status_rh IS NULL OR status_rh = '')", [req.params.id]);
+                }
+
                 // Envia email ao RH apenas quando o status MUDA para Indicado, Multa NIC ou Cobrada - Pz. Perdido
                 if (status && (status === 'Indicado' || status === 'Multa NIC' || status === 'Cobrada - Pz. Perdido') && oldData.status !== status) {
                     const finalMotorista = motorista_id || oldData.motorista_id;
