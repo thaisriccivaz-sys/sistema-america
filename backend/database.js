@@ -685,6 +685,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('status_monaco')) db.run("ALTER TABLE multas_logistica ADD COLUMN status_monaco TEXT");
                     if (!cols.includes('termo_desconto_base64')) db.run("ALTER TABLE multas_logistica ADD COLUMN termo_desconto_base64 TEXT");
                     if (!cols.includes('termo_desconto_nome')) db.run("ALTER TABLE multas_logistica ADD COLUMN termo_desconto_nome TEXT");
+                    if (!cols.includes('status_rh')) db.run("ALTER TABLE multas_logistica ADD COLUMN status_rh TEXT DEFAULT NULL");
                 });
 
                 // Recibos Histórico (Garante a criação da coluna de forma síncrona na fila do serialize)

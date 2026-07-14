@@ -243,9 +243,11 @@ window.initRhLogisticaMultas = async function() {
     }
     // Troca o ID temporariamente para o esperado pelo módulo multas_logistica
     container.id = 'multas-logistica-container';
+    window._isRhContext = true;
     if (typeof renderMultasLogistica === 'function') {
         renderMultasLogistica(container);
     } else {
+        window._isRhContext = false;
         container.id = 'rh-multas-logistica-container';
         container.innerHTML = '<div style="text-align:center; padding:3rem; background:#f8fafc; border-radius:12px; border:2px dashed #e2e8f0;"><h5 style="color:#475569;">Módulo de multas não carregado</h5><p style="color:#94a3b8; font-size:0.9rem;">Recarregue a página e tente novamente.</p></div>';
         return;

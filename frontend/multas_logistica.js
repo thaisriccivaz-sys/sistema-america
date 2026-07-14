@@ -88,6 +88,13 @@ function _statusRHColor(status) {
     return '#e2e8f0';
 }
 
+function _statusRhBadge(statusRh) {
+    if (!statusRh) return '<span style="color:#cbd5e1;font-size:0.85rem;">\u2014</span>';
+    const cor = statusRh === 'Cobrado' ? '#16a34a' : '#d97706'; // verde = Cobrado, amarelo = Recebido
+    const bg  = statusRh === 'Cobrado' ? '#dcfce7' : '#fef9c3';
+    return `<span style="background:${bg}; color:${cor}; padding:4px 10px; border-radius:12px; font-size:0.8rem; font-weight:700; white-space:nowrap;">${statusRh}</span>`;
+}
+
 // Determina se o texto do badge precisa de cor escura ou clara
 function _statusTextColor(bg) {
     // cores escuras precisam de texto branco
@@ -253,6 +260,7 @@ function _buildMultaRow(m) {
                 </div>
                 ${m.status_updated_at ? `<div style="color:#64748b; font-size:0.8rem; font-weight:400; white-space:nowrap;">${m.status_updated_at}</div>` : ''}
             </td>
+            <td style="padding:1rem; white-space:nowrap;">${_statusRhBadge(m.status_rh)}</td>
             <td style="padding:1rem;">${_statusMonacoBadge(m)}</td>
             <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite, m.motivo)}</td>
             <td style="padding:1rem; text-align:center; min-width:140px; white-space:nowrap;">
@@ -323,6 +331,8 @@ async function carregarColaboradoresMultas() {
 async function carregarMultasLogistica() {
     const container = document.getElementById('multas-logistica-container');
     if (!container) return;
+    // Quando carregado pela logística normal, não é contexto do RH
+    if (!window._isRhContext) window._isRhContext = false;
 
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
@@ -396,6 +406,7 @@ function renderMultasLogistica(container) {
                             <th class="multa-th-sort" data-col="motivo" onclick="ordenarMultas('motivo')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motivo <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="motorista_nome" onclick="ordenarMultas('motorista_nome')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motorista <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="status" onclick="ordenarMultas('status')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status Logística <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
+                            <th style="padding:1rem; font-weight:600; color:#475569; white-space:nowrap;">Status RH</th>
                             <th class="multa-th-sort" data-col="status_monaco" onclick="ordenarMultas('status_monaco')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status Mônaco <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="data_limite" onclick="ordenarMultas('data_limite')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data Limite <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th style="padding:1rem; font-weight:600; color:#475569; text-align:center;">Ações</th>
@@ -1018,8 +1029,19 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                             <input type="text" id="gm-ex-colaborador-nome" placeholder="Digite o nome do Ex Colaborador" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px; margin-top:0.5rem; display:${multa.motorista_id == -1 ? 'block' : 'none'};" value="${multa.motorista_id == -1 ? (multa.motorista_nome || '') : ''}">
                         </div>
                         <div style="flex:1; min-width:200px;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Status</label>
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Status Logística</label>
                             ${_buildStatusDropdown('csd-gm-status','gm-status', multa.status || 'Conferência', null, 'atualizarValoresMultaModal()')}
+                        </div>
+                        <div style="flex:1; min-width:160px;" id="gm-status-rh-container">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Status RH</label>
+                            ${window._isRhContext
+                                ? `<select id="gm-status-rh" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.9rem;">
+                                    <option value="">-- Sem Status --</option>
+                                    <option value="Recebido" ${multa.status_rh === 'Recebido' ? 'selected' : ''}>Recebido</option>
+                                    <option value="Cobrado" ${multa.status_rh === 'Cobrado' ? 'selected' : ''}>Cobrado</option>
+                                  </select>`
+                                : `<div style="padding:0.6rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; min-height:38px; display:flex; align-items:center;">${_statusRhBadge(multa.status_rh)}</div><input type="hidden" id="gm-status-rh" value="${multa.status_rh || ''}">`
+                            }
                         </div>
                     </div>
 
@@ -1381,6 +1403,7 @@ async function salvarGerenciamentoMulta(e, id) {
     const valorMulta = document.getElementById('gm-valor')?.value.trim() || '';
     const pontuacao = document.getElementById('gm-pontos')?.value || '';
     const dataLimite = document.getElementById('gm-data-limite')?.value || '';
+    const statusRh = document.getElementById('gm-status-rh')?.value ?? null;
 
     let settled = false;
     const fecharEAtualizar = async (msg, tipo = 'sucesso') => {
@@ -1418,7 +1441,8 @@ async function salvarGerenciamentoMulta(e, id) {
                 motivo: motivo,
                 valor_multa: valorMulta,
                 pontuacao: pontuacao,
-                data_limite: dataLimite
+                data_limite: dataLimite,
+                status_rh: statusRh
             })
         });
         clearTimeout(timeoutId);

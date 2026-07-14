@@ -5547,7 +5547,7 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
 
 // PUT /api/logistica/multas/:id — atualiza campos da multa (motorista, status, obs, link)
 app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
-    const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, parcelas, placa, local_infracao, data_limite } = req.body;
+    const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, parcelas, placa, local_infracao, data_limite, status_rh } = req.body;
 
     db.get('SELECT * FROM multas_logistica WHERE id = ?', [req.params.id], (err, oldData) => {
         if (err || !oldData) return res.status(404).json({ error: 'Multa não encontrada' });
@@ -5574,6 +5574,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 placa = ?,
                 local_infracao = ?,
                 data_limite = ?,
+                status_rh = ?,
                 atualizado_em = CURRENT_TIMESTAMP
              WHERE id = ?`,
             [
@@ -5593,6 +5594,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 placa !== undefined ? placa : oldData.placa,
                 local_infracao !== undefined ? local_infracao : oldData.local_infracao,
                 data_limite !== undefined ? data_limite : oldData.data_limite,
+                status_rh !== undefined ? (status_rh === '' ? null : status_rh) : oldData.status_rh,
                 req.params.id
             ],
             function (errUpdate) {
