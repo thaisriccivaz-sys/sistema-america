@@ -1011,6 +1011,11 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
             const dataHtml  = `<span style="font-size:0.69rem;color:#94a3b8;white-space:nowrap;margin-left:8px;">${h.data || ''}</span>`;
 
             if (h.tipo === 'status') {
+                const bgAnterior = _statusRHColor(h.status_anterior || '');
+                const fgAnterior = _statusTextColor(bgAnterior);
+                const bgNovo = _statusRHColor(h.status_novo || '');
+                const fgNovo = _statusTextColor(bgNovo);
+                
                 // Card de mudança de status — visual distinto com badges
                 return `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:9px 12px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
@@ -1019,9 +1024,9 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                         <i class="ph ph-arrows-left-right" style="color:#0284c7;font-size:0.9rem;flex-shrink:0;"></i>
                         <span style="font-size:0.72rem;font-weight:600;color:#64748b;">Alteração de status:</span>
-                        <span style="background:#e2e8f0;color:#475569;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">${(h.status_anterior||'').replace(/</g,'&lt;')}</span>
+                        <span style="background:${bgAnterior};color:${fgAnterior};font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">${(h.status_anterior||'').replace(/</g,'&lt;')}</span>
                         <i class="ph ph-arrow-right" style="color:#0284c7;font-size:0.8rem;flex-shrink:0;"></i>
-                        <span style="background:#dbeafe;color:#1d4ed8;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">${(h.status_novo||'').replace(/</g,'&lt;')}</span>
+                        <span style="background:${bgNovo};color:${fgNovo};font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">${(h.status_novo||'').replace(/</g,'&lt;')}</span>
                     </div>
                 </div>`;
             }
@@ -1347,14 +1352,19 @@ function _renderHistItem(hist) {
         const autor = `<span style="font-size:0.73rem;font-weight:700;color:#6366f1;display:flex;align-items:center;gap:4px;"><i class="ph ph-user-circle"></i>${h.autor || 'Sistema'}</span>`;
         const data  = `<span style="font-size:0.69rem;color:#94a3b8;white-space:nowrap;margin-left:8px;">${h.data || ''}</span>`;
         if (h.tipo === 'status') {
+            const bgAnterior = _statusRHColor(h.status_anterior || '');
+            const fgAnterior = _statusTextColor(bgAnterior);
+            const bgNovo = _statusRHColor(h.status_novo || '');
+            const fgNovo = _statusTextColor(bgNovo);
+
             return `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:9px 12px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">${autor}${data}</div>
                 <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                     <i class="ph ph-arrows-left-right" style="color:#0284c7;font-size:0.9rem;flex-shrink:0;"></i>
                     <span style="font-size:0.72rem;font-weight:600;color:#64748b;">Alteração de status:</span>
-                    <span style="background:#e2e8f0;color:#475569;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">${(h.status_anterior||'').replace(/</g,'&lt;')}</span>
+                    <span style="background:${bgAnterior};color:${fgAnterior};font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">${(h.status_anterior||'').replace(/</g,'&lt;')}</span>
                     <i class="ph ph-arrow-right" style="color:#0284c7;font-size:0.8rem;flex-shrink:0;"></i>
-                    <span style="background:#dbeafe;color:#1d4ed8;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">${(h.status_novo||'').replace(/</g,'&lt;')}</span>
+                    <span style="background:${bgNovo};color:${fgNovo};font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">${(h.status_novo||'').replace(/</g,'&lt;')}</span>
                 </div>
             </div>`;
         }
