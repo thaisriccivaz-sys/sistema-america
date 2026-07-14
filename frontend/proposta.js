@@ -3741,7 +3741,7 @@ window.salvarPropostaNova = async function() {
                             <div id="panel-resumo-simplificado" style="display:block;">
                                 <div class="rf-box">
                                     <div class="rf-header">
-                                        <div class="rf-header-title">REPÚBLICA FEDERATIVA DO BRASIL</div>
+                                        <div class="rf-header-title">AMERICA RENTAL LOCAÇÃO DE EQUIPAMENTOS</div>
                                         <div>SISTEMA DE PROPOSTAS COMERCIAIS &bull; RESUMO DA DECLARAÇÃO</div>
                                     </div>
                                     
@@ -3804,7 +3804,7 @@ window.salvarPropostaNova = async function() {
                             <div id="panel-resumo-detalhado" style="display:none;">
                                 <div class="rf-box" style="border-color:#1e3a8a;">
                                     <div class="rf-header" style="background:#1e3a8a;">
-                                        <div class="rf-header-title">REPÚBLICA FEDERATIVA DO BRASIL</div>
+                                        <div class="rf-header-title">AMERICA RENTAL LOCAÇÃO DE EQUIPAMENTOS</div>
                                         <div>DEMONSTRATIVO DE VIABILIDADE FINANCEIRA (DRE OPERACIONAL)</div>
                                     </div>
                                     
