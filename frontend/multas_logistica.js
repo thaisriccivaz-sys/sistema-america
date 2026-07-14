@@ -1161,46 +1161,57 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                     <div style="border-top:1px solid #e2e8f0; padding-top:1.2rem; margin-top:0.5rem;">
                         <label style="display:block; margin-bottom:0.8rem; font-size:0.85rem; font-weight:600; color:#2563eb;">&#128206; Documentos Anexados</label>
 
-                        <!-- Slot 0: Comprovante de Rota -->
-                        <div style="margin-bottom:0.8rem;">
-                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                                <i class="ph ph-eye" style="color:#3b82f6; font-size:1.1rem;"></i>
-                                <span style="font-size:0.82rem; font-weight:600; color:#334155;">Comprovante de Rota</span>
-                                ${docsExtras[0] ? `<button type="button" onclick="visualizarDocExtra(${multa.id}, 0)" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-eye"></i> Ver</button>` : '<span style="font-size:0.75rem;color:#94a3b8;">Não anexado</span>'}
-                                ${docsExtras[0] ? `<button type="button" onclick="excluirDocExtraEspecifico(${multa.id}, 0)" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-trash"></i></button>` : ''}
-                            </div>
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <input type="file" id="gm-doc-slot-0" accept=".pdf,.jpg,.jpeg,.png" style="flex:1; font-size:0.78rem; border:none; background:transparent; cursor:pointer;">
-                                <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 0, 'Comprovante de Rota')" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:0.78rem;font-weight:600;white-space:nowrap;"><i class="ph ph-upload-simple"></i> Anexar</button>
-                            </div>
-                        </div>
+                        <!-- 3 cards lado a lado -->
+                        <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
 
-                        <!-- Slot 1: Termo Assinado -->
-                        <div style="margin-bottom:0.8rem;">
-                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                                <i class="ph ph-eye" style="color:#8b5cf6; font-size:1.1rem;"></i>
-                                <span style="font-size:0.82rem; font-weight:600; color:#334155;">Termo Assinado</span>
-                                ${docsExtras[1] ? `<button type="button" onclick="visualizarDocExtra(${multa.id}, 1)" style="background:#ede9fe;color:#7c3aed;border:1px solid #c4b5fd;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-eye"></i> Ver</button>` : '<span style="font-size:0.75rem;color:#94a3b8;">Não anexado</span>'}
-                                ${docsExtras[1] ? `<button type="button" onclick="excluirDocExtraEspecifico(${multa.id}, 1)" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-trash"></i></button>` : ''}
+                            <!-- Card 0: Comprovante de Rota (azul) -->
+                            <div style="flex:1; min-width:180px; border:1.5px solid #bfdbfe; border-radius:10px; padding:0.8rem; background:#eff6ff;">
+                                <div style="display:flex; align-items:center; gap:6px; margin-bottom:0.5rem;">
+                                    <i class="ph ph-identification-card" style="color:#2563eb; font-size:1.4rem;"></i>
+                                    <span style="font-size:0.82rem; font-weight:700; color:#1d4ed8;">Comprovante de Rota</span>
+                                </div>
+                                <div style="margin-bottom:6px; display:flex; gap:5px; flex-wrap:wrap;">
+                                    ${docsExtras[0]
+                                        ? `<button type="button" onclick="visualizarDocExtra(${multa.id}, 0)" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver</button>
+                                           <button type="button" onclick="excluirDocExtraEspecifico(${multa.id}, 0)" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-trash"></i></button>`
+                                        : '<span style="font-size:0.75rem;color:#94a3b8;">Não anexado</span>'}
+                                </div>
+                                <input type="file" id="gm-doc-slot-0" accept=".pdf,.jpg,.jpeg,.png" style="width:100%; font-size:0.75rem; margin-bottom:5px;">
+                                <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 0, 'Comprovante de Rota')" style="width:100%; background:#2563eb;color:white;border:none;border-radius:6px;padding:5px 0;cursor:pointer;font-size:0.78rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:4px;"><i class="ph ph-upload-simple"></i> Anexar</button>
                             </div>
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <input type="file" id="gm-doc-slot-1" accept=".pdf,.jpg,.jpeg,.png" style="flex:1; font-size:0.78rem; border:none; background:transparent; cursor:pointer;">
-                                <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 1, 'Termo Assinado')" style="background:#7c3aed;color:white;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:0.78rem;font-weight:600;white-space:nowrap;"><i class="ph ph-upload-simple"></i> Anexar</button>
-                            </div>
-                        </div>
 
-                        <!-- Slot 2: Documento de Notificação -->
-                        <div style="margin-bottom:0.4rem;">
-                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                                <i class="ph ph-file-pdf" style="color:#10b981; font-size:1.1rem;"></i>
-                                <span style="font-size:0.82rem; font-weight:600; color:#334155;">Documento de Notificação</span>
-                                ${(multa.documento_base64 || multa.documento_path) ? `<button type="button" onclick="visualizarDocumentoMulta(${multa.id})" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-eye"></i> Ver</button>` : '<span style="font-size:0.75rem;color:#94a3b8;">Não anexado</span>'}
+                            <!-- Card 1: Termo Assinado (roxo) -->
+                            <div style="flex:1; min-width:180px; border:1.5px solid #c4b5fd; border-radius:10px; padding:0.8rem; background:#f5f3ff;">
+                                <div style="display:flex; align-items:center; gap:6px; margin-bottom:0.5rem;">
+                                    <i class="ph ph-pen-nib" style="color:#7c3aed; font-size:1.4rem;"></i>
+                                    <span style="font-size:0.82rem; font-weight:700; color:#6d28d9;">Termo Assinado</span>
+                                </div>
+                                <div style="margin-bottom:6px; display:flex; gap:5px; flex-wrap:wrap;">
+                                    ${docsExtras[1]
+                                        ? `<button type="button" onclick="visualizarDocExtra(${multa.id}, 1)" style="background:#ede9fe;color:#7c3aed;border:1px solid #c4b5fd;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver</button>
+                                           <button type="button" onclick="excluirDocExtraEspecifico(${multa.id}, 1)" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-trash"></i></button>`
+                                        : '<span style="font-size:0.75rem;color:#94a3b8;">Não anexado</span>'}
+                                </div>
+                                <input type="file" id="gm-doc-slot-1" accept=".pdf,.jpg,.jpeg,.png" style="width:100%; font-size:0.75rem; margin-bottom:5px;">
+                                <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 1, 'Termo Assinado')" style="width:100%; background:#7c3aed;color:white;border:none;border-radius:6px;padding:5px 0;cursor:pointer;font-size:0.78rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:4px;"><i class="ph ph-upload-simple"></i> Anexar</button>
                             </div>
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <input type="file" id="gm-doc-slot-2" accept=".pdf,.jpg,.jpeg,.png" style="flex:1; font-size:0.78rem; border:none; background:transparent; cursor:pointer;">
-                                <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 2, 'Documento de Notificação')" style="background:#10b981;color:white;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:0.78rem;font-weight:600;white-space:nowrap;"><i class="ph ph-upload-simple"></i> Anexar</button>
+
+                            <!-- Card 2: Documento de Notificação (verde) -->
+                            <div style="flex:1; min-width:180px; border:1.5px solid #6ee7b7; border-radius:10px; padding:0.8rem; background:#ecfdf5;">
+                                <div style="display:flex; align-items:center; gap:6px; margin-bottom:0.5rem;">
+                                    <i class="ph ph-file-pdf" style="color:#10b981; font-size:1.4rem;"></i>
+                                    <span style="font-size:0.82rem; font-weight:700; color:#065f46;">Documento de Notificação</span>
+                                </div>
+                                <div style="margin-bottom:6px; display:flex; gap:5px; flex-wrap:wrap;">
+                                    ${(multa.documento_base64 || multa.documento_path)
+                                        ? `<button type="button" onclick="visualizarDocumentoMulta(${multa.id})" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver</button>`
+                                        : '<span style="font-size:0.75rem;color:#94a3b8;">Não anexado</span>'}
+                                </div>
+                                <input type="file" id="gm-doc-slot-2" accept=".pdf,.jpg,.jpeg,.png" style="width:100%; font-size:0.75rem; margin-bottom:5px;">
+                                <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 2, 'Documento de Notificação')" style="width:100%; background:#10b981;color:white;border:none;border-radius:6px;padding:5px 0;cursor:pointer;font-size:0.78rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:4px;"><i class="ph ph-upload-simple"></i> Anexar</button>
+                                <p style="margin:5px 0 0; font-size:0.72rem; color:#94a3b8; text-align:center;">PDF, JPG ou PNG até 10MB</p>
                             </div>
-                            <p style="margin:4px 0 0; font-size:0.72rem; color:#94a3b8;">PDF, JPG ou PNG até 10MB</p>
+
                         </div>
                     </div>
 
