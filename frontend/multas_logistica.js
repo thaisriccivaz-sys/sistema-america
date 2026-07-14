@@ -1396,10 +1396,12 @@ function atualizarValoresMultaModal() {
     const fmt = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     
     const infoDiv = document.getElementById('gm-valor-info');
-    if (parcelas === 1) {
-        infoDiv.innerHTML = `${fmt(valorTotal)}${status === 'Multa NIC' ? ' <span style="color:#d97706; font-size:0.8rem; margin-left:8px;">(3x valor original)</span>' : ''}`;
-    } else {
-        infoDiv.innerHTML = `<span style="color:#2563eb;">${parcelas}x de ${fmt(valorParcela)}</span> <span style="color:#64748b; font-size:0.85rem; margin-left:8px;">(Total: ${fmt(valorTotal)})</span>${status === 'Multa NIC' ? ' <span style="color:#d97706; font-size:0.8rem; margin-left:8px;">(3x valor original)</span>' : ''}`;
+    if (infoDiv) {
+        if (parcelas === 1) {
+            infoDiv.innerHTML = `${fmt(valorTotal)}${status === 'Multa NIC' ? ' <span style="color:#d97706; font-size:0.8rem; margin-left:8px;">(3x valor original)</span>' : ''}`;
+        } else {
+            infoDiv.innerHTML = `<span style="color:#2563eb;">${parcelas}x de ${fmt(valorParcela)}</span> <span style="color:#64748b; font-size:0.85rem; margin-left:8px;">(Total: ${fmt(valorTotal)})</span>${status === 'Multa NIC' ? ' <span style="color:#d97706; font-size:0.8rem; margin-left:8px;">(3x valor original)</span>' : ''}`;
+        }
     }
 }
 
@@ -1599,11 +1601,14 @@ function visualizarDocExtra(multaId, idx) {
 
 async function salvarGerenciamentoMulta(e, id) {
     e.preventDefault();
-    const status = document.getElementById('gm-status').value;
-    const obs = document.getElementById('gm-obs').value.trim();
-    
+    const status = document.getElementById('gm-status')?.value || '';
+    // gm-obs foi substituído pelo painel de comentários — usa campo de novo comentário como observação
+    const obsEl = document.getElementById('gm-obs') || document.getElementById('gm-novo-comentario');
+    const obs = obsEl ? obsEl.value.trim() : '';
+
     if (status === 'Não Se Aplica' && !obs) {
-        mostrarToastAviso('Preencha a observação quando o status for "Não Se Aplica".');
+        mostrarToastAviso('Para status "Não Se Aplica", adicione uma observação no campo de comentários.');
+        document.getElementById('gm-novo-comentario')?.focus();
         return;
     }
 
