@@ -3494,6 +3494,9 @@ window.calcularValorTotalProposta = function() {
             const coords = window._enderecoCoordenadasCache[cacheKey];
             // Depot Point A: -23.433829134957392, -46.42011977802175
             distancia = calcularDistanciaHaversine(-23.433829134957392, -46.42011977802175, coords.lat, coords.lon);
+        } else {
+            // Trigger geocoding asynchronously so it populates the cache and updates later
+            obterCoordenadasEnderecoAsync(cacheKey);
         }
     }
 
@@ -7729,6 +7732,18 @@ window.modalSelecionarEndereco = function(idx) {
 
     const fullAddress = `${e.nome_local} - ${e.endereco}, ${e.numero}${e.complemento ? ' (' + e.complemento + ')' : ''} - ${e.bairro} - ${e.municipio}/${e.uf}`;
     
+    // Save coordinates to cache immediately if present
+    if (e.coordenadas && e.coordenadas.trim()) {
+        const parts = e.coordenadas.split(',');
+        if (parts.length === 2) {
+            const lat = parseFloat(parts[0].trim());
+            const lon = parseFloat(parts[1].trim());
+            if (!isNaN(lat) && !isNaN(lon)) {
+                window._enderecoCoordenadasCache[fullAddress.trim()] = { lat, lon };
+            }
+        }
+    }
+
     const propEnderecoInput = document.getElementById('prop-endereco');
     if (propEnderecoInput) {
         propEnderecoInput.value = fullAddress;
@@ -9103,8 +9118,20 @@ async function obterCoordenadasEnderecoAsync(enderecoCompleto) {
 
     window._geocodingQueue[key] = true;
 
+    // Clean up the query string to send to Nominatim
+    let cleanQuery = key;
+    if (key.includes(' - ')) {
+        const parts = key.split(' - ');
+        const firstPartLower = parts[0].toLowerCase();
+        const addressKeywords = ['rua', 'r.', 'avenida', 'av.', 'alameda', 'al.', 'rodovia', 'rod.', 'travessa', 'trv.', 'praça', 'praca', 'pça.', 'estrada', 'est.'];
+        const hasKeyword = addressKeywords.some(kw => firstPartLower.includes(kw)) || /^\d+$/.test(parts[0]);
+        if (!hasKeyword && parts.length > 1) {
+            cleanQuery = parts.slice(1).join(' - ');
+        }
+    }
+
     try {
-        const query = encodeURIComponent(key);
+        const query = encodeURIComponent(cleanQuery);
         const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${query}`;
         
         // Respect rate limit (1.2 seconds delay)
@@ -9120,10 +9147,13 @@ async function obterCoordenadasEnderecoAsync(enderecoCompleto) {
         if (response.ok) {
             const data = await response.json();
             if (data && data.length > 0) {
-                window._enderecoCoordenadasCache[key] = {
+                const coordsObj = {
                     lat: parseFloat(data[0].lat),
                     lon: parseFloat(data[0].lon)
                 };
+                window._enderecoCoordenadasCache[key] = coordsObj;
+                window._enderecoCoordenadasCache[cleanQuery] = coordsObj;
+                
                 // Refresh rendering to calculate real distances
                 if (typeof window.atualizarEstatisticasModal === 'function') {
                     window.atualizarEstatisticasModal();
