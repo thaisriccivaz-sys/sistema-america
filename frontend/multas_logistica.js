@@ -233,8 +233,9 @@ function _buildMultaRow(m) {
 
     const btnEditar = `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:6px;" title="Editar Multa"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>`;
 
-    // Assinar: sempre visível. Cinza sem cursor se finalizado/assinado
-    const btnAssinar = isFinalizado
+    // Assinar: sempre visível. Cinza sem cursor se finalizado/assinado (status ou termo já no slot 1)
+    const jaAssinado = isFinalizado || !!docsExtrasList[1];
+    const btnAssinar = jaAssinado
         ? `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Já assinada"><i class="ph ph-pen-nib" style="font-size:1.2rem;"></i></button>`
         : `<button onclick="abrirFluxoAssinatura(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#7c3aed; margin-right:6px;" title="Assinar Declaração de Responsabilidade"><i class="ph ph-pen-nib" style="font-size:1.2rem;"></i></button>`;
 

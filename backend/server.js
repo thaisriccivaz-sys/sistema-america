@@ -5870,13 +5870,15 @@ p{line-height:1.5;margin:5px 0}
             let extras = [];
             try { extras = JSON.parse(rowDoc.documentos_extras || '[]'); } catch(_) {}
 
-            extras.push({
+            // Insere o Termo Assinado no slot 1 (índice fixo) para aparecer no ícone correto
+            while (extras.length <= 1) extras.push(null);
+            extras[1] = {
                 nome: `Declaracao_Responsabilidade_${m.numero_ait || multaId}.html`,
                 tipo: 'text/html',
                 base64: termoBase64,
                 adicionado_em: new Date().toISOString(),
                 opcao
-            });
+            };
 
             db.run('UPDATE multas_logistica SET documentos_extras = ? WHERE id = ?', [JSON.stringify(extras), multaId], (errUpd) => {
                 if (errUpd) return res.status(500).json({ error: 'Erro ao salvar documento.' });
