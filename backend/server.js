@@ -1338,6 +1338,14 @@ app.get('/api/admin/auditar-assinaturas', authenticateToken, (req, res) => {
     });
 });
 
+// [DELETAR DEPOIS] Endpoint temporário para atualizar nome de usuário
+app.get('/api/update-user-thais', (req, res) => {
+    db.run("UPDATE usuarios SET username = 'Thais.Ricci' WHERE username = 'diretoria.1'", function(err) {
+        if (err) return res.status(500).send(err.message);
+        res.send("OK, atualizados: " + this.changes);
+    });
+});
+
 // POST /api/admin/resetar-assinatura-falsa
 // Body: { colaborador_id: X } ou { doc_id: Y, tabela: 'documentos'|'admissao_assinaturas' }
 app.post('/api/admin/resetar-assinatura-falsa', authenticateToken, async (req, res) => {
