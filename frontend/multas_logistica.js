@@ -243,10 +243,10 @@ function _buildMultaRow(m) {
         ? `<button onclick="visualizarDocExtra(${m.id}, 0)" style="background:transparent; border:none; cursor:pointer; color:#3b82f6; margin-right:6px;" title="Comprovante de Rota"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`
         : `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Comprovante de Rota (não anexado)"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
 
-    // Documento assinado (extra[1]) — olho roxo
+    // Termo Assinado (extra[1]) — olho roxo
     const olhoVerde = docsExtrasList[1]
-        ? `<button onclick="visualizarDocExtra(${m.id}, 1)" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:6px;" title="Documento Assinado"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`
-        : `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Documento Assinado (não anexado)"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+        ? `<button onclick="visualizarDocExtra(${m.id}, 1)" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:6px;" title="Termo Assinado"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`
+        : `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Termo Assinado (não anexado)"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
 
     // Documento de Notificação (documento principal da mônaco)
     const btnDoc = (m.documento_base64 || m.documento_path)
@@ -1175,17 +1175,17 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                             </div>
                         </div>
 
-                        <!-- Slot 1: Documento Assinado -->
+                        <!-- Slot 1: Termo Assinado -->
                         <div style="margin-bottom:0.8rem;">
                             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
                                 <i class="ph ph-eye" style="color:#8b5cf6; font-size:1.1rem;"></i>
-                                <span style="font-size:0.82rem; font-weight:600; color:#334155;">Documento Assinado</span>
+                                <span style="font-size:0.82rem; font-weight:600; color:#334155;">Termo Assinado</span>
                                 ${docsExtras[1] ? `<button type="button" onclick="visualizarDocExtra(${multa.id}, 1)" style="background:#ede9fe;color:#7c3aed;border:1px solid #c4b5fd;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-eye"></i> Ver</button>` : '<span style="font-size:0.75rem;color:#94a3b8;">Não anexado</span>'}
                                 ${docsExtras[1] ? `<button type="button" onclick="excluirDocExtraEspecifico(${multa.id}, 1)" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-trash"></i></button>` : ''}
                             </div>
                             <div style="display:flex; align-items:center; gap:8px;">
                                 <input type="file" id="gm-doc-slot-1" accept=".pdf,.jpg,.jpeg,.png" style="flex:1; font-size:0.78rem; border:none; background:transparent; cursor:pointer;">
-                                <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 1, 'Documento Assinado')" style="background:#7c3aed;color:white;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:0.78rem;font-weight:600;white-space:nowrap;"><i class="ph ph-upload-simple"></i> Anexar</button>
+                                <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 1, 'Termo Assinado')" style="background:#7c3aed;color:white;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:0.78rem;font-weight:600;white-space:nowrap;"><i class="ph ph-upload-simple"></i> Anexar</button>
                             </div>
                         </div>
 
@@ -1368,7 +1368,7 @@ async function uploadDocExtra(multaId) {
     }
 }
 
-// Upload para um slot específico (0=Comprovante de Rota, 1=Documento Assinado, 2=Doc Notificação)
+// Upload para um slot específico (0=Comprovante de Rota, 1=Termo Assinado, 2=Doc Notificação)
 async function uploadDocExtraSlot(multaId, slotIndex, nomeSlot) {
     const input = document.getElementById(`gm-doc-slot-${slotIndex}`);
     if (!input || !input.files.length) { mostrarToastAviso('Selecione um arquivo para anexar.'); return; }
