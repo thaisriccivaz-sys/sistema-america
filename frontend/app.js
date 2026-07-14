@@ -18954,8 +18954,9 @@ window.renderMultasMotoristaTab = async function (container) {
         try { multas = await apiGet(`/colaboradores/${colab.id}/multas`) || []; } catch (_) { }
     }
 
-    // ÔöÇÔöÇ Apenas multas com status Indicado ou Multa NIC aparecem no prontuário ÔöÇÔöÇ
-    const multasVisiveis = multas.filter(m => m.status === 'Indicado' || m.status === 'Multa NIC');
+    // ── Apenas multas com status relevantes aparecem no prontuário ──
+    const PRONTUARIO_STATUS_VISIVEIS = ['Indicado', 'Multa NIC', 'Multa Nic', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
+    const multasVisiveis = multas.filter(m => PRONTUARIO_STATUS_VISIVEIS.includes(m.status));
 
     container.innerHTML = '';
     container.appendChild(aviso);
@@ -18964,7 +18965,7 @@ window.renderMultasMotoristaTab = async function (container) {
         const vazio = document.createElement('div');
         vazio.className = 'alert alert-info';
         if (multas.length > 0) {
-            vazio.innerHTML = '<i class="ph ph-clock"></i> Este colaborador possui multas em processo de análise. Elas aparecerão aqui quando atingirem o status <strong>Indicado</strong> ou <strong>Multa NIC</strong>.';
+            vazio.innerHTML = '<i class="ph ph-clock"></i> Este colaborador possui multas em processo de análise. Elas aparecerão aqui quando atingirem um dos status: <strong>Indicado</strong>, <strong>Multa Nic</strong>, <strong>Id. Indeferida</strong>, <strong>Id. Deferida</strong>, <strong>Rec. Indeferida</strong> ou <strong>Cobrada - Pz. Perdido</strong>.';
         } else {
             vazio.innerHTML = '<i class="ph ph-warning"></i> Nenhuma multa registrada para este colaborador.';
         }
@@ -18977,11 +18978,16 @@ window.renderMultasMotoristaTab = async function (container) {
         'Conferido': '#bfdbfe',
         'Indicado': '#bbf7d0',
         'Multa NIC': '#fecaca',
+        'Multa Nic': '#fecaca',
+        'Id. Indeferida': '#fed7aa',
+        'Id. Deferida': '#bfdbfe',
+        'Rec. Indeferida': '#fde68a',
+        'Cobrada - Pz. Perdido': '#e9d5b4',
         'Não Se Aplica': '#e2e8f0',
     };
 
     multas.forEach((m, idx) => {
-        if (m.status !== 'Indicado' && m.status !== 'Multa NIC') return; // só exibe visíveis
+        if (!PRONTUARIO_STATUS_VISIVEIS.includes(m.status)) return; // só exibe visíveis
         const dataFmt = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
         const bgStatus = STATUS_COLOR[m.status] || '#e2e8f0';
         const uid = `multa-det-${m.id || idx}`;
