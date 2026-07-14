@@ -59,7 +59,6 @@ window._rhSinBuildLayout = function() {
         '<option value="assinado_testemunhas">Assinado pelas Testemunhas</option>',
         '<option value="assinado">Finalizado e Assinado</option>',
         '</select>',
-        '<button onclick="window.rhSinLimparFiltros()" style="padding:0.45rem 0.8rem; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; color:#475569; white-space:nowrap;">&#x2715; Limpar</button>',
         '</div>',
         '<div id="rh-sin-contagem" style="font-size:0.82rem; color:#64748b; margin-bottom:0.75rem;"></div>',
         '<div id="rh-sin-lista-area">',
@@ -252,15 +251,23 @@ window.initRhLogisticaMultas = async function() {
         return;
     }
     container.id = 'rh-multas-logistica-container';
+    var RH_STATUS_PERMITIDOS = ['Indicado', 'Multa Nic', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida'];
     try {
         var token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
         var response = await fetch('/api/logistica/multas', { headers: { 'Authorization': 'Bearer ' + token } });
         if (response.ok) {
             var multas = await response.json();
-            if (typeof multasLogistica !== 'undefined') multasLogistica = multas;
+            // Filtrar apenas os status permitidos para a tela de RH
+            var multasFiltradas = multas.filter(function(m) {
+                return RH_STATUS_PERMITIDOS.includes(m.status);
+            });
+            if (typeof multasLogistica !== 'undefined') multasLogistica = multasFiltradas;
             if (typeof filtrarMultasLogistica === 'function') filtrarMultasLogistica();
         }
     } catch(e) { console.error('[RH-Multas]', e); }
+    // Ocultar botão Limpar nesta tela do RH
+    var btnLimpar = container.querySelector('button[onclick*="limparFiltrosMultas"]');
+    if (btnLimpar) btnLimpar.style.display = 'none';
     _rhMultasInjetarHeader(container);
 };
 

@@ -383,8 +383,7 @@ function renderMultasLogistica(container) {
                 </div>
 
                 </div>
-                <button onclick="limparFiltrosMultas()" title="Limpar filtros"
-                    style="padding:0.45rem 0.8rem; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; color:#475569; white-space:nowrap;">&#x2715; Limpar</button>
+
             </div>
 
             <div style="overflow-y:auto; height:calc(100vh - 340px);">
