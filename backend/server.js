@@ -12935,6 +12935,37 @@ app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
                     if (!e && c) {
                         db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`,
                             ['formulario_finalizado', JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                        
+                        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'formulario_experiencia'", [], (errC, rowsC) => {
+                            if (!errC && rowsC && rowsC.length > 0) {
+                                const msg = `O gestor enviou o formulário de experiência finalizado.`;
+                                const dados = JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuacao, responsavel_nome: c.responsavel_nome });
+                                rowsC.forEach(row => {
+                                    db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [row.usuario_id, 'formulario_experiencia', msg, dados]);
+                                });
+                            }
+                        });
+                        const _resSit = situacao_avaliacao === 'Aprovado' ? '✅ Aprovado' : situacao_avaliacao === 'Reprovado' ? '❌ Reprovado' : situacao_avaliacao || 'Aguardando';
+                        sendEmailParaNotificados('formulario_experiencia', {
+                            subject: `📋 Formulário de Experiência Finalizado – ${c.nome_completo}`,
+                            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                </div>
+                                <div style="padding:24px;">
+                                    <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📋 Formulário de Experiência Finalizado</h2>
+                                    <p>O formulário de período de experiência foi preenchido e finalizado.</p>
+                                    <div style="background:#eff6ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #1d4ed8;">
+                                        <p style="margin:4px 0;"><strong>Colaborador:</strong> ${c.nome_completo}</p>
+                                        <p style="margin:4px 0;"><strong>Departamento:</strong> ${c.departamento || '—'}</p>
+                                        <p style="margin:4px 0;"><strong>Resultado:</strong> ${_resSit}</p>
+                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '—'}</p>
+                                    </div>
+                                    <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para revisar o formulário completo.</i></p>
+                                </div>
+                            </div>`
+                        });
+
                         gerarESalvarPDFExperiencia(c, respostas, pontuacao, situacao_avaliacao, comentarios);
                     }
                 });
@@ -12969,6 +13000,37 @@ app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
                     if (!e && c) {
                         db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`,
                             ['formulario_finalizado', JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                        
+                        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'formulario_experiencia'", [], (errC, rowsC) => {
+                            if (!errC && rowsC && rowsC.length > 0) {
+                                const msg = `O gestor enviou o formulário de experiência finalizado.`;
+                                const dados = JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuacao, responsavel_nome: c.responsavel_nome });
+                                rowsC.forEach(row => {
+                                    db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [row.usuario_id, 'formulario_experiencia', msg, dados]);
+                                });
+                            }
+                        });
+                        const _resSit = situacao_avaliacao === 'Aprovado' ? '✅ Aprovado' : situacao_avaliacao === 'Reprovado' ? '❌ Reprovado' : situacao_avaliacao || 'Aguardando';
+                        sendEmailParaNotificados('formulario_experiencia', {
+                            subject: `📋 Formulário de Experiência Finalizado – ${c.nome_completo}`,
+                            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                </div>
+                                <div style="padding:24px;">
+                                    <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📋 Formulário de Experiência Finalizado</h2>
+                                    <p>O formulário de período de experiência foi preenchido e finalizado.</p>
+                                    <div style="background:#eff6ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #1d4ed8;">
+                                        <p style="margin:4px 0;"><strong>Colaborador:</strong> ${c.nome_completo}</p>
+                                        <p style="margin:4px 0;"><strong>Departamento:</strong> ${c.departamento || '—'}</p>
+                                        <p style="margin:4px 0;"><strong>Resultado:</strong> ${_resSit}</p>
+                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '—'}</p>
+                                    </div>
+                                    <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para revisar o formulário completo.</i></p>
+                                </div>
+                            </div>`
+                        });
+
                         gerarESalvarPDFExperiencia(c, respostas, pontuacao, situacao_avaliacao, comentarios);
                     }
                 });
