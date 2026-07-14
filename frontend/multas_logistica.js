@@ -283,7 +283,7 @@ function _buildMultaRow(m) {
             <td style="padding:0.6rem 0.75rem; white-space:nowrap;">${_statusRhBadge(m.status_rh)}</td>
             <td style="padding:0.6rem 0.75rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite, m.motivo)}</td>
             <td style="padding:0.6rem 0.75rem; text-align:center; white-space:nowrap;">
-                ${btnEditar}${btnAssinar}${olhoAzul}${olhoVerde}${btnDoc}${btnLink}
+                ${btnEditar}${btnAssinar}${olhoVerde}${olhoAzul}${btnDoc}${btnLink}
             </td>
         </tr>`;
 }
