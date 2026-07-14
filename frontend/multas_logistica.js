@@ -349,8 +349,8 @@ async function carregarColaboradoresMultas() {
 async function carregarMultasLogistica() {
     const container = document.getElementById('multas-logistica-container');
     if (!container) return;
-    // Quando carregado pela logística normal, não é contexto do RH
-    if (!window._isRhContext) window._isRhContext = false;
+
+    const RH_STATUS_PERMITIDOS = ['Indicado', 'Multa NIC', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
 
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
@@ -359,7 +359,11 @@ async function carregarMultasLogistica() {
             cache: 'no-store'
         });
         if (response.ok) {
-            multasLogistica = await response.json();
+            const todas = await response.json();
+            // No contexto do RH, exibe apenas os status permitidos
+            multasLogistica = window._isRhContext
+                ? todas.filter(m => RH_STATUS_PERMITIDOS.includes(m.status))
+                : todas;
             const tbody = document.getElementById('multas-tbody');
             if (tbody) {
                 filtrarMultasLogistica();
