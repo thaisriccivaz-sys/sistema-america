@@ -228,54 +228,61 @@ function _buildMultaRow(m) {
 
     let docsExtrasList = [];
     try { docsExtrasList = JSON.parse(m.documentos_extras || '[]'); } catch(e){}
-    const olhoAzul  = docsExtrasList[0] ? `<button onclick="visualizarDocExtra(${m.id}, 0)" style="background:transparent; border:none; cursor:pointer; color:#3b82f6; margin-right:8px;" title="Visualizar Documento 1"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : '';
-    const olhoVerde = docsExtrasList[1] ? `<button onclick="visualizarDocExtra(${m.id}, 1)" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento 2"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : '';
 
-    const btnEditar = `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>`;
-
-    const btnExcluir = '';
-
-    const btnLink = m.link_formulario
-        ? `<button onclick="window.open(String('${m.link_formulario}').startsWith('http') ? '${m.link_formulario}' : 'https://${m.link_formulario}', '_blank')" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:8px;" title="Abrir Formulário Externo"><i class="ph ph-link" style="font-size:1.2rem;"></i></button>` : '';
-
-    const btnDoc = (m.documento_base64 || m.documento_path)
-        ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>` : '';
-
-    const btnTermo = (m.termo_desconto_base64)
-        ? `<button onclick="visualizarTermoDescontoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; margin-right:8px;" title="Termo de Desconto Assinado (Mônaco)"><img src="assets/icone_termo_desconto.png" alt="Termo" style="width:1.2rem; height:1.2rem; object-fit:contain; filter: brightness(0); opacity: 0.8;"></button>` : '';
-
-
-    // Botão Assinar — Declaração de Responsabilidade por Infração
-    const temMotorista = m.motorista_id && parseInt(m.motorista_id) !== -1;
     const isFinalizado = m.status === 'Indicado' || m.status === 'Multa NIC' || m.status === 'Antiga' || m.status === 'Ex Colaborador';
-    const isMultaNIC = (m.motivo || '').toUpperCase().includes('NAO IDENTIFICACAO') || (m.motivo || '').toUpperCase().includes('N\u00c3O IDENTIFICA');
-    const btnAssinar = ((temMotorista && !isFinalizado) || isMultaNIC)
-        ? `<button onclick="abrirFluxoAssinatura(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#7c3aed; margin-right:8px;" title="Assinar Declaração de Responsabilidade"><i class="ph ph-pen-nib" style="font-size:1.2rem;"></i></button>`
-        : '';
+
+    const btnEditar = `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:6px;" title="Editar Multa"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>`;
+
+    // Assinar: sempre visível. Cinza sem cursor se finalizado/assinado
+    const btnAssinar = isFinalizado
+        ? `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Já assinada"><i class="ph ph-pen-nib" style="font-size:1.2rem;"></i></button>`
+        : `<button onclick="abrirFluxoAssinatura(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#7c3aed; margin-right:6px;" title="Assinar Declaração de Responsabilidade"><i class="ph ph-pen-nib" style="font-size:1.2rem;"></i></button>`;
+
+    // Comprovante de rota (extra[0]) — olho azul
+    const olhoAzul = docsExtrasList[0]
+        ? `<button onclick="visualizarDocExtra(${m.id}, 0)" style="background:transparent; border:none; cursor:pointer; color:#3b82f6; margin-right:6px;" title="Comprovante de Rota"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`
+        : `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Comprovante de Rota (não anexado)"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+
+    // Documento assinado (extra[1]) — olho roxo
+    const olhoVerde = docsExtrasList[1]
+        ? `<button onclick="visualizarDocExtra(${m.id}, 1)" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:6px;" title="Documento Assinado"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`
+        : `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Documento Assinado (não anexado)"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+
+    // Documento de Notificação (documento principal da mônaco)
+    const btnDoc = (m.documento_base64 || m.documento_path)
+        ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:6px;" title="Documento de Notificação"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>`
+        : `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Documento de Notificação (não anexado)"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>`;
+
+    // Link formulário: cinza sem cursor se finalizado
+    const btnLink = m.link_formulario
+        ? (isFinalizado
+            ? `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Formulário já processado"><i class="ph ph-link" style="font-size:1.2rem;"></i></button>`
+            : `<button onclick="window.open(String('${m.link_formulario}').startsWith('http') ? '${m.link_formulario}' : 'https://${m.link_formulario}', '_blank')" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:6px;" title="Abrir Formulário Externo"><i class="ph ph-link" style="font-size:1.2rem;"></i></button>`)
+        : `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Sem formulário externo"><i class="ph ph-link" style="font-size:1.2rem;"></i></button>`;
 
     return `
         <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
             <td style="padding:0.6rem 0.75rem;">
                 ${window._ultimoIdMultaEditada === m.id 
-                    ? `<strong style="font-weight:900; font-size:0.82rem;">${m.numero_ait || '—'}</strong>` 
-                    : `<span style="font-size:0.82rem;">${m.numero_ait || '—'}</span>`}
+                    ? `<strong style="font-weight:900; font-size:0.82rem;">${m.numero_ait || '\u2014'}</strong>` 
+                    : `<span style="font-size:0.82rem;">${m.numero_ait || '\u2014'}</span>`}
             </td>
-            <td style="padding:0.6rem 0.75rem; font-weight:600; color:#334155; white-space:nowrap; font-size:0.82rem;">${m.placa || '—'}</td>
-            <td style="padding:0.6rem 0.75rem; font-size:0.82rem;">${dataInfracao}<br><span style="color:#64748b; font-size:0.75rem;">${m.hora_infracao || '—'}</span></td>
+            <td style="padding:0.6rem 0.75rem; font-weight:600; color:#334155; white-space:nowrap; font-size:0.82rem;">${m.placa || '\u2014'}</td>
+            <td style="padding:0.6rem 0.75rem; font-size:0.82rem;">${dataInfracao}<br><span style="color:#64748b; font-size:0.75rem;">${m.hora_infracao || '\u2014'}</span></td>
             <td style="padding:0.6rem 0.75rem; max-width:160px; font-size:0.82rem;" title="${m.motivo || ''}">
-                <div style="display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:normal; word-break:break-word;">${m.motivo || '—'}</div>
+                <div style="display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:normal; word-break:break-word;">${m.motivo || '\u2014'}</div>
             </td>
             <td style="padding:0.6rem 0.75rem; max-width:130px; font-size:0.82rem;">${motoristaHtml}</td>
             <td style="padding:0.6rem 0.75rem;">
                 <div style="display:inline-block; margin-bottom:${m.status_updated_at ? '4px' : '0'};">
-                    <span style="background:${statusColor}; color:#0f172a; padding:3px 7px; border-radius:12px; font-size:0.78rem; font-weight:600; white-space:nowrap;">${m.status || '—'}</span>
+                    <span style="background:${statusColor}; color:#0f172a; padding:3px 7px; border-radius:12px; font-size:0.78rem; font-weight:600; white-space:nowrap;">${m.status || '\u2014'}</span>
                 </div>
                 ${m.status_updated_at ? `<div style="color:#64748b; font-size:0.75rem; font-weight:400; white-space:nowrap;">${m.status_updated_at}</div>` : ''}
             </td>
             <td style="padding:0.6rem 0.75rem; white-space:nowrap;">${_statusRhBadge(m.status_rh)}</td>
             <td style="padding:0.6rem 0.75rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite, m.motivo)}</td>
-            <td style="padding:1rem; text-align:center; min-width:140px; white-space:nowrap;">
-                ${btnEditar}${btnAssinar}${olhoAzul}${olhoVerde}${btnDoc}${btnTermo}${btnLink}${btnExcluir}
+            <td style="padding:0.6rem 0.75rem; text-align:center; white-space:nowrap;">
+                ${btnEditar}${btnAssinar}${olhoAzul}${olhoVerde}${btnDoc}${btnLink}
             </td>
         </tr>`;
 }
@@ -980,7 +987,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                 <span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code id="gm-hab-val">${habilitacao}</code></span>
                 <button type="button" onclick="navigator.clipboard.writeText('${habilitacao}'); mostrarToastSucesso('Nº CNH copiado!'); event.stopPropagation();" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
                 ${multa.motorista_id ? `<button type="button" onclick="baixarCNHMotorista(${multa.motorista_id}); event.stopPropagation();" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:2px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button>` : ''}
-            </div>` : '${multa.motorista_id ? `<div style="padding-left:1.2rem;"><button type="button" onclick="baixarCNHMotorista(${multa.motorista_id}); event.stopPropagation();" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:2px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button></div>` : ""}'}
+            </div>` : ''}
             ${endEsc ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
                 <span style="font-size:0.8rem; color:#374151;"><b>Endereço:</b> <code id="gm-end-val">${endereco}</code></span>
                 <button type="button" onclick="navigator.clipboard.writeText('${endEsc}'); mostrarToastSucesso('Endereço copiado!'); event.stopPropagation();" title="Copiar Endereço" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
@@ -998,18 +1005,6 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
     // Documentos extras já salvos
     let docsExtras = [];
     try { docsExtras = JSON.parse(multa.documentos_extras || '[]'); } catch(_) {}
-    const docsHtml = docsExtras.map((d, i) => {
-        // Corrige mojibake em nomes ja armazenados com encoding errado
-        let nomeExibir = d.nome || 'Documento ' + (i + 1);
-        try { nomeExibir = decodeURIComponent(escape(nomeExibir)); } catch(_) {}
-        return `
-        <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; margin-bottom:6px;">
-            <i class="ph ph-file" style="color:#64748b;"></i>
-            <span style="flex:1; font-size:0.8rem; color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${nomeExibir}</span>
-            <button type="button" onclick="visualizarDocExtra(${id}, ${i}); event.stopPropagation();" title="Visualizar" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-eye"></i></button>
-            ${modoLeitura ? '' : `<button type="button" onclick="excluirDocExtra(${id}, ${i}); event.stopPropagation();" title="Excluir Anexo" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-trash"></i></button>`}
-        </div>`;
-    }).join('');
 
     modal.innerHTML = `
         <div style="background:#fff; width:95vw; height:95vh; max-width:1400px; display:flex; flex-direction:column; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.2); overflow:hidden;">
@@ -1160,14 +1155,48 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
 
                     <!-- DOCUMENTOS EXTRAS -->
                     <div style="border-top:1px solid #e2e8f0; padding-top:1.2rem; margin-top:0.5rem;">
-                        <label style="display:block; margin-bottom:0.6rem; font-size:0.85rem; font-weight:600; color:#2563eb;">&#128206; Documentos Anexados</label>
-                        <div id="gm-docs-lista">${docsHtml || '<p style="font-size:0.8rem;color:#94a3b8;margin:0 0 0.5rem;">Nenhum documento anexado.</p>'}</div>
-                        <div style="border:1.5px dashed #cbd5e1; border-radius:8px; padding:0.75rem 1rem; background:#f8fafc; margin-top:4px;">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <input type="file" id="gm-doc-extra" accept=".pdf,.jpg,.jpeg,.png" style="flex:1; font-size:0.82rem; border:none; background:transparent; cursor:pointer;">
-                                <button type="button" onclick="uploadDocExtra(${multa.id})" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;white-space:nowrap;"><i class="ph ph-upload-simple"></i> Anexar</button>
+                        <label style="display:block; margin-bottom:0.8rem; font-size:0.85rem; font-weight:600; color:#2563eb;">&#128206; Documentos Anexados</label>
+
+                        <!-- Slot 0: Comprovante de Rota -->
+                        <div style="margin-bottom:0.8rem;">
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                                <i class="ph ph-eye" style="color:#3b82f6; font-size:1.1rem;"></i>
+                                <span style="font-size:0.82rem; font-weight:600; color:#334155;">Comprovante de Rota</span>
+                                ${docsExtras[0] ? `<button type="button" onclick="visualizarDocExtra(${multa.id}, 0)" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-eye"></i> Ver</button>` : '<span style="font-size:0.75rem;color:#94a3b8;">Não anexado</span>'}
+                                ${docsExtras[0] ? `<button type="button" onclick="excluirDocExtraEspecifico(${multa.id}, 0)" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-trash"></i></button>` : ''}
                             </div>
-                            <p style="margin:4px 0 0; font-size:0.75rem; color:#94a3b8;">PDF, JPG ou PNG até 10MB</p>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <input type="file" id="gm-doc-slot-0" accept=".pdf,.jpg,.jpeg,.png" style="flex:1; font-size:0.78rem; border:none; background:transparent; cursor:pointer;">
+                                <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 0, 'Comprovante de Rota')" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:0.78rem;font-weight:600;white-space:nowrap;"><i class="ph ph-upload-simple"></i> Anexar</button>
+                            </div>
+                        </div>
+
+                        <!-- Slot 1: Documento Assinado -->
+                        <div style="margin-bottom:0.8rem;">
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                                <i class="ph ph-eye" style="color:#8b5cf6; font-size:1.1rem;"></i>
+                                <span style="font-size:0.82rem; font-weight:600; color:#334155;">Documento Assinado</span>
+                                ${docsExtras[1] ? `<button type="button" onclick="visualizarDocExtra(${multa.id}, 1)" style="background:#ede9fe;color:#7c3aed;border:1px solid #c4b5fd;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-eye"></i> Ver</button>` : '<span style="font-size:0.75rem;color:#94a3b8;">Não anexado</span>'}
+                                ${docsExtras[1] ? `<button type="button" onclick="excluirDocExtraEspecifico(${multa.id}, 1)" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-trash"></i></button>` : ''}
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <input type="file" id="gm-doc-slot-1" accept=".pdf,.jpg,.jpeg,.png" style="flex:1; font-size:0.78rem; border:none; background:transparent; cursor:pointer;">
+                                <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 1, 'Documento Assinado')" style="background:#7c3aed;color:white;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:0.78rem;font-weight:600;white-space:nowrap;"><i class="ph ph-upload-simple"></i> Anexar</button>
+                            </div>
+                        </div>
+
+                        <!-- Slot 2: Documento de Notificação -->
+                        <div style="margin-bottom:0.4rem;">
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                                <i class="ph ph-file-pdf" style="color:#10b981; font-size:1.1rem;"></i>
+                                <span style="font-size:0.82rem; font-weight:600; color:#334155;">Documento de Notificação</span>
+                                ${(multa.documento_base64 || multa.documento_path) ? `<button type="button" onclick="visualizarDocumentoMulta(${multa.id})" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-eye"></i> Ver</button>` : '<span style="font-size:0.75rem;color:#94a3b8;">Não anexado</span>'}
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <input type="file" id="gm-doc-slot-2" accept=".pdf,.jpg,.jpeg,.png" style="flex:1; font-size:0.78rem; border:none; background:transparent; cursor:pointer;">
+                                <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 2, 'Documento de Notificação')" style="background:#10b981;color:white;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:0.78rem;font-weight:600;white-space:nowrap;"><i class="ph ph-upload-simple"></i> Anexar</button>
+                            </div>
+                            <p style="margin:4px 0 0; font-size:0.72rem; color:#94a3b8;">PDF, JPG ou PNG até 10MB</p>
                         </div>
                     </div>
 
@@ -1332,6 +1361,57 @@ async function uploadDocExtra(multaId) {
     } finally {
         btn.disabled = false;
         btn.innerHTML = origHtml;
+    }
+}
+
+// Upload para um slot específico (0=Comprovante de Rota, 1=Documento Assinado, 2=Doc Notificação)
+async function uploadDocExtraSlot(multaId, slotIndex, nomeSlot) {
+    const input = document.getElementById(`gm-doc-slot-${slotIndex}`);
+    if (!input || !input.files.length) { mostrarToastAviso('Selecione um arquivo para anexar.'); return; }
+    const file = input.files[0];
+    if (file.size > 10 * 1024 * 1024) { mostrarToastAviso('Arquivo muito grande. Máximo 10MB.'); return; }
+
+    try {
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const fd = new FormData();
+        fd.append('documento', file);
+        fd.append('slot', slotIndex);
+        fd.append('nome', nomeSlot);
+        const resp = await fetch(`/api/logistica/multas/${multaId}/documento-extra`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: fd
+        });
+        if (!resp.ok) throw new Error('Falha no upload');
+        const data = await resp.json();
+        mostrarToastSucesso(`${nomeSlot} anexado!`);
+        input.value = '';
+        // Atualiza dados locais e fecha/reabre o modal para refletir o novo estado
+        const m = multasLogistica.find(x => x.id === multaId);
+        if (m && data.documentos_extras) m.documentos_extras = JSON.stringify(data.documentos_extras);
+        abrirModalGerenciarMulta(multaId);
+    } catch(e) {
+        mostrarToastErro('Erro ao anexar documento: ' + e.message);
+    }
+}
+
+// Exclui um doc extra por slot (índice)
+async function excluirDocExtraEspecifico(multaId, idx) {
+    if (!confirm('Deseja realmente excluir este documento?')) return;
+    try {
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const resp = await fetch(`/api/logistica/multas/${multaId}/documento-extra/${idx}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!resp.ok) throw new Error('Falha ao excluir');
+        const data = await resp.json();
+        mostrarToastSucesso('Documento removido!');
+        const m = multasLogistica.find(x => x.id === multaId);
+        if (m && data.documentos_extras !== undefined) m.documentos_extras = JSON.stringify(data.documentos_extras);
+        abrirModalGerenciarMulta(multaId);
+    } catch(e) {
+        mostrarToastErro('Erro ao excluir documento: ' + e.message);
     }
 }
 

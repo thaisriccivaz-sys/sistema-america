@@ -6071,8 +6071,8 @@ app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaEx
         try { extras = JSON.parse(row.documentos_extras || '[]'); } catch (_) { }
 
         // Corrige mojibake no nome do arquivo
-        let nomeArquivo = req.file.originalname || '';
-        try { nomeArquivo = Buffer.from(nomeArquivo, 'latin1').toString('utf8'); } catch(_) {}
+        let nomeArquivo = req.body.nome || req.file.originalname || '';
+        try { if (!req.body.nome) nomeArquivo = Buffer.from(nomeArquivo, 'latin1').toString('utf8'); } catch(_) {}
 
         const novoDoc = {
             nome: nomeArquivo,
@@ -6080,7 +6080,16 @@ app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaEx
             base64: req.file.buffer.toString('base64'),
             adicionado_em: new Date().toISOString()
         };
-        extras.push(novoDoc);
+
+        // Se foi passado um slot específico, inserir/substituir nesse índice
+        const slot = req.body.slot !== undefined ? parseInt(req.body.slot) : -1;
+        if (slot >= 0) {
+            // Garante que o array tem tamanho suficiente
+            while (extras.length <= slot) extras.push(null);
+            extras[slot] = novoDoc;
+        } else {
+            extras.push(novoDoc);
+        }
 
         const extrasJson = JSON.stringify(extras);
         db.run('UPDATE multas_logistica SET documentos_extras = ? WHERE id = ?', [extrasJson, req.params.id], function (err2) {
@@ -6088,7 +6097,7 @@ app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaEx
             // Retorna lista sem o base64 (para não sobrecarregar a resposta)
             res.json({
                 ok: true,
-                documentos_extras: extras.map((d, i) => ({ nome: d.nome, tipo: d.tipo, idx: i, adicionado_em: d.adicionado_em }))
+                documentos_extras: extras.map((d, i) => d ? { nome: d.nome, tipo: d.tipo, idx: i, adicionado_em: d.adicionado_em } : null)
             });
         });
     });
