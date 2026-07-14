@@ -240,13 +240,13 @@ function _buildMultaRow(m) {
 
     // Comprovante de rota (extra[0]) — olho azul
     const olhoAzul = docsExtrasList[0]
-        ? `<button onclick="visualizarDocExtra(${m.id}, 0)" style="background:transparent; border:none; cursor:pointer; color:#3b82f6; margin-right:6px;" title="Comprovante de Rota"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`
-        : `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Comprovante de Rota (não anexado)"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+        ? `<button onclick="visualizarDocExtra(${m.id}, 0)" style="background:transparent; border:none; cursor:pointer; color:#3b82f6; margin-right:6px;" title="Comprovante de Rota"><i class="ph ph-identification-card" style="font-size:1.2rem;"></i></button>`
+        : `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Comprovante de Rota (não anexado)"><i class="ph ph-identification-card" style="font-size:1.2rem;"></i></button>`;
 
     // Termo Assinado (extra[1]) — olho roxo
     const olhoVerde = docsExtrasList[1]
-        ? `<button onclick="visualizarDocExtra(${m.id}, 1)" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:6px;" title="Termo Assinado"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`
-        : `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Termo Assinado (não anexado)"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+        ? `<button onclick="visualizarDocExtra(${m.id}, 1)" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:6px;" title="Termo Assinado"><i class="ph ph-pen-nib" style="font-size:1.2rem;"></i></button>`
+        : `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Termo Assinado (não anexado)"><i class="ph ph-pen-nib" style="font-size:1.2rem;"></i></button>`;
 
     // Documento de Notificação (documento principal da mônaco)
     const btnDoc = (m.documento_base64 || m.documento_path)
