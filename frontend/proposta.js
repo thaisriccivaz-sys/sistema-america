@@ -3600,35 +3600,497 @@ window.salvarPropostaNova = async function() {
         valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0
     };
 
+    // Cache payload for save confirm call
+    window._cachedProposalPayload = payload;
+
+    // Show loading
+    Swal.fire({
+        title: 'Processando demonstrativos...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    (async () => {
+        try {
+            const dre = await window.obterDadosDREProposta(payload);
+
+            const fmt = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const pctPart = (part, total) => total > 0 ? `${((part / total) * 100).toFixed(2).replace('.', ',')}%` : '0,00%';
+
+            const selectServico = document.getElementById('prop-servico-precificado');
+            const selectedOption = selectServico ? selectServico.options[selectServico.selectedIndex] : null;
+            const precoServico = parseFloat(selectedOption ? (selectedOption.getAttribute('data-preco') || 0) : 0);
+            
+            const totalReceita = precoServico + payload.valor_zona_calculado + payload.valor_distancia_calculado + payload.valor_frete_ida + payload.valor_frete_volta;
+            const desconto = payload.desconto_reais || (totalReceita * payload.desconto_percent / 100);
+            const receitaLiquida = totalReceita - desconto;
+            const custoVariavelTotal = dre.custoVariavel + dre.despesaVariavel + payload.valor_distancia_calculado;
+            const margemContrib = receitaLiquida - custoVariavelTotal;
+            const custosFixosTotais = dre.custoFixo + dre.despesaFixa + dre.rateioDespesasFixas;
+            const lucroLiquido = margemContrib - custosFixosTotais;
+
+            const itensHtml = (payload.itens || []).map((item, idx) => `
+                <tr style="border-bottom:1px solid #cbd5e1;">
+                    <td style="text-align:center; padding:0.35rem 0.6rem;">${idx + 1}</td>
+                    <td style="padding:0.35rem 0.6rem;">${item.descricao || item.nome || 'Item'}</td>
+                    <td style="text-align:center; padding:0.35rem 0.6rem;">${item.quantidade || 1}</td>
+                    <td style="text-align:right; padding:0.35rem 0.6rem;">${fmt(item.valor_unitario)}</td>
+                    <td style="text-align:right; font-weight:bold; padding:0.35rem 0.6rem;">${fmt((item.quantidade || 1) * (item.valor_unitario || 0))}</td>
+                </tr>
+            `).join('');
+
+            const code = selectServico && selectServico.value ? `SVC-${String(selectServico.value).padStart(4, '0')}` : 'MANUAL';
+
+            Swal.fire({
+                title: '',
+                width: '850px',
+                customClass: {
+                    popup: 'custom-swal-padding-zero'
+                },
+                html: `
+                    <style>
+                        .rf-box {
+                            border: 2px solid #065f46;
+                            border-radius: 8px;
+                            font-family: 'Inter', sans-serif;
+                            background: #fff;
+                            color: #000;
+                            text-align: left;
+                            margin: 1rem 0;
+                            overflow: hidden;
+                        }
+                        .rf-header {
+                            background: #065f46;
+                            color: #fff;
+                            padding: 0.6rem;
+                            text-align: center;
+                            font-weight: bold;
+                            font-size: 0.85rem;
+                            line-height: 1.2;
+                        }
+                        .rf-header-title {
+                            font-size: 1rem;
+                            letter-spacing: 0.05em;
+                            margin-bottom: 2px;
+                        }
+                        .rf-section-title {
+                            background: #f0fdf4;
+                            color: #166534;
+                            font-weight: bold;
+                            font-size: 0.8rem;
+                            padding: 0.35rem 0.6rem;
+                            border-top: 2px solid #065f46;
+                            border-bottom: 1px solid #cbd5e1;
+                            text-transform: uppercase;
+                        }
+                        .rf-grid {
+                            display: grid;
+                            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                            border-bottom: 1px solid #cbd5e1;
+                        }
+                        .rf-grid-cell {
+                            padding: 0.4rem 0.6rem;
+                            border-right: 1px solid #cbd5e1;
+                            box-sizing: border-box;
+                        }
+                        .rf-grid-cell:last-child {
+                            border-right: none;
+                        }
+                        .rf-label {
+                            font-size: 0.65rem;
+                            color: #475569;
+                            text-transform: uppercase;
+                            font-weight: bold;
+                            margin-bottom: 2px;
+                            display: block;
+                        }
+                        .rf-value {
+                            font-size: 0.82rem;
+                            font-weight: bold;
+                            color: #0f172a;
+                        }
+                        .rf-table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            font-size: 0.78rem;
+                        }
+                        .rf-table th {
+                            background: #f1f5f9;
+                            border-bottom: 1.5px solid #cbd5e1;
+                            padding: 0.35rem 0.6rem;
+                            font-weight: bold;
+                            color: #475569;
+                            text-transform: uppercase;
+                            font-size: 0.65rem;
+                        }
+                        .rf-table td {
+                            padding: 0.35rem 0.6rem;
+                            border-bottom: 1px solid #cbd5e1;
+                        }
+                    </style>
+                    <div style="text-align:left; font-family:'Inter', sans-serif; background:#fff; border-radius:12px; overflow:hidden;">
+                        <!-- Header Tabs -->
+                        <div style="display:flex; border-bottom: 2px solid #cbd5e1; background:#f8fafc;">
+                            <button type="button" onclick="window.toggleResumoModalTab('simplificado')" id="btn-resumo-simplificado" style="flex:1; padding: 0.8rem; background: #f1f5f9; border: none; border-bottom: 3px solid #3b82f6; font-weight: bold; cursor: pointer; font-size: 0.9rem; outline:none; font-family:'Inter', sans-serif;">Resumo Simplificado</button>
+                            <button type="button" onclick="window.toggleResumoModalTab('detalhado')" id="btn-resumo-detalhado" style="flex:1; padding: 0.8rem; background: transparent; border: none; font-weight: normal; cursor: pointer; font-size: 0.9rem; color: #64748b; outline:none; font-family:'Inter', sans-serif;">Resumo Detalhado (DRE)</button>
+                        </div>
+
+                        <div style="padding: 1.2rem 1.5rem; max-height:550px; overflow-y:auto;">
+                            
+                            <!-- BOX RECEITA FEDERAL SIMPLIFICADO -->
+                            <div id="panel-resumo-simplificado" style="display:block;">
+                                <div class="rf-box">
+                                    <div class="rf-header">
+                                        <div class="rf-header-title">REPÚBLICA FEDERATIVA DO BRASIL</div>
+                                        <div>SISTEMA DE PROPOSTAS COMERCIAIS &bull; RESUMO DA DECLARAÇÃO</div>
+                                    </div>
+                                    
+                                    <div class="rf-section-title">Seção I - Identificação da Proposta</div>
+                                    <div class="rf-grid">
+                                        <div class="rf-grid-cell"><span class="rf-label">Código</span><span class="rf-value">${_propostasEditandoId ? 'EDITANDO ID: ' + _propostasEditandoId : 'NOVA PROPOSTA'}</span></div>
+                                        <div class="rf-grid-cell"><span class="rf-label">Data Emissão</span><span class="rf-value">${dataCad.split('-').reverse().join('/')}</span></div>
+                                        <div class="rf-grid-cell"><span class="rf-label">Fase</span><span class="rf-value">${fase}</span></div>
+                                        <div class="rf-grid-cell"><span class="rf-label">Tipo</span><span class="rf-value">${tipo}</span></div>
+                                    </div>
+                                    <div class="rf-grid">
+                                        <div class="rf-grid-cell"><span class="rf-label">Atendente</span><span class="rf-value">${payload.atendente || '—'}</span></div>
+                                        <div class="rf-grid-cell"><span class="rf-label">Tabela de Preço</span><span class="rf-value">${payload.tabela_precos || '—'}</span></div>
+                                        <div class="rf-grid-cell"><span class="rf-label">Modelo Impressão</span><span class="rf-value">${payload.modelo_impressao || '—'}</span></div>
+                                    </div>
+
+                                    <div class="rf-section-title">Seção II - Dados do Contratante</div>
+                                    <div class="rf-grid">
+                                        <div class="rf-grid-cell" style="grid-column: span 2;"><span class="rf-label">Nome / Razão Social</span><span class="rf-value">${payload.cliente_nome || '—'}</span></div>
+                                        <div class="rf-grid-cell"><span class="rf-label">Contato</span><span class="rf-value">${payload.contato_nome || '—'}</span></div>
+                                    </div>
+                                    <div class="rf-grid">
+                                        <div class="rf-grid-cell" style="grid-column: span 3;"><span class="rf-label">Endereço de Instalação</span><span class="rf-value">${payload.endereco_instalacao || '—'}</span></div>
+                                    </div>
+
+                                    <div class="rf-section-title">Seção III - Período Contratual</div>
+                                    <div class="rf-grid">
+                                        <div class="rf-grid-cell"><span class="rf-label">Início</span><span class="rf-value">${payload.periodo_inicio ? payload.periodo_inicio.split('-').reverse().join('/') : '—'}</span></div>
+                                        <div class="rf-grid-cell"><span class="rf-label">Fim</span><span class="rf-value">${payload.periodo_fim ? payload.periodo_fim.split('-').reverse().join('/') : '—'}</span></div>
+                                        <div class="rf-grid-cell"><span class="rf-label">Dias Contrato</span><span class="rf-value">${payload.dias_contrato} dias</span></div>
+                                    </div>
+
+                                    <div class="rf-section-title">Seção IV - Composição da Proposta</div>
+                                    <table class="rf-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align:center; width:40px;">#</th>
+                                                <th>Descrição</th>
+                                                <th style="text-align:center; width:60px;">Qtd</th>
+                                                <th style="text-align:right; width:120px;">Unitário</th>
+                                                <th style="text-align:right; width:120px;">Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${itensHtml || `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1rem;">Nenhum produto/item adicionado.</td></tr>`}
+                                        </tbody>
+                                    </table>
+
+                                    <div class="rf-section-title">Seção V - Resumo de Valores</div>
+                                    <div class="rf-grid">
+                                        <div class="rf-grid-cell"><span class="rf-label">Serviço/Equipamento</span><span class="rf-value">${fmt(precoServico)}</span></div>
+                                        <div class="rf-grid-cell"><span class="rf-label">Total Frete</span><span class="rf-value">${fmt(payload.valor_frete_ida + payload.valor_frete_volta)}</span></div>
+                                        <div class="rf-grid-cell"><span class="rf-label">Adicionais (Zona & KM)</span><span class="rf-value">${fmt(payload.valor_zona_calculado + payload.valor_distancia_calculado)}</span></div>
+                                        <div class="rf-grid-cell" style="background:#f0fdf4; border-left: 1px solid #cbd5e1;"><span class="rf-label" style="color:#166534;">Valor Total Final</span><span class="rf-value" style="color:#166534; font-size:1rem;">${fmt(payload.valor_total)}</span></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- BOX RECEITA FEDERAL DETALHADO (DRE) -->
+                            <div id="panel-resumo-detalhado" style="display:none;">
+                                <div class="rf-box" style="border-color:#1e3a8a;">
+                                    <div class="rf-header" style="background:#1e3a8a;">
+                                        <div class="rf-header-title">REPÚBLICA FEDERATIVA DO BRASIL</div>
+                                        <div>DEMONSTRATIVO DE VIABILIDADE FINANCEIRA (DRE OPERACIONAL)</div>
+                                    </div>
+                                    
+                                    <div class="rf-section-title" style="background:#eff6ff; color:#1e40af; border-top-color:#1e3a8a;">Seção I - Detalhes de Rateio e Ficha Técnica</div>
+                                    <div class="rf-grid">
+                                        <div class="rf-grid-cell"><span class="rf-label">Código Ficha</span><span class="rf-value">${code}</span></div>
+                                        <div class="rf-grid-cell"><span class="rf-label">Tempo Execução</span><span class="rf-value">${dre.tempoExecucao} h</span></div>
+                                        <div class="rf-grid-cell"><span class="rf-label">Despesas Fixas Mensais</span><span class="rf-value">${fmt(dre.despesasFixasMensais)}</span></div>
+                                        <div class="rf-grid-cell"><span class="rf-label">Modelo de Cálculo</span><span class="rf-value" style="text-transform:uppercase;">${dre.modeloCalculo.replace('_', ' ')}</span></div>
+                                    </div>
+
+                                    <div class="rf-section-title" style="background:#eff6ff; color:#1e40af; border-top-color:#1e3a8a;">Seção II - Estrutura de Custos, Despesas e Margem (DRE)</div>
+                                    
+                                    <table class="rf-table" style="font-size:0.8rem;">
+                                        <thead>
+                                            <tr style="background:#f1f5f9; border-bottom: 2px solid #cbd5e1;">
+                                                <th style="text-align:left;">Conta / Descritivo do DRE</th>
+                                                <th style="text-align:right; width:130px;">Valor</th>
+                                                <th style="text-align:right; width:80px;">% Part.</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td style="font-weight:bold; color:#0f172a;">(+) RECEITA OPERACIONAL BRUTA (Serviços/Equipamentos)</td>
+                                                <td style="text-align:right; font-weight:bold; color:#0f172a;">${fmt(precoServico)}</td>
+                                                <td style="text-align:right; color:#64748b;">${pctPart(precoServico, totalReceita)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding-left:1.5rem; color:#475569;">(+) Adicional de Zona (Região de Instalação)</td>
+                                                <td style="text-align:right; color:#475569;">${fmt(payload.valor_zona_calculado)}</td>
+                                                <td style="text-align:right; color:#64748b;">${pctPart(payload.valor_zona_calculado, totalReceita)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding-left:1.5rem; color:#475569;">(+) Transporte e Deslocamento (Distância KM)</td>
+                                                <td style="text-align:right; color:#475569;">${fmt(payload.valor_distancia_calculado)}</td>
+                                                <td style="text-align:right; color:#64748b;">${pctPart(payload.valor_distancia_calculado, totalReceita)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding-left:1.5rem; color:#475569;">(+) Frete de Ida / Volta</td>
+                                                <td style="text-align:right; color:#475569;">${fmt(payload.valor_frete_ida + payload.valor_frete_volta)}</td>
+                                                <td style="text-align:right; color:#64748b;">${pctPart(payload.valor_frete_ida + payload.valor_frete_volta, totalReceita)}</td>
+                                            </tr>
+                                            <tr style="background:#f8fafc; border-top:1px solid #cbd5e1; border-bottom:1.5px solid #94a3b8;">
+                                                <td style="font-weight:bold; color:#0f172a;">(=) RECEITA BRUTA OPERACIONAL TOTAL</td>
+                                                <td style="text-align:right; font-weight:bold; color:#0f172a;">${fmt(totalReceita)}</td>
+                                                <td style="text-align:right; color:#64748b;">100,00%</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="font-weight:bold; color:#b91c1c;">(-) DEDUÇÕES DA RECEITA (Descontos)</td>
+                                                <td style="text-align:right; font-weight:bold; color:#b91c1c;">${fmt(desconto)}</td>
+                                                <td style="text-align:right; color:#64748b;">${pctPart(desconto, totalReceita)}</td>
+                                            </tr>
+                                            <tr style="background:#f1f5f9; border-top:1.5px solid #cbd5e1; border-bottom:1.5px solid #cbd5e1;">
+                                                <td style="font-weight:bold; color:#1e3a8a;">(=) RECEITA LÍQUIDA OPERACIONAL</td>
+                                                <td style="text-align:right; font-weight:bold; color:#1e3a8a;">${fmt(receitaLiquida)}</td>
+                                                <td style="text-align:right; font-weight:bold; color:#1e3a8a;">${pctPart(receitaLiquida, totalReceita)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="font-weight:bold; color:#b91c1c;">(-) CUSTOS VARIÁVEIS OPERACIONAIS</td>
+                                                <td style="text-align:right; font-weight:bold; color:#b91c1c;">${fmt(custoVariavelTotal)}</td>
+                                                <td style="text-align:right; color:#64748b;">${pctPart(custoVariavelTotal, totalReceita)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding-left:1.5rem; color:#475569;">(-) Custos Variáveis de Ficha (MDO/Insumo)</td>
+                                                <td style="text-align:right; color:#475569;">${fmt(dre.custoVariavel)}</td>
+                                                <td style="text-align:right; color:#64748b;">${pctPart(dre.custoVariavel, totalReceita)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding-left:1.5rem; color:#475569;">(-) Despesas Variáveis de Ficha</td>
+                                                <td style="text-align:right; color:#475569;">${fmt(dre.despesaVariavel)}</td>
+                                                <td style="text-align:right; color:#64748b;">${pctPart(dre.despesaVariavel, totalReceita)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding-left:1.5rem; color:#475569;">(-) Custo Variável de Transporte (KM)</td>
+                                                <td style="text-align:right; color:#475569;">${fmt(payload.valor_distancia_calculado)}</td>
+                                                <td style="text-align:right; color:#64748b;">${pctPart(payload.valor_distancia_calculado, totalReceita)}</td>
+                                            </tr>
+                                            <tr style="background:#f0fdf4; border-top:1px solid #cbd5e1; border-bottom:1.5px solid #cbd5e1;">
+                                                <td style="font-weight:bold; color:#15803d;">(=) MARGEM DE CONTRIBUIÇÃO LÍQUIDA</td>
+                                                <td style="text-align:right; font-weight:bold; color:#15803d;">${fmt(margemContrib)}</td>
+                                                <td style="text-align:right; font-weight:bold; color:#15803d;">${pctPart(margemContrib, totalReceita)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="font-weight:bold; color:#b91c1c;">(-) CUSTOS E DESPESAS FIXAS PROPORCIONAIS</td>
+                                                <td style="text-align:right; font-weight:bold; color:#b91c1c;">${fmt(custosFixosTotais)}</td>
+                                                <td style="text-align:right; color:#64748b;">${pctPart(custosFixosTotais, totalReceita)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding-left:1.5rem; color:#475569;">(-) Custos Fixos de Ficha (MDO/Insumo)</td>
+                                                <td style="text-align:right; color:#475569;">${fmt(dre.custoFixo)}</td>
+                                                <td style="text-align:right; color:#64748b;">${pctPart(dre.custoFixo, totalReceita)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding-left:1.5rem; color:#475569;">(-) Despesas Fixas Ficha (Administrativo)</td>
+                                                <td style="text-align:right; color:#475569;">${fmt(dre.despesaFixa)}</td>
+                                                <td style="text-align:right; color:#64748b;">${pctPart(dre.despesaFixa, totalReceita)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding-left:1.5rem; color:#475569;">(-) Rateio de Despesas Fixas do Período</td>
+                                                <td style="text-align:right; color:#475569;">${fmt(dre.rateioDespesasFixas)}</td>
+                                                <td style="text-align:right; color:#64748b;">${pctPart(dre.rateioDespesasFixas, totalReceita)}</td>
+                                            </tr>
+                                            <tr style="background:#ecfdf5; border-top:2px solid #065f46; border-bottom:2px solid #065f46;">
+                                                <td style="font-weight:bold; color:#065f46; font-size:0.85rem;">(=) RESULTADO OPERACIONAL LÍQUIDO (Lucro Estimado)</td>
+                                                <td style="text-align:right; font-weight:bold; color:#065f46; font-size:0.85rem;">${fmt(lucroLiquido)}</td>
+                                                <td style="text-align:right; font-weight:bold; color:#065f46; font-size:0.85rem;">${pctPart(lucroLiquido, totalReceita)}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Footer Actions -->
+                        <div style="display:flex; justify-content: flex-end; gap:0.55rem; padding: 0.75rem 1.5rem; background: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+                            <button type="button" onclick="window.imprimirPropostaResumo()" style="background:#3b82f6; color:#fff; border:none; padding:0.5rem 1.1rem; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; outline:none;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'"><i class="ph ph-printer"></i> Salvar e Imprimir</button>
+                            <button type="button" onclick="Swal.close()" style="background:#94a3b8; color:#fff; border:none; padding:0.5rem 1.1rem; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer; outline:none;" onmouseover="this.style.background='#64748b'" onmouseout="this.style.background='#94a3b8'">Cancelar</button>
+                            <button type="button" onclick="window.confirmarSalvarProposta(false)" style="background:#16a34a; color:#fff; border:none; padding:0.5rem 1.1rem; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'"><i class="ph ph-check"></i> Confirmar e Salvar</button>
+                        </div>
+                    </div>
+                `,
+                showConfirmButton: false
+            });
+        } catch (dreErr) {
+            console.error(dreErr);
+            Swal.fire('Erro', 'Erro ao processar demonstrativos DRE: ' + dreErr.message, 'error');
+        }
+    })();
+};
+
+window.obterDadosDREProposta = async function(payload) {
+    let result = {
+        custoFixo: 0,
+        custoVariavel: 0,
+        despesaFixa: 0,
+        despesaVariavel: 0,
+        despesasFixasMensais: 0,
+        rateioDespesasFixas: 0,
+        tempoExecucao: 0,
+        margemLucro: 0,
+        modeloCalculo: 'por_fora'
+    };
+
+    if (!payload.servico_precificacao_id) {
+        return result;
+    }
+
+    const s = _precificacaoServicosList.find(x => x.id == payload.servico_precificacao_id);
+    if (!s) return result;
+
+    const code = `SVC-${String(s.id).padStart(4, '0')}`;
     try {
-        if (_propostasEditandoId) {
-            const resp = await apiPut(`/propostas/${_propostasEditandoId}`, payload);
-            if (resp && resp.success) {
-                fecharFormProposta();
-                await carregarPropostas();
-                renderTelaPropostas();
-                if (typeof mostrarToastSucesso === 'function') {
-                    mostrarToastSucesso('Proposta atualizada com sucesso!');
-                }
-            } else {
-                alert('Erro ao atualizar proposta: ' + (resp?.error || 'Erro desconhecido'));
+        const viab = _comercialViabilidades.find(v => v.servico_codigo === code) || 
+                     await apiGet(`/comercial/precificacao-viabilidade/${code}`);
+        const fichaDetalhes = _comercialFichas.find(f => f.servico_codigo === code) || 
+                              await apiGet(`/comercial/servicos-ficha/${code}`);
+        
+        if (viab) {
+            result.despesasFixasMensais = viab.despesas_fixas_mensais || 0;
+            result.rateioDespesasFixas = viab.rateio_despesas_fixas || 0;
+            result.margemLucro = viab.margem_lucro || 0;
+            result.modeloCalculo = viab.modelo_calculo || 'por_fora';
+        }
+
+        if (fichaDetalhes) {
+            result.tempoExecucao = fichaDetalhes.tempo_execucao || 0;
+            
+            let itens = fichaDetalhes.itens;
+            if (!itens) {
+                const fullFicha = await apiGet(`/comercial/servicos-ficha/${code}`);
+                if (fullFicha) itens = fullFicha.itens;
             }
-        } else {
-            const resp = await apiPost('/propostas', payload);
-            if (resp && (resp.success || resp.id)) {
-                fecharFormProposta();
-                await carregarPropostas();
-                renderTelaPropostas();
-                if (typeof mostrarToastSucesso === 'function') {
-                    mostrarToastSucesso(`Proposta ${resp.codigo} criada com contrato ${resp.contrato} com sucesso!`);
-                }
-            } else {
-                alert('Erro ao salvar proposta: ' + (resp?.error || 'Erro desconhecido'));
+
+            if (itens) {
+                itens.forEach(item => {
+                    const itemObj = _comercialItensCusto.find(i => i.id == item.item_custo_id);
+                    if (itemObj) {
+                        const custoHora = _obterCustoHoraItem(itemObj);
+                        const isHourly = (itemObj.unidade_medida || '').toUpperCase() === 'H' || itemObj.categoria === 'MDO' || itemObj.natureza === 'Fixo';
+                        const itemTotal = (item.qtd_padrao || 0) * custoHora * (isHourly ? result.tempoExecucao : 1);
+                        
+                        const isCusto = ['MDO', 'Insumo'].includes(itemObj.categoria);
+                        if (isCusto) {
+                            if (itemObj.natureza === 'Fixo') {
+                                result.custoFixo += itemTotal;
+                            } else {
+                                result.custoVariavel += itemTotal;
+                            }
+                        } else {
+                            if (itemObj.natureza === 'Fixo') {
+                                result.despesaFixa += itemTotal;
+                            } else {
+                                result.despesaVariavel += itemTotal;
+                            }
+                        }
+                    }
+                });
             }
         }
-    } catch (e) {
-        console.error('[PROPOSTAS] Erro ao salvar:', e);
-        alert('Erro ao comunicar com o servidor.');
+    } catch(err) {
+        console.error("Erro ao obter dados DRE da proposta:", err);
+    }
+    return result;
+};
+
+window.toggleResumoModalTab = function(tab) {
+    const sPanel = document.getElementById('panel-resumo-simplificado');
+    const dPanel = document.getElementById('panel-resumo-detalhado');
+    const sBtn = document.getElementById('btn-resumo-simplificado');
+    const dBtn = document.getElementById('btn-resumo-detalhado');
+
+    if (tab === 'simplificado') {
+        if (sPanel) sPanel.style.display = 'block';
+        if (dPanel) dPanel.style.display = 'none';
+        if (sBtn) {
+            sBtn.style.background = '#f1f5f9';
+            sBtn.style.borderBottom = '3px solid #3b82f6';
+            sBtn.style.fontWeight = 'bold';
+            sBtn.style.color = '#0f172a';
+        }
+        if (dBtn) {
+            dBtn.style.background = 'transparent';
+            dBtn.style.borderBottom = 'none';
+            dBtn.style.fontWeight = 'normal';
+            dBtn.style.color = '#64748b';
+        }
+    } else {
+        if (sPanel) sPanel.style.display = 'none';
+        if (dPanel) dPanel.style.display = 'block';
+        if (dBtn) {
+            dBtn.style.background = '#f1f5f9';
+            dBtn.style.borderBottom = '3px solid #3b82f6';
+            dBtn.style.fontWeight = 'bold';
+            dBtn.style.color = '#0f172a';
+        }
+        if (sBtn) {
+            sBtn.style.background = 'transparent';
+            sBtn.style.borderBottom = 'none';
+            sBtn.style.fontWeight = 'normal';
+            sBtn.style.color = '#64748b';
+        }
+    }
+};
+
+window.imprimirPropostaResumo = function() {
+    window.confirmarSalvarProposta(true);
+};
+
+window.confirmarSalvarProposta = async function(shouldPrint = false) {
+    Swal.fire({
+        title: 'Salvando Proposta...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        let resp;
+        if (_propostasEditandoId) {
+            resp = await apiPut(`/propostas/${_propostasEditandoId}`, window._cachedProposalPayload);
+        } else {
+            resp = await apiPost('/propostas', window._cachedProposalPayload);
+        }
+
+        if (resp && (resp.success || resp.id)) {
+            fecharFormProposta();
+            await carregarPropostas();
+            renderTelaPropostas();
+            
+            const finalId = _propostasEditandoId || resp.id;
+            
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso(_propostasEditandoId ? 'Proposta atualizada com sucesso!' : 'Proposta salva com sucesso!');
+            }
+
+            Swal.close();
+
+            if (shouldPrint && finalId) {
+                imprimirProposta(finalId);
+            }
+        } else {
+            Swal.fire('Erro', 'Erro ao salvar proposta: ' + (resp?.error || 'Erro desconhecido'), 'error');
+        }
+    } catch(err) {
+        console.error(err);
+        Swal.fire('Erro', 'Erro ao comunicar com o servidor: ' + err.message, 'error');
     }
 };
 
