@@ -1,4 +1,4 @@
-﻿// multas_logistica.js
+// multas_logistica.js
 
 let multasLogistica = [];
 let colaboradoresMultas = [];
@@ -1006,15 +1006,35 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
         if (!hist.length) {
             return '<p style="font-size:0.82rem;color:#94a3b8;text-align:center;padding:2rem 1rem;margin:0;"><i class="ph ph-chat-circle-dots" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Nenhum comentário ainda.</p>';
         }
-        return hist.slice().reverse().map(h => `
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+        return hist.slice().reverse().map(h => {
+            const autorHtml = `<span style="font-size:0.73rem;font-weight:700;color:#6366f1;display:flex;align-items:center;gap:4px;"><i class="ph ph-user-circle"></i>${h.autor || 'Sistema'}</span>`;
+            const dataHtml  = `<span style="font-size:0.69rem;color:#94a3b8;white-space:nowrap;margin-left:8px;">${h.data || ''}</span>`;
+
+            if (h.tipo === 'status') {
+                // Card de mudança de status — visual distinto com badges
+                return `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:9px 12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        ${autorHtml}${dataHtml}
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        <i class="ph ph-arrows-left-right" style="color:#0284c7;font-size:0.9rem;flex-shrink:0;"></i>
+                        <span style="font-size:0.72rem;font-weight:600;color:#64748b;">Alteração de status:</span>
+                        <span style="background:#e2e8f0;color:#475569;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">${(h.status_anterior||'').replace(/</g,'&lt;')}</span>
+                        <i class="ph ph-arrow-right" style="color:#0284c7;font-size:0.8rem;flex-shrink:0;"></i>
+                        <span style="background:#dbeafe;color:#1d4ed8;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">${(h.status_novo||'').replace(/</g,'&lt;')}</span>
+                    </div>
+                </div>`;
+            }
+            // Card de comentário normal (tipo='comentario' ou sem tipo — retrocompatível)
+            return `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
-                    <span style="font-size:0.75rem;font-weight:700;color:#6366f1;display:flex;align-items:center;gap:4px;"><i class="ph ph-user-circle"></i>${h.autor || 'Sistema'}</span>
-                    <span style="font-size:0.7rem;color:#94a3b8;white-space:nowrap;margin-left:8px;">${h.data || ''}</span>
+                    ${autorHtml}${dataHtml}
                 </div>
                 <p style="margin:0;font-size:0.83rem;color:#334155;line-height:1.55;white-space:pre-wrap;">${(h.texto || '').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
-            </div>`).join('');
+            </div>`;
+        }).join('');
     }
+
 
     // Data limite formatada
     const dataLimiteVal = (function(){
@@ -1289,11 +1309,9 @@ async function enviarComentarioMulta(multaId) {
         });
         if (!resp.ok) throw new Error('Falha ao salvar comentário');
 
-        // Atualiza dados locais e re-renderiza o histórico
-        const data = await resp.json().catch(() => ({}));
         textarea.value = '';
 
-        // Busca multa atualizada do servidor para pegar obs_historico novo
+        // Busca multa atualizada para pegar obs_historico atualizado
         const updResp = await fetch(`/api/logistica/multas`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (updResp.ok) {
             const allData = await updResp.json();
@@ -1306,19 +1324,8 @@ async function enviarComentarioMulta(multaId) {
                 try { if (updated.obs_historico) hist = JSON.parse(updated.obs_historico); } catch(_) {}
                 const container = document.getElementById('gm-historico-obs');
                 if (container) {
-                    if (!hist.length) {
-                        container.innerHTML = '<p style="font-size:0.82rem;color:#94a3b8;text-align:center;padding:2rem 1rem;margin:0;"><i class="ph ph-chat-circle-dots" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Nenhum comentário ainda.</p>';
-                    } else {
-                        container.innerHTML = hist.slice().reverse().map(h => `
-                            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
-                                    <span style="font-size:0.75rem;font-weight:700;color:#6366f1;display:flex;align-items:center;gap:4px;"><i class="ph ph-user-circle"></i>${h.autor || 'Sistema'}</span>
-                                    <span style="font-size:0.7rem;color:#94a3b8;white-space:nowrap;margin-left:8px;">${h.data || ''}</span>
-                                </div>
-                                <p style="margin:0;font-size:0.83rem;color:#334155;line-height:1.55;white-space:pre-wrap;">${(h.texto || '').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
-                            </div>`).join('');
-                        container.scrollTop = 0; // Mostra o mais novo primeiro
-                    }
+                    container.innerHTML = _renderHistItem(hist);
+                    container.scrollTop = 0;
                 }
             }
         }
@@ -1330,6 +1337,34 @@ async function enviarComentarioMulta(multaId) {
         btn.innerHTML = origHtml;
     }
 }
+
+// Renderizador compartilhado de itens do histórico (comentários + mudanças de status)
+function _renderHistItem(hist) {
+    if (!hist || !hist.length) {
+        return '<p style="font-size:0.82rem;color:#94a3b8;text-align:center;padding:2rem 1rem;margin:0;"><i class="ph ph-chat-circle-dots" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Nenhum comentário ainda.</p>';
+    }
+    return hist.slice().reverse().map(h => {
+        const autor = `<span style="font-size:0.73rem;font-weight:700;color:#6366f1;display:flex;align-items:center;gap:4px;"><i class="ph ph-user-circle"></i>${h.autor || 'Sistema'}</span>`;
+        const data  = `<span style="font-size:0.69rem;color:#94a3b8;white-space:nowrap;margin-left:8px;">${h.data || ''}</span>`;
+        if (h.tipo === 'status') {
+            return `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:9px 12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">${autor}${data}</div>
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <i class="ph ph-arrows-left-right" style="color:#0284c7;font-size:0.9rem;flex-shrink:0;"></i>
+                    <span style="font-size:0.72rem;font-weight:600;color:#64748b;">Alteração de status:</span>
+                    <span style="background:#e2e8f0;color:#475569;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">${(h.status_anterior||'').replace(/</g,'&lt;')}</span>
+                    <i class="ph ph-arrow-right" style="color:#0284c7;font-size:0.8rem;flex-shrink:0;"></i>
+                    <span style="background:#dbeafe;color:#1d4ed8;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">${(h.status_novo||'').replace(/</g,'&lt;')}</span>
+                </div>
+            </div>`;
+        }
+        return `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">${autor}${data}</div>
+            <p style="margin:0;font-size:0.83rem;color:#334155;line-height:1.55;white-space:pre-wrap;">${(h.texto||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+        </div>`;
+    }).join('');
+}
+
 
 
 

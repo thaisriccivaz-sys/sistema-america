@@ -5630,15 +5630,34 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 if (this.changes === 0) return res.status(404).json({ error: 'Multa não atualizada' });
 
                 // Append novo comentário ao obs_historico se fornecido
+                // E também registra mudança de status automaticamente
+                const agora = new Date();
+                const tzOpts = { timeZone: 'America/Sao_Paulo' };
+                const dataBR = agora.toLocaleDateString('pt-BR', tzOpts) + ' às ' + agora.toLocaleTimeString('pt-BR', { ...tzOpts, hour: '2-digit', minute: '2-digit' });
+
+                let hist = [];
+                try { if (oldData.obs_historico) hist = JSON.parse(oldData.obs_historico); } catch(e) {}
+
+                // Auto-registra mudança de status no histórico
+                if (status && status !== oldData.status) {
+                    hist.push({
+                        tipo: 'status',
+                        autor: autorComentario,
+                        data: dataBR,
+                        status_anterior: oldData.status || '(sem status)',
+                        status_novo: status
+                    });
+                }
+
+                // Append comentário manual
                 if (novo_comentario && novo_comentario.trim()) {
-                    let hist = [];
-                    try { if (oldData.obs_historico) hist = JSON.parse(oldData.obs_historico); } catch(e) {}
-                    const agora = new Date();
-                    const tzOpts = { timeZone: 'America/Sao_Paulo' };
-                    const dataBR = agora.toLocaleDateString('pt-BR', tzOpts) + ' às ' + agora.toLocaleTimeString('pt-BR', { ...tzOpts, hour: '2-digit', minute: '2-digit' });
-                    hist.push({ autor: autorComentario, data: dataBR, texto: novo_comentario.trim() });
+                    hist.push({ tipo: 'comentario', autor: autorComentario, data: dataBR, texto: novo_comentario.trim() });
+                }
+
+                if (hist.length > 0) {
                     db.run('UPDATE multas_logistica SET obs_historico = ? WHERE id = ?', [JSON.stringify(hist), req.params.id]);
                 }
+
 
                 // Auto-definir status_rh = 'Recebido' quando status muda para Indicado, Multa NIC ou Cobrada - Pz. Perdido
                 const autoRhStatuses = ['Indicado', 'Multa NIC', 'Cobrada - Pz. Perdido'];
