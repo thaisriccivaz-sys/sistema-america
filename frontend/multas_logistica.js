@@ -1,4 +1,4 @@
-// multas_logistica.js
+﻿// multas_logistica.js
 
 let multasLogistica = [];
 let colaboradoresMultas = [];
@@ -945,21 +945,13 @@ async function salvarNovaMultaLogistica(e) {
 function abrirModalGerenciarMulta(id, focoMotorista = false) {
     const multa = multasLogistica.find(m => m.id === id);
     if (!multa) return;
-    const modoLeitura = false;
 
     document.getElementById('modal-gerenciar-multa')?.remove();
     const modal = document.createElement('div');
     modal.id = 'modal-gerenciar-multa';
-    modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:9999; padding:1rem;';
+    modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); display:flex; justify-content:center; align-items:center; z-index:9999;';
 
     let optionsMotoristas = _buildOptionsMotoristas(multa.motorista_id);
-
-    const statusOpts = ['Conferência', 'Em Andamento', 'Indicado', 'Multa NIC', 'Id. Deferida', 'Id. Indeferida', 'Recorrida', 'Rec. Deferida', 'Rec. Indeferida', 'Não Se Aplica', 'Antiga'];
-    let optionsStatus = '';
-    statusOpts.forEach(s => {
-        const sel = (multa.status === s) ? 'selected' : '';
-        optionsStatus += `<option value="${s}" ${sel}>${s}</option>`;
-    });
 
     // Dados do motorista selecionado (se houver)
     const motoristaColab = multa.motorista_id ? colaboradoresMultas.find(c => c.id === multa.motorista_id) : null;
@@ -967,6 +959,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
     const habilitacao = multa.motorista_habilitacao || motoristaColab?.cnh_numero || '';
     const endereco = motoristaColab?.endereco || '';
     const endEsc = endereco.replace(/'/g, "\\'");
+
     const emailHtml = `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
         <span style="font-size:0.8rem; color:#374151;"><b>E-mail:</b> <code>operacao@americarental.com.br</code></span>
         <button type="button" onclick="navigator.clipboard.writeText('operacao@americarental.com.br'); mostrarToastSucesso('E-mail copiado!'); event.stopPropagation();" title="Copiar E-mail" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
@@ -974,272 +967,371 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
 
     let motoristaInfoInner = '';
     if (motoristaColab) {
+        const nomeColab = (motoristaColab.nome_completo || motoristaColab.nome || '').replace(/'/g, "\\'");
         motoristaInfoInner = `
             <div style="display:flex; align-items:center; gap:6px;">
                 <i class="ph ph-user" style="color:#166534;"></i>
                 <span style="font-size:0.88rem; color:#166534; font-weight:700;">${motoristaColab.nome_completo || motoristaColab.nome}</span>
-                <button type="button" onclick="navigator.clipboard.writeText('${(motoristaColab.nome_completo || motoristaColab.nome).replace(/'/g, "\\'")}'); mostrarToastSucesso('Nome copiado!'); event.stopPropagation();" title="Copiar Nome" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
+                <button type="button" onclick="navigator.clipboard.writeText('${nomeColab}'); mostrarToastSucesso('Nome copiado!'); event.stopPropagation();" title="Copiar Nome" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
             </div>
             ${cpf ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
-                <span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code id="gm-cpf-val">${cpf}</code></span>
+                <span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code>${cpf}</code></span>
                 <button type="button" onclick="navigator.clipboard.writeText('${cpf}'); mostrarToastSucesso('CPF copiado!'); event.stopPropagation();" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
             </div>` : ''}
             ${motoristaColab?.rg ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
-                <span style="font-size:0.8rem; color:#374151;"><b>RG:</b> <code id="gm-rg-val">${motoristaColab.rg}</code></span>
+                <span style="font-size:0.8rem; color:#374151;"><b>RG:</b> <code>${motoristaColab.rg}</code></span>
                 <button type="button" onclick="navigator.clipboard.writeText('${motoristaColab.rg}'); mostrarToastSucesso('RG copiado!'); event.stopPropagation();" title="Copiar RG" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
             </div>` : ''}
             ${habilitacao ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
-                <span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code id="gm-hab-val">${habilitacao}</code></span>
+                <span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code>${habilitacao}</code></span>
                 <button type="button" onclick="navigator.clipboard.writeText('${habilitacao}'); mostrarToastSucesso('Nº CNH copiado!'); event.stopPropagation();" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
                 ${multa.motorista_id ? `<button type="button" onclick="baixarCNHMotorista(${multa.motorista_id}); event.stopPropagation();" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:2px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button>` : ''}
             </div>` : ''}
             ${endEsc ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
-                <span style="font-size:0.8rem; color:#374151;"><b>Endereço:</b> <code id="gm-end-val">${endereco}</code></span>
+                <span style="font-size:0.8rem; color:#374151;"><b>Endereço:</b> <code>${endereco}</code></span>
                 <button type="button" onclick="navigator.clipboard.writeText('${endEsc}'); mostrarToastSucesso('Endereço copiado!'); event.stopPropagation();" title="Copiar Endereço" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
             </div>` : ''}
-            ${emailHtml}
-        `;
+            ${emailHtml}`;
     }
-
-    const motoristaInfoHtml = `
-        <div id="gm-info-motorista" style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:0.85rem 1rem; margin-bottom:1rem; display:${motoristaColab ? 'flex' : 'none'}; flex-direction:column; gap:0.35rem;">
-            ${motoristaInfoInner}
-        </div>
-    `;
 
     // Documentos extras já salvos
     let docsExtras = [];
     try { docsExtras = JSON.parse(multa.documentos_extras || '[]'); } catch(_) {}
 
+    // Histórico de comentários
+    let obsHist = [];
+    try { if (multa.obs_historico) obsHist = JSON.parse(multa.obs_historico); } catch(_) {}
+
+    function renderHistorico(hist) {
+        if (!hist.length) {
+            return '<p style="font-size:0.82rem;color:#94a3b8;text-align:center;padding:2rem 1rem;margin:0;"><i class="ph ph-chat-circle-dots" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Nenhum comentário ainda.</p>';
+        }
+        return hist.slice().reverse().map(h => `
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+                    <span style="font-size:0.75rem;font-weight:700;color:#6366f1;display:flex;align-items:center;gap:4px;"><i class="ph ph-user-circle"></i>${h.autor || 'Sistema'}</span>
+                    <span style="font-size:0.7rem;color:#94a3b8;white-space:nowrap;margin-left:8px;">${h.data || ''}</span>
+                </div>
+                <p style="margin:0;font-size:0.83rem;color:#334155;line-height:1.55;white-space:pre-wrap;">${(h.texto || '').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+            </div>`).join('');
+    }
+
+    // Data limite formatada
+    const dataLimiteVal = (function(){
+        let dl = multa.data_limite || '';
+        if (dl.includes('/')) { const p = dl.split('/'); if(p.length===3) return p[2]+'-'+p[1]+'-'+p[0]; }
+        return dl;
+    })();
+    const dataInfracaoVal = (function(){
+        let d = multa.data_infracao || '';
+        if (d.includes('/')) { const p = d.split('/'); if(p.length===3) return p[2]+'-'+p[1]+'-'+p[0]; }
+        return d;
+    })();
+
+    const isAssinada = (multa.status === 'Indicado' || multa.status === 'Multa NIC' || multa.status === 'Assinado' || multa.status === 'Concluído');
+
     modal.innerHTML = `
-        <div style="background:#fff; width:95vw; height:95vh; max-width:1400px; display:flex; flex-direction:column; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.2); overflow:hidden;">
-            <div style="background:#f8fafc; padding:1.2rem 1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; z-index:1;">
-                <h3 style="margin:0; color:#0f172a; font-size:1.1rem;">&#9998; Gerenciar Multa — ${multa.numero_ait || 'S/N'}</h3>
-                <button type="button" onclick="document.getElementById('modal-gerenciar-multa').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+        <div style="background:#fff; width:100vw; height:100vh; display:flex; flex-direction:column; overflow:hidden;">
+
+            <!-- HEADER -->
+            <div style="background:linear-gradient(135deg,#1e40af,#2563eb); padding:0.9rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; box-shadow:0 2px 8px rgba(37,99,235,0.3);">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <i class="ph ph-ticket" style="color:#fff; font-size:1.4rem;"></i>
+                    <div>
+                        <h3 style="margin:0; color:#fff; font-size:1rem; font-weight:700;">Gerenciar Multa</h3>
+                        <span style="color:#bfdbfe; font-size:0.8rem; font-weight:500;">${multa.numero_ait || 'S/N'} · ${multa.placa || ''}</span>
+                    </div>
+                </div>
+                <button type="button" onclick="document.getElementById('modal-gerenciar-multa').remove()" style="background:rgba(255,255,255,0.15); border:none; color:#fff; width:36px; height:36px; border-radius:50%; cursor:pointer; font-size:1.3rem; display:flex; align-items:center; justify-content:center; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">&times;</button>
             </div>
-            <div style="padding:1.5rem; flex:1; overflow-y:auto; background:#fdfdfd;">
-                <form id="form-gerenciar-multa" data-valor="${multa.valor_multa || '0'}" onsubmit="salvarGerenciamentoMulta(event, ${multa.id})" style="max-width:800px; margin:0 auto;">
 
-                    <!-- INFO MOTORISTA -->
-                    ${motoristaInfoHtml}
+            <!-- BODY: 2 colunas -->
+            <div style="flex:1; display:flex; overflow:hidden;">
 
-                    <!-- INFO MONACO -->
-                    ${multa.status_monaco ? `
-                    <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:0.85rem 1rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
-                        <i class="ph ph-police-car" style="color:#475569; font-size:1.2rem;"></i>
-                        <span style="font-size:0.85rem; color:#334155;"><b>Status Atual na Mônaco:</b> <span style="font-weight:700; color:#0f172a; padding:2px 8px; background:#e2e8f0; border-radius:12px;">${multa.status_monaco}</span></span>
-                        <span style="font-size:0.75rem; color:#94a3b8; margin-left:auto;">(Atualizado via Webhook)</span>
-                    </div>
-                    ` : ''}
+                <!-- COLUNA ESQUERDA: Informações da Multa -->
+                <div style="flex:1.4; overflow-y:auto; padding:1.5rem; background:#f8fafc; border-right:1px solid #e2e8f0;">
+                    <form id="form-gerenciar-multa" data-valor="${multa.valor_multa || '0'}" onsubmit="salvarGerenciamentoMulta(event, ${multa.id})">
 
-                    <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap;">
-                        <div style="flex:1; min-width:250px;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Motorista Responsável</label>
-                            <select id="gm-motorista" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;" onchange="atualizarInfoMotoristaModal(this)">
-                                ${optionsMotoristas}
-                            </select>
-                            <input type="text" id="gm-ex-colaborador-nome" placeholder="Digite o nome do Ex Colaborador" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px; margin-top:0.5rem; display:${multa.motorista_id == -1 ? 'block' : 'none'};" value="${multa.motorista_id == -1 ? (multa.motorista_nome || '') : ''}">
+                        <!-- INFO MOTORISTA -->
+                        <div id="gm-info-motorista" style="background:#f0fdf4; border:1px solid #86efac; border-radius:10px; padding:0.85rem 1rem; margin-bottom:1rem; display:${motoristaColab ? 'flex' : 'none'}; flex-direction:column; gap:0.35rem;">
+                            ${motoristaInfoInner}
                         </div>
-                        <div style="flex:1; min-width:200px;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Status Logística</label>
-                            ${_buildStatusDropdown('csd-gm-status','gm-status', multa.status || 'Conferência', null, 'atualizarValoresMultaModal()')}
-                        </div>
-                        <div style="flex:1; min-width:160px;" id="gm-status-rh-container">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Status RH</label>
-                            ${window._isRhContext
-                                ? `<div class="custom-status-dropdown" id="csd-gm-status-rh">
-                                    <div class="csd-trigger" onclick="_csdToggle('csd-gm-status-rh')">
-                                        <span class="csd-badge" id="csd-gm-status-rh-badge" style="background:${multa.status_rh === 'Cobrado' ? '#dcfce7' : multa.status_rh === 'Recebido' ? '#fef9c3' : '#f1f5f9'}; color:${multa.status_rh === 'Cobrado' ? '#16a34a' : multa.status_rh === 'Recebido' ? '#d97706' : '#64748b'};">${multa.status_rh || '-- Sem Status --'}</span>
-                                        <span class="csd-arrow">▼</span>
-                                    </div>
-                                    <div class="csd-list">
-                                        <div class="csd-item" data-val="" onclick="_csdRhSelect('')"><span class="csd-badge" style="background:#f1f5f9;color:#64748b;">-- Sem Status --</span></div>
-                                        <div class="csd-item" data-val="Recebido" onclick="_csdRhSelect('Recebido')"><span class="csd-badge" style="background:#fef9c3;color:#d97706;font-weight:700;">Recebido</span></div>
-                                        <div class="csd-item" data-val="Cobrado" onclick="_csdRhSelect('Cobrado')"><span class="csd-badge" style="background:#dcfce7;color:#16a34a;font-weight:700;">Cobrado</span></div>
-                                    </div>
-                                </div>
-                                <input type="hidden" id="gm-status-rh" value="${multa.status_rh || ''}">`
-                                : `<div style="padding:0.6rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; min-height:38px; display:flex; align-items:center;">${_statusRhBadge(multa.status_rh)}</div><input type="hidden" id="gm-status-rh" value="${multa.status_rh || ''}">`
-                            }
-                        </div>
-                    </div>
 
-                    <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap;">
-                        <div style="flex:1; min-width:150px;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Valor (R$)</label>
-                            <input type="text" id="gm-valor" value="${multa.valor_multa || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;" oninput="atualizarValoresMultaModal()">
-                        </div>
-                        <div style="flex:1; min-width:150px;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Pontuação</label>
-                            <input type="number" id="gm-pontos" value="${multa.pontuacao || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                        </div>
-                    </div>
+                        <!-- INFO MONACO -->
+                        ${multa.status_monaco ? `
+                        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:0.75rem 1rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+                            <i class="ph ph-police-car" style="color:#475569; font-size:1.1rem;"></i>
+                            <span style="font-size:0.83rem; color:#334155;"><b>Status Mônaco:</b> <span style="font-weight:700; color:#0f172a; padding:2px 8px; background:#e2e8f0; border-radius:10px;">${multa.status_monaco}</span></span>
+                            <span style="font-size:0.73rem; color:#94a3b8; margin-left:auto;">(via Webhook)</span>
+                        </div>` : ''}
 
-                    ${(() => {
-                        const isAssinada = (multa.status === 'Indicado' || multa.status === 'Multa NIC' || multa.status === 'Assinado' || multa.status === 'Concluído');
-                        const displayParcelas = isAssinada ? 'flex' : 'none';
-                        return `
-                        <div style="display:${displayParcelas}; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap; background:#f1f5f9; padding:1rem; border-radius:8px; border:1px solid #e2e8f0;">
-                            <div style="flex:1; min-width:150px;">
-                                <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Parcelamento Escolhido</label>
-                                <input type="text" value="${multa.parcelas || 1}x" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px; background:#e2e8f0; color:#475569; font-weight:600;" disabled>
-                                <input type="hidden" id="gm-parcelas" value="${multa.parcelas || 1}">
+                        <!-- MOTORISTA + STATUS -->
+                        <div style="display:flex; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;">
+                            <div style="flex:1.5; min-width:220px;">
+                                <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Motorista Responsável</label>
+                                <select id="gm-motorista" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;" onchange="atualizarInfoMotoristaModal(this)">
+                                    ${optionsMotoristas}
+                                </select>
+                                <input type="text" id="gm-ex-colaborador-nome" placeholder="Digite o nome do Ex Colaborador" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; margin-top:0.4rem; font-size:0.85rem; display:${multa.motorista_id == -1 ? 'block' : 'none'};" value="${multa.motorista_id == -1 ? (multa.motorista_nome || '') : ''}">
                             </div>
-                        `;
-                    })()}
-                        <div style="flex:2; min-width:250px;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Valor a Descontar (Detalhes)</label>
-                            <div id="gm-valor-info" style="padding:0.6rem; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:600; color:#0f172a; min-height:38px; display:flex; align-items:center;">
-                                R$ 0,00
+                            <div style="flex:1; min-width:160px;">
+                                <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Status Logística</label>
+                                ${_buildStatusDropdown('csd-gm-status','gm-status', multa.status || 'Conferência', null, 'atualizarValoresMultaModal()')}
                             </div>
-                        </div>
-                    </div>
-
-                    <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap;">
-                        <div style="flex:1; min-width:150px;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Data da Infração</label>
-                            <input type="date" id="gm-data" value="${(function(){
-                                let d = multa.data_infracao || '';
-                                if (d.includes('/')) {
-                                    const p = d.split('/');
-                                    if(p.length === 3) return p[2] + '-' + p[1] + '-' + p[0];
+                            <div style="flex:1; min-width:130px;" id="gm-status-rh-container">
+                                <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Status RH</label>
+                                ${window._isRhContext
+                                    ? `<div class="custom-status-dropdown" id="csd-gm-status-rh">
+                                        <div class="csd-trigger" onclick="_csdToggle('csd-gm-status-rh')">
+                                            <span class="csd-badge" id="csd-gm-status-rh-badge" style="background:${multa.status_rh === 'Cobrado' ? '#dcfce7' : multa.status_rh === 'Recebido' ? '#fef9c3' : '#f1f5f9'}; color:${multa.status_rh === 'Cobrado' ? '#16a34a' : multa.status_rh === 'Recebido' ? '#d97706' : '#64748b'};">${multa.status_rh || '-- Sem Status --'}</span>
+                                            <span class="csd-arrow">▼</span>
+                                        </div>
+                                        <div class="csd-list">
+                                            <div class="csd-item" data-val="" onclick="_csdRhSelect('')"><span class="csd-badge" style="background:#f1f5f9;color:#64748b;">-- Sem Status --</span></div>
+                                            <div class="csd-item" data-val="Recebido" onclick="_csdRhSelect('Recebido')"><span class="csd-badge" style="background:#fef9c3;color:#d97706;font-weight:700;">Recebido</span></div>
+                                            <div class="csd-item" data-val="Cobrado" onclick="_csdRhSelect('Cobrado')"><span class="csd-badge" style="background:#dcfce7;color:#16a34a;font-weight:700;">Cobrado</span></div>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="gm-status-rh" value="${multa.status_rh || ''}">`
+                                    : `<div style="padding:0.55rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; min-height:36px; display:flex; align-items:center;">${_statusRhBadge(multa.status_rh)}</div><input type="hidden" id="gm-status-rh" value="${multa.status_rh || ''}">`
                                 }
-                                return d;
-                            })()}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                        </div>
-                        <div style="flex:1; min-width:150px;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Hora</label>
-                            <input type="time" id="gm-hora" value="${multa.hora_infracao || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                        </div>
-                        <div style="flex:2; min-width:200px;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Número AIT</label>
-                            <input type="text" id="gm-ait" value="${multa.numero_ait || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                        </div>
-                    </div>
-
-                    <div style="margin-bottom:1rem;">
-                        <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Motivo (Infração)</label>
-                        <input type="text" id="gm-motivo" value="${multa.motivo || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                    </div>
-
-                    <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap;">
-                        <div style="flex:1; min-width:150px;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Placa</label>
-                            <input type="text" id="gm-placa" value="${multa.placa || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                        </div>
-                        <div style="flex:2; min-width:250px;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Local da Infração</label>
-                            <input type="text" id="gm-local" value="${multa.local_infracao || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                        </div>
-                    </div>
-
-                    <div style="margin-bottom:1rem; background:#fff7ed; border:1.5px solid #fed7aa; border-radius:8px; padding:0.85rem 1rem;">
-                        <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:700; color:#c2410c;">&#128197; Data Limite &mdash; Indicação de Condutor / Defesa de Autuação</label>
-                        <input type="date" id="gm-data-limite" value="${(function(){
-                            let dl = multa.data_limite || '';
-                            if (dl.includes('/')) {
-                                const p = dl.split('/');
-                                if(p.length === 3) return p[2] + '-' + p[1] + '-' + p[0];
-                            }
-                            return dl;
-                        })()}" style="width:100%; padding:0.6rem; border:1px solid #fed7aa; border-radius:4px; font-size:0.9rem;">
-                    </div>
-
-                    <div style="margin-bottom:1rem;">
-                        <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Observação <span id="gm-obs-req" style="color:red; display:none;">*</span></label>
-                        <textarea id="gm-obs" rows="2" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px; resize:vertical;">${multa.observacao || ''}</textarea>
-                    </div>
-
-                    <div style="margin-bottom:1.5rem;">
-                        <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Link Formulário Assinatura</label>
-                        <div style="display:flex; gap:0.5rem;">
-                            <input type="text" id="gm-link" value="${multa.link_formulario || ''}" placeholder="https://..." style="flex:1; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                            <button type="button" onclick="const l = document.getElementById('gm-link').value; if(l) window.open(l.startsWith('http') ? l : 'http://'+l, '_blank')" style="background:#f1f5f9; color:#2563eb; border:1px solid #cbd5e1; border-radius:4px; padding:0 1rem; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:0.3rem;"><i class="ph ph-arrow-square-out"></i> Abrir</button>
-                        </div>
-                    </div>
-
-                    <!-- DOCUMENTOS EXTRAS -->
-                    <div style="border-top:1px solid #e2e8f0; padding-top:1.2rem; margin-top:0.5rem;">
-                        <label style="display:block; margin-bottom:0.8rem; font-size:0.85rem; font-weight:600; color:#2563eb;">&#128206; Documentos Anexados</label>
-
-                        <!-- 3 cards lado a lado -->
-                        <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
-
-                            <!-- Card 0: Comprovante de Rota (azul) -->
-                            <div style="flex:1; min-width:180px; border:1.5px solid #bfdbfe; border-radius:10px; padding:0.8rem; background:#eff6ff;">
-                                <div style="display:flex; align-items:center; gap:6px; margin-bottom:0.5rem;">
-                                    <i class="ph ph-identification-card" style="color:#2563eb; font-size:1.4rem;"></i>
-                                    <span style="font-size:0.82rem; font-weight:700; color:#1d4ed8;">Comprovante de Rota</span>
-                                </div>
-                                <div style="margin-bottom:6px; display:flex; gap:5px; flex-wrap:wrap;">
-                                    ${docsExtras[0]
-                                        ? `<button type="button" onclick="visualizarDocExtra(${multa.id}, 0)" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver</button>
-                                           <button type="button" onclick="excluirDocExtraEspecifico(${multa.id}, 0)" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-trash"></i></button>`
-                                        : '<span style="font-size:0.75rem;color:#94a3b8;">Não anexado</span>'}
-                                </div>
-                                <input type="file" id="gm-doc-slot-0" accept=".pdf,.jpg,.jpeg,.png" style="width:100%; font-size:0.75rem; margin-bottom:5px;">
-                                <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 0, 'Comprovante de Rota')" style="width:100%; background:#2563eb;color:white;border:none;border-radius:6px;padding:5px 0;cursor:pointer;font-size:0.78rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:4px;"><i class="ph ph-upload-simple"></i> Anexar</button>
                             </div>
-
-                            <!-- Card 1: Termo Assinado (roxo) -->
-                            <div style="flex:1; min-width:180px; border:1.5px solid #c4b5fd; border-radius:10px; padding:0.8rem; background:#f5f3ff;">
-                                <div style="display:flex; align-items:center; gap:6px; margin-bottom:0.5rem;">
-                                    <i class="ph ph-signature" style="color:#7c3aed; font-size:1.4rem;"></i>
-                                    <span style="font-size:0.82rem; font-weight:700; color:#6d28d9;">Termo Assinado</span>
-                                </div>
-                                <div style="margin-bottom:6px; display:flex; gap:5px; flex-wrap:wrap;">
-                                    ${docsExtras[1]
-                                        ? `<button type="button" onclick="visualizarDocExtra(${multa.id}, 1)" style="background:#ede9fe;color:#7c3aed;border:1px solid #c4b5fd;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver</button>
-                                           <button type="button" onclick="excluirDocExtraEspecifico(${multa.id}, 1)" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-trash"></i></button>`
-                                        : '<span style="font-size:0.75rem;color:#94a3b8;">Não anexado</span>'}
-                                </div>
-                                <input type="file" id="gm-doc-slot-1" accept=".pdf,.jpg,.jpeg,.png" style="width:100%; font-size:0.75rem; margin-bottom:5px;">
-                                <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 1, 'Termo Assinado')" style="width:100%; background:#7c3aed;color:white;border:none;border-radius:6px;padding:5px 0;cursor:pointer;font-size:0.78rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:4px;"><i class="ph ph-upload-simple"></i> Anexar</button>
-                            </div>
-
-                            <!-- Card 2: Documento de Notificação (verde) -->
-                            <div style="flex:1; min-width:180px; border:1.5px solid #6ee7b7; border-radius:10px; padding:0.8rem; background:#ecfdf5;">
-                                <div style="display:flex; align-items:center; gap:6px; margin-bottom:0.5rem;">
-                                    <i class="ph ph-file-pdf" style="color:#10b981; font-size:1.4rem;"></i>
-                                    <span style="font-size:0.82rem; font-weight:700; color:#065f46;">Documento de Notificação</span>
-                                </div>
-                                <div style="margin-bottom:6px; display:flex; gap:5px; flex-wrap:wrap;">
-                                    ${(multa.documento_base64 || multa.documento_path)
-                                        ? `<button type="button" onclick="visualizarDocumentoMulta(${multa.id})" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver</button>`
-                                        : '<span style="font-size:0.75rem;color:#94a3b8;">Não anexado</span>'}
-                                </div>
-                                <input type="file" id="gm-doc-slot-2" accept=".pdf,.jpg,.jpeg,.png" style="width:100%; font-size:0.75rem; margin-bottom:5px;">
-                                <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 2, 'Documento de Notificação')" style="width:100%; background:#10b981;color:white;border:none;border-radius:6px;padding:5px 0;cursor:pointer;font-size:0.78rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:4px;"><i class="ph ph-upload-simple"></i> Anexar</button>
-                                <p style="margin:5px 0 0; font-size:0.72rem; color:#94a3b8; text-align:center;">PDF, JPG ou PNG até 10MB</p>
-                            </div>
-
                         </div>
+
+                        <!-- VALOR + PONTUAÇÃO -->
+                        <div style="display:flex; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;">
+                            <div style="flex:1; min-width:130px;">
+                                <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Valor (R$)</label>
+                                <input type="text" id="gm-valor" value="${multa.valor_multa || ''}" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;" oninput="atualizarValoresMultaModal()">
+                            </div>
+                            <div style="flex:1; min-width:110px;">
+                                <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Pontuação</label>
+                                <input type="number" id="gm-pontos" value="${multa.pontuacao || ''}" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                            </div>
+                            ${isAssinada ? `
+                            <div style="flex:2; min-width:200px;">
+                                <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Valor a Descontar</label>
+                                <div id="gm-valor-info" style="padding:0.55rem; background:#fff; border:1px solid #cbd5e1; border-radius:6px; font-weight:600; color:#0f172a; min-height:36px; display:flex; align-items:center; font-size:0.85rem;">R$ 0,00</div>
+                            </div>
+                            <input type="hidden" id="gm-parcelas" value="${multa.parcelas || 1}">` : '<input type="hidden" id="gm-parcelas" value="1">'}
+                        </div>
+
+                        <!-- DATA + HORA + AIT -->
+                        <div style="display:flex; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;">
+                            <div style="flex:1; min-width:130px;">
+                                <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Data da Infração</label>
+                                <input type="date" id="gm-data" value="${dataInfracaoVal}" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                            </div>
+                            <div style="flex:1; min-width:100px;">
+                                <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Hora</label>
+                                <input type="time" id="gm-hora" value="${multa.hora_infracao || ''}" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                            </div>
+                            <div style="flex:2; min-width:170px;">
+                                <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Número AIT</label>
+                                <input type="text" id="gm-ait" value="${multa.numero_ait || ''}" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                            </div>
+                        </div>
+
+                        <!-- MOTIVO -->
+                        <div style="margin-bottom:1rem;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Motivo (Infração)</label>
+                            <input type="text" id="gm-motivo" value="${multa.motivo || ''}" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                        </div>
+
+                        <!-- PLACA + LOCAL -->
+                        <div style="display:flex; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;">
+                            <div style="flex:1; min-width:120px;">
+                                <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Placa</label>
+                                <input type="text" id="gm-placa" value="${multa.placa || ''}" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                            </div>
+                            <div style="flex:2; min-width:200px;">
+                                <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Local da Infração</label>
+                                <input type="text" id="gm-local" value="${multa.local_infracao || ''}" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                            </div>
+                        </div>
+
+                        <!-- DATA LIMITE -->
+                        <div style="margin-bottom:1rem; background:#fff7ed; border:1.5px solid #fed7aa; border-radius:10px; padding:0.85rem 1rem;">
+                            <label style="display:block; margin-bottom:0.4rem; font-size:0.82rem; font-weight:700; color:#c2410c;">&#128197; Data Limite — Indicação / Defesa</label>
+                            <input type="date" id="gm-data-limite" value="${dataLimiteVal}" style="width:100%; padding:0.55rem; border:1px solid #fed7aa; border-radius:6px; font-size:0.85rem;">
+                        </div>
+
+                        <!-- LINK FORMULÁRIO -->
+                        <div style="margin-bottom:1.2rem;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Link Formulário Assinatura</label>
+                            <div style="display:flex; gap:0.5rem;">
+                                <input type="text" id="gm-link" value="${multa.link_formulario || ''}" placeholder="https://..." style="flex:1; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                                <button type="button" onclick="const l=document.getElementById('gm-link').value; if(l) window.open(l.startsWith('http')?l:'http://'+l,'_blank')" style="background:#f1f5f9; color:#2563eb; border:1px solid #cbd5e1; border-radius:6px; padding:0 1rem; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:4px; font-size:0.82rem;"><i class="ph ph-arrow-square-out"></i> Abrir</button>
+                            </div>
+                        </div>
+
+                        <!-- DOCUMENTOS EXTRAS -->
+                        <div style="border-top:2px solid #e2e8f0; padding-top:1rem; margin-top:0.5rem;">
+                            <label style="display:block; margin-bottom:0.8rem; font-size:0.83rem; font-weight:700; color:#2563eb;"><i class="ph ph-paperclip"></i> Documentos Anexados</label>
+                            <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+
+                                <!-- Card 0: Comprovante de Rota -->
+                                <div style="flex:1; min-width:160px; border:1.5px solid #bfdbfe; border-radius:10px; padding:0.75rem; background:#eff6ff;">
+                                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:0.5rem;">
+                                        <i class="ph ph-identification-card" style="color:#2563eb; font-size:1.3rem;"></i>
+                                        <span style="font-size:0.8rem; font-weight:700; color:#1d4ed8;">Comprovante de Rota</span>
+                                    </div>
+                                    <div style="margin-bottom:6px; display:flex; gap:5px; flex-wrap:wrap;">
+                                        ${docsExtras[0]
+                                            ? `<button type="button" onclick="visualizarDocExtra(${multa.id}, 0)" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:0.76rem;font-weight:600;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-eye"></i> Ver</button>
+                                               <button type="button" onclick="excluirDocExtraEspecifico(${multa.id}, 0)" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.76rem;"><i class="ph ph-trash"></i></button>`
+                                            : '<span style="font-size:0.73rem;color:#94a3b8;">Não anexado</span>'}
+                                    </div>
+                                    <input type="file" id="gm-doc-slot-0" accept=".pdf,.jpg,.jpeg,.png" style="width:100%; font-size:0.73rem; margin-bottom:5px;">
+                                    <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 0, 'Comprovante de Rota')" style="width:100%; background:#2563eb;color:white;border:none;border-radius:6px;padding:5px 0;cursor:pointer;font-size:0.75rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:3px;"><i class="ph ph-upload-simple"></i> Anexar</button>
+                                </div>
+
+                                <!-- Card 1: Termo Assinado -->
+                                <div style="flex:1; min-width:160px; border:1.5px solid #c4b5fd; border-radius:10px; padding:0.75rem; background:#f5f3ff;">
+                                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:0.5rem;">
+                                        <i class="ph ph-signature" style="color:#7c3aed; font-size:1.3rem;"></i>
+                                        <span style="font-size:0.8rem; font-weight:700; color:#6d28d9;">Termo Assinado</span>
+                                    </div>
+                                    <div style="margin-bottom:6px; display:flex; gap:5px; flex-wrap:wrap;">
+                                        ${docsExtras[1]
+                                            ? `<button type="button" onclick="visualizarDocExtra(${multa.id}, 1)" style="background:#ede9fe;color:#7c3aed;border:1px solid #c4b5fd;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:0.76rem;font-weight:600;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-eye"></i> Ver</button>
+                                               <button type="button" onclick="excluirDocExtraEspecifico(${multa.id}, 1)" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.76rem;"><i class="ph ph-trash"></i></button>`
+                                            : '<span style="font-size:0.73rem;color:#94a3b8;">Não anexado</span>'}
+                                    </div>
+                                    <input type="file" id="gm-doc-slot-1" accept=".pdf,.jpg,.jpeg,.png" style="width:100%; font-size:0.73rem; margin-bottom:5px;">
+                                    <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 1, 'Termo Assinado')" style="width:100%; background:#7c3aed;color:white;border:none;border-radius:6px;padding:5px 0;cursor:pointer;font-size:0.75rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:3px;"><i class="ph ph-upload-simple"></i> Anexar</button>
+                                </div>
+
+                                <!-- Card 2: Documento de Notificação -->
+                                <div style="flex:1; min-width:160px; border:1.5px solid #6ee7b7; border-radius:10px; padding:0.75rem; background:#ecfdf5;">
+                                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:0.5rem;">
+                                        <i class="ph ph-file-pdf" style="color:#10b981; font-size:1.3rem;"></i>
+                                        <span style="font-size:0.8rem; font-weight:700; color:#065f46;">Doc. Notificação</span>
+                                    </div>
+                                    <div style="margin-bottom:6px; display:flex; gap:5px; flex-wrap:wrap;">
+                                        ${(multa.documento_base64 || multa.documento_path)
+                                            ? `<button type="button" onclick="visualizarDocumentoMulta(${multa.id})" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:0.76rem;font-weight:600;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-eye"></i> Ver</button>`
+                                            : '<span style="font-size:0.73rem;color:#94a3b8;">Não anexado</span>'}
+                                    </div>
+                                    <input type="file" id="gm-doc-slot-2" accept=".pdf,.jpg,.jpeg,.png" style="width:100%; font-size:0.73rem; margin-bottom:5px;">
+                                    <button type="button" onclick="uploadDocExtraSlot(${multa.id}, 2, 'Documento de Notificação')" style="width:100%; background:#10b981;color:white;border:none;border-radius:6px;padding:5px 0;cursor:pointer;font-size:0.75rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:3px;"><i class="ph ph-upload-simple"></i> Anexar</button>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- BOTÕES -->
+                        <div style="display:flex; gap:1rem; margin-top:1.5rem; padding-top:1rem; border-top:1px solid #e2e8f0;">
+                            <button type="button" onclick="document.getElementById('modal-gerenciar-multa').remove()" style="flex:1; padding:0.65rem; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; cursor:pointer; font-weight:600; color:#475569; font-size:0.85rem;">Cancelar</button>
+                            <button type="submit" style="flex:2; padding:0.65rem; background:linear-gradient(135deg,#1e40af,#2563eb); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.85rem; display:flex; align-items:center; justify-content:center; gap:6px;"><i class="ph ph-floppy-disk"></i> Salvar Alterações</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- COLUNA DIREITA: Comentários -->
+                <div style="width:360px; flex-shrink:0; display:flex; flex-direction:column; background:#fff; border-left:1px solid #e2e8f0;">
+                    <!-- Header comentários -->
+                    <div style="padding:1rem 1.2rem; border-bottom:1px solid #e2e8f0; background:#f8fafc; flex-shrink:0;">
+                        <h4 style="margin:0; color:#1e293b; font-size:0.9rem; font-weight:700; display:flex; align-items:center; gap:6px;">
+                            <i class="ph ph-chat-dots" style="color:#6366f1;"></i> Observações / Histórico
+                        </h4>
                     </div>
 
-                    <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:1.5rem;">
-                        <button type="button" onclick="document.getElementById('modal-gerenciar-multa').remove()" style="padding:0.6rem 1.2rem; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; font-weight:600; color:#475569;">Cancelar</button>
-                        <button type="submit" style="padding:0.6rem 1.2rem; background:#2563eb; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:600;">Salvar Alterações</button>
+                    <!-- Lista de comentários (scrollável) -->
+                    <div id="gm-historico-obs" style="flex:1; overflow-y:auto; padding:1rem; display:flex; flex-direction:column; gap:10px; background:#f8fafc;">
+                        ${renderHistorico(obsHist)}
                     </div>
-                </form>
+
+                    <!-- Input novo comentário -->
+                    <div style="padding:1rem; border-top:1px solid #e2e8f0; flex-shrink:0; background:#fff;">
+                        <p style="margin:0 0 6px; font-size:0.78rem; font-weight:600; color:#475569; display:flex; align-items:center; gap:4px;"><i class="ph ph-plus-circle" style="color:#6366f1;"></i> Novo Comentário</p>
+                        <textarea id="gm-novo-comentario" rows="3" placeholder="Escreva um comentário..." style="width:100%; padding:0.6rem; border:1.5px solid #e2e8f0; border-radius:8px; font-size:0.83rem; resize:none; box-sizing:border-box; font-family:inherit; outline:none; transition:border 0.2s;" onfocus="this.style.border='1.5px solid #6366f1'" onblur="this.style.border='1.5px solid #e2e8f0'"></textarea>
+                        <button type="button" onclick="enviarComentarioMulta(${multa.id})" style="width:100%; margin-top:6px; background:#6366f1; color:white; border:none; border-radius:8px; padding:0.6rem; cursor:pointer; font-weight:700; font-size:0.82rem; display:flex; align-items:center; justify-content:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#4f46e5'" onmouseout="this.style.background='#6366f1'"><i class="ph ph-paper-plane-tilt"></i> Enviar Comentário</button>
+                    </div>
+                </div>
+
             </div>
         </div>
     `;
+
     document.body.appendChild(modal);
 
     const statusSel = document.getElementById('gm-status');
-    const obsReq = document.getElementById('gm-obs-req');
     statusSel.addEventListener('change', () => {
-        obsReq.style.display = (statusSel.value === 'Não Se Aplica') ? 'inline' : 'none';
+        const obsReq = document.getElementById('gm-obs-req');
+        if (obsReq) obsReq.style.display = (statusSel.value === 'Não Se Aplica') ? 'inline' : 'none';
     });
-    if (statusSel.value === 'Não Se Aplica') obsReq.style.display = 'inline';
 
     atualizarValoresMultaModal();
 
-
     if (focoMotorista && (multa.status !== 'Indicado' && multa.status !== 'Multa NIC')) {
-        document.getElementById('gm-motorista').focus();
+        document.getElementById('gm-motorista')?.focus();
     }
 }
+
+// Enviar comentário isolado sem salvar o restante do form
+async function enviarComentarioMulta(multaId) {
+    const textarea = document.getElementById('gm-novo-comentario');
+    const texto = textarea?.value.trim();
+    if (!texto) { mostrarToastAviso('Digite um comentário antes de enviar.'); return; }
+
+    const btn = textarea.nextElementSibling;
+    const origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+
+    try {
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const resp = await fetch(`/api/logistica/multas/${multaId}`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ novo_comentario: texto })
+        });
+        if (!resp.ok) throw new Error('Falha ao salvar comentário');
+
+        // Atualiza dados locais e re-renderiza o histórico
+        const data = await resp.json().catch(() => ({}));
+        textarea.value = '';
+
+        // Busca multa atualizada do servidor para pegar obs_historico novo
+        const updResp = await fetch(`/api/logistica/multas`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (updResp.ok) {
+            const allData = await updResp.json();
+            const updated = allData.find ? allData.find(m => m.id === multaId) : null;
+            if (updated) {
+                const idx = multasLogistica.findIndex(m => m.id === multaId);
+                if (idx >= 0) multasLogistica[idx] = updated;
+
+                let hist = [];
+                try { if (updated.obs_historico) hist = JSON.parse(updated.obs_historico); } catch(_) {}
+                const container = document.getElementById('gm-historico-obs');
+                if (container) {
+                    if (!hist.length) {
+                        container.innerHTML = '<p style="font-size:0.82rem;color:#94a3b8;text-align:center;padding:2rem 1rem;margin:0;"><i class="ph ph-chat-circle-dots" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Nenhum comentário ainda.</p>';
+                    } else {
+                        container.innerHTML = hist.slice().reverse().map(h => `
+                            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+                                    <span style="font-size:0.75rem;font-weight:700;color:#6366f1;display:flex;align-items:center;gap:4px;"><i class="ph ph-user-circle"></i>${h.autor || 'Sistema'}</span>
+                                    <span style="font-size:0.7rem;color:#94a3b8;white-space:nowrap;margin-left:8px;">${h.data || ''}</span>
+                                </div>
+                                <p style="margin:0;font-size:0.83rem;color:#334155;line-height:1.55;white-space:pre-wrap;">${(h.texto || '').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+                            </div>`).join('');
+                        container.scrollTop = 0; // Mostra o mais novo primeiro
+                    }
+                }
+            }
+        }
+        mostrarToastSucesso('Comentário adicionado!');
+    } catch(e) {
+        mostrarToastErro('Erro ao enviar comentário: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+    }
+}
+
+
 
 function atualizarValoresMultaModal() {
     const form = document.getElementById('form-gerenciar-multa');

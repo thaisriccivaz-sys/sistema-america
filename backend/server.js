@@ -5574,7 +5574,8 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
 
 // PUT /api/logistica/multas/:id — atualiza campos da multa (motorista, status, obs, link)
 app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
-    const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, parcelas, placa, local_infracao, data_limite, status_rh } = req.body;
+    const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, parcelas, placa, local_infracao, data_limite, status_rh, novo_comentario } = req.body;
+    const autorComentario = req.user?.nome || req.user?.login || 'Usuário';
 
     db.get('SELECT * FROM multas_logistica WHERE id = ?', [req.params.id], (err, oldData) => {
         if (err || !oldData) return res.status(404).json({ error: 'Multa não encontrada' });
@@ -5627,6 +5628,17 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
             function (errUpdate) {
                 if (errUpdate) return res.status(500).json({ error: errUpdate.message });
                 if (this.changes === 0) return res.status(404).json({ error: 'Multa não atualizada' });
+
+                // Append novo comentário ao obs_historico se fornecido
+                if (novo_comentario && novo_comentario.trim()) {
+                    let hist = [];
+                    try { if (oldData.obs_historico) hist = JSON.parse(oldData.obs_historico); } catch(e) {}
+                    const agora = new Date();
+                    const tzOpts = { timeZone: 'America/Sao_Paulo' };
+                    const dataBR = agora.toLocaleDateString('pt-BR', tzOpts) + ' às ' + agora.toLocaleTimeString('pt-BR', { ...tzOpts, hour: '2-digit', minute: '2-digit' });
+                    hist.push({ autor: autorComentario, data: dataBR, texto: novo_comentario.trim() });
+                    db.run('UPDATE multas_logistica SET obs_historico = ? WHERE id = ?', [JSON.stringify(hist), req.params.id]);
+                }
 
                 // Auto-definir status_rh = 'Recebido' quando status muda para Indicado, Multa NIC ou Cobrada - Pz. Perdido
                 const autoRhStatuses = ['Indicado', 'Multa NIC', 'Cobrada - Pz. Perdido'];
@@ -6092,6 +6104,9 @@ db.run("ALTER TABLE multas_logistica ADD COLUMN documentos_extras TEXT DEFAULT '
 });
 db.run("ALTER TABLE multas_logistica ADD COLUMN parcelas INTEGER DEFAULT 1", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION multas_logistica parcelas]', err.message);
+});
+db.run("ALTER TABLE multas_logistica ADD COLUMN obs_historico TEXT DEFAULT '[]'", (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION multas_logistica obs_historico]', err.message);
 });
 
 // POST /api/logistica/multas/:id/documento-extra — adiciona um documento extra à multa
