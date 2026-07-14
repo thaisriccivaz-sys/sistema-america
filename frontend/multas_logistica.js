@@ -1616,11 +1616,7 @@ async function salvarGerenciamentoMulta(e, id) {
     const obsEl = document.getElementById('gm-obs') || document.getElementById('gm-novo-comentario');
     const obs = obsEl ? obsEl.value.trim() : '';
 
-    if (status === 'Não Se Aplica' && !obs) {
-        mostrarToastAviso('Para status "Não Se Aplica", adicione uma observação no campo de comentários.');
-        document.getElementById('gm-novo-comentario')?.focus();
-        return;
-    }
+    // (validação removida conforme solicitado)
 
     const m = multasLogistica.find(x => x.id === id);
     let docsEx = [];
@@ -1663,16 +1659,24 @@ async function salvarGerenciamentoMulta(e, id) {
     const statusRh = document.getElementById('gm-status-rh')?.value ?? null;
 
     let settled = false;
-    const fecharEAtualizar = async (msg, tipo = 'sucesso') => {
+    const atualizarTela = async (msg, tipo = 'sucesso') => {
         if (settled) return;
         settled = true;
-        document.getElementById('modal-gerenciar-multa')?.remove();
+        
+        // Em vez de fechar o modal, apenas atualizamos a tabela em background
+        // O usuário fecha pelo botão X
         await carregarMultasLogistica();
+        
         if (tipo === 'sucesso') mostrarToastSucesso(msg);
         else mostrarToastAviso(msg);
+        
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Alterações';
+        }
     };
     const timeoutId = setTimeout(() => {
-        fecharEAtualizar('Alterações salvas! Lista atualizada.', 'sucesso');
+        atualizarTela('Alterações salvas! Lista atualizada.', 'sucesso');
     }, 9000);
 
     try {
@@ -1710,11 +1714,11 @@ async function salvarGerenciamentoMulta(e, id) {
         }
 
         window._ultimoIdMultaEditada = id;
-        await fecharEAtualizar('Multa atualizada e e-mail enviado (se aplicável)!');
+        await atualizarTela('Multa atualizada com sucesso!');
     } catch (err) {
         clearTimeout(timeoutId);
         console.error('[salvarGerenciamentoMulta]', err);
-        await fecharEAtualizar(err.message, 'aviso');
+        await atualizarTela(err.message, 'aviso');
     }
 }
 
