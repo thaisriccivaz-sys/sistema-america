@@ -1730,6 +1730,9 @@ function _renderFormPropostaInt() {
                                     <button type="button" onclick="pesquisarClienteProposta()" title="Pesquisar Cliente" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
                                     </button>
+                                    <button type="button" onclick="verDetalhesClienteProposta()" title="Ver Detalhes do Cliente" style="background:#0ea5e9; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'">
+                                        <i class="ph ph-eye" style="font-size:0.95rem;"></i>
+                                    </button>
                                 </div>
                             </div>
                             <div>
@@ -3542,6 +3545,37 @@ window.verDetalhesContatoProposta = async function() {
     } catch(e) {
         console.error(e);
         Swal.fire('Erro', 'Não foi possível carregar os detalhes do contato.', 'error');
+    }
+};
+
+window.verDetalhesClienteProposta = async function() {
+    const clienteNome = document.getElementById('prop-cliente').value.trim();
+    if (!clienteNome) {
+        Swal.fire('Aviso', 'Por favor, selecione um cliente cadastrado primeiro.', 'warning');
+        return;
+    }
+
+    try {
+        // Show loading indicator
+        Swal.fire({
+            title: 'Carregando detalhes do cliente...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        const clientes = await apiGet('/clientes') || [];
+        const client = clientes.find(c => c.nome_razao_social.toLowerCase() === clienteNome.toLowerCase());
+        
+        Swal.close();
+
+        if (client) {
+            window.abrirModalCadastroCliente(client.id, '');
+        } else {
+            Swal.fire('Aviso', 'Cliente não cadastrado ou não encontrado.', 'warning');
+        }
+    } catch(e) {
+        console.error(e);
+        Swal.fire('Erro', 'Não foi possível carregar os detalhes do cliente.', 'error');
     }
 };
 
