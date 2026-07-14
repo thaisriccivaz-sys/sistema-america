@@ -5575,7 +5575,7 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
 // PUT /api/logistica/multas/:id — atualiza campos da multa (motorista, status, obs, link)
 app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
     const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, parcelas, placa, local_infracao, data_limite, status_rh, novo_comentario } = req.body;
-    const autorComentario = req.user?.nome || req.user?.login || 'Usuário';
+    const autorComentario = req.user?.username || req.user?.nome || req.user?.login || 'Usuário';
 
     db.get('SELECT * FROM multas_logistica WHERE id = ?', [req.params.id], (err, oldData) => {
         if (err || !oldData) return res.status(404).json({ error: 'Multa não encontrada' });
