@@ -740,6 +740,12 @@ db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_calcado TEXT", (err) => {
     });
 });
 
+// MIGRATION: Celular Corporativo
+['celular_participa', 'celular_data'].forEach(col => {
+    db.run(`ALTER TABLE colaboradores ADD COLUMN ${col} TEXT`, (err) => {
+        if (err && !err.message.includes('duplicate column')) console.error(`[Migration] ${col}:`, err.message);
+    });
+});
 
 // MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
 const GERADORES_PERFIL = [
@@ -22496,9 +22502,10 @@ console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
 // ── Colaboradores com celular_participa = Sim ──
 app.get('/api/celulares/colaboradores', authenticateToken, (req, res) => {
     db.all(
-        `SELECT id, nome_completo, telefone, telefone_corporativo, foto_path, celular_participa
+        `SELECT id, nome_completo, telefone, telefone_corporativo, foto_path, celular_participa, status
          FROM colaboradores
-         WHERE celular_participa = 'Sim' AND (status = 'Ativo' OR status IS NULL OR status = '')
+         WHERE celular_participa = 'Sim'
+           AND (status IS NULL OR LOWER(status) NOT LIKE '%desligado%')
          ORDER BY nome_completo`,
         [], (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
