@@ -965,6 +965,20 @@ window.switchPropostaTab = function(tab) {
             } else if (tab === 'modelos-contrato') {
                 document.querySelectorAll('#tab-prop-modelos-contrato').forEach(el => el.classList.add('active'));
             }
+            
+            // Highlight dropdown item by matching target tab in any replica
+            document.querySelectorAll('.saas-dropdown-item').forEach(el => {
+                const clickAttr = el.getAttribute('onclick') || '';
+                if (tab === 'form') {
+                    if (clickAttr.includes('abrirFormProposta(null') || clickAttr.includes("'form'")) {
+                        el.classList.add('active');
+                    }
+                } else {
+                    if (clickAttr.includes(`'${tab}'`)) {
+                        el.classList.add('active');
+                    }
+                }
+            });
         }
         if (tab === 'lista') {
             if (window.atualizarGraficosGlobais) window.atualizarGraficosGlobais();
@@ -10205,29 +10219,69 @@ function _renderPrecificacaoBaseLayout() {
                 font-weight: 600;
             }
         </style>
-        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif; padding:1.25rem;">
+        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif;">
             
-            <!-- Tab Switcher Bar -->
-            <div class="prec-subtab-bar">
-                <div class="prec-subtab-item ${_precSubTab === 'itens-custo' ? 'active' : ''}" onclick="_switchPrecSubTab('itens-custo')">
-                    <i class="ph ph-tag" style="margin-right:4px;"></i> 1. Cadastro de Itens de Custo
+            <!-- Toolbar -->
+            <div id="prop-toolbar-precificacao" style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
+                
+                <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
+                <div class="saas-dropdown-container">
+                    <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
+                        <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
+                    </div>
+                    <div class="saas-dropdown-menu">
+                        <div class="saas-dropdown-item" onclick="abrirFormProposta(null); event.stopPropagation();">
+                            <i class="ph ph-pencil-simple"></i> Nova Proposta
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
+                            <i class="ph ph-user-plus"></i> Cadastro de Clientes
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                            <i class="ph ph-identification-card"></i> Cadastro de Contatos
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
+                            <i class="ph ph-map-pin"></i> Endereços
+                        </div>
+                        <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
+                            <i class="ph ph-calculator"></i> Precificação de Serviços
+                        </div>
+                        <div class="saas-dropdown-item" id="tab-prop-modelos-contrato" onclick="switchPropostaTab('modelos-contrato'); event.stopPropagation();">
+                            <i class="ph ph-file-text"></i> Modelos de Contrato
+                        </div>
+                    </div>
                 </div>
-                <div class="prec-subtab-item ${_precSubTab === 'rateio-custo' ? 'active' : ''}" onclick="_switchPrecSubTab('rateio-custo')">
-                    <i class="ph ph-percent" style="margin-right:4px;"></i> 2. Rateio de Custos
-                </div>
-                <div class="prec-subtab-item ${_precSubTab === 'ficha-tecnica' ? 'active' : ''}" onclick="_switchPrecSubTab('ficha-tecnica')">
-                    <i class="ph ph-file-text" style="margin-right:4px;"></i> 3. Ficha Técnica do Serviço
-                </div>
-                <div class="prec-subtab-item ${_precSubTab === 'precificacao' ? 'active' : ''}" onclick="_switchPrecSubTab('precificacao')">
-                    <i class="ph ph-calculator" style="margin-right:4px;"></i> 4. Precificação e Viabilidade
-                </div>
-                <div class="prec-subtab-item ${_precSubTab === 'config-logistica' ? 'active' : ''}" onclick="_switchPrecSubTab('config-logistica')">
-                    <i class="ph ph-gear" style="margin-right:4px;"></i> 5. Parâmetros de Logística
+                
+                <!-- Lado Direito -->
+                <div style="display:flex; gap:0.4rem; align-items:center;">
+                    <button onclick="window._renderServicosPrecificacaoInt()" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                        <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
+                    </button>
                 </div>
             </div>
+            
+            <div style="padding:1.25rem;">
+                <!-- Tab Switcher Bar -->
+                <div class="prec-subtab-bar">
+                    <div class="prec-subtab-item ${_precSubTab === 'itens-custo' ? 'active' : ''}" onclick="_switchPrecSubTab('itens-custo')">
+                        <i class="ph ph-tag" style="margin-right:4px;"></i> 1. Cadastro de Itens de Custo
+                    </div>
+                    <div class="prec-subtab-item ${_precSubTab === 'rateio-custo' ? 'active' : ''}" onclick="_switchPrecSubTab('rateio-custo')">
+                        <i class="ph ph-percent" style="margin-right:4px;"></i> 2. Rateio de Custos
+                    </div>
+                    <div class="prec-subtab-item ${_precSubTab === 'ficha-tecnica' ? 'active' : ''}" onclick="_switchPrecSubTab('ficha-tecnica')">
+                        <i class="ph ph-file-text" style="margin-right:4px;"></i> 3. Ficha Técnica do Serviço
+                    </div>
+                    <div class="prec-subtab-item ${_precSubTab === 'precificacao' ? 'active' : ''}" onclick="_switchPrecSubTab('precificacao')">
+                        <i class="ph ph-calculator" style="margin-right:4px;"></i> 4. Precificação e Viabilidade
+                    </div>
+                    <div class="prec-subtab-item ${_precSubTab === 'config-logistica' ? 'active' : ''}" onclick="_switchPrecSubTab('config-logistica')">
+                        <i class="ph ph-gear" style="margin-right:4px;"></i> 5. Parâmetros de Logística
+                    </div>
+                </div>
 
-            <!-- Tab Contents Container -->
-            <div id="prec-subtab-contents"></div>
+                <!-- Tab Contents Container -->
+                <div id="prec-subtab-contents"></div>
+            </div>
 
         </div>
     `;
@@ -13267,68 +13321,109 @@ function _renderModelosContratoBaseLayout() {
     if (!container) return;
 
     container.innerHTML = `
-        <div style="font-family:'Inter', sans-serif; padding:1.5rem; background:#f8fafc; border-radius:12px; box-sizing:border-box;">
-            <!-- Subtabs -->
-            <div style="display:flex; gap:1.5rem; border-bottom:2px solid #e2e8f0; margin-bottom:1.5rem; padding-bottom:0.25rem;">
-                <span id="subtab-modelos" onclick="switchModelosSubtab('modelos')" style="font-size:0.88rem; font-weight:700; color:#4f46e5; cursor:pointer; border-bottom:2px solid #4f46e5; padding:0.5rem 0.25rem; margin-bottom:-6px; transition:all 0.2s;">
-                    Modelos de Contrato <i class="ph ph-file-text"></i>
-                </span>
-                <span id="subtab-textos" onclick="switchModelosSubtab('textos')" style="font-size:0.88rem; font-weight:700; color:#64748b; cursor:pointer; padding:0.5rem 0.25rem; transition:all 0.2s;">
-                    Textos Legais (Cláusulas) <i class="ph ph-shield-check"></i>
-                </span>
-            </div>
-
-            <!-- PANEL: MODELOS -->
-            <div id="panel-modelos-contrato" style="display:flex; gap:1.5rem; flex-wrap:wrap;">
-                <!-- Left Column: List -->
-                <div style="flex: 0 0 320px; background:white; padding:1.25rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); box-sizing:border-box;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                        <h3 style="font-size:0.95rem; font-weight:700; color:#1e293b; margin:0;">Meus Modelos</h3>
-                        <button onclick="criarNovoModeloContrato()" style="background:#4f46e5; color:white; border:none; padding:0.4rem 0.75rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.78rem; display:flex; align-items:center; gap:4px; height:28px;">
-                            <i class="ph ph-plus"></i> Novo
-                        </button>
+        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif;">
+            
+            <!-- Toolbar -->
+            <div id="prop-toolbar-modelos" style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
+                
+                <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
+                <div class="saas-dropdown-container">
+                    <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
+                        <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
                     </div>
-                    <div id="modelos-lista-container" style="display:flex; flex-direction:column; gap:0.5rem; max-height:600px; overflow-y:auto;">
-                        <!-- Filled dynamically -->
+                    <div class="saas-dropdown-menu">
+                        <div class="saas-dropdown-item" onclick="abrirFormProposta(null); event.stopPropagation();">
+                            <i class="ph ph-pencil-simple"></i> Nova Proposta
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
+                            <i class="ph ph-user-plus"></i> Cadastro de Clientes
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                            <i class="ph ph-identification-card"></i> Cadastro de Contatos
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
+                            <i class="ph ph-map-pin"></i> Endereços
+                        </div>
+                        <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
+                            <i class="ph ph-calculator"></i> Precificação de Serviços
+                        </div>
+                        <div class="saas-dropdown-item" id="tab-prop-modelos-contrato" onclick="switchPropostaTab('modelos-contrato'); event.stopPropagation();">
+                            <i class="ph ph-file-text"></i> Modelos de Contrato
+                        </div>
                     </div>
                 </div>
-
-                <!-- Right Column: Editor -->
-                <div id="modelo-editor-container" style="flex:1; min-width:400px; background:white; padding:1.5rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); box-sizing:border-box; display:none;">
-                    <!-- Active Model Editor filled dynamically -->
-                </div>
-                <div id="modelo-editor-empty" style="flex:1; min-width:400px; background:white; padding:3rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); text-align:center; color:#64748b; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
-                    <i class="ph ph-file-text" style="font-size:3rem; color:#cbd5e1;"></i>
-                    <p style="margin:0; font-weight:600; font-size:0.92rem;">Nenhum modelo selecionado.</p>
-                    <p style="margin:0; font-size:0.8rem; color:#94a3b8;">Escolha um modelo na lista à esquerda ou crie um novo para editá-lo.</p>
-                </div>
-            </div>
-
-            <!-- PANEL: TEXTOS LEGAIS -->
-            <div id="panel-textos-legais" style="display:none; background:white; padding:1.5rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); box-sizing:border-box;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
-                    <div>
-                        <h3 style="font-size:1.05rem; font-weight:700; color:#1e293b; margin:0;">Textos Legais Cadastrados</h3>
-                        <p style="margin:0.25rem 0 0 0; font-size:0.78rem; color:#64748b;">Cláusulas e termos do ERP que podem ser adicionados aos seus modelos de contrato.</p>
-                    </div>
-                    <button onclick="abrirModalTextoLegal(null)" style="background:#4f46e5; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:flex; align-items:center; gap:6px; height:32px;">
-                        <i class="ph ph-plus"></i> Novo Texto Legal
+                
+                <!-- Lado Direito -->
+                <div style="display:flex; gap:0.4rem; align-items:center;">
+                    <button onclick="window._renderModelosContratoInt()" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                        <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
                     </button>
                 </div>
-                <div style="overflow-x:auto;">
-                    <table class="saas-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.82rem;">
-                        <thead>
-                            <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
-                                <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; width:80px;">Código</th>
-                                <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; width:220px;">Descrição</th>
-                                <th style="padding:0.75rem 1rem; font-weight:700; color:#475569;">Resumo do Texto</th>
-                                <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; width:100px; text-align:center;">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="textos-legais-tbody">
+            </div>
+            
+            <div style="padding:1.5rem; box-sizing:border-box;">
+                <!-- Subtabs -->
+                <div style="display:flex; gap:1.5rem; border-bottom:2px solid #e2e8f0; margin-bottom:1.5rem; padding-bottom:0.25rem;">
+                    <span id="subtab-modelos" onclick="switchModelosSubtab('modelos')" style="font-size:0.88rem; font-weight:700; color:#4f46e5; cursor:pointer; border-bottom:2px solid #4f46e5; padding:0.5rem 0.25rem; margin-bottom:-6px; transition:all 0.2s;">
+                        Modelos de Contrato <i class="ph ph-file-text"></i>
+                    </span>
+                    <span id="subtab-textos" onclick="switchModelosSubtab('textos')" style="font-size:0.88rem; font-weight:700; color:#64748b; cursor:pointer; padding:0.5rem 0.25rem; transition:all 0.2s;">
+                        Textos Legais (Cláusulas) <i class="ph ph-shield-check"></i>
+                    </span>
+                </div>
+
+                <!-- PANEL: MODELOS -->
+                <div id="panel-modelos-contrato" style="display:flex; gap:1.5rem; flex-wrap:wrap;">
+                    <!-- Left Column: List -->
+                    <div style="flex: 0 0 320px; background:white; padding:1.25rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); box-sizing:border-box;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                            <h3 style="font-size:0.95rem; font-weight:700; color:#1e293b; margin:0;">Meus Modelos</h3>
+                            <button onclick="criarNovoModeloContrato()" style="background:#4f46e5; color:white; border:none; padding:0.4rem 0.75rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.78rem; display:flex; align-items:center; gap:4px; height:28px;">
+                                <i class="ph ph-plus"></i> Novo
+                            </button>
+                        </div>
+                        <div id="modelos-lista-container" style="display:flex; flex-direction:column; gap:0.5rem; max-height:600px; overflow-y:auto;">
                             <!-- Filled dynamically -->
-                        </tbody>
-                    </table>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Editor -->
+                    <div id="modelo-editor-container" style="flex:1; min-width:400px; display:none; background:white; padding:1.5rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); box-sizing:border-box;">
+                        <!-- Content loaded dynamically -->
+                    </div>
+                    <div id="modelo-editor-empty" style="flex:1; min-width:400px; background:white; padding:3rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); text-align:center; color:#64748b; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+                        <i class="ph ph-file-text" style="font-size:3rem; color:#cbd5e1;"></i>
+                        <p style="margin:0; font-weight:600; font-size:0.92rem;">Nenhum modelo selecionado.</p>
+                        <p style="margin:0; font-size:0.8rem; color:#94a3b8;">Escolha um modelo na lista à esquerda ou crie um novo para editá-lo.</p>
+                    </div>
+                </div>
+
+                <!-- PANEL: TEXTOS LEGAIS -->
+                <div id="panel-textos-legais" style="display:none; background:white; padding:1.5rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); box-sizing:border-box;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+                        <div>
+                            <h3 style="font-size:1.05rem; font-weight:700; color:#1e293b; margin:0;">Textos Legais Cadastrados</h3>
+                            <p style="margin:0.25rem 0 0 0; font-size:0.78rem; color:#64748b;">Cláusulas e termos do ERP que podem ser adicionados aos seus modelos de contrato.</p>
+                        </div>
+                        <button onclick="abrirModalTextoLegal(null)" style="background:#4f46e5; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:flex; align-items:center; gap:6px; height:32px;">
+                            <i class="ph ph-plus"></i> Novo Texto Legal
+                        </button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="saas-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.82rem;">
+                            <thead>
+                                <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
+                                    <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; width:80px;">Código</th>
+                                    <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; width:220px;">Descrição</th>
+                                    <th style="padding:0.75rem 1rem; font-weight:700; color:#475569;">Resumo do Texto</th>
+                                    <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; width:100px; text-align:center;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="textos-legais-tbody">
+                                <!-- Filled dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
