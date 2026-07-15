@@ -881,7 +881,8 @@ function renderTelaPropostas() {
             'cadastro-cliente': 'prop-toolbar-cliente',
             'cadastro-contatos': 'prop-toolbar-contatos',
             'enderecos': 'prop-toolbar-enderecos',
-            'servicos-precificacao': 'prop-toolbar-servicos'
+            'servicos-precificacao': 'prop-toolbar-precificacao',
+            'modelos-contrato': 'prop-toolbar-modelos'
         };
         const toolbarId = toolbarIdMap[_currentPropostaTab];
         const toolbar = document.getElementById(toolbarId);
@@ -995,7 +996,8 @@ window.switchPropostaTab = function(tab) {
                 'cadastro-cliente': 'prop-toolbar-cliente',
                 'cadastro-contatos': 'prop-toolbar-contatos',
                 'enderecos': 'prop-toolbar-enderecos',
-                'servicos-precificacao': 'prop-toolbar-servicos'
+                'servicos-precificacao': 'prop-toolbar-precificacao',
+                'modelos-contrato': 'prop-toolbar-modelos'
             };
             const toolbarId = toolbarIdMap[tab];
             const toolbar = document.getElementById(toolbarId);
