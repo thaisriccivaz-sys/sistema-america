@@ -1905,7 +1905,18 @@ window.toggleCelularFields = function (val) {
             if (corpTelInput) corpTelInput.value = '';
         }
     }
+    // Quando Sim: Telefone Pessoal ocupa meia linha (Corporativo fica ao lado)
+    // Quando Não: Telefone Pessoal ocupa linha inteira
+    const wrapperPesTel = document.getElementById('wrapper-telefone-pessoal');
+    if (wrapperPesTel) {
+        if (val === 'Sim') {
+            wrapperPesTel.classList.remove('span-2');
+        } else {
+            wrapperPesTel.classList.add('span-2');
+        }
+    }
 };
+
 
 window.toggleChavesColabFields = function (val) {
     const section = document.getElementById('section-chaves-colab');
