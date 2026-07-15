@@ -11172,7 +11172,7 @@ app.post('/api/config-notificacoes', authenticateToken, (req, res) => {
 });
 
 // ── DIAGNÓSTICO: celular_controle ────────────────────────────────────────────
-app.get('/api/diag/celular-notif', authenticateToken, (req, res) => {
+app.get('/api/diag/celular-notif', (req, res) => {
     db.all(`
         SELECT
             cn.tipo, cn.usuario_id,
