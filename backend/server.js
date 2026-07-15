@@ -22527,7 +22527,7 @@ app.get('/api/celulares/aparelhos', authenticateToken, (req, res) => {
         LEFT JOIN celulares_atribuicoes at ON at.aparelho_id = a.id AND at.data_fim IS NULL
         LEFT JOIN colaboradores c ON c.id = at.colaborador_id
         LEFT JOIN celulares_chips ch ON ch.id = at.chip_id
-        ORDER BY a.id DESC
+        ORDER BY LOWER(a.modelo) ASC, a.patrimonio ASC
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
