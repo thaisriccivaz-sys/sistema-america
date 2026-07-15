@@ -472,18 +472,27 @@
     window.celularesSetTab=function(t){_activeTab=t;_expandedHistorico={};renderTela();};
     window.celularesFilterColab=function(){
         var q=document.getElementById('cel-filter-colab-q');
+        var fId = document.activeElement ? document.activeElement.id : null;
+        var sStart = document.activeElement ? document.activeElement.selectionStart : null;
         if(q)_filterColab.q=q.value;
         var tc=document.getElementById('celulares-tab-content'); if(tc) tc.innerHTML=renderTabAtribuidos();
+        if(fId){var el=document.getElementById(fId);if(el){el.focus();try{el.setSelectionRange(sStart,sStart);}catch(e){}}}
     };
     window.celularesFilterAp=function(){
         var m=document.getElementById('cel-filter-ap-modelo'),c=document.getElementById('cel-filter-ap-colab'),s=document.getElementById('cel-filter-ap-status'), at=document.getElementById('cel-filter-ap-ativo');
+        var fId = document.activeElement ? document.activeElement.id : null;
+        var sStart = document.activeElement ? document.activeElement.selectionStart : null;
         if(m)_filterAp.modelo=m.value; if(c)_filterAp.colab=c.value; if(s)_filterAp.status=s.value; if(at)_filterAp.ativo=at.value;
         var tc=document.getElementById('celulares-tab-content'); if(tc) tc.innerHTML=renderTabAparelhos();
+        if(fId){var el=document.getElementById(fId);if(el){el.focus();try{el.setSelectionRange(sStart,sStart);}catch(e){}}}
     };
     window.celularesFilterCh=function(){
         var n=document.getElementById('cel-filter-ch-numero'),s=document.getElementById('cel-filter-ch-status');
+        var fId = document.activeElement ? document.activeElement.id : null;
+        var sStart = document.activeElement ? document.activeElement.selectionStart : null;
         if(n)_filterCh.numero=n.value; if(s)_filterCh.status=s.value;
         var tc=document.getElementById('celulares-tab-content'); if(tc) tc.innerHTML=renderTabChips();
+        if(fId){var el=document.getElementById(fId);if(el){el.focus();try{el.setSelectionRange(sStart,sStart);}catch(e){}}}
     };
     window.celularesToggleTipoResp=function(v){var cb=document.getElementById('cel-atrib-colab-block'),ab=document.getElementById('cel-atrib-avulso-block');if(cb)cb.style.display=v==='colaborador'?'':'none';if(ab)ab.style.display=v==='avulso'?'':'none';};
 
