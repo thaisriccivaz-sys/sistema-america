@@ -22553,16 +22553,30 @@ app.post('/api/celulares/aparelhos', authenticateToken, (req, res) => {
     );
 });
 
-app.post('/api/celulares/aparelhos/:id/foto', authenticateToken, uploadFoto.single('foto'), (req, res) => {
+app.post('/api/celulares/aparelhos/:id/foto', authenticateToken, uploadFoto.single('foto'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
     const ext = path.extname(req.file.originalname) || '.jpg';
-    const fname = 'uploads/celular_' + req.params.id + '_' + Date.now() + ext;
-    const fpath = path.join(__dirname, '..', fname);
-    require('fs').writeFileSync(fpath, req.file.buffer);
-    db.run(`UPDATE celulares_aparelhos SET foto_path=? WHERE id=?`, [fname, req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ ok: true, foto_path: fname });
-    });
+    let dbPath = '';
+
+    try {
+        if (r2 && r2.isReady()) {
+            const fname = 'celulares/aparelhos/celular_' + req.params.id + '_' + Date.now() + ext;
+            dbPath = await r2.uploadToR2(fname, req.file.buffer, req.file.mimetype || 'image/jpeg');
+        } else {
+            const fname = 'uploads/celular_' + req.params.id + '_' + Date.now() + ext;
+            const fpath = path.join(__dirname, '..', fname);
+            require('fs').writeFileSync(fpath, req.file.buffer);
+            dbPath = fname;
+        }
+
+        db.run(`UPDATE celulares_aparelhos SET foto_path=? WHERE id=?`, [dbPath, req.params.id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true, foto_path: dbPath });
+        });
+    } catch (err) {
+        console.error("Erro ao salvar foto do aparelho:", err);
+        return res.status(500).json({ error: 'Erro ao salvar a foto: ' + err.message });
+    }
 });
 
 app.put('/api/celulares/aparelhos/:id', authenticateToken, (req, res) => {

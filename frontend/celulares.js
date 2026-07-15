@@ -121,7 +121,7 @@
             var hk='aparelho-'+a.id, isOpen=!!_expandedHistorico[hk];
             var nome=a.colab_nome||a.responsavel_nome||'-';
             var isAv=!a.colaborador_id;
-            var fotoApSrc=a.foto_path?base+'/'+a.foto_path:'';
+            var fotoApSrc=a.foto_path?(a.foto_path.startsWith('http')?a.foto_path:base+'/'+a.foto_path):'';
             var fotoApThumb=fotoApSrc
                 ?'<img src="'+fotoApSrc+'" style="width:40px;height:40px;border-radius:7px;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;" onerror="this.outerHTML=\'<div style=&quot;width:40px;height:40px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;&quot;><i class=&quot;ph ph-device-mobile&quot; style=&quot;color:#94a3b8;font-size:1.1rem;&quot;></i></div>\'">'
                 :'<div style="width:40px;height:40px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-device-mobile" style="color:#94a3b8;font-size:1.1rem;"></i></div>';
@@ -162,7 +162,7 @@
         var rows='';
         disp.forEach(function(a){
             var hk='aparelho-'+a.id, isOpen=!!_expandedHistorico[hk];
-            var fotoSrc=a.foto_path?base+'/'+a.foto_path:'';
+            var fotoSrc=a.foto_path?(a.foto_path.startsWith('http')?a.foto_path:base+'/'+a.foto_path):'';
             var fotoThumb=fotoSrc
                 ?'<img src="'+fotoSrc+'" style="width:48px;height:48px;border-radius:8px;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;" onerror="this.outerHTML=\'<div style=&quot;width:48px;height:48px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;&quot;><i class=&quot;ph ph-device-mobile&quot; style=&quot;color:#94a3b8;font-size:1.4rem;&quot;></i></div>\'" >'
                 :'<div style="width:48px;height:48px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-device-mobile" style="color:#94a3b8;font-size:1.4rem;"></i></div>';
@@ -233,7 +233,7 @@
     function renderModalAparelho() {
         var a=_editandoAparelho;
         var base=(typeof API_URL!=='undefined')?API_URL.replace('/api',''):'';
-        var fotoAtual=a&&a.foto_path?base+'/'+a.foto_path:'';
+        var fotoAtual=a&&a.foto_path?(a.foto_path.startsWith('http')?a.foto_path:base+'/'+a.foto_path):'';
         var ssel=a?('<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Status</label><select id="cel-ap-status" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"><option value="disponivel"'+(a.status==='disponivel'?' selected':'')+'>Disponivel</option><option value="em_uso"'+(a.status==='em_uso'?' selected':'')+'>Em Uso</option><option value="manutencao"'+(a.status==='manutencao'?' selected':'')+'>Manutencao</option></select></div>'):'';
         return '<div id="modal-celular-aparelho" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">'+
             '<div style="background:#fff;border-radius:16px;width:100%;max-width:480px;margin:1rem;box-shadow:0 20px 60px rgba(0,0,0,0.2);max-height:90vh;overflow-y:auto;">'+
