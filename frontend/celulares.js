@@ -331,10 +331,12 @@
             (ssel||'')+
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Observacao</label><textarea id="cel-ap-obs" rows="2" placeholder="Opcional..." style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;resize:vertical;">'+(a?(a.observacao||''):'')+'</textarea></div>'+
             '</div>'+
-            '<div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:0.5rem;">'+
+            '<div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;">'+ 
+            '<div id="cel-ap-erro" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:8px;padding:0.6rem 0.9rem;font-size:0.82rem;font-weight:600;margin-bottom:0.75rem;"><i class="ph ph-warning"></i> <span id="cel-ap-erro-msg"></span></div>'+
+            '<div style="display:flex;justify-content:flex-end;gap:0.5rem;">'+
             '<button onclick="document.getElementById(\'modal-celular-aparelho\').style.display=\'none\'" style="background:#f1f5f9;color:#64748b;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;">Cancelar</button>'+
             '<button onclick="window.celularesSalvarAparelho()" style="background:#e67700;color:#fff;border:none;padding:0.5rem 1.25rem;border-radius:8px;cursor:pointer;font-weight:700;">Salvar</button>'+
-            '</div></div></div>';
+            '</div></div></div></div>';
     }
     function renderModalChip() {
         var c=_editandoChip;
@@ -479,7 +481,10 @@
     };
     window.celularesSalvarAparelho=async function(){
         var im=document.getElementById('cel-ap-imei1').value.trim();
-        if(!im){alert('IMEI 1 obrigatorio.');return;}
+        var erEl=document.getElementById('cel-ap-erro'), erMsg=document.getElementById('cel-ap-erro-msg');
+        var showErr=function(msg){if(erEl){erMsg.textContent=msg;erEl.style.display='block';}else{alert(msg);}return;};
+        if(erEl) erEl.style.display='none';
+        if(!im){showErr('IMEI 1 é obrigatório.');return;}
         var body={imei1:im,imei2:document.getElementById('cel-ap-imei2').value.trim(),modelo:document.getElementById('cel-ap-modelo').value.trim(),patrimonio:document.getElementById('cel-ap-patrimonio').value.trim(),observacao:document.getElementById('cel-ap-obs').value.trim()};
         var se=document.getElementById('cel-ap-status');if(se)body.status=se.value;
         try{
@@ -493,7 +498,12 @@
                 await fetch(API_URL+'/celulares/aparelhos/'+savedId+'/foto',{method:'POST',headers:{'Authorization':'Bearer '+currentToken},body:fd});
             }
             _editandoAparelho=null;await loadAll();
-        }catch(e){alert('Erro: '+(e.message||e));}
+        }catch(e){
+            // Tenta extrair mensagem do JSON de erro do backend
+            var msg=e.message||String(e);
+            try{var j=JSON.parse(msg);if(j.error)msg=j.error;}catch(_){}
+            showErr(msg);
+        }
     };
     window.celularesSalvarChip=async function(){var nu=document.getElementById('cel-ch-numero').value.trim();if(!nu){alert('Numero obrigatorio.');return;}var body={numero:nu,operadora:document.getElementById('cel-ch-operadora').value,observacao:document.getElementById('cel-ch-obs').value.trim()};var se=document.getElementById('cel-ch-status');if(se)body.status=se.value;try{if(_editandoChip){await _apiPut('/celulares/chips/'+_editandoChip.id,body);}else{await _apiPost('/celulares/chips',body);}_editandoChip=null;await loadAll();}catch(e){alert('Erro: '+(e.message||e));}};
     window.celularesSalvarAtribuicao=async function(){var tr=(document.querySelector('input[name="cel-tipo-resp"]:checked')||{}).value,cid=(document.getElementById('cel-atrib-colab')||{}).value,an=((document.getElementById('cel-atrib-avulso-nome')||{}).value||'').trim(),apid=(document.getElementById('cel-atrib-aparelho')||{}).value,chid=(document.getElementById('cel-atrib-chip')||{}).value,di=(document.getElementById('cel-atrib-data')||{}).value,obs=((document.getElementById('cel-atrib-obs')||{}).value||'').trim(),ee=document.getElementById('cel-atrib-erro'),se=function(m){if(ee){ee.textContent=m;ee.style.display='block';}};if(ee)ee.style.display='none';if(tr==='colaborador'&&!cid)return se('Selecione um colaborador.');if(tr==='avulso'&&!an)return se('Informe o nome do responsavel.');if(!apid&&!chid)return se('Selecione pelo menos um aparelho ou chip.');var body={colaborador_id:tr==='colaborador'?(cid||null):null,responsavel_nome:tr==='avulso'?an:null,aparelho_id:apid||null,chip_id:chid||null,data_inicio:di,observacao:obs};try{await _apiPost('/celulares/atribuicoes',body);document.getElementById('modal-celular-atribuir').style.display='none';_activeTab='atribuidos';await loadAll();}catch(e){se('Erro: '+(e.message||e));}};

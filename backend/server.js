@@ -22542,15 +22542,27 @@ db.run(`ALTER TABLE celulares_aparelhos ADD COLUMN foto_path TEXT`, (err) => {
 app.post('/api/celulares/aparelhos', authenticateToken, (req, res) => {
     const { imei1, imei2, modelo, patrimonio, cor, observacao } = req.body;
     if (!imei1) return res.status(400).json({ error: 'IMEI 1 é obrigatório.' });
-    db.run(
-        `INSERT INTO celulares_aparelhos (imei1, imei2, modelo, patrimonio, cor, observacao, status)
-         VALUES (?, ?, ?, ?, ?, ?, 'disponivel')`,
-        [imei1, imei2 || null, modelo || null, patrimonio || null, cor || null, observacao || null],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ id: this.lastID, ok: true });
+    // Verificar duplicidade de IMEI
+    const imeiCheck = imei2
+        ? `SELECT id, imei1, imei2, modelo FROM celulares_aparelhos WHERE imei1=? OR imei2=? OR imei1=? OR imei2=?`
+        : `SELECT id, imei1, imei2, modelo FROM celulares_aparelhos WHERE imei1=? OR imei2=?`;
+    const imeiParams = imei2 ? [imei1, imei1, imei2, imei2] : [imei1, imei1];
+    db.get(imeiCheck, imeiParams, (errChk, dup) => {
+        if (errChk) return res.status(500).json({ error: errChk.message });
+        if (dup) {
+            const which = (dup.imei1 === imei1 || dup.imei1 === imei2) ? dup.imei1 : dup.imei2;
+            return res.status(409).json({ error: `IMEI ${which} já está cadastrado no sistema (${dup.modelo || 'Aparelho ID ' + dup.id}).` });
         }
-    );
+        db.run(
+            `INSERT INTO celulares_aparelhos (imei1, imei2, modelo, patrimonio, cor, observacao, status)
+             VALUES (?, ?, ?, ?, ?, ?, 'disponivel')`,
+            [imei1, imei2 || null, modelo || null, patrimonio || null, cor || null, observacao || null],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ id: this.lastID, ok: true });
+            }
+        );
+    });
 });
 
 app.post('/api/celulares/aparelhos/:id/foto', authenticateToken, uploadFoto.single('foto'), async (req, res) => {
@@ -22581,14 +22593,28 @@ app.post('/api/celulares/aparelhos/:id/foto', authenticateToken, uploadFoto.sing
 
 app.put('/api/celulares/aparelhos/:id', authenticateToken, (req, res) => {
     const { imei1, imei2, modelo, patrimonio, cor, observacao, status } = req.body;
-    db.run(
-        `UPDATE celulares_aparelhos SET imei1=?, imei2=?, modelo=?, patrimonio=?, cor=?, observacao=?, status=? WHERE id=?`,
-        [imei1, imei2 || null, modelo || null, patrimonio || null, cor || null, observacao || null, status || 'disponivel', req.params.id],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ ok: true });
+    if (!imei1) return res.status(400).json({ error: 'IMEI 1 é obrigatório.' });
+    const curId = req.params.id;
+    // Verificar duplicidade excluindo o próprio registro
+    const imeiCheck = imei2
+        ? `SELECT id, imei1, imei2, modelo FROM celulares_aparelhos WHERE (imei1=? OR imei2=? OR imei1=? OR imei2=?) AND id!=?`
+        : `SELECT id, imei1, imei2, modelo FROM celulares_aparelhos WHERE (imei1=? OR imei2=?) AND id!=?`;
+    const imeiParams = imei2 ? [imei1, imei1, imei2, imei2, curId] : [imei1, imei1, curId];
+    db.get(imeiCheck, imeiParams, (errChk, dup) => {
+        if (errChk) return res.status(500).json({ error: errChk.message });
+        if (dup) {
+            const which = (dup.imei1 === imei1 || dup.imei1 === imei2) ? dup.imei1 : dup.imei2;
+            return res.status(409).json({ error: `IMEI ${which} já está cadastrado no sistema (${dup.modelo || 'Aparelho ID ' + dup.id}).` });
         }
-    );
+        db.run(
+            `UPDATE celulares_aparelhos SET imei1=?, imei2=?, modelo=?, patrimonio=?, cor=?, observacao=?, status=? WHERE id=?`,
+            [imei1, imei2 || null, modelo || null, patrimonio || null, cor || null, observacao || null, status || 'disponivel', curId],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ ok: true });
+            }
+        );
+    });
 });
 
 app.delete('/api/celulares/aparelhos/:id', authenticateToken, (req, res) => {
