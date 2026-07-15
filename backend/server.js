@@ -131,15 +131,12 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
         db.all(`
             SELECT
                 u.id as uid, u.nome as unome, u.username, u.email as uemail,
-                u.colaborador_id as ucolab_id,
                 cn1.email_corporativo as ec_by_nome,   cn1.email as ce_by_nome,
-                cn2.email_corporativo as ec_by_uname,  cn2.email as ce_by_uname,
-                cn3.email_corporativo as ec_by_colabid, cn3.email as ce_by_colabid
+                cn2.email_corporativo as ec_by_uname,  cn2.email as ce_by_uname
             FROM config_notificacoes cn
             JOIN usuarios u ON u.id = cn.usuario_id
             LEFT JOIN colaboradores cn1 ON LOWER(TRIM(cn1.nome_completo)) = LOWER(TRIM(u.nome))
             LEFT JOIN colaboradores cn2 ON LOWER(TRIM(cn2.nome_completo)) = LOWER(TRIM(u.username))
-            LEFT JOIN colaboradores cn3 ON cn3.id = u.colaborador_id
             WHERE cn.tipo = ? AND u.ativo = 1
         `, [tipo], async (err, rows) => {
             if (err) {
@@ -152,11 +149,8 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
             }
             const emails = new Set();
             rows.forEach(r => {
-                // Estratégia 0 (mais confiável): colaborador vinculado direto ao usuário pelo ID
-                if (r.ec_by_colabid && r.ec_by_colabid.includes('@')) emails.add(r.ec_by_colabid.trim());
-                else if (r.ce_by_colabid && r.ce_by_colabid.includes('@')) emails.add(r.ce_by_colabid.trim());
                 // Estratégia 1: email_corporativo via JOIN por nome completo
-                else if (r.ec_by_nome && r.ec_by_nome.includes('@')) emails.add(r.ec_by_nome.trim());
+                if (r.ec_by_nome && r.ec_by_nome.includes('@')) emails.add(r.ec_by_nome.trim());
                 // Estratégia 2: email do colaborador via JOIN por nome
                 else if (r.ce_by_nome && r.ce_by_nome.includes('@')) emails.add(r.ce_by_nome.trim());
                 // Estratégia 3: email_corporativo via JOIN por username
@@ -11178,20 +11172,16 @@ app.get('/api/diag/celular-notif', (req, res) => {
             cn.tipo, cn.usuario_id,
             u.username, u.nome as unome, u.email as uemail, u.ativo,
             c1.email_corporativo as ec_nome, c1.email as ce_nome,
-            c2.email_corporativo as ec_uname, c2.email as ce_uname,
-            c3.email_corporativo as ec_colabid, c3.email as ce_colabid
+            c2.email_corporativo as ec_uname, c2.email as ce_uname
         FROM config_notificacoes cn
         JOIN usuarios u ON u.id = cn.usuario_id
         LEFT JOIN colaboradores c1 ON LOWER(TRIM(c1.nome_completo)) = LOWER(TRIM(u.nome))
         LEFT JOIN colaboradores c2 ON LOWER(TRIM(c2.nome_completo)) = LOWER(TRIM(u.username))
-        LEFT JOIN colaboradores c3 ON c3.id = u.colaborador_id
         WHERE cn.tipo = 'celular_controle'
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         const result = (rows || []).map(r => {
             const emailResolvido =
-                (r.ec_colabid && r.ec_colabid.includes('@')) ? r.ec_colabid :
-                (r.ce_colabid && r.ce_colabid.includes('@')) ? r.ce_colabid :
                 (r.ec_nome && r.ec_nome.includes('@')) ? r.ec_nome :
                 (r.ce_nome && r.ce_nome.includes('@')) ? r.ce_nome :
                 (r.ec_uname && r.ec_uname.includes('@')) ? r.ec_uname :
