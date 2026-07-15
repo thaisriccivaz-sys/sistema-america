@@ -3624,13 +3624,13 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
             if ('celular_participa' in data && data.celular_participa === 'Sim' && (oldColab.celular_participa || '') !== 'Sim') {
                 const nomeColab = data.nome_completo || oldColab.nome_completo || 'Colaborador';
                 const msgA = `${nomeColab} foi marcado(a) para receber Celular Corporativo.`;
-                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'celular_novo_participante'", [], (errCN, rowsCN) => {
+                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'celular_controle'", [], (errCN, rowsCN) => {
                     if (!errCN && rowsCN) rowsCN.forEach(r => {
                         db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
-                            [r.usuario_id, 'celular_novo_participante', msgA, JSON.stringify({ colaborador_id: parseInt(id), nome: nomeColab })]);
+                            [r.usuario_id, 'celular_controle', msgA, JSON.stringify({ colaborador_id: parseInt(id), nome: nomeColab })]);
                     });
                 });
-                sendEmailParaNotificados('celular_novo_participante', {
+                sendEmailParaNotificados('celular_controle', {
                     subject: `📱 Novo Participante de Celular Corporativo – ${nomeColab}`,
                     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                         <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
@@ -3659,13 +3659,13 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                 statusAlertaCel.includes(novoStatusCel) && (data.celular_participa || oldColab.celular_participa) === 'Sim') {
                 const nomeColab2 = data.nome_completo || oldColab.nome_completo || 'Colaborador';
                 const msgB = `${nomeColab2} mudou a situação para "${novoStatusCel}" e possui Celular Corporativo.`;
-                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'celular_mudanca_status'", [], (errCS, rowsCS) => {
+                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'celular_controle'", [], (errCS, rowsCS) => {
                     if (!errCS && rowsCS) rowsCS.forEach(r => {
                         db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
-                            [r.usuario_id, 'celular_mudanca_status', msgB, JSON.stringify({ colaborador_id: parseInt(id), nome: nomeColab2, novo_status: novoStatusCel })]);
+                            [r.usuario_id, 'celular_controle', msgB, JSON.stringify({ colaborador_id: parseInt(id), nome: nomeColab2, novo_status: novoStatusCel })]);
                     });
                 });
-                sendEmailParaNotificados('celular_mudanca_status', {
+                sendEmailParaNotificados('celular_controle', {
                     subject: `📴 Mudança de Situação – Celular Corporativo – ${nomeColab2}`,
                     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                         <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">

@@ -55,7 +55,7 @@ const TELAS_SISTEMA = [
     // Módulo Administrativo
     { modulo: 'Administrativo', pagina_id: 'licencas', pagina_nome: 'Licenças', icone: 'ph-certificate' },
     { modulo: 'Administrativo', pagina_id: 'estoque', pagina_nome: 'Estoque', icone: 'ph-package' },
-    { modulo: 'Administrativo', pagina_id: 'admin-em-breve', pagina_nome: 'Administrativo (Em breve)', icone: 'ph-gear' },
+    { modulo: 'Administrativo', pagina_id: 'celulares-corporativos', pagina_nome: 'Celulares Corporativos', icone: 'ph-device-mobile' },
     // Módulo Treinamentos
     { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais', pagina_nome: 'Materiais', icone: 'ph-books' },
     { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca', pagina_nome: 'Presenças', icone: 'ph-check-square' },
@@ -594,7 +594,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',
-        grupos: [{ titulo: 'Telas', telas: ['licencas', 'estoque', 'admin-em-breve'] }]
+        grupos: [{ titulo: 'Telas', telas: ['licencas', 'estoque', 'celulares-corporativos'] }]
     },
     {
         modulo: 'Treinamentos', icone: 'ph-graduation-cap', cor: '#0e7490',

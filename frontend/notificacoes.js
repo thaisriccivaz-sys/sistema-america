@@ -21,8 +21,7 @@ const TIPOS_NOTIFICACAO = [
 ];
 
 const TIPOS_NOTIFICACAO_CELULARES = [
-    { id: 'celular_novo_participante', nome: 'Novo Participante de Celular Corporativo', icone: 'ph-device-mobile', descricao: 'Disparado quando um colaborador é marcado como "Sim" no campo Celular Corporativo.' },
-    { id: 'celular_mudanca_status', nome: 'Mudança de Situação de Celular Corporativo', icone: 'ph-device-mobile-slash', descricao: 'Disparado quando um colaborador com celular corporativo tem o status alterado para Desligado, Férias ou Afastado.' }
+    { id: 'celular_controle', nome: 'Controle de Celulares Corporativos', icone: 'ph-device-mobile', descricao: 'Recebe e-mail e notificação quando um colaborador recebe celular corporativo ou quando sua situação muda (Desligado, Férias ou Afastado).' }
 ];
 
 let globalUsuariosConfig = [];
