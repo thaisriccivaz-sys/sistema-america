@@ -211,6 +211,26 @@ function _buildMultaRow(m) {
     const dataInfracao = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
     const statusColor = _statusRHColor(m.status);
 
+    let criadoEmHtml = '';
+    if (m.criado_em) {
+        try {
+            let rawStr = String(m.criado_em);
+            // SQLite DEFAULT CURRENT_TIMESTAMP gera "YYYY-MM-DD HH:MM:SS" em UTC
+            if (rawStr.includes(' ') && !rawStr.includes('T')) {
+                rawStr = rawStr.replace(' ', 'T') + 'Z';
+            }
+            const dt = new Date(rawStr);
+            if (!isNaN(dt.getTime())) {
+                const dia = String(dt.getDate()).padStart(2, '0');
+                const mes = String(dt.getMonth() + 1).padStart(2, '0');
+                const ano = dt.getFullYear();
+                const h = String(dt.getHours()).padStart(2, '0');
+                const mn = String(dt.getMinutes()).padStart(2, '0');
+                criadoEmHtml = `<div style="color:#64748b; font-size:0.75rem; font-weight:400; white-space:nowrap; margin-top:3px;" title="Data de inclusão no sistema">${dia}/${mes}/${ano} - ${h}:${mn}</div>`;
+            }
+        } catch(e){}
+    }
+
     let motoristaHtml = '';
     if (m.motorista_id && m.motorista_nome) {
         if (String(m.motorista_id) === '-1') {
@@ -264,9 +284,12 @@ function _buildMultaRow(m) {
     return `
         <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
             <td style="padding:0.6rem 0.75rem;">
-                ${window._ultimoIdMultaEditada === m.id 
-                    ? `<strong style="font-weight:900; font-size:0.82rem;">${m.numero_ait || '\u2014'}</strong>` 
-                    : `<span style="font-size:0.82rem;">${m.numero_ait || '\u2014'}</span>`}
+                <div style="display:inline-block;">
+                    ${window._ultimoIdMultaEditada === m.id 
+                        ? `<strong style="font-weight:900; font-size:0.82rem;">${m.numero_ait || '\u2014'}</strong>` 
+                        : `<span style="font-size:0.82rem;">${m.numero_ait || '\u2014'}</span>`}
+                </div>
+                ${criadoEmHtml}
             </td>
             <td style="padding:0.6rem 0.75rem; font-weight:600; color:#334155; white-space:nowrap; font-size:0.82rem;">${m.placa || '\u2014'}</td>
             <td style="padding:0.6rem 0.75rem; font-size:0.82rem;">${dataInfracao}<br><span style="color:#64748b; font-size:0.75rem;">${m.hora_infracao || '\u2014'}</span></td>
