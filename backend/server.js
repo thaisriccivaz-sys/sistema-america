@@ -753,20 +753,21 @@ db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_calcado TEXT", (err) => {
 });
 
 // MIGRATION: Unificar tipos antigos de notificação celular em 'celular_controle'
-db.run(`UPDATE config_notificacoes SET tipo = 'celular_controle' WHERE tipo IN ('celular_novo_participante', 'celular_mudanca_status')`, (err) => {
-    if (err) console.error('[Migration] Erro ao migrar tipos de notificacao celular:', err.message);
+db.run(`INSERT OR IGNORE INTO config_notificacoes (tipo, usuario_id) 
+        SELECT 'celular_controle', usuario_id 
+        FROM config_notificacoes 
+        WHERE tipo IN ('celular_novo_participante', 'celular_mudanca_status')`, (err) => {
+    if (err) console.error('[Migration] Erro ao inserir celular_controle:', err.message);
     else {
-        // Remover duplicatas (usuario pode ter tido os dois tipos antigos -> dois registros celular_controle)
-        db.run(`DELETE FROM config_notificacoes WHERE rowid NOT IN (
-            SELECT MIN(rowid) FROM config_notificacoes GROUP BY usuario_id, tipo
-        )`, (err2) => {
-            if (err2) console.error('[Migration] Erro ao remover duplicatas celular_controle:', err2.message);
+        db.run(`DELETE FROM config_notificacoes WHERE tipo IN ('celular_novo_participante', 'celular_mudanca_status')`, (err2) => {
+            if (err2) console.error('[Migration] Erro ao deletar tipos antigos:', err2.message);
             else console.log('[Migration] Tipos de notificacao celular unificados em celular_controle com sucesso.');
         });
     }
 });
 
 // MIGRATION: Vincular usuária Thais.Ricci ao colaborador Thais Ricci Vaz
+
 db.run(`UPDATE usuarios SET colaborador_id = (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Thais Ricci Vaz%' LIMIT 1) WHERE username = 'Thais.Ricci'`, (err) => {
     if (err) console.error('[Migration] Erro ao vincular Thais.Ricci:', err.message);
     else console.log('[Migration] Usuario Thais.Ricci vinculado com sucesso.');
