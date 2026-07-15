@@ -202,7 +202,10 @@
             rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(a.colab_foto,nome,40,a.colab_foto_base64)+'<div><div style="font-weight:700;font-size:0.85rem;color:'+(isAv?'#7c3aed':'#0f172a')+';">'+nome+'</div>'+(isAv?'<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;">Responsavel Avulso</div>':'')+(a.colab_tel_corp?'<div style="font-size:0.72rem;color:#64748b;">'+a.colab_tel_corp+'</div>':'')+'</div></div></td>';
             rows+='<td style="padding:0.75rem;">'+situacaoBadge(isAv ? '' : colabSt)+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+fotoApThumb+'<div><div style="font-weight:600;">'+(a.modelo||'-')+'</div><div style="font-size:0.72rem;color:#64748b;">Pat.: '+(a.patrimonio||'-')+'</div><div style="font-size:0.72rem;color:#64748b;font-family:monospace;">IMEI: '+a.imei1+'</div></div></div></td>';
-            rows+='<td style="padding:0.75rem;font-size:0.83rem;">'+(a.chip_numero?'<div style="font-weight:600;color:#2563eb;">'+a.chip_numero+'</div><div style="font-size:0.72rem;color:#64748b;">'+(a.chip_operadora||'')+'</div>':'<span style="color:#94a3b8;font-size:0.8rem;">Sem chip</span>')+'</td>';
+            rows+='<td style="padding:0.75rem;font-size:0.83rem;">'+(a.chip_numero
+                ? '<div style="font-weight:600;color:#2563eb;">'+a.chip_numero+'</div><div style="font-size:0.72rem;color:#64748b;">'+(a.chip_operadora||'')+'</div>'
+                  +(a.chip_numero2?'<div style="font-weight:600;color:#2563eb;margin-top:4px;">'+a.chip_numero2+'</div><div style="font-size:0.72rem;color:#64748b;">'+(a.chip_operadora2||'')+'</div>':'')
+                : '<span style="color:#94a3b8;font-size:0.8rem;">Sem chip</span>')+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.8rem;color:#64748b;">'+fmtData(a.atrib_data_inicio)+'</td>';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;gap:6px;flex-wrap:wrap;">'+
                 '<button onclick="window.celularesToggleHistorico(\''+hk+'\',\'aparelho\','+a.id+')" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#64748b;font-size:0.78rem;display:flex;align-items:center;gap:4px;background:'+(isOpen?'#f1f5f9':'transparent')+';" title="Historico"><i class="ph ph-clock-counter-clockwise"></i><i class="ph ph-caret-'+(isOpen?'up':'down')+'" style="font-size:0.7rem;"></i></button>'+
@@ -366,7 +369,8 @@
             var html='<div style="font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:0.5rem;"><i class="ph ph-clock-counter-clockwise"></i> Historico de Uso</div><div style="display:flex;flex-direction:column;gap:6px;">';
             hist.forEach(function(h){
                 var hn=h.colab_nome||h.responsavel_nome||'(sem registro)', ativo=!h.data_fim;
-                var extra=(h.chip_numero?' - Chip: '+h.chip_numero+(h.chip_operadora?' ('+h.chip_operadora+')':''):'')+
+                var extra=(h.chip_numero?' - Chip 1: '+h.chip_numero+(h.chip_operadora?' ('+h.chip_operadora+')':''):'')+
+                           (h.chip_numero2?' - Chip 2: '+h.chip_numero2+(h.chip_operadora2?' ('+h.chip_operadora2+')':''):'')+
                            (h.aparelho_modelo?' - Aparelho: '+h.aparelho_modelo:'');
                 var imeis=h.imei1?'<br><span style="font-family:monospace;font-size:0.7rem;">IMEI1: '+h.imei1+(h.imei2?' - IMEI2: '+h.imei2:'')+'</span>':'';
                 html+='<div style="display:flex;align-items:center;gap:0.75rem;background:'+(ativo?'#fff7ed':'#fff')+';border:1px solid '+(ativo?'#fed7aa':'#e2e8f0')+';border-radius:8px;padding:0.5rem 0.75rem;">'+avatarHtml(h.colab_foto,hn,32)+
@@ -462,10 +466,17 @@
             '<input type="hidden" id="cel-atrib-aparelho">'+
             '<div id="cel-ap-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:100;max-height:220px;overflow-y:auto;margin-top:2px;"></div>'+
             '</div>'+
-            '<div style="position:relative;"><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Chip / Numero</label>'+
+            // Chip 1
+            '<div style="position:relative;"><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Chip / Número 1</label>'+
             '<input id="cel-atrib-chip-busca" type="text" autocomplete="off" placeholder="Digite ou cole o numero do chip..." style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;" oninput="window.celularesChipSearch(this.value)" onfocus="window.celularesChipSearch(this.value)">'+
             '<input type="hidden" id="cel-atrib-chip">'+
             '<div id="cel-chip-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:100;max-height:200px;overflow-y:auto;margin-top:2px;"></div>'+
+            '</div>'+
+            // Chip 2
+            '<div style="position:relative;"><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Chip / Número 2 <span style="font-size:0.72rem;color:#94a3b8;font-weight:400;">(opcional)</span></label>'+
+            '<input id="cel-atrib-chip2-busca" type="text" autocomplete="off" placeholder="Segundo chip (opcional)..." style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;" oninput="window.celularesChipSearch2(this.value)" onfocus="window.celularesChipSearch2(this.value)">'+
+            '<input type="hidden" id="cel-atrib-chip2">'+
+            '<div id="cel-chip2-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:100;max-height:200px;overflow-y:auto;margin-top:2px;"></div>'+
             '</div>'+
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Data de Inicio</label>'+
             '<input id="cel-atrib-data" type="date" value="'+hoje+'" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"></div>'+
@@ -530,8 +541,9 @@
         if(!drop)return;
         var norm=function(s){return (s||'').replace(/[\s\-().]/g,'');};
         var qn=norm(q);
-        var chips=_chips.filter(function(c){return c.status==='disponivel';});
-        // Sem texto: mostrar todos se o campo estiver em foco
+        // Excluir o chip2 já selecionado do dropdown do chip1
+        var chip2sel=parseInt((document.getElementById('cel-atrib-chip2')||{}).value||0);
+        var chips=_chips.filter(function(c){return c.status==='disponivel' && c.id!==chip2sel;});
         var matches=qn?chips.filter(function(c){
             return norm(c.numero).indexOf(qn)!==-1;
         }):chips;
@@ -557,11 +569,48 @@
         if(hid)hid.value=id;
         if(drop)drop.style.display='none';
     };
+    // Chip 2
+    window.celularesChipSearch2=function(q){
+        var drop=document.getElementById('cel-chip2-dropdown');
+        if(!drop)return;
+        var norm=function(s){return (s||'').replace(/[\s\-().]/g,'');};
+        var qn=norm(q);
+        // Excluir o chip1 já selecionado do dropdown do chip2
+        var chip1sel=parseInt((document.getElementById('cel-atrib-chip')||{}).value||0);
+        var chips=_chips.filter(function(c){return c.status==='disponivel' && c.id!==chip1sel;});
+        var matches=qn?chips.filter(function(c){
+            return norm(c.numero).indexOf(qn)!==-1;
+        }):chips;
+        if(!matches.length){
+            drop.innerHTML='<div style="padding:0.6rem 0.75rem;font-size:0.82rem;color:#94a3b8;">Nenhum chip encontrado</div>';
+            drop.style.display='block';
+            return;
+        }
+        drop.innerHTML=matches.map(function(c){
+            var label=c.numero+(c.operadora?' <span style="color:#64748b;font-size:0.78rem;">('+c.operadora+')</span>':'');
+            return '<div style="padding:0.6rem 0.75rem;cursor:pointer;font-size:0.85rem;border-bottom:1px solid #f1f5f9;" '+
+                'onmousedown="window.celularesChipSelect2('+c.id+',\''+c.numero.replace(/'/g,"\\'")+(c.operadora?' ('+c.operadora+')':'')+'\')" '+
+                'onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'\'">'+
+                label+'</div>';
+        }).join('');
+        drop.style.display='block';
+    };
+    window.celularesChipSelect2=function(id,label){
+        var inp=document.getElementById('cel-atrib-chip2-busca');
+        var hid=document.getElementById('cel-atrib-chip2');
+        var drop=document.getElementById('cel-chip2-dropdown');
+        if(inp)inp.value=label;
+        if(hid)hid.value=id;
+        if(drop)drop.style.display='none';
+    };
     // Fechar dropdown ao clicar fora
     document.addEventListener('click',function(e){
         var drop=document.getElementById('cel-chip-dropdown');
         var inp=document.getElementById('cel-atrib-chip-busca');
         if(drop&&inp&&!inp.contains(e.target)&&!drop.contains(e.target))drop.style.display='none';
+        var drop2=document.getElementById('cel-chip2-dropdown');
+        var inp2=document.getElementById('cel-atrib-chip2-busca');
+        if(drop2&&inp2&&!inp2.contains(e.target)&&!drop2.contains(e.target))drop2.style.display='none';
     });
     window.celularesOpenModalAparelho=function(id){_editandoAparelho=id?(_aparelhos.find(function(a){return a.id==id;})||null):null;renderTela();var el=document.getElementById('modal-celular-aparelho');if(el)el.style.display='flex';};
     window.celularesOpenModalChip=function(id){_editandoChip=id?(_chips.find(function(c){return c.id==id;})||null):null;renderTela();var el=document.getElementById('modal-celular-chip');if(el)el.style.display='flex';};
@@ -618,7 +667,7 @@
             var hid0=document.getElementById('cel-atrib-aparelho');
             if(sb0)sb0.value=''; if(hid0)hid0.value='';
         }
-        // Pré-preencher chip
+        // Pré-preencher chip 1
         if(chId){
             var s2=document.getElementById('cel-atrib-chip');if(s2)s2.value=chId;
             var ch=_chips.find(function(c){return c.id==chId;});
@@ -628,6 +677,9 @@
             var sb3=document.getElementById('cel-atrib-chip-busca');if(sb3)sb3.value='';
             var hid3=document.getElementById('cel-atrib-chip');if(hid3)hid3.value='';
         }
+        // Limpar chip 2
+        var sb4=document.getElementById('cel-atrib-chip2-busca');if(sb4)sb4.value='';
+        var hid4=document.getElementById('cel-atrib-chip2');if(hid4)hid4.value='';
         if(colabId){var s3=document.getElementById('cel-atrib-colab');if(s3)s3.value=colabId;}
     };
     window.celularesOpenModalDevolver=function(atribId,nome){var el=document.getElementById('modal-celular-devolver');if(el){el.style.display='flex';var i=document.getElementById('cel-dev-info');if(i)i.textContent='Devolver de: '+nome;var aid=document.getElementById('cel-dev-atrib-id');if(aid)aid.value=atribId;var dd=document.getElementById('cel-dev-data');if(dd)dd.value=new Date().toISOString().split('T')[0];}};
@@ -668,7 +720,38 @@
         }
     };
     window.celularesSalvarChip=async function(){var nu=document.getElementById('cel-ch-numero').value.trim();if(!nu){alert('Numero obrigatorio.');return;}var body={numero:nu,operadora:document.getElementById('cel-ch-operadora').value,observacao:document.getElementById('cel-ch-obs').value.trim()};var se=document.getElementById('cel-ch-status');if(se)body.status=se.value;try{if(_editandoChip){await _apiPut('/celulares/chips/'+_editandoChip.id,body);}else{await _apiPost('/celulares/chips',body);}_editandoChip=null;await loadAll();}catch(e){alert('Erro: '+(e.message||e));}};
-    window.celularesSalvarAtribuicao=async function(){var tr=(document.querySelector('input[name="cel-tipo-resp"]:checked')||{}).value,cid=(document.getElementById('cel-atrib-colab')||{}).value,an=((document.getElementById('cel-atrib-avulso-nome')||{}).value||'').trim(),apid=(document.getElementById('cel-atrib-aparelho')||{}).value,chid=(document.getElementById('cel-atrib-chip')||{}).value,di=(document.getElementById('cel-atrib-data')||{}).value,obs=((document.getElementById('cel-atrib-obs')||{}).value||'').trim(),ee=document.getElementById('cel-atrib-erro'),se=function(m){if(ee){ee.textContent=m;ee.style.display='block';}};if(ee)ee.style.display='none';if(tr==='colaborador'&&!cid)return se('Selecione um colaborador.');if(tr==='avulso'&&!an)return se('Informe o nome do responsavel.');if(!apid&&!chid)return se('Selecione pelo menos um aparelho ou chip.');var body={colaborador_id:tr==='colaborador'?(cid||null):null,responsavel_nome:tr==='avulso'?an:null,aparelho_id:apid||null,chip_id:chid||null,data_inicio:di,observacao:obs};try{await _apiPost('/celulares/atribuicoes',body);document.getElementById('modal-celular-atribuir').style.display='none';_activeTab='atribuidos';await loadAll();}catch(e){se('Erro: '+(e.message||e));}};
+    window.celularesSalvarAtribuicao=async function(){
+        var tr=(document.querySelector('input[name="cel-tipo-resp"]:checked')||{}).value,
+            cid=(document.getElementById('cel-atrib-colab')||{}).value,
+            an=((document.getElementById('cel-atrib-avulso-nome')||{}).value||'').trim(),
+            apid=(document.getElementById('cel-atrib-aparelho')||{}).value,
+            chid=(document.getElementById('cel-atrib-chip')||{}).value,
+            chid2=(document.getElementById('cel-atrib-chip2')||{}).value,
+            di=(document.getElementById('cel-atrib-data')||{}).value,
+            obs=((document.getElementById('cel-atrib-obs')||{}).value||'').trim(),
+            ee=document.getElementById('cel-atrib-erro'),
+            se=function(m){if(ee){ee.textContent=m;ee.style.display='block';}};
+        if(ee)ee.style.display='none';
+        if(tr==='colaborador'&&!cid)return se('Selecione um colaborador.');
+        if(tr==='avulso'&&!an)return se('Informe o nome do responsavel.');
+        if(!apid&&!chid&&!chid2)return se('Selecione pelo menos um aparelho ou chip.');
+        if(chid&&chid2&&chid===chid2)return se('Os dois chips não podem ser iguais.');
+        var body={
+            colaborador_id:tr==='colaborador'?(cid||null):null,
+            responsavel_nome:tr==='avulso'?an:null,
+            aparelho_id:apid||null,
+            chip_id:chid||null,
+            chip_id2:chid2||null,
+            data_inicio:di,
+            observacao:obs
+        };
+        try{
+            await _apiPost('/celulares/atribuicoes',body);
+            document.getElementById('modal-celular-atribuir').style.display='none';
+            _activeTab='atribuidos';
+            await loadAll();
+        }catch(e){se('Erro: '+(e.message||e));}
+    };
     window.celularesConfirmarDevolucao=async function(){var aid=document.getElementById('cel-dev-atrib-id').value,df=document.getElementById('cel-dev-data').value,obs=document.getElementById('cel-dev-obs').value.trim();try{await _apiPut('/celulares/atribuicoes/'+aid+'/devolver',{data_fim:df,observacao:obs});document.getElementById('modal-celular-devolver').style.display='none';_activeTab='atribuidos';await loadAll();}catch(e){alert('Erro: '+(e.message||e));}};
     window.celularesDeleteAparelho=async function(id){if(!confirm('Excluir este aparelho?'))return;try{await _apiDelete('/celulares/aparelhos/'+id);await loadAll();}catch(e){alert('Erro: '+(e.message||e));}};
     window.celularesDeleteChip=async function(id){if(!confirm('Excluir este chip?'))return;try{await _apiDelete('/celulares/chips/'+id);await loadAll();}catch(e){alert('Erro: '+(e.message||e));}};

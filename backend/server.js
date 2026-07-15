@@ -427,6 +427,11 @@ db.run(`CREATE TABLE IF NOT EXISTS celulares_atribuicoes (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )`, (err) => { if (err) console.error('[CELULARES] Erro tabela atribuicoes:', err); });
 
+// MIGRATION: chip_id2 em celulares_atribuicoes
+db.run(`ALTER TABLE celulares_atribuicoes ADD COLUMN chip_id2 INTEGER`, (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[Migration] celulares_atribuicoes.chip_id2:', err.message);
+});
+
 // MIGRATION: Multas de Trânsito
 
 // MIGRATION: Sinistros
@@ -22589,14 +22594,16 @@ app.get('/api/celulares/aparelhos', authenticateToken, (req, res) => {
     db.all(`
         SELECT a.*,
                at.id as atrib_id,
-               at.colaborador_id, at.responsavel_nome, at.chip_id as atrib_chip_id,
+               at.colaborador_id, at.responsavel_nome, at.chip_id as atrib_chip_id, at.chip_id2 as atrib_chip_id2,
                at.data_inicio as atrib_data_inicio,
                c.nome_completo as colab_nome, c.foto_path as colab_foto, c.foto_base64 as colab_foto_base64, c.telefone_corporativo as colab_tel_corp, c.status as colab_status,
-               ch.numero as chip_numero, ch.operadora as chip_operadora
+               ch.numero as chip_numero, ch.operadora as chip_operadora,
+               ch2.numero as chip_numero2, ch2.operadora as chip_operadora2
         FROM celulares_aparelhos a
         LEFT JOIN celulares_atribuicoes at ON at.aparelho_id = a.id AND at.data_fim IS NULL
         LEFT JOIN colaboradores c ON c.id = at.colaborador_id
         LEFT JOIN celulares_chips ch ON ch.id = at.chip_id
+        LEFT JOIN celulares_chips ch2 ON ch2.id = at.chip_id2
         ORDER BY LOWER(a.modelo) ASC, a.patrimonio ASC
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -22708,7 +22715,7 @@ app.get('/api/celulares/chips', authenticateToken, (req, res) => {
                c.nome_completo as colab_nome, c.foto_path as colab_foto, c.foto_base64 as colab_foto_base64, c.status as colab_status,
                a.modelo as aparelho_modelo, a.patrimonio as aparelho_patrimonio
         FROM celulares_chips ch
-        LEFT JOIN celulares_atribuicoes at ON at.chip_id = ch.id AND at.data_fim IS NULL
+        LEFT JOIN celulares_atribuicoes at ON (at.chip_id = ch.id OR at.chip_id2 = ch.id) AND at.data_fim IS NULL
         LEFT JOIN colaboradores c ON c.id = at.colaborador_id
         LEFT JOIN celulares_aparelhos a ON a.id = at.aparelho_id
         ORDER BY ch.id DESC
@@ -22752,7 +22759,7 @@ app.delete('/api/celulares/chips/:id', authenticateToken, (req, res) => {
 
 // ── ATRIBUIÇÕES ──
 app.post('/api/celulares/atribuicoes', authenticateToken, (req, res) => {
-    const { aparelho_id, chip_id, colaborador_id, responsavel_nome, data_inicio, observacao } = req.body;
+    const { aparelho_id, chip_id, chip_id2, colaborador_id, responsavel_nome, data_inicio, observacao } = req.body;
 
     const tasks = [];
     // Fechar atribuição ativa do aparelho
@@ -22769,26 +22776,40 @@ app.post('/api/celulares/atribuicoes', authenticateToken, (req, res) => {
             db.run(`UPDATE celulares_aparelhos SET status = 'em_uso' WHERE id = ?`, [aparelho_id], (err) => err ? reject(err) : resolve());
         }));
     }
-    // Fechar atribuição ativa do chip
+    // Fechar atribuição ativa do chip 1
     if (chip_id) {
         tasks.push(new Promise((resolve, reject) => {
             db.run(
-                `UPDATE celulares_atribuicoes SET data_fim = ? WHERE chip_id = ? AND data_fim IS NULL`,
-                [data_inicio || new Date().toISOString().split('T')[0], chip_id],
+                `UPDATE celulares_atribuicoes SET data_fim = ? WHERE (chip_id = ? OR chip_id2 = ?) AND data_fim IS NULL`,
+                [data_inicio || new Date().toISOString().split('T')[0], chip_id, chip_id],
                 (err) => err ? reject(err) : resolve()
             );
         }));
-        // Atualiza status do chip
+        // Atualiza status do chip 1
         tasks.push(new Promise((resolve, reject) => {
             db.run(`UPDATE celulares_chips SET status = 'em_uso' WHERE id = ?`, [chip_id], (err) => err ? reject(err) : resolve());
+        }));
+    }
+    // Fechar atribuição ativa do chip 2
+    if (chip_id2) {
+        tasks.push(new Promise((resolve, reject) => {
+            db.run(
+                `UPDATE celulares_atribuicoes SET data_fim = ? WHERE (chip_id = ? OR chip_id2 = ?) AND data_fim IS NULL`,
+                [data_inicio || new Date().toISOString().split('T')[0], chip_id2, chip_id2],
+                (err) => err ? reject(err) : resolve()
+            );
+        }));
+        // Atualiza status do chip 2
+        tasks.push(new Promise((resolve, reject) => {
+            db.run(`UPDATE celulares_chips SET status = 'em_uso' WHERE id = ?`, [chip_id2], (err) => err ? reject(err) : resolve());
         }));
     }
 
     Promise.all(tasks).then(() => {
         db.run(
-            `INSERT INTO celulares_atribuicoes (aparelho_id, chip_id, colaborador_id, responsavel_nome, data_inicio, observacao)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [aparelho_id || null, chip_id || null, colaborador_id || null, responsavel_nome || null,
+            `INSERT INTO celulares_atribuicoes (aparelho_id, chip_id, chip_id2, colaborador_id, responsavel_nome, data_inicio, observacao)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [aparelho_id || null, chip_id || null, chip_id2 || null, colaborador_id || null, responsavel_nome || null,
              data_inicio || new Date().toISOString().split('T')[0], observacao || null],
             function(err) {
                 if (err) return res.status(500).json({ error: err.message });
@@ -22825,9 +22846,18 @@ app.put('/api/celulares/atribuicoes/:id/devolver', authenticateToken, (req, res)
                 }
                 if (atrib.chip_id) {
                     updates.push(new Promise((resolve, reject) => {
-                        db.get(`SELECT id FROM celulares_atribuicoes WHERE chip_id = ? AND data_fim IS NULL`, [atrib.chip_id], (e, row) => {
+                        db.get(`SELECT id FROM celulares_atribuicoes WHERE (chip_id = ? OR chip_id2 = ?) AND data_fim IS NULL`, [atrib.chip_id, atrib.chip_id], (e, row) => {
                             if (!row) {
                                 db.run(`UPDATE celulares_chips SET status = 'disponivel' WHERE id = ?`, [atrib.chip_id], (e2) => e2 ? reject(e2) : resolve());
+                            } else resolve();
+                        });
+                    }));
+                }
+                if (atrib.chip_id2) {
+                    updates.push(new Promise((resolve, reject) => {
+                        db.get(`SELECT id FROM celulares_atribuicoes WHERE (chip_id = ? OR chip_id2 = ?) AND data_fim IS NULL`, [atrib.chip_id2, atrib.chip_id2], (e, row) => {
+                            if (!row) {
+                                db.run(`UPDATE celulares_chips SET status = 'disponivel' WHERE id = ?`, [atrib.chip_id2], (e2) => e2 ? reject(e2) : resolve());
                             } else resolve();
                         });
                     }));
@@ -22846,10 +22876,12 @@ app.get('/api/celulares/historico/aparelho/:id', authenticateToken, (req, res) =
     db.all(`
         SELECT at.*,
                c.nome_completo as colab_nome, c.foto_path as colab_foto,
-               ch.numero as chip_numero, ch.operadora as chip_operadora
+               ch.numero as chip_numero, ch.operadora as chip_operadora,
+               ch2.numero as chip_numero2, ch2.operadora as chip_operadora2
         FROM celulares_atribuicoes at
         LEFT JOIN colaboradores c ON c.id = at.colaborador_id
         LEFT JOIN celulares_chips ch ON ch.id = at.chip_id
+        LEFT JOIN celulares_chips ch2 ON ch2.id = at.chip_id2
         WHERE at.aparelho_id = ?
         ORDER BY at.created_at DESC
     `, [req.params.id], (err, rows) => {
