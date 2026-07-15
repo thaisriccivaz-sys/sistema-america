@@ -57,8 +57,16 @@
         if (!cont) return;
         var apDisp = _aparelhos.filter(function(a){return a.status==='disponivel';}).length;
         var chDisp = _chips.filter(function(c){return c.status==='disponivel';}).length;
-        var atrib  = _aparelhos.filter(function(a){return !!a.atrib_id;}).length;
-        var chipsAtrib = _chips.filter(function(c){return !!c.atrib_id;}).length;
+        
+        // Count for Colaboradores tab
+        var atribArr = _aparelhos.filter(function(a){return !!a.atrib_id;});
+        var chipsAvArr = _chips.filter(function(c){ return !!c.atrib_id && !_aparelhos.some(function(a){return String(a.atrib_chip_id)===String(c.id)&&!!a.atrib_id;}); });
+        var colabsComAtrib = {};
+        atribArr.forEach(function(a){ if(a.colaborador_id) colabsComAtrib[a.colaborador_id]=true; });
+        chipsAvArr.forEach(function(c){ if(c.colaborador_id) colabsComAtrib[c.colaborador_id]=true; });
+        var semAtribArr = _colaboradores.filter(function(c){ return !colabsComAtrib[c.id]; });
+        var countColabTab = semAtribArr.length + atribArr.length + chipsAvArr.length;
+
         function tabS(t){return 'padding:0.6rem 1.25rem;border:none;background:transparent;cursor:pointer;font-size:0.85rem;font-weight:600;color:'+(_activeTab===t?'#e67700':'#64748b')+';border-bottom:'+(_activeTab===t?'2px solid #e67700':'2px solid transparent')+';margin-bottom:-2px;';}
         cont.innerHTML =
             '<div style="padding:1.5rem 1.5rem 0;">'+
@@ -71,7 +79,7 @@
             '<button onclick="window.celularesOpenModalAtribuir()" style="background:#e67700;color:#fff;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;"><i class="ph ph-link"></i> Atribuir</button>'+
             '</div></div>'+
             '<div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:1.25rem;">'+
-            '<button onclick="window.celularesSetTab(\'atribuidos\')" style="'+tabS('atribuidos')+'"><i class="ph ph-users"></i> Colaboradores ('+(atrib+chipsAtrib)+')</button>'+
+            '<button onclick="window.celularesSetTab(\'atribuidos\')" style="'+tabS('atribuidos')+'"><i class="ph ph-users"></i> Colaboradores ('+countColabTab+')</button>'+
             '<button onclick="window.celularesSetTab(\'aparelhos\')" style="'+tabS('aparelhos')+'"><i class="ph ph-device-mobile"></i> Aparelhos ('+_aparelhos.length+')</button>'+
             '<button onclick="window.celularesSetTab(\'chips\')" style="'+tabS('chips')+'"><i class="ph ph-sim-card"></i> Chips ('+_chips.length+')</button>'+
             '</div></div>'+
@@ -90,11 +98,11 @@
     function renderTabAtribuidos() {
         var atrib = _aparelhos.filter(function(a){return !!a.atrib_id;});
         var chipsAv = _chips.filter(function(c){ return !!c.atrib_id && !_aparelhos.some(function(a){return String(a.atrib_chip_id)===String(c.id)&&!!a.atrib_id;}); });
-        // IDs de colaboradores que jÃ¡ tÃªm atribuiÃ§Ã£o ativa
+        // IDs de colaboradores que já têm atribuição ativa
         var colabsComAtrib = {};
         atrib.forEach(function(a){ if(a.colaborador_id) colabsComAtrib[a.colaborador_id]=true; });
         chipsAv.forEach(function(c){ if(c.colaborador_id) colabsComAtrib[c.colaborador_id]=true; });
-        // Colaboradores com Sim mas sem atribuiÃ§Ã£o
+        // Colaboradores com Sim mas sem atribuição
         var semAtrib = _colaboradores.filter(function(c){ return !colabsComAtrib[c.id]; });
 
         var hasAny = atrib.length || chipsAv.length || semAtrib.length;
@@ -102,9 +110,9 @@
 
         var rows = '';
 
-        // â”€â”€ Colaboradores sem atribuiÃ§Ã£o (aguardando) â”€â”€
+        // ── Colaboradores sem atribuição (aguardando) ──
         if (semAtrib.length) {
-            rows += '<tr><td colspan="5" style="padding:0.5rem 0.75rem;background:#fff7ed;border-bottom:1px solid #fed7aa;"><span style="font-size:0.75rem;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:0.05em;"><i class="ph ph-clock"></i> Aguardando AtribuiÃ§Ã£o ('+semAtrib.length+')</span></td></tr>';
+            rows += '<tr><td colspan="5" style="padding:0.5rem 0.75rem;background:#fff7ed;border-bottom:1px solid #fed7aa;"><span style="font-size:0.75rem;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:0.05em;"><i class="ph ph-clock"></i> Aguardando Atribuição ('+semAtrib.length+')</span></td></tr>';
             semAtrib.forEach(function(c) {
                 var nome = c.nome_completo || '-';
                 rows += '<tr style="border-bottom:1px solid #fef3c7;background:#fffbeb;cursor:pointer;" onclick="window.celularesOpenModalAtribuir(null,null,'+c.id+')" onmouseover="this.style.background=\'#fef9c3\'" onmouseout="this.style.background=\'#fffbeb\'">';
@@ -113,16 +121,16 @@
                 rows += '<div><div style="font-weight:700;font-size:0.85rem;color:#92400e;">'+nome+'</div>';
                 rows += '<div style="font-size:0.72rem;color:#b45309;">'+( c.telefone_corporativo || c.telefone || '')+'</div>';
                 rows += '</div></div></td>';
-                rows += '<td style="padding:0.75rem;" colspan="2"><span style="font-size:0.8rem;color:#b45309;font-style:italic;">Sem aparelho atribuÃ­do</span></td>';
+                rows += '<td style="padding:0.75rem;" colspan="2"><span style="font-size:0.8rem;color:#b45309;font-style:italic;">Sem aparelho atribuído</span></td>';
                 rows += '<td style="padding:0.75rem;"><span style="font-size:0.8rem;color:#b45309;">-</span></td>';
                 rows += '<td style="padding:0.75rem;"><button onclick="event.stopPropagation();window.celularesOpenModalAtribuir(null,null,'+c.id+')" style="background:#e67700;color:#fff;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:0.78rem;font-weight:700;"><i class="ph ph-link"></i> Atribuir</button></td>';
                 rows += '</tr>';
             });
         }
 
-        // â”€â”€ AtribuiÃ§Ãµes ativas â”€â”€
+        // ── Atribuições ativas ──
         if (atrib.length || chipsAv.length) {
-            rows += '<tr><td colspan="5" style="padding:0.5rem 0.75rem;background:#f0fdf4;border-bottom:1px solid #bbf7d0;"><span style="font-size:0.75rem;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.05em;"><i class="ph ph-check-circle"></i> AtribuÃ­dos ('+(atrib.length+chipsAv.length)+')</span></td></tr>';
+            rows += '<tr><td colspan="5" style="padding:0.5rem 0.75rem;background:#f0fdf4;border-bottom:1px solid #bbf7d0;"><span style="font-size:0.75rem;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.05em;"><i class="ph ph-check-circle"></i> Atribuídos ('+(atrib.length+chipsAv.length)+')</span></td></tr>';
         }
         atrib.forEach(function(a) {
             var base=(typeof API_URL!=='undefined')?API_URL.replace('/api',''):'';
