@@ -773,6 +773,16 @@ db.run(`UPDATE usuarios SET colaborador_id = (SELECT id FROM colaboradores WHERE
     else console.log('[Migration] Usuario Thais.Ricci vinculado com sucesso.');
 });
 
+// MIGRATION: Garantir que Thais.Ricci e thiago.goncalves recebam notificacoes de celular_controle
+['Thais.Ricci', 'thiago.goncalves'].forEach(username => {
+    db.get(`SELECT id FROM usuarios WHERE username = ?`, [username], (err, uRow) => {
+        if (err || !uRow) { console.log(`[Migration Celular] Usuario '${username}' nao encontrado.`); return; }
+        db.run(`INSERT OR IGNORE INTO config_notificacoes (tipo, usuario_id) VALUES ('celular_controle', ?)`, [uRow.id], (err2) => {
+            if (err2) console.error(`[Migration Celular] Erro para ${username}:`, err2.message);
+            else console.log(`[Migration Celular] Config celular_controle garantida para '${username}' (id=${uRow.id}).`);
+        });
+    });
+});
 
 // MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
 const GERADORES_PERFIL = [
