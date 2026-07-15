@@ -291,8 +291,11 @@
             '<input id="cel-atrib-avulso-nome" type="text" placeholder="Ex: Joao Silva - Manutencao" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"></div>'+
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Aparelho</label>'+
             '<select id="cel-atrib-aparelho" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"><option value="">Nenhum aparelho</option>'+apOpts+'</select></div>'+
-            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Chip / Numero</label>'+
-            '<select id="cel-atrib-chip" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"><option value="">Nenhum chip</option>'+chOpts+'</select></div>'+
+            '<div style="position:relative;"><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Chip / Numero</label>'+
+            '<input id="cel-atrib-chip-busca" type="text" autocomplete="off" placeholder="Digite ou cole o numero do chip..." style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;" oninput="window.celularesChipSearch(this.value)" onfocus="window.celularesChipSearch(this.value)">'+
+            '<input type="hidden" id="cel-atrib-chip">'+
+            '<div id="cel-chip-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:100;max-height:200px;overflow-y:auto;margin-top:2px;"></div>'+
+            '</div>'+
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Data de Inicio</label>'+
             '<input id="cel-atrib-data" type="date" value="'+hoje+'" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"></div>'+
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Observacao</label>'+
@@ -325,9 +328,48 @@
     }
     window.celularesSetTab=function(t){_activeTab=t;_expandedHistorico={};renderTela();};
     window.celularesToggleTipoResp=function(v){var cb=document.getElementById('cel-atrib-colab-block'),ab=document.getElementById('cel-atrib-avulso-block');if(cb)cb.style.display=v==='colaborador'?'':'none';if(ab)ab.style.display=v==='avulso'?'':'none';};
+    // Busca de chip por numero (ignora tracos, espacos, parenteses)
+    window.celularesChipSearch=function(q){
+        var drop=document.getElementById('cel-chip-dropdown');
+        if(!drop)return;
+        var norm=function(s){return (s||'').replace(/[\s\-().]/g,'');};
+        var qn=norm(q);
+        var chips=_chips.filter(function(c){return c.status==='disponivel';});
+        // Sem texto: mostrar todos se o campo estiver em foco
+        var matches=qn?chips.filter(function(c){
+            return norm(c.numero).indexOf(qn)!==-1;
+        }):chips;
+        if(!matches.length){
+            drop.innerHTML='<div style="padding:0.6rem 0.75rem;font-size:0.82rem;color:#94a3b8;">Nenhum chip encontrado</div>';
+            drop.style.display='block';
+            return;
+        }
+        drop.innerHTML=matches.map(function(c){
+            var label=c.numero+(c.operadora?' <span style="color:#64748b;font-size:0.78rem;">('+c.operadora+')</span>':'');
+            return '<div style="padding:0.6rem 0.75rem;cursor:pointer;font-size:0.85rem;border-bottom:1px solid #f1f5f9;" '+
+                'onmousedown="window.celularesChipSelect('+c.id+',\''+c.numero.replace(/'/g,"\\'")+(c.operadora?' ('+c.operadora+')':'')+'\')" '+
+                'onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'\'">'+
+                label+'</div>';
+        }).join('');
+        drop.style.display='block';
+    };
+    window.celularesChipSelect=function(id,label){
+        var inp=document.getElementById('cel-atrib-chip-busca');
+        var hid=document.getElementById('cel-atrib-chip');
+        var drop=document.getElementById('cel-chip-dropdown');
+        if(inp)inp.value=label;
+        if(hid)hid.value=id;
+        if(drop)drop.style.display='none';
+    };
+    // Fechar dropdown ao clicar fora
+    document.addEventListener('click',function(e){
+        var drop=document.getElementById('cel-chip-dropdown');
+        var inp=document.getElementById('cel-atrib-chip-busca');
+        if(drop&&inp&&!inp.contains(e.target)&&!drop.contains(e.target))drop.style.display='none';
+    });
     window.celularesOpenModalAparelho=function(id){_editandoAparelho=id?(_aparelhos.find(function(a){return a.id==id;})||null):null;renderTela();var el=document.getElementById('modal-celular-aparelho');if(el)el.style.display='flex';};
     window.celularesOpenModalChip=function(id){_editandoChip=id?(_chips.find(function(c){return c.id==id;})||null):null;renderTela();var el=document.getElementById('modal-celular-chip');if(el)el.style.display='flex';};
-    window.celularesOpenModalAtribuir=function(apId,chId,colabId){renderTela();var el=document.getElementById('modal-celular-atribuir');if(el)el.style.display='flex';if(apId){var s=document.getElementById('cel-atrib-aparelho');if(s)s.value=apId;}if(chId){var s2=document.getElementById('cel-atrib-chip');if(s2)s2.value=chId;}if(colabId){var s3=document.getElementById('cel-atrib-colab');if(s3)s3.value=colabId;}};
+    window.celularesOpenModalAtribuir=function(apId,chId,colabId){renderTela();var el=document.getElementById('modal-celular-atribuir');if(el)el.style.display='flex';if(apId){var s=document.getElementById('cel-atrib-aparelho');if(s)s.value=apId;}if(chId){var s2=document.getElementById('cel-atrib-chip');if(s2)s2.value=chId;var ch=_chips.find(function(c){return c.id==chId;});var sb=document.getElementById('cel-atrib-chip-busca');if(sb&&ch)sb.value=ch.numero+(ch.operadora?' ('+ch.operadora+')':'');}else{var sb2=document.getElementById('cel-atrib-chip-busca');if(sb2)sb2.value='';var hid=document.getElementById('cel-atrib-chip');if(hid)hid.value='';}if(colabId){var s3=document.getElementById('cel-atrib-colab');if(s3)s3.value=colabId;}};
     window.celularesOpenModalDevolver=function(atribId,nome){var el=document.getElementById('modal-celular-devolver');if(el){el.style.display='flex';var i=document.getElementById('cel-dev-info');if(i)i.textContent='Devolver de: '+nome;var aid=document.getElementById('cel-dev-atrib-id');if(aid)aid.value=atribId;var dd=document.getElementById('cel-dev-data');if(dd)dd.value=new Date().toISOString().split('T')[0];}};
     window.celularesPreviewFotoAp=function(input){
         if(!input.files||!input.files[0])return;
