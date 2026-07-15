@@ -21,7 +21,7 @@ const TIPOS_NOTIFICACAO = [
 ];
 
 const TIPOS_NOTIFICACAO_CELULARES = [
-    { id: 'celular_controle', nome: 'Controle de Celulares Corporativos', icone: 'ph-device-mobile', descricao: 'Recebe e-mail e notificação quando um colaborador recebe celular corporativo ou quando sua situação muda (Desligado, Férias ou Afastado).' }
+    { id: 'celular_controle', nome: 'Controle de Celulares', icone: 'ph-device-mobile' }
 ];
 
 let globalUsuariosConfig = [];
@@ -96,23 +96,10 @@ async function initNotificacoesView() {
         // 3. Render HTML
         let html = '';
 
-        // ── Quadro: Controle de Celulares ──
-        html += `
-            <div style="border: 2px solid #fed7aa; border-radius: 12px; background: #fff; margin-bottom: 1.5rem; overflow: hidden;">
-                <div style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); padding: 1rem 1.25rem; display: flex; align-items: center; gap: 0.75rem; border-bottom: 1px solid #fed7aa;">
-                    <div style="width: 36px; height: 36px; border-radius: 8px; background: #e67700; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                        <i class="ph ph-device-mobile" style="font-size: 1.3rem;"></i>
-                    </div>
-                    <div>
-                        <h2 style="margin: 0; font-size: 1rem; font-weight: 700; color: #92400e;">📱 Controle de Celulares</h2>
-                        <p style="margin: 0; font-size: 0.78rem; color: #b45309;">Notificações automáticas sobre celulares corporativos</p>
-                    </div>
-                </div>
-                <div style="padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
-                    ${TIPOS_NOTIFICACAO_CELULARES.map(t => renderTipoCard(t, '#fed7aa', '#e67700', '#fff3e0')).join('')}
-                </div>
-            </div>
-        `;
+        // ── Controle de Celulares (mesmo layout dos demais) ──
+        TIPOS_NOTIFICACAO_CELULARES.forEach(tipo => {
+            html += renderTipoCard(tipo, '#e2e8f0', '#d9480f', '#fff5f5');
+        });
 
         // ── Demais tipos de notificação ──
         TIPOS_NOTIFICACAO.forEach(tipo => {
