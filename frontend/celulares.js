@@ -368,11 +368,11 @@
             return true;
         });
         var bar = _filterBar([
-            {type:'text', key:'ch-numero', ph:'Filtrar por n\u00famero...', val:_filterCh.numero},
+            {type:'text', key:'ch-numero', ph:'Filtrar por número...', val:_filterCh.numero},
             {type:'select', key:'ch-status', val:_filterCh.status, opts:[
                 {v:'',l:'Todos os status'},
-                {v:'disponivel',l:'Dispon\u00edvel'},
-                {v:'atribuido',l:'Atribu\u00eddo'}
+                {v:'disponivel',l:'Disponível'},
+                {v:'atribuido',l:'Atribuído'}
             ]}
         ], 'window.celularesFilterCh()');
         var hasFilter = !!_filterCh.numero || !!_filterCh.status;
@@ -401,7 +401,7 @@
                 '</div></td></tr>';
             if (isOpen) rows+='<tr id="hist-row-'+hk+'"><td colspan="3" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-'+hk+'" style="padding:0.75rem 1rem;"><div style="color:#94a3b8;font-size:0.82rem;text-align:center;">Carregando...</div></div></td></tr>';
         });
-        return bar + tableWrap(thHead(['Numero / Operadora','Status','Acoes']),rows);
+        return bar + tableWrap(thHead(['Número / Operadora','Status','Ações']),rows);
     }
     window.celularesToggleHistorico = async function(key, tipo, id) {
         _expandedHistorico[key] = !_expandedHistorico[key];
