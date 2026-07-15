@@ -11165,69 +11165,6 @@ app.post('/api/config-notificacoes', authenticateToken, (req, res) => {
     });
 });
 
-// ── DIAGNÓSTICO: celular_controle ────────────────────────────────────────────
-app.get('/api/diag/celular-notif', (req, res) => {
-    db.all(`
-        SELECT
-            cn.tipo, cn.usuario_id,
-            u.username, u.nome as unome, u.email as uemail, u.ativo,
-            c1.email_corporativo as ec_nome, c1.email as ce_nome,
-            c2.email_corporativo as ec_uname, c2.email as ce_uname
-        FROM config_notificacoes cn
-        JOIN usuarios u ON u.id = cn.usuario_id
-        LEFT JOIN colaboradores c1 ON LOWER(TRIM(c1.nome_completo)) = LOWER(TRIM(u.nome))
-        LEFT JOIN colaboradores c2 ON LOWER(TRIM(c2.nome_completo)) = LOWER(TRIM(u.username))
-        WHERE cn.tipo = 'celular_controle'
-    `, [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        const result = (rows || []).map(r => {
-            const emailResolvido =
-                (r.ec_nome && r.ec_nome.includes('@')) ? r.ec_nome :
-                (r.ce_nome && r.ce_nome.includes('@')) ? r.ce_nome :
-                (r.ec_uname && r.ec_uname.includes('@')) ? r.ec_uname :
-                (r.ce_uname && r.ce_uname.includes('@')) ? r.ce_uname :
-                (r.uemail && r.uemail.includes('@')) ? r.uemail :
-                (r.username && r.username.includes('@')) ? r.username : null;
-            return { ...r, email_resolvido: emailResolvido };
-        });
-        res.json({ total: result.length, destinatarios: result });
-    });
-});
-
-// ── TESTE: disparar notificação celular_controle manualmente ─────────────────
-app.post('/api/diag/test-celular-notif', authenticateToken, (req, res) => {
-    const { colaborador_id } = req.body;
-    if (!colaborador_id) return res.status(400).json({ error: 'colaborador_id obrigatorio' });
-    db.get('SELECT id, nome_completo, departamento, cargo FROM colaboradores WHERE id = ?', [colaborador_id], (err, colab) => {
-        if (err || !colab) return res.status(404).json({ error: 'Colaborador nao encontrado' });
-        const nomeColab = colab.nome_completo;
-        const msg = `[TESTE] ${nomeColab} foi marcado(a) para receber Celular Corporativo.`;
-        var rowsCNSaved = null;
-        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'celular_controle'", [], (errCN, rowsCN) => {
-            rowsCNSaved = rowsCN;
-            console.log('[TESTE Celular Notif] Destinatarios:', rowsCN ? rowsCN.length : 0, '| Erro:', errCN ? errCN.message : 'nenhum');
-            if (!errCN && rowsCN) rowsCN.forEach(r => {
-                db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
-                    [r.usuario_id, 'celular_controle', msg, JSON.stringify({ colaborador_id: parseInt(colaborador_id), nome: nomeColab, teste: true })]);
-            });
-        });
-        const _logoPathCel = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-        sendEmailParaNotificados('celular_controle', {
-            subject: `[TESTE] Novo Participante - ${nomeColab}`,
-            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:2px dashed #e67700;border-radius:8px;padding:24px;">
-                <h2 style="color:#e67700;text-align:center;">[TESTE] Notificacao de Celular Corporativo</h2>
-                <p>Este e um e-mail de TESTE disparado pelo diagnostico do sistema.</p>
-                <div style="background:#fff3e0;padding:16px;border-radius:8px;border-left:4px solid #e67700;">
-                    <p><strong>Colaborador:</strong> ${nomeColab}</p>
-                    <p><strong>Departamento:</strong> ${colab.departamento || '-'}</p>
-                    <p><strong>Cargo:</strong> ${colab.cargo || '-'}</p>
-                </div>
-            </div>`,
-            attachments: [{ filename: 'logo-header.png', path: _logoPathCel, cid: 'empresa-logo' }]
-        });
-        res.json({ ok: true, colaborador: nomeColab });
-    });
-});
 
 app.get('/api/wipe-credenciamentos', (req, res) => {
     db.run('DELETE FROM credenciamentos', (err) => {
