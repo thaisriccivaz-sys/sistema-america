@@ -183,7 +183,7 @@
         });
         return tableWrap(thHead(['Modelo','IMEI','Status','Acoes']),rows);
     }
-    }
+
     function renderTabChips() {
         var disp=_chips.filter(function(c){return c.status==='disponivel';});
         if (!disp.length) return '<div style="text-align:center;padding:3rem;color:#94a3b8;"><i class="ph ph-sim-card" style="font-size:3rem;display:block;margin-bottom:0.75rem;"></i>Nenhum chip disponivel.<br><small>Use + Chip.</small></div>';
