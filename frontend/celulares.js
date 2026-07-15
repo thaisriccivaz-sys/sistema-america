@@ -379,6 +379,7 @@
                 {v:'atribuido',l:'Atribuído'}
             ]}
         ], 'window.celularesFilterCh()');
+        var hasFilter = !!_filterCh.numero || !!_filterCh.status;
         var totalLabel = '';
         setTimeout(function() {
             var el = document.getElementById('tab-label-chips');
