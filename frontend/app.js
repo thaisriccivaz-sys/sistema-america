@@ -10736,7 +10736,7 @@ window.anexarAoProntuarioPerfil = async function (btn) {
         if (!previewContent) throw new Error('Conteúdo do preview não encontrado. Feche e gere novamente.');
 
         const pdfBlob = await window.gerarPDFBlob(previewContent);
-        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-� _-]/g, '');
+        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-ã _-]/g, '');
         const colabNome = (viewedColaborador.nome_completo || viewedColaborador.id).toString();
 
         const formData = new FormData();
@@ -10827,7 +10827,7 @@ window.enviarAssinaturaPerfilDireto = async function (event) {
         if (!previewContent) throw new Error('Conteúdo do formulário foi perdido. Tente gerar novamente.');
 
         const pdfBlob = await window.gerarPDFBlob(previewContent);
-        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-� _-]/g, '');
+        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-ã _-]/g, '');
         const colabId = viewedColaborador?.id || '';
         const colabNome = (viewedColaborador?.nome_completo || colabId).toString();
 
@@ -11640,7 +11640,7 @@ window.previewAdmissaoDoc = async function (geradorId, colabId, evt) {
                     if (!previewContent) throw new Error('Conteúdo do preview não encontrado');
 
                     const pdfBlob = await window.gerarPDFBlob(previewContent);
-                    const safeName = (data.gerador_nome || 'documento_admissao').replace(/[^a-zA-Z0-9À-� _-]/g, '');
+                    const safeName = (data.gerador_nome || 'documento_admissao').replace(/[^a-zA-Z0-9À-ã _-]/g, '');
                     const cNome = (data.colaborador?.NOME_COMPLETO || colabId).toString();
 
                     const formData = new FormData();
