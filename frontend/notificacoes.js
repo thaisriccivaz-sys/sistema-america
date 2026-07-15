@@ -20,6 +20,11 @@ const TIPOS_NOTIFICACAO = [
     { id: 'pesquisa_satisfacao_treinamento', nome: 'Pesquisa de Satisfação de Treinamentos', icone: 'ph-star' }
 ];
 
+const TIPOS_NOTIFICACAO_CELULARES = [
+    { id: 'celular_novo_participante', nome: 'Novo Participante de Celular Corporativo', icone: 'ph-device-mobile', descricao: 'Disparado quando um colaborador é marcado como "Sim" no campo Celular Corporativo.' },
+    { id: 'celular_mudanca_status', nome: 'Mudança de Situação de Celular Corporativo', icone: 'ph-device-mobile-slash', descricao: 'Disparado quando um colaborador com celular corporativo tem o status alterado para Desligado, Férias ou Afastado.' }
+];
+
 let globalUsuariosConfig = [];
 
 async function initNotificacoesView() {
@@ -55,21 +60,15 @@ async function initNotificacoesView() {
             if (!configByTipo[c.tipo]) configByTipo[c.tipo] = [];
             configByTipo[c.tipo].push(c.usuario_id);
         });
-        
-        // 3. Render HTML
-        let html = '';
-        TIPOS_NOTIFICACAO.forEach(tipo => {
-            const selectedUsers = configByTipo[tipo.id] || [];
-            const isEstoqueCompra = tipo.id === 'estoque_minimo';
-            const isEstoqueRepos  = tipo.id === 'estoque_reposicao';
-            const iconBg    = isEstoqueCompra ? '#fff3e6' : isEstoqueRepos ? '#f0fdf4' : '#fff5f5';
-            const iconColor = isEstoqueCompra ? '#e67700' : isEstoqueRepos ? '#16a34a' : '#d9480f';
 
-            html += `
-                <div class="config-notificacao-item" style="border: 1px solid ${isEstoqueCompra ? '#fed7aa' : isEstoqueRepos ? '#bbf7d0' : '#e2e8f0'}; border-radius: 8px; background: #fff; display: flex; flex-direction: column;">
+        // Helper: renderiza um tipo como card colapsável
+        function renderTipoCard(tipo, corBorda, corIcon, bgIcon) {
+            const selectedUsers = configByTipo[tipo.id] || [];
+            return `
+                <div class="config-notificacao-item" style="border: 1px solid ${corBorda}; border-radius: 8px; background: #fff; display: flex; flex-direction: column;">
                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; cursor: pointer; user-select: none;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('.arrow').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(0deg)' : 'rotate(180deg)'">
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div style="width: 32px; height: 32px; border-radius: 6px; background: ${iconBg}; color: ${iconColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <div style="width: 32px; height: 32px; border-radius: 6px; background: ${bgIcon}; color: ${corIcon}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                                 <i class="ph ${tipo.icone}" style="font-size: 1.2rem;"></i>
                             </div>
                             <div>
@@ -79,28 +78,51 @@ async function initNotificacoesView() {
                         </div>
                         <i class="ph ph-caret-down arrow" style="color: #94a3b8; transition: transform 0.2s;"></i>
                     </div>
-                    
                     <div class="notif-users-list" style="display: none; border-top: 1px solid #e2e8f0; padding: 1rem; background: #f8fafc; border-radius: 0 0 8px 8px; max-height: 300px; overflow-y: auto;">
                         <label style="font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 0.75rem; display: block;">Selecione os usuários:</label>
                         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-            `;
-            
-            // Checkboxes para cada usuário
-            globalUsuariosConfig.forEach(u => {
-                const isChecked = selectedUsers.includes(u.id) ? 'checked' : '';
-                html += `
-                    <label class="user-checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; background: #fff; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer; user-select: none; transition: background 0.2s;">
-                        <input type="checkbox" class="config-notif-cb" data-tipo="${tipo.id}" data-uid="${u.id}" ${isChecked}>
-                        <span style="font-size: 0.9rem; color: #475569;">${u.nome || u.username}</span>
-                    </label>
-                `;
-            });
-            
-            html += `
+                            ${globalUsuariosConfig.map(u => {
+                                const isChecked = selectedUsers.includes(u.id) ? 'checked' : '';
+                                return `<label class="user-checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; background: #fff; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer; user-select: none; transition: background 0.2s;">
+                                    <input type="checkbox" class="config-notif-cb" data-tipo="${tipo.id}" data-uid="${u.id}" ${isChecked}>
+                                    <span style="font-size: 0.9rem; color: #475569;">${u.nome || u.username}</span>
+                                </label>`;
+                            }).join('')}
                         </div>
                     </div>
                 </div>
             `;
+        }
+        
+        // 3. Render HTML
+        let html = '';
+
+        // ── Quadro: Controle de Celulares ──
+        html += `
+            <div style="border: 2px solid #fed7aa; border-radius: 12px; background: #fff; margin-bottom: 1.5rem; overflow: hidden;">
+                <div style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); padding: 1rem 1.25rem; display: flex; align-items: center; gap: 0.75rem; border-bottom: 1px solid #fed7aa;">
+                    <div style="width: 36px; height: 36px; border-radius: 8px; background: #e67700; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="ph ph-device-mobile" style="font-size: 1.3rem;"></i>
+                    </div>
+                    <div>
+                        <h2 style="margin: 0; font-size: 1rem; font-weight: 700; color: #92400e;">📱 Controle de Celulares</h2>
+                        <p style="margin: 0; font-size: 0.78rem; color: #b45309;">Notificações automáticas sobre celulares corporativos</p>
+                    </div>
+                </div>
+                <div style="padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                    ${TIPOS_NOTIFICACAO_CELULARES.map(t => renderTipoCard(t, '#fed7aa', '#e67700', '#fff3e0')).join('')}
+                </div>
+            </div>
+        `;
+
+        // ── Demais tipos de notificação ──
+        TIPOS_NOTIFICACAO.forEach(tipo => {
+            const isEstoqueCompra = tipo.id === 'estoque_minimo';
+            const isEstoqueRepos  = tipo.id === 'estoque_reposicao';
+            const corBorda  = isEstoqueCompra ? '#fed7aa' : isEstoqueRepos ? '#bbf7d0' : '#e2e8f0';
+            const bgIcon    = isEstoqueCompra ? '#fff3e6' : isEstoqueRepos ? '#f0fdf4' : '#fff5f5';
+            const corIcon   = isEstoqueCompra ? '#e67700' : isEstoqueRepos ? '#16a34a' : '#d9480f';
+            html += renderTipoCard(tipo, corBorda, corIcon, bgIcon);
         });
         
         container.innerHTML = html;
@@ -115,7 +137,9 @@ window.salvarConfigNotificacoes = async function() {
     const checkboxes = document.querySelectorAll('.config-notif-cb');
     const selectedByTipo = {};
     
+    // Incluir todos os tipos (padrão + celulares)
     TIPOS_NOTIFICACAO.forEach(t => { selectedByTipo[t.id] = []; });
+    TIPOS_NOTIFICACAO_CELULARES.forEach(t => { selectedByTipo[t.id] = []; });
     
     checkboxes.forEach(cb => {
         if (cb.checked) {

@@ -95,6 +95,19 @@
     function tableWrap(head, rows) {
         return '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.07);">'+head+'<tbody>'+rows+'</tbody></table></div>';
     }
+    function situacaoBadge(status) {
+        var s = (status || '').trim();
+        var sl = s.toLowerCase();
+        var cfg;
+        if (sl.includes('desligado'))      cfg = { label:'Desligado',  bg:'#fee2e2', color:'#991b1b', border:'#fca5a5' };
+        else if (sl.includes('f\u00e9rias') || sl.includes('ferias')) cfg = { label:'F\u00e9rias', bg:'#f3e8ff', color:'#6b21a8', border:'#d8b4fe' };
+        else if (sl.includes('afastado'))  cfg = { label:'Afastado',   bg:'#fef9c3', color:'#854d0e', border:'#fde047' };
+        else if (sl.includes('aguardando'))cfg = { label:'Aguardando', bg:'#fff7ed', color:'#c2410c', border:'#fed7aa' };
+        else if (!s)                       cfg = { label:'Ativo',      bg:'#dcfce7', color:'#166534', border:'#86efac' };
+        else                               cfg = { label: s,           bg:'#dcfce7', color:'#166534', border:'#86efac' };
+        return '<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:0.72rem;font-weight:700;background:'+cfg.bg+';color:'+cfg.color+';border:1px solid '+cfg.border+';">'+cfg.label+'</span>';
+    }
+
     function renderTabAtribuidos() {
         var atrib = _aparelhos.filter(function(a){return !!a.atrib_id;});
         var chipsAv = _chips.filter(function(c){ return !!c.atrib_id && !_aparelhos.some(function(a){return String(a.atrib_chip_id)===String(c.id)&&!!a.atrib_id;}); });
@@ -102,8 +115,16 @@
         var colabsComAtrib = {};
         atrib.forEach(function(a){ if(a.colaborador_id) colabsComAtrib[a.colaborador_id]=true; });
         chipsAv.forEach(function(c){ if(c.colaborador_id) colabsComAtrib[c.colaborador_id]=true; });
-        // Colaboradores com Sim mas sem atribuição
-        var semAtrib = _colaboradores.filter(function(c){ return !colabsComAtrib[c.id]; });
+        // Colaboradores com Sim mas sem atribuição ativa (desligados sem atribuição ficam de fora)
+        var semAtrib = _colaboradores.filter(function(c){
+            if (colabsComAtrib[c.id]) return false;
+            var sl = (c.status||'').toLowerCase();
+            if (sl.includes('desligado')) return false; // desligado sem celular não aparece
+            return true;
+        });
+        // Desligados com atribuição ativa (devem aparecer com badge vermelho)
+        var colabStatusMap = {};
+        _colaboradores.forEach(function(c) { colabStatusMap[c.id] = c.status || ''; });
 
         // Filtering logic
         var fq = (_filterColab.q||'').trim().toLowerCase();
@@ -141,18 +162,20 @@
         }
 
         var rows = '';
+        var COLSPAN = '6';
 
         // ── Colaboradores sem atribuição (aguardando) ──
         if (semAtribF.length) {
-            rows += '<tr><td colspan="5" style="padding:0.5rem 0.75rem;background:#fff7ed;border-bottom:1px solid #fed7aa;"><span style="font-size:0.75rem;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:0.05em;"><i class="ph ph-clock"></i> Aguardando Atribuição ('+semAtribF.length+')</span></td></tr>';
+            rows += '<tr><td colspan="'+COLSPAN+'" style="padding:0.5rem 0.75rem;background:#fff7ed;border-bottom:1px solid #fed7aa;"><span style="font-size:0.75rem;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:0.05em;"><i class="ph ph-clock"></i> Aguardando Atribuição ('+semAtribF.length+')</span></td></tr>';
             semAtribF.forEach(function(c) {
                 var nome = c.nome_completo || '-';
                 rows += '<tr style="border-bottom:1px solid #fef3c7;background:#fffbeb;cursor:pointer;" onclick="window.celularesOpenModalAtribuir(null,null,'+c.id+')" onmouseover="this.style.background=\'#fef9c3\'" onmouseout="this.style.background=\'#fffbeb\'">';
                 rows += '<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">';
                 rows += avatarHtml(c.foto_path, nome, 40, c.foto_base64);
                 rows += '<div><div style="font-weight:700;font-size:0.85rem;color:#92400e;">'+nome+'</div>';
-                rows += '<div style="font-size:0.72rem;color:#b45309;">'+( c.telefone_corporativo || c.telefone || '')+'</div>';
+                rows += '<div style="font-size:0.72rem;color:#b45309;">'+(c.telefone_corporativo || c.telefone || '')+'</div>';
                 rows += '</div></div></td>';
+                rows += '<td style="padding:0.75rem;">'+situacaoBadge(c.status)+'</td>';
                 rows += '<td style="padding:0.75rem;" colspan="2"><span style="font-size:0.8rem;color:#b45309;font-style:italic;">Sem aparelho atribuído</span></td>';
                 rows += '<td style="padding:0.75rem;"><span style="font-size:0.8rem;color:#b45309;">-</span></td>';
                 rows += '<td style="padding:0.75rem;"><button onclick="event.stopPropagation();window.celularesOpenModalAtribuir(null,null,'+c.id+')" style="background:#e67700;color:#fff;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:0.78rem;font-weight:700;"><i class="ph ph-link"></i> Atribuir</button></td>';
@@ -162,7 +185,7 @@
 
         // ── Atribuições ativas ──
         if (atribF.length || chipsAvF.length) {
-            rows += '<tr><td colspan="5" style="padding:0.5rem 0.75rem;background:#f0fdf4;border-bottom:1px solid #bbf7d0;"><span style="font-size:0.75rem;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.05em;"><i class="ph ph-check-circle"></i> Atribuídos ('+(atribF.length+chipsAvF.length)+')</span></td></tr>';
+            rows += '<tr><td colspan="'+COLSPAN+'" style="padding:0.5rem 0.75rem;background:#f0fdf4;border-bottom:1px solid #bbf7d0;"><span style="font-size:0.75rem;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.05em;"><i class="ph ph-check-circle"></i> Atribuídos ('+(atribF.length+chipsAvF.length)+')</span></td></tr>';
         }
         atribF.forEach(function(a) {
             var base=(typeof API_URL!=='undefined')?API_URL.replace('/api',''):'';
@@ -173,8 +196,11 @@
             var fotoApThumb=fotoApSrc
                 ?'<img src="'+fotoApSrc+'" style="width:40px;height:40px;border-radius:7px;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;" onerror="this.outerHTML=\'<div style=&quot;width:40px;height:40px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;&quot;><i class=&quot;ph ph-device-mobile&quot; style=&quot;color:#94a3b8;font-size:1.1rem;&quot;></i></div>\'">'
                 :'<div style="width:40px;height:40px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-device-mobile" style="color:#94a3b8;font-size:1.1rem;"></i></div>';
+            // Status: prefer colab_status from aparelhos JOIN, fallback to colabStatusMap
+            var colabSt = a.colab_status || colabStatusMap[a.colaborador_id] || '';
             rows+='<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(a.colab_foto,nome,40,a.colab_foto_base64)+'<div><div style="font-weight:700;font-size:0.85rem;color:'+(isAv?'#7c3aed':'#0f172a')+';">'+nome+'</div>'+(isAv?'<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;">Responsavel Avulso</div>':'')+(a.colab_tel_corp?'<div style="font-size:0.72rem;color:#64748b;">'+a.colab_tel_corp+'</div>':'')+'</div></div></td>';
+            rows+='<td style="padding:0.75rem;">'+situacaoBadge(isAv ? '' : colabSt)+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+fotoApThumb+'<div><div style="font-weight:600;">'+(a.modelo||'-')+'</div><div style="font-size:0.72rem;color:#64748b;">Pat.: '+(a.patrimonio||'-')+'</div><div style="font-size:0.72rem;color:#64748b;font-family:monospace;">IMEI: '+a.imei1+'</div></div></div></td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;">'+(a.chip_numero?'<div style="font-weight:600;color:#2563eb;">'+a.chip_numero+'</div><div style="font-size:0.72rem;color:#64748b;">'+(a.chip_operadora||'')+'</div>':'<span style="color:#94a3b8;font-size:0.8rem;">Sem chip</span>')+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.8rem;color:#64748b;">'+fmtData(a.atrib_data_inicio)+'</td>';
@@ -183,14 +209,16 @@
                 '<button onclick="window.celularesOpenModalDevolver('+a.atrib_id+',\''+nome.replace(/'/g,"\\'")+'\')" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>'+
                 '<button onclick="window.celularesOpenModalAparelho('+a.id+')" style="background:transparent;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#2563eb;font-size:0.78rem;"><i class="ph ph-pencil-simple"></i></button>'+
                 '</div></td></tr>';
-            if (isOpen) rows+='<tr id="hist-row-'+hk+'"><td colspan="5" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-'+hk+'" style="padding:0.75rem 1rem;"><div style="color:#94a3b8;font-size:0.82rem;text-align:center;">Carregando historico...</div></div></td></tr>';
+            if (isOpen) rows+='<tr id="hist-row-'+hk+'"><td colspan="'+COLSPAN+'" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-'+hk+'" style="padding:0.75rem 1rem;"><div style="color:#94a3b8;font-size:0.82rem;text-align:center;">Carregando historico...</div></div></td></tr>';
         });
         chipsAvF.forEach(function(c) {
             var hk='chip-'+c.id, isOpen=!!_expandedHistorico[hk];
             var nome=c.colab_nome||c.responsavel_nome||'-';
             var isAv=!c.colaborador_id;
+            var colabSt = c.colab_status || colabStatusMap[c.colaborador_id] || '';
             rows+='<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(c.colab_foto,nome,40,c.colab_foto_base64)+'<div><div style="font-weight:700;font-size:0.85rem;color:'+(isAv?'#7c3aed':'#0f172a')+';">'+nome+'</div>'+(isAv?'<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;">Responsavel Avulso</div>':'')+'</div></div></td>';
+            rows+='<td style="padding:0.75rem;">'+situacaoBadge(isAv ? '' : colabSt)+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;color:#94a3b8;font-style:italic;">Apenas chip</td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="font-weight:600;color:#2563eb;">'+c.numero+'</div><div style="font-size:0.72rem;color:#64748b;">'+(c.operadora||'')+'</div></td>';
             rows+='<td style="padding:0.75rem;font-size:0.8rem;color:#64748b;">'+fmtData(c.atrib_data_inicio)+'</td>';
@@ -198,9 +226,9 @@
                 '<button onclick="window.celularesToggleHistorico(\''+hk+'\',\'chip\','+c.id+')" style="background:transparent;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#64748b;font-size:0.78rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-clock-counter-clockwise"></i><i class="ph ph-caret-'+(isOpen?'up':'down')+'" style="font-size:0.7rem;"></i></button>'+
                 '<button onclick="window.celularesOpenModalDevolver('+c.atrib_id+',\''+nome.replace(/'/g,"\\'")+'\')" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>'+
                 '</div></td></tr>';
-            if (isOpen) rows+='<tr id="hist-row-'+hk+'"><td colspan="5" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-'+hk+'" style="padding:0.75rem 1rem;"><div style="color:#94a3b8;font-size:0.82rem;text-align:center;">Carregando historico...</div></div></td></tr>';
+            if (isOpen) rows+='<tr id="hist-row-'+hk+'"><td colspan="'+COLSPAN+'" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-'+hk+'" style="padding:0.75rem 1rem;"><div style="color:#94a3b8;font-size:0.82rem;text-align:center;">Carregando historico...</div></div></td></tr>';
         });
-        return bar + tableWrap(thHead(['Colaborador / Responsavel','Aparelho','Chip / Numero','Desde','Acoes']),rows);
+        return bar + tableWrap(thHead(['Colaborador / Responsavel','Situa\u00e7\u00e3o','Aparelho','Chip / Numero','Desde','A\u00e7\u00f5es']),rows);
     }
 
     function _filterBar(fields, onchange) {

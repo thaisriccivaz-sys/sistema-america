@@ -3612,6 +3612,77 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                 });
             }
 
+            // ── Notificações de Controle de Celulares ────────────────────────────
+            const _logoPathCel = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+
+            // Evento A: celular_participa mudou para 'Sim'
+            if ('celular_participa' in data && data.celular_participa === 'Sim' && (oldColab.celular_participa || '') !== 'Sim') {
+                const nomeColab = data.nome_completo || oldColab.nome_completo || 'Colaborador';
+                const msgA = `${nomeColab} foi marcado(a) para receber Celular Corporativo.`;
+                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'celular_novo_participante'", [], (errCN, rowsCN) => {
+                    if (!errCN && rowsCN) rowsCN.forEach(r => {
+                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                            [r.usuario_id, 'celular_novo_participante', msgA, JSON.stringify({ colaborador_id: parseInt(id), nome: nomeColab })]);
+                    });
+                });
+                sendEmailParaNotificados('celular_novo_participante', {
+                    subject: `📱 Novo Participante de Celular Corporativo – ${nomeColab}`,
+                    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                        <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                            <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                        </div>
+                        <div style="padding:24px;">
+                            <h2 style="color:#e67700;text-align:center;margin-top:0;">📱 Novo Participante – Celular Corporativo</h2>
+                            <p>Um colaborador foi marcado para receber celular corporativo:</p>
+                            <div style="background:#fff3e0;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #e67700;">
+                                <p style="margin:4px 0;"><strong>Colaborador:</strong> ${nomeColab}</p>
+                                <p style="margin:4px 0;"><strong>Departamento:</strong> ${oldColab.departamento || '-'}</p>
+                                <p style="margin:4px 0;"><strong>Cargo:</strong> ${oldColab.cargo || '-'}</p>
+                            </div>
+                            <p style="font-size:12px;color:#999;text-align:center;"><i>Esta notificação foi gerada automaticamente pelo Sistema América Rental.</i></p>
+                        </div>
+                    </div>`,
+                    attachments: [{ filename: 'logo-header.png', path: _logoPathCel, cid: 'empresa-logo' }]
+                });
+            }
+
+            // Evento B: status mudou para Desligado / Férias / Afastado e colaborador tem celular_participa = Sim
+            const novoStatusCel = data.status;
+            const velhoStatusCel = oldColab.status;
+            const statusAlertaCel = ['Desligado', 'Férias', 'Afastado'];
+            if ('status' in data && novoStatusCel && novoStatusCel !== velhoStatusCel &&
+                statusAlertaCel.includes(novoStatusCel) && (data.celular_participa || oldColab.celular_participa) === 'Sim') {
+                const nomeColab2 = data.nome_completo || oldColab.nome_completo || 'Colaborador';
+                const msgB = `${nomeColab2} mudou a situação para "${novoStatusCel}" e possui Celular Corporativo.`;
+                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'celular_mudanca_status'", [], (errCS, rowsCS) => {
+                    if (!errCS && rowsCS) rowsCS.forEach(r => {
+                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                            [r.usuario_id, 'celular_mudanca_status', msgB, JSON.stringify({ colaborador_id: parseInt(id), nome: nomeColab2, novo_status: novoStatusCel })]);
+                    });
+                });
+                sendEmailParaNotificados('celular_mudanca_status', {
+                    subject: `📴 Mudança de Situação – Celular Corporativo – ${nomeColab2}`,
+                    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                        <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                            <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                        </div>
+                        <div style="padding:24px;">
+                            <h2 style="color:#e67700;text-align:center;margin-top:0;">📴 Mudança de Situação – Celular Corporativo</h2>
+                            <p>Um colaborador com Celular Corporativo teve sua situação alterada:</p>
+                            <div style="background:#fff3e0;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #e67700;">
+                                <p style="margin:4px 0;"><strong>Colaborador:</strong> ${nomeColab2}</p>
+                                <p style="margin:4px 0;"><strong>Situação anterior:</strong> ${velhoStatusCel || '-'}</p>
+                                <p style="margin:4px 0;"><strong>Nova situação:</strong> <span style="color:#e67700;font-weight:700;">${novoStatusCel}</span></p>
+                                <p style="margin:4px 0;"><strong>Departamento:</strong> ${oldColab.departamento || '-'}</p>
+                            </div>
+                            <p>Verifique a necessidade de recolher o aparelho e/ou chip corporativo.</p>
+                            <p style="font-size:12px;color:#999;text-align:center;"><i>Esta notificação foi gerada automaticamente pelo Sistema América Rental.</i></p>
+                        </div>
+                    </div>`,
+                    attachments: [{ filename: 'logo-header.png', path: _logoPathCel, cid: 'empresa-logo' }]
+                });
+            }
+
             // Novo colaborador para distribuição de equipe (status mudou de Iniciado para Ativo/Experiência ou similar)
             const novoStatus = data.status;
             const velhoStatus = oldColab.status;
@@ -22505,7 +22576,6 @@ app.get('/api/celulares/colaboradores', authenticateToken, (req, res) => {
         `SELECT id, nome_completo, telefone, telefone_corporativo, foto_path, foto_base64, celular_participa, status, departamento
          FROM colaboradores
          WHERE celular_participa = 'Sim'
-           AND (status IS NULL OR LOWER(status) NOT LIKE '%desligado%')
          ORDER BY nome_completo`,
         [], (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
@@ -22521,7 +22591,7 @@ app.get('/api/celulares/aparelhos', authenticateToken, (req, res) => {
                at.id as atrib_id,
                at.colaborador_id, at.responsavel_nome, at.chip_id as atrib_chip_id,
                at.data_inicio as atrib_data_inicio,
-               c.nome_completo as colab_nome, c.foto_path as colab_foto, c.foto_base64 as colab_foto_base64, c.telefone_corporativo as colab_tel_corp,
+               c.nome_completo as colab_nome, c.foto_path as colab_foto, c.foto_base64 as colab_foto_base64, c.telefone_corporativo as colab_tel_corp, c.status as colab_status,
                ch.numero as chip_numero, ch.operadora as chip_operadora
         FROM celulares_aparelhos a
         LEFT JOIN celulares_atribuicoes at ON at.aparelho_id = a.id AND at.data_fim IS NULL
@@ -22635,7 +22705,7 @@ app.get('/api/celulares/chips', authenticateToken, (req, res) => {
                at.id as atrib_id,
                at.colaborador_id, at.responsavel_nome, at.aparelho_id as atrib_aparelho_id,
                at.data_inicio as atrib_data_inicio,
-               c.nome_completo as colab_nome, c.foto_path as colab_foto,
+               c.nome_completo as colab_nome, c.foto_path as colab_foto, c.foto_base64 as colab_foto_base64, c.status as colab_status,
                a.modelo as aparelho_modelo, a.patrimonio as aparelho_patrimonio
         FROM celulares_chips ch
         LEFT JOIN celulares_atribuicoes at ON at.chip_id = ch.id AND at.data_fim IS NULL
