@@ -72,7 +72,7 @@
         var colabsComAtrib = {};
         atribArr.forEach(function(a){ if(a.colaborador_id) colabsComAtrib[a.colaborador_id]=true; });
         chipsAvArr.forEach(function(c){ if(c.colaborador_id) colabsComAtrib[c.colaborador_id]=true; });
-        var semAtribArr = _colaboradores.filter(function(c){ return !colabsComAtrib[c.id]; });
+        var semAtribArr = _colaboradores.filter(function(c){ return !colabsComAtrib[c.id] && !(c.status||'').toLowerCase().includes('desligado'); });
         // Contar colaboradores únicos (não linhas)
         var colabsAtribUnicos = {};
         atribArr.forEach(function(a){ if(a.colaborador_id) colabsAtribUnicos[a.colaborador_id]=true; else colabsAtribUnicos['av-'+a.id]=true; });
@@ -91,9 +91,9 @@
             '<button onclick="window.celularesOpenModalAtribuir()" style="background:#e67700;color:#fff;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;"><i class="ph ph-link"></i> Atribuir</button>'+
             '</div></div>'+
             '<div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:1.25rem;">'+
-            '<button onclick="window.celularesSetTab(\'atribuidos\')" style="'+tabS('atribuidos')+'"><i class="ph ph-users"></i> Colaboradores ('+countColabTab+')</button>'+
-            '<button onclick="window.celularesSetTab(\'aparelhos\')" style="'+tabS('aparelhos')+'"><i class="ph ph-device-mobile"></i> Aparelhos ('+_aparelhos.length+')</button>'+
-            '<button onclick="window.celularesSetTab(\'chips\')" style="'+tabS('chips')+'"><i class="ph ph-sim-card"></i> Chips ('+_chips.length+')</button>'+
+            '<button onclick="window.celularesSetTab(\'atribuidos\')" style="'+tabS('atribuidos')+'"><i class="ph ph-users"></i> Colaboradores <span id="tab-label-atribuidos">('+countColabTab+')</span></button>'+
+            '<button onclick="window.celularesSetTab(\'aparelhos\')" style="'+tabS('aparelhos')+'"><i class="ph ph-device-mobile"></i> Aparelhos <span id="tab-label-aparelhos">('+_aparelhos.length+')</span></button>'+
+            '<button onclick="window.celularesSetTab(\'chips\')" style="'+tabS('chips')+'"><i class="ph ph-sim-card"></i> Chips <span id="tab-label-chips">('+_chips.length+')</span></button>'+
             '</div></div>'+
             '<div style="padding:0 1.5rem 2rem;" id="celulares-tab-content">'+
             (_activeTab==='atribuidos'?renderTabAtribuidos():_activeTab==='aparelhos'?renderTabAparelhos():renderTabChips())+
@@ -185,9 +185,11 @@
         var colabsAtribUnicosF = {};
         atribF.forEach(function(a){ if(a.colaborador_id) colabsAtribUnicosF[a.colaborador_id]=true; else colabsAtribUnicosF['av-'+a.id]=true; });
         chipsAvF.forEach(function(c){ if(c.colaborador_id) colabsAtribUnicosF[c.colaborador_id]=true; else colabsAtribUnicosF['chav-'+c.id]=true; });
-        var totalLabel = hasFilter
-            ? '<div style="font-size:0.78rem;color:#64748b;padding:0 0.25rem 0.75rem;"><span style="font-weight:700;color:#0f172a;">'+(semAtribF.length+Object.keys(colabsAtribUnicosF).length)+'</span> de <span style="font-weight:700;">'+totalColabUnico+'</span> colaboradores</div>'
-            : '<div style="font-size:0.78rem;color:#64748b;padding:0 0.25rem 0.75rem;"><span style="font-weight:700;color:#0f172a;">'+totalColabUnico+'</span> colaboradores com celular corporativo</div>';
+        var totalLabel = ''; // Removido texto cinza conforme solicitado
+        setTimeout(function() {
+            var el = document.getElementById('tab-label-atribuidos');
+            if(el) el.innerHTML = hasFilter ? '('+(semAtribF.length+Object.keys(colabsAtribUnicosF).length)+' de '+totalColabUnico+')' : '('+totalColabUnico+')';
+        }, 0);
 
         var hasAny = atribF.length || chipsAvF.length || semAtribF.length;
         if (!hasAny) {
@@ -350,9 +352,11 @@
             if (isOpen) rows+='<tr id="hist-row-'+hk+'"><td colspan="4" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-'+hk+'" style="padding:0.75rem 1rem;"><div style="color:#94a3b8;font-size:0.82rem;text-align:center;">Carregando...</div></div></td></tr>';
         });
         var hasFilter = !!_filterAp.modelo || !!_filterAp.colab || !!_filterAp.status;
-        var totalLabel = hasFilter
-            ? '<div style="font-size:0.78rem;color:#64748b;padding:0 0.25rem 0.75rem;"><span style="font-weight:700;color:#0f172a;">'+filtered.length+'</span> de <span style="font-weight:700;">'+all.length+'</span> aparelhos</div>'
-            : '<div style="font-size:0.78rem;color:#64748b;padding:0 0.25rem 0.75rem;"><span style="font-weight:700;color:#0f172a;">'+all.length+'</span> aparelhos no total</div>';
+        var totalLabel = '';
+        setTimeout(function() {
+            var el = document.getElementById('tab-label-aparelhos');
+            if(el) el.innerHTML = hasFilter ? '('+filtered.length+' de '+all.length+')' : '('+all.length+')';
+        }, 0);
         return bar + totalLabel + tableWrap(thHead(['Modelo','IMEI','Status','A\u00e7\u00f5es']),rows);
     }
 
@@ -375,10 +379,11 @@
                 {v:'atribuido',l:'Atribuído'}
             ]}
         ], 'window.celularesFilterCh()');
-        var hasFilter = !!_filterCh.numero || !!_filterCh.status;
-        var totalLabel = hasFilter
-            ? '<div style="font-size:0.78rem;color:#64748b;padding:0 0.25rem 0.75rem;"><span style="font-weight:700;color:#0f172a;">'+filtered.length+'</span> de <span style="font-weight:700;">'+_chips.length+'</span> chips</div>'
-            : '<div style="font-size:0.78rem;color:#64748b;padding:0 0.25rem 0.75rem;"><span style="font-weight:700;color:#0f172a;">'+_chips.length+'</span> chips no total</div>';
+        var totalLabel = '';
+        setTimeout(function() {
+            var el = document.getElementById('tab-label-chips');
+            if(el) el.innerHTML = hasFilter ? '('+filtered.length+' de '+_chips.length+')' : '('+_chips.length+')';
+        }, 0);
         bar += totalLabel;
         if (!filtered.length) return bar+'<div style="text-align:center;padding:3rem;color:#94a3b8;"><i class="ph ph-sim-card" style="font-size:3rem;display:block;margin-bottom:0.75rem;"></i>Nenhum chip encontrado.<br><small>Ajuste os filtros.</small></div>';
         var rows='';
