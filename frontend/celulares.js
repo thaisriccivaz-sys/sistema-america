@@ -26,7 +26,9 @@
         var dv = '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+col+';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:'+fs2+'px;flex-shrink:0;">'+ini+'</div>';
         if (!fotoPath) return dv;
         var base = (typeof API_URL !== 'undefined') ? API_URL.replace('/api','') : '';
-        return '<img src="'+base+'/uploads/'+fotoPath+'" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;flex-shrink:0;" onerror="this.outerHTML=\u0027'+dv.replace(/\u0027/g,'&apos;')+'\u0027">';
+        // Escapar aspas duplas como &quot; para não quebrar o atributo onerror="..."
+        var dvEsc = dv.replace(/"/g, '&quot;');
+        return '<img src="'+base+'/uploads/'+fotoPath+'" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;flex-shrink:0;" onerror="this.outerHTML=\''+dvEsc+'\'">';
     }
     function statusBadge(s) {
         var m = {'disponivel':{bg:'#dcfce7',c:'#166534',l:'Disponivel'},'em_uso':{bg:'#dbeafe',c:'#1e40af',l:'Em Uso'},'manutencao':{bg:'#fef9c3',c:'#854d0e',l:'Manutencao'}};
