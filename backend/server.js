@@ -752,6 +752,21 @@ db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_calcado TEXT", (err) => {
     });
 });
 
+// MIGRATION: Unificar tipos antigos de notificação celular em 'celular_controle'
+db.run(`UPDATE config_notificacoes SET tipo = 'celular_controle' WHERE tipo IN ('celular_novo_participante', 'celular_mudanca_status')`, (err) => {
+    if (err) console.error('[Migration] Erro ao migrar tipos de notificacao celular:', err.message);
+    else {
+        // Remover duplicatas (usuario pode ter tido os dois tipos antigos -> dois registros celular_controle)
+        db.run(`DELETE FROM config_notificacoes WHERE rowid NOT IN (
+            SELECT MIN(rowid) FROM config_notificacoes GROUP BY usuario_id, tipo
+        )`, (err2) => {
+            if (err2) console.error('[Migration] Erro ao remover duplicatas celular_controle:', err2.message);
+            else console.log('[Migration] Tipos de notificacao celular unificados em celular_controle com sucesso.');
+        });
+    }
+});
+
+
 // MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
 const GERADORES_PERFIL = [
     'Termo de NÃO Interesse Terapia',
@@ -3619,12 +3634,15 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
 
             // ── Notificações de Controle de Celulares ────────────────────────────
             const _logoPathCel = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+            console.log('[Notif Celular] data.celular_participa=', data.celular_participa, '| oldColab.celular_participa=', oldColab.celular_participa);
 
             // Evento A: celular_participa mudou para 'Sim'
             if ('celular_participa' in data && data.celular_participa === 'Sim' && (oldColab.celular_participa || '') !== 'Sim') {
                 const nomeColab = data.nome_completo || oldColab.nome_completo || 'Colaborador';
                 const msgA = `${nomeColab} foi marcado(a) para receber Celular Corporativo.`;
+                console.log('[Notif Celular] Evento A disparado para:', nomeColab);
                 db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'celular_controle'", [], (errCN, rowsCN) => {
+                    console.log('[Notif Celular] Destinatarios encontrados:', rowsCN ? rowsCN.length : 0, '| erro:', errCN ? errCN.message : 'nenhum');
                     if (!errCN && rowsCN) rowsCN.forEach(r => {
                         db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
                             [r.usuario_id, 'celular_controle', msgA, JSON.stringify({ colaborador_id: parseInt(id), nome: nomeColab })]);
