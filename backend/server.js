@@ -22534,13 +22534,16 @@ app.get('/api/celulares/aparelhos', authenticateToken, (req, res) => {
     });
 });
 
-// MIGRATION: foto_path em celulares_aparelhos
+// MIGRATION: foto_path e ativo em celulares_aparelhos
 db.run(`ALTER TABLE celulares_aparelhos ADD COLUMN foto_path TEXT`, (err) => {
     if (err && !err.message.includes('duplicate column')) console.error('[Migration] celulares_aparelhos.foto_path:', err.message);
 });
+db.run(`ALTER TABLE celulares_aparelhos ADD COLUMN ativo INTEGER DEFAULT 1`, (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[Migration] celulares_aparelhos.ativo:', err.message);
+});
 
 app.post('/api/celulares/aparelhos', authenticateToken, (req, res) => {
-    const { imei1, imei2, modelo, patrimonio, cor, observacao } = req.body;
+    const { imei1, imei2, modelo, patrimonio, cor, observacao, ativo } = req.body;
     if (!imei1) return res.status(400).json({ error: 'IMEI 1 é obrigatório.' });
     // Verificar duplicidade de IMEI
     const imeiCheck = imei2
@@ -22554,12 +22557,13 @@ app.post('/api/celulares/aparelhos', authenticateToken, (req, res) => {
             return res.status(409).json({ error: `IMEI ${which} já está cadastrado no sistema (${dup.modelo || 'Aparelho ID ' + dup.id}).` });
         }
         db.run(
-            `INSERT INTO celulares_aparelhos (imei1, imei2, modelo, patrimonio, cor, observacao, status)
-             VALUES (?, ?, ?, ?, ?, ?, 'disponivel')`,
-            [imei1, imei2 || null, modelo || null, patrimonio || null, cor || null, observacao || null],
+            `INSERT INTO celulares_aparelhos (imei1, imei2, modelo, patrimonio, cor, observacao, status, ativo)
+             VALUES (?, ?, ?, ?, ?, ?, 'disponivel', ?)`,
+            [imei1, imei2 || null, modelo || null, patrimonio || null, cor || null, observacao || null, ativo !== undefined ? ativo : 1],
             function(err) {
                 if (err) return res.status(500).json({ error: err.message });
                 res.json({ id: this.lastID, ok: true });
+
             }
         );
     });
@@ -22592,7 +22596,7 @@ app.post('/api/celulares/aparelhos/:id/foto', authenticateToken, uploadFoto.sing
 });
 
 app.put('/api/celulares/aparelhos/:id', authenticateToken, (req, res) => {
-    const { imei1, imei2, modelo, patrimonio, cor, observacao, status } = req.body;
+    const { imei1, imei2, modelo, patrimonio, cor, observacao, status, ativo } = req.body;
     if (!imei1) return res.status(400).json({ error: 'IMEI 1 é obrigatório.' });
     const curId = req.params.id;
     // Verificar duplicidade excluindo o próprio registro
@@ -22607,8 +22611,8 @@ app.put('/api/celulares/aparelhos/:id', authenticateToken, (req, res) => {
             return res.status(409).json({ error: `IMEI ${which} já está cadastrado no sistema (${dup.modelo || 'Aparelho ID ' + dup.id}).` });
         }
         db.run(
-            `UPDATE celulares_aparelhos SET imei1=?, imei2=?, modelo=?, patrimonio=?, cor=?, observacao=?, status=? WHERE id=?`,
-            [imei1, imei2 || null, modelo || null, patrimonio || null, cor || null, observacao || null, status || 'disponivel', curId],
+            `UPDATE celulares_aparelhos SET imei1=?, imei2=?, modelo=?, patrimonio=?, cor=?, observacao=?, status=?, ativo=? WHERE id=?`,
+            [imei1, imei2 || null, modelo || null, patrimonio || null, cor || null, observacao || null, status || 'disponivel', ativo !== undefined ? ativo : 1, curId],
             function(err) {
                 if (err) return res.status(500).json({ error: err.message });
                 res.json({ ok: true });

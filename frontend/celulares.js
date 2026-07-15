@@ -6,7 +6,7 @@
     var _aparelhos = [], _chips = [], _colaboradores = [];
     var _activeTab = 'atribuidos', _expandedHistorico = {};
     var _editandoAparelho = null, _editandoChip = null;
-    var _filterAp = {modelo:'', colab:'', status:''};
+    var _filterAp = {modelo:'', colab:'', status:'', ativo:'1'};
     var _filterCh = {numero:'', status:''};
     var _filterColab = {nome:''};
 
@@ -192,9 +192,13 @@
         var fM = (_filterAp.modelo||'').trim().toLowerCase();
         var fC = (_filterAp.colab||'').trim().toLowerCase();
         var fS = _filterAp.status||'';
+        var fA = _filterAp.ativo||'';
         var filtered = all.filter(function(a) {
             var isAtrib = !!a.atrib_id;
             var sBadge = isAtrib ? 'atribuido' : (a.status||'disponivel');
+            var isAtivo = (a.ativo !== undefined) ? a.ativo == 1 : true;
+            if (fA === '1' && !isAtivo) return false;
+            if (fA === '0' && isAtivo) return false;
             if (fM && !(a.modelo||'').toLowerCase().includes(fM)) return false;
             if (fC) {
                 var cn = (a.colab_nome||'').toLowerCase();
@@ -203,16 +207,22 @@
             if (fS && sBadge !== fS) return false;
             return true;
         });
-        var bar = _filterBar([
-            {type:'text', key:'ap-modelo', ph:'Filtrar por modelo...', val:_filterAp.modelo},
-            {type:'text', key:'ap-colab',  ph:'Filtrar por colaborador...', val:_filterAp.colab},
-            {type:'select', key:'ap-status', val:_filterAp.status, opts:[
-                {v:'',l:'Todos os status'},
-                {v:'disponivel',l:'DisponÃ­vel'},
-                {v:'atribuido',l:'AtribuÃ­do'},
-                {v:'manutencao',l:'ManutenÃ§Ã£o'}
-            ]}
-        ], 'window.celularesFilterAp()');
+        var bar = '<div style="background:#f8fafc;padding:1rem;border-radius:12px;margin-bottom:1rem;display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;border:1px solid #e2e8f0;">'+
+            '<div style="font-weight:700;font-size:0.8rem;color:#64748b;margin-right:0.5rem;"><i class="ph ph-funnel"></i> Filtros:</div>'+
+            '<input id="cel-filter-ap-modelo" type="text" placeholder="Modelo..." value="'+_filterAp.modelo+'" oninput="window.celularesFilterAp()" style="padding:0.45rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;width:160px;">'+
+            '<input id="cel-filter-ap-colab" type="text" placeholder="Colaborador..." value="'+_filterAp.colab+'" oninput="window.celularesFilterAp()" style="padding:0.45rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;width:160px;">'+
+            '<select id="cel-filter-ap-status" onchange="window.celularesFilterAp()" style="padding:0.45rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;">'+
+                '<option value="">Todos os status</option>'+
+                '<option value="disponivel" '+(_filterAp.status==='disponivel'?'selected':'')+'>Disponível</option>'+
+                '<option value="atribuido" '+(_filterAp.status==='atribuido'?'selected':'')+'>Atribuído</option>'+
+                '<option value="manutencao" '+(_filterAp.status==='manutencao'?'selected':'')+'>Manutenção</option>'+
+            '</select>'+
+            '<select id="cel-filter-ap-ativo" onchange="window.celularesFilterAp()" style="padding:0.45rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;">'+
+                '<option value="1" '+(_filterAp.ativo==='1'?'selected':'')+'>Ativos</option>'+
+                '<option value="0" '+(_filterAp.ativo==='0'?'selected':'')+'>Inativos</option>'+
+                '<option value="" '+(_filterAp.ativo===''?'selected':'')+'>Todos (Ativos/Inativos)</option>'+
+            '</select>'+
+        '</div>';
         if (!filtered.length) return bar+'<div style="text-align:center;padding:3rem;color:#94a3b8;"><i class="ph ph-device-mobile" style="font-size:3rem;display:block;margin-bottom:0.75rem;"></i>Nenhum aparelho encontrado.<br><small>Ajuste os filtros ou cadastre um novo aparelho.</small></div>';
         var rows='';
         filtered.forEach(function(a){
@@ -335,7 +345,10 @@
             // IMEI 1 + IMEI 2
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">IMEI 1 *</label><input id="cel-ap-imei1" type="text" maxlength="20" value="'+(a?a.imei1:'')+'" placeholder="Ex: 350457203829527" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;font-family:monospace;"></div>'+
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">IMEI 2</label><input id="cel-ap-imei2" type="text" maxlength="20" value="'+(a?(a.imei2||''):'').replace(/"/g,'&quot;')+'" placeholder="Opcional" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;font-family:monospace;"></div>'+
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">'+
             (ssel||'')+
+            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Situação</label><select id="cel-ap-ativo" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"><option value="1"'+(a&&(a.ativo===1||a.ativo===undefined)?' selected':'')+'>Ativo</option><option value="0"'+(a&&a.ativo===0?' selected':'')+'>Inativo</option></select></div>'+
+            '</div>'+
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Observacao</label><textarea id="cel-ap-obs" rows="2" placeholder="Opcional..." style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;resize:vertical;">'+(a?(a.observacao||''):'')+'</textarea></div>'+
             '</div>'+
             '<div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;">'+ 
@@ -426,8 +439,8 @@
     }
     window.celularesSetTab=function(t){_activeTab=t;_expandedHistorico={};renderTela();};
     window.celularesFilterAp=function(){
-        var m=document.getElementById('cel-filter-ap-modelo'),c=document.getElementById('cel-filter-ap-colab'),s=document.getElementById('cel-filter-ap-status');
-        if(m)_filterAp.modelo=m.value; if(c)_filterAp.colab=c.value; if(s)_filterAp.status=s.value;
+        var m=document.getElementById('cel-filter-ap-modelo'),c=document.getElementById('cel-filter-ap-colab'),s=document.getElementById('cel-filter-ap-status'), at=document.getElementById('cel-filter-ap-ativo');
+        if(m)_filterAp.modelo=m.value; if(c)_filterAp.colab=c.value; if(s)_filterAp.status=s.value; if(at)_filterAp.ativo=at.value;
         var tc=document.getElementById('celulares-tab-content'); if(tc) tc.innerHTML=renderTabAparelhos();
     };
     window.celularesFilterCh=function(){
@@ -483,8 +496,8 @@
         if(!drop)return;
         var norm=function(s){return (s||'').toLowerCase().replace(/[\s\-().]/g,'');};
         var qn=norm(q);
-        // Apenas aparelhos disponíveis
-        var aps=_aparelhos.filter(function(a){return a.status==='disponivel';});
+        // Apenas aparelhos disponíveis e ativos
+        var aps=_aparelhos.filter(function(a){return a.status==='disponivel' && (a.ativo===1||a.ativo===undefined);});
         var matches=qn?aps.filter(function(a){
             return norm(a.modelo).indexOf(qn)!==-1||
                    norm(a.patrimonio).indexOf(qn)!==-1||
@@ -559,7 +572,8 @@
         var showErr=function(msg){if(erEl){erMsg.textContent=msg;erEl.style.display='block';}else{alert(msg);}return;};
         if(erEl) erEl.style.display='none';
         if(!im){showErr('IMEI 1 é obrigatório.');return;}
-        var body={imei1:im,imei2:document.getElementById('cel-ap-imei2').value.trim(),modelo:document.getElementById('cel-ap-modelo').value.trim(),patrimonio:document.getElementById('cel-ap-patrimonio').value.trim(),observacao:document.getElementById('cel-ap-obs').value.trim()};
+        var atv=document.getElementById('cel-ap-ativo');
+        var body={imei1:im,imei2:document.getElementById('cel-ap-imei2').value.trim(),modelo:document.getElementById('cel-ap-modelo').value.trim(),patrimonio:document.getElementById('cel-ap-patrimonio').value.trim(),observacao:document.getElementById('cel-ap-obs').value.trim(), ativo: atv ? parseInt(atv.value) : 1};
         var se=document.getElementById('cel-ap-status');if(se)body.status=se.value;
         try{
             var savedId;
