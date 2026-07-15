@@ -766,13 +766,21 @@ db.run(`UPDATE config_notificacoes SET tipo = 'celular_controle' WHERE tipo IN (
     }
 });
 
+// MIGRATION: Vincular usuária Thais.Ricci ao colaborador Thais Ricci Vaz
+db.run(`UPDATE usuarios SET colaborador_id = (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Thais Ricci Vaz%' LIMIT 1) WHERE username = 'Thais.Ricci'`, (err) => {
+    if (err) console.error('[Migration] Erro ao vincular Thais.Ricci:', err.message);
+    else console.log('[Migration] Usuario Thais.Ricci vinculado com sucesso.');
+});
+
 
 // MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
 const GERADORES_PERFIL = [
     'Termo de NÃO Interesse Terapia',
+
     'Termo de Interesse Terapia',
     'Responsabilidade Bilhete Único',
     'Responsabilidade Celular',
+
     'Contrato Faculdade',
     'Contrato Academia',
     // 'Termo de Responsabilidade de Chaves' -- removido permanentemente
