@@ -17,13 +17,15 @@
         var parts = nome.trim().split(/\s+/);
         return parts.length === 1 ? parts[0][0].toUpperCase() : (parts[0][0]+parts[parts.length-1][0]).toUpperCase();
     }
-    function avatarHtml(fotoPath, nome, size) {
+    function avatarHtml(fotoPath, nome, size, fotoBase64) {
         size = size || 44;
         var ini = iniciais(nome);
         var colors = ['#7c3aed','#2563eb','#059669','#d97706','#dc2626','#0891b2'];
         var col = colors[ini.charCodeAt(0) % colors.length];
         var fs2 = Math.round(size * 0.35);
         var dv = '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+col+';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:'+fs2+'px;flex-shrink:0;">'+ini+'</div>';
+        // Preferir base64 (persiste entre deploys no Render)
+        if (fotoBase64) return '<img src="'+fotoBase64+'" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;flex-shrink:0;" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">' + dv.replace('flex-shrink:0;">', 'flex-shrink:0;display:none">');
         if (!fotoPath) return dv;
         var base = (typeof API_URL !== 'undefined') ? API_URL.replace('/api','') : '';
         // Escapar aspas duplas como &quot; para não quebrar o atributo onerror="..."
@@ -99,7 +101,7 @@
                 var nome = c.nome_completo || '-';
                 rows += '<tr style="border-bottom:1px solid #fef3c7;background:#fffbeb;cursor:pointer;" onclick="window.celularesOpenModalAtribuir(null,null,'+c.id+')" onmouseover="this.style.background=\'#fef9c3\'" onmouseout="this.style.background=\'#fffbeb\'">';
                 rows += '<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">';
-                rows += avatarHtml(c.foto_path, nome, 40);
+                rows += avatarHtml(c.foto_path, nome, 40, c.foto_base64);
                 rows += '<div><div style="font-weight:700;font-size:0.85rem;color:#92400e;">'+nome+'</div>';
                 rows += '<div style="font-size:0.72rem;color:#b45309;">'+( c.telefone_corporativo || c.telefone || '')+'</div>';
                 rows += '</div></div></td>';
@@ -119,7 +121,7 @@
             var nome=a.colab_nome||a.responsavel_nome||'-';
             var isAv=!a.colaborador_id;
             rows+='<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">';
-            rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(a.colab_foto,nome,40)+'<div><div style="font-weight:700;font-size:0.85rem;color:'+(isAv?'#7c3aed':'#0f172a')+';">'+nome+'</div>'+(isAv?'<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;">Responsavel Avulso</div>':'')+(a.colab_tel_corp?'<div style="font-size:0.72rem;color:#64748b;">'+a.colab_tel_corp+'</div>':'')+'</div></div></td>';
+            rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(a.colab_foto,nome,40,a.colab_foto_base64)+'<div><div style="font-weight:700;font-size:0.85rem;color:'+(isAv?'#7c3aed':'#0f172a')+';">'+nome+'</div>'+(isAv?'<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;">Responsavel Avulso</div>':'')+(a.colab_tel_corp?'<div style="font-size:0.72rem;color:#64748b;">'+a.colab_tel_corp+'</div>':'')+'</div></div></td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="font-weight:600;">'+(a.modelo||'-')+'</div><div style="font-size:0.72rem;color:#64748b;">Pat.: '+(a.patrimonio||'-')+'</div><div style="font-size:0.72rem;color:#64748b;font-family:monospace;">IMEI1: '+a.imei1+'</div>'+(a.imei2?'<div style="font-size:0.72rem;color:#64748b;font-family:monospace;">IMEI2: '+a.imei2+'</div>':'')+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;">'+(a.chip_numero?'<div style="font-weight:600;color:#2563eb;">'+a.chip_numero+'</div><div style="font-size:0.72rem;color:#64748b;">'+(a.chip_operadora||'')+'</div>':'<span style="color:#94a3b8;font-size:0.8rem;">Sem chip</span>')+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.8rem;color:#64748b;">'+fmtData(a.atrib_data_inicio)+'</td>';
@@ -135,7 +137,7 @@
             var nome=c.colab_nome||c.responsavel_nome||'-';
             var isAv=!c.colaborador_id;
             rows+='<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">';
-            rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(c.colab_foto,nome,40)+'<div><div style="font-weight:700;font-size:0.85rem;color:'+(isAv?'#7c3aed':'#0f172a')+';">'+nome+'</div>'+(isAv?'<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;">Responsavel Avulso</div>':'')+'</div></div></td>';
+            rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(c.colab_foto,nome,40,c.colab_foto_base64)+'<div><div style="font-weight:700;font-size:0.85rem;color:'+(isAv?'#7c3aed':'#0f172a')+';">'+nome+'</div>'+(isAv?'<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;">Responsavel Avulso</div>':'')+'</div></div></td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;color:#94a3b8;font-style:italic;">Apenas chip</td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="font-weight:600;color:#2563eb;">'+c.numero+'</div><div style="font-size:0.72rem;color:#64748b;">'+(c.operadora||'')+'</div></td>';
             rows+='<td style="padding:0.75rem;font-size:0.8rem;color:#64748b;">'+fmtData(c.atrib_data_inicio)+'</td>';

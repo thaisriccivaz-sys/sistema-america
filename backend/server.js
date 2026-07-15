@@ -22502,7 +22502,7 @@ console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
 // ── Colaboradores com celular_participa = Sim ──
 app.get('/api/celulares/colaboradores', authenticateToken, (req, res) => {
     db.all(
-        `SELECT id, nome_completo, telefone, telefone_corporativo, foto_path, celular_participa, status
+        `SELECT id, nome_completo, telefone, telefone_corporativo, foto_path, foto_base64, celular_participa, status
          FROM colaboradores
          WHERE celular_participa = 'Sim'
            AND (status IS NULL OR LOWER(status) NOT LIKE '%desligado%')
@@ -22521,7 +22521,7 @@ app.get('/api/celulares/aparelhos', authenticateToken, (req, res) => {
                at.id as atrib_id,
                at.colaborador_id, at.responsavel_nome, at.chip_id as atrib_chip_id,
                at.data_inicio as atrib_data_inicio,
-               c.nome_completo as colab_nome, c.foto_path as colab_foto, c.telefone_corporativo as colab_tel_corp,
+               c.nome_completo as colab_nome, c.foto_path as colab_foto, c.foto_base64 as colab_foto_base64, c.telefone_corporativo as colab_tel_corp,
                ch.numero as chip_numero, ch.operadora as chip_operadora
         FROM celulares_aparelhos a
         LEFT JOIN celulares_atribuicoes at ON at.aparelho_id = a.id AND at.data_fim IS NULL
