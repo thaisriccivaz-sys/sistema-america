@@ -587,6 +587,7 @@ const BREADCRUMB_MAP = {
     // Administrativo
     'licencas': { path: 'Licenças', code: 'ADM001' },
     'estoque': { path: 'Estoque', code: 'ADM002' },
+    'celulares-corporativos': { path: 'Celulares Corporativos', code: 'ADM003' },
 };
 
 window.carregarPermissoesOnline = async function () {
@@ -824,6 +825,7 @@ const TAB_META = {
     'admin-em-breve': { color: '#e67700', icon: 'ph-gear', title: 'Administrativo' },
     'licencas': { color: '#e67700', icon: 'ph-certificate', title: 'Licenças' },
     'estoque': { color: '#e67700', icon: 'ph-package', title: 'Estoque' },
+    'celulares-corporativos': { color: '#e67700', icon: 'ph-device-mobile', title: 'Celulares' },
     // Treinamento - Azul Turquesa
     'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais' },
     'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presenças' },
@@ -1105,6 +1107,8 @@ function navigateTo(target) {
         if (typeof window.inicializarPropostas === 'function') setTimeout(() => window.inicializarPropostas(), 80);
     } else if (target === 'licencas') {
         if (typeof window.initLicencas === 'function') setTimeout(() => window.initLicencas(), 80);
+    } else if (target === 'celulares-corporativos') {
+        if (typeof window.initCelularesCorporativos === 'function') setTimeout(() => window.initCelularesCorporativos(), 80);
     } else if (target === 'config-sigor') {
         if (typeof window.initConfigSigor === 'function') setTimeout(() => window.initConfigSigor(), 80);
     } else if (target === 'treinamento-materiais') {

@@ -393,6 +393,40 @@ db.run("ALTER TABLE colaboradores ADD COLUMN admissao_status TEXT", (err) => {
     if (!err) console.log("Coluna admissao_status adicionada com sucesso.");
 });
 
+// MIGRATION: Celulares Corporativos
+db.run(`CREATE TABLE IF NOT EXISTS celulares_aparelhos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    imei1 TEXT NOT NULL,
+    imei2 TEXT,
+    modelo TEXT,
+    patrimonio TEXT,
+    cor TEXT,
+    status TEXT DEFAULT 'disponivel',
+    observacao TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => { if (err) console.error('[CELULARES] Erro tabela aparelhos:', err); });
+
+db.run(`CREATE TABLE IF NOT EXISTS celulares_chips (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    numero TEXT NOT NULL,
+    operadora TEXT,
+    status TEXT DEFAULT 'disponivel',
+    observacao TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => { if (err) console.error('[CELULARES] Erro tabela chips:', err); });
+
+db.run(`CREATE TABLE IF NOT EXISTS celulares_atribuicoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    aparelho_id INTEGER,
+    chip_id INTEGER,
+    colaborador_id INTEGER,
+    responsavel_nome TEXT,
+    data_inicio TEXT,
+    data_fim TEXT,
+    observacao TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => { if (err) console.error('[CELULARES] Erro tabela atribuicoes:', err); });
+
 // MIGRATION: Multas de Trânsito
 
 // MIGRATION: Sinistros
@@ -22454,7 +22488,258 @@ console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
 
 
 
+
+// ============================================================
+// MÓDULO: CELULARES CORPORATIVOS
+// ============================================================
+
+// ── Colaboradores com celular_participa = Sim ──
+app.get('/api/celulares/colaboradores', authenticateToken, (req, res) => {
+    db.all(
+        `SELECT id, nome_completo, telefone, telefone_corporativo, foto_path, celular_participa
+         FROM colaboradores
+         WHERE celular_participa = 'Sim' AND (status = 'Ativo' OR status IS NULL OR status = '')
+         ORDER BY nome_completo`,
+        [], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows || []);
+        }
+    );
+});
+
+// ── APARELHOS ──
+app.get('/api/celulares/aparelhos', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT a.*,
+               at.id as atrib_id,
+               at.colaborador_id, at.responsavel_nome, at.chip_id as atrib_chip_id,
+               at.data_inicio as atrib_data_inicio,
+               c.nome_completo as colab_nome, c.foto_path as colab_foto, c.telefone_corporativo as colab_tel_corp,
+               ch.numero as chip_numero, ch.operadora as chip_operadora
+        FROM celulares_aparelhos a
+        LEFT JOIN celulares_atribuicoes at ON at.aparelho_id = a.id AND at.data_fim IS NULL
+        LEFT JOIN colaboradores c ON c.id = at.colaborador_id
+        LEFT JOIN celulares_chips ch ON ch.id = at.chip_id
+        ORDER BY a.id DESC
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/celulares/aparelhos', authenticateToken, (req, res) => {
+    const { imei1, imei2, modelo, patrimonio, cor, observacao } = req.body;
+    if (!imei1) return res.status(400).json({ error: 'IMEI 1 é obrigatório.' });
+    db.run(
+        `INSERT INTO celulares_aparelhos (imei1, imei2, modelo, patrimonio, cor, observacao, status)
+         VALUES (?, ?, ?, ?, ?, ?, 'disponivel')`,
+        [imei1, imei2 || null, modelo || null, patrimonio || null, cor || null, observacao || null],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, ok: true });
+        }
+    );
+});
+
+app.put('/api/celulares/aparelhos/:id', authenticateToken, (req, res) => {
+    const { imei1, imei2, modelo, patrimonio, cor, observacao, status } = req.body;
+    db.run(
+        `UPDATE celulares_aparelhos SET imei1=?, imei2=?, modelo=?, patrimonio=?, cor=?, observacao=?, status=? WHERE id=?`,
+        [imei1, imei2 || null, modelo || null, patrimonio || null, cor || null, observacao || null, status || 'disponivel', req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        }
+    );
+});
+
+app.delete('/api/celulares/aparelhos/:id', authenticateToken, (req, res) => {
+    db.run(`DELETE FROM celulares_aparelhos WHERE id=?`, [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+// ── CHIPS ──
+app.get('/api/celulares/chips', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT ch.*,
+               at.id as atrib_id,
+               at.colaborador_id, at.responsavel_nome, at.aparelho_id as atrib_aparelho_id,
+               at.data_inicio as atrib_data_inicio,
+               c.nome_completo as colab_nome, c.foto_path as colab_foto,
+               a.modelo as aparelho_modelo, a.patrimonio as aparelho_patrimonio
+        FROM celulares_chips ch
+        LEFT JOIN celulares_atribuicoes at ON at.chip_id = ch.id AND at.data_fim IS NULL
+        LEFT JOIN colaboradores c ON c.id = at.colaborador_id
+        LEFT JOIN celulares_aparelhos a ON a.id = at.aparelho_id
+        ORDER BY ch.id DESC
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/celulares/chips', authenticateToken, (req, res) => {
+    const { numero, operadora, observacao } = req.body;
+    if (!numero) return res.status(400).json({ error: 'Número é obrigatório.' });
+    db.run(
+        `INSERT INTO celulares_chips (numero, operadora, observacao, status) VALUES (?, ?, ?, 'disponivel')`,
+        [numero, operadora || null, observacao || null],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, ok: true });
+        }
+    );
+});
+
+app.put('/api/celulares/chips/:id', authenticateToken, (req, res) => {
+    const { numero, operadora, observacao, status } = req.body;
+    db.run(
+        `UPDATE celulares_chips SET numero=?, operadora=?, observacao=?, status=? WHERE id=?`,
+        [numero, operadora || null, observacao || null, status || 'disponivel', req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        }
+    );
+});
+
+app.delete('/api/celulares/chips/:id', authenticateToken, (req, res) => {
+    db.run(`DELETE FROM celulares_chips WHERE id=?`, [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+// ── ATRIBUIÇÕES ──
+app.post('/api/celulares/atribuicoes', authenticateToken, (req, res) => {
+    const { aparelho_id, chip_id, colaborador_id, responsavel_nome, data_inicio, observacao } = req.body;
+
+    const tasks = [];
+    // Fechar atribuição ativa do aparelho
+    if (aparelho_id) {
+        tasks.push(new Promise((resolve, reject) => {
+            db.run(
+                `UPDATE celulares_atribuicoes SET data_fim = ? WHERE aparelho_id = ? AND data_fim IS NULL`,
+                [data_inicio || new Date().toISOString().split('T')[0], aparelho_id],
+                (err) => err ? reject(err) : resolve()
+            );
+        }));
+        // Atualiza status do aparelho
+        tasks.push(new Promise((resolve, reject) => {
+            db.run(`UPDATE celulares_aparelhos SET status = 'em_uso' WHERE id = ?`, [aparelho_id], (err) => err ? reject(err) : resolve());
+        }));
+    }
+    // Fechar atribuição ativa do chip
+    if (chip_id) {
+        tasks.push(new Promise((resolve, reject) => {
+            db.run(
+                `UPDATE celulares_atribuicoes SET data_fim = ? WHERE chip_id = ? AND data_fim IS NULL`,
+                [data_inicio || new Date().toISOString().split('T')[0], chip_id],
+                (err) => err ? reject(err) : resolve()
+            );
+        }));
+        // Atualiza status do chip
+        tasks.push(new Promise((resolve, reject) => {
+            db.run(`UPDATE celulares_chips SET status = 'em_uso' WHERE id = ?`, [chip_id], (err) => err ? reject(err) : resolve());
+        }));
+    }
+
+    Promise.all(tasks).then(() => {
+        db.run(
+            `INSERT INTO celulares_atribuicoes (aparelho_id, chip_id, colaborador_id, responsavel_nome, data_inicio, observacao)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [aparelho_id || null, chip_id || null, colaborador_id || null, responsavel_nome || null,
+             data_inicio || new Date().toISOString().split('T')[0], observacao || null],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ id: this.lastID, ok: true });
+            }
+        );
+    }).catch(err => res.status(500).json({ error: err.message }));
+});
+
+app.put('/api/celulares/atribuicoes/:id/devolver', authenticateToken, (req, res) => {
+    const { data_fim, observacao } = req.body;
+    const dataFim = data_fim || new Date().toISOString().split('T')[0];
+
+    // Busca atribuição para liberar aparelho/chip
+    db.get(`SELECT * FROM celulares_atribuicoes WHERE id = ?`, [req.params.id], (err, atrib) => {
+        if (err || !atrib) return res.status(404).json({ error: 'Atribuição não encontrada.' });
+
+        db.run(
+            `UPDATE celulares_atribuicoes SET data_fim = ?, observacao = COALESCE(observacao || ' | Devolução: ' || ?, ?) WHERE id = ?`,
+            [dataFim, observacao || '', observacao || '', req.params.id],
+            (err2) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+
+                const updates = [];
+                if (atrib.aparelho_id) {
+                    updates.push(new Promise((resolve, reject) => {
+                        // Verifica se aparelho ainda tem outra atribuição ativa
+                        db.get(`SELECT id FROM celulares_atribuicoes WHERE aparelho_id = ? AND data_fim IS NULL`, [atrib.aparelho_id], (e, row) => {
+                            if (!row) {
+                                db.run(`UPDATE celulares_aparelhos SET status = 'disponivel' WHERE id = ?`, [atrib.aparelho_id], (e2) => e2 ? reject(e2) : resolve());
+                            } else resolve();
+                        });
+                    }));
+                }
+                if (atrib.chip_id) {
+                    updates.push(new Promise((resolve, reject) => {
+                        db.get(`SELECT id FROM celulares_atribuicoes WHERE chip_id = ? AND data_fim IS NULL`, [atrib.chip_id], (e, row) => {
+                            if (!row) {
+                                db.run(`UPDATE celulares_chips SET status = 'disponivel' WHERE id = ?`, [atrib.chip_id], (e2) => e2 ? reject(e2) : resolve());
+                            } else resolve();
+                        });
+                    }));
+                }
+
+                Promise.all(updates)
+                    .then(() => res.json({ ok: true }))
+                    .catch(e => res.status(500).json({ error: e.message }));
+            }
+        );
+    });
+});
+
+// ── HISTÓRICO de aparelho ou chip ──
+app.get('/api/celulares/historico/aparelho/:id', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT at.*,
+               c.nome_completo as colab_nome, c.foto_path as colab_foto,
+               ch.numero as chip_numero, ch.operadora as chip_operadora
+        FROM celulares_atribuicoes at
+        LEFT JOIN colaboradores c ON c.id = at.colaborador_id
+        LEFT JOIN celulares_chips ch ON ch.id = at.chip_id
+        WHERE at.aparelho_id = ?
+        ORDER BY at.created_at DESC
+    `, [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.get('/api/celulares/historico/chip/:id', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT at.*,
+               c.nome_completo as colab_nome, c.foto_path as colab_foto,
+               a.modelo as aparelho_modelo, a.patrimonio as aparelho_patrimonio, a.imei1, a.imei2
+        FROM celulares_atribuicoes at
+        LEFT JOIN colaboradores c ON c.id = at.colaborador_id
+        LEFT JOIN celulares_aparelhos a ON a.id = at.aparelho_id
+        WHERE at.chip_id = ?
+        ORDER BY at.created_at DESC
+    `, [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+console.log('[CELULARES] Módulo de celulares corporativos carregado.');
+
 try { require('../rescue_estoque.js'); } catch(e) { console.error('Rescue script error:', e); }
+
 
 
 
