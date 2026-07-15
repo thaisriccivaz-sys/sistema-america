@@ -8,7 +8,7 @@
     var _editandoAparelho = null, _editandoChip = null;
     var _filterAp = {modelo:'', colab:'', status:'', ativo:'1'};
     var _filterCh = {numero:'', status:''};
-    var _filterColab = {nome:''};
+    var _filterColab = {q:''};
 
     function fmtData(s) {
         if (!s) return '-';
@@ -105,15 +105,43 @@
         // Colaboradores com Sim mas sem atribuição
         var semAtrib = _colaboradores.filter(function(c){ return !colabsComAtrib[c.id]; });
 
-        var hasAny = atrib.length || chipsAv.length || semAtrib.length;
-        if (!hasAny) return '<div style="text-align:center;padding:3rem;color:#94a3b8;"><i class="ph ph-device-mobile" style="font-size:3rem;display:block;margin-bottom:0.75rem;"></i>Nenhum colaborador com Celular Corporativo ativo.<br><small>Verifique o cadastro dos colaboradores.</small></div>';
+        // Filtering logic
+        var fq = (_filterColab.q||'').trim().toLowerCase();
+        var filterMatch = function(nome, tel, mod, pat, imei1, imei2, num, op) {
+            if(!fq) return true;
+            return (nome&&nome.toLowerCase().includes(fq)) ||
+                   (tel&&tel.toLowerCase().includes(fq)) ||
+                   (mod&&mod.toLowerCase().includes(fq)) ||
+                   (pat&&pat.toLowerCase().includes(fq)) ||
+                   (imei1&&imei1.toLowerCase().includes(fq)) ||
+                   (imei2&&imei2.toLowerCase().includes(fq)) ||
+                   (num&&num.toLowerCase().includes(fq)) ||
+                   (op&&op.toLowerCase().includes(fq));
+        };
+
+        var semAtribF = semAtrib.filter(function(c){ return filterMatch(c.nome_completo, c.telefone_corporativo || c.telefone); });
+        var atribF = atrib.filter(function(a){ return filterMatch(a.colab_nome||a.responsavel_nome, a.colab_tel_corp, a.modelo, a.patrimonio, a.imei1, a.imei2, a.chip_numero, a.chip_operadora); });
+        var chipsAvF = chipsAv.filter(function(c){ return filterMatch(c.colab_nome||c.responsavel_nome, '', '', '', '', '', c.numero, c.operadora); });
+
+        var bar = '<div style="background:#f8fafc;padding:1rem;border-radius:12px;margin-bottom:1rem;display:flex;gap:0.75rem;align-items:center;border:1px solid #e2e8f0;">'+
+            '<div style="font-weight:700;font-size:0.8rem;color:#64748b;margin-right:0.5rem;"><i class="ph ph-funnel"></i> Busca:</div>'+
+            '<div style="position:relative;flex:1;max-width:450px;">'+
+            '<i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1.1rem;"></i>'+
+            '<input id="cel-filter-colab-q" type="text" placeholder="Buscar por colaborador, modelo, imei ou chip..." value="'+(_filterColab.q||'').replace(/"/g,'&quot;')+'" oninput="window.celularesFilterColab()" style="width:100%;padding:0.5rem 0.75rem 0.5rem 2.2rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">'+
+            '</div></div>';
+
+        var hasAny = atribF.length || chipsAvF.length || semAtribF.length;
+        if (!hasAny) {
+            var msgEmpty = fq ? 'Nenhum resultado encontrado para a busca.' : 'Nenhum colaborador com Celular Corporativo ativo.<br><small>Verifique o cadastro dos colaboradores.</small>';
+            return bar + '<div style="text-align:center;padding:3rem;color:#94a3b8;"><i class="ph ph-device-mobile" style="font-size:3rem;display:block;margin-bottom:0.75rem;"></i>'+msgEmpty+'</div>';
+        }
 
         var rows = '';
 
         // ── Colaboradores sem atribuição (aguardando) ──
-        if (semAtrib.length) {
-            rows += '<tr><td colspan="5" style="padding:0.5rem 0.75rem;background:#fff7ed;border-bottom:1px solid #fed7aa;"><span style="font-size:0.75rem;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:0.05em;"><i class="ph ph-clock"></i> Aguardando Atribuição ('+semAtrib.length+')</span></td></tr>';
-            semAtrib.forEach(function(c) {
+        if (semAtribF.length) {
+            rows += '<tr><td colspan="5" style="padding:0.5rem 0.75rem;background:#fff7ed;border-bottom:1px solid #fed7aa;"><span style="font-size:0.75rem;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:0.05em;"><i class="ph ph-clock"></i> Aguardando Atribuição ('+semAtribF.length+')</span></td></tr>';
+            semAtribF.forEach(function(c) {
                 var nome = c.nome_completo || '-';
                 rows += '<tr style="border-bottom:1px solid #fef3c7;background:#fffbeb;cursor:pointer;" onclick="window.celularesOpenModalAtribuir(null,null,'+c.id+')" onmouseover="this.style.background=\'#fef9c3\'" onmouseout="this.style.background=\'#fffbeb\'">';
                 rows += '<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">';
@@ -129,10 +157,10 @@
         }
 
         // ── Atribuições ativas ──
-        if (atrib.length || chipsAv.length) {
-            rows += '<tr><td colspan="5" style="padding:0.5rem 0.75rem;background:#f0fdf4;border-bottom:1px solid #bbf7d0;"><span style="font-size:0.75rem;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.05em;"><i class="ph ph-check-circle"></i> Atribuídos ('+(atrib.length+chipsAv.length)+')</span></td></tr>';
+        if (atribF.length || chipsAvF.length) {
+            rows += '<tr><td colspan="5" style="padding:0.5rem 0.75rem;background:#f0fdf4;border-bottom:1px solid #bbf7d0;"><span style="font-size:0.75rem;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.05em;"><i class="ph ph-check-circle"></i> Atribuídos ('+(atribF.length+chipsAvF.length)+')</span></td></tr>';
         }
-        atrib.forEach(function(a) {
+        atribF.forEach(function(a) {
             var base=(typeof API_URL!=='undefined')?API_URL.replace('/api',''):'';
             var hk='aparelho-'+a.id, isOpen=!!_expandedHistorico[hk];
             var nome=a.colab_nome||a.responsavel_nome||'-';
@@ -153,7 +181,7 @@
                 '</div></td></tr>';
             if (isOpen) rows+='<tr id="hist-row-'+hk+'"><td colspan="5" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-'+hk+'" style="padding:0.75rem 1rem;"><div style="color:#94a3b8;font-size:0.82rem;text-align:center;">Carregando historico...</div></div></td></tr>';
         });
-        chipsAv.forEach(function(c) {
+        chipsAvF.forEach(function(c) {
             var hk='chip-'+c.id, isOpen=!!_expandedHistorico[hk];
             var nome=c.colab_nome||c.responsavel_nome||'-';
             var isAv=!c.colaborador_id;
@@ -168,7 +196,7 @@
                 '</div></td></tr>';
             if (isOpen) rows+='<tr id="hist-row-'+hk+'"><td colspan="5" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-'+hk+'" style="padding:0.75rem 1rem;"><div style="color:#94a3b8;font-size:0.82rem;text-align:center;">Carregando historico...</div></div></td></tr>';
         });
-        return tableWrap(thHead(['Colaborador / Responsavel','Aparelho','Chip / Numero','Desde','Acoes']),rows);
+        return bar + tableWrap(thHead(['Colaborador / Responsavel','Aparelho','Chip / Numero','Desde','Acoes']),rows);
     }
 
     function _filterBar(fields, onchange) {
@@ -438,6 +466,11 @@
             '</div></div></div>';
     }
     window.celularesSetTab=function(t){_activeTab=t;_expandedHistorico={};renderTela();};
+    window.celularesFilterColab=function(){
+        var q=document.getElementById('cel-filter-colab-q');
+        if(q)_filterColab.q=q.value;
+        var tc=document.getElementById('celulares-tab-content'); if(tc) tc.innerHTML=renderTabAtribuidos();
+    };
     window.celularesFilterAp=function(){
         var m=document.getElementById('cel-filter-ap-modelo'),c=document.getElementById('cel-filter-ap-colab'),s=document.getElementById('cel-filter-ap-status'), at=document.getElementById('cel-filter-ap-ativo');
         if(m)_filterAp.modelo=m.value; if(c)_filterAp.colab=c.value; if(s)_filterAp.status=s.value; if(at)_filterAp.ativo=at.value;
