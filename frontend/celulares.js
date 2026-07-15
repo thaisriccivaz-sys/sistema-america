@@ -377,8 +377,11 @@
             (_colaboradores.length===0?'<p style="color:#94a3b8;font-size:0.78rem;margin:4px 0 0;">Nenhum colaborador com Celular Corporativo = Sim.</p>':'')+'</div>'+
             '<div id="cel-atrib-avulso-block" style="display:none;"><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Nome do Responsavel *</label>'+
             '<input id="cel-atrib-avulso-nome" type="text" placeholder="Ex: Joao Silva - Manutencao" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"></div>'+
-            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Aparelho</label>'+
-            '<select id="cel-atrib-aparelho" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"><option value="">Nenhum aparelho</option>'+apOpts+'</select></div>'+
+            '<div style="position:relative;"><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Aparelho</label>'+
+            '<input id="cel-atrib-aparelho-busca" type="text" autocomplete="off" placeholder="Pesquisar por modelo, patrimônio ou IMEI..." style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;" oninput="window.celularesAparelhoSearch(this.value)" onfocus="window.celularesAparelhoSearch(this.value)">'+
+            '<input type="hidden" id="cel-atrib-aparelho">'+
+            '<div id="cel-ap-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:100;max-height:220px;overflow-y:auto;margin-top:2px;"></div>'+
+            '</div>'+
             '<div style="position:relative;"><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Chip / Numero</label>'+
             '<input id="cel-atrib-chip-busca" type="text" autocomplete="off" placeholder="Digite ou cole o numero do chip..." style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;" oninput="window.celularesChipSearch(this.value)" onfocus="window.celularesChipSearch(this.value)">'+
             '<input type="hidden" id="cel-atrib-chip">'+
@@ -468,7 +471,71 @@
     });
     window.celularesOpenModalAparelho=function(id){_editandoAparelho=id?(_aparelhos.find(function(a){return a.id==id;})||null):null;renderTela();var el=document.getElementById('modal-celular-aparelho');if(el)el.style.display='flex';};
     window.celularesOpenModalChip=function(id){_editandoChip=id?(_chips.find(function(c){return c.id==id;})||null):null;renderTela();var el=document.getElementById('modal-celular-chip');if(el)el.style.display='flex';};
-    window.celularesOpenModalAtribuir=function(apId,chId,colabId){renderTela();var el=document.getElementById('modal-celular-atribuir');if(el)el.style.display='flex';if(apId){var s=document.getElementById('cel-atrib-aparelho');if(s)s.value=apId;}if(chId){var s2=document.getElementById('cel-atrib-chip');if(s2)s2.value=chId;var ch=_chips.find(function(c){return c.id==chId;});var sb=document.getElementById('cel-atrib-chip-busca');if(sb&&ch)sb.value=ch.numero+(ch.operadora?' ('+ch.operadora+')':'');}else{var sb2=document.getElementById('cel-atrib-chip-busca');if(sb2)sb2.value='';var hid=document.getElementById('cel-atrib-chip');if(hid)hid.value='';}if(colabId){var s3=document.getElementById('cel-atrib-colab');if(s3)s3.value=colabId;}};
+    window.celularesAparelhoSearch=function(q){
+        var drop=document.getElementById('cel-ap-dropdown');
+        if(!drop)return;
+        var norm=function(s){return (s||'').toLowerCase().replace(/[\s\-().]/g,'');};
+        var qn=norm(q);
+        // Apenas aparelhos disponíveis
+        var aps=_aparelhos.filter(function(a){return a.status==='disponivel';});
+        var matches=qn?aps.filter(function(a){
+            return norm(a.modelo).indexOf(qn)!==-1||
+                   norm(a.patrimonio).indexOf(qn)!==-1||
+                   norm(a.imei1).indexOf(qn)!==-1||
+                   norm(a.imei2).indexOf(qn)!==-1;
+        }):aps;
+        if(!matches.length){
+            drop.innerHTML='<div style="padding:0.6rem 0.75rem;font-size:0.82rem;color:#94a3b8;">Nenhum aparelho encontrado</div>';
+            drop.style.display='block';return;
+        }
+        drop.innerHTML=matches.map(function(a){
+            var label=(a.modelo||'Sem modelo')+' - Pat. '+(a.patrimonio||'-')+' - IMEI: '+a.imei1;
+            return '<div style="padding:0.6rem 0.75rem;cursor:pointer;font-size:0.85rem;border-bottom:1px solid #f1f5f9;" '+
+                'onmousedown="window.celularesAparelhoSelect('+a.id+',\''+label.replace(/'/g,"\\'")+'\')" '+
+                'onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'\'">'+ label+'</div>';
+        }).join('');
+        drop.style.display='block';
+    };
+    window.celularesAparelhoSelect=function(id,label){
+        var inp=document.getElementById('cel-atrib-aparelho-busca');
+        var hid=document.getElementById('cel-atrib-aparelho');
+        var drop=document.getElementById('cel-ap-dropdown');
+        if(inp)inp.value=label;
+        if(hid)hid.value=id;
+        if(drop)drop.style.display='none';
+    };
+    document.addEventListener('click',function(e){
+        var drop=document.getElementById('cel-ap-dropdown');
+        if(drop&&!drop.contains(e.target)&&e.target.id!=='cel-atrib-aparelho-busca') drop.style.display='none';
+    },true);
+    window.celularesOpenModalAtribuir=function(apId,chId,colabId){
+        renderTela();
+        var el=document.getElementById('modal-celular-atribuir');
+        if(el)el.style.display='flex';
+        // Pré-preencher aparelho
+        if(apId){
+            var ap=_aparelhos.find(function(a){return a.id==apId;});
+            var sb=document.getElementById('cel-atrib-aparelho-busca');
+            var hid=document.getElementById('cel-atrib-aparelho');
+            if(ap&&sb) sb.value=(ap.modelo||'Sem modelo')+' - Pat. '+(ap.patrimonio||'-')+' - IMEI: '+ap.imei1;
+            if(hid) hid.value=apId;
+        } else {
+            var sb0=document.getElementById('cel-atrib-aparelho-busca');
+            var hid0=document.getElementById('cel-atrib-aparelho');
+            if(sb0)sb0.value=''; if(hid0)hid0.value='';
+        }
+        // Pré-preencher chip
+        if(chId){
+            var s2=document.getElementById('cel-atrib-chip');if(s2)s2.value=chId;
+            var ch=_chips.find(function(c){return c.id==chId;});
+            var sb2=document.getElementById('cel-atrib-chip-busca');
+            if(sb2&&ch)sb2.value=ch.numero+(ch.operadora?' ('+ch.operadora+')':'');
+        } else {
+            var sb3=document.getElementById('cel-atrib-chip-busca');if(sb3)sb3.value='';
+            var hid3=document.getElementById('cel-atrib-chip');if(hid3)hid3.value='';
+        }
+        if(colabId){var s3=document.getElementById('cel-atrib-colab');if(s3)s3.value=colabId;}
+    };
     window.celularesOpenModalDevolver=function(atribId,nome){var el=document.getElementById('modal-celular-devolver');if(el){el.style.display='flex';var i=document.getElementById('cel-dev-info');if(i)i.textContent='Devolver de: '+nome;var aid=document.getElementById('cel-dev-atrib-id');if(aid)aid.value=atribId;var dd=document.getElementById('cel-dev-data');if(dd)dd.value=new Date().toISOString().split('T')[0];}};
     window.celularesPreviewFotoAp=function(input){
         if(!input.files||!input.files[0])return;
