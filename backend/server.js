@@ -383,6 +383,9 @@ db.run("ALTER TABLE colaboradores ADD COLUMN conjuge_nome TEXT", (err) => {
 db.run("ALTER TABLE colaboradores ADD COLUMN conjuge_cpf TEXT", (err) => {
     if (!err) console.log("Coluna conjuge_cpf adicionada com sucesso.");
 });
+db.run("ALTER TABLE colaboradores ADD COLUMN telefone_corporativo TEXT", (err) => {
+    if (!err) console.log("Coluna telefone_corporativo adicionada com sucesso.");
+});
 db.run("ALTER TABLE colaboradores ADD COLUMN tem_pensao_alimenticia TEXT DEFAULT 'Não'", (err) => {
     if (!err) console.log("Coluna tem_pensao_alimenticia adicionada com sucesso.");
 });
@@ -2954,7 +2957,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'faculdade_participa', 'faculdade_curso_id', 'faculdade_data_inicio', 'faculdade_data_termino',
         'academia_participa', 'academia_data_inicio',
         'terapia_participa', 'terapia_data_inicio',
-        'celular_participa', 'celular_data',
+        'celular_participa', 'celular_data', 'telefone_corporativo',
         'chaves_participa', 'chaves_data',
         'ferias_programadas_inicio', 'ferias_programadas_fim', 'ferias_fracionadas', 'ferias_fracionadas_tipo', 'ferias_fracionadas_inicio2', 'ferias_fracionadas_fim2', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link',
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
@@ -3466,7 +3469,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         'faculdade_participa', 'faculdade_curso_id', 'faculdade_data_inicio', 'faculdade_data_termino',
         'academia_participa', 'academia_data_inicio',
         'terapia_participa', 'terapia_data_inicio',
-        'celular_participa', 'celular_data',
+        'celular_participa', 'celular_data', 'telefone_corporativo',
         'chaves_participa', 'chaves_data',
         'ferias_programadas_inicio', 'ferias_programadas_fim', 'ferias_fracionadas', 'ferias_fracionadas_tipo', 'ferias_fracionadas_inicio2', 'ferias_fracionadas_fim2', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link',
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',

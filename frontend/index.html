@@ -1537,16 +1537,21 @@
                                 <div class="card mb-4 p-4">
                                     <h3 class="section-title"><i class="ph ph-address-book"></i> 2. Contato</h3>
                                     <div class="form-grid">
-                                        <div class="input-group">
-                                            <label>Telefone *</label>
+                                        <div class="input-group" id="wrapper-telefone-pessoal">
+                                            <label>Telefone Pessoal *</label>
                                             <input type="text" id="colab-telefone" placeholder="(00) 00000-0000"
                                                 onkeyup="mascaraTelefone(this)" maxlength="15" required>
                                         </div>
+                                        <div class="input-group" id="wrapper-telefone-corporativo" style="display:none;">
+                                            <label>Telefone Corporativo</label>
+                                            <input type="text" id="colab-telefone-corporativo" placeholder="(00) 00000-0000"
+                                                onkeyup="mascaraTelefone(this)" maxlength="15">
+                                        </div>
                                         <div class="input-group">
-                                            <label>Email *</label>
+                                            <label>E-mail Pessoal *</label>
                                             <input type="email" id="colab-email" required>
                                         </div>
-                                        <div class="input-group span-2">
+                                        <div class="input-group">
                                             <label>E-mail Corporativo</label>
                                             <input type="email" id="colab-email-corporativo"
                                                 placeholder="exemplo@americarental.com.br">

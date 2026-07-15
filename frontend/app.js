@@ -1892,6 +1892,15 @@ window.toggleCelularFields = function (val) {
             if (dInput) dInput.value = '';
         }
     }
+    // Mostrar/esconder campo de Telefone Corporativo na seção de Contato
+    const wrapperCorpTel = document.getElementById('wrapper-telefone-corporativo');
+    if (wrapperCorpTel) {
+        wrapperCorpTel.style.display = (val === 'Sim') ? '' : 'none';
+        if (val === 'Não') {
+            const corpTelInput = document.getElementById('colab-telefone-corporativo');
+            if (corpTelInput) corpTelInput.value = '';
+        }
+    }
 };
 
 window.toggleChavesColabFields = function (val) {
@@ -4094,6 +4103,7 @@ window.editColaborador = async function (id) {
         if (radioCelu) radioCelu.checked = true;
         toggleCelularFields(participaCelu);
         if (document.getElementById('colab-celular-data')) document.getElementById('colab-celular-data').value = c.celular_data || '';
+        if (document.getElementById('colab-telefone-corporativo')) document.getElementById('colab-telefone-corporativo').value = c.telefone_corporativo || '';
 
         // Chaves
         const participaChaves = c.chaves_participa || 'Não';
@@ -4309,6 +4319,7 @@ if (formColab) {
             nome_mae: document.getElementById('colab-mae').value,
             nome_pai: document.getElementById('colab-pai').value,
             telefone: document.getElementById('colab-telefone').value,
+            telefone_corporativo: document.getElementById('colab-telefone-corporativo') ? document.getElementById('colab-telefone-corporativo').value : '',
             email: document.getElementById('colab-email').value,
             email_corporativo: document.getElementById('colab-email-corporativo') ? document.getElementById('colab-email-corporativo').value : '',
             endereco: document.getElementById('colab-endereco').value,
