@@ -22534,6 +22534,11 @@ app.get('/api/celulares/aparelhos', authenticateToken, (req, res) => {
     });
 });
 
+// MIGRATION: foto_path em celulares_aparelhos
+db.run(`ALTER TABLE celulares_aparelhos ADD COLUMN foto_path TEXT`, (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[Migration] celulares_aparelhos.foto_path:', err.message);
+});
+
 app.post('/api/celulares/aparelhos', authenticateToken, (req, res) => {
     const { imei1, imei2, modelo, patrimonio, cor, observacao } = req.body;
     if (!imei1) return res.status(400).json({ error: 'IMEI 1 é obrigatório.' });
@@ -22546,6 +22551,18 @@ app.post('/api/celulares/aparelhos', authenticateToken, (req, res) => {
             res.json({ id: this.lastID, ok: true });
         }
     );
+});
+
+app.post('/api/celulares/aparelhos/:id/foto', authenticateToken, uploadFoto.single('foto'), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+    const ext = path.extname(req.file.originalname) || '.jpg';
+    const fname = 'uploads/celular_' + req.params.id + '_' + Date.now() + ext;
+    const fpath = path.join(__dirname, '..', fname);
+    require('fs').writeFileSync(fpath, req.file.buffer);
+    db.run(`UPDATE celulares_aparelhos SET foto_path=? WHERE id=?`, [fname, req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true, foto_path: fname });
+    });
 });
 
 app.put('/api/celulares/aparelhos/:id', authenticateToken, (req, res) => {

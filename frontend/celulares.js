@@ -216,18 +216,31 @@
     };
     function renderModalAparelho() {
         var a=_editandoAparelho;
+        var base=(typeof API_URL!=='undefined')?API_URL.replace('/api',''):'';
+        var fotoAtual=a&&a.foto_path?base+'/'+a.foto_path:'';
         var ssel=a?('<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Status</label><select id="cel-ap-status" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"><option value="disponivel"'+(a.status==='disponivel'?' selected':'')+'>Disponivel</option><option value="em_uso"'+(a.status==='em_uso'?' selected':'')+'>Em Uso</option><option value="manutencao"'+(a.status==='manutencao'?' selected':'')+'>Manutencao</option></select></div>'):'';
         return '<div id="modal-celular-aparelho" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">'+
             '<div style="background:#fff;border-radius:16px;width:100%;max-width:480px;margin:1rem;box-shadow:0 20px 60px rgba(0,0,0,0.2);max-height:90vh;overflow-y:auto;">'+
             '<div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;"><h3 style="margin:0;font-size:1rem;font-weight:700;"><i class="ph ph-device-mobile" style="color:#e67700;"></i> '+(a?'Editar Aparelho':'Novo Aparelho')+'</h3><button onclick="document.getElementById(\'modal-celular-aparelho\').style.display=\'none\'" style="background:none;border:none;cursor:pointer;font-size:1.25rem;color:#64748b;">&#215;</button></div>'+
             '<div style="padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:0.9rem;">'+
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">'+
-            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Modelo</label><input id="cel-ap-modelo" type="text" value="'+(a?(a.modelo||''):'')+'" placeholder="Ex: Samsung A55" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"></div>'+
-            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Patrimonio</label><input id="cel-ap-patrimonio" type="text" value="'+(a?(a.patrimonio||''):'')+'" placeholder="Ex: 00123" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"></div>'+
+            // Foto do aparelho
+            '<div style="display:flex;align-items:center;gap:1rem;">'+
+            '<div id="cel-ap-foto-preview" style="width:72px;height:72px;border-radius:10px;border:2px dashed #e2e8f0;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#f8fafc;cursor:pointer;" onclick="document.getElementById(\'cel-ap-foto-input\').click()">'+
+            (fotoAtual?'<img src="'+fotoAtual+'" style="width:100%;height:100%;object-fit:cover;">':'<i class="ph ph-camera" style="font-size:1.75rem;color:#94a3b8;"></i>')+
             '</div>'+
+            '<div><div style="font-size:0.82rem;font-weight:600;color:#374151;">Foto do Aparelho</div>'+
+            '<div style="font-size:0.75rem;color:#94a3b8;margin-top:2px;">Clique para adicionar ou alterar</div>'+
+            '<input id="cel-ap-foto-input" type="file" accept="image/*" style="display:none;" onchange="window.celularesPreviewFotoAp(this)">'+
+            '</div></div>'+
+            // Modelo + Patrimônio
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">'+
+            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Modelo</label><input id="cel-ap-modelo" type="text" value="'+(a?(a.modelo||''):'').replace(/"/g,'&quot;')+'" placeholder="Ex: Samsung A55" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"></div>'+
+            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Patrimonio</label><input id="cel-ap-patrimonio" type="text" value="'+(a?(a.patrimonio||''):'').replace(/"/g,'&quot;')+'" placeholder="Ex: 00123" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"></div>'+
+            '</div>'+
+            // IMEI 1 + IMEI 2
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">IMEI 1 *</label><input id="cel-ap-imei1" type="text" maxlength="20" value="'+(a?a.imei1:'')+'" placeholder="Ex: 350457203829527" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;font-family:monospace;"></div>'+
-            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">IMEI 2</label><input id="cel-ap-imei2" type="text" maxlength="20" value="'+(a?(a.imei2||''):'')+'" placeholder="Opcional" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;font-family:monospace;"></div>'+
-            ssel+
+            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">IMEI 2</label><input id="cel-ap-imei2" type="text" maxlength="20" value="'+(a?(a.imei2||''):'').replace(/"/g,'&quot;')+'" placeholder="Opcional" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;font-family:monospace;"></div>'+
+            (ssel||'')+
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Observacao</label><textarea id="cel-ap-obs" rows="2" placeholder="Opcional..." style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;resize:vertical;">'+(a?(a.observacao||''):'')+'</textarea></div>'+
             '</div>'+
             '<div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:0.5rem;">'+
@@ -314,7 +327,33 @@
     window.celularesOpenModalChip=function(id){_editandoChip=id?(_chips.find(function(c){return c.id==id;})||null):null;renderTela();var el=document.getElementById('modal-celular-chip');if(el)el.style.display='flex';};
     window.celularesOpenModalAtribuir=function(apId,chId,colabId){renderTela();var el=document.getElementById('modal-celular-atribuir');if(el)el.style.display='flex';if(apId){var s=document.getElementById('cel-atrib-aparelho');if(s)s.value=apId;}if(chId){var s2=document.getElementById('cel-atrib-chip');if(s2)s2.value=chId;}if(colabId){var s3=document.getElementById('cel-atrib-colab');if(s3)s3.value=colabId;}};
     window.celularesOpenModalDevolver=function(atribId,nome){var el=document.getElementById('modal-celular-devolver');if(el){el.style.display='flex';var i=document.getElementById('cel-dev-info');if(i)i.textContent='Devolver de: '+nome;var aid=document.getElementById('cel-dev-atrib-id');if(aid)aid.value=atribId;var dd=document.getElementById('cel-dev-data');if(dd)dd.value=new Date().toISOString().split('T')[0];}};
-    window.celularesSalvarAparelho=async function(){var im=document.getElementById('cel-ap-imei1').value.trim();if(!im){alert('IMEI 1 obrigatorio.');return;}var body={imei1:im,imei2:document.getElementById('cel-ap-imei2').value.trim(),modelo:document.getElementById('cel-ap-modelo').value.trim(),patrimonio:document.getElementById('cel-ap-patrimonio').value.trim(),cor:document.getElementById('cel-ap-cor').value.trim(),observacao:document.getElementById('cel-ap-obs').value.trim()};var se=document.getElementById('cel-ap-status');if(se)body.status=se.value;try{if(_editandoAparelho){await _apiPut('/celulares/aparelhos/'+_editandoAparelho.id,body);}else{await _apiPost('/celulares/aparelhos',body);}_editandoAparelho=null;await loadAll();}catch(e){alert('Erro: '+(e.message||e));}};
+    window.celularesPreviewFotoAp=function(input){
+        if(!input.files||!input.files[0])return;
+        var reader=new FileReader();
+        reader.onload=function(e){
+            var prev=document.getElementById('cel-ap-foto-preview');
+            if(prev)prev.innerHTML='<img src="'+e.target.result+'" style="width:100%;height:100%;object-fit:cover;">';
+        };
+        reader.readAsDataURL(input.files[0]);
+    };
+    window.celularesSalvarAparelho=async function(){
+        var im=document.getElementById('cel-ap-imei1').value.trim();
+        if(!im){alert('IMEI 1 obrigatorio.');return;}
+        var body={imei1:im,imei2:document.getElementById('cel-ap-imei2').value.trim(),modelo:document.getElementById('cel-ap-modelo').value.trim(),patrimonio:document.getElementById('cel-ap-patrimonio').value.trim(),observacao:document.getElementById('cel-ap-obs').value.trim()};
+        var se=document.getElementById('cel-ap-status');if(se)body.status=se.value;
+        try{
+            var savedId;
+            if(_editandoAparelho){await _apiPut('/celulares/aparelhos/'+_editandoAparelho.id,body);savedId=_editandoAparelho.id;}
+            else{var r=await _apiPost('/celulares/aparelhos',body);savedId=r.id;}
+            // Upload de foto se selecionada
+            var fi=document.getElementById('cel-ap-foto-input');
+            if(fi&&fi.files&&fi.files[0]&&savedId){
+                var fd=new FormData();fd.append('foto',fi.files[0]);
+                await fetch(API_URL+'/celulares/aparelhos/'+savedId+'/foto',{method:'POST',headers:{'Authorization':'Bearer '+currentToken},body:fd});
+            }
+            _editandoAparelho=null;await loadAll();
+        }catch(e){alert('Erro: '+(e.message||e));}
+    };
     window.celularesSalvarChip=async function(){var nu=document.getElementById('cel-ch-numero').value.trim();if(!nu){alert('Numero obrigatorio.');return;}var body={numero:nu,operadora:document.getElementById('cel-ch-operadora').value,observacao:document.getElementById('cel-ch-obs').value.trim()};var se=document.getElementById('cel-ch-status');if(se)body.status=se.value;try{if(_editandoChip){await _apiPut('/celulares/chips/'+_editandoChip.id,body);}else{await _apiPost('/celulares/chips',body);}_editandoChip=null;await loadAll();}catch(e){alert('Erro: '+(e.message||e));}};
     window.celularesSalvarAtribuicao=async function(){var tr=(document.querySelector('input[name="cel-tipo-resp"]:checked')||{}).value,cid=(document.getElementById('cel-atrib-colab')||{}).value,an=((document.getElementById('cel-atrib-avulso-nome')||{}).value||'').trim(),apid=(document.getElementById('cel-atrib-aparelho')||{}).value,chid=(document.getElementById('cel-atrib-chip')||{}).value,di=(document.getElementById('cel-atrib-data')||{}).value,obs=((document.getElementById('cel-atrib-obs')||{}).value||'').trim(),ee=document.getElementById('cel-atrib-erro'),se=function(m){if(ee){ee.textContent=m;ee.style.display='block';}};if(ee)ee.style.display='none';if(tr==='colaborador'&&!cid)return se('Selecione um colaborador.');if(tr==='avulso'&&!an)return se('Informe o nome do responsavel.');if(!apid&&!chid)return se('Selecione pelo menos um aparelho ou chip.');var body={colaborador_id:tr==='colaborador'?(cid||null):null,responsavel_nome:tr==='avulso'?an:null,aparelho_id:apid||null,chip_id:chid||null,data_inicio:di,observacao:obs};try{await _apiPost('/celulares/atribuicoes',body);document.getElementById('modal-celular-atribuir').style.display='none';_activeTab='atribuidos';await loadAll();}catch(e){se('Erro: '+(e.message||e));}};
     window.celularesConfirmarDevolucao=async function(){var aid=document.getElementById('cel-dev-atrib-id').value,df=document.getElementById('cel-dev-data').value,obs=document.getElementById('cel-dev-obs').value.trim();try{await _apiPut('/celulares/atribuicoes/'+aid+'/devolver',{data_fim:df,observacao:obs});document.getElementById('modal-celular-devolver').style.display='none';_activeTab='atribuidos';await loadAll();}catch(e){alert('Erro: '+(e.message||e));}};
