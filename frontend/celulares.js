@@ -117,12 +117,17 @@
             rows += '<tr><td colspan="5" style="padding:0.5rem 0.75rem;background:#f0fdf4;border-bottom:1px solid #bbf7d0;"><span style="font-size:0.75rem;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.05em;"><i class="ph ph-check-circle"></i> Atribuídos ('+(atrib.length+chipsAv.length)+')</span></td></tr>';
         }
         atrib.forEach(function(a) {
+            var base=(typeof API_URL!=='undefined')?API_URL.replace('/api',''):'';
             var hk='aparelho-'+a.id, isOpen=!!_expandedHistorico[hk];
             var nome=a.colab_nome||a.responsavel_nome||'-';
             var isAv=!a.colaborador_id;
+            var fotoApSrc=a.foto_path?base+'/'+a.foto_path:'';
+            var fotoApThumb=fotoApSrc
+                ?'<img src="'+fotoApSrc+'" style="width:40px;height:40px;border-radius:7px;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;" onerror="this.outerHTML=\'<div style=&quot;width:40px;height:40px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;&quot;><i class=&quot;ph ph-device-mobile&quot; style=&quot;color:#94a3b8;font-size:1.1rem;&quot;></i></div>\'">'
+                :'<div style="width:40px;height:40px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-device-mobile" style="color:#94a3b8;font-size:1.1rem;"></i></div>';
             rows+='<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(a.colab_foto,nome,40,a.colab_foto_base64)+'<div><div style="font-weight:700;font-size:0.85rem;color:'+(isAv?'#7c3aed':'#0f172a')+';">'+nome+'</div>'+(isAv?'<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;">Responsavel Avulso</div>':'')+(a.colab_tel_corp?'<div style="font-size:0.72rem;color:#64748b;">'+a.colab_tel_corp+'</div>':'')+'</div></div></td>';
-            rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="font-weight:600;">'+(a.modelo||'-')+'</div><div style="font-size:0.72rem;color:#64748b;">Pat.: '+(a.patrimonio||'-')+'</div><div style="font-size:0.72rem;color:#64748b;font-family:monospace;">IMEI1: '+a.imei1+'</div>'+(a.imei2?'<div style="font-size:0.72rem;color:#64748b;font-family:monospace;">IMEI2: '+a.imei2+'</div>':'')+'</td>';
+            rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+fotoApThumb+'<div><div style="font-weight:600;">'+(a.modelo||'-')+'</div><div style="font-size:0.72rem;color:#64748b;">Pat.: '+(a.patrimonio||'-')+'</div><div style="font-size:0.72rem;color:#64748b;font-family:monospace;">IMEI: '+a.imei1+'</div></div></div></td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;">'+(a.chip_numero?'<div style="font-weight:600;color:#2563eb;">'+a.chip_numero+'</div><div style="font-size:0.72rem;color:#64748b;">'+(a.chip_operadora||'')+'</div>':'<span style="color:#94a3b8;font-size:0.8rem;">Sem chip</span>')+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.8rem;color:#64748b;">'+fmtData(a.atrib_data_inicio)+'</td>';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;gap:6px;flex-wrap:wrap;">'+
@@ -151,14 +156,22 @@
     }
 
     function renderTabAparelhos() {
+        var base=(typeof API_URL!=='undefined')?API_URL.replace('/api',''):'';
         var disp=_aparelhos.filter(function(a){return a.status==='disponivel'||a.status==='manutencao';});
         if (!disp.length) return '<div style="text-align:center;padding:3rem;color:#94a3b8;"><i class="ph ph-device-mobile" style="font-size:3rem;display:block;margin-bottom:0.75rem;"></i>Nenhum aparelho disponivel.<br><small>Use + Aparelho.</small></div>';
         var rows='';
         disp.forEach(function(a){
             var hk='aparelho-'+a.id, isOpen=!!_expandedHistorico[hk];
+            var fotoSrc=a.foto_path?base+'/'+a.foto_path:'';
+            var fotoThumb=fotoSrc
+                ?'<img src="'+fotoSrc+'" style="width:48px;height:48px;border-radius:8px;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;" onerror="this.outerHTML=\'<div style=&quot;width:48px;height:48px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;&quot;><i class=&quot;ph ph-device-mobile&quot; style=&quot;color:#94a3b8;font-size:1.4rem;&quot;></i></div>\'" >'
+                :'<div style="width:48px;height:48px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-device-mobile" style="color:#94a3b8;font-size:1.4rem;"></i></div>';
+            // Buscar colaborador associado via historico (usa colab_nome do atrib ativo se disponivel)
+            var apAtrib=_aparelhos.find(function(ap){return ap.id===a.id&&ap.atrib_id;});
+            var colabInfo=apAtrib&&apAtrib.colab_nome?'<div style="font-size:0.72rem;color:#2563eb;margin-top:2px;"><i class="ph ph-user"></i> '+apAtrib.colab_nome+'</div>':'';
             rows+='<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">';
-            rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="font-weight:700;">'+(a.modelo||'-')+'</div><div style="font-size:0.72rem;color:#64748b;">Pat.: '+(a.patrimonio||'-')+(a.cor?' · '+a.cor:'')+'</div></td>';
-            rows+='<td style="padding:0.75rem;font-size:0.82rem;"><div>IMEI1: <strong style="font-family:monospace;">'+a.imei1+'</strong></div>'+(a.imei2?'<div>IMEI2: <strong style="font-family:monospace;">'+a.imei2+'</strong></div>':'')+'</td>';
+            rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.65rem;">'+fotoThumb+'<div><div style="font-weight:700;font-size:0.85rem;">'+(a.modelo||'-')+'</div><div style="font-size:0.72rem;color:#64748b;">Pat.: '+(a.patrimonio||'-')+'</div>'+colabInfo+'</div></div></td>';
+            rows+='<td style="padding:0.75rem;font-size:0.82rem;"><div>IMEI1: <strong style="font-family:monospace;">'+a.imei1+'</strong></div>'+(a.imei2?'<div>IMEI2: <strong style="font-family:monospace;">'+a.imei2+'</strong></div>':'')+' </td>';
             rows+='<td style="padding:0.75rem;">'+statusBadge(a.status)+'</td>';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;gap:6px;flex-wrap:wrap;">'+
                 '<button onclick="window.celularesToggleHistorico(\''+hk+'\',\'aparelho\','+a.id+')" style="background:transparent;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#64748b;font-size:0.78rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-clock-counter-clockwise"></i> Historico <i class="ph ph-caret-'+(isOpen?'up':'down')+'" style="font-size:0.7rem;"></i></button>'+
@@ -169,6 +182,7 @@
             if (isOpen) rows+='<tr id="hist-row-'+hk+'"><td colspan="4" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-'+hk+'" style="padding:0.75rem 1rem;"><div style="color:#94a3b8;font-size:0.82rem;text-align:center;">Carregando...</div></div></td></tr>';
         });
         return tableWrap(thHead(['Modelo','IMEI','Status','Acoes']),rows);
+    }
     }
     function renderTabChips() {
         var disp=_chips.filter(function(c){return c.status==='disponivel';});
