@@ -224,8 +224,8 @@
                 '<button onclick="window.celularesToggleHistorico(\''+hk+'\',\'aparelho\','+a.id+')" style="background:transparent;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#64748b;font-size:0.78rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-clock-counter-clockwise"></i> Historico <i class="ph ph-caret-'+(isOpen?'up':'down')+'" style="font-size:0.7rem;"></i></button>'+
                 '<button onclick="window.celularesOpenModalAparelho('+a.id+')" style="background:transparent;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#2563eb;font-size:0.78rem;"><i class="ph ph-pencil-simple"></i></button>'+
                 '<button onclick="window.celularesDeleteAparelho('+a.id+')" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;"><i class="ph ph-trash"></i></button>'+
-                (isAtrib ? '<button onclick="window.celularesOpenModalDevolver('+a.atrib_id+',\''+((a.colab_nome||'').replace(/'/g,"\\'"))+'\')"
-                     style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>'
+                (isAtrib ? '<button onclick="window.celularesOpenModalDevolver('+a.atrib_id+',\''+((a.colab_nome||'').replace(/'/g,"\\'"))+'\')" ' +
+                     'style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>'
                    : '<button onclick="window.celularesOpenModalAtribuir('+a.id+')" style="background:#e67700;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;"><i class="ph ph-link"></i> Atribuir</button>')+
                 '</div></td></tr>';
             if (isOpen) rows+='<tr id="hist-row-'+hk+'"><td colspan="4" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-'+hk+'" style="padding:0.75rem 1rem;"><div style="color:#94a3b8;font-size:0.82rem;text-align:center;">Carregando...</div></div></td></tr>';
@@ -267,14 +267,13 @@
                 '<button onclick="window.celularesOpenModalChip('+c.id+')" style="background:transparent;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#2563eb;font-size:0.78rem;"><i class="ph ph-pencil-simple"></i></button>'+
                 '<button onclick="window.celularesDeleteChip('+c.id+')" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;"><i class="ph ph-trash"></i></button>'+
                 (isAtrib
-                    ? '<button onclick="window.celularesOpenModalDevolver('+c.atrib_id+',\''+((c.colab_nome||'').replace(/'/g,"\\'"))+'\')"
-                       style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>'
+                    ? '<button onclick="window.celularesOpenModalDevolver('+c.atrib_id+',\''+((c.colab_nome||'').replace(/'/g,"\\'"))+'\')" ' +
+                       'style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>'
                     : '<button onclick="window.celularesOpenModalAtribuir(null,'+c.id+')" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;"><i class="ph ph-link"></i> Atribuir</button>')+
                 '</div></td></tr>';
             if (isOpen) rows+='<tr id="hist-row-'+hk+'"><td colspan="3" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-'+hk+'" style="padding:0.75rem 1rem;"><div style="color:#94a3b8;font-size:0.82rem;text-align:center;">Carregando...</div></div></td></tr>';
         });
         return bar + tableWrap(thHead(['Numero / Operadora','Status','Acoes']),rows);
-    }
     }
     window.celularesToggleHistorico = async function(key, tipo, id) {
         _expandedHistorico[key] = !_expandedHistorico[key];
