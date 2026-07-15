@@ -773,17 +773,6 @@ db.run(`UPDATE usuarios SET colaborador_id = (SELECT id FROM colaboradores WHERE
     else console.log('[Migration] Usuario Thais.Ricci vinculado com sucesso.');
 });
 
-// MIGRATION: Garantir que Thais.Ricci e thiago.goncalves recebam notificacoes de celular_controle
-['Thais.Ricci', 'thiago.goncalves'].forEach(username => {
-    db.get(`SELECT id FROM usuarios WHERE username = ?`, [username], (err, uRow) => {
-        if (err || !uRow) { console.log(`[Migration Celular] Usuario '${username}' nao encontrado.`); return; }
-        db.run(`INSERT OR IGNORE INTO config_notificacoes (tipo, usuario_id) VALUES ('celular_controle', ?)`, [uRow.id], (err2) => {
-            if (err2) console.error(`[Migration Celular] Erro para ${username}:`, err2.message);
-            else console.log(`[Migration Celular] Config celular_controle garantida para '${username}' (id=${uRow.id}).`);
-        });
-    });
-});
-
 // MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
 const GERADORES_PERFIL = [
     'Termo de NÃO Interesse Terapia',
@@ -22744,6 +22733,7 @@ app.delete('/api/celulares/aparelhos/:id', authenticateToken, (req, res) => {
 
 // ── CHIPS ──
 app.get('/api/celulares/chips', authenticateToken, (req, res) => {
+    // JOIN prioriza chip_id (slot 1). chip_id2 só aparece se o chip NÃO for chip_id em nenhuma atribuição ativa.
     db.all(`
         SELECT ch.*,
                at.id as atrib_id,
@@ -22752,7 +22742,16 @@ app.get('/api/celulares/chips', authenticateToken, (req, res) => {
                c.nome_completo as colab_nome, c.foto_path as colab_foto, c.foto_base64 as colab_foto_base64, c.status as colab_status,
                a.modelo as aparelho_modelo, a.patrimonio as aparelho_patrimonio
         FROM celulares_chips ch
-        LEFT JOIN celulares_atribuicoes at ON (at.chip_id = ch.id OR at.chip_id2 = ch.id) AND at.data_fim IS NULL
+        LEFT JOIN (
+            SELECT id, chip_id as matched_chip_id, colaborador_id, responsavel_nome, aparelho_id, data_inicio
+            FROM celulares_atribuicoes
+            WHERE data_fim IS NULL AND chip_id IS NOT NULL
+            UNION ALL
+            SELECT id, chip_id2 as matched_chip_id, colaborador_id, responsavel_nome, aparelho_id, data_inicio
+            FROM celulares_atribuicoes
+            WHERE data_fim IS NULL AND chip_id2 IS NOT NULL
+              AND chip_id2 NOT IN (SELECT chip_id FROM celulares_atribuicoes WHERE data_fim IS NULL AND chip_id IS NOT NULL)
+        ) at ON at.matched_chip_id = ch.id
         LEFT JOIN colaboradores c ON c.id = at.colaborador_id
         LEFT JOIN celulares_aparelhos a ON a.id = at.aparelho_id
         ORDER BY ch.id DESC
@@ -22850,7 +22849,19 @@ app.post('/api/celulares/atribuicoes', authenticateToken, (req, res) => {
              data_inicio || new Date().toISOString().split('T')[0], observacao || null],
             function(err) {
                 if (err) return res.status(500).json({ error: err.message });
-                res.json({ id: this.lastID, ok: true });
+                const newAtribId = this.lastID;
+                // Auto-preencher telefone_corporativo com o número do chip 1
+                if (colaborador_id && chip_id) {
+                    db.get(`SELECT numero FROM celulares_chips WHERE id = ?`, [chip_id], (errCh, chipRow) => {
+                        if (!errCh && chipRow && chipRow.numero) {
+                            db.run(`UPDATE colaboradores SET telefone_corporativo = ? WHERE id = ?`, [chipRow.numero, colaborador_id], (errUpd) => {
+                                if (errUpd) console.error('[Celular] Erro ao atualizar telefone_corporativo:', errUpd.message);
+                                else console.log(`[Celular] telefone_corporativo do colaborador ${colaborador_id} atualizado para ${chipRow.numero}`);
+                            });
+                        }
+                    });
+                }
+                res.json({ id: newAtribId, ok: true });
             }
         );
     }).catch(err => res.status(500).json({ error: err.message }));

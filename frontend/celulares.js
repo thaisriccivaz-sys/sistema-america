@@ -60,12 +60,24 @@
         
         // Count for Colaboradores tab
         var atribArr = _aparelhos.filter(function(a){return !!a.atrib_id;});
-        var chipsAvArr = _chips.filter(function(c){ return !!c.atrib_id && !_aparelhos.some(function(a){return String(a.atrib_chip_id)===String(c.id)&&!!a.atrib_id;}); });
+        // chipsAv: chips com atribuição ativa que NÃO são chip_id NEM chip_id2 de nenhum aparelho atribuído
+        var chipsAvArr = _chips.filter(function(c){ 
+            return !!c.atrib_id && !_aparelhos.some(function(a){ 
+                return !!a.atrib_id && (
+                    String(a.atrib_chip_id)===String(c.id) ||
+                    String(a.atrib_chip_id2)===String(c.id)
+                );
+            }); 
+        });
         var colabsComAtrib = {};
         atribArr.forEach(function(a){ if(a.colaborador_id) colabsComAtrib[a.colaborador_id]=true; });
         chipsAvArr.forEach(function(c){ if(c.colaborador_id) colabsComAtrib[c.colaborador_id]=true; });
         var semAtribArr = _colaboradores.filter(function(c){ return !colabsComAtrib[c.id]; });
-        var countColabTab = semAtribArr.length + atribArr.length + chipsAvArr.length;
+        // Contar colaboradores únicos (não linhas)
+        var colabsAtribUnicos = {};
+        atribArr.forEach(function(a){ if(a.colaborador_id) colabsAtribUnicos[a.colaborador_id]=true; else colabsAtribUnicos['av-'+a.id]=true; });
+        chipsAvArr.forEach(function(c){ if(c.colaborador_id) colabsAtribUnicos[c.colaborador_id]=true; else colabsAtribUnicos['chav-'+c.id]=true; });
+        var countColabTab = semAtribArr.length + Object.keys(colabsAtribUnicos).length;
 
         function tabS(t){return 'padding:0.6rem 1.25rem;border:none;background:transparent;cursor:pointer;font-size:0.85rem;font-weight:600;color:'+(_activeTab===t?'#e67700':'#64748b')+';border-bottom:'+(_activeTab===t?'2px solid #e67700':'2px solid transparent')+';margin-bottom:-2px;';}
         cont.innerHTML =
@@ -110,7 +122,15 @@
 
     function renderTabAtribuidos() {
         var atrib = _aparelhos.filter(function(a){return !!a.atrib_id;});
-        var chipsAv = _chips.filter(function(c){ return !!c.atrib_id && !_aparelhos.some(function(a){return String(a.atrib_chip_id)===String(c.id)&&!!a.atrib_id;}); });
+        // chipsAv: chips com atribuição ativa que NÃO são chip_id NEM chip_id2 de nenhum aparelho atribuído
+        var chipsAv = _chips.filter(function(c){ 
+            return !!c.atrib_id && !_aparelhos.some(function(a){
+                return !!a.atrib_id && (
+                    String(a.atrib_chip_id) === String(c.id) ||
+                    String(a.atrib_chip_id2) === String(c.id)
+                );
+            });
+        });
         // IDs de colaboradores que já têm atribuição ativa
         var colabsComAtrib = {};
         atrib.forEach(function(a){ if(a.colaborador_id) colabsComAtrib[a.colaborador_id]=true; });
@@ -156,10 +176,18 @@
             '</div></div>';
 
         var totalColab = semAtrib.length + atrib.length + chipsAv.length;
+        // Contar colaboradores únicos (não linhas) para exibição
+        var colabsAtribUnicosR = {};
+        atrib.forEach(function(a){ if(a.colaborador_id) colabsAtribUnicosR[a.colaborador_id]=true; else colabsAtribUnicosR['av-'+a.id]=true; });
+        chipsAv.forEach(function(c){ if(c.colaborador_id) colabsAtribUnicosR[c.colaborador_id]=true; else colabsAtribUnicosR['chav-'+c.id]=true; });
+        var totalColabUnico = semAtrib.length + Object.keys(colabsAtribUnicosR).length;
         var hasFilter = !!fq;
+        var colabsAtribUnicosF = {};
+        atribF.forEach(function(a){ if(a.colaborador_id) colabsAtribUnicosF[a.colaborador_id]=true; else colabsAtribUnicosF['av-'+a.id]=true; });
+        chipsAvF.forEach(function(c){ if(c.colaborador_id) colabsAtribUnicosF[c.colaborador_id]=true; else colabsAtribUnicosF['chav-'+c.id]=true; });
         var totalLabel = hasFilter
-            ? '<div style="font-size:0.78rem;color:#64748b;padding:0 0.25rem 0.75rem;"><span style="font-weight:700;color:#0f172a;">'+(semAtribF.length+atribF.length+chipsAvF.length)+'</span> de <span style="font-weight:700;">'+totalColab+'</span> colaboradores</div>'
-            : '<div style="font-size:0.78rem;color:#64748b;padding:0 0.25rem 0.75rem;"><span style="font-weight:700;color:#0f172a;">'+totalColab+'</span> colaboradores com celular corporativo</div>';
+            ? '<div style="font-size:0.78rem;color:#64748b;padding:0 0.25rem 0.75rem;"><span style="font-weight:700;color:#0f172a;">'+(semAtribF.length+Object.keys(colabsAtribUnicosF).length)+'</span> de <span style="font-weight:700;">'+totalColabUnico+'</span> colaboradores</div>'
+            : '<div style="font-size:0.78rem;color:#64748b;padding:0 0.25rem 0.75rem;"><span style="font-weight:700;color:#0f172a;">'+totalColabUnico+'</span> colaboradores com celular corporativo</div>';
 
         var hasAny = atribF.length || chipsAvF.length || semAtribF.length;
         if (!hasAny) {
@@ -190,8 +218,12 @@
         }
 
         // ── Atribuições ativas ──
+        // Conta únicos atribuídos para o header de grupo
         if (atribF.length || chipsAvF.length) {
-            rows += '<tr><td colspan="'+COLSPAN+'" style="padding:0.5rem 0.75rem;background:#f0fdf4;border-bottom:1px solid #bbf7d0;"><span style="font-size:0.75rem;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.05em;"><i class="ph ph-check-circle"></i> Atribuídos ('+(atribF.length+chipsAvF.length)+')</span></td></tr>';
+            var uAt = {};
+            atribF.forEach(function(a){ uAt[a.colaborador_id||('av-'+a.id)]=true; });
+            chipsAvF.forEach(function(c){ uAt[c.colaborador_id||('chav-'+c.id)]=true; });
+            rows += '<tr><td colspan="'+COLSPAN+'" style="padding:0.5rem 0.75rem;background:#f0fdf4;border-bottom:1px solid #bbf7d0;"><span style="font-size:0.75rem;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.05em;"><i class="ph ph-check-circle"></i> Atribuídos ('+Object.keys(uAt).length+')</span></td></tr>';
         }
         atribF.forEach(function(a) {
             var base=(typeof API_URL!=='undefined')?API_URL.replace('/api',''):'';
