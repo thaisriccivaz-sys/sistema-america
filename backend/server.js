@@ -22502,7 +22502,7 @@ console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
 // ── Colaboradores com celular_participa = Sim ──
 app.get('/api/celulares/colaboradores', authenticateToken, (req, res) => {
     db.all(
-        `SELECT id, nome_completo, telefone, telefone_corporativo, foto_path, foto_base64, celular_participa, status
+        `SELECT id, nome_completo, telefone, telefone_corporativo, foto_path, foto_base64, celular_participa, status, departamento
          FROM colaboradores
          WHERE celular_participa = 'Sim'
            AND (status IS NULL OR LOWER(status) NOT LIKE '%desligado%')

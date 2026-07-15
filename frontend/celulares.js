@@ -107,7 +107,7 @@
 
         // Filtering logic
         var fq = (_filterColab.q||'').trim().toLowerCase();
-        var filterMatch = function(nome, tel, mod, pat, imei1, imei2, num, op) {
+        var filterMatch = function(nome, tel, mod, pat, imei1, imei2, num, op, dept) {
             if(!fq) return true;
             return (nome&&nome.toLowerCase().includes(fq)) ||
                    (tel&&tel.toLowerCase().includes(fq)) ||
@@ -116,18 +116,22 @@
                    (imei1&&imei1.toLowerCase().includes(fq)) ||
                    (imei2&&imei2.toLowerCase().includes(fq)) ||
                    (num&&num.toLowerCase().includes(fq)) ||
-                   (op&&op.toLowerCase().includes(fq));
+                   (op&&op.toLowerCase().includes(fq)) ||
+                   (dept&&dept.toLowerCase().includes(fq));
         };
 
-        var semAtribF = semAtrib.filter(function(c){ return filterMatch(c.nome_completo, c.telefone_corporativo || c.telefone); });
-        var atribF = atrib.filter(function(a){ return filterMatch(a.colab_nome||a.responsavel_nome, a.colab_tel_corp, a.modelo, a.patrimonio, a.imei1, a.imei2, a.chip_numero, a.chip_operadora); });
-        var chipsAvF = chipsAv.filter(function(c){ return filterMatch(c.colab_nome||c.responsavel_nome, '', '', '', '', '', c.numero, c.operadora); });
+        var deptMap = {};
+        _colaboradores.forEach(function(c) { deptMap[c.id] = c.departamento || ''; });
+
+        var semAtribF = semAtrib.filter(function(c){ return filterMatch(c.nome_completo, c.telefone_corporativo || c.telefone, '', '', '', '', '', '', c.departamento); });
+        var atribF = atrib.filter(function(a){ return filterMatch(a.colab_nome||a.responsavel_nome, a.colab_tel_corp, a.modelo, a.patrimonio, a.imei1, a.imei2, a.chip_numero, a.chip_operadora, deptMap[a.colaborador_id]); });
+        var chipsAvF = chipsAv.filter(function(c){ return filterMatch(c.colab_nome||c.responsavel_nome, '', '', '', '', '', c.numero, c.operadora, deptMap[c.colaborador_id]); });
 
         var bar = '<div style="background:#f8fafc;padding:1rem;border-radius:12px;margin-bottom:1rem;display:flex;gap:0.75rem;align-items:center;border:1px solid #e2e8f0;">'+
             '<div style="font-weight:700;font-size:0.8rem;color:#64748b;margin-right:0.5rem;"><i class="ph ph-funnel"></i> Busca:</div>'+
-            '<div style="position:relative;flex:1;max-width:450px;">'+
+            '<div style="position:relative;flex:1;max-width:550px;">'+
             '<i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1.1rem;"></i>'+
-            '<input id="cel-filter-colab-q" type="text" placeholder="Buscar por colaborador, modelo, imei ou chip..." value="'+(_filterColab.q||'').replace(/"/g,'&quot;')+'" oninput="window.celularesFilterColab()" style="width:100%;padding:0.5rem 0.75rem 0.5rem 2.2rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">'+
+            '<input id="cel-filter-colab-q" type="text" placeholder="Buscar por colaborador, departamento, modelo, imei ou chip..." value="'+(_filterColab.q||'').replace(/"/g,'&quot;')+'" oninput="window.celularesFilterColab()" style="width:100%;padding:0.5rem 0.75rem 0.5rem 2.2rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">'+
             '</div></div>';
 
         var hasAny = atribF.length || chipsAvF.length || semAtribF.length;
