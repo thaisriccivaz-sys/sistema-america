@@ -96,21 +96,27 @@ window.assinaturasAbrirModalTemplate = function(template = null) {
     document.getElementById('assinaturas-template-ativo').value = template ? template.is_active : '1';
     
     let config = {
-        nome: { x: 50, y: 50, size: 24, color: '#000000' },
-        cargo: { x: 50, y: 80, size: 16, color: '#475569' },
-        dept: { x: 50, y: 100, size: 16, color: '#475569' },
-        email: { x: 50, y: 120, size: 14, color: '#64748b' }
+        nome: { x: 50, y: 50, size: 24, font: 'Inter', color: '#000000' },
+        dept: { x: 50, y: 75, size: 16, font: 'Inter', color: '#475569' },
+        email: { x: 50, y: 90, size: 14, font: 'Inter', color: '#64748b' }
     };
     if (template && template.config_json) {
         try { config = JSON.parse(template.config_json); } catch (e) {}
     }
 
-    ['nome', 'cargo', 'dept', 'email'].forEach(f => {
+    ['nome', 'dept', 'email'].forEach(f => {
         if(config[f]) {
-            document.getElementById(`assinaturas-pos-${f}-x`).value = config[f].x;
-            document.getElementById(`assinaturas-pos-${f}-y`).value = config[f].y;
-            document.getElementById(`assinaturas-size-${f}`).value = config[f].size;
-            document.getElementById(`assinaturas-color-${f}`).value = config[f].color;
+            const iX = document.getElementById(`assinaturas-pos-${f}-x`);
+            const iY = document.getElementById(`assinaturas-pos-${f}-y`);
+            const iSize = document.getElementById(`assinaturas-size-${f}`);
+            const iFont = document.getElementById(`assinaturas-font-${f}`);
+            const iColor = document.getElementById(`assinaturas-color-${f}`);
+            
+            if(iX) iX.value = config[f].x || 50;
+            if(iY) iY.value = config[f].y || 50;
+            if(iSize) iSize.value = config[f].size || 14;
+            if(iFont) iFont.value = config[f].font || 'Inter';
+            if(iColor) iColor.value = config[f].color || '#000000';
         }
     });
 
@@ -152,11 +158,12 @@ window.assinaturasLoadImagePreview = function(url, config) {
 // Event listener added in init
 
 window.assinaturasAtualizarPreview = function() {
-    const fields = ['nome', 'cargo', 'dept', 'email'];
+    const fields = ['nome', 'dept', 'email'];
     fields.forEach(f => {
         const iX = document.getElementById(`assinaturas-pos-${f}-x`);
         const iY = document.getElementById(`assinaturas-pos-${f}-y`);
         const iSize = document.getElementById(`assinaturas-size-${f}`);
+        const iFont = document.getElementById(`assinaturas-font-${f}`);
         const iColor = document.getElementById(`assinaturas-color-${f}`);
         const dragEl = document.getElementById(`drag-${f}`);
         
@@ -166,7 +173,8 @@ window.assinaturasAtualizarPreview = function() {
         if(iSize && iSize.value) {
             dragEl.style.fontSize = `${iSize.value}px`;
             dragEl.style.fontWeight = '600';
-            dragEl.style.fontFamily = 'Inter, sans-serif';
+            const fontFamily = (iFont && iFont.value) ? iFont.value : 'Inter';
+            dragEl.style.fontFamily = `${fontFamily}, sans-serif`;
         }
         if(iColor && iColor.value) dragEl.style.color = iColor.value;
     });
@@ -184,15 +192,17 @@ window.assinaturasRenderCanvas = function(config, exportMode = false, colabData 
     ctx.drawImage(currentPreviewImg, 0, 0);
 
     const dataNome = colabData ? colabData.nome_colaborador : "Nome Sobrenome da Silva";
-    const dataCargo = colabData ? (colabData.cargo || "") : "Analista Administrativo";
     const dataDept = colabData ? (colabData.departamento || "") : "Administrativo";
     const dataEmail = colabData ? (colabData.email_corporativo || colabData.telefone_corporativo || "") : "nome.sobrenome@americarental.com.br";
 
     const drawText = (text, field) => {
         if(!text) return;
+        if(!config[field]) return;
+        
+        const fontName = config[field].font || 'Inter';
         const xPos = (config[field].x / 100) * canvas.width;
         const yPos = (config[field].y / 100) * canvas.height;
-        ctx.font = `600 ${config[field].size}px Inter, sans-serif`;
+        ctx.font = `600 ${config[field].size}px "${fontName}", sans-serif`;
         ctx.fillStyle = config[field].color;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -200,7 +210,6 @@ window.assinaturasRenderCanvas = function(config, exportMode = false, colabData 
     };
 
     drawText(dataNome, 'nome');
-    drawText(dataCargo, 'cargo');
     drawText(dataDept, 'dept');
     drawText(dataEmail, 'email');
 
@@ -226,24 +235,21 @@ window.assinaturasSalvarTemplate = async function() {
             x: document.getElementById('assinaturas-pos-nome-x').value || 50,
             y: document.getElementById('assinaturas-pos-nome-y').value || 50,
             size: document.getElementById('assinaturas-size-nome').value || 24,
+            font: document.getElementById('assinaturas-font-nome') ? document.getElementById('assinaturas-font-nome').value : 'Inter',
             color: document.getElementById('assinaturas-color-nome').value || '#000000'
-        },
-        cargo: { 
-            x: document.getElementById('assinaturas-pos-cargo-x').value || 50,
-            y: document.getElementById('assinaturas-pos-cargo-y').value || 80,
-            size: document.getElementById('assinaturas-size-cargo').value || 16,
-            color: document.getElementById('assinaturas-color-cargo').value || '#475569'
         },
         dept: { 
             x: document.getElementById('assinaturas-pos-dept-x').value || 50,
-            y: document.getElementById('assinaturas-pos-dept-y').value || 100,
+            y: document.getElementById('assinaturas-pos-dept-y').value || 75,
             size: document.getElementById('assinaturas-size-dept').value || 16,
+            font: document.getElementById('assinaturas-font-dept') ? document.getElementById('assinaturas-font-dept').value : 'Inter',
             color: document.getElementById('assinaturas-color-dept').value || '#475569'
         },
         email: { 
             x: document.getElementById('assinaturas-pos-email-x').value || 50,
-            y: document.getElementById('assinaturas-pos-email-y').value || 120,
+            y: document.getElementById('assinaturas-pos-email-y').value || 90,
             size: document.getElementById('assinaturas-size-email').value || 14,
+            font: document.getElementById('assinaturas-font-email') ? document.getElementById('assinaturas-font-email').value : 'Inter',
             color: document.getElementById('assinaturas-color-email').value || '#64748b'
         }
     };
@@ -397,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const fields = ['nome', 'cargo', 'dept', 'email'];
+    const fields = ['nome', 'dept', 'email'];
     fields.forEach(f => {
         const iX = document.getElementById(`assinaturas-pos-${f}-x`);
         const iY = document.getElementById(`assinaturas-pos-${f}-y`);

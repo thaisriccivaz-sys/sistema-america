@@ -6253,21 +6253,18 @@
                     <div style="background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
                         <strong style="display: block; margin-bottom: 5px;">Nome do Colaborador</strong>
                         <div style="display: flex; gap: 10px;">
-                            <input type="number" id="assinaturas-pos-nome-x" class="form-control" placeholder="Pos X" style="flex:1;">
-                            <input type="number" id="assinaturas-pos-nome-y" class="form-control" placeholder="Pos Y" style="flex:1;">
-                            <input type="number" id="assinaturas-size-nome" class="form-control" placeholder="Tamanho Fonte" value="18" style="flex:1;">
-                            <input type="color" id="assinaturas-color-nome" value="#000000" style="flex:1; height: 38px;">
-                        </div>
-                    </div>
-
-                    <!-- Campo: Cargo -->
-                    <div style="background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <strong style="display: block; margin-bottom: 5px;">Cargo</strong>
-                        <div style="display: flex; gap: 10px;">
-                            <input type="number" id="assinaturas-pos-cargo-x" class="form-control" placeholder="Pos X" style="flex:1;">
-                            <input type="number" id="assinaturas-pos-cargo-y" class="form-control" placeholder="Pos Y" style="flex:1;">
-                            <input type="number" id="assinaturas-size-cargo" class="form-control" placeholder="Tamanho Fonte" value="14" style="flex:1;">
-                            <input type="color" id="assinaturas-color-cargo" value="#000000" style="flex:1; height: 38px;">
+                            <input type="number" id="assinaturas-pos-nome-x" class="form-control" title="Posição X" placeholder="X" style="flex:1; min-width: 0;">
+                            <input type="number" id="assinaturas-pos-nome-y" class="form-control" title="Posição Y" placeholder="Y" style="flex:1; min-width: 0;">
+                            <input type="number" id="assinaturas-size-nome" class="form-control" title="Tamanho da Fonte" placeholder="Tamanho" value="18" style="flex:1.5; min-width: 0;">
+                            <select id="assinaturas-font-nome" class="form-control" title="Fonte" style="flex:2; min-width: 0;">
+                                <option value="Inter">Inter</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Courier New">Courier New</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Verdana">Verdana</option>
+                            </select>
+                            <input type="color" id="assinaturas-color-nome" value="#000000" title="Cor" style="flex:1; height: 38px; min-width: 0;">
                         </div>
                     </div>
 
@@ -6275,10 +6272,18 @@
                     <div style="background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
                         <strong style="display: block; margin-bottom: 5px;">Departamento</strong>
                         <div style="display: flex; gap: 10px;">
-                            <input type="number" id="assinaturas-pos-dept-x" class="form-control" placeholder="Pos X" style="flex:1;">
-                            <input type="number" id="assinaturas-pos-dept-y" class="form-control" placeholder="Pos Y" style="flex:1;">
-                            <input type="number" id="assinaturas-size-dept" class="form-control" placeholder="Tamanho Fonte" value="14" style="flex:1;">
-                            <input type="color" id="assinaturas-color-dept" value="#000000" style="flex:1; height: 38px;">
+                            <input type="number" id="assinaturas-pos-dept-x" class="form-control" title="Posição X" placeholder="X" style="flex:1; min-width: 0;">
+                            <input type="number" id="assinaturas-pos-dept-y" class="form-control" title="Posição Y" placeholder="Y" style="flex:1; min-width: 0;">
+                            <input type="number" id="assinaturas-size-dept" class="form-control" title="Tamanho da Fonte" placeholder="Tamanho" value="14" style="flex:1.5; min-width: 0;">
+                            <select id="assinaturas-font-dept" class="form-control" title="Fonte" style="flex:2; min-width: 0;">
+                                <option value="Inter">Inter</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Courier New">Courier New</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Verdana">Verdana</option>
+                            </select>
+                            <input type="color" id="assinaturas-color-dept" value="#000000" title="Cor" style="flex:1; height: 38px; min-width: 0;">
                         </div>
                     </div>
 
@@ -6286,10 +6291,18 @@
                     <div style="background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
                         <strong style="display: block; margin-bottom: 5px;">E-mail (Opcional)</strong>
                         <div style="display: flex; gap: 10px;">
-                            <input type="number" id="assinaturas-pos-email-x" class="form-control" placeholder="Pos X" style="flex:1;">
-                            <input type="number" id="assinaturas-pos-email-y" class="form-control" placeholder="Pos Y" style="flex:1;">
-                            <input type="number" id="assinaturas-size-email" class="form-control" placeholder="Tamanho Fonte" value="12" style="flex:1;">
-                            <input type="color" id="assinaturas-color-email" value="#000000" style="flex:1; height: 38px;">
+                            <input type="number" id="assinaturas-pos-email-x" class="form-control" title="Posição X" placeholder="X" style="flex:1; min-width: 0;">
+                            <input type="number" id="assinaturas-pos-email-y" class="form-control" title="Posição Y" placeholder="Y" style="flex:1; min-width: 0;">
+                            <input type="number" id="assinaturas-size-email" class="form-control" title="Tamanho da Fonte" placeholder="Tamanho" value="12" style="flex:1.5; min-width: 0;">
+                            <select id="assinaturas-font-email" class="form-control" title="Fonte" style="flex:2; min-width: 0;">
+                                <option value="Inter">Inter</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Courier New">Courier New</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Verdana">Verdana</option>
+                            </select>
+                            <input type="color" id="assinaturas-color-email" value="#000000" title="Cor" style="flex:1; height: 38px; min-width: 0;">
                         </div>
                     </div>
                 </div>
@@ -6300,9 +6313,8 @@
                         <span id="assinaturas-preview-placeholder" style="color: #64748b; font-weight: 500;">Faça upload de uma imagem para ver o preview</span>
                         <div id="assinaturas-preview-canvas" style="display: none; position: relative; background-size: 100% 100%; width: 100%; height: 100%;">
                             <div id="drag-nome" class="draggable-text" data-target="nome" style="position: absolute; cursor: grab; padding: 2px; border: 1px dashed #3b82f6; white-space: nowrap; user-select: none; top: 50%; left: 50%; transform: translate(-50%, -50%);">Nome do Colaborador</div>
-                            <div id="drag-cargo" class="draggable-text" data-target="cargo" style="position: absolute; cursor: grab; padding: 2px; border: 1px dashed #3b82f6; white-space: nowrap; user-select: none; top: 80%; left: 50%; transform: translate(-50%, -50%);">Cargo Exemplo</div>
-                            <div id="drag-dept" class="draggable-text" data-target="dept" style="position: absolute; cursor: grab; padding: 2px; border: 1px dashed #3b82f6; white-space: nowrap; user-select: none; top: 100%; left: 50%; transform: translate(-50%, -50%);">Departamento</div>
-                            <div id="drag-email" class="draggable-text" data-target="email" style="position: absolute; cursor: grab; padding: 2px; border: 1px dashed #3b82f6; white-space: nowrap; user-select: none; top: 120%; left: 50%; transform: translate(-50%, -50%);">email@america.com</div>
+                            <div id="drag-dept" class="draggable-text" data-target="dept" style="position: absolute; cursor: grab; padding: 2px; border: 1px dashed #3b82f6; white-space: nowrap; user-select: none; top: 75%; left: 50%; transform: translate(-50%, -50%);">Departamento</div>
+                            <div id="drag-email" class="draggable-text" data-target="email" style="position: absolute; cursor: grab; padding: 2px; border: 1px dashed #3b82f6; white-space: nowrap; user-select: none; top: 90%; left: 50%; transform: translate(-50%, -50%);">email@america.com</div>
                         </div>
                     </div>
 
