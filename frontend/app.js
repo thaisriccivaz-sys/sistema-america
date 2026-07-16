@@ -522,6 +522,7 @@ const BREADCRUMB_MAP = {
     'treinamento-materiais-terapia': { path: 'Treinamentos - Terapia - Palestras', code: 'TER01' },
     'treinamento-presenca-terapia': { path: 'Treinamentos - Terapia - Listas', code: 'TER02' },
     'ficha-epi': { path: 'Ficha EPI', code: 'RHEPI01' },
+    'assinaturas-adm': { path: 'Administrativo &rarr; Assinaturas', code: 'ADMIN01' },
     'avaliacoes': { path: 'Avaliações', code: 'RHAV01' },
     'gerenciar-avaliacoes': { path: 'Diretoria → Gerenciar Avaliações', code: 'DIRAVAL' },
     'usuarios-permissoes': { path: 'Diretoria → Usuários e Permissões', code: 'DIR001' },
