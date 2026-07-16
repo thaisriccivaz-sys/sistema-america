@@ -23236,6 +23236,103 @@ console.log('[CELULARES] Módulo de celulares corporativos carregado.');
 
 try { require('../rescue_estoque.js'); } catch(e) { console.error('Rescue script error:', e); }
 
+// ══════════════════════════════════════════════════════════════
+// MÓDULO COMPUTADORES CORPORATIVOS
+// ══════════════════════════════════════════════════════════════
+
+// ── Criação da tabela ──
+db.run(`CREATE TABLE IF NOT EXISTS computadores (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo                    TEXT NOT NULL DEFAULT 'Notebook',
+    modelo                  TEXT,
+    patrimonio              TEXT,
+    numero_serie            TEXT,
+    colaborador_id          INTEGER,
+    status                  TEXT DEFAULT 'Reserva',
+    data_atribuicao         TEXT,
+    senha_windows           TEXT,
+    observacoes             TEXT,
+    created_at              DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at              DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => {
+    if (err) console.error('[COMPUTADORES] Erro ao criar tabela:', err.message);
+    else console.log('[COMPUTADORES] Tabela computadores OK.');
+});
+
+// ── GET: listar todos com JOIN de colaborador ──
+app.get('/api/computadores', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT cp.*,
+               c.nome_completo  AS nome_colaborador,
+               c.foto_path,
+               c.foto_base64,
+               c.departamento   AS departamento_colaborador
+        FROM computadores cp
+        LEFT JOIN colaboradores c ON c.id = cp.colaborador_id
+        ORDER BY LOWER(COALESCE(c.nome_completo, '')) ASC, cp.id ASC
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// ── GET: colaboradores administrativos para o select ──
+app.get('/api/computadores/colaboradores', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT c.id, c.nome_completo, c.departamento, c.foto_path, c.foto_base64, c.status
+        FROM colaboradores c
+        LEFT JOIN departamentos d ON LOWER(c.departamento) = LOWER(d.nome)
+        WHERE (d.tipo = 'Administrativo' OR c.departamento IS NOT NULL)
+          AND (c.status IS NULL OR LOWER(c.status) NOT LIKE '%desligado%')
+        ORDER BY LOWER(c.nome_completo) ASC
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// ── POST: criar computador ──
+app.post('/api/computadores', authenticateToken, (req, res) => {
+    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, status, data_atribuicao, senha_windows, observacoes } = req.body;
+    if (!tipo) return res.status(400).json({ error: 'Tipo é obrigatório.' });
+    if (!modelo) return res.status(400).json({ error: 'Modelo é obrigatório.' });
+
+    db.run(
+        `INSERT INTO computadores (tipo, modelo, patrimonio, numero_serie, colaborador_id, status, data_atribuicao, senha_windows, observacoes, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','-3 hours'))`,
+        [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null],
+        function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, ok: true });
+        }
+    );
+});
+
+// ── PUT: atualizar computador ──
+app.put('/api/computadores/:id', authenticateToken, (req, res) => {
+    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, status, data_atribuicao, senha_windows, observacoes } = req.body;
+    db.run(
+        `UPDATE computadores SET tipo=?, modelo=?, patrimonio=?, numero_serie=?, colaborador_id=?, status=?, data_atribuicao=?, senha_windows=?, observacoes=?, updated_at=datetime('now','-3 hours')
+         WHERE id=?`,
+        [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null, req.params.id],
+        function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        }
+    );
+});
+
+// ── DELETE: remover computador ──
+app.delete('/api/computadores/:id', authenticateToken, (req, res) => {
+    db.run(`DELETE FROM computadores WHERE id=?`, [req.params.id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+console.log('[COMPUTADORES] Módulo de computadores corporativos carregado.');
+
+
 
 
 

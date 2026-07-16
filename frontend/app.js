@@ -589,6 +589,7 @@ const BREADCRUMB_MAP = {
     'licencas': { path: 'Licenças', code: 'ADM001' },
     'estoque': { path: 'Estoque', code: 'ADM002' },
     'celulares-corporativos': { path: 'Celulares Corporativos', code: 'ADM003' },
+    'computadores-corporativos': { path: 'Computadores Corporativos', code: 'ADM004' },
 };
 
 window.carregarPermissoesOnline = async function () {
@@ -828,6 +829,7 @@ const TAB_META = {
     'licencas': { color: '#e67700', icon: 'ph-certificate', title: 'Licenças' },
     'estoque': { color: '#e67700', icon: 'ph-package', title: 'Estoque' },
     'celulares-corporativos': { color: '#e67700', icon: 'ph-device-mobile', title: 'Celulares' },
+    'computadores-corporativos': { color: '#6366f1', icon: 'ph-desktop', title: 'Computadores' },
     // Treinamento - Azul Turquesa
     'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais' },
     'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presenças' },
@@ -1111,6 +1113,8 @@ function navigateTo(target) {
         if (typeof window.initLicencas === 'function') setTimeout(() => window.initLicencas(), 80);
     } else if (target === 'celulares-corporativos') {
         if (typeof window.initCelularesCorporativos === 'function') setTimeout(() => window.initCelularesCorporativos(), 80);
+    } else if (target === 'computadores-corporativos') {
+        if (typeof window.computadoresInit === 'function') setTimeout(() => window.computadoresInit(), 80);
     } else if (target === 'config-sigor') {
         if (typeof window.initConfigSigor === 'function') setTimeout(() => window.initConfigSigor(), 80);
     } else if (target === 'treinamento-materiais') {
