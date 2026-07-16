@@ -21278,7 +21278,7 @@ app.get('/api/assinaturas/pendentes', authenticateToken, (req, res) => {
         LEFT JOIN assinaturas_pendentes p ON c.id = p.colaborador_id
         LEFT JOIN assinatura_templates t ON t.is_active = 1
         WHERE c.departamento = 'Administrativo' 
-          AND c.status_colaborador != 'Desligado' 
+          AND c.status != 'Desligado' 
           AND (p.id IS NULL OR p.status = 'Pendente')
         ORDER BY c.nome_completo ASC
     `;
