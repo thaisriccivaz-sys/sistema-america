@@ -56,6 +56,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Administrativo', pagina_id: 'licencas', pagina_nome: 'Licenças', icone: 'ph-certificate' },
     { modulo: 'Administrativo', pagina_id: 'estoque', pagina_nome: 'Estoque', icone: 'ph-package' },
     { modulo: 'Administrativo', pagina_id: 'celulares-corporativos', pagina_nome: 'Celulares Corporativos', icone: 'ph-device-mobile' },
+    { modulo: 'Administrativo', pagina_id: 'computadores-corporativos', pagina_nome: 'Computadores', icone: 'ph-desktop' },
     // Módulo Treinamentos
     { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais', pagina_nome: 'Materiais', icone: 'ph-books' },
     { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca', pagina_nome: 'Presenças', icone: 'ph-check-square' },

@@ -89,18 +89,13 @@ async function initNotificacoesView() {
                         <i class="ph ph-caret-down arrow" style="color: #94a3b8; transition: transform 0.2s;"></i>
                     </div>
                     <div class="notif-users-list" style="display: none; border-top: 1px solid #e2e8f0; padding: 1rem; background: #f8fafc; border-radius: 0 0 8px 8px; max-height: 400px; overflow-y: auto;">
-                        <p style="font-size: 0.8rem; color: #64748b; margin: 0 0 0.75rem 0; background:#fff3e0; border-left:3px solid #e67700; padding:0.5rem 0.75rem; border-radius:4px;">
-                            <i class="ph ph-envelope"></i> <strong>Email direto:</strong> Preencha o e-mail para garantir o envio. Se vazio, o sistema tenta resolver automaticamente.
-                        </p>
-                        <label style="font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 0.75rem; display: block;">Selecione os usuários e configure o e-mail:</label>
+                        <label style="font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 0.75rem; display: block;">Selecione os usuários que receberão as notificações (o e-mail será obtido do cadastro do usuário):</label>
                         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                             ${globalUsuariosConfig.map(u => {
                                 const isChecked = selectedUsers.includes(u.id) ? 'checked' : '';
-                                const emailVal = overrides[u.id] || '';
-                                return `<div class="notif-user-row" style="display: flex; align-items: center; gap: 0.5rem; background: #fff; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1;">
-                                    <input type="checkbox" class="config-notif-cb" data-tipo="${tipo.id}" data-uid="${u.id}" ${isChecked} style="flex-shrink:0;" onchange="this.closest('.notif-user-row').querySelector('.notif-email-input').style.opacity=this.checked?'1':'0.4'">
+                                return `<div class="notif-user-row" style="display: flex; align-items: center; gap: 0.5rem; background: #fff; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer;" onclick="const cb = this.querySelector('.config-notif-cb'); cb.checked = !cb.checked;">
+                                    <input type="checkbox" class="config-notif-cb" data-tipo="${tipo.id}" data-uid="${u.id}" ${isChecked} style="flex-shrink:0; pointer-events: none;">
                                     <span style="font-size: 0.9rem; color: #475569; min-width: 160px; flex-shrink:0;">${u.nome || u.username}</span>
-                                    <input type="email" class="notif-email-input" data-tipo="${tipo.id}" data-uid="${u.id}" placeholder="e-mail do destinatário" value="${emailVal}" style="flex:1;border:1px solid #e2e8f0;border-radius:4px;padding:0.3rem 0.5rem;font-size:0.82rem;color:#334155;opacity:${isChecked?'1':'0.4'};">
                                 </div>`;
                             }).join('')}
                         </div>
@@ -161,11 +156,7 @@ window.salvarConfigNotificacoes = async function() {
             const tipo = cb.getAttribute('data-tipo');
             const uid = parseInt(cb.getAttribute('data-uid'));
             if (selectedByTipo[tipo]) {
-                // Buscar email_override do input ao lado
-                const row = cb.closest('.notif-user-row');
-                const emailInput = row ? row.querySelector('.notif-email-input') : null;
-                const emailOverride = emailInput ? emailInput.value.trim() : '';
-                selectedByTipo[tipo].push({ usuario_id: uid, email_override: emailOverride || null });
+                selectedByTipo[tipo].push({ usuario_id: uid, email_override: null });
             }
         }
     });
