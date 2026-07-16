@@ -337,18 +337,29 @@
                     <a href="#" class="nav-item" data-target="chaves"><i class="ph ph-key"></i> Chaves</a>
                     <a href="#" class="nav-item" data-target="certificado-digital"><i class="ph ph-certificate"></i>
                         Certificado Digital</a>
-                    <a href="#" class="nav-item" data-target="config-sigor" onclick="navigateTo('config-sigor'); return false;"><i class="ph ph-key"></i> Credenciais SIGOR</a>
-                    <a href="#" class="nav-item" data-target="homologacao"><i class="ph ph-database"></i>
-                        Homologação</a>
-                    <a href="#" class="nav-item" data-target="controlid" onclick="navigateTo('controlid'); return false;"><i class="ph ph-fingerprint"></i> Control iD</a>
                     <a href="#" class="nav-item" data-target="departamentos"><i class="ph ph-buildings"></i>
                         Departamentos</a>
                     <a href="#" class="nav-item" data-target="notificacoes"><i class="ph ph-bell-ringing"></i>
                         Notificações</a>
                     <a href="#" class="nav-item" data-target="end-produto" onclick="navigateTo('end-produto'); return false;"><i class="ph ph-map-pin"></i> End. Prod.</a>
                     <a href="#" class="nav-item" data-target="geradores"><i class="ph ph-file-text"></i> Geradores</a>
-                    <a href="#" class="nav-item" data-target="logistica-multas-monaco" onclick="navigateTo('logistica-multas-monaco'); return false;"><i class="ph ph-police-car"></i> Multas M&ocirc;naco</a>
                     <a href="#" class="nav-item" data-target="ficha-epi"><i class="ph ph-shield-check"></i> Ficha EPI</a>
+
+                    <!-- ── Desenvolvedor (submenu aninhado) ────────────────── -->
+                    <div class="nav-group" id="nav-group-dev">
+                        <button class="nav-group-btn" onclick="window.toggleNavGroup('nav-group-dev')" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 12px 8px 16px;border:none;background:none;cursor:pointer;font-size:0.82rem;font-weight:700;color:#d9480f;text-transform:uppercase;letter-spacing:0.6px;border-radius:8px;transition:background 0.15s;" onmouseover="this.style.background='rgba(217,72,15,0.07)'" onmouseout="this.style.background='none'">
+                            <i class="ph ph-code" style="font-size:1rem;"></i>
+                            <span style="flex:1;text-align:left;">Desenvolvedor</span>
+                            <i class="ph ph-caret-down nav-group-caret" style="font-size:0.85rem;transition:transform 0.2s;"></i>
+                        </button>
+                        <div class="nav-group-items" style="display:none;padding-left:10px;border-left:2px solid rgba(217,72,15,0.2);margin-left:14px;">
+                            <a href="#" class="nav-item" data-target="config-sigor" onclick="navigateTo('config-sigor'); return false;"><i class="ph ph-key"></i> Credenciais SIGOR</a>
+                            <a href="#" class="nav-item" data-target="homologacao"><i class="ph ph-database"></i> Homologação</a>
+                            <a href="#" class="nav-item" data-target="controlid" onclick="navigateTo('controlid'); return false;"><i class="ph ph-fingerprint"></i> Control iD</a>
+                            <a href="#" class="nav-item" data-target="logistica-multas-monaco" onclick="navigateTo('logistica-multas-monaco'); return false;"><i class="ph ph-police-car"></i> Multas Mônaco</a>
+                            <a href="#" class="nav-item" data-target="dir-webhooks" onclick="navigateTo('dir-webhooks'); return false;"><i class="ph ph-plugs-connected"></i> Webhooks</a>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -4172,6 +4183,85 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </section>
+
+                <!-- VIEW: WEBHOOKS (Desenvolvedor) -->
+                <section id="view-dir-webhooks" class="content-view" style="padding:1.5rem; background:#f8fafc; min-height:100vh;">
+                    <div class="page-header flex-between" style="margin-bottom:1.5rem;">
+                        <div>
+                            <h2 style="display:flex;align-items:center;gap:10px;margin:0 0 4px;">
+                                <i class="ph ph-plugs-connected" style="color:#d9480f;font-size:1.6rem;"></i>
+                                Webhooks
+                            </h2>
+                            <p style="margin:0;color:#64748b;font-size:0.875rem;">Gerencie as URLs externas que recebem notificações automáticas do sistema.</p>
+                        </div>
+                    </div>
+                    <!-- Abas de eventos -->
+                    <div style="display:flex;gap:4px;border-bottom:2px solid #e2e8f0;margin-bottom:1.5rem;">
+                        <button id="whk-tab-motoristas" onclick="window.whkAbrirAba('motoristas')"
+                            style="padding:10px 20px;border:none;background:none;font-weight:700;font-size:0.875rem;color:#d9480f;border-bottom:2px solid #d9480f;margin-bottom:-2px;cursor:pointer;border-radius:8px 8px 0 0;display:flex;align-items:center;gap:7px;">
+                            <i class="ph ph-device-mobile"></i> Celulares Motoristas
+                        </button>
+                    </div>
+                    <!-- Painel: Celulares Motoristas -->
+                    <div id="whk-painel-motoristas">
+                        <!-- Cabeçalho do evento -->
+                        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px 24px;margin-bottom:1.25rem;">
+                            <div style="display:flex;align-items:flex-start;gap:14px;">
+                                <div style="background:#fff7ed;border-radius:10px;padding:12px;flex-shrink:0;">
+                                    <i class="ph ph-device-mobile" style="font-size:1.75rem;color:#d9480f;"></i>
+                                </div>
+                                <div style="flex:1;">
+                                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                                        <h3 style="margin:0;font-size:1rem;font-weight:700;color:#1e293b;">celular.atribuido_motorista</h3>
+                                        <span style="background:#dcfce7;color:#15803d;font-size:0.7rem;font-weight:700;padding:2px 10px;border-radius:20px;letter-spacing:0.5px;">ATIVO</span>
+                                    </div>
+                                    <p style="margin:6px 0 0;color:#475569;font-size:0.85rem;">Disparado sempre que um chip é atribuído a um colaborador do departamento <strong>Motorista</strong>.</p>
+                                    <details style="margin-top:10px;">
+                                        <summary style="cursor:pointer;color:#d9480f;font-size:0.82rem;font-weight:600;">Ver estrutura do payload (JSON)</summary>
+                                        <pre style="margin:10px 0 0;background:#1e293b;color:#e2e8f0;border-radius:8px;padding:14px;font-size:0.78rem;overflow-x:auto;line-height:1.6;">{
+  "evento": "celular.atribuido_motorista",
+  "timestamp": "2026-07-16T14:00:00.000Z",
+  "dados": {
+    "colaborador_id": 42,
+    "nome_motorista": "João da Silva",
+    "telefone_principal": "11999990001",
+    "telefone_secundario": null,
+    "data_atribuicao": "2026-07-16"
+  }
+}</pre>
+                                    </details>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Formulário adicionar URL -->
+                        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px 24px;margin-bottom:1.25rem;">
+                            <h4 style="margin:0 0 14px;font-size:0.9rem;color:#374151;display:flex;align-items:center;gap:8px;">
+                                <i class="ph ph-plus-circle" style="color:#d9480f;"></i> Adicionar URL assinante
+                            </h4>
+                            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                                <input id="whk-nome-motoristas" type="text" placeholder="Nome da integração (ex: Cobli Rastreadores)"
+                                    style="flex:1;min-width:180px;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.875rem;outline:none;transition:border 0.2s;"
+                                    onfocus="this.style.borderColor='#d9480f'" onblur="this.style.borderColor='#e2e8f0'">
+                                <input id="whk-url-motoristas" type="url" placeholder="https://api.fornecedor.com/webhook"
+                                    style="flex:2;min-width:260px;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.875rem;outline:none;transition:border 0.2s;"
+                                    onfocus="this.style.borderColor='#d9480f'" onblur="this.style.borderColor='#e2e8f0'"
+                                    onkeydown="if(event.key==='Enter') window.whkAdicionarUrl('celular.atribuido_motorista','motoristas')">
+                                <button onclick="window.whkAdicionarUrl('celular.atribuido_motorista','motoristas')"
+                                    style="background:#d9480f;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-weight:700;font-size:0.875rem;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:background 0.2s;"
+                                    onmouseover="this.style.background='#b03c0e'" onmouseout="this.style.background='#d9480f'">
+                                    <i class="ph ph-plus"></i> Adicionar
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Lista de URLs -->
+                        <div id="whk-lista-motoristas" style="display:flex;flex-direction:column;gap:10px;">
+                            <div style="text-align:center;padding:40px;color:#94a3b8;">
+                                <i class="ph ph-spinner" style="font-size:2rem;animation:spin 1s linear infinite;display:block;margin-bottom:10px;"></i>
+                                Carregando webhooks...
+                            </div>
+                        </div>
                     </div>
                 </section>
 

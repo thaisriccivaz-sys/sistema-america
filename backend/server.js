@@ -595,6 +595,17 @@ db.run(`CREATE TABLE IF NOT EXISTS ocorrencias_anexos (
 // Migration: renomear dados_base64 → url (se tabela antiga existir)
 db.run(`ALTER TABLE ocorrencias_anexos ADD COLUMN url TEXT`, () => {});
 db.run(`ALTER TABLE ocorrencias_anexos ADD COLUMN r2_key TEXT`, () => {});
+
+// Tabela de Webhooks — armazena URLs assinantes por evento
+db.run(`CREATE TABLE IF NOT EXISTS webhooks_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    evento TEXT NOT NULL,
+    nome TEXT,
+    url TEXT NOT NULL,
+    ativo INTEGER DEFAULT 1,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
     // 1. Renomear ORDEM DE SERVIÇO NR01 (maiúsculo) para caixa mista
     db.run("UPDATE geradores SET nome = 'Ordem de Servi\u00e7o NR01' WHERE nome LIKE 'ORDEM%NR01' OR nome LIKE 'ORDEM%NR 01'", (err) => {
         if (err) console.error('Erro ao renomear NR01 maiúsculo:', err);
@@ -11236,6 +11247,116 @@ app.get('/api/wipe-credenciamentos', (req, res) => {
         res.json({ message: 'Todos os credenciamentos foram limpos.', error: err });
     });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WEBHOOKS — Gerenciamento e Disparo
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Dispara um evento webhook para todas as URLs ativas registradas.
+ * Executa em background (não bloqueia a resposta ao cliente).
+ */
+async function dispararWebhook(evento, payload) {
+    db.all('SELECT id, url, nome FROM webhooks_config WHERE evento = ? AND ativo = 1', [evento], async (err, rows) => {
+        if (err || !rows || rows.length === 0) return;
+        const https = require('https');
+        const http = require('http');
+        const body = JSON.stringify({ evento, timestamp: new Date().toISOString(), dados: payload });
+        for (const row of rows) {
+            try {
+                const urlObj = new URL(row.url);
+                const lib = urlObj.protocol === 'https:' ? https : http;
+                await new Promise((resolve) => {
+                    const options = {
+                        hostname: urlObj.hostname,
+                        port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
+                        path: urlObj.pathname + urlObj.search,
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), 'User-Agent': 'AmericaRental-Webhook/1.0' }
+                    };
+                    const req2 = lib.request(options, (r2) => {
+                        console.log(`[Webhook] ${evento} → ${row.url} — HTTP ${r2.statusCode}`);
+                        r2.resume();
+                        resolve();
+                    });
+                    req2.on('error', (e) => { console.error(`[Webhook] Erro ao disparar para ${row.url}:`, e.message); resolve(); });
+                    req2.setTimeout(10000, () => { req2.destroy(); resolve(); });
+                    req2.write(body);
+                    req2.end();
+                });
+            } catch(e) { console.error(`[Webhook] URL inválida (${row.url}):`, e.message); }
+        }
+    });
+}
+
+// GET /api/webhooks — lista todos os webhooks cadastrados
+app.get('/api/webhooks', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM webhooks_config ORDER BY evento, criado_em', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// POST /api/webhooks — cadastra nova URL assinante
+app.post('/api/webhooks', authenticateToken, (req, res) => {
+    const { evento, nome, url } = req.body;
+    if (!evento || !url) return res.status(400).json({ error: 'evento e url são obrigatórios' });
+    try { new URL(url); } catch(e) { return res.status(400).json({ error: 'URL inválida' }); }
+    db.run('INSERT INTO webhooks_config (evento, nome, url) VALUES (?, ?, ?)',
+        [evento, nome || '', url],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, evento, nome, url, ativo: 1 });
+        });
+});
+
+// PATCH /api/webhooks/:id/toggle — ativa ou desativa
+app.patch('/api/webhooks/:id/toggle', authenticateToken, (req, res) => {
+    db.run('UPDATE webhooks_config SET ativo = CASE WHEN ativo = 1 THEN 0 ELSE 1 END WHERE id = ?',
+        [req.params.id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            db.get('SELECT * FROM webhooks_config WHERE id = ?', [req.params.id], (e, row) => res.json(row));
+        });
+});
+
+// DELETE /api/webhooks/:id — remove uma URL assinante
+app.delete('/api/webhooks/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM webhooks_config WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+// POST /api/webhooks/testar/:id — faz disparo de teste para uma URL específica
+app.post('/api/webhooks/testar/:id', authenticateToken, (req, res) => {
+    db.get('SELECT * FROM webhooks_config WHERE id = ?', [req.params.id], async (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Não encontrado' });
+        const https = require('https');
+        const http = require('http');
+        const payload = { evento: row.evento, timestamp: new Date().toISOString(), dados: { teste: true, mensagem: 'Este é um webhook de teste da América Rental.' } };
+        const body = JSON.stringify(payload);
+        try {
+            const urlObj = new URL(row.url);
+            const lib = urlObj.protocol === 'https:' ? https : http;
+            await new Promise((resolve, reject) => {
+                const options = {
+                    hostname: urlObj.hostname, port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
+                    path: urlObj.pathname + urlObj.search, method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), 'User-Agent': 'AmericaRental-Webhook/1.0' }
+                };
+                const req2 = lib.request(options, (r2) => {
+                    let data = '';
+                    r2.on('data', d => data += d);
+                    r2.on('end', () => { res.json({ ok: true, status: r2.statusCode, resposta: data.slice(0, 300) }); resolve(); });
+                });
+                req2.on('error', (e) => { res.status(502).json({ ok: false, erro: e.message }); resolve(); });
+                req2.setTimeout(10000, () => { req2.destroy(); res.status(504).json({ ok: false, erro: 'Timeout (10s)' }); resolve(); });
+                req2.write(body); req2.end();
+            });
+        } catch(e) { res.status(400).json({ ok: false, erro: 'URL inválida: ' + e.message }); }
+    });
+});
+// ═══════════════════════════════════════════════════════════════════════════════
 
 // ── ANEXOS DE OCORRÊNCIAS (Cloudflare R2) ────────────────────────────────────
 const multerOcorrAnexo = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -22983,6 +23104,32 @@ app.post('/api/celulares/atribuicoes', authenticateToken, (req, res) => {
                         }
                     });
                 }
+                // ── Gatilho de Webhook para Celulares Motoristas ──────────────────
+                if (colaborador_id) {
+                    db.get(
+                        `SELECT c.nome_completo, c.departamento, ch.numero AS numero_chip, ch2.numero AS numero_chip2
+                         FROM colaboradores c
+                         LEFT JOIN celulares_chips ch  ON ch.id  = ?
+                         LEFT JOIN celulares_chips ch2 ON ch2.id = ?
+                         WHERE c.id = ?`,
+                        [chip_id || null, chip_id2 || null, colaborador_id],
+                        (errC, colabRow) => {
+                            if (!errC && colabRow) {
+                                const dept = (colabRow.departamento || '').toLowerCase();
+                                if (dept.includes('motorista') || dept.includes('motoristas')) {
+                                    dispararWebhook('celular.atribuido_motorista', {
+                                        colaborador_id,
+                                        nome_motorista: colabRow.nome_completo,
+                                        telefone_principal: colabRow.numero_chip  || null,
+                                        telefone_secundario: colabRow.numero_chip2 || null,
+                                        data_atribuicao: data_inicio || new Date().toISOString().split('T')[0]
+                                    });
+                                }
+                            }
+                        }
+                    );
+                }
+                // ─────────────────────────────────────────────────────────────────
                 res.json({ id: newAtribId, ok: true });
             }
         );

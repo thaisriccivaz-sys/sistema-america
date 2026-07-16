@@ -529,6 +529,7 @@ const BREADCRUMB_MAP = {
     'form-usuario': { path: 'Diretoria → Usuários e Permissões → Cadastro', code: 'DIR002' },
     'certificado-digital': { path: 'Diretoria → Certificado Digital', code: 'DIR003' },
     'auditoria': { path: 'Diretoria → Trilha de Auditoria', code: 'DIR006' },
+    'dir-webhooks': { path: 'Diretoria → Desenvolvedor → Webhooks', code: 'DIR007' },
     // Sub-telas (Prontuário Digital - abas)
     'tab:00. CheckList': { path: 'Colaboradores → Prontuário Digital → 00. CheckList', },
     'tab:01_FICHA_CADASTRAL': { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral', },
@@ -795,6 +796,7 @@ const TAB_META = {
     'chaves': { color: '#d9480f', icon: 'ph-key', title: 'Chaves' },
     'form-usuario': { color: '#d9480f', icon: 'ph-user-gear', title: 'Cadastro de Usuário' },
     'config-sigor': { color: '#d9480f', icon: 'ph-key', title: 'Credenciais SIGOR' },
+    'dir-webhooks': { color: '#d9480f', icon: 'ph-plugs-connected', title: 'Webhooks' },
     // Logística - Verde
     'logistica-em-breve': { color: '#2d9e5f', icon: 'ph-truck', title: 'Logística' },
     'logistica-dashboard': { color: '#2d9e5f', icon: 'ph-chart-bar', title: 'Dashboard Logística' },
@@ -1119,6 +1121,8 @@ function navigateTo(target) {
         if (typeof window.renderTreinamentosTable === 'function') setTimeout(() => window.renderTreinamentosTable(), 80);
     } else if (target === 'treinamento-presenca-terapia') {
         if (typeof window.initPresencaTreinamento === 'function') setTimeout(() => window.initPresencaTreinamento(), 80);
+    } else if (target === 'dir-webhooks') {
+        if (typeof window.whkCarregarTodos === 'function') setTimeout(() => window.whkCarregarTodos(), 80);
     }
 }
 
@@ -19972,3 +19976,186 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WEBHOOKS — Lógica da tela Diretoria › Desenvolvedor › Webhooks
+// ═══════════════════════════════════════════════════════════════════════════════
+
+window._whkCache = [];
+
+window.whkCarregarTodos = async function () {
+    try {
+        const data = await apiGet('/webhooks');
+        window._whkCache = data || [];
+        window.whkRenderLista('celular.atribuido_motorista', 'motoristas');
+    } catch(e) {
+        document.getElementById('whk-lista-motoristas').innerHTML =
+            `<div style="text-align:center;padding:30px;color:#ef4444;"><i class="ph ph-warning" style="font-size:1.5rem;display:block;margin-bottom:8px;"></i>Erro ao carregar webhooks.</div>`;
+    }
+};
+
+window.whkRenderLista = function(evento, abaId) {
+    const container = document.getElementById(`whk-lista-${abaId}`);
+    if (!container) return;
+    const items = (window._whkCache || []).filter(w => w.evento === evento);
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center;padding:48px 24px;background:#fff;border-radius:12px;border:2px dashed #e2e8f0;color:#94a3b8;">
+                <i class="ph ph-plugs" style="font-size:2.5rem;display:block;margin-bottom:10px;opacity:0.5;"></i>
+                <p style="margin:0;font-size:0.9rem;">Nenhuma URL cadastrada ainda.</p>
+                <p style="margin:6px 0 0;font-size:0.8rem;opacity:0.75;">Adicione a URL fornecida pelo integrador acima.</p>
+            </div>`;
+        return;
+    }
+    container.innerHTML = items.map(w => {
+        const ativoStyle = w.ativo ? 'background:#dcfce7;color:#15803d;' : 'background:#f1f5f9;color:#94a3b8;';
+        const ativoLabel = w.ativo ? 'Ativo' : 'Pausado';
+        return `
+        <div id="whk-card-${w.id}" style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:16px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'" onmouseout="this.style.boxShadow='none'">
+            <div style="flex:0 0 auto;width:42px;height:42px;background:#fff7ed;border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                <i class="ph ph-link" style="font-size:1.3rem;color:#d9480f;"></i>
+            </div>
+            <div style="flex:1;min-width:200px;">
+                <div style="font-weight:700;font-size:0.9rem;color:#1e293b;">${w.nome || '(sem nome)'}</div>
+                <div style="font-size:0.8rem;color:#64748b;margin-top:2px;word-break:break-all;">${w.url}</div>
+                <div style="font-size:0.72rem;color:#94a3b8;margin-top:3px;">Cadastrado em ${w.criado_em ? w.criado_em.slice(0,10) : '—'}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span style="${ativoStyle}font-size:0.72rem;font-weight:700;padding:3px 12px;border-radius:20px;letter-spacing:0.5px;">${ativoLabel}</span>
+                <button onclick="window.whkTestar(${w.id})" title="Enviar disparo de teste"
+                    style="padding:7px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;color:#374151;transition:all 0.2s;"
+                    onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
+                    <i class="ph ph-paper-plane-tilt" style="color:#6366f1;"></i> Testar
+                </button>
+                <button onclick="window.whkToggle(${w.id},'${abaId}')" title="${w.ativo ? 'Pausar' : 'Reativar'}"
+                    style="padding:7px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;color:#374151;transition:all 0.2s;"
+                    onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
+                    <i class="ph ${w.ativo ? 'ph-pause' : 'ph-play'}" style="color:${w.ativo ? '#f59e0b' : '#22c55e'};"></i> ${w.ativo ? 'Pausar' : 'Reativar'}
+                </button>
+                <button onclick="window.whkDeletar(${w.id},'${w.nome || w.url}','${abaId}')" title="Remover"
+                    style="padding:7px 12px;background:#fff5f5;border:1px solid #fecaca;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;color:#dc2626;transition:all 0.2s;"
+                    onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fff5f5'">
+                    <i class="ph ph-trash"></i>
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+};
+
+window.whkAdicionarUrl = async function(evento, abaId) {
+    const nomeEl = document.getElementById(`whk-nome-${abaId}`);
+    const urlEl  = document.getElementById(`whk-url-${abaId}`);
+    const nome = (nomeEl?.value || '').trim();
+    const url  = (urlEl?.value  || '').trim();
+    if (!url) { urlEl?.focus(); return; }
+    try { new URL(url); } catch(e) {
+        urlEl.style.borderColor = '#ef4444';
+        setTimeout(() => urlEl.style.borderColor = '#e2e8f0', 2000);
+        return;
+    }
+    const btn = document.querySelector(`[onclick*="whkAdicionarUrl('${evento}"]`);
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;"></i> Salvando...'; }
+    try {
+        const result = await fetch(`${API_URL}/webhooks`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token')}` },
+            body: JSON.stringify({ evento, nome, url })
+        }).then(r => r.json());
+        if (result.error) throw new Error(result.error);
+        window._whkCache.push(result);
+        window.whkRenderLista(evento, abaId);
+        if (nomeEl) nomeEl.value = '';
+        if (urlEl)  urlEl.value  = '';
+    } catch(e) {
+        alert('Erro ao salvar: ' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-plus"></i> Adicionar'; }
+    }
+};
+
+window.whkToggle = async function(id, abaId) {
+    try {
+        const result = await fetch(`${API_URL}/webhooks/${id}/toggle`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token')}` }
+        }).then(r => r.json());
+        const idx = window._whkCache.findIndex(w => w.id === id);
+        if (idx >= 0 && result) window._whkCache[idx] = result;
+        window.whkRenderLista(result.evento, abaId);
+    } catch(e) { alert('Erro: ' + e.message); }
+};
+
+window.whkDeletar = async function(id, label, abaId) {
+    if (!confirm(`Remover "${label}"?\nEsta ação não pode ser desfeita.`)) return;
+    try {
+        await fetch(`${API_URL}/webhooks/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token')}` }
+        });
+        window._whkCache = window._whkCache.filter(w => w.id !== id);
+        const removed = window._whkCache;
+        // Re-render usando o evento correspondente ao abaId
+        const eventoMap = { motoristas: 'celular.atribuido_motorista' };
+        window.whkRenderLista(eventoMap[abaId] || '', abaId);
+    } catch(e) { alert('Erro: ' + e.message); }
+};
+
+window.whkTestar = async function(id) {
+    const btn = document.querySelector(`#whk-card-${id} button[onclick*="whkTestar"]`);
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;"></i> Enviando...'; }
+    try {
+        const result = await fetch(`${API_URL}/webhooks/testar/${id}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token')}` }
+        }).then(r => r.json());
+        if (result.ok) {
+            alert(`✅ Disparo de teste enviado com sucesso!\nHTTP ${result.status}\n\nResposta:\n${result.resposta || '(sem corpo)'}`);
+        } else {
+            alert(`❌ Falha no disparo:\n${result.erro}`);
+        }
+    } catch(e) { alert('Erro: ' + e.message); }
+    finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-paper-plane-tilt" style="color:#6366f1;"></i> Testar'; }
+    }
+};
+
+window.whkAbrirAba = function(abaId) {
+    // Futuramente, ao ter múltiplas abas, esta função ativa a selecionada
+    document.querySelectorAll('[id^="whk-painel-"]').forEach(p => p.style.display = 'none');
+    const painel = document.getElementById(`whk-painel-${abaId}`);
+    if (painel) painel.style.display = '';
+};
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Grupos de navegação colapsáveis na sidebar ────────────────────────────────
+window.toggleNavGroup = function(groupId) {
+    const group = document.getElementById(groupId);
+    if (!group) return;
+    const items = group.querySelector('.nav-group-items');
+    const caret = group.querySelector('.nav-group-caret');
+    const isOpen = items.style.display !== 'none';
+    items.style.display = isOpen ? 'none' : 'block';
+    if (caret) caret.style.transform = isOpen ? '' : 'rotate(-180deg)';
+};
+
+// Auto-abre o grupo dev se a página atual for filha dele
+(function() {
+    const DEV_TARGETS = new Set(['config-sigor','homologacao','controlid','logistica-multas-monaco','dir-webhooks']);
+    const original = window.navigateTo;
+    if (typeof original === 'function') {
+        window.navigateTo = function(target, ...args) {
+            if (DEV_TARGETS.has(target)) {
+                const group = document.getElementById('nav-group-dev');
+                if (group) {
+                    const items = group.querySelector('.nav-group-items');
+                    const caret = group.querySelector('.nav-group-caret');
+                    if (items && items.style.display === 'none') {
+                        items.style.display = 'block';
+                        if (caret) caret.style.transform = 'rotate(-180deg)';
+                    }
+                }
+            }
+            return original.call(this, target, ...args);
+        };
+    }
+})();
