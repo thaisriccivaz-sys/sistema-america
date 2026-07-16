@@ -24,6 +24,10 @@ const TIPOS_NOTIFICACAO_CELULARES = [
     { id: 'celular_controle', nome: 'Controle de Celulares', icone: 'ph-device-mobile' }
 ];
 
+const TIPOS_NOTIFICACAO_COMPUTADORES = [
+    { id: 'computador_controle', nome: 'Controle de Computadores', icone: 'ph-monitor', descricao: 'Quem receberá popup e e-mail quando um novo colaborador administrativo for cadastrado' }
+];
+
 let globalUsuariosConfig = [];
 // Armazena email_override por { tipo: { uid: email } }
 let _emailOverrideMap = {};
@@ -115,9 +119,14 @@ async function initNotificacoesView() {
         // 3. Render HTML
         let html = '';
 
-        // ── Controle de Celulares (mesmo layout dos demais) ──
+        // 🔹 Renderiza a sessão de Celulares primeiro (destaque) 🔹
         TIPOS_NOTIFICACAO_CELULARES.forEach(tipo => {
             html += renderTipoCard(tipo, '#fed7aa', '#d9480f', '#fff5f5');
+        });
+
+        // 🔹 Renderiza a sessão de Computadores 🔹
+        TIPOS_NOTIFICACAO_COMPUTADORES.forEach(tipo => {
+            html += renderTipoCard(tipo, '#c7d2fe', '#4f46e5', '#eef2ff');
         });
 
         // ── Demais tipos de notificação ──
@@ -142,9 +151,10 @@ window.salvarConfigNotificacoes = async function() {
     const checkboxes = document.querySelectorAll('.config-notif-cb');
     const selectedByTipo = {};
     
-    // Incluir todos os tipos (padrão + celulares)
+    // Incluir todos os tipos (padrão + celulares + computadores)
     TIPOS_NOTIFICACAO.forEach(t => { selectedByTipo[t.id] = []; });
     TIPOS_NOTIFICACAO_CELULARES.forEach(t => { selectedByTipo[t.id] = []; });
+    TIPOS_NOTIFICACAO_COMPUTADORES.forEach(t => { selectedByTipo[t.id] = []; });
     
     checkboxes.forEach(cb => {
         if (cb.checked) {
