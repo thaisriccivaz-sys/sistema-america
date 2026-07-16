@@ -21205,8 +21205,13 @@ app.post('/api/assinaturas/templates', authenticateToken, uploadFoto.single('bg_
             }
         }
 
-        if (is_active === '1') {
-            await new Promise((resolve) => db.run(`UPDATE assinatura_templates SET is_active = 0`, resolve));
+        if (is_active == 1 || is_active === '1' || is_active === true) {
+            await new Promise((resolve) => {
+                db.run(`UPDATE assinatura_templates SET is_active = 0`, (err) => {
+                    if (err) console.error("Erro ao inativar", err);
+                    resolve();
+                });
+            });
         }
 
         if (id) {

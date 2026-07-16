@@ -339,14 +339,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     const canvasDiv = document.getElementById('assinaturas-preview-canvas');
+                    const imgEl = document.getElementById('assinaturas-preview-img');
                     const placeholder = document.getElementById('assinaturas-preview-placeholder');
-                    if (canvasDiv) {
-                        canvasDiv.style.display = 'block';
-                        canvasDiv.style.backgroundImage = `url('${event.target.result}')`;
-                    }
-                    if (placeholder) {
-                        placeholder.style.display = 'none';
-                    }
+                    
+                    if (placeholder) placeholder.style.display = 'none';
+                    if (canvasDiv) canvasDiv.style.display = 'inline-block';
+                    if (imgEl) imgEl.src = event.target.result;
                     
                     const img = new Image();
                     img.onload = () => {
@@ -412,10 +410,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const iX = document.getElementById(`assinaturas-pos-${f}-x`);
         const iY = document.getElementById(`assinaturas-pos-${f}-y`);
         const iSize = document.getElementById(`assinaturas-size-${f}`);
+        const iFont = document.getElementById(`assinaturas-font-${f}`);
         const iColor = document.getElementById(`assinaturas-color-${f}`);
         if(iX) iX.addEventListener('input', assinaturasAtualizarPreview);
         if(iY) iY.addEventListener('input', assinaturasAtualizarPreview);
         if(iSize) iSize.addEventListener('input', assinaturasAtualizarPreview);
+        if(iFont) iFont.addEventListener('input', assinaturasAtualizarPreview);
         if(iColor) iColor.addEventListener('input', assinaturasAtualizarPreview);
     });
 
