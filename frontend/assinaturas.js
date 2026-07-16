@@ -285,6 +285,9 @@ window.assinaturasExcluirTemplate = async function(id) {
         });
         if (res.ok) {
             renderAssinaturasTemplates();
+        } else {
+            const errData = await res.json();
+            alert(errData.error || "Erro ao excluir o template.");
         }
     } catch (e) {
         console.error(e);

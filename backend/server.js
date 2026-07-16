@@ -21231,23 +21231,35 @@ app.post('/api/assinaturas/templates', authenticateToken, uploadFoto.single('bg_
 });
 
 app.delete('/api/assinaturas/templates/:id', authenticateToken, (req, res) => {
-    db.get(`SELECT bg_image_path FROM assinatura_templates WHERE id = ?`, [req.params.id], async (err, row) => {
-        if (row && row.bg_image_path && row.bg_image_path.includes('assinaturas/templates/') && r2 && r2.isReady()) {
-            try {
+    db.get(`SELECT bg_image_path, is_active FROM assinatura_templates WHERE id = ?`, [req.params.id], async (err, row) => {
+        try {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!row) return res.status(404).json({ error: "Template não encontrado." });
+
+            if (row.is_active == 1) {
+                return res.status(400).json({ error: "Não é possível excluir um template ativo. Altere-o para inativo primeiro." });
+            }
+
+            if (row.bg_image_path && r2 && typeof r2.isReady === 'function' && r2.isReady()) {
                 let key = row.bg_image_path;
                 if(key.startsWith('http')) {
-                    const urlObj = new URL(key);
-                    key = urlObj.pathname.substring(1); 
+                    try {
+                        const urlObj = new URL(key);
+                        key = urlObj.pathname.substring(1); 
+                    } catch(e) {}
                 }
-                await r2.deleteFromR2(key);
-            } catch (e) {
-                console.error("Erro ao deletar imagem do R2:", e);
+                if (key.includes('assinaturas/templates/')) {
+                    await r2.deleteFromR2(key);
+                }
             }
+            db.run(`DELETE FROM assinatura_templates WHERE id = ?`, [req.params.id], (err2) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+                res.json({ message: "Excluído" });
+            });
+        } catch (innerErr) {
+            console.error("Erro no delete template:", innerErr);
+            if (!res.headersSent) res.status(500).json({ error: "Erro interno" });
         }
-        db.run(`DELETE FROM assinatura_templates WHERE id = ?`, [req.params.id], (err2) => {
-            if (err2) return res.status(500).json({ error: err2.message });
-            res.json({ message: "Excluído" });
-        });
     });
 });
 
