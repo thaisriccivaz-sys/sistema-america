@@ -342,6 +342,8 @@
                         Certificado Digital</a>
                     <a href="#" class="nav-item" data-target="departamentos"><i class="ph ph-buildings"></i>
                         Departamentos</a>
+                    <a href="#" class="nav-item" data-target="assinaturas-adm" onclick="navigateTo('assinaturas-adm'); return false;"><i class="ph ph-signature"></i>
+                        Assinaturas</a>
                     <a href="#" class="nav-item" data-target="notificacoes"><i class="ph ph-bell-ringing"></i>
                         Notificações</a>
                     <a href="#" class="nav-item" data-target="end-produto" onclick="navigateTo('end-produto'); return false;"><i class="ph ph-map-pin"></i> End. Prod.</a>
@@ -1003,6 +1005,74 @@
                         </div>
                     </div>
 
+                </section>
+
+                <section id="view-assinaturas-adm" class="content-view" style="display:none;">
+                    <div class="page-header flex-between" style="position: sticky; top: 60px; z-index: 20; background: var(--bg-main); padding: 1rem 0; margin-top: -1.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; gap: 1.5rem;">
+                            <div style="width: 80px; height: 80px; border-radius: 50%; border: 2px dashed #cbd5e0; display: flex; align-items: center; justify-content: center; background: #fff5f5; color: #c92a2a; font-size: 2rem;">
+                                <i class="ph ph-signature"></i>
+                            </div>
+                            <div>
+                                <h2 style="margin: 0; font-size: 1.4rem;">Gestão de Assinaturas</h2>
+                                <p style="margin: 0.2rem 0 0; color: var(--text-muted);">Configure templates de assinaturas e gere assinaturas pendentes para novos colaboradores do Administrativo.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tabs-container">
+                        <button class="tab-btn active" onclick="assinaturasChangeTab('templates')">Templates de Fundo</button>
+                        <button class="tab-btn" onclick="assinaturasChangeTab('pendentes')">Fila de Pendentes</button>
+                    </div>
+
+                    <!-- Aba Templates -->
+                    <div id="assinaturas-tab-templates" style="display:block; margin-top: 20px;">
+                        <div class="card" style="margin-bottom: 20px;">
+                            <div class="card-header border-bottom">
+                                <h3 class="card-title">Templates Salvos</h3>
+                                <button class="btn btn-primary" onclick="assinaturasAbrirModalTemplate()">
+                                    <i class="ph ph-plus"></i> Novo Template
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Nome do Template</th>
+                                            <th>Fundo (Imagem)</th>
+                                            <th>Status</th>
+                                            <th style="text-align: right;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="assinaturas-table-templates"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Aba Pendentes -->
+                    <div id="assinaturas-tab-pendentes" style="display:none; margin-top: 20px;">
+                        <div class="card" style="margin-bottom: 20px;">
+                            <div class="card-header border-bottom">
+                                <h3 class="card-title">Fila de Geração Pendente</h3>
+                            </div>
+                            <div class="card-body">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Colaborador</th>
+                                            <th>Departamento/Cargo</th>
+                                            <th>Template</th>
+                                            <th>Status</th>
+                                            <th style="text-align: right;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="assinaturas-table-pendentes"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </section>
 
                 <section id="view-departamentos" class="content-view">
@@ -5966,6 +6036,7 @@
     <script src="end-produto.js"></script>
     <script src="treinamento.js?v=20260702v7"></script>
     <script src="treinamento_presenca.js?v=20260702v4"></script>
+    <script src="assinaturas.js?v=1"></script>
 
     
     <!-- MODAL: ASSINATURA DE TREINAMENTO -->
@@ -6147,6 +6218,99 @@
         <p id="treinamento-lightbox-caption" style="color:rgba(255,255,255,0.8);margin-top:12px;font-size:0.9rem;"></p>
     </div>
 
+    <!-- MODAL: TEMPLATE ASSINATURA -->
+    <div id="modal-assinatura-template" class="modal">
+        <div class="modal-content" style="max-width: 900px; padding: 0; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;">
+            <div class="modal-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                <h2 style="margin: 0; font-size: 1.25rem; color: #1e293b; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="ph ph-image"></i> <span id="assinaturas-modal-title">Novo Template</span>
+                </h2>
+                <button type="button" class="btn-close" onclick="fecharModalAssinaturaTemplate()" style="background: none; border: none; font-size: 1.5rem; color: #64748b; cursor: pointer; padding: 0;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem; overflow-y: auto; display: flex; gap: 20px;">
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 15px;">
+                    <input type="hidden" id="assinaturas-template-id">
+                    
+                    <label style="font-weight: 600; color: #475569; display: block;">Nome do Template</label>
+                    <input type="text" id="assinaturas-template-nome" class="form-control" placeholder="Ex: Assinatura Padrão 2026" required>
+                    
+                    <label style="font-weight: 600; color: #475569; display: block; margin-top: 10px;">Imagem de Fundo (JPG/PNG)</label>
+                    <input type="file" id="assinaturas-template-bg" class="form-control" accept="image/*">
+                    <input type="hidden" id="assinaturas-template-bg-existing">
+                    
+                    <label style="font-weight: 600; color: #475569; display: block; margin-top: 10px;">Template Ativo?</label>
+                    <select id="assinaturas-template-ativo" class="form-control">
+                        <option value="1">Sim (Novos usarão este)</option>
+                        <option value="0">Não</option>
+                    </select>
+
+                    <hr style="margin: 15px 0; border: 0; border-top: 1px solid #e2e8f0;">
+
+                    <h4 style="margin: 0; color: #1e293b;">Campos Dinâmicos</h4>
+                    <p style="font-size: 0.85rem; color: #64748b; margin: 5px 0 15px;">Configure as posições (X, Y) e tamanho da fonte. O fundo deve ter 600x200px aproximadamente.</p>
+                    
+                    <!-- Campo: Nome -->
+                    <div style="background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <strong style="display: block; margin-bottom: 5px;">Nome do Colaborador</strong>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="number" id="assinaturas-pos-nome-x" class="form-control" placeholder="Pos X" style="flex:1;">
+                            <input type="number" id="assinaturas-pos-nome-y" class="form-control" placeholder="Pos Y" style="flex:1;">
+                            <input type="number" id="assinaturas-size-nome" class="form-control" placeholder="Tamanho Fonte" value="18" style="flex:1;">
+                            <input type="color" id="assinaturas-color-nome" value="#000000" style="flex:1; height: 38px;">
+                        </div>
+                    </div>
+
+                    <!-- Campo: Cargo -->
+                    <div style="background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <strong style="display: block; margin-bottom: 5px;">Cargo</strong>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="number" id="assinaturas-pos-cargo-x" class="form-control" placeholder="Pos X" style="flex:1;">
+                            <input type="number" id="assinaturas-pos-cargo-y" class="form-control" placeholder="Pos Y" style="flex:1;">
+                            <input type="number" id="assinaturas-size-cargo" class="form-control" placeholder="Tamanho Fonte" value="14" style="flex:1;">
+                            <input type="color" id="assinaturas-color-cargo" value="#000000" style="flex:1; height: 38px;">
+                        </div>
+                    </div>
+
+                    <!-- Campo: Departamento -->
+                    <div style="background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <strong style="display: block; margin-bottom: 5px;">Departamento</strong>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="number" id="assinaturas-pos-dept-x" class="form-control" placeholder="Pos X" style="flex:1;">
+                            <input type="number" id="assinaturas-pos-dept-y" class="form-control" placeholder="Pos Y" style="flex:1;">
+                            <input type="number" id="assinaturas-size-dept" class="form-control" placeholder="Tamanho Fonte" value="14" style="flex:1;">
+                            <input type="color" id="assinaturas-color-dept" value="#000000" style="flex:1; height: 38px;">
+                        </div>
+                    </div>
+
+                    <!-- Campo: Email -->
+                    <div style="background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <strong style="display: block; margin-bottom: 5px;">E-mail (Opcional)</strong>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="number" id="assinaturas-pos-email-x" class="form-control" placeholder="Pos X" style="flex:1;">
+                            <input type="number" id="assinaturas-pos-email-y" class="form-control" placeholder="Pos Y" style="flex:1;">
+                            <input type="number" id="assinaturas-size-email" class="form-control" placeholder="Tamanho Fonte" value="12" style="flex:1;">
+                            <input type="color" id="assinaturas-color-email" value="#000000" style="flex:1; height: 38px;">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #f1f5f9; display: flex; flex-direction: column;">
+                    <div style="padding: 10px; background: #e2e8f0; font-weight: 600; text-align: center; border-bottom: 1px solid #cbd5e1;">Preview Interativo</div>
+                    <div id="assinaturas-preview-container" style="flex: 1; position: relative; overflow: auto; min-height: 300px; display: flex; align-items: center; justify-content: center;">
+                        <span style="color: #94a3b8;">Faça upload de uma imagem para ver o preview</span>
+                        <canvas id="assinaturas-preview-canvas" style="display: none; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);"></canvas>
+                    </div>
+                    <div style="padding: 10px; background: #fff; text-align: center;">
+                        <button class="btn btn-secondary" type="button" onclick="assinaturasAtualizarPreview()">Atualizar Preview</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 1.25rem 1.5rem; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 0.75rem; background: #f8fafc;">
+                <button type="button" class="btn btn-secondary" onclick="fecharModalAssinaturaTemplate()" style="background: white; border: 1px solid #cbd5e1; color: #475569;">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="assinaturasSalvarTemplate()">Salvar Template</button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
