@@ -63,7 +63,8 @@
             'Em uso':      { bg: '#dbeafe', color: '#1e40af', icon: 'ph-monitor' },
             'Reserva':     { bg: '#f3e8ff', color: '#6d28d9', icon: 'ph-archive-box' },
             'Manutenção':  { bg: '#fef9c3', color: '#854d0e', icon: 'ph-wrench' },
-            'Devolvido':   { bg: '#f1f5f9', color: '#64748b', icon: 'ph-arrow-u-up-left' }
+            'Devolvido':   { bg: '#f1f5f9', color: '#64748b', icon: 'ph-arrow-u-up-left' },
+            'Inativo':     { bg: '#fee2e2', color: '#991b1b', icon: 'ph-x-circle' }
         };
         return map[s] || { bg: '#f1f5f9', color: '#64748b', icon: 'ph-monitor' };
     }
@@ -188,15 +189,6 @@
             var td = 'padding:0.75rem;vertical-align:middle;';
             return '<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">' +
                 '<td style="' + td + '">' +
-                '<div style="display:flex;align-items:center;gap:0.5rem;">' +
-                '<div style="width:34px;height:34px;border-radius:8px;background:#eef2ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
-                '<i class="ph ' + tipoIcon(c.tipo) + '" style="color:#6366f1;font-size:1.1rem;"></i></div>' +
-                '<div><div style="font-weight:700;font-size:0.85rem;color:#0f172a;">' + (c.tipo || '-') + '</div>' +
-                '<div style="font-size:0.72rem;color:#64748b;">' + (c.modelo || '-') + '</div>' +
-                '</div></div></td>' +
-                '<td style="' + td + 'font-size:0.82rem;"><div style="font-weight:600;color:#334155;">' + (c.patrimonio || '-') + '</div>' +
-                '<div style="font-size:0.72rem;color:#94a3b8;font-family:monospace;">' + (c.numero_serie || '') + '</div></td>' +
-                '<td style="' + td + '">' +
                 (c.colaborador_id
                     ? '<div style="display:flex;align-items:center;gap:0.5rem;">' +
                       avatarHtml(c.foto_path, c.foto_base64, c.nome_colaborador, 36) +
@@ -205,6 +197,15 @@
                       '</div></div>'
                     : '<span style="color:#94a3b8;font-size:0.8rem;font-style:italic;">Sem colaborador</span>') +
                 '</td>' +
+                '<td style="' + td + '">' +
+                '<div style="display:flex;align-items:center;gap:0.5rem;">' +
+                '<div style="width:34px;height:34px;border-radius:8px;background:#eef2ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+                '<i class="ph ' + tipoIcon(c.tipo) + '" style="color:#6366f1;font-size:1.1rem;"></i></div>' +
+                '<div><div style="font-weight:700;font-size:0.85rem;color:#0f172a;">' + (c.tipo || '-') + '</div>' +
+                '<div style="font-size:0.72rem;color:#64748b;">' + (c.modelo || '-') + '</div>' +
+                '</div></div></td>' +
+                '<td style="' + td + 'font-size:0.82rem;"><div style="font-weight:600;color:#334155;">' + (c.patrimonio || '-') + '</div>' +
+                '<div style="font-size:0.72rem;color:#94a3b8;font-family:monospace;">' + (c.numero_serie || '') + '</div></td>' +
                 '<td style="' + td + '">' + statusBadge(c.status) + '</td>' +
                 '<td style="' + td + 'font-size:0.8rem;color:#64748b;">' + fmtData(c.data_atribuicao) + '</td>' +
                 '<td style="' + td + '">' +
@@ -217,9 +218,9 @@
 
         return '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.07);">' +
             '<thead><tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">' +
+            thSort('nome_colaborador', 'Colaborador') +
             thSort('tipo', 'Tipo / Modelo') +
             thSort('patrimonio', 'Patrimônio / Série') +
-            thSort('nome_colaborador', 'Colaborador') +
             thSort('status', 'Status') +
             thSort('data_atribuicao', 'Desde') +
             '<th style="' + thStyle.replace('cursor:pointer;user-select:none;', '') + '">Ações</th>' +
@@ -268,7 +269,7 @@
             colabOptions +
             '</select></div>' +
             // Status
-            fldSelect('comp-status', 'Status *', ['Em uso', 'Reserva', 'Manutenção', 'Devolvido'], c.status || 'Em uso') +
+            fldSelect('comp-status', 'Status *', ['Em uso', 'Reserva', 'Manutenção', 'Devolvido', 'Inativo'], c.status || 'Em uso') +
             // Data atribuição
             fldInput('comp-data', 'Data de Atribuição', c.data_atribuicao || '', '', 'date') +
             // Senha Windows
