@@ -595,7 +595,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',
-        grupos: [{ titulo: 'Telas', telas: ['licencas', 'estoque', 'celulares-corporativos'] }]
+        grupos: [{ titulo: 'Telas', telas: ['licencas', 'estoque', 'celulares-corporativos', 'computadores-corporativos'] }]
     },
     {
         modulo: 'Treinamentos', icone: 'ph-graduation-cap', cor: '#0e7490',
