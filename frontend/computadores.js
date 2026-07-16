@@ -187,18 +187,20 @@
 
         var rows = filtered.map(function (c) {
             var td = 'padding:0.75rem;vertical-align:middle;';
+            var shortName = c.nome_colaborador && c.nome_colaborador.length > 20 ? c.nome_colaborador.substring(0, 20) + '...' : (c.nome_colaborador || '-');
+            var shortLivre = c.colaborador_livre && c.colaborador_livre.length > 20 ? c.colaborador_livre.substring(0, 20) + '...' : c.colaborador_livre;
             return '<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">' +
-                '<td style="' + td + '">' +
+                '<td style="' + td + '" title="' + (c.nome_colaborador || '') + '">' +
                 (c.colaborador_id
                     ? '<div style="display:flex;align-items:center;gap:0.5rem;">' +
                       avatarHtml(c.foto_path, c.foto_base64, c.nome_colaborador, 36) +
-                      '<div><div style="font-weight:600;font-size:0.83rem;color:#0f172a;">' + (c.nome_colaborador || '-') + '</div>' +
+                      '<div><div style="font-weight:600;font-size:0.83rem;color:#0f172a;">' + shortName + '</div>' +
                       '<div style="font-size:0.72rem;color:#6366f1;font-weight:600;">' + (c.departamento_colaborador || '') + '</div>' +
                       '</div></div>'
                     : (c.colaborador_livre
-                        ? '<div style="display:flex;align-items:center;gap:0.5rem;">' +
+                        ? '<div style="display:flex;align-items:center;gap:0.5rem;" title="' + c.colaborador_livre + '">' +
                           '<div style="width:36px;height:36px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;color:#64748b;font-weight:700;">' + (c.colaborador_livre.charAt(0).toUpperCase()) + '</div>' +
-                          '<div><div style="font-weight:600;font-size:0.83rem;color:#0f172a;">' + c.colaborador_livre + '</div>' +
+                          '<div><div style="font-weight:600;font-size:0.83rem;color:#0f172a;">' + shortLivre + '</div>' +
                           '<div style="font-size:0.72rem;color:#94a3b8;font-weight:600;">Sem vínculo (Texto Livre)</div>' +
                           '</div></div>'
                         : '<span style="color:#94a3b8;font-size:0.8rem;font-style:italic;">Sem colaborador</span>')) +
@@ -207,10 +209,10 @@
                 '<div><div style="font-weight:700;font-size:0.85rem;color:#0f172a;">' + (c.tipo || '-') + '</div>' +
                 '<div style="font-size:0.72rem;color:#64748b;">' + (c.modelo || '-') + '</div>' +
                 '</div></td>' +
-                '<td style="' + td + '">' +
-                (c.processador ? '<div style="font-size:0.75rem;color:#0f172a;font-weight:600;display:flex;align-items:center;gap:4px;"><i class="ph ph-cpu" style="font-size:0.9rem;color:#6366f1;"></i> ' + c.processador + '</div>' : '') +
-                (c.ram_1 || c.ssd ? '<div style="font-size:0.72rem;color:#475569;margin-top:2px;">' + (c.ram_1 || '') + (c.ram_2 ? ' + ' + c.ram_2 : '') + (c.ssd ? ' | ' + c.ssd : '') + '</div>' : (!c.processador ? '<span style="color:#94a3b8;font-size:0.8rem;font-style:italic;">Não informado</span>' : '')) +
-                '</td>' +
+                '<td style="' + td + '">' + (c.processador ? '<span style="font-size:0.82rem;color:#0f172a;font-weight:500;">' + c.processador + '</span>' : '<span style="color:#94a3b8;font-size:0.75rem;font-style:italic;">-</span>') + '</td>' +
+                '<td style="' + td + '">' + (c.ram_1 ? '<span style="font-size:0.82rem;color:#475569;font-weight:500;">' + c.ram_1 + '</span>' : '<span style="color:#94a3b8;font-size:0.75rem;font-style:italic;">-</span>') + '</td>' +
+                '<td style="' + td + '">' + (c.ram_2 ? '<span style="font-size:0.82rem;color:#475569;font-weight:500;">' + c.ram_2 + '</span>' : '<span style="color:#94a3b8;font-size:0.75rem;font-style:italic;">-</span>') + '</td>' +
+                '<td style="' + td + '">' + (c.ssd ? '<span style="font-size:0.82rem;color:#475569;font-weight:500;">' + c.ssd + '</span>' : '<span style="color:#94a3b8;font-size:0.75rem;font-style:italic;">-</span>') + '</td>' +
                 '<td style="' + td + 'font-size:0.82rem;"><div style="font-weight:600;color:#334155;">' + (c.patrimonio || '-') + '</div>' +
                 '<div style="font-size:0.72rem;color:#94a3b8;font-family:monospace;">' + (c.numero_serie || '') + '</div></td>' +
                 '<td style="' + td + '">' + statusBadge(c.status) + '</td>' +
@@ -227,7 +229,10 @@
             '<thead><tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">' +
             thSort('nome_colaborador', 'Colaborador') +
             thSort('tipo', 'Tipo / Modelo') +
-            thSort('hardware', 'Especificações (Hardware)') +
+            thSort('processador', 'Processador') +
+            thSort('ram_1', 'Mem. RAM 1') +
+            thSort('ram_2', 'Mem. RAM 2') +
+            thSort('ssd', 'SSD/HD') +
             thSort('patrimonio', 'Patrimônio / Série') +
             thSort('status', 'Status') +
             thSort('data_atribuicao', 'Desde') +
