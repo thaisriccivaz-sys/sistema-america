@@ -3096,7 +3096,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         const _statusMatch = _statusesValidos.some(s => s.toLowerCase() === _novoStatusComp.toLowerCase());
         if (_statusMatch) {
             db.get(`SELECT d.tipo FROM departamentos d WHERE LOWER(TRIM(d.nome)) = LOWER(TRIM(?))`, [_novoDeptComp], (errCD, rowCD) => {
-                const isAdmin = rowCD && rowCD.tipo === 'Administrativo';
+                const isAdmin = (rowCD && rowCD.tipo === 'Administrativo') || ['administrativo', 'financeiro', 'comercial', 'recursos humanos', 'rh', 'diretoria', 'marketing', 'ti'].includes(_novoDeptComp.trim().toLowerCase());
                 if (!isAdmin) return;
                 // Checar se notificação já foi enviada para este colaborador
                 db.get(`SELECT id FROM computadores_notif_log WHERE colaborador_id = ?`, [newColabId], (errLog, rowLog) => {
@@ -3841,7 +3841,8 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                     // Verificar se é departamento Administrativo
                     const _puDept = data.departamento || oldColab.departamento || '';
                     db.get(`SELECT d.tipo FROM departamentos d WHERE LOWER(TRIM(d.nome)) = LOWER(TRIM(?))`, [_puDept], (errDPu, rowDPu) => {
-                        if (!rowDPu || rowDPu.tipo !== 'Administrativo') return;
+                        const isAdmin = (rowDPu && rowDPu.tipo === 'Administrativo') || ['administrativo', 'financeiro', 'comercial', 'recursos humanos', 'rh', 'diretoria', 'marketing', 'ti'].includes(_puDept.trim().toLowerCase());
+                        if (!isAdmin) return;
                         // Marcar como enviada
                         db.run(`INSERT OR IGNORE INTO computadores_notif_log (colaborador_id, status_inicial) VALUES (?, ?)`, [id, _puStatusNovo]);
                         const _puNome = data.nome_completo || oldColab.nome_completo || 'Colaborador';
@@ -23388,7 +23389,7 @@ app.get('/api/computadores/colaboradores', authenticateToken, (req, res) => {
         SELECT c.id, c.nome_completo, c.departamento, c.foto_path, c.foto_base64, c.status
         FROM colaboradores c
         LEFT JOIN departamentos d ON LOWER(c.departamento) = LOWER(d.nome)
-        WHERE (d.tipo = 'Administrativo' OR c.departamento IS NOT NULL)
+        WHERE (d.tipo = 'Administrativo' OR LOWER(TRIM(c.departamento)) IN ('administrativo', 'financeiro', 'comercial', 'recursos humanos', 'rh', 'diretoria', 'marketing', 'ti'))
           AND (c.status IS NULL OR LOWER(c.status) NOT LIKE '%desligado%')
         ORDER BY LOWER(c.nome_completo) ASC
     `, [], (err, rows) => {
