@@ -20280,19 +20280,6 @@ window.whkBaixarManualPDF = async function () {
         const mes = String(hoje.getMonth() + 1).padStart(2, '0');
         const ano = hoje.getFullYear();
 
-        // Salvar rolagem atual
-        const origWinScrollY = window.scrollY;
-        const origWinScrollX = window.scrollX;
-        window.scrollTo(0, 0);
-
-        // Monta o container A4 atrás de tudo (z-index:-1 fica atrás do modal)
-        const container = document.createElement('div');
-        container.style.cssText = `
-            width:794px; background:#fff; padding:48px 64px 64px;
-            font-family:'Inter',sans-serif; font-size:14px; line-height:1.75;
-            color:#1e293b; position:absolute; left:0; top:0; z-index:-1;
-        `;
-
         // Limpeza de estilos avançados que o html2canvas antigo não suporta (ex: color(srgb ...) injetado ao colar)
         let htmlSeguro = editor.innerHTML
             .replace(/color\([^)]+\)/gi, 'rgb(30, 41, 59)')
@@ -20300,49 +20287,41 @@ window.whkBaixarManualPDF = async function () {
             .replace(/lab\([^)]+\)/gi, 'rgb(30, 41, 59)')
             .replace(/var\([^)]+\)/gi, 'inherit');
 
-        container.innerHTML = `
-            <!-- Cabeçalho com logo -->
-            <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:20px;border-bottom:3px solid #d9480f;margin-bottom:32px;">
-                <img src="${logoSrc}" alt="América Rental" style="height:52px;object-fit:contain;" crossorigin="anonymous">
-                <div style="text-align:right;font-size:11px;color:#64748b;line-height:1.5;">
-                    <div style="font-weight:700;color:#d9480f;font-size:12px;">DOCUMENTO INTERNO</div>
-                    <div>Emitido em: ${dia}/${mes}/${ano}</div>
-                    <div>América Rental Equipamentos Ltda.</div>
+        // Cria a string HTML completa para o documento. 
+        // Passar string direto para o html2pdf evita problemas de scroll e overflow do navegador.
+        const htmlString = `
+            <div style="width:794px; background:#fff; padding:48px 64px 64px; font-family:'Inter',sans-serif; font-size:14px; line-height:1.75; color:#1e293b;">
+                <!-- Cabeçalho com logo -->
+                <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:20px;border-bottom:3px solid #d9480f;margin-bottom:32px;">
+                    <img src="${logoSrc}" alt="América Rental" style="height:52px;object-fit:contain;" crossorigin="anonymous">
+                    <div style="text-align:right;font-size:11px;color:#64748b;line-height:1.5;">
+                        <div style="font-weight:700;color:#d9480f;font-size:12px;">DOCUMENTO INTERNO</div>
+                        <div>Emitido em: ${dia}/${mes}/${ano}</div>
+                        <div>América Rental Equipamentos Ltda.</div>
+                    </div>
                 </div>
-            </div>
-            <!-- Conteúdo editado -->
-            <div style="font-size:14px;line-height:1.8;">
-                ${htmlSeguro}
-            </div>
-            <!-- Rodapé -->
-            <div style="margin-top:60px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;">
-                <span>América Rental Equipamentos Ltda. – Documento gerado pelo Sistema Interno</span>
-                <span>${dia}/${mes}/${ano}</span>
+                <!-- Conteúdo editado -->
+                <div style="font-size:14px;line-height:1.8;">
+                    ${htmlSeguro}
+                </div>
+                <!-- Rodapé -->
+                <div style="margin-top:60px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;">
+                    <span>América Rental Equipamentos Ltda. – Documento gerado pelo Sistema Interno</span>
+                    <span>${dia}/${mes}/${ano}</span>
+                </div>
             </div>
         `;
 
-        // Remove overflow:hidden do body temporariamente para evitar que o html2canvas corte o documento em branco
-        const originalBodyOverflow = document.body.style.overflow;
-        document.body.style.overflow = 'visible';
-        
-        document.body.appendChild(container);
+        const opt = {
+            margin: [0, 0, 0, 0],
+            filename: 'Webhook celulares motoristas.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, logging: false },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
 
-        // Aguarda renderização do logo e do DOM
-        await new Promise(r => setTimeout(r, 400));
-
-        // Gera o Blob do PDF usando a função do sistema que já tem os hacks de scroll
-        const pdfBlob = await window.gerarPDFBlob(container, 'Webhook_celulares_motoristas.pdf');
-        
-        document.body.removeChild(container);
-        document.body.style.overflow = originalBodyOverflow;
-
-        // Dispara o download nativo
-        const url = URL.createObjectURL(pdfBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'Webhook celulares motoristas.pdf';
-        a.click();
-        URL.revokeObjectURL(url);
+        // Usa html2pdf nativo passando string HTML, que é isolado do body
+        await html2pdf().set(opt).from(htmlString).save();
 
     } catch (err) {
         console.error('[WHK Manual PDF]', err);
