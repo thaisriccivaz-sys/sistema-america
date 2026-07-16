@@ -276,9 +276,7 @@ function _buildMultaRow(m) {
 
     // Link formulário: cinza sem cursor se finalizado
     const btnLink = m.link_formulario
-        ? (isFinalizado
-            ? `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Formulário já processado"><i class="ph ph-link" style="font-size:1.2rem;"></i></button>`
-            : `<button onclick="window.open(String('${m.link_formulario}').startsWith('http') ? '${m.link_formulario}' : 'https://${m.link_formulario}', '_blank')" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:6px;" title="Abrir Formulário Externo"><i class="ph ph-link" style="font-size:1.2rem;"></i></button>`)
+        ? `<button onclick="window.open(String('${m.link_formulario}').startsWith('http') ? '${m.link_formulario}' : 'https://${m.link_formulario}', '_blank')" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:6px;" title="Abrir Formulário Externo"><i class="ph ph-link" style="font-size:1.2rem;"></i></button>`
         : `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Sem formulário externo"><i class="ph ph-link" style="font-size:1.2rem;"></i></button>`;
 
     return `
