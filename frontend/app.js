@@ -20230,6 +20230,28 @@ window.whkFecharEditorManual = function () {
     document.body.style.overflow = '';
 };
 
+window.whkSalvarEditorManual = function () {
+    const editor = document.getElementById('whk-manual-editor');
+    const btn = document.getElementById('btn-whk-salvar-manual');
+    if (!editor || !btn) return;
+    
+    localStorage.setItem(WHK_MANUAL_STORAGE_KEY, editor.innerHTML);
+    
+    // Feedback visual rápido
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-check"></i> Salvo!';
+    btn.style.background = '#dcfce7';
+    btn.style.color = '#15803d';
+    btn.style.borderColor = '#bbf7d0';
+    
+    setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.style.background = '#f8fafc';
+        btn.style.color = '#475569';
+        btn.style.borderColor = '#cbd5e1';
+    }, 2000);
+};
+
 window.whkBaixarManualPDF = async function () {
     const editor = document.getElementById('whk-manual-editor');
     const btn = document.getElementById('btn-whk-baixar-pdf');
