@@ -141,21 +141,7 @@ window.assinaturasLoadImagePreview = function(url, config) {
     img.src = url;
 };
 
-document.getElementById('assinaturas-template-bg').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            const img = new Image();
-            img.onload = () => {
-                currentPreviewImg = img;
-                assinaturasAtualizarPreview();
-            };
-            img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
-    }
-});
+// Event listener added in init
 
 window.assinaturasAtualizarPreview = function() {
     if (!currentPreviewImg) return;
@@ -330,6 +316,25 @@ window.assinaturasBaixarPendente = async function(pendencia) {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    const bgInput = document.getElementById('assinaturas-template-bg');
+    if(bgInput) {
+        bgInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = () => {
+                        currentPreviewImg = img;
+                        assinaturasAtualizarPreview();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
     // Escutar mudança de tela para renderizar se for assinaturas
     const observer = new MutationObserver(() => {
         if(document.getElementById('view-assinaturas-adm') && document.getElementById('view-assinaturas-adm').style.display !== 'none') {
