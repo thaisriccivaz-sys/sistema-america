@@ -114,13 +114,21 @@ window.assinaturasAbrirModalTemplate = function(template = null) {
         }
     });
 
-    const canvas = document.getElementById('assinaturas-preview-canvas');
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    canvas.style.display = 'none';
+    const canvasDiv = document.getElementById('assinaturas-preview-canvas');
+    const placeholder = document.getElementById('assinaturas-preview-placeholder');
+    if (canvasDiv) {
+        canvasDiv.style.display = 'none';
+        canvasDiv.style.backgroundImage = 'none';
+    }
+    if (placeholder) {
+        placeholder.style.display = 'block';
+    }
 
     if (template && template.bg_image_path) {
-        assinaturasLoadImagePreview(`http://191.252.212.186:3000${template.bg_image_path}`, config);
+        const bgUrl = template.bg_image_path.startsWith('http') 
+            ? template.bg_image_path 
+            : `http://191.252.212.186:3000${template.bg_image_path}`;
+        assinaturasLoadImagePreview(bgUrl, config);
     }
 
     document.getElementById('modal-assinatura-template').style.display = 'flex';
@@ -281,7 +289,9 @@ window.assinaturasExcluirTemplate = async function(id) {
 
 window.assinaturasBaixarPendente = async function(pendencia) {
     const config = JSON.parse(pendencia.config_json);
-    const bgUrl = `http://191.252.212.186:3000${pendencia.bg_image_path}`;
+    const bgUrl = pendencia.bg_image_path.startsWith('http') 
+        ? pendencia.bg_image_path 
+        : `http://191.252.212.186:3000${pendencia.bg_image_path}`;
     
     const img = new Image();
     img.crossOrigin = "Anonymous";
