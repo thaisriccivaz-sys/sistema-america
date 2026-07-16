@@ -522,7 +522,7 @@ const BREADCRUMB_MAP = {
     'treinamento-materiais-terapia': { path: 'Treinamentos - Terapia - Palestras', code: 'TER01' },
     'treinamento-presenca-terapia': { path: 'Treinamentos - Terapia - Listas', code: 'TER02' },
     'ficha-epi': { path: 'Ficha EPI', code: 'RHEPI01' },
-    'assinaturas-adm': { path: 'Administrativo &rarr; Assinaturas', code: 'ADMIN01' },
+    'assinaturas-adm': { path: 'Administrativo → Assinaturas', code: 'ADMIN01' },
     'avaliacoes': { path: 'Avaliações', code: 'RHAV01' },
     'gerenciar-avaliacoes': { path: 'Diretoria → Gerenciar Avaliações', code: 'DIRAVAL' },
     'usuarios-permissoes': { path: 'Diretoria → Usuários e Permissões', code: 'DIR001' },
@@ -15895,7 +15895,7 @@ window.renderBookmarks = function () {
         if (!obj) return ''; // entrada não mapeada - ignorar com segurança
 
         // Ignorar tabs ou caminhos com setas, a menos que seja exceções
-        if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario' && key !== 'logistica-videos-os' && key !== 'logistica-rota-redonda' && key !== 'logistica-pipeline' && key !== 'logistica-resumo-rota' && key !== 'rh-logistica-sinistros' && key !== 'rh-logistica-multas') || key.startsWith('tab:')) return '';
+        if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario' && key !== 'logistica-videos-os' && key !== 'logistica-rota-redonda' && key !== 'logistica-pipeline' && key !== 'logistica-resumo-rota' && key !== 'rh-logistica-sinistros' && key !== 'rh-logistica-multas' && key !== 'assinaturas-adm') || key.startsWith('tab:')) return '';
 
         // Detecta a cor certa com base no TAB_META
         const tabMeta = TAB_META[key];
