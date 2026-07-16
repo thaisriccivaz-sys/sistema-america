@@ -298,6 +298,10 @@ window.assinaturasExcluirTemplate = async function(id) {
 };
 
 window.assinaturasBaixarPendente = async function(pendencia) {
+    if (!pendencia.config_json) {
+        alert("Nenhum template ativo foi encontrado. Configure e ative um template antes de gerar assinaturas.");
+        return;
+    }
     const config = JSON.parse(pendencia.config_json);
     const bgUrl = pendencia.bg_image_path;
     
@@ -308,20 +312,20 @@ window.assinaturasBaixarPendente = async function(pendencia) {
         const canvas = assinaturasRenderCanvas(config, true, pendencia);
         
         // Baixar imagem
-        const link = document.createElement('a');
-        link.download = `assinatura_${pendencia.nome_colaborador.replace(/\s+/g, '_')}.jpg`;
-        link.href = canvas.toDataURL('image/jpeg', 0.9);
-        link.click();
-
-        // Marcar como baixada no backend
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = `Assinatura_${pendencia.nome_colaborador.replace(/\s+/g, '_')}.jpg`;
+        a.click();
+        
         try {
-            await fetch(`/api/assinaturas/pendentes/${pendencia.pendencia_id}/baixar`, {
+            await fetch(`/api/assinaturas/pendentes/${pendencia.colaborador_id}/baixar`, {
                 method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) }
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
             });
             renderAssinaturasPendentes();
         } catch (e) {
-            console.error("Erro ao marcar como baixada", e);
+            console.error(e);
         }
     };
     img.src = bgUrl;

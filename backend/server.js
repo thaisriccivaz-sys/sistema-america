@@ -21271,14 +21271,16 @@ app.delete('/api/assinaturas/templates/:id', authenticateToken, (req, res) => {
 // Listar assinaturas pendentes
 app.get('/api/assinaturas/pendentes', authenticateToken, (req, res) => {
     const query = `
-        SELECT p.id as pendencia_id, p.status as pendencia_status, p.created_at,
-               c.nome_completo as nome_colaborador, c.cargo, c.departamento, c.email_corporativo, c.telefone, c.telefone_corporativo,
-               t.bg_image_path, t.config_json, t.nome as template_nome
-        FROM assinaturas_pendentes p
-        JOIN colaboradores c ON p.colaborador_id = c.id
-        JOIN assinatura_templates t ON p.template_id = t.id
-        WHERE p.status = 'Pendente'
-        ORDER BY p.created_at DESC
+        SELECT p.id as pendencia_id, COALESCE(p.status, 'Pendente') as pendencia_status, p.created_at,
+               c.id as colaborador_id, c.nome_completo as nome_colaborador, c.cargo, c.departamento, c.email_corporativo, c.telefone, c.telefone_corporativo,
+               t.bg_image_path, t.config_json, t.nome as template_nome, t.id as template_id
+        FROM colaboradores c
+        LEFT JOIN assinaturas_pendentes p ON c.id = p.colaborador_id
+        LEFT JOIN assinatura_templates t ON t.is_active = 1
+        WHERE c.departamento = 'Administrativo' 
+          AND c.status_colaborador != 'Desligado' 
+          AND (p.id IS NULL OR p.status = 'Pendente')
+        ORDER BY c.nome_completo ASC
     `;
     db.all(query, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -21288,8 +21290,12 @@ app.get('/api/assinaturas/pendentes', authenticateToken, (req, res) => {
 
 // Marcar como baixada
 app.post('/api/assinaturas/pendentes/:id/baixar', authenticateToken, (req, res) => {
-    db.run(`UPDATE assinaturas_pendentes SET status = 'Baixada' WHERE id = ?`, [req.params.id], (err) => {
+    // :id is now colaborador_id
+    db.run(`INSERT INTO assinaturas_pendentes (colaborador_id, template_id, status) VALUES (?, (SELECT id FROM assinatura_templates WHERE is_active = 1 LIMIT 1), 'Baixada')`, 
+    [req.params.id], (err) => {
         if (err) return res.status(500).json({ error: err.message });
+        // Update any existing ones as well
+        db.run(`UPDATE assinaturas_pendentes SET status = 'Baixada' WHERE colaborador_id = ?`, [req.params.id]);
         res.json({ message: "Marcado como baixada" });
     });
 });

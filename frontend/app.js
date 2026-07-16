@@ -16459,6 +16459,13 @@ if (typeof _origNavigateTo === 'function') {
         if (view === 'certificado-digital') {
             setTimeout(() => window.carregarCertificadoView(), 150);
         }
+        if (view === 'view-assinaturas-adm') {
+            setTimeout(() => {
+                if (typeof window.assinaturasChangeTab === 'function') {
+                    window.assinaturasChangeTab('templates');
+                }
+            }, 100);
+        }
     };
 }
 
