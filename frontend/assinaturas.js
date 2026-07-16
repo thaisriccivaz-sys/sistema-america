@@ -36,7 +36,6 @@ window.renderAssinaturasTemplates = async function() {
             const tr = document.createElement('tr');
             const bgUrl = t.bg_image_path ? t.bg_image_path : '';
             tr.innerHTML = `
-                <td>${t.id}</td>
                 <td>
                     ${bgUrl ? `<a href="${bgUrl}" target="_blank"><img src="${bgUrl}" style="width:60px; height:auto; border-radius:4px; margin-right:10px; vertical-align:middle; border: 1px solid #cbd5e1; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"></a>` : ''}
                     <strong>${t.nome}</strong>
@@ -144,7 +143,6 @@ window.fecharModalAssinaturaTemplate = function() {
 let currentPreviewImg = null;
 window.assinaturasLoadImagePreview = function(url, config) {
     const img = new Image();
-    img.crossOrigin = "Anonymous";
     img.onload = () => {
         currentPreviewImg = img;
         const canvasDiv = document.getElementById('assinaturas-preview-canvas');
