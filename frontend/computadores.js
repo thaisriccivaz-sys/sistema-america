@@ -195,7 +195,13 @@
                       '<div><div style="font-weight:600;font-size:0.83rem;color:#0f172a;">' + (c.nome_colaborador || '-') + '</div>' +
                       '<div style="font-size:0.72rem;color:#6366f1;font-weight:600;">' + (c.departamento_colaborador || '') + '</div>' +
                       '</div></div>'
-                    : '<span style="color:#94a3b8;font-size:0.8rem;font-style:italic;">Sem colaborador</span>') +
+                    : (c.colaborador_livre
+                        ? '<div style="display:flex;align-items:center;gap:0.5rem;">' +
+                          '<div style="width:36px;height:36px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;color:#64748b;font-weight:700;">' + (c.colaborador_livre.charAt(0).toUpperCase()) + '</div>' +
+                          '<div><div style="font-weight:600;font-size:0.83rem;color:#0f172a;">' + c.colaborador_livre + '</div>' +
+                          '<div style="font-size:0.72rem;color:#94a3b8;font-weight:600;">Sem vínculo (Texto Livre)</div>' +
+                          '</div></div>'
+                        : '<span style="color:#94a3b8;font-size:0.8rem;font-style:italic;">Sem colaborador</span>')) +
                 '</td>' +
                 '<td style="' + td + '">' +
                 '<div style="display:flex;align-items:center;gap:0.5rem;">' +
@@ -267,7 +273,9 @@
             '<label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:4px;">Colaborador Vinculado <span style="font-size:0.7rem;color:#94a3b8;">(apenas administrativos)</span></label>' +
             '<select id="comp-colaborador" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.7rem;font-size:0.88rem;outline:none;background:#fff;">' +
             colabOptions +
-            '</select></div>' +
+            '</select>' +
+            '<input id="comp-colaborador-livre" type="text" value="' + (c.colaborador_livre || '').replace(/"/g, '&quot;') + '" placeholder="Ou digite o nome de alguém sem vínculo..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.7rem;font-size:0.88rem;outline:none;background:#fff;margin-top:0.5rem;">' +
+            '</div>' +
             // Status
             fldSelect('comp-status', 'Status *', ['Em uso', 'Reserva', 'Manutenção', 'Devolvido', 'Inativo'], c.status || 'Em uso') +
             // Data atribuição
@@ -350,6 +358,8 @@
         var patrimonio = (document.getElementById('comp-patrimonio') || {}).value || '';
         var numero_serie = (document.getElementById('comp-serie') || {}).value || '';
         var colaborador_id = (document.getElementById('comp-colaborador') || {}).value || null;
+        var colaborador_livre = (document.getElementById('comp-colaborador-livre') || {}).value || '';
+        if (colaborador_id) colaborador_livre = null;
         var status = (document.getElementById('comp-status') || {}).value;
         var data_atribuicao = (document.getElementById('comp-data') || {}).value || null;
         var senha_windows = (document.getElementById('comp-senha') || {}).value || '';
@@ -358,7 +368,7 @@
         if (!tipo) return alert('Selecione o tipo do computador.');
         if (!modelo.trim()) return alert('Informe o modelo do computador.');
 
-        var payload = { tipo, modelo: modelo.trim(), patrimonio, numero_serie, colaborador_id: colaborador_id || null, status, data_atribuicao, senha_windows, observacoes };
+        var payload = { tipo, modelo: modelo.trim(), patrimonio, numero_serie, colaborador_id: colaborador_id || null, colaborador_livre, status, data_atribuicao, senha_windows, observacoes };
 
         var btn = document.getElementById('btn-salvar-computador');
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
