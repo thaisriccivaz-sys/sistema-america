@@ -22,7 +22,7 @@ window.assinaturasChangeTab = function(tab) {
 
 window.renderAssinaturasTemplates = async function() {
     try {
-        const res = await fetch('/api/assinaturas/templates', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
+        const res = await fetch('/api/assinaturas/templates', { headers: { 'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) } });
         const data = await res.json();
         const tbody = document.getElementById('assinaturas-table-templates');
         tbody.innerHTML = '';
@@ -54,7 +54,7 @@ window.renderAssinaturasTemplates = async function() {
 
 window.renderAssinaturasPendentes = async function() {
     try {
-        const res = await fetch('/api/assinaturas/pendentes', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
+        const res = await fetch('/api/assinaturas/pendentes', { headers: { 'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) } });
         const data = await res.json();
         const tbody = document.getElementById('assinaturas-table-pendentes');
         tbody.innerHTML = '';
@@ -253,7 +253,7 @@ window.assinaturasSalvarTemplate = async function() {
     try {
         const res = await fetch('/api/assinaturas/templates', {
             method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+            headers: { 'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) },
             body: formData
         });
         if (res.ok) {
@@ -274,7 +274,7 @@ window.assinaturasExcluirTemplate = async function(id) {
     try {
         const res = await fetch(`/api/assinaturas/templates/${id}`, {
             method: 'DELETE',
-            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+            headers: { 'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) }
         });
         if (res.ok) {
             renderAssinaturasTemplates();
@@ -304,7 +304,7 @@ window.assinaturasBaixarPendente = async function(pendencia) {
         try {
             await fetch(`/api/assinaturas/pendentes/${pendencia.pendencia_id}/baixar`, {
                 method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+                headers: { 'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) }
             });
             renderAssinaturasPendentes();
         } catch (e) {
