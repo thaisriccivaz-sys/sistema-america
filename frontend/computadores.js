@@ -204,13 +204,13 @@
                         : '<span style="color:#94a3b8;font-size:0.8rem;font-style:italic;">Sem colaborador</span>')) +
                 '</td>' +
                 '<td style="' + td + '">' +
-                '<div style="display:flex;align-items:center;gap:0.5rem;">' +
-                '<div style="width:34px;height:34px;border-radius:8px;background:#eef2ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
-                '<i class="ph ' + tipoIcon(c.tipo) + '" style="color:#6366f1;font-size:1.1rem;"></i></div>' +
                 '<div><div style="font-weight:700;font-size:0.85rem;color:#0f172a;">' + (c.tipo || '-') + '</div>' +
-                '<div style="font-size:0.72rem;color:#64748b;margin-bottom:2px;">' + (c.modelo || '-') + '</div>' +
-                (c.ram_1 || c.ssd ? '<div style="font-size:0.68rem;color:#6366f1;display:flex;align-items:center;gap:3px;font-weight:600;"><i class="ph ph-cpu" style="font-size:0.8rem;"></i> ' + (c.ram_1 || '') + (c.ram_2 ? ' + ' + c.ram_2 : '') + (c.ssd ? ' | ' + c.ssd : '') + '</div>' : '') +
-                '</div></div></td>' +
+                '<div style="font-size:0.72rem;color:#64748b;">' + (c.modelo || '-') + '</div>' +
+                '</div></td>' +
+                '<td style="' + td + '">' +
+                (c.processador ? '<div style="font-size:0.75rem;color:#0f172a;font-weight:600;display:flex;align-items:center;gap:4px;"><i class="ph ph-cpu" style="font-size:0.9rem;color:#6366f1;"></i> ' + c.processador + '</div>' : '') +
+                (c.ram_1 || c.ssd ? '<div style="font-size:0.72rem;color:#475569;margin-top:2px;">' + (c.ram_1 || '') + (c.ram_2 ? ' + ' + c.ram_2 : '') + (c.ssd ? ' | ' + c.ssd : '') + '</div>' : (!c.processador ? '<span style="color:#94a3b8;font-size:0.8rem;font-style:italic;">Não informado</span>' : '')) +
+                '</td>' +
                 '<td style="' + td + 'font-size:0.82rem;"><div style="font-weight:600;color:#334155;">' + (c.patrimonio || '-') + '</div>' +
                 '<div style="font-size:0.72rem;color:#94a3b8;font-family:monospace;">' + (c.numero_serie || '') + '</div></td>' +
                 '<td style="' + td + '">' + statusBadge(c.status) + '</td>' +
@@ -227,6 +227,7 @@
             '<thead><tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">' +
             thSort('nome_colaborador', 'Colaborador') +
             thSort('tipo', 'Tipo / Modelo') +
+            thSort('hardware', 'Especificações (Hardware)') +
             thSort('patrimonio', 'Patrimônio / Série') +
             thSort('status', 'Status') +
             thSort('data_atribuicao', 'Desde') +
@@ -291,11 +292,12 @@
             '</button></div>' +
             '</div>' +
             // Especificações (Hardware)
-            '<div style="margin-top:0.5rem;padding:0.75rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">' +
-            '<div style="font-weight:700;font-size:0.75rem;color:#64748b;margin-bottom:0.75rem;text-transform:uppercase;"><i class="ph ph-cpu"></i> Especificações (Hardware)</div>' +
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">' +
+            '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;">' +
+            '<h4 style="margin:0 0 1rem 0;font-size:0.9rem;color:#0f172a;"><i class="ph ph-cpu" style="margin-right:5px;color:#6366f1;"></i>Especificações (Hardware)</h4>' +
+            fldInput('comp-processador', 'Processador', c.processador || '', 'Ex: Intel Core i5') +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:0.75rem;">' +
             fldInput('comp-ram1', 'Memória RAM 1', c.ram_1 || '', 'Ex: 8GB DDR4') +
-            fldInput('comp-ram2', 'Memória RAM 2', c.ram_2 || '', 'Ex: 8GB DDR4 (Opcional)') +
+            fldInput('comp-ram2', 'Memória RAM 2 (Opcional)', c.ram_2 || '', 'Ex: 8GB DDR4') +
             '</div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:0.75rem;">' +
             fldInput('comp-ssd', 'Armazenamento (SSD/HD)', c.ssd || '', 'Ex: 256GB NVMe') +
@@ -381,6 +383,7 @@
         var data_atribuicao = (document.getElementById('comp-data') || {}).value || null;
         var senha_windows = (document.getElementById('comp-senha') || {}).value || '';
         var observacoes = (document.getElementById('comp-obs') || {}).value || '';
+        var processador = (document.getElementById('comp-processador') || {}).value || '';
         var ram_1 = (document.getElementById('comp-ram1') || {}).value || '';
         var ram_2 = (document.getElementById('comp-ram2') || {}).value || '';
         var ssd = (document.getElementById('comp-ssd') || {}).value || '';
@@ -389,7 +392,7 @@
         if (!tipo) return alert('Selecione o tipo do computador.');
         if (!modelo.trim()) return alert('Informe o modelo do computador.');
 
-        var payload = { tipo, modelo: modelo.trim(), patrimonio, numero_serie, colaborador_id: colaborador_id || null, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel };
+        var payload = { tipo, modelo: modelo.trim(), patrimonio, numero_serie, colaborador_id: colaborador_id || null, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, processador, ram_1, ram_2, ssd, expansivel };
 
         var btn = document.getElementById('btn-salvar-computador');
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
