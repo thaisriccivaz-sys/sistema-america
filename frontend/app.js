@@ -13600,11 +13600,9 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'pesquisa_satisfacao_treinamento') {
                     bg = '#ecfeff'; color = '#0e7490'; icon = 'ph-star'; titulo = 'Pesquisa de Satisfação'; navTarget = 'treinamentos';
                 } else if (notif.tipo === 'nova_multa_prontuario' || notif.tipo === 'nova_multa_monaco') {
-                    bg = '#dcfce7'; color = '#16a34a'; icon = 'ph-traffic-cone'; titulo = 'Nova Multa'; navTarget = 'logistica';
-
-
-                    bg = '#fdf2f8'; color = '#ec4899'; icon = 'ph-warning-octagon'; titulo = 'Ocorrência Registrada'; navTarget = 'dashboard';
-
+                    bg = '#fff5e6'; color = '#e67700'; icon = 'ph-traffic-cone'; titulo = 'Nova Multa'; navTarget = 'logistica';
+                } else if (notif.tipo === 'celular_controle') {
+                    bg = '#fff5e6'; color = '#e67700'; icon = 'ph-device-mobile'; titulo = 'Celular Corporativo'; navTarget = 'celulares-corporativos';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -13732,7 +13730,25 @@ async function checkUserNotificacoes() {
                         ${motoristaNome ? `<div style="color:#065f46;font-size:0.88rem;font-weight:600;margin-bottom:4px;"><i class="ph ph-user"></i> ${motoristaNome}</div>` : ''}
                         ${prazoStr ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:4px 10px;font-size:0.85rem;font-weight:700;color:#854d0e;margin-top:4px;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-calendar-x"></i> Prazo indicação: ${prazoStr}</div>` : `<div style="color:#64748b;font-size:0.82rem;">${notif.mensagem}</div>`}
                     `;
+                } else if (notif.tipo === 'celular_controle') {
+                    const colabNome = dados.nome || notif.mensagem || 'Colaborador';
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#0f172a;font-weight:600;font-size:1rem;margin-bottom:4px;">${colabNome}</div>
+                        <div style="color:#64748b;font-size:0.85rem;">Novo participante no programa de Celular Corporativo.</div>
+                    `;
                 } else {
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#64748b;font-size:0.85rem;">${notif.mensagem || ''}</div>
+                    `;
+                }
+
+                // Definir ação do botão Ver Detalhes
                 let btnOnClick = `window.markUserNotifLida('${notif.id}'); navigateTo('${navTarget}'); this.closest('[data-notif-id]').remove();`;
                 if (notif.tipo === 'novo_sinistro' && dados.colaborador_id) {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Sinistros');`;
@@ -13740,7 +13756,8 @@ async function checkUserNotificacoes() {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Advertências');`;
                 } else if ((notif.tipo === 'nova_multa_prontuario' || notif.tipo === 'nova_multa_monaco') && dados.colaborador_id) {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Multas');`;
-                }
+                } else if (notif.tipo === 'celular_controle' && dados.colaborador_id) {
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('celulares-corporativos');`;
                 }
 
                 popup.innerHTML = `
