@@ -37,8 +37,10 @@ window.renderAssinaturasTemplates = async function() {
             const bgUrl = t.bg_image_path ? t.bg_image_path : '';
             tr.innerHTML = `
                 <td>${t.id}</td>
-                <td><strong>${t.nome}</strong></td>
-                <td>${bgUrl ? `<a href="${bgUrl}" target="_blank">Ver Imagem</a>` : 'Sem fundo'}</td>
+                <td>
+                    ${bgUrl ? `<a href="${bgUrl}" target="_blank"><img src="${bgUrl}" style="width:60px; height:auto; border-radius:4px; margin-right:10px; vertical-align:middle; border: 1px solid #cbd5e1; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"></a>` : ''}
+                    <strong>${t.nome}</strong>
+                </td>
                 <td>${t.is_active ? '<span class="badge" style="background:#dcfce7;color:#166534;">Ativo</span>' : '<span class="badge" style="background:#f1f5f9;color:#64748b;">Inativo</span>'}</td>
                 <td style="text-align: right;">
                     <button class="btn btn-secondary btn-sm" onclick='assinaturasAbrirModalTemplate(${JSON.stringify(t)})'><i class="ph ph-pencil"></i></button>
@@ -121,14 +123,11 @@ window.assinaturasAbrirModalTemplate = function(template = null) {
     });
 
     const canvasDiv = document.getElementById('assinaturas-preview-canvas');
+    const imgEl = document.getElementById('assinaturas-preview-img');
     const placeholder = document.getElementById('assinaturas-preview-placeholder');
-    if (canvasDiv) {
-        canvasDiv.style.display = 'none';
-        canvasDiv.style.backgroundImage = 'none';
-    }
-    if (placeholder) {
-        placeholder.style.display = 'block';
-    }
+    if (canvasDiv) canvasDiv.style.display = 'none';
+    if (imgEl) imgEl.src = '';
+    if (placeholder) placeholder.style.display = 'block';
 
     if (template && template.bg_image_path) {
         const bgUrl = template.bg_image_path;
@@ -148,7 +147,15 @@ window.assinaturasLoadImagePreview = function(url, config) {
     img.crossOrigin = "Anonymous";
     img.onload = () => {
         currentPreviewImg = img;
-        assinaturasRenderCanvas(config);
+        const canvasDiv = document.getElementById('assinaturas-preview-canvas');
+        const imgEl = document.getElementById('assinaturas-preview-img');
+        const placeholder = document.getElementById('assinaturas-preview-placeholder');
+        
+        if (placeholder) placeholder.style.display = 'none';
+        if (canvasDiv) canvasDiv.style.display = 'inline-block';
+        if (imgEl) imgEl.src = img.src;
+        
+        assinaturasAtualizarPreview();
     };
     img.src = url;
 };
@@ -181,7 +188,11 @@ window.assinaturasAtualizarPreview = function() {
 
 window.assinaturasRenderCanvas = function(config, exportMode = false, colabData = null) {
     if (!currentPreviewImg) return null;
-    const canvas = exportMode ? document.createElement('canvas') : document.getElementById('assinaturas-preview-canvas');
+    
+    // Only used for exporting/downloading now
+    if (!exportMode) return null;
+
+    const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
     canvas.width = currentPreviewImg.width;
@@ -210,12 +221,6 @@ window.assinaturasRenderCanvas = function(config, exportMode = false, colabData 
     drawText(dataNome, 'nome');
     drawText(dataDept, 'dept');
     drawText(dataEmail, 'email');
-
-    if (!exportMode) {
-        canvas.style.display = 'block';
-        canvas.style.maxWidth = '100%';
-        canvas.style.height = 'auto';
-    }
 
     return canvas;
 };
