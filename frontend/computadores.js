@@ -12,6 +12,28 @@
     var _sortCol = 'nome_colaborador';
     var _sortDir = 'asc';
 
+    /* ─── API Helpers ─── */
+    async function _apiGet(p) {
+        var r = await fetch((typeof API_URL !== 'undefined' ? API_URL : '/api') + p, { headers: { 'Authorization': 'Bearer ' + currentToken } });
+        if (!r.ok) throw new Error(await r.text());
+        return r.json();
+    }
+    async function _apiPost(p, body) {
+        var r = await fetch((typeof API_URL !== 'undefined' ? API_URL : '/api') + p, { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!r.ok) throw new Error(await r.text());
+        return r.json();
+    }
+    async function _apiPut(p, body) {
+        var r = await fetch((typeof API_URL !== 'undefined' ? API_URL : '/api') + p, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!r.ok) throw new Error(await r.text());
+        return r.json();
+    }
+    async function _apiDelete(p) {
+        var r = await fetch((typeof API_URL !== 'undefined' ? API_URL : '/api') + p, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + currentToken } });
+        if (!r.ok) throw new Error(await r.text());
+        return r.json();
+    }
+
     /* ─── helpers ─── */
     function fmtData(s) {
         if (!s) return '-';
@@ -218,7 +240,7 @@
                 return '<option value="' + col.id + '"' + sel + '>' + col.nome_completo + ' – ' + (col.departamento || 'Sem dept.') + '</option>';
             }).join('');
 
-        return '<div id="modal-computador" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.55);z-index:3000;display:flex;align-items:center;justify-content:center;padding:1rem;">' +
+        return '<div id="modal-computador" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.55);z-index:3000;align-items:center;justify-content:center;padding:1rem;">' +
             '<div style="background:#fff;border-radius:16px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.25);">' +
             '<div style="padding:1.5rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">' +
             '<div style="display:flex;align-items:center;gap:0.75rem;">' +
