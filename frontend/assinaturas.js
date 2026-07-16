@@ -34,7 +34,7 @@ window.renderAssinaturasTemplates = async function() {
 
         data.forEach(t => {
             const tr = document.createElement('tr');
-            const bgUrl = t.bg_image_path ? `http://191.252.212.186:3000${t.bg_image_path}` : '';
+            const bgUrl = t.bg_image_path ? t.bg_image_path : '';
             tr.innerHTML = `
                 <td>${t.id}</td>
                 <td><strong>${t.nome}</strong></td>
@@ -131,9 +131,7 @@ window.assinaturasAbrirModalTemplate = function(template = null) {
     }
 
     if (template && template.bg_image_path) {
-        const bgUrl = template.bg_image_path.startsWith('http') 
-            ? template.bg_image_path 
-            : `http://191.252.212.186:3000${template.bg_image_path}`;
+        const bgUrl = template.bg_image_path;
         assinaturasLoadImagePreview(bgUrl, config);
     }
 
@@ -295,9 +293,7 @@ window.assinaturasExcluirTemplate = async function(id) {
 
 window.assinaturasBaixarPendente = async function(pendencia) {
     const config = JSON.parse(pendencia.config_json);
-    const bgUrl = pendencia.bg_image_path.startsWith('http') 
-        ? pendencia.bg_image_path 
-        : `http://191.252.212.186:3000${pendencia.bg_image_path}`;
+    const bgUrl = pendencia.bg_image_path;
     
     const img = new Image();
     img.crossOrigin = "Anonymous";
