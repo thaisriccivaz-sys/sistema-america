@@ -588,9 +588,13 @@ db.run(`CREATE TABLE IF NOT EXISTS ocorrencias_anexos (
     nome_arquivo TEXT NOT NULL,
     mime_type TEXT,
     tamanho INTEGER,
-    dados_base64 TEXT NOT NULL,
+    r2_key TEXT,
+    url TEXT NOT NULL,
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
+// Migration: renomear dados_base64 → url (se tabela antiga existir)
+db.run(`ALTER TABLE ocorrencias_anexos ADD COLUMN url TEXT`, () => {});
+db.run(`ALTER TABLE ocorrencias_anexos ADD COLUMN r2_key TEXT`, () => {});
     // 1. Renomear ORDEM DE SERVIÇO NR01 (maiúsculo) para caixa mista
     db.run("UPDATE geradores SET nome = 'Ordem de Servi\u00e7o NR01' WHERE nome LIKE 'ORDEM%NR01' OR nome LIKE 'ORDEM%NR 01'", (err) => {
         if (err) console.error('Erro ao renomear NR01 maiúsculo:', err);
@@ -11233,57 +11237,65 @@ app.get('/api/wipe-credenciamentos', (req, res) => {
     });
 });
 
-// ── ANEXOS DE OCORRÊNCIAS ─────────────────────────────────────────────────────
-const multerOcorrAnexo = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
+// ── ANEXOS DE OCORRÊNCIAS (Cloudflare R2) ────────────────────────────────────
+const multerOcorrAnexo = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
-// GET /api/ocorrencias/:id/anexos — lista anexos de uma ocorrência
+// GET /api/ocorrencias/:id/anexos — lista anexos da ocorrência
 app.get('/api/ocorrencias/:id/anexos', authenticateToken, (req, res) => {
-    db.all('SELECT id, nome_arquivo, mime_type, tamanho, criado_em FROM ocorrencias_anexos WHERE ocorrencia_id = ? ORDER BY criado_em ASC',
+    db.all('SELECT id, nome_arquivo, mime_type, tamanho, url, criado_em FROM ocorrencias_anexos WHERE ocorrencia_id = ? ORDER BY criado_em ASC',
         [req.params.id], (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
-            const result = (rows || []).map(r => ({
+            res.json((rows || []).map(r => ({
                 id: r.id,
                 nome: r.nome_arquivo,
                 mime_type: r.mime_type,
                 tamanho: r.tamanho,
-                criado_em: r.criado_em,
-                url: `/api/ocorrencias/${req.params.id}/anexos/${r.id}/download`
-            }));
-            res.json(result);
+                url: r.url,
+                criado_em: r.criado_em
+            })));
         });
 });
 
-// POST /api/ocorrencias/:id/anexos — faz upload de um arquivo
-app.post('/api/ocorrencias/:id/anexos', authenticateToken, multerOcorrAnexo.single('file'), (req, res) => {
+// POST /api/ocorrencias/:id/anexos — faz upload para R2
+app.post('/api/ocorrencias/:id/anexos', authenticateToken, multerOcorrAnexo.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-    const base64 = req.file.buffer.toString('base64');
-    db.run('INSERT INTO ocorrencias_anexos (ocorrencia_id, nome_arquivo, mime_type, tamanho, dados_base64) VALUES (?, ?, ?, ?, ?)',
-        [req.params.id, req.file.originalname, req.file.mimetype, req.file.size, base64],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ id: this.lastID, nome: req.file.originalname, mime_type: req.file.mimetype });
-        });
+    if (!r2 || !r2.isReady()) return res.status(503).json({ error: 'R2 Storage não configurado.' });
+
+    try {
+        const ocorrenciaId = req.params.id;
+        const ext = require('path').extname(req.file.originalname);
+        const ts = Date.now();
+        const r2Key = `ocorrencias/${ocorrenciaId}/${ts}${ext}`;
+
+        const publicUrl = await r2.uploadToR2(r2Key, req.file.buffer, req.file.mimetype);
+
+        db.run('INSERT INTO ocorrencias_anexos (ocorrencia_id, nome_arquivo, mime_type, tamanho, r2_key, url) VALUES (?, ?, ?, ?, ?, ?)',
+            [ocorrenciaId, req.file.originalname, req.file.mimetype, req.file.size, r2Key, publicUrl],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ id: this.lastID, nome: req.file.originalname, url: publicUrl });
+            });
+    } catch (e) {
+        console.error('[Ocorr Anexo] Erro upload R2:', e.message);
+        res.status(500).json({ error: 'Falha no upload: ' + e.message });
+    }
 });
 
-// GET /api/ocorrencias/:id/anexos/:aid/download — serve o arquivo para visualização
-app.get('/api/ocorrencias/:id/anexos/:aid/download', authenticateToken, (req, res) => {
-    db.get('SELECT nome_arquivo, mime_type, dados_base64 FROM ocorrencias_anexos WHERE id = ? AND ocorrencia_id = ?',
-        [req.params.aid, req.params.id], (err, row) => {
-            if (err || !row) return res.status(404).json({ error: 'Não encontrado' });
-            const buf = Buffer.from(row.dados_base64, 'base64');
-            res.setHeader('Content-Type', row.mime_type || 'application/octet-stream');
-            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_arquivo)}"`);
-            res.send(buf);
-        });
-});
-
-// DELETE /api/ocorrencias/:id/anexos/:aid — exclui um anexo
+// DELETE /api/ocorrencias/:id/anexos/:aid — remove do R2 e do banco
 app.delete('/api/ocorrencias/:id/anexos/:aid', authenticateToken, (req, res) => {
-    db.run('DELETE FROM ocorrencias_anexos WHERE id = ? AND ocorrencia_id = ?',
-        [req.params.aid, req.params.id], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            if (this.changes === 0) return res.status(404).json({ error: 'Não encontrado' });
-            res.json({ message: 'Excluído' });
+    db.get('SELECT r2_key FROM ocorrencias_anexos WHERE id = ? AND ocorrencia_id = ?',
+        [req.params.aid, req.params.id], async (err, row) => {
+            if (err || !row) return res.status(404).json({ error: 'Não encontrado' });
+            // Remover do R2
+            if (row.r2_key && r2 && r2.isReady()) {
+                try { await r2.deleteFromR2(row.r2_key); } catch(e) { console.error('[Ocorr Anexo] Erro delete R2:', e.message); }
+            }
+            // Remover do banco
+            db.run('DELETE FROM ocorrencias_anexos WHERE id = ? AND ocorrencia_id = ?',
+                [req.params.aid, req.params.id], function(err2) {
+                    if (err2) return res.status(500).json({ error: err2.message });
+                    res.json({ message: 'Excluído' });
+                });
         });
 });
 // ─────────────────────────────────────────────────────────────────────────────
