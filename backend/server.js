@@ -131,12 +131,15 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
         db.all(`
             SELECT
                 u.id as uid, u.nome as unome, u.username, u.email as uemail,
+                cn.email_override as email_override,
                 cn1.email_corporativo as ec_by_nome,   cn1.email as ce_by_nome,
-                cn2.email_corporativo as ec_by_uname,  cn2.email as ce_by_uname
+                cn2.email_corporativo as ec_by_uname,  cn2.email as ce_by_uname,
+                cn3.email_corporativo as ec_by_upart,  cn3.email as ce_by_upart
             FROM config_notificacoes cn
             JOIN usuarios u ON u.id = cn.usuario_id
             LEFT JOIN colaboradores cn1 ON LOWER(TRIM(cn1.nome_completo)) = LOWER(TRIM(u.nome))
             LEFT JOIN colaboradores cn2 ON LOWER(TRIM(cn2.nome_completo)) = LOWER(TRIM(u.username))
+            LEFT JOIN colaboradores cn3 ON LOWER(TRIM(cn3.nome_completo)) LIKE '%' || REPLACE(LOWER(TRIM(u.username)), '.', ' ') || '%'
             WHERE cn.tipo = ? AND u.ativo = 1
         `, [tipo], async (err, rows) => {
             if (err) {
@@ -149,6 +152,8 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
             }
             const emails = new Set();
             rows.forEach(r => {
+                // Estratégia 0: email_override direto na config (mais confiável)
+                if (r.email_override && r.email_override.includes('@')) { emails.add(r.email_override.trim()); return; }
                 // Estratégia 1: email_corporativo via JOIN por nome completo
                 if (r.ec_by_nome && r.ec_by_nome.includes('@')) emails.add(r.ec_by_nome.trim());
                 // Estratégia 2: email do colaborador via JOIN por nome
@@ -157,11 +162,15 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
                 else if (r.ec_by_uname && r.ec_by_uname.includes('@')) emails.add(r.ec_by_uname.trim());
                 // Estratégia 4: email do colaborador via JOIN por username
                 else if (r.ce_by_uname && r.ce_by_uname.includes('@')) emails.add(r.ce_by_uname.trim());
-                // Estratégia 5: email direto na tabela usuarios
+                // Estratégia 5: email_corporativo via JOIN por partes do username (ex: Thais.Ricci → Thais Ricci)
+                else if (r.ec_by_upart && r.ec_by_upart.includes('@')) emails.add(r.ec_by_upart.trim());
+                // Estratégia 6: email do colaborador via JOIN por partes do username
+                else if (r.ce_by_upart && r.ce_by_upart.includes('@')) emails.add(r.ce_by_upart.trim());
+                // Estratégia 7: email direto na tabela usuarios
                 else if (r.uemail && r.uemail.includes('@')) emails.add(r.uemail.trim());
-                // Estratégia 6: username parece um e-mail
+                // Estratégia 8: username parece um e-mail
                 else if (r.username && r.username.includes('@')) emails.add(r.username.trim());
-                else console.warn(`[Notif Email] Nenhum e-mail encontrado para usuario_id=${r.uid} (username="${r.username}", nome="${r.unome}")`);
+                else console.warn(`[Notif Email] Nenhum e-mail encontrado para usuario_id=${r.uid} (username="${r.username}", nome="${r.unome}") — configure email_override na tela de Notificações`);
             });
             if (emails.size === 0) {
                 console.warn(`[Notif Email] Nenhum e-mail resolvido para tipo="${tipo}". Verifique se os colaboradores têm email_corporativo cadastrado.`);
@@ -760,12 +769,13 @@ db.run(`INSERT OR IGNORE INTO config_notificacoes (tipo, usuario_id)
     }
 });
 
-// MIGRATION: Vincular usuária Thais.Ricci ao colaborador Thais Ricci Vaz
 
-db.run(`UPDATE usuarios SET colaborador_id = (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Thais Ricci Vaz%' LIMIT 1) WHERE username = 'Thais.Ricci'`, (err) => {
-    if (err) console.error('[Migration] Erro ao vincular Thais.Ricci:', err.message);
-    else console.log('[Migration] Usuario Thais.Ricci vinculado com sucesso.');
+// MIGRATION: Adicionar coluna email_override em config_notificacoes
+db.run(`ALTER TABLE config_notificacoes ADD COLUMN email_override TEXT`, (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[Migration] email_override:', err.message);
+    else if (!err) console.log('[Migration] Coluna email_override adicionada em config_notificacoes.');
 });
+
 
 // MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
 const GERADORES_PERFIL = [
@@ -11134,14 +11144,15 @@ app.delete('/api/usuarios/:id', authenticateToken, (req, res) => {
 });
 // --- CONFIGURAÇÕES DE NOTIFICAÇÕES (POPUP) ---
 app.get('/api/config-notificacoes', authenticateToken, (req, res) => {
-    db.all('SELECT tipo, usuario_id FROM config_notificacoes', [], (err, rows) => {
+    db.all('SELECT tipo, usuario_id, email_override FROM config_notificacoes', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
 });
 
 app.post('/api/config-notificacoes', authenticateToken, (req, res) => {
-    const { tipo, usuarios } = req.body; // usuarios = array of usuario_id
+    // usuarios = array of { usuario_id, email_override? } OR just usuario_id (backward compat)
+    const { tipo, usuarios } = req.body;
     if (!tipo || !Array.isArray(usuarios)) return res.status(400).json({ error: 'Dados inválidos' });
 
     db.serialize(() => {
@@ -11149,12 +11160,14 @@ app.post('/api/config-notificacoes', authenticateToken, (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
 
             if (usuarios.length > 0) {
-                const placeholders = usuarios.map(() => '(?, ?)').join(',');
+                const placeholders = usuarios.map(() => '(?, ?, ?)').join(',');
                 const values = [];
-                usuarios.forEach(uid => {
-                    values.push(tipo, uid);
+                usuarios.forEach(u => {
+                    const uid = (typeof u === 'object') ? u.usuario_id : u;
+                    const emailOv = (typeof u === 'object' && u.email_override) ? u.email_override : null;
+                    values.push(tipo, uid, emailOv);
                 });
-                db.run(`INSERT INTO config_notificacoes (tipo, usuario_id) VALUES ${placeholders}`, values, (err2) => {
+                db.run(`INSERT INTO config_notificacoes (tipo, usuario_id, email_override) VALUES ${placeholders}`, values, (err2) => {
                     if (err2) return res.status(500).json({ error: err2.message });
                     res.json({ message: 'Configurações salvas' });
                 });
@@ -11162,6 +11175,43 @@ app.post('/api/config-notificacoes', authenticateToken, (req, res) => {
                 res.json({ message: 'Configurações salvas' });
             }
         });
+    });
+});
+
+// Endpoint interno: forçar disparo de notificação de teste (requer secret no header)
+app.post('/api/internal/trigger-notif-test', (req, res) => {
+    const secret = req.headers['x-internal-secret'] || req.body.secret;
+    const internalSecret = process.env.INTERNAL_SECRET || 'america-test-2025';
+    if (secret !== internalSecret) return res.status(403).json({ error: 'Forbidden' });
+
+    const { colaborador_nome } = req.body;
+    const nome = colaborador_nome || 'Colaborador Teste';
+    const msg = `[TESTE INTERNO] ${nome} foi marcado(a) para receber Celular Corporativo.`;
+
+    db.all("SELECT cn.usuario_id, cn.email_override, u.username, u.nome, u.email FROM config_notificacoes cn JOIN usuarios u ON u.id = cn.usuario_id WHERE cn.tipo = 'celular_controle' AND u.ativo = 1", [], (err, rows) => {
+        if (err) return res.json({ ok: false, error: err.message });
+        const destinatarios = (rows || []).map(r => ({
+            usuario_id: r.usuario_id,
+            username: r.username,
+            nome: r.nome,
+            email_override: r.email_override,
+            email_usuario: r.email
+        }));
+        console.log('[TESTE INTERNO] Destinatários config:', JSON.stringify(destinatarios));
+
+        // Insert popup notifications
+        destinatarios.forEach(d => {
+            db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                [d.usuario_id, 'celular_controle', msg, JSON.stringify({ nome, teste: true })]);
+        });
+
+        // Send email
+        sendEmailParaNotificados('celular_controle', {
+            subject: `[TESTE INTERNO] Notificação Celular Corporativo`,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:2px dashed #e67700;border-radius:8px;padding:24px;"><h2 style="color:#e67700;text-align:center;">TESTE INTERNO</h2><p>Este é um e-mail de teste disparado internamente.</p><p><strong>Colaborador:</strong> ${nome}</p></div>`
+        });
+
+        res.json({ ok: true, destinatarios_encontrados: destinatarios.length, destinatarios });
     });
 });
 

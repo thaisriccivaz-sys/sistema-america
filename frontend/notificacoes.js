@@ -25,6 +25,8 @@ const TIPOS_NOTIFICACAO_CELULARES = [
 ];
 
 let globalUsuariosConfig = [];
+// Armazena email_override por { tipo: { uid: email } }
+let _emailOverrideMap = {};
 
 async function initNotificacoesView() {
     try {
@@ -53,16 +55,20 @@ async function initNotificacoesView() {
         if (!resConfig.ok) throw new Error('Erro ao carregar configurações');
         const configs = await resConfig.json();
         
-        // Group configs by tipo
+        // Group configs by tipo — store both usuario_id and email_override
         const configByTipo = {};
+        _emailOverrideMap = {};
         configs.forEach(c => {
             if (!configByTipo[c.tipo]) configByTipo[c.tipo] = [];
             configByTipo[c.tipo].push(c.usuario_id);
+            if (!_emailOverrideMap[c.tipo]) _emailOverrideMap[c.tipo] = {};
+            if (c.email_override) _emailOverrideMap[c.tipo][c.usuario_id] = c.email_override;
         });
 
         // Helper: renderiza um tipo como card colapsável
         function renderTipoCard(tipo, corBorda, corIcon, bgIcon) {
             const selectedUsers = configByTipo[tipo.id] || [];
+            const overrides = _emailOverrideMap[tipo.id] || {};
             return `
                 <div class="config-notificacao-item" style="border: 1px solid ${corBorda}; border-radius: 8px; background: #fff; display: flex; flex-direction: column;">
                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; cursor: pointer; user-select: none;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('.arrow').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(0deg)' : 'rotate(180deg)'">
@@ -73,21 +79,34 @@ async function initNotificacoesView() {
                             <div>
                                 <h3 style="margin: 0; font-size: 1rem; color: #334155; line-height: 1.2;">${tipo.nome}</h3>
                                 ${tipo.descricao ? `<p style="margin:2px 0 0;font-size:0.76rem;color:#94a3b8;line-height:1.3;">${tipo.descricao}</p>` : ''}
+                                ${selectedUsers.length > 0 ? `<span style="font-size:0.75rem;color:#16a34a;font-weight:600;">${selectedUsers.length} destinatário(s) configurado(s)</span>` : '<span style="font-size:0.75rem;color:#ef4444;">Nenhum destinatário</span>'}
                             </div>
                         </div>
                         <i class="ph ph-caret-down arrow" style="color: #94a3b8; transition: transform 0.2s;"></i>
                     </div>
-                    <div class="notif-users-list" style="display: none; border-top: 1px solid #e2e8f0; padding: 1rem; background: #f8fafc; border-radius: 0 0 8px 8px; max-height: 300px; overflow-y: auto;">
-                        <label style="font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 0.75rem; display: block;">Selecione os usuários:</label>
+                    <div class="notif-users-list" style="display: none; border-top: 1px solid #e2e8f0; padding: 1rem; background: #f8fafc; border-radius: 0 0 8px 8px; max-height: 400px; overflow-y: auto;">
+                        <p style="font-size: 0.8rem; color: #64748b; margin: 0 0 0.75rem 0; background:#fff3e0; border-left:3px solid #e67700; padding:0.5rem 0.75rem; border-radius:4px;">
+                            <i class="ph ph-envelope"></i> <strong>Email direto:</strong> Preencha o e-mail para garantir o envio. Se vazio, o sistema tenta resolver automaticamente.
+                        </p>
+                        <label style="font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 0.75rem; display: block;">Selecione os usuários e configure o e-mail:</label>
                         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                             ${globalUsuariosConfig.map(u => {
                                 const isChecked = selectedUsers.includes(u.id) ? 'checked' : '';
-                                return `<label class="user-checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; background: #fff; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer; user-select: none; transition: background 0.2s;">
-                                    <input type="checkbox" class="config-notif-cb" data-tipo="${tipo.id}" data-uid="${u.id}" ${isChecked}>
-                                    <span style="font-size: 0.9rem; color: #475569;">${u.nome || u.username}</span>
-                                </label>`;
+                                const emailVal = overrides[u.id] || '';
+                                return `<div class="notif-user-row" style="display: flex; align-items: center; gap: 0.5rem; background: #fff; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1;">
+                                    <input type="checkbox" class="config-notif-cb" data-tipo="${tipo.id}" data-uid="${u.id}" ${isChecked} style="flex-shrink:0;" onchange="this.closest('.notif-user-row').querySelector('.notif-email-input').style.opacity=this.checked?'1':'0.4'">
+                                    <span style="font-size: 0.9rem; color: #475569; min-width: 160px; flex-shrink:0;">${u.nome || u.username}</span>
+                                    <input type="email" class="notif-email-input" data-tipo="${tipo.id}" data-uid="${u.id}" placeholder="e-mail do destinatário" value="${emailVal}" style="flex:1;border:1px solid #e2e8f0;border-radius:4px;padding:0.3rem 0.5rem;font-size:0.82rem;color:#334155;opacity:${isChecked?'1':'0.4'};">
+                                </div>`;
                             }).join('')}
                         </div>
+                        ${tipo.id === 'celular_controle' ? `
+                        <div style="margin-top:1rem;padding-top:1rem;border-top:1px dashed #e2e8f0;">
+                            <button onclick="window.testarNotifCelular()" style="background:#e67700;color:#fff;border:none;border-radius:6px;padding:0.4rem 1rem;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem;">
+                                <i class="ph ph-paper-plane-tilt"></i> Enviar notificação de TESTE agora
+                            </button>
+                            <p style="font-size:0.75rem;color:#94a3b8;margin:0.4rem 0 0;">Envia um e-mail e popup de teste para os destinatários configurados (sem precisar salvar um colaborador).</p>
+                        </div>` : ''}
                     </div>
                 </div>
             `;
@@ -98,7 +117,7 @@ async function initNotificacoesView() {
 
         // ── Controle de Celulares (mesmo layout dos demais) ──
         TIPOS_NOTIFICACAO_CELULARES.forEach(tipo => {
-            html += renderTipoCard(tipo, '#e2e8f0', '#d9480f', '#fff5f5');
+            html += renderTipoCard(tipo, '#fed7aa', '#d9480f', '#fff5f5');
         });
 
         // ── Demais tipos de notificação ──
@@ -132,7 +151,11 @@ window.salvarConfigNotificacoes = async function() {
             const tipo = cb.getAttribute('data-tipo');
             const uid = parseInt(cb.getAttribute('data-uid'));
             if (selectedByTipo[tipo]) {
-                selectedByTipo[tipo].push(uid);
+                // Buscar email_override do input ao lado
+                const row = cb.closest('.notif-user-row');
+                const emailInput = row ? row.querySelector('.notif-email-input') : null;
+                const emailOverride = emailInput ? emailInput.value.trim() : '';
+                selectedByTipo[tipo].push({ usuario_id: uid, email_override: emailOverride || null });
             }
         }
     });
@@ -140,9 +163,8 @@ window.salvarConfigNotificacoes = async function() {
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const btn = document.querySelector('#view-notificacoes .btn-primary');
-        const btnOriginal = btn.innerHTML;
-        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
-        btn.disabled = true;
+        const btnOriginal = btn ? btn.innerHTML : '';
+        if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; btn.disabled = true; }
         
         // Salvar cada tipo
         const promises = Object.keys(selectedByTipo).map(tipo => {
@@ -169,17 +191,45 @@ window.salvarConfigNotificacoes = async function() {
             showConfirmButton: false
         });
         
-        btn.innerHTML = btnOriginal;
-        btn.disabled = false;
+        if (btn) { btn.innerHTML = btnOriginal; btn.disabled = false; }
+        
+        // Recarregar para atualizar os contadores
+        setTimeout(() => initNotificacoesView(), 2100);
         
     } catch (e) {
         console.error(e);
         Swal.fire('Erro', e.message, 'error');
         const btn = document.querySelector('#view-notificacoes .btn-primary');
-        btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Configurações';
-        btn.disabled = false;
+        if (btn) { btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Configurações'; btn.disabled = false; }
     }
-}
+};
+
+window.testarNotifCelular = async function() {
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    try {
+        const resp = await fetch(`${API_URL}/internal/trigger-notif-test`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-internal-secret': 'america-test-2025'
+            },
+            body: JSON.stringify({ colaborador_nome: 'Colaborador Teste (Sistema)' })
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Teste enviado!',
+                html: `Notificação e e-mail disparados para <strong>${data.destinatarios_encontrados}</strong> destinatário(s).<br><small>${(data.destinatarios||[]).map(d=>d.email_override||d.email_usuario||d.username).join(', ')}</small>`,
+                confirmButtonText: 'OK'
+            });
+        } else {
+            Swal.fire('Erro', data.error || 'Falha desconhecida', 'error');
+        }
+    } catch(e) {
+        Swal.fire('Erro', e.message, 'error');
+    }
+};
 
 // Intercept navigateTo in index/app to initialize view
 const origNavigateToForNotif = window.navigateTo;
