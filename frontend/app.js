@@ -20143,3 +20143,179 @@ window.whkAbrirAba = function(abaId) {
         };
     }
 })();
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ── Editor + Gerador PDF: Manual de Integração Webhook ────────────────────────
+
+const WHK_MANUAL_STORAGE_KEY = 'whk_manual_motoristas_html';
+
+const WHK_MANUAL_DEFAULT = `<h2 style="color:#d9480f;margin:0 0 6px;">Manual de Integração: Webhooks</h2>
+<h3 style="color:#d9480f;font-size:1rem;margin:0 0 20px;font-weight:400;">Celulares de Motoristas – América Rental</h3>
+<hr style="border:none;border-top:2px solid #fed7aa;margin:0 0 20px;">
+
+<h3>1. O que são Webhooks?</h3>
+<p>Webhooks são ferramentas de integração automática que permitem que o <strong>Sistema América</strong> se comunique instantaneamente com outros sistemas externos (como sistemas de rastreamento, ERPs, CRMs ou plataformas de envio de mensagens).</p>
+<p>Em vez de atualizar as informações manualmente em vários sistemas diferentes, o Webhook funciona como um <em>"mensageiro automático"</em>: assim que um evento importante acontece, ele envia os dados atualizados para o sistema parceiro.</p>
+
+<h3>2. Como Acessar</h3>
+<p>O painel de gerenciamento de Webhooks é restrito à Diretoria/Administração. Para acessá-lo:</p>
+<ol>
+  <li>Abra o menu lateral esquerdo.</li>
+  <li>Clique na aba <strong>Diretoria</strong>.</li>
+  <li>Clique em <strong>Desenvolvedor</strong> para abrir o submenu.</li>
+  <li>Selecione <strong>Webhooks</strong>.</li>
+</ol>
+
+<h3>3. Evento Disponível: Celulares de Motoristas</h3>
+<p>O evento disponível é o <strong>celular.atribuido_motorista</strong>, focado na logística e rastreamento.</p>
+<p><strong>Quando é disparado?</strong> Sempre que um chip/celular é atribuído a um colaborador do departamento <strong>Motorista</strong>.</p>
+<p><strong>Para que serve?</strong> Ideal para manter sistemas de roteirização e rastreamento (como <em>Cobli</em>, <em>Ótimo Gestor</em> etc.) atualizados automaticamente.</p>
+
+<h3>4. Como Adicionar uma Nova Integração</h3>
+<ol>
+  <li>No painel de Webhooks, acesse a aba <strong>Celulares Motoristas</strong>.</li>
+  <li>No campo <strong>Nome da Integração</strong>, informe um nome descritivo (ex: <em>"Integração Cobli"</em>).</li>
+  <li>No campo <strong>URL</strong>, cole o endereço fornecido pelo sistema parceiro.</li>
+  <li>Clique em <strong>Adicionar</strong>.</li>
+  <li>Pronto! A URL passará a receber avisos automaticamente.</li>
+</ol>
+<p><em>Você pode cadastrar múltiplas URLs para notificar vários sistemas ao mesmo tempo. Para remover, clique no ícone de lixeira ao lado da URL.</em></p>
+
+<h3>5. Estrutura Técnica dos Dados (Para Desenvolvedores)</h3>
+<p>O disparo é feito via requisição HTTP <strong>POST</strong>, com payload em <strong>JSON</strong>:</p>
+<pre style="background:#f1f5f9;border-radius:8px;padding:14px;font-size:0.82rem;line-height:1.7;overflow-x:auto;">{
+  "evento": "celular.atribuido_motorista",
+  "timestamp": "2026-07-16T14:30:00.000Z",
+  "dados": {
+    "colaborador_id": 42,
+    "nome_motorista": "João da Silva",
+    "telefone_principal": "11999990001",
+    "telefone_secundario": null,
+    "data_atribuicao": "2026-07-16"
+  }
+}</pre>
+<p><strong>Dicionário de Dados:</strong></p>
+<ul>
+  <li><strong>evento</strong> – Identificador fixo da ação.</li>
+  <li><strong>timestamp</strong> – Data e hora exata do disparo (ISO 8601).</li>
+  <li><strong>colaborador_id</strong> – Código único do motorista no sistema.</li>
+  <li><strong>nome_motorista</strong> – Nome completo do colaborador.</li>
+  <li><strong>telefone_principal</strong> – Número do chip atribuído (somente dígitos).</li>
+  <li><strong>telefone_secundario</strong> – Número adicional, se houver.</li>
+  <li><strong>data_atribuicao</strong> – Data em que o celular foi vinculado.</li>
+</ul>`;
+
+window.whkAbrirEditorManual = function () {
+    const modal = document.getElementById('modal-whk-manual');
+    const editor = document.getElementById('whk-manual-editor');
+    if (!modal || !editor) return;
+
+    // Carrega conteúdo salvo ou usa o padrão
+    const saved = localStorage.getItem(WHK_MANUAL_STORAGE_KEY);
+    editor.innerHTML = saved || WHK_MANUAL_DEFAULT;
+
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    editor.focus();
+};
+
+window.whkFecharEditorManual = function () {
+    // Salva antes de fechar
+    const editor = document.getElementById('whk-manual-editor');
+    if (editor) {
+        localStorage.setItem(WHK_MANUAL_STORAGE_KEY, editor.innerHTML);
+    }
+    const modal = document.getElementById('modal-whk-manual');
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = '';
+};
+
+window.whkBaixarManualPDF = async function () {
+    const editor = document.getElementById('whk-manual-editor');
+    const btn = document.getElementById('btn-whk-baixar-pdf');
+    if (!editor) return;
+
+    // Salva o conteúdo atual
+    localStorage.setItem(WHK_MANUAL_STORAGE_KEY, editor.innerHTML);
+
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando PDF...'; }
+
+    try {
+        const apiBase = (typeof API_URL !== 'undefined') ? API_URL.replace('/api', '') : '';
+        const logoSrc = apiBase + '/assets/logo-header.png';
+
+        // Pré-carrega o logo
+        await new Promise(resolve => {
+            const img = new Image();
+            img.onload = resolve;
+            img.onerror = resolve;
+            img.src = logoSrc;
+            setTimeout(resolve, 2000);
+        });
+
+        const hoje = new Date();
+        const dia = String(hoje.getDate()).padStart(2, '0');
+        const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+        const ano = hoje.getFullYear();
+
+        // Monta o container A4 off-screen
+        const container = document.createElement('div');
+        container.style.cssText = `
+            width:794px; background:#fff; padding:48px 64px 64px;
+            font-family:'Inter',sans-serif; font-size:14px; line-height:1.75;
+            color:#1e293b; position:fixed; left:-9999px; top:0;
+        `;
+
+        container.innerHTML = `
+            <!-- Cabeçalho com logo -->
+            <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:20px;border-bottom:3px solid #d9480f;margin-bottom:32px;">
+                <img src="${logoSrc}" alt="América Rental" style="height:52px;object-fit:contain;" crossorigin="anonymous">
+                <div style="text-align:right;font-size:11px;color:#64748b;line-height:1.5;">
+                    <div style="font-weight:700;color:#d9480f;font-size:12px;">DOCUMENTO INTERNO</div>
+                    <div>Emitido em: ${dia}/${mes}/${ano}</div>
+                    <div>América Rental Equipamentos Ltda.</div>
+                </div>
+            </div>
+            <!-- Conteúdo editado -->
+            <div style="font-size:14px;line-height:1.8;">
+                ${editor.innerHTML}
+            </div>
+            <!-- Rodapé -->
+            <div style="margin-top:60px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;">
+                <span>América Rental Equipamentos Ltda. – Documento gerado pelo Sistema Interno</span>
+                <span>${dia}/${mes}/${ano}</span>
+            </div>
+        `;
+
+        document.body.appendChild(container);
+
+        // Aguarda renderização do logo
+        await new Promise(r => setTimeout(r, 300));
+
+        const opt = {
+            margin: [0, 0, 0, 0],
+            filename: 'Webhook celulares motoristas.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'], avoid: 'h2,h3,h4,li,p' }
+        };
+
+        await html2pdf().set(opt).from(container).save();
+        document.body.removeChild(container);
+
+    } catch (err) {
+        console.error('[WHK Manual PDF]', err);
+        alert('Erro ao gerar o PDF: ' + err.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-download-simple"></i> Baixar PDF'; }
+    }
+};
+
+// Fecha o modal ao clicar no backdrop
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('modal-whk-manual');
+    if (modal && e.target === modal) {
+        window.whkFecharEditorManual();
+    }
+});

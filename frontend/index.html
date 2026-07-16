@@ -19,7 +19,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="style.css?v=20260716v1">
+    <link rel="stylesheet" href="style.css?v=20260716v2">
     <script src="experiencia.js?v=1778869020176" defer></script>
     <script src="entregas.js" defer></script>
     <script src="resumo_rota.js?v=20260701v10" defer></script>
@@ -4236,6 +4236,17 @@
 }</pre>
                                     </details>
                                 </div>
+                                <!-- Botão Manual PDF -->
+                                <div style="flex-shrink:0;margin-left:auto;">
+                                    <button onclick="window.whkAbrirEditorManual()"
+                                        id="btn-whk-manual-pdf"
+                                        title="Editar e baixar o Manual em PDF"
+                                        style="display:flex;align-items:center;gap:7px;background:#fff;border:1.5px solid #d9480f;color:#d9480f;border-radius:9px;padding:9px 16px;font-size:0.82rem;font-weight:700;cursor:pointer;transition:background 0.18s,color 0.18s;white-space:nowrap;"
+                                        onmouseover="this.style.background='#d9480f';this.style.color='#fff'"
+                                        onmouseout="this.style.background='#fff';this.style.color='#d9480f'">
+                                        <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> Manual PDF
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <!-- Formulário adicionar URL -->
@@ -4266,6 +4277,79 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- ── MODAL: Editor do Manual PDF ──────────────────────────────────── -->
+                    <div id="modal-whk-manual" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.55);backdrop-filter:blur(3px);overflow-y:auto;">
+                        <div style="max-width:860px;margin:40px auto;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.25);overflow:hidden;">
+                            <!-- Header do modal -->
+                            <div style="display:flex;align-items:center;gap:12px;padding:20px 28px;border-bottom:1px solid #e2e8f0;background:linear-gradient(135deg,#fff7ed,#fff);">
+                                <div style="background:#fff7ed;border-radius:10px;padding:10px;border:1.5px solid #fed7aa;">
+                                    <i class="ph ph-file-pdf" style="font-size:1.5rem;color:#d9480f;"></i>
+                                </div>
+                                <div style="flex:1;">
+                                    <h3 style="margin:0;font-size:1.05rem;font-weight:700;color:#1e293b;">Manual de Integração – Celulares Motoristas</h3>
+                                    <p style="margin:2px 0 0;font-size:0.8rem;color:#64748b;">Edite o conteúdo abaixo e clique em <strong>Baixar PDF</strong>. O arquivo será salvo como <em>Webhook celulares motoristas.pdf</em>.</p>
+                                </div>
+                                <button onclick="window.whkFecharEditorManual()"
+                                    style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:1.4rem;padding:4px;border-radius:6px;line-height:1;transition:color 0.15s;"
+                                    onmouseover="this.style.color='#e11d48'" onmouseout="this.style.color='#94a3b8'">
+                                    <i class="ph ph-x"></i>
+                                </button>
+                            </div>
+
+                            <!-- Barra de ferramentas de formatação -->
+                            <div style="display:flex;flex-wrap:wrap;gap:4px;padding:12px 28px;border-bottom:1px solid #f1f5f9;background:#f8fafc;">
+                                <button onclick="document.execCommand('bold')" title="Negrito (Ctrl+B)" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-weight:700;font-size:0.8rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'"><b>N</b></button>
+                                <button onclick="document.execCommand('italic')" title="Itálico (Ctrl+I)" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'"><i>I</i></button>
+                                <button onclick="document.execCommand('underline')" title="Sublinhado (Ctrl+U)" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'"><u>S</u></button>
+                                <div style="width:1px;background:#e2e8f0;margin:0 4px;"></div>
+                                <button onclick="document.execCommand('insertUnorderedList')" title="Lista com marcadores" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">• Lista</button>
+                                <button onclick="document.execCommand('insertOrderedList')" title="Lista numerada" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">1. Lista</button>
+                                <div style="width:1px;background:#e2e8f0;margin:0 4px;"></div>
+                                <select onchange="document.execCommand('formatBlock',false,this.value);this.value=''" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:0.8rem;color:#374151;outline:none;">
+                                    <option value="">Estilo</option>
+                                    <option value="h2">Título 1</option>
+                                    <option value="h3">Título 2</option>
+                                    <option value="h4">Título 3</option>
+                                    <option value="p">Parágrafo</option>
+                                </select>
+                                <div style="width:1px;background:#e2e8f0;margin:0 4px;"></div>
+                                <button onclick="document.execCommand('justifyLeft')" title="Alinhar à esquerda" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">⬅</button>
+                                <button onclick="document.execCommand('justifyCenter')" title="Centralizar" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">↔</button>
+                                <button onclick="document.execCommand('justifyRight')" title="Alinhar à direita" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">➡</button>
+                                <div style="width:1px;background:#e2e8f0;margin:0 4px;"></div>
+                                <button onclick="document.execCommand('removeFormat')" title="Limpar formatação" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.75rem;color:#64748b;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'"><i class="ph ph-eraser"></i> Limpar</button>
+                            </div>
+
+                            <!-- Área de edição -->
+                            <div style="padding:20px 28px;max-height:55vh;overflow-y:auto;">
+                                <div id="whk-manual-editor"
+                                    contenteditable="true"
+                                    spellcheck="false"
+                                    style="min-height:400px;outline:none;font-family:'Inter',sans-serif;font-size:0.9rem;line-height:1.75;color:#1e293b;padding:4px 2px;">
+                                </div>
+                            </div>
+
+                            <!-- Rodapé do modal -->
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 28px;border-top:1px solid #e2e8f0;background:#f8fafc;flex-wrap:wrap;">
+                                <span style="font-size:0.78rem;color:#94a3b8;"><i class="ph ph-info"></i> O texto será salvo localmente no navegador para próximas edições.</span>
+                                <div style="display:flex;gap:10px;">
+                                    <button onclick="window.whkFecharEditorManual()"
+                                        style="background:#fff;border:1.5px solid #e2e8f0;color:#64748b;border-radius:8px;padding:9px 20px;font-size:0.875rem;font-weight:600;cursor:pointer;transition:background 0.15s;"
+                                        onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">
+                                        Cancelar
+                                    </button>
+                                    <button onclick="window.whkBaixarManualPDF()" id="btn-whk-baixar-pdf"
+                                        style="display:flex;align-items:center;gap:7px;background:#d9480f;color:#fff;border:none;border-radius:8px;padding:9px 22px;font-size:0.875rem;font-weight:700;cursor:pointer;transition:background 0.15s;"
+                                        onmouseover="this.style.background='#b03c0e'" onmouseout="this.style.background='#d9480f'">
+                                        <i class="ph ph-download-simple"></i> Baixar PDF
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- FIM MODAL Manual PDF ───────────────────────────────────────────── -->
+
                 </section>
 
                 <section id="view-usuarios-permissoes" class="content-view">
@@ -5649,7 +5733,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=1782835731066"></script>
-    <script src="app.js?v=20260716v4"></script>
+    <script src="app.js?v=20260716v5"></script>
     <script src="frota_resumo.js?v=1778869020176"></script>
     <!-- Global Scroll-to-Top Button -->
     <button id="global-scroll-top" onclick="window.scrollTo({top:0, behavior:'smooth'})"
