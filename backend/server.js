@@ -580,6 +580,17 @@ db.run(`CREATE TABLE IF NOT EXISTS epi_selfies (
     timestamp TEXT,
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
+
+// Tabela de anexos de ocorrências (documentos do prontuário - aba Advertências)
+db.run(`CREATE TABLE IF NOT EXISTS ocorrencias_anexos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ocorrencia_id INTEGER NOT NULL,
+    nome_arquivo TEXT NOT NULL,
+    mime_type TEXT,
+    tamanho INTEGER,
+    dados_base64 TEXT NOT NULL,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
     // 1. Renomear ORDEM DE SERVIÇO NR01 (maiúsculo) para caixa mista
     db.run("UPDATE geradores SET nome = 'Ordem de Servi\u00e7o NR01' WHERE nome LIKE 'ORDEM%NR01' OR nome LIKE 'ORDEM%NR 01'", (err) => {
         if (err) console.error('Erro ao renomear NR01 maiúsculo:', err);
@@ -11221,6 +11232,61 @@ app.get('/api/wipe-credenciamentos', (req, res) => {
         res.json({ message: 'Todos os credenciamentos foram limpos.', error: err });
     });
 });
+
+// ── ANEXOS DE OCORRÊNCIAS ─────────────────────────────────────────────────────
+const multerOcorrAnexo = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
+
+// GET /api/ocorrencias/:id/anexos — lista anexos de uma ocorrência
+app.get('/api/ocorrencias/:id/anexos', authenticateToken, (req, res) => {
+    db.all('SELECT id, nome_arquivo, mime_type, tamanho, criado_em FROM ocorrencias_anexos WHERE ocorrencia_id = ? ORDER BY criado_em ASC',
+        [req.params.id], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            const result = (rows || []).map(r => ({
+                id: r.id,
+                nome: r.nome_arquivo,
+                mime_type: r.mime_type,
+                tamanho: r.tamanho,
+                criado_em: r.criado_em,
+                url: `/api/ocorrencias/${req.params.id}/anexos/${r.id}/download`
+            }));
+            res.json(result);
+        });
+});
+
+// POST /api/ocorrencias/:id/anexos — faz upload de um arquivo
+app.post('/api/ocorrencias/:id/anexos', authenticateToken, multerOcorrAnexo.single('file'), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+    const base64 = req.file.buffer.toString('base64');
+    db.run('INSERT INTO ocorrencias_anexos (ocorrencia_id, nome_arquivo, mime_type, tamanho, dados_base64) VALUES (?, ?, ?, ?, ?)',
+        [req.params.id, req.file.originalname, req.file.mimetype, req.file.size, base64],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, nome: req.file.originalname, mime_type: req.file.mimetype });
+        });
+});
+
+// GET /api/ocorrencias/:id/anexos/:aid/download — serve o arquivo para visualização
+app.get('/api/ocorrencias/:id/anexos/:aid/download', authenticateToken, (req, res) => {
+    db.get('SELECT nome_arquivo, mime_type, dados_base64 FROM ocorrencias_anexos WHERE id = ? AND ocorrencia_id = ?',
+        [req.params.aid, req.params.id], (err, row) => {
+            if (err || !row) return res.status(404).json({ error: 'Não encontrado' });
+            const buf = Buffer.from(row.dados_base64, 'base64');
+            res.setHeader('Content-Type', row.mime_type || 'application/octet-stream');
+            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_arquivo)}"`);
+            res.send(buf);
+        });
+});
+
+// DELETE /api/ocorrencias/:id/anexos/:aid — exclui um anexo
+app.delete('/api/ocorrencias/:id/anexos/:aid', authenticateToken, (req, res) => {
+    db.run('DELETE FROM ocorrencias_anexos WHERE id = ? AND ocorrencia_id = ?',
+        [req.params.aid, req.params.id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.status(404).json({ error: 'Não encontrado' });
+            res.json({ message: 'Excluído' });
+        });
+});
+// ─────────────────────────────────────────────────────────────────────────────
 
 // --- GRUPOS DE PERMISSÃO ---
 app.get('/api/grupos-permissao', authenticateToken, (req, res) => {

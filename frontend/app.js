@@ -15534,12 +15534,30 @@ window.carregarOcorrenciaAnexos = async function(docId) {
     galeria.innerHTML = '<span style="color:#94a3b8; font-size:0.8rem; font-style:italic;">Carregando anexos...</span>';
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-        const resp = await fetch(`${window.API_URL}/ocorrencias/${docId}/anexos`, {
+        const apiBase = window.API_URL || '';
+        const resp = await fetch(`${apiBase}/ocorrencias/${docId}/anexos`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!resp.ok) throw new Error('Erro ao buscar anexos');
         const anexos = await resp.json();
-        window._renderizarAnexosGaleria(docId, anexos);
+
+        // Para imagens: buscar como blob e criar object URL (contorna auth em <img src>)
+        const anexosComBlob = await Promise.all(anexos.map(async a => {
+            const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(a.nome || '') || (a.mime_type && a.mime_type.startsWith('image/'));
+            if (isImage) {
+                try {
+                    const imgResp = await fetch(`${apiBase}${a.url}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                    if (imgResp.ok) {
+                        const blob = await imgResp.blob();
+                        return { ...a, blobUrl: URL.createObjectURL(blob) };
+                    }
+                } catch(e) { /* ignora */ }
+            }
+            // Para PDFs/outros: montar URL com token na query string
+            return { ...a, blobUrl: null };
+        }));
+
+        window._renderizarAnexosGaleria(docId, anexosComBlob, token, apiBase);
     } catch(e) {
         galeria.innerHTML = '<span style="color:#ef4444; font-size:0.8rem;">Não foi possível carregar os anexos.</span>';
     }
@@ -15561,13 +15579,14 @@ window.uploadOcorrenciaAnexo = async function(docId, inputEl) {
         if (arrow) arrow.style.transform = 'rotate(90deg)';
     }
 
+    const apiBase = window.API_URL || '';
     for (const file of files) {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('docId', docId);
         try {
             const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-            const resp = await fetch(`${window.API_URL}/ocorrencias/${docId}/anexos`, {
+            const resp = await fetch(`${apiBase}/ocorrencias/${docId}/anexos`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
                 body: formData
@@ -15589,7 +15608,8 @@ window.excluirOcorrenciaAnexo = async function(docId, anexoId) {
     if (!confirm('Deseja excluir este anexo?')) return;
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-        const resp = await fetch(`${window.API_URL}/ocorrencias/${docId}/anexos/${anexoId}`, {
+        const apiBase = window.API_URL || '';
+        const resp = await fetch(`${apiBase}/ocorrencias/${docId}/anexos/${anexoId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -15604,7 +15624,9 @@ window.excluirOcorrenciaAnexo = async function(docId, anexoId) {
 /**
  * Renderiza as miniaturas dos anexos na galeria.
  */
-window._renderizarAnexosGaleria = function(docId, anexos) {
+window._renderizarAnexosGaleria = function(docId, anexos, token, apiBase) {
+    token = token || window.currentToken || localStorage.getItem('erp_token') || '';
+    apiBase = apiBase || window.API_URL || '';
     const galeria = document.getElementById(`ocorr-galeria-${docId}`);
     const label   = document.getElementById(`ocorr-label-${docId}`);
     if (!galeria) return;
@@ -15619,13 +15641,15 @@ window._renderizarAnexosGaleria = function(docId, anexos) {
     }
 
     galeria.innerHTML = anexos.map(a => {
-        const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(a.nome || '') || (a.tipo && a.tipo.startsWith('image/'));
-        const isPdf   = /\.pdf$/i.test(a.nome || '') || a.tipo === 'application/pdf';
-        const url     = a.url;
+        const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(a.nome || '') || (a.mime_type && a.mime_type.startsWith('image/'));
+        const isPdf   = /\.pdf$/i.test(a.nome || '') || a.mime_type === 'application/pdf';
+        // Usar blob URL para imagens (token auth), URL normal + token query para outros
+        const displayUrl = a.blobUrl || `${apiBase}${a.url}`;
+        const openUrl    = a.blobUrl || `${apiBase}${a.url}`;
         const nome    = a.nome || 'Arquivo';
 
         const thumbnail = isImage
-            ? `<img src="${url}" alt="${nome}" style="width:100%; height:100%; object-fit:cover; display:block;">`
+            ? `<img src="${displayUrl}" alt="${nome}" style="width:100%; height:100%; object-fit:cover; display:block;">`
             : isPdf
                 ? `<div style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#fef2f2;">
                      <i class="ph ph-file-pdf" style="font-size:2rem; color:#ef4444;"></i>
@@ -15638,7 +15662,7 @@ window._renderizarAnexosGaleria = function(docId, anexos) {
 
         return `
             <div style="position:relative; width:100px; height:100px; border-radius:8px; overflow:hidden; border:1.5px solid #e2e8f0; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.07); flex-shrink:0;"
-                 title="${nome}" onclick="window._abrirAnexoOcorrencia('${url}', '${nome}', ${isImage})">
+                 title="${nome}" onclick="window._abrirAnexoOcorrencia('${openUrl}', '${nome}', ${isImage})">
                 ${thumbnail}
                 <button onclick="event.stopPropagation(); window.excluirOcorrenciaAnexo(${docId}, ${a.id})"
                         style="position:absolute; top:3px; right:3px; background:rgba(239,68,68,0.85); color:#fff; border:none; border-radius:4px; width:20px; height:20px; font-size:0.7rem; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1;"
