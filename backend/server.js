@@ -23360,19 +23360,27 @@ db.run(`CREATE TABLE IF NOT EXISTS computadores (
     data_atribuicao         TEXT,
     senha_windows           TEXT,
     observacoes             TEXT,
+    ram_1                   TEXT,
+    ram_2                   TEXT,
+    ssd                     TEXT,
+    expansivel              INTEGER DEFAULT 0,
     created_at              DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at              DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
 
-// ─ MIGRAÇÃO PARA TABELA computadores: Adiciona colaborador_livre se não existir ─
+// ─ MIGRAÇÃO PARA TABELA computadores: Adiciona campos novos se não existirem ─
 db.all("PRAGMA table_info(computadores)", (err, rows) => {
     if (!err && rows && rows.length > 0) {
         const hasLivre = rows.some(r => r.name === 'colaborador_livre');
         if (!hasLivre) {
-            db.run("ALTER TABLE computadores ADD COLUMN colaborador_livre TEXT", (errA) => {
-                if (errA) console.error('[COMPUTADORES] Erro ao adicionar colaborador_livre:', errA.message);
-                else console.log('[COMPUTADORES] Coluna colaborador_livre adicionada com sucesso.');
-            });
+            db.run("ALTER TABLE computadores ADD COLUMN colaborador_livre TEXT");
+        }
+        const hasRam = rows.some(r => r.name === 'ram_1');
+        if (!hasRam) {
+            db.run("ALTER TABLE computadores ADD COLUMN ram_1 TEXT");
+            db.run("ALTER TABLE computadores ADD COLUMN ram_2 TEXT");
+            db.run("ALTER TABLE computadores ADD COLUMN ssd TEXT");
+            db.run("ALTER TABLE computadores ADD COLUMN expansivel INTEGER DEFAULT 0");
         }
     }
 });
@@ -23413,14 +23421,14 @@ app.get('/api/computadores/colaboradores', authenticateToken, (req, res) => {
 
 // ── POST: criar computador ──
 app.post('/api/computadores', authenticateToken, (req, res) => {
-    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes } = req.body;
+    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel } = req.body;
     if (!tipo) return res.status(400).json({ error: 'Tipo é obrigatório.' });
     if (!modelo) return res.status(400).json({ error: 'Modelo é obrigatório.' });
 
     db.run(
-        `INSERT INTO computadores (tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','-3 hours'))`,
-        [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, colaborador_livre || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null],
+        `INSERT INTO computadores (tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','-3 hours'))`,
+        [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, colaborador_livre || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null, ram_1 || null, ram_2 || null, ssd || null, expansivel ? 1 : 0],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, ok: true });
@@ -23430,11 +23438,11 @@ app.post('/api/computadores', authenticateToken, (req, res) => {
 
 // ── PUT: atualizar computador ──
 app.put('/api/computadores/:id', authenticateToken, (req, res) => {
-    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes } = req.body;
+    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel } = req.body;
     db.run(
-        `UPDATE computadores SET tipo=?, modelo=?, patrimonio=?, numero_serie=?, colaborador_id=?, colaborador_livre=?, status=?, data_atribuicao=?, senha_windows=?, observacoes=?, updated_at=datetime('now','-3 hours')
+        `UPDATE computadores SET tipo=?, modelo=?, patrimonio=?, numero_serie=?, colaborador_id=?, colaborador_livre=?, status=?, data_atribuicao=?, senha_windows=?, observacoes=?, ram_1=?, ram_2=?, ssd=?, expansivel=?, updated_at=datetime('now','-3 hours')
          WHERE id=?`,
-        [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, colaborador_livre || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null, req.params.id],
+        [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, colaborador_livre || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null, ram_1 || null, ram_2 || null, ssd || null, expansivel ? 1 : 0, req.params.id],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ ok: true });

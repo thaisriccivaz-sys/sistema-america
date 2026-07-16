@@ -208,7 +208,8 @@
                 '<div style="width:34px;height:34px;border-radius:8px;background:#eef2ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
                 '<i class="ph ' + tipoIcon(c.tipo) + '" style="color:#6366f1;font-size:1.1rem;"></i></div>' +
                 '<div><div style="font-weight:700;font-size:0.85rem;color:#0f172a;">' + (c.tipo || '-') + '</div>' +
-                '<div style="font-size:0.72rem;color:#64748b;">' + (c.modelo || '-') + '</div>' +
+                '<div style="font-size:0.72rem;color:#64748b;margin-bottom:2px;">' + (c.modelo || '-') + '</div>' +
+                (c.ram_1 || c.ssd ? '<div style="font-size:0.68rem;color:#6366f1;display:flex;align-items:center;gap:3px;font-weight:600;"><i class="ph ph-cpu" style="font-size:0.8rem;"></i> ' + (c.ram_1 || '') + (c.ram_2 ? ' + ' + c.ram_2 : '') + (c.ssd ? ' | ' + c.ssd : '') + '</div>' : '') +
                 '</div></div></td>' +
                 '<td style="' + td + 'font-size:0.82rem;"><div style="font-weight:600;color:#334155;">' + (c.patrimonio || '-') + '</div>' +
                 '<div style="font-size:0.72rem;color:#94a3b8;font-family:monospace;">' + (c.numero_serie || '') + '</div></td>' +
@@ -289,6 +290,22 @@
             '<i class="ph ph-eye"></i>' +
             '</button></div>' +
             '</div>' +
+            // Especificações (Hardware)
+            '<div style="margin-top:0.5rem;padding:0.75rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">' +
+            '<div style="font-weight:700;font-size:0.75rem;color:#64748b;margin-bottom:0.75rem;text-transform:uppercase;"><i class="ph ph-cpu"></i> Especificações (Hardware)</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">' +
+            fldInput('comp-ram1', 'Memória RAM 1', c.ram_1 || '', 'Ex: 8GB DDR4') +
+            fldInput('comp-ram2', 'Memória RAM 2', c.ram_2 || '', 'Ex: 8GB DDR4 (Opcional)') +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:0.75rem;">' +
+            fldInput('comp-ssd', 'Armazenamento (SSD/HD)', c.ssd || '', 'Ex: 256GB NVMe') +
+            '<div><label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:4px;">Memória Expansível?</label>' +
+            '<select id="comp-expansivel" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.7rem;font-size:0.88rem;outline:none;background:#fff;">' +
+            '<option value="0"' + (!c.expansivel ? ' selected' : '') + '>Não / Desconhecido</option>' +
+            '<option value="1"' + (c.expansivel ? ' selected' : '') + '>Sim</option>' +
+            '</select></div>' +
+            '</div>' +
+            '</div>' +
             // Observações
             '<div>' +
             '<label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:4px;">Observações</label>' +
@@ -364,11 +381,15 @@
         var data_atribuicao = (document.getElementById('comp-data') || {}).value || null;
         var senha_windows = (document.getElementById('comp-senha') || {}).value || '';
         var observacoes = (document.getElementById('comp-obs') || {}).value || '';
+        var ram_1 = (document.getElementById('comp-ram1') || {}).value || '';
+        var ram_2 = (document.getElementById('comp-ram2') || {}).value || '';
+        var ssd = (document.getElementById('comp-ssd') || {}).value || '';
+        var expansivel = parseInt((document.getElementById('comp-expansivel') || {}).value || 0, 10);
 
         if (!tipo) return alert('Selecione o tipo do computador.');
         if (!modelo.trim()) return alert('Informe o modelo do computador.');
 
-        var payload = { tipo, modelo: modelo.trim(), patrimonio, numero_serie, colaborador_id: colaborador_id || null, colaborador_livre, status, data_atribuicao, senha_windows, observacoes };
+        var payload = { tipo, modelo: modelo.trim(), patrimonio, numero_serie, colaborador_id: colaborador_id || null, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel };
 
         var btn = document.getElementById('btn-salvar-computador');
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
