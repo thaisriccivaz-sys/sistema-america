@@ -5684,8 +5684,17 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
         db.get('SELECT * FROM colaboradores WHERE id = ?', [motoristaId], async (err, colab) => {
             if (err || !colab) return reject(new Error('Motorista não encontrado no banco de dados.'));
 
-            const numericStr = (valorMultaStr || '0').toString().replace(/[^\d,-]/g, '').replace(',', '.');
-            const valorOriginal = parseFloat(numericStr) || 0;
+            let valorOriginal = 0;
+            if (typeof valorMultaStr === 'number') {
+                valorOriginal = valorMultaStr;
+            } else if (valorMultaStr) {
+                let str = valorMultaStr.toString().trim();
+                if (str.includes(',')) {
+                    str = str.replace(/\./g, '').replace(',', '.');
+                }
+                str = str.replace(/[^\d.-]/g, '');
+                valorOriginal = parseFloat(str) || 0;
+            }
             const multiplicador = (status === 'Multa NIC') ? 3 : 1;
             const valorTotalNum = valorOriginal * multiplicador;
             const p = parseInt(parcelas) || 1;
