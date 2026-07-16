@@ -13611,6 +13611,8 @@ async function checkUserNotificacoes() {
                     bg = '#fff5e6'; color = '#e67700'; icon = 'ph-traffic-cone'; titulo = 'Nova Multa'; navTarget = 'logistica';
                 } else if (notif.tipo === 'celular_controle') {
                     bg = '#fff5e6'; color = '#e67700'; icon = 'ph-device-mobile'; titulo = 'Celular Corporativo'; navTarget = 'celulares-corporativos';
+                } else if (notif.tipo === 'computador_controle') {
+                    bg = '#eef2ff'; color = '#6366f1'; icon = 'ph-desktop'; titulo = 'Computador Corporativo'; navTarget = 'computadores-corporativos';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -13766,6 +13768,8 @@ async function checkUserNotificacoes() {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Multas');`;
                 } else if (notif.tipo === 'celular_controle' && dados.colaborador_id) {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('celulares-corporativos');`;
+                } else if (notif.tipo === 'computador_controle') {
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('computadores-corporativos');`;
                 }
 
                 popup.innerHTML = `

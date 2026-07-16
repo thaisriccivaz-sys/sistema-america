@@ -3089,7 +3089,58 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
             });
         }
 
+        // ── Notificação de Computadores: novo colaborador administrativo ──
+        const _novoStatusComp = values[colunas.indexOf('status')] || 'Ativo';
+        const _novoDeptComp   = values[colunas.indexOf('departamento')] || '';
+        const _statusesValidos = ['Ativo', 'Em Integração', 'Processo iniciado', 'Aguardando início'];
+        const _statusMatch = _statusesValidos.some(s => s.toLowerCase() === _novoStatusComp.toLowerCase());
+        if (_statusMatch) {
+            db.get(`SELECT d.tipo FROM departamentos d WHERE LOWER(TRIM(d.nome)) = LOWER(TRIM(?))`, [_novoDeptComp], (errCD, rowCD) => {
+                const isAdmin = rowCD && rowCD.tipo === 'Administrativo';
+                if (!isAdmin) return;
+                // Checar se notificação já foi enviada para este colaborador
+                db.get(`SELECT id FROM computadores_notif_log WHERE colaborador_id = ?`, [newColabId], (errLog, rowLog) => {
+                    if (rowLog) return; // Já enviada antes — não reenvia
+                    // Marcar como enviada
+                    db.run(`INSERT OR IGNORE INTO computadores_notif_log (colaborador_id, status_inicial) VALUES (?, ?)`, [newColabId, _novoStatusComp]);
+                    // Popup in-app para cada usuário inscrito
+                    const _nomeCB = nomeOriginal || 'Colaborador';
+                    const _msgComp = `Novo colaborador administrativo cadastrado: ${_nomeCB} (${_novoDeptComp}) — Situação: ${_novoStatusComp}. Verifique se precisa de computador.`;
+                    db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'computador_controle'", [], (errCN, rowsCN) => {
+                        if (!errCN && rowsCN) rowsCN.forEach(r => {
+                            db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                                [r.usuario_id, 'computador_controle', _msgComp, JSON.stringify({ colaborador_id: newColabId, nome: _nomeCB, departamento: _novoDeptComp, status: _novoStatusComp })]);
+                        });
+                    });
+                    // E-mail
+                    const _logoPathCp = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                    sendEmailParaNotificados('computador_controle', {
+                        subject: `💻 Novo Colaborador Administrativo – ${_nomeCB} – Verificar Computador`,
+                        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                            <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                            </div>
+                            <div style="padding:24px;">
+                                <h2 style="color:#6366f1;text-align:center;margin-top:0;">💻 Novo Colaborador Administrativo</h2>
+                                <p>Um novo colaborador administrativo foi cadastrado no sistema e pode precisar de um computador:</p>
+                                <div style="background:#eef2ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #6366f1;">
+                                    <p style="margin:4px 0;"><strong>Colaborador:</strong> ${_nomeCB}</p>
+                                    <p style="margin:4px 0;"><strong>Departamento:</strong> ${_novoDeptComp || '-'}</p>
+                                    <p style="margin:4px 0;"><strong>Cargo:</strong> ${data.cargo || '-'}</p>
+                                    <p style="margin:4px 0;"><strong>Situação:</strong> <span style="color:#6366f1;font-weight:700;">${_novoStatusComp}</span></p>
+                                </div>
+                                <p>Acesse o módulo <strong>Computadores Corporativos</strong> para verificar a necessidade de atribuição de equipamento.</p>
+                                <p style="font-size:12px;color:#999;text-align:center;"><i>Esta notificação é enviada apenas uma vez por colaborador.</i></p>
+                            </div>
+                        </div>`,
+                        attachments: [{ filename: 'logo-header.png', path: _logoPathCp, cid: 'empresa-logo' }]
+                    });
+                });
+            });
+        }
+
         // Nova notificação de distribuição de equipe na criação
+
         const novoStatus = values[colunas.indexOf('status')];
         const dept = values[colunas.indexOf('departamento')];
         const isOperacional = ['EXTERNO', 'PÁTIO', 'MOTORISTA FREE'].includes(dept);
@@ -3777,6 +3828,61 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                     }
                 });
             }
+
+            // ── Notificação de Computadores (PUT): status mudou para algo válido em colaborador admin ──
+            // Só dispara se nunca houve notificação antes para este colaborador
+            const _puStatusNovo  = data.status;
+            const _puStatusVelho = oldColab.status;
+            const _puStatusesValidos = ['Ativo', 'Em Integração', 'Processo iniciado', 'Aguardando início'];
+            const _puStatusMatch = _puStatusNovo && _puStatusesValidos.some(s => s.toLowerCase() === _puStatusNovo.toLowerCase());
+            if (_puStatusMatch && _puStatusNovo !== _puStatusVelho) {
+                db.get(`SELECT id FROM computadores_notif_log WHERE colaborador_id = ?`, [id], (errLogPu, rowLogPu) => {
+                    if (rowLogPu) return; // Notificação já enviada antes — regra "apenas primeira vez"
+                    // Verificar se é departamento Administrativo
+                    const _puDept = data.departamento || oldColab.departamento || '';
+                    db.get(`SELECT d.tipo FROM departamentos d WHERE LOWER(TRIM(d.nome)) = LOWER(TRIM(?))`, [_puDept], (errDPu, rowDPu) => {
+                        if (!rowDPu || rowDPu.tipo !== 'Administrativo') return;
+                        // Marcar como enviada
+                        db.run(`INSERT OR IGNORE INTO computadores_notif_log (colaborador_id, status_inicial) VALUES (?, ?)`, [id, _puStatusNovo]);
+                        const _puNome = data.nome_completo || oldColab.nome_completo || 'Colaborador';
+                        const _puCargo = data.cargo || oldColab.cargo || '-';
+                        const _puMsgComp = `Colaborador administrativo ${_puNome} (${_puDept}) com situação "${_puStatusNovo}" — verifique necessidade de computador.`;
+                        // Popup in-app
+                        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'computador_controle'", [], (errCNP, rowsCNP) => {
+                            if (!errCNP && rowsCNP) rowsCNP.forEach(r => {
+                                db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                                    [r.usuario_id, 'computador_controle', _puMsgComp, JSON.stringify({ colaborador_id: parseInt(id), nome: _puNome, departamento: _puDept, status: _puStatusNovo })]);
+                            });
+                        });
+                        // E-mail
+                        const _logoPathPu = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                        sendEmailParaNotificados('computador_controle', {
+                            subject: `💻 Colaborador Administrativo Ativo – ${_puNome} – Verificar Computador`,
+                            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                </div>
+                                <div style="padding:24px;">
+                                    <h2 style="color:#6366f1;text-align:center;margin-top:0;">💻 Colaborador Administrativo com Nova Situação</h2>
+                                    <p>Um colaborador administrativo atingiu um status que pode requerer atribuição de computador:</p>
+                                    <div style="background:#eef2ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #6366f1;">
+                                        <p style="margin:4px 0;"><strong>Colaborador:</strong> ${_puNome}</p>
+                                        <p style="margin:4px 0;"><strong>Departamento:</strong> ${_puDept || '-'}</p>
+                                        <p style="margin:4px 0;"><strong>Cargo:</strong> ${_puCargo}</p>
+                                        <p style="margin:4px 0;"><strong>Situação anterior:</strong> ${_puStatusVelho || '-'}</p>
+                                        <p style="margin:4px 0;"><strong>Nova situação:</strong> <span style="color:#6366f1;font-weight:700;">${_puStatusNovo}</span></p>
+                                    </div>
+                                    <p>Acesse o módulo <strong>Computadores Corporativos</strong> para verificar a necessidade de atribuição de equipamento.</p>
+                                    <p style="font-size:12px;color:#999;text-align:center;"><i>Esta notificação é enviada apenas uma vez por colaborador.</i></p>
+                                </div>
+                            </div>`,
+                            attachments: [{ filename: 'logo-header.png', path: _logoPathPu, cid: 'empresa-logo' }]
+                        });
+                    });
+                });
+            }
+
+
 
             const novoDept = data.departamento || oldColab.departamento || '';
             const antigoDept = oldColab.departamento || '';
@@ -23330,7 +23436,89 @@ app.delete('/api/computadores/:id', authenticateToken, (req, res) => {
     });
 });
 
-console.log('[COMPUTADORES] Módulo de computadores corporativos carregado.');
+// ── TABELA: log de notificações enviadas (garante "apenas 1 vez por colaborador") ──
+db.run(`CREATE TABLE IF NOT EXISTS computadores_notif_log (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    colaborador_id INTEGER NOT NULL UNIQUE,
+    status_inicial TEXT,
+    enviado_em     DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
+// ── TABELA: fila de popups pendentes de Computadores (para polling frontend) ──
+db.run(`CREATE TABLE IF NOT EXISTS computadores_notif_pendentes (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo       TEXT DEFAULT 'novo_colaborador_admin',
+    dados      TEXT,
+    criado_em  DATETIME DEFAULT (datetime('now','-3 hours')),
+    lido       INTEGER DEFAULT 0
+)`);
+
+// ── GET: popups pendentes (não lidos) ──
+app.get('/api/computadores/notificacoes/pendentes', authenticateToken, (req, res) => {
+    db.all(`SELECT * FROM notificacoes_usuarios
+            WHERE tipo = 'computador_controle' AND lida = 0 AND usuario_id = ?
+            ORDER BY criado_em DESC LIMIT 30`,
+        [req.user.id || req.user.userId || 0],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows || []);
+        }
+    );
+});
+
+// ── PUT: marcar notificação como lida ──
+app.put('/api/computadores/notificacoes/:id/lida', authenticateToken, (req, res) => {
+    db.run(`UPDATE notificacoes_usuarios SET lida = 1 WHERE id = ? AND usuario_id = ?`,
+        [req.params.id, req.user.id || req.user.userId || 0],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        }
+    );
+});
+
+// ── GET: configuração de notificações de computadores (quem recebe) ──
+app.get('/api/computadores/notificacoes/config', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT u.id, u.nome, u.username,
+               CASE WHEN cn.usuario_id IS NOT NULL THEN 1 ELSE 0 END as inscrito,
+               cn.email_override
+        FROM usuarios u
+        LEFT JOIN config_notificacoes cn ON cn.usuario_id = u.id AND cn.tipo = 'computador_controle'
+        WHERE u.ativo = 1
+        ORDER BY u.nome ASC
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// ── POST: salvar configuração de notificações de computadores ──
+app.post('/api/computadores/notificacoes/config', authenticateToken, (req, res) => {
+    const { usuario_ids, email_overrides } = req.body; // usuario_ids: number[], email_overrides: {[uid]: email}
+    if (!Array.isArray(usuario_ids)) return res.status(400).json({ error: 'usuario_ids deve ser array' });
+    // Remover inscrições antigas para computador_controle
+    db.run(`DELETE FROM config_notificacoes WHERE tipo = 'computador_controle'`, [], (errD) => {
+        if (errD) return res.status(500).json({ error: errD.message });
+        if (usuario_ids.length === 0) return res.json({ ok: true });
+        const placeholders = usuario_ids.map(() => '(?, ?, ?)').join(', ');
+        const values = [];
+        usuario_ids.forEach(uid => {
+            values.push('computador_controle', uid, (email_overrides && email_overrides[uid]) || null);
+        });
+        db.run(
+            `INSERT OR IGNORE INTO config_notificacoes (tipo, usuario_id, email_override) VALUES ${placeholders}`,
+            values,
+            (errI) => {
+                if (errI) return res.status(500).json({ error: errI.message });
+                res.json({ ok: true });
+            }
+        );
+    });
+});
+
+console.log('[COMPUTADORES] Módulo de computadores corporativos carregado (com notificações).');
+
 
 
 

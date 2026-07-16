@@ -362,4 +362,187 @@
         }
     };
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // PAINEL DE CONFIGURAÇÃO DE NOTIFICAÇÕES
+    // ─────────────────────────────────────────────────────────────────────────
+
+    var _notifConfigData = [];
+
+    /* Abre o painel de notificações */
+    window.computadoresOpenNotifConfig = async function () {
+        var overlay = document.getElementById('comp-notif-overlay');
+        if (!overlay) return;
+        overlay.style.display = 'flex';
+        await _loadNotifConfig();
+    };
+
+    window.computadoresCloseNotifConfig = function () {
+        var overlay = document.getElementById('comp-notif-overlay');
+        if (overlay) overlay.style.display = 'none';
+    };
+
+    async function _loadNotifConfig() {
+        var token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        var container = document.getElementById('comp-notif-users');
+        if (!container) return;
+        container.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:1rem;"><i class="ph ph-spinner ph-spin"></i> Carregando...</div>';
+        try {
+            var resp = await fetch('/api/computadores/notificacoes/config', { headers: { 'Authorization': 'Bearer ' + token } });
+            _notifConfigData = await resp.json();
+            _renderNotifUsers();
+        } catch (e) {
+            container.innerHTML = '<div style="color:#ef4444;padding:0.75rem;">Erro ao carregar configurações.</div>';
+        }
+    }
+
+    function _renderNotifUsers() {
+        var container = document.getElementById('comp-notif-users');
+        if (!container) return;
+        var search = (document.getElementById('comp-notif-search') || {}).value || '';
+        var filtered = _notifConfigData.filter(function (u) {
+            if (!search) return true;
+            return (u.nome || '').toLowerCase().includes(search.toLowerCase()) ||
+                   (u.username || '').toLowerCase().includes(search.toLowerCase());
+        });
+        if (!filtered.length) {
+            container.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:1.5rem;">Nenhum usuário encontrado.</div>';
+            return;
+        }
+        container.innerHTML = filtered.map(function (u) {
+            var checked = u.inscrito ? 'checked' : '';
+            return '<label style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:8px;cursor:pointer;transition:background 0.15s;border:1.5px solid ' + (u.inscrito ? '#6366f1' : '#e2e8f0') + ';background:' + (u.inscrito ? '#eef2ff' : '#fff') + ';margin-bottom:0.4rem;" id="comp-notif-row-' + u.id + '">' +
+                '<input type="checkbox" id="comp-notif-chk-' + u.id + '" data-uid="' + u.id + '" ' + checked + ' style="width:17px;height:17px;accent-color:#6366f1;cursor:pointer;" onchange="window._compNotifToggleRow(' + u.id + ',this.checked)">' +
+                '<div style="flex:1;">' +
+                    '<div style="font-weight:600;font-size:0.88rem;color:#0f172a;">' + (u.nome || u.username) + '</div>' +
+                    '<div style="font-size:0.75rem;color:#64748b;">@' + u.username + '</div>' +
+                '</div>' +
+                '<div id="comp-notif-email-wrap-' + u.id + '" style="display:' + (u.inscrito ? 'flex' : 'none') + ';align-items:center;gap:0.4rem;">' +
+                    '<i class="ph ph-envelope" style="color:#6366f1;font-size:0.9rem;"></i>' +
+                    '<input type="email" id="comp-notif-email-' + u.id + '" placeholder="E-mail (opcional override)" value="' + (u.email_override || '') + '" style="border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px;font-size:0.78rem;width:220px;outline:none;" onclick="event.stopPropagation()">' +
+                '</div>' +
+            '</label>';
+        }).join('');
+    }
+
+    window._compNotifToggleRow = function (uid, checked) {
+        var row = document.getElementById('comp-notif-row-' + uid);
+        var emailWrap = document.getElementById('comp-notif-email-wrap-' + uid);
+        if (row) { row.style.border = checked ? '1.5px solid #6366f1' : '1.5px solid #e2e8f0'; row.style.background = checked ? '#eef2ff' : '#fff'; }
+        if (emailWrap) emailWrap.style.display = checked ? 'flex' : 'none';
+        var u = _notifConfigData.find(function (x) { return x.id === uid; });
+        if (u) u.inscrito = checked ? 1 : 0;
+    };
+
+    window.computadoresSaveNotifConfig = async function () {
+        var token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        var usuario_ids = [];
+        var email_overrides = {};
+        _notifConfigData.forEach(function (u) {
+            var chk = document.getElementById('comp-notif-chk-' + u.id);
+            if (chk && chk.checked) {
+                usuario_ids.push(u.id);
+                var emailInput = document.getElementById('comp-notif-email-' + u.id);
+                if (emailInput && emailInput.value.trim()) email_overrides[u.id] = emailInput.value.trim();
+            }
+        });
+        var btn = document.getElementById('btn-salvar-notif-config');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
+        try {
+            var resp = await fetch('/api/computadores/notificacoes/config', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usuario_ids, email_overrides })
+            });
+            if (!resp.ok) throw new Error('Erro ao salvar');
+            window.computadoresCloseNotifConfig();
+            // Show success toast
+            var t = document.createElement('div');
+            t.style.cssText = 'position:fixed;top:24px;right:24px;z-index:99999;background:#059669;color:#fff;border-radius:10px;padding:0.75rem 1.2rem;font-weight:600;font-size:0.9rem;display:flex;align-items:center;gap:0.5rem;box-shadow:0 4px 16px rgba(5,150,105,0.3);animation:slideInRight 0.3s ease';
+            t.innerHTML = '<i class="ph ph-check-circle" style="font-size:1.2rem;"></i> Configuração de notificações salva!';
+            document.body.appendChild(t);
+            setTimeout(function () { if (t.parentNode) t.remove(); }, 3000);
+        } catch (e) {
+            alert('Erro ao salvar: ' + (e.message || e));
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Configuração'; }
+        }
+    };
+
+    /* ── Patch renderTela to inject the config button + notification panel ── */
+    var _origRenderTela = renderTela;
+    renderTela = function () {
+        _origRenderTela();
+        _injectNotifPanelAndButton();
+    };
+
+    function _injectNotifPanelAndButton() {
+        /* 1. Add config button next to "Novo Computador" button */
+        var btnNovo = document.getElementById('btn-novo-computador');
+        if (btnNovo && !document.getElementById('btn-config-notif-comp')) {
+            var btnCfg = document.createElement('button');
+            btnCfg.id = 'btn-config-notif-comp';
+            btnCfg.onclick = function () { window.computadoresOpenNotifConfig(); };
+            btnCfg.title = 'Configurar notificações';
+            btnCfg.style.cssText = 'background:#fff;color:#6366f1;border:2px solid #6366f1;padding:0.52rem 0.9rem;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;display:flex;align-items:center;gap:0.4rem;transition:all 0.15s;';
+            btnCfg.innerHTML = '<i class="ph ph-bell-ringing"></i> Notificações';
+            btnNovo.parentNode.insertBefore(btnCfg, btnNovo);
+        }
+
+        /* 2. Inject the notification config overlay if not already in DOM */
+        if (!document.getElementById('comp-notif-overlay')) {
+            var overlay = document.createElement('div');
+            overlay.id = 'comp-notif-overlay';
+            overlay.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:99000;align-items:center;justify-content:center;padding:1rem;';
+            overlay.innerHTML =
+                '<div style="background:#fff;border-radius:20px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(99,102,241,0.25);">' +
+                // Header
+                '<div style="padding:1.5rem 1.5rem 1rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;">' +
+                    '<div style="display:flex;align-items:center;gap:0.75rem;">' +
+                        '<div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;">' +
+                            '<i class="ph ph-bell-ringing" style="color:#fff;font-size:1.2rem;"></i>' +
+                        '</div>' +
+                        '<div>' +
+                            '<h3 style="margin:0;font-size:1.1rem;font-weight:800;color:#0f172a;">Notificações – Computadores</h3>' +
+                            '<p style="margin:0;font-size:0.8rem;color:#64748b;">Quem receberá popup e e-mail quando um novo colaborador administrativo for cadastrado</p>' +
+                        '</div>' +
+                    '</div>' +
+                    '<button onclick="window.computadoresCloseNotifConfig()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#94a3b8;line-height:1;">&times;</button>' +
+                '</div>' +
+                // Info box
+                '<div style="margin:1rem 1.5rem 0.5rem;background:#eef2ff;border-radius:10px;padding:0.85rem 1rem;border-left:4px solid #6366f1;">' +
+                    '<div style="font-size:0.82rem;color:#3730a3;font-weight:600;display:flex;align-items:flex-start;gap:0.5rem;">' +
+                        '<i class="ph ph-info" style="font-size:1rem;margin-top:1px;flex-shrink:0;"></i>' +
+                        '<span>A notificação é disparada <strong>apenas uma vez por colaborador</strong> — quando ele é cadastrado pela primeira vez com situação <em>Ativo</em>, <em>Processo iniciado</em> ou <em>Aguardando início</em> em um departamento Administrativo.</span>' +
+                    '</div>' +
+                '</div>' +
+                // Search
+                '<div style="padding:0.75rem 1.5rem;">' +
+                    '<div style="position:relative;">' +
+                        '<i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;"></i>' +
+                        '<input id="comp-notif-search" type="text" placeholder="Buscar usuário..." oninput="_renderNotifUsers()" style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.45rem 0.75rem 0.45rem 2rem;font-size:0.85rem;outline:none;">' +
+                    '</div>' +
+                '</div>' +
+                // User list
+                '<div id="comp-notif-users" style="padding:0 1.5rem;max-height:380px;overflow-y:auto;"></div>' +
+                // Footer
+                '<div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:0.75rem;">' +
+                    '<button onclick="window.computadoresCloseNotifConfig()" style="background:#f1f5f9;color:#64748b;border:none;padding:0.6rem 1.2rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;">Cancelar</button>' +
+                    '<button id="btn-salvar-notif-config" onclick="window.computadoresSaveNotifConfig()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;padding:0.6rem 1.4rem;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.85rem;display:flex;align-items:center;gap:0.4rem;">' +
+                        '<i class="ph ph-floppy-disk"></i> Salvar Configuração' +
+                    '</button>' +
+                '</div>' +
+                '</div>';
+            document.body.appendChild(overlay);
+            // Close on backdrop click
+            overlay.addEventListener('click', function (e) {
+                if (e.target === overlay) window.computadoresCloseNotifConfig();
+            });
+        }
+    }
+
+    // Expose _renderNotifUsers so the search input oninput can reach it
+    window._renderNotifUsers = _renderNotifUsers;
+
 })();
+
+
