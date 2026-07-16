@@ -3098,6 +3098,13 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
             db.get(`SELECT d.tipo FROM departamentos d WHERE LOWER(TRIM(d.nome)) = LOWER(TRIM(?))`, [_novoDeptComp], (errCD, rowCD) => {
                 const isAdmin = (rowCD && rowCD.tipo === 'Administrativo') || ['administrativo', 'financeiro', 'comercial', 'recursos humanos', 'rh', 'diretoria', 'marketing', 'ti'].includes(_novoDeptComp.trim().toLowerCase());
                 if (!isAdmin) return;
+
+                // ── ASSINATURAS: GERAR AUTOMATICAMENTE PARA ADMIN ──
+                db.get(`SELECT id FROM assinatura_templates WHERE is_active = 1 LIMIT 1`, [], (errTpl, rowTpl) => {
+                    if (rowTpl) {
+                        db.run(`INSERT INTO assinaturas_pendentes (colaborador_id, template_id) VALUES (?, ?)`, [newColabId, rowTpl.id]);
+                    }
+                });
                 // Checar se notificação já foi enviada para este colaborador
                 db.get(`SELECT id FROM computadores_notif_log WHERE colaborador_id = ?`, [newColabId], (errLog, rowLog) => {
                     if (rowLog) return; // Já enviada antes — não reenvia
@@ -3843,6 +3850,13 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                     db.get(`SELECT d.tipo FROM departamentos d WHERE LOWER(TRIM(d.nome)) = LOWER(TRIM(?))`, [_puDept], (errDPu, rowDPu) => {
                         const isAdmin = (rowDPu && rowDPu.tipo === 'Administrativo') || ['administrativo', 'financeiro', 'comercial', 'recursos humanos', 'rh', 'diretoria', 'marketing', 'ti'].includes(_puDept.trim().toLowerCase());
                         if (!isAdmin) return;
+
+                        // ── ASSINATURAS: GERAR AUTOMATICAMENTE PARA ADMIN ──
+                        db.get(`SELECT id FROM assinatura_templates WHERE is_active = 1 LIMIT 1`, [], (errTpl, rowTpl) => {
+                            if (rowTpl) {
+                                db.run(`INSERT INTO assinaturas_pendentes (colaborador_id, template_id) VALUES (?, ?)`, [id, rowTpl.id]);
+                            }
+                        });
                         // Marcar como enviada
                         db.run(`INSERT OR IGNORE INTO computadores_notif_log (colaborador_id, status_inicial) VALUES (?, ?)`, [id, _puStatusNovo]);
                         const _puNome = data.nome_completo || oldColab.nome_completo || 'Colaborador';
@@ -21142,6 +21156,91 @@ setInterval(syncBase64ToR2, 5 * 60 * 1000);
 // E 10 segundos após a inicialização do servidor
 setTimeout(syncBase64ToR2, 10000);
 // ────────────────────────────────────────────────────────────────────────────
+
+// ============================================================================
+// ROTAS DE ASSINATURAS
+// ============================================================================
+
+// Listar templates
+app.get('/api/assinaturas/templates', authenticateToken, (req, res) => {
+    db.all(`SELECT * FROM assinatura_templates ORDER BY id DESC`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// Criar / Atualizar template (incluindo upload)
+app.post('/api/assinaturas/templates', authenticateToken, upload.single('bg_image'), (req, res) => {
+    const { id, nome, is_active, config_json } = req.body;
+    let bg_image_path = req.file ? `/uploads/${req.file.filename}` : req.body.bg_image_path_existing;
+
+    if (is_active === '1') {
+        db.run(`UPDATE assinatura_templates SET is_active = 0`);
+    }
+
+    if (id) {
+        db.run(`UPDATE assinatura_templates SET nome = ?, bg_image_path = ?, is_active = ?, config_json = ? WHERE id = ?`,
+            [nome, bg_image_path, is_active, config_json, id],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ message: "Template atualizado" });
+            });
+    } else {
+        db.run(`INSERT INTO assinatura_templates (nome, bg_image_path, is_active, config_json) VALUES (?, ?, ?, ?)`,
+            [nome, bg_image_path, is_active, config_json],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ id: this.lastID, message: "Template criado" });
+            });
+    }
+});
+
+app.delete('/api/assinaturas/templates/:id', authenticateToken, (req, res) => {
+    db.run(`DELETE FROM assinatura_templates WHERE id = ?`, [req.params.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: "Excluído" });
+    });
+});
+
+// Listar assinaturas pendentes
+app.get('/api/assinaturas/pendentes', authenticateToken, (req, res) => {
+    const query = `
+        SELECT p.id as pendencia_id, p.status as pendencia_status, p.created_at,
+               c.nome_completo as nome_colaborador, c.cargo, c.departamento, c.email_corporativo, c.telefone, c.telefone_corporativo,
+               t.bg_image_path, t.config_json, t.nome as template_nome
+        FROM assinaturas_pendentes p
+        JOIN colaboradores c ON p.colaborador_id = c.id
+        JOIN assinatura_templates t ON p.template_id = t.id
+        WHERE p.status = 'Pendente'
+        ORDER BY p.created_at DESC
+    `;
+    db.all(query, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// Marcar como baixada
+app.post('/api/assinaturas/pendentes/:id/baixar', authenticateToken, (req, res) => {
+    db.run(`UPDATE assinaturas_pendentes SET status = 'Baixada' WHERE id = ?`, [req.params.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: "Marcado como baixada" });
+    });
+});
+
+// Gerar avulsa
+app.post('/api/assinaturas/gerar-manual', authenticateToken, (req, res) => {
+    const { colaborador_id } = req.body;
+    db.get(`SELECT id FROM assinatura_templates WHERE is_active = 1 LIMIT 1`, [], (errTpl, rowTpl) => {
+        if (errTpl) return res.status(500).json({ error: errTpl.message });
+        if (!rowTpl) return res.status(400).json({ error: "Nenhum template ativo encontrado" });
+
+        db.run(`INSERT INTO assinaturas_pendentes (colaborador_id, template_id) VALUES (?, ?)`, [colaborador_id, rowTpl.id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ message: "Assinatura enviada para a fila de pendências" });
+        });
+    });
+});
 
 app.listen(PORT, () => {
 
