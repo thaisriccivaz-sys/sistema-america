@@ -100,9 +100,30 @@
             '</div>'+
             renderModalAparelho()+renderModalChip()+renderModalAtribuir()+renderModalDevolver();
     }
+    window._celSortCol = 'desde';
+    window._celSortDir = 'desc';
+    window.celularesSetSort = function(col) {
+        if (window._celSortCol === col) {
+            window._celSortDir = window._celSortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            window._celSortCol = col;
+            window._celSortDir = 'asc';
+        }
+        renderTela();
+    };
+
     function thHead(cols) {
         var th='padding:0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;';
-        return '<thead><tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">'+cols.map(function(c){return '<th style="'+th+'">'+c+'</th>';}).join('')+'</tr></thead>';
+        return '<thead><tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">'+cols.map(function(c){
+            if (typeof c === 'object') {
+                var isSorted = c.sortKey === window._celSortCol;
+                var icon = isSorted ? (window._celSortDir === 'asc' ? '<i class="ph ph-caret-up"></i>' : '<i class="ph ph-caret-down"></i>') : '<i class="ph ph-caret-up" style="opacity:0.3;margin-left:4px"></i>';
+                var s = th + 'cursor:pointer;user-select:none;';
+                if (isSorted) s += 'color:#e67700;';
+                return '<th style="'+s+'" onclick="window.celularesSetSort(\''+c.sortKey+'\')"><div style="display:flex;align-items:center;gap:4px;">'+c.label+icon+'</div></th>';
+            }
+            return '<th style="'+th+'">'+c+'</th>';
+        }).join('')+'</tr></thead>';
     }
     function tableWrap(head, rows) {
         return '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.07);">'+head+'<tbody>'+rows+'</tbody></table></div>';
@@ -197,6 +218,42 @@
             return bar + totalLabel + '<div style="text-align:center;padding:3rem;color:#94a3b8;"><i class="ph ph-device-mobile" style="font-size:3rem;display:block;margin-bottom:0.75rem;"></i>'+msgEmpty+'</div>';
         }
 
+        var sortCol = window._celSortCol || 'desde';
+        var sortDir = window._celSortDir || 'desc';
+        var sortMult = sortDir === 'asc' ? 1 : -1;
+
+        var cmp = function(v1, v2) {
+            if(!v1 && !v2) return 0;
+            if(!v1) return 1;
+            if(!v2) return -1;
+            var s1 = String(v1).toLowerCase();
+            var s2 = String(v2).toLowerCase();
+            return s1.localeCompare(s2) * sortMult;
+        };
+
+        atribF.sort(function(a, b) {
+            if (sortCol === 'colaborador') return cmp(a.colab_nome||a.responsavel_nome, b.colab_nome||b.responsavel_nome);
+            if (sortCol === 'situacao') return cmp(a.colab_status || colabStatusMap[a.colaborador_id], b.colab_status || colabStatusMap[b.colaborador_id]);
+            if (sortCol === 'aparelho') return cmp(a.modelo, b.modelo);
+            if (sortCol === 'chip') return cmp(a.chip_numero, b.chip_numero);
+            if (sortCol === 'desde') return cmp(a.atrib_data_inicio, b.atrib_data_inicio);
+            return 0;
+        });
+        
+        chipsAvF.sort(function(a, b) {
+            if (sortCol === 'colaborador') return cmp(a.colab_nome||a.responsavel_nome, b.colab_nome||b.responsavel_nome);
+            if (sortCol === 'situacao') return cmp(colabStatusMap[a.colaborador_id], colabStatusMap[b.colaborador_id]);
+            if (sortCol === 'chip') return cmp(a.numero, b.numero);
+            if (sortCol === 'desde') return cmp(a.atrib_data_inicio, b.atrib_data_inicio);
+            return 0;
+        });
+
+        semAtribF.sort(function(a, b) {
+            if (sortCol === 'colaborador') return cmp(a.nome_completo, b.nome_completo);
+            if (sortCol === 'situacao') return cmp(a.status, b.status);
+            return 0;
+        });
+
         var rows = '';
         var COLSPAN = '6';
 
@@ -220,7 +277,6 @@
         }
 
         // ── Atribuições ativas ──
-        // Conta únicos atribuídos para o header de grupo
         if (atribF.length || chipsAvF.length) {
             var uAt = {};
             atribF.forEach(function(a){ uAt[a.colaborador_id||('av-'+a.id)]=true; });
@@ -236,7 +292,6 @@
             var fotoApThumb=fotoApSrc
                 ?'<img src="'+fotoApSrc+'" style="width:40px;height:40px;border-radius:7px;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;" onerror="this.outerHTML=\'<div style=&quot;width:40px;height:40px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;&quot;><i class=&quot;ph ph-device-mobile&quot; style=&quot;color:#94a3b8;font-size:1.1rem;&quot;></i></div>\'">'
                 :'<div style="width:40px;height:40px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-device-mobile" style="color:#94a3b8;font-size:1.1rem;"></i></div>';
-            // Status: prefer colab_status from aparelhos JOIN, fallback to colabStatusMap
             var colabSt = a.colab_status || colabStatusMap[a.colaborador_id] || '';
             rows+='<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(a.colab_foto,nome,40,a.colab_foto_base64)+'<div><div style="font-weight:700;font-size:0.85rem;color:'+(isAv?'#7c3aed':'#0f172a')+';">'+nome+'</div>'+(isAv?'<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;">Responsavel Avulso</div>':'')+(a.colab_tel_corp?'<div style="font-size:0.72rem;color:#64748b;">'+a.colab_tel_corp+'</div>':'')+'</div></div></td>';
@@ -271,7 +326,17 @@
                 '</div></td></tr>';
             if (isOpen) rows+='<tr id="hist-row-'+hk+'"><td colspan="'+COLSPAN+'" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-'+hk+'" style="padding:0.75rem 1rem;"><div style="color:#94a3b8;font-size:0.82rem;text-align:center;">Carregando historico...</div></div></td></tr>';
         });
-        return bar + totalLabel + tableWrap(thHead(['Colaborador / Responsavel','Situa\u00e7\u00e3o','Aparelho','Chip / Numero','Desde','A\u00e7\u00f5es']),rows);
+
+        var head = thHead([
+            { label: 'Colaborador / Responsavel', sortKey: 'colaborador' },
+            { label: 'Situação', sortKey: 'situacao' },
+            { label: 'Aparelho', sortKey: 'aparelho' },
+            { label: 'Chip / Numero', sortKey: 'chip' },
+            { label: 'Desde', sortKey: 'desde' },
+            'Ações'
+        ]);
+
+        return bar + totalLabel + tableWrap(head, rows);
     }
 
     function _filterBar(fields, onchange) {
