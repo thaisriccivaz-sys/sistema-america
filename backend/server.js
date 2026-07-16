@@ -280,6 +280,26 @@ db.run("CREATE TABLE IF NOT EXISTS departamentos_excluidos (nome TEXT PRIMARY KE
     db.run("DELETE FROM departamentos WHERE nome = 'Recursos Humanos' AND id = 1136");
 });
 
+// MIGRATION: Assinaturas Admin Templates & Fila
+db.run(`CREATE TABLE IF NOT EXISTS assinatura_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT,
+    bg_image_path TEXT,
+    config_json TEXT,
+    is_active INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS assinaturas_pendentes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    colaborador_id INTEGER,
+    template_id INTEGER,
+    status TEXT DEFAULT 'Aguardando',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id),
+    FOREIGN KEY(template_id) REFERENCES assinatura_templates(id)
+)`);
+
 // Tabela de auditoria do Resumo de Rota
 db.run(`CREATE TABLE IF NOT EXISTS resumo_rota_auditoria (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
