@@ -20287,10 +20287,44 @@ window.whkBaixarManualPDF = async function () {
             .replace(/lab\([^)]+\)/gi, 'rgb(30, 41, 59)')
             .replace(/var\([^)]+\)/gi, 'inherit');
 
-        // Cria a string HTML completa para o documento. 
-        // Passar string direto para o html2pdf evita problemas de scroll e overflow do navegador.
         const htmlString = `
-            <div style="width:794px; background:#fff; padding:48px 64px 64px; font-family:'Inter',sans-serif; font-size:14px; line-height:1.75; color:#1e293b;">
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Webhook celulares motoristas</title>
+                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+                <style>
+                    body {
+                        font-family: 'Inter', sans-serif;
+                        font-size: 14px;
+                        line-height: 1.75;
+                        color: #1e293b;
+                        background: #fff;
+                        margin: 0;
+                        padding: 48px 64px 64px;
+                    }
+                    /* Estilos para blocos de código manterem a formatação */
+                    pre {
+                        background: #0f172a;
+                        color: #e2e8f0;
+                        padding: 16px;
+                        border-radius: 8px;
+                        overflow-x: auto;
+                        font-family: monospace;
+                        font-size: 13px;
+                        white-space: pre-wrap;
+                        word-break: break-all;
+                    }
+                    code {
+                        font-family: monospace;
+                    }
+                    @media print {
+                        body { padding: 0; }
+                        @page { margin: 20mm; }
+                    }
+                </style>
+            </head>
+            <body>
                 <!-- Cabeçalho com logo -->
                 <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:20px;border-bottom:3px solid #d9480f;margin-bottom:32px;">
                     <img src="${logoSrc}" alt="América Rental" style="height:52px;object-fit:contain;" crossorigin="anonymous">
@@ -20300,28 +20334,40 @@ window.whkBaixarManualPDF = async function () {
                         <div>América Rental Equipamentos Ltda.</div>
                     </div>
                 </div>
+                
                 <!-- Conteúdo editado -->
                 <div style="font-size:14px;line-height:1.8;">
                     ${htmlSeguro}
                 </div>
+                
                 <!-- Rodapé -->
                 <div style="margin-top:60px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;">
                     <span>América Rental Equipamentos Ltda. – Documento gerado pelo Sistema Interno</span>
                     <span>${dia}/${mes}/${ano}</span>
                 </div>
-            </div>
+
+                <script>
+                    window.onload = function() {
+                        setTimeout(() => {
+                            window.print();
+                        }, 500);
+                    };
+                </script>
+            </body>
+            </html>
         `;
 
-        const opt = {
-            margin: [0, 0, 0, 0],
-            filename: 'Webhook celulares motoristas.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, logging: false },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        // Usa html2pdf nativo passando string HTML, que é isolado do body
-        await html2pdf().set(opt).from(htmlString).save();
+        // Abre uma nova janela invisível/focada para impressão nativa do navegador
+        // A impressão nativa é a única forma de gerar PDFs com texto 100% selecionável no frontend
+        const printWindow = window.open('', '_blank', 'width=800,height=900');
+        if (!printWindow) {
+            throw new Error("O navegador bloqueou a abertura da janela de impressão. Permita pop-ups para este site.");
+        }
+        
+        printWindow.document.open();
+        printWindow.document.write(htmlString);
+        printWindow.document.close();
+        printWindow.focus();
 
     } catch (err) {
         console.error('[WHK Manual PDF]', err);
