@@ -20285,12 +20285,12 @@ window.whkBaixarManualPDF = async function () {
         const origWinScrollX = window.scrollX;
         window.scrollTo(0, 0);
 
-        // Monta o container A4 atrás de tudo (html2canvas não captura bem left:-9999px)
+        // Monta o container A4 atrás de tudo (z-index:-1 fica atrás do modal)
         const container = document.createElement('div');
         container.style.cssText = `
             width:794px; background:#fff; padding:48px 64px 64px;
             font-family:'Inter',sans-serif; font-size:14px; line-height:1.75;
-            color:#1e293b; position:absolute; left:0; top:0; z-index:-9999;
+            color:#1e293b; position:absolute; left:0; top:0; z-index:-1;
         `;
 
         // Limpeza de estilos avançados que o html2canvas antigo não suporta (ex: color(srgb ...) injetado ao colar)
@@ -20321,25 +20321,28 @@ window.whkBaixarManualPDF = async function () {
             </div>
         `;
 
+        // Remove overflow:hidden do body temporariamente para evitar que o html2canvas corte o documento em branco
+        const originalBodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'visible';
+        
         document.body.appendChild(container);
 
         // Aguarda renderização do logo e do DOM
         await new Promise(r => setTimeout(r, 400));
 
-        const opt = {
-            margin: [0, 0, 0, 0],
-            filename: 'Webhook celulares motoristas.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', scrollY: 0 },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak: { mode: ['css', 'legacy'], avoid: 'h2,h3,h4,li,p' }
-        };
-
-        await html2pdf().set(opt).from(container).save();
+        // Gera o Blob do PDF usando a função do sistema que já tem os hacks de scroll
+        const pdfBlob = await window.gerarPDFBlob(container, 'Webhook_celulares_motoristas.pdf');
+        
         document.body.removeChild(container);
+        document.body.style.overflow = originalBodyOverflow;
 
-        // Restaurar rolagem
-        window.scrollTo(origWinScrollX, origWinScrollY);
+        // Dispara o download nativo
+        const url = URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Webhook celulares motoristas.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
 
     } catch (err) {
         console.error('[WHK Manual PDF]', err);
