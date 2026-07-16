@@ -20258,12 +20258,17 @@ window.whkBaixarManualPDF = async function () {
         const mes = String(hoje.getMonth() + 1).padStart(2, '0');
         const ano = hoje.getFullYear();
 
-        // Monta o container A4 off-screen
+        // Salvar rolagem atual
+        const origWinScrollY = window.scrollY;
+        const origWinScrollX = window.scrollX;
+        window.scrollTo(0, 0);
+
+        // Monta o container A4 atrás de tudo (html2canvas não captura bem left:-9999px)
         const container = document.createElement('div');
         container.style.cssText = `
             width:794px; background:#fff; padding:48px 64px 64px;
             font-family:'Inter',sans-serif; font-size:14px; line-height:1.75;
-            color:#1e293b; position:fixed; left:-9999px; top:0;
+            color:#1e293b; position:absolute; left:0; top:0; z-index:-9999;
         `;
 
         container.innerHTML = `
@@ -20289,20 +20294,23 @@ window.whkBaixarManualPDF = async function () {
 
         document.body.appendChild(container);
 
-        // Aguarda renderização do logo
-        await new Promise(r => setTimeout(r, 300));
+        // Aguarda renderização do logo e do DOM
+        await new Promise(r => setTimeout(r, 400));
 
         const opt = {
             margin: [0, 0, 0, 0],
             filename: 'Webhook celulares motoristas.pdf',
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+            html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', scrollY: 0 },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
             pagebreak: { mode: ['css', 'legacy'], avoid: 'h2,h3,h4,li,p' }
         };
 
         await html2pdf().set(opt).from(container).save();
         document.body.removeChild(container);
+
+        // Restaurar rolagem
+        window.scrollTo(origWinScrollX, origWinScrollY);
 
     } catch (err) {
         console.error('[WHK Manual PDF]', err);
