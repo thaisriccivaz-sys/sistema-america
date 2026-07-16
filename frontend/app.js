@@ -20293,6 +20293,13 @@ window.whkBaixarManualPDF = async function () {
             color:#1e293b; position:absolute; left:0; top:0; z-index:-9999;
         `;
 
+        // Limpeza de estilos avançados que o html2canvas antigo não suporta (ex: color(srgb ...) injetado ao colar)
+        let htmlSeguro = editor.innerHTML
+            .replace(/color\([^)]+\)/gi, 'rgb(30, 41, 59)')
+            .replace(/oklch\([^)]+\)/gi, 'rgb(30, 41, 59)')
+            .replace(/lab\([^)]+\)/gi, 'rgb(30, 41, 59)')
+            .replace(/var\([^)]+\)/gi, 'inherit');
+
         container.innerHTML = `
             <!-- Cabeçalho com logo -->
             <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:20px;border-bottom:3px solid #d9480f;margin-bottom:32px;">
@@ -20305,7 +20312,7 @@ window.whkBaixarManualPDF = async function () {
             </div>
             <!-- Conteúdo editado -->
             <div style="font-size:14px;line-height:1.8;">
-                ${editor.innerHTML}
+                ${htmlSeguro}
             </div>
             <!-- Rodapé -->
             <div style="margin-top:60px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;">
