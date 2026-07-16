@@ -20127,17 +20127,6 @@ window.whkAbrirAba = function(abaId) {
 };
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ── Grupos de navegação colapsáveis na sidebar ────────────────────────────────
-window.toggleNavGroup = function(groupId) {
-    const group = document.getElementById(groupId);
-    if (!group) return;
-    const items = group.querySelector('.nav-group-items');
-    const caret = group.querySelector('.nav-group-caret');
-    const isOpen = items.style.display !== 'none';
-    items.style.display = isOpen ? 'none' : 'block';
-    if (caret) caret.style.transform = isOpen ? '' : 'rotate(-180deg)';
-};
-
 // Auto-abre o grupo dev se a página atual for filha dele
 (function() {
     const DEV_TARGETS = new Set(['config-sigor','homologacao','controlid','logistica-multas-monaco','dir-webhooks']);
@@ -20146,13 +20135,8 @@ window.toggleNavGroup = function(groupId) {
         window.navigateTo = function(target, ...args) {
             if (DEV_TARGETS.has(target)) {
                 const group = document.getElementById('nav-group-dev');
-                if (group) {
-                    const items = group.querySelector('.nav-group-items');
-                    const caret = group.querySelector('.nav-group-caret');
-                    if (items && items.style.display === 'none') {
-                        items.style.display = 'block';
-                        if (caret) caret.style.transform = 'rotate(-180deg)';
-                    }
+                if (group && !group.classList.contains('open')) {
+                    group.classList.add('open');
                 }
             }
             return original.call(this, target, ...args);

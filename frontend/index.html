@@ -347,17 +347,20 @@
 
                     <!-- ── Desenvolvedor (submenu aninhado) ────────────────── -->
                     <div class="nav-group" id="nav-group-dev">
-                        <button class="nav-group-btn" onclick="window.toggleNavGroup('nav-group-dev')" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 12px 8px 16px;border:none;background:none;cursor:pointer;font-size:0.82rem;font-weight:700;color:#d9480f;text-transform:uppercase;letter-spacing:0.6px;border-radius:8px;transition:background 0.15s;" onmouseover="this.style.background='rgba(217,72,15,0.07)'" onmouseout="this.style.background='none'">
-                            <i class="ph ph-code" style="font-size:1rem;"></i>
-                            <span style="flex:1;text-align:left;">Desenvolvedor</span>
-                            <i class="ph ph-caret-down nav-group-caret" style="font-size:0.85rem;transition:transform 0.2s;"></i>
+                        <button class="nav-group-label nav-group-toggle"
+                                onclick="toggleNavGroup('nav-group-dev')">
+                            <span style="display:flex;align-items:center;gap:0.55rem;font-weight:700;color:#d9480f;text-transform:uppercase;">
+                                <i class="ph ph-code"></i>
+                                Desenvolvedor
+                            </span>
+                            <i class="ph ph-caret-right nav-group-chevron"></i>
                         </button>
-                        <div class="nav-group-items" style="display:none;padding-left:10px;border-left:2px solid rgba(217,72,15,0.2);margin-left:14px;">
-                            <a href="#" class="nav-item" data-target="config-sigor" onclick="navigateTo('config-sigor'); return false;"><i class="ph ph-key"></i> Credenciais SIGOR</a>
-                            <a href="#" class="nav-item" data-target="homologacao"><i class="ph ph-database"></i> Homologação</a>
-                            <a href="#" class="nav-item" data-target="controlid" onclick="navigateTo('controlid'); return false;"><i class="ph ph-fingerprint"></i> Control iD</a>
-                            <a href="#" class="nav-item" data-target="logistica-multas-monaco" onclick="navigateTo('logistica-multas-monaco'); return false;"><i class="ph ph-police-car"></i> Multas Mônaco</a>
-                            <a href="#" class="nav-item" data-target="dir-webhooks" onclick="navigateTo('dir-webhooks'); return false;"><i class="ph ph-plugs-connected"></i> Webhooks</a>
+                        <div class="nav-group-items" id="nav-group-items-dev">
+                            <a href="#" class="nav-item nav-item-sub" data-target="config-sigor" onclick="navigateTo('config-sigor'); return false;"><i class="ph ph-key"></i> Credenciais SIGOR</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="homologacao"><i class="ph ph-database"></i> Homologação</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="controlid" onclick="navigateTo('controlid'); return false;"><i class="ph ph-fingerprint"></i> Control iD</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="logistica-multas-monaco" onclick="navigateTo('logistica-multas-monaco'); return false;"><i class="ph ph-police-car"></i> Multas Mônaco</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="dir-webhooks" onclick="navigateTo('dir-webhooks'); return false;"><i class="ph ph-plugs-connected"></i> Webhooks</a>
                         </div>
                     </div>
                 </div>
@@ -5646,7 +5649,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=1782835731066"></script>
-    <script src="app.js?v=20260716v2"></script>
+    <script src="app.js?v=20260716v3"></script>
     <script src="frota_resumo.js?v=1778869020176"></script>
     <!-- Global Scroll-to-Top Button -->
     <button id="global-scroll-top" onclick="window.scrollTo({top:0, behavior:'smooth'})"
