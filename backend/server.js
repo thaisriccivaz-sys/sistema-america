@@ -21189,36 +21189,65 @@ app.get('/api/assinaturas/templates', authenticateToken, (req, res) => {
     });
 });
 
-// Criar / Atualizar template (incluindo upload)
-app.post('/api/assinaturas/templates', authenticateToken, upload.single('bg_image'), (req, res) => {
-    const { id, nome, is_active, config_json } = req.body;
-    let bg_image_path = req.file ? `/uploads/${req.file.filename}` : req.body.bg_image_path_existing;
+// Criar / Atualizar template (incluindo upload com Cloudflare R2)
+app.post('/api/assinaturas/templates', authenticateToken, uploadFoto.single('bg_image'), async (req, res) => {
+    try {
+        const { id, nome, is_active, config_json } = req.body;
+        let bg_image_path = req.body.bg_image_path_existing;
 
-    if (is_active === '1') {
-        db.run(`UPDATE assinatura_templates SET is_active = 0`);
-    }
+        if (req.file) {
+            if (r2 && r2.isReady()) {
+                const ext = req.file.originalname.split('.').pop() || 'png';
+                const key = `assinaturas/templates/bg_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+                bg_image_path = await r2.uploadToR2(key, req.file.buffer, req.file.mimetype);
+            } else {
+                return res.status(500).json({ error: "Serviço de upload indisponível (R2 não configurado)." });
+            }
+        }
 
-    if (id) {
-        db.run(`UPDATE assinatura_templates SET nome = ?, bg_image_path = ?, is_active = ?, config_json = ? WHERE id = ?`,
-            [nome, bg_image_path, is_active, config_json, id],
-            function(err) {
-                if (err) return res.status(500).json({ error: err.message });
-                res.json({ message: "Template atualizado" });
-            });
-    } else {
-        db.run(`INSERT INTO assinatura_templates (nome, bg_image_path, is_active, config_json) VALUES (?, ?, ?, ?)`,
-            [nome, bg_image_path, is_active, config_json],
-            function(err) {
-                if (err) return res.status(500).json({ error: err.message });
-                res.json({ id: this.lastID, message: "Template criado" });
-            });
+        if (is_active === '1') {
+            await new Promise((resolve) => db.run(`UPDATE assinatura_templates SET is_active = 0`, resolve));
+        }
+
+        if (id) {
+            db.run(`UPDATE assinatura_templates SET nome = ?, bg_image_path = ?, is_active = ?, config_json = ? WHERE id = ?`,
+                [nome, bg_image_path, is_active, config_json, id],
+                function(err) {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.json({ message: "Template atualizado" });
+                });
+        } else {
+            db.run(`INSERT INTO assinatura_templates (nome, bg_image_path, is_active, config_json) VALUES (?, ?, ?, ?)`,
+                [nome, bg_image_path, is_active, config_json],
+                function(err) {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.json({ id: this.lastID, message: "Template criado" });
+                });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
     }
 });
 
 app.delete('/api/assinaturas/templates/:id', authenticateToken, (req, res) => {
-    db.run(`DELETE FROM assinatura_templates WHERE id = ?`, [req.params.id], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: "Excluído" });
+    db.get(`SELECT bg_image_path FROM assinatura_templates WHERE id = ?`, [req.params.id], async (err, row) => {
+        if (row && row.bg_image_path && row.bg_image_path.includes('assinaturas/templates/') && r2 && r2.isReady()) {
+            try {
+                let key = row.bg_image_path;
+                if(key.startsWith('http')) {
+                    const urlObj = new URL(key);
+                    key = urlObj.pathname.substring(1); 
+                }
+                await r2.deleteFromR2(key);
+            } catch (e) {
+                console.error("Erro ao deletar imagem do R2:", e);
+            }
+        }
+        db.run(`DELETE FROM assinatura_templates WHERE id = ?`, [req.params.id], (err2) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ message: "Excluído" });
+        });
     });
 });
 

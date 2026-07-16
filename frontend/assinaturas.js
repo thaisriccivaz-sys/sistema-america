@@ -144,35 +144,26 @@ window.assinaturasLoadImagePreview = function(url, config) {
 // Event listener added in init
 
 window.assinaturasAtualizarPreview = function() {
-    if (!currentPreviewImg) return;
-    const config = {
-        nome: { 
-            x: document.getElementById('assinaturas-pos-nome-x').value || 50,
-            y: document.getElementById('assinaturas-pos-nome-y').value || 50,
-            size: document.getElementById('assinaturas-size-nome').value || 24,
-            color: document.getElementById('assinaturas-color-nome').value || '#000000'
-        },
-        cargo: { 
-            x: document.getElementById('assinaturas-pos-cargo-x').value || 50,
-            y: document.getElementById('assinaturas-pos-cargo-y').value || 80,
-            size: document.getElementById('assinaturas-size-cargo').value || 16,
-            color: document.getElementById('assinaturas-color-cargo').value || '#475569'
-        },
-        dept: { 
-            x: document.getElementById('assinaturas-pos-dept-x').value || 50,
-            y: document.getElementById('assinaturas-pos-dept-y').value || 100,
-            size: document.getElementById('assinaturas-size-dept').value || 16,
-            color: document.getElementById('assinaturas-color-dept').value || '#475569'
-        },
-        email: { 
-            x: document.getElementById('assinaturas-pos-email-x').value || 50,
-            y: document.getElementById('assinaturas-pos-email-y').value || 120,
-            size: document.getElementById('assinaturas-size-email').value || 14,
-            color: document.getElementById('assinaturas-color-email').value || '#64748b'
+    const fields = ['nome', 'cargo', 'dept', 'email'];
+    fields.forEach(f => {
+        const iX = document.getElementById(`assinaturas-pos-${f}-x`);
+        const iY = document.getElementById(`assinaturas-pos-${f}-y`);
+        const iSize = document.getElementById(`assinaturas-size-${f}`);
+        const iColor = document.getElementById(`assinaturas-color-${f}`);
+        const dragEl = document.getElementById(`drag-${f}`);
+        
+        if(!dragEl) return;
+        if(iX && iX.value) dragEl.style.left = `${iX.value}%`;
+        if(iY && iY.value) dragEl.style.top = `${iY.value}%`;
+        if(iSize && iSize.value) {
+            dragEl.style.fontSize = `${iSize.value}px`;
+            dragEl.style.fontWeight = '600';
+            dragEl.style.fontFamily = 'Inter, sans-serif';
         }
-    };
-    assinaturasRenderCanvas(config);
+        if(iColor && iColor.value) dragEl.style.color = iColor.value;
+    });
 };
+
 
 window.assinaturasRenderCanvas = function(config, exportMode = false, colabData = null) {
     if (!currentPreviewImg) return null;
@@ -191,9 +182,13 @@ window.assinaturasRenderCanvas = function(config, exportMode = false, colabData 
 
     const drawText = (text, field) => {
         if(!text) return;
+        const xPos = (config[field].x / 100) * canvas.width;
+        const yPos = (config[field].y / 100) * canvas.height;
         ctx.font = `600 ${config[field].size}px Inter, sans-serif`;
         ctx.fillStyle = config[field].color;
-        ctx.fillText(text, config[field].x, config[field].y);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, xPos, yPos);
     };
 
     drawText(dataNome, 'nome');
@@ -323,6 +318,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(event) {
+                    const canvasDiv = document.getElementById('assinaturas-preview-canvas');
+                    const placeholder = document.getElementById('assinaturas-preview-placeholder');
+                    if (canvasDiv) {
+                        canvasDiv.style.display = 'block';
+                        canvasDiv.style.backgroundImage = `url('${event.target.result}')`;
+                    }
+                    if (placeholder) {
+                        placeholder.style.display = 'none';
+                    }
+                    
                     const img = new Image();
                     img.onload = () => {
                         currentPreviewImg = img;
@@ -334,6 +339,66 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Lógica Drag & Drop
+    let draggedElement = null;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+    const canvasDiv = document.getElementById('assinaturas-preview-canvas');
+
+    document.querySelectorAll('.draggable-text').forEach(el => {
+        el.addEventListener('mousedown', (e) => {
+            draggedElement = el;
+            const rect = el.getBoundingClientRect();
+            dragOffsetX = e.clientX - rect.left;
+            dragOffsetY = e.clientY - rect.top;
+            el.style.cursor = 'grabbing';
+            e.preventDefault();
+        });
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!draggedElement || !canvasDiv) return;
+        const canvasRect = canvasDiv.getBoundingClientRect();
+        
+        let newLeft = e.clientX - canvasRect.left - dragOffsetX + (draggedElement.offsetWidth / 2);
+        let newTop = e.clientY - canvasRect.top - dragOffsetY + (draggedElement.offsetHeight / 2);
+        
+        let pctX = (newLeft / canvasRect.width) * 100;
+        let pctY = (newTop / canvasRect.height) * 100;
+
+        pctX = Math.max(0, Math.min(100, pctX));
+        pctY = Math.max(0, Math.min(100, pctY));
+
+        draggedElement.style.left = `${pctX}%`;
+        draggedElement.style.top = `${pctY}%`;
+
+        const target = draggedElement.getAttribute('data-target');
+        const inputX = document.getElementById(`assinaturas-pos-${target}-x`);
+        const inputY = document.getElementById(`assinaturas-pos-${target}-y`);
+        if (inputX) inputX.value = Math.round(pctX);
+        if (inputY) inputY.value = Math.round(pctY);
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (draggedElement) {
+            draggedElement.style.cursor = 'grab';
+            draggedElement = null;
+        }
+    });
+
+    const fields = ['nome', 'cargo', 'dept', 'email'];
+    fields.forEach(f => {
+        const iX = document.getElementById(`assinaturas-pos-${f}-x`);
+        const iY = document.getElementById(`assinaturas-pos-${f}-y`);
+        const iSize = document.getElementById(`assinaturas-size-${f}`);
+        const iColor = document.getElementById(`assinaturas-color-${f}`);
+        if(iX) iX.addEventListener('input', assinaturasAtualizarPreview);
+        if(iY) iY.addEventListener('input', assinaturasAtualizarPreview);
+        if(iSize) iSize.addEventListener('input', assinaturasAtualizarPreview);
+        if(iColor) iColor.addEventListener('input', assinaturasAtualizarPreview);
+    });
+
 
     // Escutar mudança de tela para renderizar se for assinaturas
     const observer = new MutationObserver(() => {
