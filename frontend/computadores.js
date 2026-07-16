@@ -252,10 +252,12 @@
             // Senha Windows
             '<div>' +
             '<label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:4px;"><i class="ph ph-lock-key"></i> Senha Windows</label>' +
-            '<input id="comp-senha" type="password" value="' + (c.senha_windows || '').replace(/"/g, '&quot;') + '" placeholder="Senha do Windows" autocomplete="new-password" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.7rem;font-size:0.88rem;outline:none;background:#fff;box-sizing:border-box;">' +
-            '<label style="display:flex;align-items:center;gap:5px;margin-top:5px;font-size:0.76rem;color:#64748b;cursor:pointer;">' +
-            '<input type="checkbox" onchange="document.getElementById(\'comp-senha\').type=this.checked?\'text\':\'password\'"> Mostrar senha' +
-            '</label></div>' +
+            '<div style="position:relative;">' +
+            '<input id="comp-senha" type="password" value="' + (c.senha_windows || '').replace(/"/g, '&quot;') + '" placeholder="Senha do Windows" autocomplete="new-password" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 2.5rem 0.5rem 0.7rem;font-size:0.88rem;outline:none;background:#fff;box-sizing:border-box;">' +
+            '<button type="button" onclick="var i=document.getElementById(\'comp-senha\');var ic=this.querySelector(\'i\');if(i.type===\'password\'){i.type=\'text\';ic.className=\'ph ph-eye-slash\';}else{i.type=\'password\';ic.className=\'ph ph-eye\';}" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:#64748b;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;padding:4px;" title="Mostrar/Ocultar senha">' +
+            '<i class="ph ph-eye"></i>' +
+            '</button></div>' +
+            '</div>' +
             // Observações
             '<div>' +
             '<label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:4px;">Observações</label>' +
