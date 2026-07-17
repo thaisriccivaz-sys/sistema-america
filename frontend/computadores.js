@@ -11,6 +11,7 @@
     var _filterStatus = '';
     var _sortCol = 'nome_colaborador';
     var _sortDir = 'asc';
+    var _activeTab = 'colaboradores';
 
     /* ─── API Helpers ─── */
     async function _apiGet(p) {
@@ -94,30 +95,54 @@
     }
 
     /* ─── Main render ─── */
+    window.computadoresSetTab = function (tab) {
+        _activeTab = tab;
+        renderTela();
+    };
+
+    window.computadoresVincular = function (colabId) {
+        window.computadoresOpenModal();
+        setTimeout(function() {
+            var s = document.getElementById('comp-colaborador');
+            if(s) { s.value = colabId; }
+        }, 100);
+    };
+
     function renderTela() {
         var cont = document.getElementById('computadores-content');
         if (!cont) return;
 
+        var countColabs = _colaboradores.length;
+        var countComps = _computadores.length;
+
+        function tabS(t) { return 'padding:0.6rem 1.25rem;border:none;background:transparent;cursor:pointer;font-size:0.85rem;font-weight:600;color:' + (_activeTab === t ? '#6366f1' : '#64748b') + ';border-bottom:' + (_activeTab === t ? '2px solid #6366f1' : '2px solid transparent') + ';margin-bottom:-2px;'; }
+
+        cont.innerHTML =
+            '<div style="padding:1.5rem 1.5rem 0;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">' +
+            '<div style="display:flex;align-items:center;gap:0.75rem;"><div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;"><i class="ph ph-desktop" style="font-size:1.5rem;color:#fff;"></i></div>' +
+            '<div><h2 style="margin:0;font-size:1.25rem;font-weight:800;color:#0f172a;">Computadores Corporativos</h2><p style="margin:0;font-size:0.8rem;color:#64748b;">' + countComps + ' equipamentos &middot; ' + countColabs + ' colaboradores</p></div></div>' +
+            '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">' +
+            '<button id="btn-novo-computador" onclick="window.computadoresOpenModal()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;padding:0.55rem 1.1rem;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;display:flex;align-items:center;gap:0.4rem;box-shadow:0 2px 8px rgba(99,102,241,0.3);">' +
+            '<i class="ph ph-plus"></i> Novo Computador</button>' +
+            '</div></div>' +
+            '<div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:1.25rem;">' +
+            '<button onclick="window.computadoresSetTab(\'colaboradores\')" style="' + tabS('colaboradores') + '"><i class="ph ph-users"></i> Colaboradores <span style="font-size:0.75rem;opacity:0.8;">(' + countColabs + ')</span></button>' +
+            '<button onclick="window.computadoresSetTab(\'computadores\')" style="' + tabS('computadores') + '"><i class="ph ph-desktop"></i> Computadores <span style="font-size:0.75rem;opacity:0.8;">(' + countComps + ')</span></button>' +
+            '</div></div>' +
+            '<div style="padding:0 1.5rem 2rem;" id="comp-tab-content">' +
+            (_activeTab === 'colaboradores' ? renderTabColaboradores() : renderTabComputadores()) +
+            '</div>' +
+            renderModal();
+    }
+
+    function renderTabComputadores() {
         var total = _computadores.length;
         var emUso = _computadores.filter(function (c) { return c.status === 'Em uso'; }).length;
         var reserva = _computadores.filter(function (c) { return c.status === 'Reserva'; }).length;
         var manut = _computadores.filter(function (c) { return c.status === 'Manutenção'; }).length;
 
-        cont.innerHTML =
-            '<div style="padding:1.5rem 1.5rem 0;">' +
-            // Header
-            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;">' +
-            '<div style="display:flex;align-items:center;gap:0.75rem;">' +
-            '<div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;">' +
-            '<i class="ph ph-desktop" style="font-size:1.5rem;color:#fff;"></i></div>' +
-            '<div><h2 style="margin:0;font-size:1.25rem;font-weight:800;color:#0f172a;">Computadores Corporativos</h2>' +
-            '<p style="margin:0;font-size:0.8rem;color:#64748b;">' + total + ' equipamento(s) cadastrado(s)</p></div>' +
-            '</div>' +
-            '<button id="btn-novo-computador" onclick="window.computadoresOpenModal()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;padding:0.55rem 1.1rem;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;display:flex;align-items:center;gap:0.4rem;box-shadow:0 2px 8px rgba(99,102,241,0.3);">' +
-            '<i class="ph ph-plus"></i> Novo Computador</button>' +
-            '</div>' +
-            // Stats cards
-            '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0.75rem;margin-bottom:1.5rem;">' +
+        return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0.75rem;margin-bottom:1.5rem;">' +
             statCard('ph-stack', 'Total', total, '#6366f1', '#eef2ff') +
             statCard('ph-monitor', 'Em Uso', emUso, '#2563eb', '#dbeafe') +
             statCard('ph-archive-box', 'Reserva', reserva, '#7c3aed', '#f3e8ff') +
@@ -134,11 +159,68 @@
             }).join('') +
             '</select>' +
             '</div>' +
+            '<div id="comp-table-wrap">' + renderTable() + '</div>';
+    }
+
+    function renderTabColaboradores() {
+        var fq = _filterQ.trim().toLowerCase();
+        
+        var filtered = _colaboradores.filter(function(c) {
+            if (!fq) return true;
+            return (c.nome_completo && c.nome_completo.toLowerCase().includes(fq)) ||
+                   (c.departamento && c.departamento.toLowerCase().includes(fq));
+        });
+
+        var thStyle = 'padding:0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;';
+        
+        var rows = filtered.map(function(c) {
+            var td = 'padding:0.75rem;vertical-align:middle;';
+            var compsDoColab = _computadores.filter(function(cp) { return String(cp.colaborador_id) === String(c.id); });
+            
+            var colabInfo = '<div style="display:flex;align-items:center;gap:0.75rem;">' +
+                            avatarHtml(c.foto_path, c.foto_base64, c.nome_completo, 40) +
+                            '<div><div style="font-weight:700;font-size:0.9rem;color:#0f172a;">' + (c.nome_completo || '-') + '</div>' +
+                            '<div style="font-size:0.75rem;color:#64748b;font-weight:600;"><i class="ph ph-buildings" style="margin-right:3px;"></i>' + (c.departamento || '-') + ' &middot; ' + (c.cargo || '-') + '</div>' +
+                            '</div></div>';
+
+            var eqpInfo = '';
+            var acoes = '';
+
+            if (compsDoColab.length > 0) {
+                eqpInfo = compsDoColab.map(function(cp) {
+                    return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:0.5rem;display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">' +
+                           '<div style="width:30px;height:30px;border-radius:6px;background:#e0e7ff;display:flex;align-items:center;justify-content:center;color:#4f46e5;"><i class="ph ' + tipoIcon(cp.tipo) + '" style="font-size:1.1rem;"></i></div>' +
+                           '<div style="flex:1;"><div style="font-weight:600;font-size:0.8rem;color:#1e293b;">' + (cp.tipo || 'Computador') + ' ' + (cp.modelo || '') + '</div>' +
+                           '<div style="font-size:0.7rem;color:#64748b;font-family:monospace;">Patr: ' + (cp.patrimonio || '-') + ' / SN: ' + (cp.numero_serie || '-') + '</div></div>' +
+                           '<div>' + statusBadge(cp.status) + '</div>' +
+                           '<button onclick="window.computadoresOpenModal(' + cp.id + ')" style="background:none;border:none;color:#6366f1;cursor:pointer;padding:4px;" title="Editar Aparelho"><i class="ph ph-pencil-simple"></i></button>' +
+                           '</div>';
+                }).join('');
+                acoes = '<button onclick="window.computadoresVincular(' + c.id + ')" style="background:#fff;border:1px solid #e2e8f0;color:#0f172a;padding:0.4rem 0.75rem;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.3rem;"><i class="ph ph-plus"></i> Outro Equip.</button>';
+            } else {
+                eqpInfo = '<span style="color:#94a3b8;font-size:0.85rem;font-style:italic;">Nenhum equipamento</span>';
+                acoes = '<button onclick="window.computadoresVincular(' + c.id + ')" style="background:#eef2ff;border:1px solid #c7d2fe;color:#4f46e5;padding:0.4rem 0.75rem;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.3rem;"><i class="ph ph-link"></i> Vincular Computador</button>';
+            }
+
+            return '<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">' +
+                   '<td style="' + td + '">' + colabInfo + '</td>' +
+                   '<td style="' + td + '">' + eqpInfo + '</td>' +
+                   '<td style="' + td + '">' + acoes + '</td>' +
+                   '</tr>';
+        }).join('');
+
+        if(!filtered.length) rows = '<tr><td colspan="3" style="padding:2rem;text-align:center;color:#64748b;">Nenhum colaborador encontrado.</td></tr>';
+
+        return '<div style="background:#f8fafc;padding:0.75rem 1rem;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:1rem;display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">' +
+            '<i class="ph ph-funnel" style="color:#94a3b8;font-size:1.1rem;"></i>' +
+            '<input id="comp-filter-q" type="text" placeholder="Buscar colaborador por nome ou departamento..." value="' + _filterQ.replace(/"/g, '&quot;') + '" oninput="window.computadoresFilter()" style="flex:1;min-width:200px;border:1.5px solid #e2e8f0;border-radius:7px;padding:0.4rem 0.7rem;font-size:0.85rem;background:#fff;outline:none;">' +
             '</div>' +
-            '<div style="padding:0 1.5rem 2rem;" id="comp-table-wrap">' +
-            renderTable() +
-            '</div>' +
-            renderModal();
+            '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.07);">' +
+            '<thead><tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">' +
+            '<th style="' + thStyle + 'width:40%;">Colaborador</th>' +
+            '<th style="' + thStyle + 'width:45%;">Equipamento Atribuído</th>' +
+            '<th style="' + thStyle + 'width:15%;">Ações</th>' +
+            '</tr></thead><tbody>' + rows + '</tbody></table></div>';
     }
 
     function statCard(icon, label, val, color, bg) {
@@ -350,16 +432,18 @@
 
     window.computadoresFilter = function () {
         _filterQ = (document.getElementById('comp-filter-q') || {}).value || '';
-        _filterStatus = (document.getElementById('comp-filter-status') || {}).value || '';
-        var wrap = document.getElementById('comp-table-wrap');
-        if (wrap) wrap.innerHTML = renderTable();
+        if (_activeTab === 'computadores') {
+            _filterStatus = (document.getElementById('comp-filter-status') || {}).value || '';
+        }
+        var wrap = document.getElementById('comp-tab-content');
+        if (wrap) wrap.innerHTML = _activeTab === 'colaboradores' ? renderTabColaboradores() : renderTabComputadores();
     };
 
     window.computadoresSetSort = function (col) {
         if (_sortCol === col) _sortDir = _sortDir === 'asc' ? 'desc' : 'asc';
         else { _sortCol = col; _sortDir = 'asc'; }
-        var wrap = document.getElementById('comp-table-wrap');
-        if (wrap) wrap.innerHTML = renderTable();
+        var wrap = document.getElementById('comp-tab-content');
+        if (wrap) wrap.innerHTML = _activeTab === 'colaboradores' ? renderTabColaboradores() : renderTabComputadores();
     };
 
     window.computadoresOpenModal = function (id) {
