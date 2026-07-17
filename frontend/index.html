@@ -6322,10 +6322,10 @@
 
                 <div style="flex: 1 1 400px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #f1f5f9; display: flex; flex-direction: column;">
                     <div style="padding: 10px; background: #e2e8f0; font-weight: 600; text-align: center; border-bottom: 1px solid #cbd5e1;">Preview Interativo</div>
-                    <div id="assinaturas-preview-wrapper" style="flex: 1; position: relative; min-height: 300px; background: #cbd5e1; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 10px;">
-                        <span id="assinaturas-preview-placeholder" style="color: #64748b; font-weight: 500;">Faça upload de uma imagem para ver o preview</span>
-                        <div id="assinaturas-preview-canvas" style="display: none; position: relative; display: block; flex-shrink: 0; transform-origin: top left;">
-                            <img id="assinaturas-preview-img" src="" style="width: 100%; height: 100%; display: block; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+                    <div id="assinaturas-preview-wrapper" style="flex: 1; position: relative; background: #cbd5e1; padding: 10px; overflow: auto;">
+                        <span id="assinaturas-preview-placeholder" style="color: #64748b; font-weight: 500; display: block; text-align: center; padding: 60px 0;">Faça upload de uma imagem para ver o preview</span>
+                        <div id="assinaturas-preview-canvas" style="display: none; position: relative;">
+                            <img id="assinaturas-preview-img" src="" style="width: 100%; height: auto; display: block; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
                             <div id="drag-nome" class="draggable-text" data-target="nome" style="position: absolute; cursor: grab; outline: 1px dashed #3b82f6; white-space: nowrap; user-select: none; top: 10%; left: 10%; z-index: 10; line-height: 1;">Nome do Colaborador</div>
                             <div id="drag-dept" class="draggable-text" data-target="dept" style="position: absolute; cursor: grab; outline: 1px dashed #3b82f6; white-space: nowrap; user-select: none; top: 20%; left: 10%; z-index: 10; line-height: 1;">Departamento</div>
                             <div id="drag-email" class="draggable-text" data-target="email" style="position: absolute; cursor: grab; outline: 1px dashed #3b82f6; white-space: nowrap; user-select: none; top: 30%; left: 10%; z-index: 10; line-height: 1;">email@america.com</div>

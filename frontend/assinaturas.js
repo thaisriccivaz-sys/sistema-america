@@ -166,22 +166,12 @@ window.assinaturasLoadImagePreview = function(url, config) {
 // Event listener added in init
 
 window.assinaturasAtualizarPreview = function() {
-    const wrapper = document.getElementById('assinaturas-preview-wrapper');
-    const canvasDiv = document.getElementById('assinaturas-preview-canvas');
     const imgEl = document.getElementById('assinaturas-preview-img');
     
-    if (imgEl && imgEl.naturalWidth && canvasDiv && wrapper) {
-        canvasDiv.style.width = `${imgEl.naturalWidth}px`;
-        canvasDiv.style.height = `${imgEl.naturalHeight}px`;
-        
-        const wrapperWidth = Math.max(10, wrapper.clientWidth - 20); 
-        const scale = wrapperWidth < imgEl.naturalWidth ? wrapperWidth / imgEl.naturalWidth : 1;
-        
-        canvasDiv.style.transform = `scale(${scale})`;
-        canvasDiv.style.transformOrigin = 'top left';
-        wrapper.style.height = `${imgEl.naturalHeight * scale + 20}px`;
-        wrapper.style.alignItems = 'flex-start';
-    }
+    // Escala proporcional: tamanho real da fonte x (largura visível / largura original)
+    const scale = (imgEl && imgEl.naturalWidth && imgEl.clientWidth)
+        ? (imgEl.clientWidth / imgEl.naturalWidth)
+        : 1;
 
     const fields = ['nome', 'dept', 'email'];
     fields.forEach(f => {
@@ -193,10 +183,10 @@ window.assinaturasAtualizarPreview = function() {
         const dragEl = document.getElementById(`drag-${f}`);
         
         if(!dragEl) return;
-        if(iX && iX.value) dragEl.style.left = `${iX.value}%`;
-        if(iY && iY.value) dragEl.style.top = `${iY.value}%`;
+        if(iX && iX.value !== '') dragEl.style.left = `${iX.value}%`;
+        if(iY && iY.value !== '') dragEl.style.top = `${iY.value}%`;
         if(iSize && iSize.value) {
-            dragEl.style.fontSize = `${iSize.value}px`;
+            dragEl.style.fontSize = `${iSize.value * scale}px`;
             const isBold = document.getElementById(`assinaturas-bold-${f}`)?.checked;
             const isItalic = document.getElementById(`assinaturas-italic-${f}`)?.checked;
             dragEl.style.fontWeight = isBold ? 'bold' : 'normal';
