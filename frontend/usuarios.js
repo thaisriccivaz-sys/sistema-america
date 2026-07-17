@@ -59,6 +59,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Administrativo', pagina_id: 'computadores-corporativos', pagina_nome: 'Computadores', icone: 'ph-desktop' },
     { modulo: 'Administrativo', pagina_id: 'administrativo-senhas', pagina_nome: 'Cofre de Senhas', icone: 'ph-lock-key' },
     { modulo: 'Administrativo', pagina_id: 'assinaturas-adm', pagina_nome: 'Assinaturas', icone: 'ph-signature' },
+    { modulo: 'Administrativo', pagina_id: 'administrativo-protocolos', pagina_nome: 'Protocolos', icone: 'ph-file-text' },
     // Módulo Treinamentos
     { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais', pagina_nome: 'Materiais', icone: 'ph-books' },
     { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca', pagina_nome: 'Presenças', icone: 'ph-check-square' },
@@ -597,7 +598,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',
-        grupos: [{ titulo: 'Telas', telas: ['licencas', 'estoque', 'celulares-corporativos', 'computadores-corporativos', 'administrativo-senhas', 'assinaturas-adm'] }]
+        grupos: [{ titulo: 'Telas', telas: ['licencas', 'estoque', 'celulares-corporativos', 'computadores-corporativos', 'administrativo-senhas', 'assinaturas-adm', 'administrativo-protocolos'] }]
     },
     {
         modulo: 'Treinamentos', icone: 'ph-graduation-cap', cor: '#0e7490',

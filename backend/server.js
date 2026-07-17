@@ -290,6 +290,21 @@ db.run(`
     )
 `);
 
+db.run(`
+    CREATE TABLE IF NOT EXISTS administrativo_protocolos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        numeros TEXT,
+        assunto TEXT,
+        status TEXT DEFAULT 'Aberto',
+        comentarios TEXT DEFAULT '[]',
+        arquivos_json TEXT DEFAULT '[]',
+        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+        criado_por_nome TEXT,
+        criado_por_id INTEGER
+    )
+`);
+
 // Migração: Histórico de Resumos de Rota
 db.run(`
     CREATE TABLE IF NOT EXISTS logistica_resumo_rota (
@@ -5846,6 +5861,122 @@ app.get('/api/administrativo/senhas/historico', authenticateToken, (req, res) =>
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
+    });
+});
+
+// ==========================================
+// PROTOCOLOS ADMINISTRATIVOS
+// ==========================================
+
+app.get('/api/administrativo/protocolos', authenticateToken, (req, res) => {
+    db.all("SELECT * FROM administrativo_protocolos ORDER BY atualizado_em DESC", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/administrativo/protocolos', authenticateToken, (req, res) => {
+    const { numeros, assunto } = req.body;
+    const nome = req.user.nome || req.user.username;
+    
+    db.run(
+        "INSERT INTO administrativo_protocolos (numeros, assunto, criado_por_nome, criado_por_id) VALUES (?, ?, ?, ?)",
+        [numeros || '', assunto || '', nome, req.user.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, message: 'Protocolo criado com sucesso' });
+        }
+    );
+});
+
+app.put('/api/administrativo/protocolos/:id', authenticateToken, (req, res) => {
+    const { status, numeros, assunto } = req.body;
+    const updates = [];
+    const params = [];
+    
+    if (status !== undefined) { updates.push("status = ?"); params.push(status); }
+    if (numeros !== undefined) { updates.push("numeros = ?"); params.push(numeros); }
+    if (assunto !== undefined) { updates.push("assunto = ?"); params.push(assunto); }
+    
+    if (updates.length === 0) return res.status(400).json({ error: 'Nada a atualizar' });
+    
+    updates.push("atualizado_em = CURRENT_TIMESTAMP");
+    params.push(req.params.id);
+    
+    db.run(`UPDATE administrativo_protocolos SET ${updates.join(', ')} WHERE id = ?`, params, function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Protocolo atualizado' });
+    });
+});
+
+app.post('/api/administrativo/protocolos/:id/comentarios', authenticateToken, (req, res) => {
+    const { texto } = req.body;
+    if (!texto) return res.status(400).json({ error: 'Texto é obrigatório' });
+    
+    db.get("SELECT comentarios FROM administrativo_protocolos WHERE id = ?", [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Protocolo não encontrado' });
+        
+        let comentarios = [];
+        try { comentarios = JSON.parse(row.comentarios || '[]'); } catch(e) {}
+        
+        const now = new Date();
+        const dataHora = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().replace('T', ' ').substring(0, 19);
+        
+        comentarios.push({
+            usuario: req.user.nome || req.user.username,
+            dataHora: dataHora,
+            texto: texto
+        });
+        
+        db.run(
+            "UPDATE administrativo_protocolos SET comentarios = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?",
+            [JSON.stringify(comentarios), req.params.id],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ message: 'Comentário adicionado', comentarios });
+            }
+        );
+    });
+});
+
+app.post('/api/administrativo/protocolos/:id/upload', authenticateToken, upload.single('documento'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+    
+    db.get("SELECT arquivos_json FROM administrativo_protocolos WHERE id = ?", [req.params.id], async (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Protocolo não encontrado' });
+        
+        let arquivos = [];
+        try { arquivos = JSON.parse(row.arquivos_json || '[]'); } catch(e) {}
+        
+        if (typeof r2 !== 'undefined' && r2 && typeof r2.isReady === 'function' && r2.isReady()) {
+            try {
+                const ext = req.file.originalname.split('.').pop() || 'pdf';
+                const key = \`protocolos/\${req.params.id}_\${Date.now()}_\${Math.random().toString(36).substring(7)}.\${ext}\`;
+                
+                const url = await r2.uploadToR2(key, req.file.buffer, req.file.mimetype);
+                
+                arquivos.push({
+                    nome_original: req.file.originalname,
+                    url: url,
+                    key: key,
+                    data_upload: new Date().toISOString()
+                });
+                
+                db.run(
+                    "UPDATE administrativo_protocolos SET arquivos_json = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?",
+                    [JSON.stringify(arquivos), req.params.id],
+                    (updateErr) => {
+                        if (updateErr) return res.status(500).json({ error: updateErr.message });
+                        res.json({ message: 'Arquivo enviado com sucesso', arquivos });
+                    }
+                );
+            } catch (r2Err) {
+                console.error('[PROTOCOLOS] Erro no upload R2:', r2Err);
+                res.status(500).json({ error: 'Falha no upload R2' });
+            }
+        } else {
+            res.status(500).json({ error: 'Serviço R2 não está configurado' });
+        }
     });
 });
 

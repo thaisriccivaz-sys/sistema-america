@@ -285,6 +285,8 @@
                         Assinaturas</a>
                     <a href="#" class="nav-item" data-target="administrativo-senhas" onclick="navigateTo('administrativo-senhas'); return false;"><i class="ph ph-lock-key"></i>
                         Cofre de Senhas</a>
+                    <a href="#" class="nav-item" data-target="administrativo-protocolos" onclick="navigateTo('administrativo-protocolos'); return false;"><i class="ph ph-file-text"></i>
+                        Protocolos</a>
                 </div>
             </div>
 
@@ -1010,39 +1012,43 @@
                 </section>
 
                 <section id="view-assinaturas-adm" class="content-view">
-                    <div class="page-header flex-between" style="position: sticky; top: 60px; z-index: 20; background: var(--bg-main); padding: 1rem 0; margin-top: -1.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color);">
-                        <div style="display: flex; align-items: center; gap: 1.5rem;">
-                            <div style="width: 80px; height: 80px; border-radius: 50%; border: 2px dashed #cbd5e0; display: flex; align-items: center; justify-content: center; background: #fff5f5; color: #c92a2a; font-size: 2rem;">
+                    <!-- Configurao e Fila de Assinaturas (Carregado via assinaturas.js) -->
+                    <div class="page-header flex-between">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div
+                                style="width: 50px; height: 50px; border-radius: 12px; background: #ffedd5; color: #e8590c; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
                                 <i class="ph ph-signature"></i>
                             </div>
                             <div>
-                                <h2 style="margin: 0; font-size: 1.4rem;">Gestão de Assinaturas</h2>
+                                <h2 style="margin: 0; font-size: 1.4rem;">Gesto de Assinaturas</h2>
                                 <p style="margin: 0.2rem 0 0; color: var(--text-muted);">Configure templates de assinaturas e gere assinaturas pendentes para novos colaboradores do Administrativo.</p>
                             </div>
                         </div>
                     </div>
-
-                    <div class="tabs-container">
+                    
+                    <!-- Tabs -->
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
                         <button class="tab-btn active" onclick="assinaturasChangeTab('templates')">Templates de Fundo</button>
                         <button class="tab-btn" onclick="assinaturasChangeTab('pendentes')">Fila de Pendentes</button>
                     </div>
 
-                    <!-- Aba Templates -->
+                    <!-- TAB: Templates -->
                     <div id="assinaturas-tab-templates" style="display:block; margin-top: 20px;">
-                        <div class="card" style="margin-bottom: 20px;">
-                            <div class="card-header border-bottom">
-                                <h3 class="card-title">Templates Salvos</h3>
+                        <div class="card" style="padding: 1.5rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <h3 style="margin:0; font-size: 1.1rem;">Templates</h3>
                                 <button class="btn btn-primary" onclick="assinaturasAbrirModalTemplate()">
                                     <i class="ph ph-plus"></i> Novo Template
                                 </button>
                             </div>
-                            <div class="card-body">
+                            <div class="table-responsive">
                                 <table class="table">
                                     <thead>
                                         <tr>
-                                            <th>Nome Templete</th>
-                                            <th>Status</th>
-                                            <th style="text-align: right;">Ações</th>
+                                            <th>Nome</th>
+                                            <th>Tipo / Acesso</th>
+                                            <th>Ativo</th>
+                                            <th>Aes</th>
                                         </tr>
                                     </thead>
                                     <tbody id="assinaturas-table-templates"></tbody>
@@ -1051,24 +1057,23 @@
                         </div>
                     </div>
 
-                    <!-- Aba Pendentes -->
+                    <!-- TAB: Pendentes -->
                     <div id="assinaturas-tab-pendentes" style="display:none; margin-top: 20px;">
-                        <div class="card" style="margin-bottom: 20px;">
-                            <div class="card-header border-bottom" style="display: flex; justify-content: space-between; align-items: center;">
-                                <h3 class="card-title" style="margin: 0;">Fila de Gera&ccedil;&atilde;o Pendente</h3>
+                        <div class="card" style="padding: 1.5rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <h3 style="margin:0; font-size: 1.1rem;">Geradas recentemente</h3>
                                 <button class="btn btn-primary btn-sm" onclick="assinaturasBaixarTodas()">
-                                    <i class="ph ph-file-zip"></i> Baixar Todos (ZIP)
+                                    <i class="ph ph-download-simple"></i> Baixar Todas (ZIP)
                                 </button>
                             </div>
-                            <div class="card-body">
+                            <div class="table-responsive">
                                 <table class="table">
                                     <thead>
                                         <tr>
                                             <th>Colaborador</th>
-                                            <th>Departamento/Cargo</th>
                                             <th>Template</th>
-                                            <th>Status</th>
-                                            <th style="text-align: right;">Ações</th>
+                                            <th>Data Criao</th>
+                                            <th>Baixar</th>
                                         </tr>
                                     </thead>
                                     <tbody id="assinaturas-table-pendentes"></tbody>
@@ -1076,6 +1081,10 @@
                             </div>
                         </div>
                     </div>
+                </section>
+
+                <section id="view-administrativo-protocolos" class="content-view">
+                    <div id="protocolos-administrativos-container"></div>
                 </section>
 
                 <section id="view-departamentos" class="content-view">
@@ -5808,6 +5817,7 @@
     <script src="frota.js?v=20260702v6"></script>
     <script src="logistica_senhas.js?v=1778869020176"></script>
     <script src="administrativo_senhas.js?v=1"></script>
+    <script src="protocolos.js?v=1"></script>
     <script src="credenciamento.js"></script>
     <script src="comercial_credenciamento.js"></script>
     <script src="proposta.js"></script>
