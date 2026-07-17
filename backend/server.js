@@ -21275,9 +21275,10 @@ app.get('/api/assinaturas/pendentes', authenticateToken, (req, res) => {
                c.id as colaborador_id, c.nome_completo as nome_colaborador, c.cargo, c.departamento, c.email_corporativo, c.telefone, c.telefone_corporativo,
                t.bg_image_path, t.config_json, t.nome as template_nome, t.id as template_id
         FROM colaboradores c
-        LEFT JOIN assinaturas_pendentes p ON c.id = p.colaborador_id
+        JOIN departamentos d ON c.departamento = d.nome
         LEFT JOIN assinatura_templates t ON t.is_active = 1
-        WHERE c.departamento = 'Administrativo' 
+        LEFT JOIN assinaturas_pendentes p ON c.id = p.colaborador_id AND p.template_id = t.id
+        WHERE d.tipo = 'Administrativo' 
           AND c.status != 'Desligado' 
           AND (p.id IS NULL OR p.status = 'Pendente')
         ORDER BY c.nome_completo ASC
@@ -21290,13 +21291,20 @@ app.get('/api/assinaturas/pendentes', authenticateToken, (req, res) => {
 
 // Marcar como baixada
 app.post('/api/assinaturas/pendentes/:id/baixar', authenticateToken, (req, res) => {
-    // :id is now colaborador_id
-    db.run(`INSERT INTO assinaturas_pendentes (colaborador_id, template_id, status) VALUES (?, (SELECT id FROM assinatura_templates WHERE is_active = 1 LIMIT 1), 'Baixada')`, 
-    [req.params.id], (err) => {
+    const colabId = req.params.id;
+    db.get(`SELECT p.id FROM assinaturas_pendentes p JOIN assinatura_templates t ON t.id = p.template_id WHERE p.colaborador_id = ? AND t.is_active = 1`, [colabId], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
-        // Update any existing ones as well
-        db.run(`UPDATE assinaturas_pendentes SET status = 'Baixada' WHERE colaborador_id = ?`, [req.params.id]);
-        res.json({ message: "Marcado como baixada" });
+        if (row) {
+            db.run(`UPDATE assinaturas_pendentes SET status = 'Baixada' WHERE id = ?`, [row.id], (e) => {
+                if (e) return res.status(500).json({ error: e.message });
+                res.json({ message: "Marcado como baixada" });
+            });
+        } else {
+            db.run(`INSERT INTO assinaturas_pendentes (colaborador_id, template_id, status) VALUES (?, (SELECT id FROM assinatura_templates WHERE is_active = 1 LIMIT 1), 'Baixada')`, [colabId], (e) => {
+                if (e) return res.status(500).json({ error: e.message });
+                res.json({ message: "Marcado como baixada" });
+            });
+        }
     });
 });
 

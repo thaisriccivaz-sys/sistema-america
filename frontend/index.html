@@ -1052,8 +1052,11 @@
                     <!-- Aba Pendentes -->
                     <div id="assinaturas-tab-pendentes" style="display:none; margin-top: 20px;">
                         <div class="card" style="margin-bottom: 20px;">
-                            <div class="card-header border-bottom">
-                                <h3 class="card-title">Fila de Geração Pendente</h3>
+                            <div class="card-header border-bottom" style="display: flex; justify-content: space-between; align-items: center;">
+                                <h3 class="card-title" style="margin: 0;">Fila de Gera&ccedil;&atilde;o Pendente</h3>
+                                <button class="btn btn-primary btn-sm" onclick="assinaturasBaixarTodas()">
+                                    <i class="ph ph-file-zip"></i> Baixar Todos (ZIP)
+                                </button>
                             </div>
                             <div class="card-body">
                                 <table class="table">

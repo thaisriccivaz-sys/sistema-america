@@ -78,8 +78,9 @@ window.renderAssinaturasPendentes = async function() {
                 </td>
                 <td>${p.template_nome}</td>
                 <td><span class="badge" style="background:#fef08a;color:#854d0e;">${p.pendencia_status}</span></td>
-                <td style="text-align: right;">
-                    <button class="btn btn-primary btn-sm" onclick='assinaturasBaixarPendente(${JSON.stringify(p)})'><i class="ph ph-download-simple"></i> Baixar JPG</button>
+                <td style="text-align: right; display: flex; gap: 5px; justify-content: flex-end;">
+                    <button class="btn btn-secondary btn-sm" onclick='assinaturasVerPendente(${JSON.stringify(p).replace(/'/g, "&apos;")})'><i class="ph ph-eye"></i> Ver</button>
+                    <button class="btn btn-primary btn-sm" onclick='assinaturasBaixarPendente(${JSON.stringify(p).replace(/'/g, "&apos;")})'><i class="ph ph-download-simple"></i> Baixar JPG</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -297,6 +298,113 @@ window.assinaturasExcluirTemplate = async function(id) {
     }
 };
 
+window.assinaturasVerPendente = async function(pendencia) {
+    if (!pendencia.config_json) {
+        alert("Nenhum template ativo foi encontrado.");
+        return;
+    }
+    const config = JSON.parse(pendencia.config_json);
+    const bgUrl = pendencia.bg_image_path;
+    
+    Swal.fire({
+        title: 'Gerando preview...',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.onload = async () => {
+        currentPreviewImg = img;
+        const canvas = assinaturasRenderCanvas(config, true, pendencia);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        
+        Swal.fire({
+            title: `Assinatura: ${pendencia.nome_colaborador}`,
+            imageUrl: dataUrl,
+            imageWidth: '100%',
+            imageAlt: 'Preview da Assinatura',
+            confirmButtonText: 'Fechar',
+            width: '800px'
+        });
+    };
+    img.onerror = () => {
+        Swal.fire('Erro', 'Não foi possível carregar a imagem de fundo do template. Verifique sua conexão.', 'error');
+    };
+    img.src = 'https://corsproxy.io/?' + encodeURIComponent(bgUrl);
+};
+
+window.assinaturasBaixarTodas = async function() {
+    try {
+        const response = await fetch('/api/assinaturas/pendentes', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
+        });
+        const data = await response.json();
+        if (!data || data.length === 0) {
+            alert('Nenhuma assinatura na fila.');
+            return;
+        }
+
+        const templateData = data.find(p => p.config_json);
+        if (!templateData) {
+            alert("Nenhum template ativo foi encontrado.");
+            return;
+        }
+        const config = JSON.parse(templateData.config_json);
+        const bgUrl = templateData.bg_image_path;
+
+        Swal.fire({
+            title: 'Gerando assinaturas...',
+            html: 'Por favor aguarde, isso pode levar alguns segundos.',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = async () => {
+            currentPreviewImg = img;
+            const zip = new JSZip();
+            
+            for (const p of data) {
+                const canvas = assinaturasRenderCanvas(config, true, p);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                const base64Data = dataUrl.split(',')[1];
+                const fileName = `Assinatura_${p.nome_colaborador.replace(/[^a-z0-9]/gi, '_')}.jpg`;
+                zip.file(fileName, base64Data, {base64: true});
+            }
+
+            const content = await zip.generateAsync({type: "blob"});
+            const url = window.URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Assinaturas_Pendentes.zip`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+            // Marcar todos como baixados
+            for (const p of data) {
+                try {
+                    await fetch(`/api/assinaturas/pendentes/${p.colaborador_id}/baixar`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
+                    });
+                } catch(e) {}
+            }
+            renderAssinaturasPendentes();
+            Swal.close();
+            Swal.fire('Sucesso!', 'Todas as assinaturas foram baixadas.', 'success');
+        };
+        img.onerror = () => {
+            Swal.fire('Erro', 'Não foi possível carregar a imagem de fundo do template. Verifique sua conexão.', 'error');
+        };
+        img.src = 'https://corsproxy.io/?' + encodeURIComponent(bgUrl);
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Erro', 'Ocorreu um erro ao baixar as assinaturas.', 'error');
+    }
+};
+
 window.assinaturasBaixarPendente = async function(pendencia) {
     if (!pendencia.config_json) {
         alert("Nenhum template ativo foi encontrado. Configure e ative um template antes de gerar assinaturas.");
@@ -305,6 +413,12 @@ window.assinaturasBaixarPendente = async function(pendencia) {
     const config = JSON.parse(pendencia.config_json);
     const bgUrl = pendencia.bg_image_path;
     
+    Swal.fire({
+        title: 'Gerando assinatura...',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+
     const img = new Image();
     img.crossOrigin = "Anonymous";
     img.onload = async () => {
@@ -315,7 +429,7 @@ window.assinaturasBaixarPendente = async function(pendencia) {
         const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
         const a = document.createElement('a');
         a.href = dataUrl;
-        a.download = `Assinatura_${pendencia.nome_colaborador.replace(/\s+/g, '_')}.jpg`;
+        a.download = `Assinatura_${pendencia.nome_colaborador.replace(/[^a-z0-9]/gi, '_')}.jpg`;
         a.click();
         
         try {
@@ -324,11 +438,16 @@ window.assinaturasBaixarPendente = async function(pendencia) {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
             });
             renderAssinaturasPendentes();
+            Swal.close();
         } catch (e) {
             console.error(e);
+            Swal.close();
         }
     };
-    img.src = bgUrl;
+    img.onerror = () => {
+        Swal.fire('Erro', 'Não foi possível carregar a imagem de fundo do template. Verifique sua conexão.', 'error');
+    };
+    img.src = 'https://corsproxy.io/?' + encodeURIComponent(bgUrl);
 };
 
 // Initialize
