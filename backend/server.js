@@ -23614,15 +23614,11 @@ app.get('/api/computadores', authenticateToken, (req, res) => {
 // ── GET: colaboradores para o select ──
 app.get('/api/computadores/colaboradores', authenticateToken, (req, res) => {
     db.all(`
-        SELECT c.id, c.nome_completo, c.departamento, c.cargo, c.foto_path, c.foto_base64, c.status
+        SELECT DISTINCT c.id, c.nome_completo, c.departamento, c.cargo, c.foto_path, c.foto_base64, c.status
         FROM colaboradores c
         LEFT JOIN departamentos d ON LOWER(TRIM(c.departamento)) = LOWER(TRIM(d.nome)) OR LOWER(TRIM(c.cargo)) = LOWER(TRIM(d.nome))
-        WHERE (
-            TRIM(d.tipo) = 'Administrativo' 
-            OR LOWER(TRIM(c.departamento)) IN ('administrativo', 'financeiro', 'comercial', 'recursos humanos', 'rh', 'diretoria', 'marketing', 'ti', 'processos', 'supervisão')
-            OR LOWER(TRIM(c.cargo)) IN ('administrativo', 'financeiro', 'comercial', 'recursos humanos', 'rh', 'diretoria', 'marketing', 'ti', 'processos', 'supervisão')
-        )
-        AND (c.status IS NULL OR LOWER(c.status) NOT LIKE '%desligado%')
+        WHERE TRIM(d.tipo) = 'Administrativo' 
+          AND (c.status IS NULL OR LOWER(c.status) NOT LIKE '%desligado%')
         ORDER BY LOWER(c.nome_completo) ASC
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
