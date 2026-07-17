@@ -162,6 +162,9 @@ window.assinaturasLoadImagePreview = function(url, config) {
 // Event listener added in init
 
 window.assinaturasAtualizarPreview = function() {
+    const imgEl = document.getElementById('assinaturas-preview-img');
+    const scale = (imgEl && imgEl.naturalWidth && imgEl.clientWidth) ? (imgEl.clientWidth / imgEl.naturalWidth) : 1;
+
     const fields = ['nome', 'dept', 'email'];
     fields.forEach(f => {
         const iX = document.getElementById(`assinaturas-pos-${f}-x`);
@@ -175,7 +178,7 @@ window.assinaturasAtualizarPreview = function() {
         if(iX && iX.value) dragEl.style.left = `${iX.value}%`;
         if(iY && iY.value) dragEl.style.top = `${iY.value}%`;
         if(iSize && iSize.value) {
-            dragEl.style.fontSize = `${iSize.value}px`;
+            dragEl.style.fontSize = `${iSize.value * scale}px`;
             dragEl.style.fontWeight = '600';
             const fontFamily = (iFont && iFont.value) ? iFont.value : 'Inter';
             dragEl.style.fontFamily = `${fontFamily}, sans-serif`;
@@ -183,6 +186,12 @@ window.assinaturasAtualizarPreview = function() {
         if(iColor && iColor.value) dragEl.style.color = iColor.value;
     });
 };
+
+window.addEventListener('resize', () => {
+    if (document.getElementById('modal-assinatura-template').style.display === 'flex') {
+        assinaturasAtualizarPreview();
+    }
+});
 
 
 window.assinaturasRenderCanvas = function(config, exportMode = false, colabData = null) {
