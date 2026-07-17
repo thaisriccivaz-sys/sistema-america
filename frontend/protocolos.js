@@ -92,7 +92,7 @@ function initProtocolosAdministrativos() {
 
         <!-- MODAL VER PROTOCOLO (DETALHES, COMENTÁRIOS E ANEXOS) -->
         <div id="modal-ver-protocolo" class="modal-overlay" style="display: none; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999;">
-            <div class="modal-content" style="background: #fff; width: 800px; max-width: 95%; max-height: 90vh; border-radius: 12px; display: flex; flex-direction: column;">
+            <div class="modal-content" style="background: #fff; width: 100%; height: 100%; max-width: 100%; max-height: 100%; display: flex; flex-direction: column;">
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; border-bottom: 1px solid #e2e8f0;">
                     <div>
                         <h3 id="ver-protocolo-titulo" style="margin: 0; font-size: 1.25rem; color: #1e293b;">Protocolo</h3>
