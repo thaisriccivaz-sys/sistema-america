@@ -1123,6 +1123,8 @@ function navigateTo(target) {
         if (typeof window.initLicencas === 'function') setTimeout(() => window.initLicencas(), 80);
     } else if (target === 'celulares-corporativos') {
         if (typeof window.initCelularesCorporativos === 'function') setTimeout(() => window.initCelularesCorporativos(), 80);
+    } else if (target === 'emails-corporativos') {
+        if (typeof window.initEmailsCorporativos === 'function') setTimeout(() => window.initEmailsCorporativos(), 80);
     } else if (target === 'computadores-corporativos') {
         if (typeof window.computadoresInit === 'function') setTimeout(() => window.computadoresInit(), 80);
     } else if (target === 'config-sigor') {

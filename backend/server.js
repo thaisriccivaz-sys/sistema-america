@@ -24038,7 +24038,128 @@ app.post('/api/computadores/notificacoes/config', authenticateToken, (req, res) 
 
 console.log('[COMPUTADORES] Módulo de computadores corporativos carregado (com notificações).');
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MÓDULO E-MAILS CORPORATIVOS
+// ─────────────────────────────────────────────────────────────────────────────
 
+db.run(`CREATE TABLE IF NOT EXISTS emails_corporativos (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    endereco          TEXT UNIQUE NOT NULL,
+    senha             TEXT,
+    plataforma        TEXT,
+    colaborador_id    INTEGER,
+    responsavel_nome  TEXT,
+    data_atribuicao   TEXT,
+    status            TEXT DEFAULT 'Ativo',
+    observacao        TEXT,
+    created_at        TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id)
+)`);
+
+// ─── GET: Listar E-mails ───
+app.get('/api/emails', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT e.*,
+               c.nome_completo AS colab_nome,
+               c.status AS colab_status,
+               c.departamento AS colab_depto,
+               c.foto_path AS colab_foto,
+               c.foto_base64 AS colab_foto_base64
+        FROM emails_corporativos e
+        LEFT JOIN colaboradores c ON c.id = e.colaborador_id
+        ORDER BY LOWER(e.endereco) ASC
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// ─── GET: Listar Colaboradores para E-mails (simplificado) ───
+app.get('/api/emails/colaboradores', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT DISTINCT c.id, c.nome_completo, c.departamento, c.cargo, c.foto_path, c.foto_base64, c.status
+        FROM colaboradores c
+        WHERE c.status != 'Desligado'
+           OR EXISTS (SELECT 1 FROM emails_corporativos e WHERE e.colaborador_id = c.id)
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// ─── POST: Novo E-mail ───
+app.post('/api/emails', authenticateToken, (req, res) => {
+    const { endereco, senha, plataforma, status, observacao } = req.body;
+    if (!endereco) return res.status(400).json({ error: 'Endereço é obrigatório.' });
+
+    db.run(
+        `INSERT INTO emails_corporativos (endereco, senha, plataforma, status, observacao, updated_at)
+         VALUES (?, ?, ?, ?, ?, datetime('now','-3 hours'))`,
+        [endereco.toLowerCase().trim(), senha || null, plataforma || null, status || 'Ativo', observacao || null],
+        function(err) {
+            if (err) return res.status(500).json({ error: 'Erro ao criar (endereço já existe?)' });
+            res.json({ id: this.lastID });
+        }
+    );
+});
+
+// ─── PUT: Editar E-mail ───
+app.put('/api/emails/:id', authenticateToken, (req, res) => {
+    const { endereco, senha, plataforma, status, observacao } = req.body;
+    if (!endereco) return res.status(400).json({ error: 'Endereço é obrigatório.' });
+
+    db.run(
+        `UPDATE emails_corporativos SET endereco=?, senha=?, plataforma=?, status=?, observacao=?, updated_at=datetime('now','-3 hours')
+         WHERE id=?`,
+        [endereco.toLowerCase().trim(), senha || null, plataforma || null, status || 'Ativo', observacao || null, req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        }
+    );
+});
+
+// ─── POST: Atribuir E-mail ───
+app.post('/api/emails/:id/atribuir', authenticateToken, (req, res) => {
+    const { colaborador_id, responsavel_nome, data_atribuicao } = req.body;
+    const isAvulso = !colaborador_id && responsavel_nome;
+
+    db.run(
+        `UPDATE emails_corporativos 
+         SET colaborador_id = ?, responsavel_nome = ?, data_atribuicao = ?, updated_at=datetime('now','-3 hours')
+         WHERE id = ?`,
+        [colaborador_id || null, isAvulso ? responsavel_nome : null, data_atribuicao || null, req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        }
+    );
+});
+
+// ─── POST: Devolver E-mail ───
+app.post('/api/emails/:id/devolver', authenticateToken, (req, res) => {
+    db.run(
+        `UPDATE emails_corporativos 
+         SET colaborador_id = NULL, responsavel_nome = NULL, data_atribuicao = NULL, updated_at=datetime('now','-3 hours')
+         WHERE id = ?`,
+        [req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        }
+    );
+});
+
+// ─── DELETE: Excluir E-mail ───
+app.delete('/api/emails/:id', authenticateToken, (req, res) => {
+    db.run(`DELETE FROM emails_corporativos WHERE id=?`, [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+console.log('[EMAILS] Módulo de E-mails Corporativos carregado.');
 
 
 
