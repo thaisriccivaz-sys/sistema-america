@@ -331,7 +331,7 @@ window.assinaturasVerPendente = async function(pendencia) {
     img.onerror = () => {
         Swal.fire('Erro', 'Não foi possível carregar a imagem de fundo do template. Verifique sua conexão.', 'error');
     };
-    img.src = 'https://corsproxy.io/?' + encodeURIComponent(bgUrl);
+    img.src = '/api/proxy-image?url=' + encodeURIComponent(bgUrl);
 };
 
 window.assinaturasBaixarTodas = async function() {
@@ -398,7 +398,7 @@ window.assinaturasBaixarTodas = async function() {
         img.onerror = () => {
             Swal.fire('Erro', 'Não foi possível carregar a imagem de fundo do template. Verifique sua conexão.', 'error');
         };
-        img.src = 'https://corsproxy.io/?' + encodeURIComponent(bgUrl);
+        img.src = '/api/proxy-image?url=' + encodeURIComponent(bgUrl);
     } catch (e) {
         console.error(e);
         Swal.fire('Erro', 'Ocorreu um erro ao baixar as assinaturas.', 'error');
@@ -447,7 +447,7 @@ window.assinaturasBaixarPendente = async function(pendencia) {
     img.onerror = () => {
         Swal.fire('Erro', 'Não foi possível carregar a imagem de fundo do template. Verifique sua conexão.', 'error');
     };
-    img.src = 'https://corsproxy.io/?' + encodeURIComponent(bgUrl);
+    img.src = '/api/proxy-image?url=' + encodeURIComponent(bgUrl);
 };
 
 // Initialize

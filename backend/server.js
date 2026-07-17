@@ -21308,6 +21308,22 @@ app.post('/api/assinaturas/pendentes/:id/baixar', authenticateToken, (req, res) 
     });
 });
 
+// Proxy para imagens CORS
+app.get('/api/proxy-image', (req, res) => {
+    const url = req.query.url;
+    if (!url) return res.status(400).send('URL missing');
+    const getProtocol = url.startsWith('https') ? require('https') : require('http');
+    
+    getProtocol.get(url, (response) => {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Content-Type', response.headers['content-type'] || 'image/jpeg');
+        res.set('Cache-Control', 'public, max-age=31536000');
+        response.pipe(res);
+    }).on('error', (e) => {
+        res.status(500).send(e.message);
+    });
+});
+
 // Gerar avulsa
 app.post('/api/assinaturas/gerar-manual', authenticateToken, (req, res) => {
     const { colaborador_id } = req.body;
