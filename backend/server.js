@@ -260,6 +260,36 @@ db.run(`
     )
 `);
 
+// Migração: Cofre de Senhas Administrativo
+db.run(`
+    CREATE TABLE IF NOT EXISTS administrativo_senhas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT,
+        servico TEXT,
+        link TEXT,
+        usuario TEXT,
+        senha_encriptada TEXT,
+        owner_id INTEGER,
+        tipo TEXT DEFAULT 'compartilhada',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+`);
+
+db.run(`
+    CREATE TABLE IF NOT EXISTS administrativo_senhas_historico (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        senha_id INTEGER,
+        acao TEXT NOT NULL,
+        campo_alterado TEXT,
+        valor_anterior TEXT,
+        valor_novo TEXT,
+        usuario_id INTEGER,
+        usuario_nome TEXT,
+        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+`);
+
 // Migração: Histórico de Resumos de Rota
 db.run(`
     CREATE TABLE IF NOT EXISTS logistica_resumo_rota (
@@ -5697,6 +5727,120 @@ app.get('/api/logistica/senhas/historico', authenticateToken, (req, res) => {
         SELECT h.*, ls.servico as senha_servico, ls.nome as senha_nome
         FROM logistica_senhas_historico h
         LEFT JOIN logistica_senhas ls ON h.senha_id = ls.id
+        ORDER BY h.criado_em DESC
+        LIMIT 200
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// ==========================================
+// COFRE DE SENHAS ADMINISTRATIVO
+// ==========================================
+
+app.get('/api/administrativo/senhas', authenticateToken, (req, res) => {
+    const isDiretoria = req.user && (String(req.user.departamento).toLowerCase().includes('diretoria') || String(req.user.role).toLowerCase() === 'diretoria' || String(req.user.username).toLowerCase() === 'diretoria.1');
+    let query = `
+        SELECT ls.*, u.nome as owner_nome, u.username as owner_username, c.status as colab_status
+        FROM administrativo_senhas ls
+        LEFT JOIN usuarios u ON ls.owner_id = u.id
+        LEFT JOIN colaboradores c ON ls.nome = c.nome_completo
+        WHERE ls.tipo = 'compartilhada' OR ls.owner_id = ?
+    `;
+    let params = [req.user.id];
+
+    if (isDiretoria) {
+        query = `
+            SELECT ls.*, u.nome as owner_nome, u.username as owner_username, c.status as colab_status
+            FROM administrativo_senhas ls
+            LEFT JOIN usuarios u ON ls.owner_id = u.id
+            LEFT JOIN colaboradores c ON ls.nome = c.nome_completo
+        `;
+        params = [];
+    }
+    query += " ORDER BY ls.servico ASC";
+
+    db.all(query, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const senhas = rows.map(r => {
+            r.senha = r.senha_encriptada ? decryptPassword(r.senha_encriptada) : '';
+            delete r.senha_encriptada;
+            return r;
+        });
+        res.json(senhas);
+    });
+});
+
+app.post('/api/administrativo/senhas', authenticateToken, (req, res) => {
+    const { nome, servico, link, usuario, senha, tipo } = req.body;
+
+    const tipoVal = tipo === 'pessoal' ? 'pessoal' : 'compartilhada';
+    const senhaEncriptada = senha ? encryptPassword(senha) : '';
+    db.run("INSERT INTO administrativo_senhas (nome, servico, link, usuario, senha_encriptada, owner_id, tipo) VALUES (?, ?, ?, ?, ?, ?, ?)", [nome || '', servico || '', link || '', usuario || '', senhaEncriptada, req.user.id, tipoVal], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        const newId = this.lastID;
+        db.run("INSERT INTO administrativo_senhas_historico (senha_id, acao, campo_alterado, valor_anterior, valor_novo, usuario_id, usuario_nome) VALUES (?, 'criacao', 'servico', null, ?, ?, ?)",
+            [newId, servico || '', req.user.id, req.user.nome || req.user.username]);
+        res.json({ id: newId, message: 'Senha cadastrada com sucesso' });
+    });
+});
+
+app.put('/api/administrativo/senhas/:id', authenticateToken, (req, res) => {
+    const { nome, servico, link, usuario, senha, tipo } = req.body;
+    const updates = [];
+    const params = [];
+    const senhaId = req.params.id;
+
+    if (nome !== undefined) { updates.push("nome = ?"); params.push(nome); }
+    if (servico !== undefined) { updates.push("servico = ?"); params.push(servico); }
+    if (link !== undefined) { updates.push("link = ?"); params.push(link); }
+    if (usuario !== undefined) { updates.push("usuario = ?"); params.push(usuario); }
+    if (tipo !== undefined) { updates.push("tipo = ?"); params.push(tipo === 'pessoal' ? 'pessoal' : 'compartilhada'); }
+    if (senha !== undefined) {
+        updates.push("senha_encriptada = ?");
+        params.push(senha ? encryptPassword(senha) : '');
+    }
+
+    if (updates.length === 0) return res.status(400).json({ error: 'Nenhum dado para atualizar.' });
+    updates.push("updated_at = CURRENT_TIMESTAMP");
+    params.push(senhaId);
+
+    db.get("SELECT * FROM administrativo_senhas WHERE id = ?", [senhaId], (err, oldRow) => {
+        db.run(`UPDATE administrativo_senhas SET ${updates.join(', ')} WHERE id = ?`, params, function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            const camposAlterados = [];
+            if (servico !== undefined && oldRow && oldRow.servico !== servico) camposAlterados.push({ campo: 'servico', de: oldRow.servico, para: servico });
+            if (usuario !== undefined && oldRow && oldRow.usuario !== usuario) camposAlterados.push({ campo: 'usuario', de: oldRow.usuario, para: usuario });
+            if (nome !== undefined && oldRow && oldRow.nome !== nome) camposAlterados.push({ campo: 'nome', de: oldRow.nome, para: nome });
+            if (link !== undefined && oldRow && oldRow.link !== link) camposAlterados.push({ campo: 'link', de: oldRow.link, para: link });
+            if (senha !== undefined) camposAlterados.push({ campo: 'senha', de: '***', para: '***' });
+            if (camposAlterados.length === 0) camposAlterados.push({ campo: 'registro', de: null, para: null });
+            camposAlterados.forEach(c => {
+                db.run("INSERT INTO administrativo_senhas_historico (senha_id, acao, campo_alterado, valor_anterior, valor_novo, usuario_id, usuario_nome) VALUES (?, 'edicao', ?, ?, ?, ?, ?)",
+                    [senhaId, c.campo, c.de, c.para, req.user.id, req.user.nome || req.user.username]);
+            });
+            res.json({ message: 'Senha atualizada com sucesso' });
+        });
+    });
+});
+
+app.delete('/api/administrativo/senhas/:id', authenticateToken, (req, res) => {
+    db.get("SELECT * FROM administrativo_senhas WHERE id = ?", [req.params.id], (err, row) => {
+        db.run("DELETE FROM administrativo_senhas WHERE id = ?", [req.params.id], function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            db.run("INSERT INTO administrativo_senhas_historico (senha_id, acao, campo_alterado, valor_anterior, valor_novo, usuario_id, usuario_nome) VALUES (?, 'exclusao', 'servico', ?, null, ?, ?)",
+                [req.params.id, row ? row.servico : '?', req.user.id, req.user.nome || req.user.username]);
+            res.json({ message: 'Senha deletada com sucesso' });
+        });
+    });
+});
+
+app.get('/api/administrativo/senhas/historico', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT h.*, ls.servico as senha_servico, ls.nome as senha_nome
+        FROM administrativo_senhas_historico h
+        LEFT JOIN administrativo_senhas ls ON h.senha_id = ls.id
         ORDER BY h.criado_em DESC
         LIMIT 200
     `, [], (err, rows) => {

@@ -591,6 +591,7 @@ const BREADCRUMB_MAP = {
     'estoque': { path: 'Estoque', code: 'ADM002' },
     'celulares-corporativos': { path: 'Celulares Corporativos', code: 'ADM003' },
     'computadores-corporativos': { path: 'Computadores Corporativos', code: 'ADM004' },
+    'administrativo-senhas': { path: 'Cofre de Senhas', code: 'ADM005' },
 };
 
 window.carregarPermissoesOnline = async function () {
@@ -742,7 +743,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota' || key === 'rh-logistica-sinistros' || key === 'rh-logistica-multas' || key === 'assinaturas-adm';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota' || key === 'rh-logistica-sinistros' || key === 'rh-logistica-multas' || key === 'assinaturas-adm' || key === 'administrativo-senhas';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -832,6 +833,7 @@ const TAB_META = {
     'estoque': { color: '#e67700', icon: 'ph-package', title: 'Estoque' },
     'celulares-corporativos': { color: '#e67700', icon: 'ph-device-mobile', title: 'Celulares' },
     'computadores-corporativos': { color: '#e67700', icon: 'ph-desktop', title: 'Computadores' },
+    'administrativo-senhas': { color: '#e67700', icon: 'ph-lock-key', title: 'Cofre de Senhas' },
     // Treinamento - Azul Turquesa
     'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais' },
     'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presenças' },
@@ -1111,6 +1113,8 @@ function navigateTo(target) {
         if (typeof window.carregarHistoricoComCred === 'function') setTimeout(() => window.carregarHistoricoComCred(), 80);
     } else if (target === 'comercial-proposta') {
         if (typeof window.inicializarPropostas === 'function') setTimeout(() => window.inicializarPropostas(), 80);
+    } else if (target === 'administrativo-senhas') {
+        if (typeof window.initAdministrativoSenhas === 'function') setTimeout(() => window.initAdministrativoSenhas(), 80);
     } else if (target === 'licencas') {
         if (typeof window.initLicencas === 'function') setTimeout(() => window.initLicencas(), 80);
     } else if (target === 'celulares-corporativos') {
