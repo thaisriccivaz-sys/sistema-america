@@ -98,9 +98,9 @@ window.assinaturasAbrirModalTemplate = function(template = null) {
     document.getElementById('assinaturas-template-ativo').value = template ? template.is_active : '1';
     
     let config = {
-        nome: { x: 50, y: 50, size: 24, font: 'Inter', color: '#000000' },
-        dept: { x: 50, y: 75, size: 16, font: 'Inter', color: '#475569' },
-        email: { x: 50, y: 90, size: 14, font: 'Inter', color: '#64748b' }
+        nome: { x: 10, y: 10, size: 24, font: 'Inter', color: '#000000', bold: true, italic: false },
+        dept: { x: 10, y: 20, size: 16, font: 'Inter', color: '#475569', bold: true, italic: false },
+        email: { x: 10, y: 30, size: 14, font: 'Inter', color: '#475569', bold: true, italic: false }
     };
     if (template && template.config_json) {
         try { config = JSON.parse(template.config_json); } catch (e) {}
@@ -113,12 +113,16 @@ window.assinaturasAbrirModalTemplate = function(template = null) {
             const iSize = document.getElementById(`assinaturas-size-${f}`);
             const iFont = document.getElementById(`assinaturas-font-${f}`);
             const iColor = document.getElementById(`assinaturas-color-${f}`);
+            const iBold = document.getElementById(`assinaturas-bold-${f}`);
+            const iItalic = document.getElementById(`assinaturas-italic-${f}`);
             
-            if(iX) iX.value = config[f].x || 50;
-            if(iY) iY.value = config[f].y || 50;
+            if(iX) iX.value = config[f].x || 10;
+            if(iY) iY.value = config[f].y || 10;
             if(iSize) iSize.value = config[f].size || 14;
             if(iFont) iFont.value = config[f].font || 'Inter';
             if(iColor) iColor.value = config[f].color || '#000000';
+            if(iBold) iBold.checked = config[f].bold !== false;
+            if(iItalic) iItalic.checked = config[f].italic === true;
         }
     });
 
@@ -179,7 +183,10 @@ window.assinaturasAtualizarPreview = function() {
         if(iY && iY.value) dragEl.style.top = `${iY.value}%`;
         if(iSize && iSize.value) {
             dragEl.style.fontSize = `${iSize.value * scale}px`;
-            dragEl.style.fontWeight = '600';
+            const isBold = document.getElementById(`assinaturas-bold-${f}`)?.checked;
+            const isItalic = document.getElementById(`assinaturas-italic-${f}`)?.checked;
+            dragEl.style.fontWeight = isBold ? 'bold' : 'normal';
+            dragEl.style.fontStyle = isItalic ? 'italic' : 'normal';
             const fontFamily = (iFont && iFont.value) ? iFont.value : 'Inter';
             dragEl.style.fontFamily = `${fontFamily}, sans-serif`;
         }
@@ -219,10 +226,12 @@ window.assinaturasRenderCanvas = function(config, exportMode = false, colabData 
         const fontName = config[field].font || 'Inter';
         const xPos = (config[field].x / 100) * canvas.width;
         const yPos = (config[field].y / 100) * canvas.height;
-        ctx.font = `600 ${config[field].size}px "${fontName}", sans-serif`;
+        const weight = config[field].bold ? 'bold' : 'normal';
+        const style = config[field].italic ? 'italic ' : '';
+        ctx.font = `${style}${weight} ${config[field].size}px "${fontName}", sans-serif`;
         ctx.fillStyle = config[field].color;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
         ctx.fillText(text, xPos, yPos);
     };
 
@@ -243,25 +252,31 @@ window.assinaturasSalvarTemplate = async function() {
     
     const config = {
         nome: { 
-            x: document.getElementById('assinaturas-pos-nome-x').value || 50,
-            y: document.getElementById('assinaturas-pos-nome-y').value || 50,
+            x: document.getElementById('assinaturas-pos-nome-x').value || 10,
+            y: document.getElementById('assinaturas-pos-nome-y').value || 10,
             size: document.getElementById('assinaturas-size-nome').value || 24,
             font: document.getElementById('assinaturas-font-nome') ? document.getElementById('assinaturas-font-nome').value : 'Inter',
-            color: document.getElementById('assinaturas-color-nome').value || '#000000'
+            color: document.getElementById('assinaturas-color-nome').value || '#000000',
+            bold: document.getElementById('assinaturas-bold-nome') ? document.getElementById('assinaturas-bold-nome').checked : true,
+            italic: document.getElementById('assinaturas-italic-nome') ? document.getElementById('assinaturas-italic-nome').checked : false
         },
         dept: { 
-            x: document.getElementById('assinaturas-pos-dept-x').value || 50,
-            y: document.getElementById('assinaturas-pos-dept-y').value || 75,
+            x: document.getElementById('assinaturas-pos-dept-x').value || 10,
+            y: document.getElementById('assinaturas-pos-dept-y').value || 20,
             size: document.getElementById('assinaturas-size-dept').value || 16,
             font: document.getElementById('assinaturas-font-dept') ? document.getElementById('assinaturas-font-dept').value : 'Inter',
-            color: document.getElementById('assinaturas-color-dept').value || '#475569'
+            color: document.getElementById('assinaturas-color-dept').value || '#475569',
+            bold: document.getElementById('assinaturas-bold-dept') ? document.getElementById('assinaturas-bold-dept').checked : true,
+            italic: document.getElementById('assinaturas-italic-dept') ? document.getElementById('assinaturas-italic-dept').checked : false
         },
         email: { 
-            x: document.getElementById('assinaturas-pos-email-x').value || 50,
-            y: document.getElementById('assinaturas-pos-email-y').value || 90,
+            x: document.getElementById('assinaturas-pos-email-x').value || 10,
+            y: document.getElementById('assinaturas-pos-email-y').value || 30,
             size: document.getElementById('assinaturas-size-email').value || 14,
             font: document.getElementById('assinaturas-font-email') ? document.getElementById('assinaturas-font-email').value : 'Inter',
-            color: document.getElementById('assinaturas-color-email').value || '#64748b'
+            color: document.getElementById('assinaturas-color-email').value || '#475569',
+            bold: document.getElementById('assinaturas-bold-email') ? document.getElementById('assinaturas-bold-email').checked : true,
+            italic: document.getElementById('assinaturas-italic-email') ? document.getElementById('assinaturas-italic-email').checked : false
         }
     };
     formData.append('config_json', JSON.stringify(config));
@@ -509,8 +524,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!draggedElement || !canvasDiv) return;
         const canvasRect = canvasDiv.getBoundingClientRect();
         
-        let newLeft = e.clientX - canvasRect.left - dragOffsetX + (draggedElement.offsetWidth / 2);
-        let newTop = e.clientY - canvasRect.top - dragOffsetY + (draggedElement.offsetHeight / 2);
+        let newLeft = e.clientX - canvasRect.left - dragOffsetX;
+        let newTop = e.clientY - canvasRect.top - dragOffsetY;
         
         let pctX = (newLeft / canvasRect.width) * 100;
         let pctY = (newTop / canvasRect.height) * 100;
