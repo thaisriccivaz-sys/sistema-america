@@ -2,6 +2,14 @@
 // ASSINATURAS - FRONTEND LOGIC
 // ============================================================================
 
+// Retorna apenas primeiro e último nome
+function primeiroUltimoNome(nomeCompleto) {
+    if (!nomeCompleto) return '';
+    const partes = nomeCompleto.trim().split(/\s+/);
+    if (partes.length <= 2) return nomeCompleto.trim();
+    return `${partes[0]} ${partes[partes.length - 1]}`;
+}
+
 window.assinaturasChangeTab = function(tab) {
     document.getElementById('assinaturas-tab-templates').style.display = tab === 'templates' ? 'block' : 'none';
     document.getElementById('assinaturas-tab-pendentes').style.display = tab === 'pendentes' ? 'block' : 'none';
@@ -219,7 +227,7 @@ window.assinaturasRenderCanvas = function(config, exportMode = false, colabData 
     
     ctx.drawImage(currentPreviewImg, 0, 0);
 
-    const dataNome = colabData ? colabData.nome_colaborador : "Nome Sobrenome da Silva";
+    const dataNome = colabData ? primeiroUltimoNome(colabData.nome_colaborador) : "Nome Sobrenome";
     const dataDept = colabData ? (colabData.departamento || "") : "Administrativo";
     const dataEmail = colabData ? (colabData.email_corporativo || colabData.telefone_corporativo || "") : "nome.sobrenome@americarental.com.br";
 
@@ -348,7 +356,7 @@ window.assinaturasVerPendente = async function(pendencia) {
         const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
         
         Swal.fire({
-            title: `Assinatura: ${pendencia.nome_colaborador}`,
+            title: `Assinatura: ${primeiroUltimoNome(pendencia.nome_colaborador)}`,
             imageUrl: dataUrl,
             imageWidth: '100%',
             imageAlt: 'Preview da Assinatura',
@@ -398,7 +406,7 @@ window.assinaturasBaixarTodas = async function() {
                 const canvas = assinaturasRenderCanvas(config, true, p);
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
                 const base64Data = dataUrl.split(',')[1];
-                const fileName = `Assinatura_${p.nome_colaborador.replace(/[^a-z0-9]/gi, '_')}.jpg`;
+                const fileName = `Assinatura_${primeiroUltimoNome(p.nome_colaborador).replace(/[^a-z0-9]/gi, '_')}.jpg`;
                 zip.file(fileName, base64Data, {base64: true});
             }
 
