@@ -24132,6 +24132,16 @@ app.post('/api/emails/:id/atribuir', authenticateToken, (req, res) => {
         [colaborador_id || null, isAvulso ? responsavel_nome : null, data_atribuicao || null, req.params.id],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
+            
+            // Sincronizar com cadastro de colaboradores
+            if (colaborador_id) {
+                db.get(`SELECT endereco FROM emails_corporativos WHERE id = ?`, [req.params.id], (errE, rowE) => {
+                    if (!errE && rowE) {
+                        db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ?`, [rowE.endereco, colaborador_id]);
+                    }
+                });
+            }
+            
             res.json({ ok: true });
         }
     );
@@ -24139,16 +24149,25 @@ app.post('/api/emails/:id/atribuir', authenticateToken, (req, res) => {
 
 // ─── POST: Devolver E-mail ───
 app.post('/api/emails/:id/devolver', authenticateToken, (req, res) => {
-    db.run(
-        `UPDATE emails_corporativos 
-         SET colaborador_id = NULL, responsavel_nome = NULL, data_atribuicao = NULL, updated_at=datetime('now','-3 hours')
-         WHERE id = ?`,
-        [req.params.id],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ ok: true });
-        }
-    );
+    db.get(`SELECT colaborador_id FROM emails_corporativos WHERE id = ?`, [req.params.id], (errE, rowE) => {
+        const oldColabId = rowE ? rowE.colaborador_id : null;
+        
+        db.run(
+            `UPDATE emails_corporativos 
+             SET colaborador_id = NULL, responsavel_nome = NULL, data_atribuicao = NULL, updated_at=datetime('now','-3 hours')
+             WHERE id = ?`,
+            [req.params.id],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                
+                if (oldColabId) {
+                    db.run(`UPDATE colaboradores SET email_corporativo = NULL WHERE id = ?`, [oldColabId]);
+                }
+                
+                res.json({ ok: true });
+            }
+        );
+    });
 });
 
 // ─── DELETE: Excluir E-mail ───

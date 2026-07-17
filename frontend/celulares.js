@@ -18,6 +18,7 @@
     function fmtTel(s) {
         if (!s) return '-';
         var n = s.replace(/\D/g, '');
+        if (n.length === 9 || n.length === 8) n = '11' + n;
         if (n.length === 11) return n.substring(0, 2) + ' ' + n.substring(2, 7) + '-' + n.substring(7);
         if (n.length === 10) return n.substring(0, 2) + ' ' + n.substring(2, 6) + '-' + n.substring(6);
         return s;
@@ -309,8 +310,8 @@
             rows+='<td style="padding:0.75rem;">'+situacaoBadge(isAv ? '' : colabSt)+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+fotoApThumb+'<div><div style="font-weight:600;display:flex;align-items:center;">'+(a.modelo||'-')+obsIcon(a.observacao)+'</div><div style="font-size:0.72rem;color:#64748b;">Pat.: '+(a.patrimonio||'-')+'</div><div style="font-size:0.72rem;color:#64748b;font-family:monospace;">IMEI: '+a.imei1+'</div></div></div></td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;">'+(a.chip_numero
-                ? '<div style="font-weight:600;color:#2563eb;">'+fmtTel(a.chip_numero)+'</div><div style="font-size:0.72rem;color:#64748b;">'+(a.chip_operadora||'')+'</div>'
-                  +(a.chip_numero2?'<div style="font-weight:600;color:#2563eb;margin-top:4px;">'+fmtTel(a.chip_numero2)+'</div><div style="font-size:0.72rem;color:#64748b;">'+(a.chip_operadora2||'')+'</div>':'')
+                ? '<div style="font-weight:600;color:#2563eb;">'+fmtTel(a.chip_numero)+'</div>'
+                  +(a.chip_numero2?'<div style="font-weight:600;color:#2563eb;margin-top:4px;">'+fmtTel(a.chip_numero2)+'</div>':'')
                 : '<span style="color:#94a3b8;font-size:0.8rem;">Sem chip</span>')+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.8rem;color:#64748b;">'+fmtData(a.atrib_data_inicio)+'</td>';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;gap:6px;flex-wrap:wrap;">'+
