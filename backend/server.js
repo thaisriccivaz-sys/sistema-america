@@ -5951,7 +5951,7 @@ app.post('/api/administrativo/protocolos/:id/upload', authenticateToken, upload.
         if (typeof r2 !== 'undefined' && r2 && typeof r2.isReady === 'function' && r2.isReady()) {
             try {
                 const ext = req.file.originalname.split('.').pop() || 'pdf';
-                const key = \`protocolos/\${req.params.id}_\${Date.now()}_\${Math.random().toString(36).substring(7)}.\${ext}\`;
+                const key = `protocolos/${req.params.id}_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
                 
                 const url = await r2.uploadToR2(key, req.file.buffer, req.file.mimetype);
                 
