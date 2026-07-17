@@ -1,6 +1,6 @@
-let senhasadministrativoList = [];
-let currentSenhaTab = 'compartilhada';
-let uniqueServicos = new Set();
+let senhasAdmList = [];
+let currentSenhaAdmTab = 'compartilhada';
+let senhaAdmSendoEditada = null;
 
 function initAdministrativoSenhas() {
     const container = document.getElementById('administrativo-senhas-container');
@@ -20,14 +20,14 @@ function initAdministrativoSenhas() {
             </div>
             <div style="display: flex; gap: 0.75rem;">
                 <button class="btn btn-secondary" onclick="abrirHistoricoSenhas()" style="display:flex;align-items:center;gap:6px;border-color:#cbd5e1;color:#475569;"><i class="ph ph-clock-counter-clockwise"></i> Histórico</button>
-                <button class="btn btn-primary" onclick="openSenhasModal()"><i class="ph ph-plus"></i> Nova Senha</button>
+                <button class="btn btn-primary" onclick="abrirModalNovaSenha()"><i class="ph ph-plus"></i> Nova Senha</button>
             </div>
         </div>
 
         <!-- ABAS -->
         <div style="display:flex; gap:1rem; border-bottom:1px solid #e2e8f0; padding:0.5rem 0 0; margin-bottom:0; background:var(--bg-main); position:sticky; top:120px; z-index:90;">
-            <button id="tab-senha-comp" onclick="switchSenhaTab('compartilhada')" style="background:none; border:none; border-bottom:2px solid #e8590c; color:#e8590c; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem;">Senhas Compartilhadas</button>
-            <button id="tab-senha-pess" onclick="switchSenhaTab('pessoal')" style="background:none; border:none; border-bottom:2px solid transparent; color:#64748b; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem;">Senhas Pessoais</button>
+            <button class="tab-senhas" id="tab-senha-comp" onclick="setSenhaTab('compartilhada')" style="background:none; border:none; border-bottom:2px solid #e8590c; color:#e8590c; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem;">Senhas Compartilhadas</button>
+            <button class="tab-senhas" id="tab-senha-pess" onclick="setSenhaTab('pessoal')" style="background:none; border:none; border-bottom:2px solid transparent; color:#64748b; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem;">Senhas Pessoais</button>
         </div>
 
         <!-- FILTROS -->
@@ -35,19 +35,7 @@ function initAdministrativoSenhas() {
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
                 <div style="position:relative;">
                     <i class="ph ph-funnel" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
-                    <input type="text" id="filter-senha-servico" placeholder="Filtrar por Serviço..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;">
-                </div>
-
-                <div style="position:relative;">
-                    <i class="ph ph-funnel" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
-                    <input type="text" id="filter-senha-colaborador" placeholder="Filtrar por Colaborador..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;">
-                </div>
-                <div style="position:relative;">
-                    <select id="filter-senha-status" onchange="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;color:#64748b;appearance:none;cursor:pointer;">
-                        <option value="ativo" selected>🟢 Ativo (Padrão)</option>
-                        <option value="">Todos os Status</option>
-                        <option value="inativo">🔴 Inativo</option>
-                    </select>
+                    <input type="text" id="filtro-busca-senhas" placeholder="Buscar..." oninput="renderSenhasAdm()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;">
                 </div>
             </div>
         </div>
@@ -82,7 +70,7 @@ function initAdministrativoSenhas() {
                     <button onclick="document.getElementById('modal-senhas').style.display='none'" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.2rem;">&times;</button>
                 </div>
                 <div style="padding:1.5rem;">
-                    <form id="form-senhas" onsubmit="salvarSenha(event)">
+                    <form id="form-senha" onsubmit="salvarSenha(event)">
                         <input type="hidden" id="senha-id">
                         <div class="input-group mb-3">
                             <label>Nome</label>
@@ -124,68 +112,64 @@ function initAdministrativoSenhas() {
         </div>
     `;
 
-    carregarSenhas();
+    carregarSenhasAdministrativo();
     carregarColaboradoresParaSenhas();
     _injetarModalHistoricoSenhas();
 }
 
-function carregarSenhas() {
+function carregarSenhasAdministrativo() {
     fetch('/api/administrativo/senhas', {
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('erp_token') }
     })
     .then(r => r.json())
     .then(data => {
         if (data.error) throw new Error(data.error);
-        senhasadministrativoList = data;
-        
-        // Atualiza datalist de serviços
-        uniqueServicos.clear();
-        data.forEach(s => uniqueServicos.add(s.servico));
-        atualizarDatalist();
-
-        filtrarSenhasMulti();
+        senhasAdmList = data;
+        renderSenhasAdm();
     })
     .catch(err => {
         console.error('Erro ao carregar senhas:', err);
-        document.getElementById('table-senhas-body').innerHTML = `<tr><td colspan="6" class="text-danger text-center">Erro ao carregar senhas.</td></tr>`;
+        document.getElementById('table-senhas-body').innerHTML = `<tr><td colspan="7" class="text-danger text-center">Erro ao carregar senhas.</td></tr>`;
     });
 }
 
-function atualizarDatalist() {
-    const datalist = document.getElementById('servicos-list');
-    if (!datalist) return;
-    datalist.innerHTML = '';
-    Array.from(uniqueServicos).sort().forEach(servico => {
-        const option = document.createElement('option');
-        option.value = servico;
-        datalist.appendChild(option);
-    });
-}
-
-function renderSenhasTable(senhas) {
+function renderSenhasAdm() {
     const tbody = document.getElementById('table-senhas-body');
     const thDono = document.getElementById('th-dono-senha');
-    if (!tbody) return;
-
+    
+    // Configura interface de acordo com a aba atual e perfil
     const isDiretoria = window.isTopAdmin || (window.currentUser && String(window.currentUser.departamento).toLowerCase().includes('diretoria') || String(window.currentUser?.role).toLowerCase() === 'diretoria');
-    const showDono = isDiretoria && currentSenhaTab === 'pessoal';
+    const showDono = isDiretoria && currentSenhaAdmTab === 'pessoal';
 
     if (thDono) {
         thDono.style.display = showDono ? 'table-cell' : 'none';
     }
 
-    if (!senhas || senhas.length === 0) {
+    if (!senhasAdmList || senhasAdmList.length === 0) {
         tbody.innerHTML = `<tr><td colspan="${showDono ? 8 : 7}" style="text-align:center; padding:2rem; color:#64748b;">Nenhuma senha cadastrada.</td></tr>`;
         return;
     }
 
+    const filtroTexto = (document.getElementById('filtro-busca-senhas')?.value || '').toLowerCase();
+    
+    const viewList = senhasAdmList.filter(s => {
+        const matchTab = (s.tipo === currentSenhaAdmTab || (!s.tipo && currentSenhaAdmTab === 'compartilhada'));
+        const textToSearch = [s.servico, s.usuario, s.nome, s.dono_nome].filter(Boolean).join(' ').toLowerCase();
+        const matchFiltro = textToSearch.includes(filtroTexto);
+        return matchTab && matchFiltro;
+    });
+
+    if (viewList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${showDono ? 8 : 7}" style="text-align:center; padding:2rem; color:#64748b;">Nenhuma senha encontrada.</td></tr>`;
+        return;
+    }
+
     tbody.innerHTML = '';
-    senhas.forEach((s, index) => {
+    viewList.forEach((s) => {
         const tr = document.createElement('tr');
         
         let linkHtml = s.link ? `<a href="${s.link}" target="_blank" style="color:#228be6; text-decoration:none; display:flex; align-items:center; gap:4px; max-width:250px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${s.link}"><i class="ph ph-link" style="flex-shrink:0;"></i> <span style="overflow:hidden; text-overflow:ellipsis;">${s.link}</span></a>` : '<span style="color:#94a3b8;">-</span>';
         
-        // Input readonly password field para facilitar copiar/mostrar
         const pwdId = `table-pwd-${s.id}`;
         const pwdHtml = `
             <div style="display:flex; align-items:center; gap:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:4px 8px;">
@@ -200,8 +184,6 @@ function renderSenhasTable(senhas) {
         `;
 
         let donoHtml = showDono ? `<td style="color:#d9480f; font-weight:600; font-size:0.9rem;">${s.owner_nome || s.owner_username || 'Desconhecido'}</td>` : '';
-
-        
         const statusClass = (s.colab_status === 'Desligado') ? 'color:#ef4444;background:#fee2e2;' : 'color:#155724;background:#d4edda;';
         const statusIcon = (s.colab_status === 'Desligado') ? '🔴 Inativo' : '🟢 Ativo';
         
@@ -215,7 +197,7 @@ function renderSenhasTable(senhas) {
             <td>${pwdHtml}</td>
             <td style="text-align: right;">
                 <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
-                    <button class="btn-action btn-sm" style="color:#228be6; background:#e7f5ff; border:none;" onclick='editarSenha(${JSON.stringify(s)})' title="Editar"><i class="ph ph-pencil"></i></button>
+                    <button class="btn-action btn-sm" style="color:#228be6; background:#e7f5ff; border:none;" onclick='abrirModalEditarSenha(${s.id})' title="Editar"><i class="ph ph-pencil"></i></button>
                     <button class="btn-action btn-sm" style="color:#ef4444; background:#fee2e2; border:none;" onclick="excluirSenha(${s.id})" title="Excluir"><i class="ph ph-trash"></i></button>
                 </div>
             </td>
@@ -224,58 +206,33 @@ function renderSenhasTable(senhas) {
     });
 }
 
-function filtrarSenhasMulti() {
-    const fServico = document.getElementById('filter-senha-servico')?.value.toLowerCase().trim() || '';
-    const fColaborador = document.getElementById('filter-senha-colaborador')?.value.toLowerCase().trim() || '';
-    const fStatus = document.getElementById('filter-senha-status')?.value || '';
-
-    const filtradas = senhasadministrativoList.filter(s => {
-        let matchServico = true;
-        let matchColaborador = true;
-        let matchStatus = true;
-
-        if (fServico) matchServico = s.servico && s.servico.toLowerCase().includes(fServico);
-        if (fColaborador) matchColaborador = s.nome && s.nome.toLowerCase().includes(fColaborador);
-        if (fStatus === 'ativo') matchStatus = s.colab_status !== 'Desligado';
-        if (fStatus === 'inativo') matchStatus = s.colab_status === 'Desligado';
-
-        let matchTab = (s.tipo === currentSenhaTab || (!s.tipo && currentSenhaTab === 'compartilhada'));
-        return matchServico && matchColaborador && matchStatus && matchTab;
-    });
-
-    renderSenhasTable(filtradas);
-}
-
-function openSenhasModal() {
+function abrirModalNovaSenha() {
+    document.getElementById('form-senha').reset();
     document.getElementById('senha-id').value = '';
-    document.getElementById('senha-nome').value = '';
-    document.getElementById('senha-tipo').value = currentSenhaTab;
-    document.getElementById('senha-servico').value = '';
-    document.getElementById('senha-link').value = '';
-    document.getElementById('senha-usuario').value = '';
-    document.getElementById('senha-valor').value = '';
+    document.getElementById('senha-tipo').value = currentSenhaAdmTab;
     document.getElementById('modal-senhas-title').innerHTML = '<i class="ph ph-lock-key" style="margin-right:8px; color:#e8590c;"></i>Cadastrar Nova Senha';
+    senhaAdmSendoEditada = null;
     
-    // Reset password visibility
     const pwdInput = document.getElementById('senha-valor');
     pwdInput.type = 'password';
     document.getElementById('toggle-senha-visibility').classList.replace('ph-eye-slash', 'ph-eye');
-
+    
     document.getElementById('modal-senhas').style.display = 'flex';
-    setTimeout(() => document.getElementById('senha-servico').focus(), 100);
 }
 
-function editarSenha(senhaObj) {
-    document.getElementById('senha-id').value = senhaObj.id;
-    document.getElementById('senha-nome').value = senhaObj.nome || '';
-    document.getElementById('senha-tipo').value = senhaObj.tipo || 'compartilhada';
-    document.getElementById('senha-servico').value = senhaObj.servico;
-    document.getElementById('senha-link').value = senhaObj.link || '';
-    document.getElementById('senha-usuario').value = senhaObj.usuario;
-    document.getElementById('senha-valor').value = senhaObj.senha;
+function abrirModalEditarSenha(id) {
+    const s = senhasAdmList.find(x => x.id === id);
+    if(!s) return;
+    senhaAdmSendoEditada = s.id;
+    document.getElementById('senha-id').value = s.id;
+    document.getElementById('senha-nome').value = s.nome || '';
+    document.getElementById('senha-tipo').value = s.tipo || 'compartilhada';
+    document.getElementById('senha-servico').value = s.servico;
+    document.getElementById('senha-link').value = s.link || '';
+    document.getElementById('senha-usuario').value = s.usuario;
+    document.getElementById('senha-valor').value = s.senha;
     document.getElementById('modal-senhas-title').innerHTML = '<i class="ph ph-pencil" style="margin-right:8px; color:#e8590c;"></i>Editar Senha';
     
-    // Reset password visibility
     const pwdInput = document.getElementById('senha-valor');
     pwdInput.type = 'password';
     document.getElementById('toggle-senha-visibility').classList.replace('ph-eye-slash', 'ph-eye');
@@ -283,7 +240,7 @@ function editarSenha(senhaObj) {
     document.getElementById('modal-senhas').style.display = 'flex';
 }
 
-function salvarSenha(e) {
+async function salvarSenha(e) {
     e.preventDefault();
     const id = document.getElementById('senha-id').value;
     const nome = document.getElementById('senha-nome').value.trim();
@@ -293,23 +250,23 @@ function salvarSenha(e) {
     const senha = document.getElementById('senha-valor').value.trim();
     const tipo = document.getElementById('senha-tipo').value;
 
-    
-
     const payload = { nome, servico, link, usuario, senha, tipo };
     const method = id ? 'PUT' : 'POST';
     const url = id ? '/api/administrativo/senhas/' + id : '/api/administrativo/senhas';
 
-    fetch(url, {
-        method: method,
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + localStorage.getItem('erp_token')
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(r => r.json())
-    .then(data => {
+    try {
+        const res = await fetch(url, {
+            method: method,
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('erp_token')
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await res.json();
         if (data.error) throw new Error(data.error);
+
         Swal.fire({
             icon: 'success',
             title: 'Sucesso',
@@ -318,11 +275,10 @@ function salvarSenha(e) {
             showConfirmButton: false
         });
         document.getElementById('modal-senhas').style.display = 'none';
-        carregarSenhas();
-    })
-    .catch(err => {
+        carregarSenhasAdministrativo();
+    } catch(err) {
         Swal.fire('Erro', err.message, 'error');
-    });
+    }
 }
 
 function excluirSenha(id) {
@@ -343,7 +299,7 @@ function excluirSenha(id) {
             .then(r => r.json())
             .then(data => {
                 if (data.error) throw new Error(data.error);
-                carregarSenhas();
+                carregarSenhasAdministrativo();
             })
             .catch(err => {
                 Swal.fire('Erro', err.message, 'error');
@@ -370,7 +326,6 @@ function copiarSenha(inputId) {
     const input = document.getElementById(inputId);
     if (!input) return;
     
-    // Create a temporary textarea to copy from (since input is pointer-events: none / readonly)
     const tempInput = document.createElement('textarea');
     tempInput.value = input.value;
     document.body.appendChild(tempInput);
@@ -389,9 +344,7 @@ function copiarSenha(inputId) {
     });
 }
 
-// Hook into app navigation
 document.addEventListener('DOMContentLoaded', () => {
-    // If there's an event system or we just rely on navigateTo
     const originalNavigateTo = window.navigateTo;
     if (originalNavigateTo && !window.senhasNavHooked) {
         window.senhasNavHooked = true;
@@ -404,11 +357,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-
-function switchSenhaTab(tipo) {
-    currentSenhaTab = tipo;
+function setSenhaTab(tipo) {
+    currentSenhaAdmTab = tipo;
     const btnComp = document.getElementById('tab-senha-comp');
     const btnPess = document.getElementById('tab-senha-pess');
+    
     if (tipo === 'compartilhada') {
         btnComp.style.borderBottomColor = '#e8590c'; btnComp.style.color = '#e8590c';
         btnPess.style.borderBottomColor = 'transparent'; btnPess.style.color = '#64748b';
@@ -416,9 +369,8 @@ function switchSenhaTab(tipo) {
         btnPess.style.borderBottomColor = '#e8590c'; btnPess.style.color = '#e8590c';
         btnComp.style.borderBottomColor = 'transparent'; btnComp.style.color = '#64748b';
     }
-    filtrarSenhasMulti();
+    renderSenhasAdm();
 }
-
 
 function carregarColaboradoresParaSenhas() {
     fetch('/api/colaboradores', {
@@ -438,17 +390,14 @@ function carregarColaboradoresParaSenhas() {
     .catch(console.error);
 }
 
-// ─── HISTÓRICO DE ALTERAÇÕES ────────────────────────────────────────────────
-
 function _injetarModalHistoricoSenhas() {
-    if (document.getElementById('modal-historico-senhas')) return; // já existe
+    if (document.getElementById('modal-historico-senhas')) return;
 
     const modal = document.createElement('div');
     modal.id = 'modal-historico-senhas';
     modal.style.cssText = 'display:none; position:fixed; inset:0; background:rgba(15,23,42,0.75); z-index:99999; align-items:flex-start; justify-content:center; padding:2rem 1rem; overflow-y:auto;';
     modal.innerHTML = `
         <div style="background:#fff; border-radius:14px; width:100%; max-width:900px; box-shadow:0 25px 80px rgba(0,0,0,0.35); display:flex; flex-direction:column; max-height:90vh;">
-            <!-- Header -->
             <div style="background:#0f172a; padding:1.1rem 1.5rem; border-radius:14px 14px 0 0; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <div style="width:36px;height:36px;background:rgba(45,158,95,0.25);border-radius:9px;display:flex;align-items:center;justify-content:center;">
@@ -461,11 +410,9 @@ function _injetarModalHistoricoSenhas() {
                 </div>
                 <button onclick="document.getElementById('modal-historico-senhas').style.display='none'" style="background:rgba(255,255,255,0.1);border:none;color:#94a3b8;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">&times;</button>
             </div>
-            <!-- Filtro -->
             <div style="padding:0.75rem 1.5rem; border-bottom:1px solid #e2e8f0; background:#f8fafc; display:flex; gap:0.75rem; flex-shrink:0;">
                 <input type="text" id="hist-senhas-filtro" placeholder="🔍 Filtrar por usuário, serviço ou ação..." oninput="_filtrarHistoricoSenhas()" style="flex:1; padding:0.5rem 0.75rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.87rem; outline:none;">
             </div>
-            <!-- Tabela -->
             <div style="overflow-y:auto; flex:1;">
                 <table style="width:100%; border-collapse:collapse; font-size:0.84rem;">
                     <thead>
@@ -484,7 +431,6 @@ function _injetarModalHistoricoSenhas() {
                     </tbody>
                 </table>
             </div>
-            <!-- Footer -->
             <div style="padding:0.75rem 1.5rem; background:#f8fafc; border-top:1px solid #e2e8f0; border-radius:0 0 14px 14px; display:flex; justify-content:flex-end; flex-shrink:0;">
                 <button onclick="document.getElementById('modal-historico-senhas').style.display='none'" style="background:#0f172a;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.5rem;font-weight:600;cursor:pointer;">Fechar</button>
             </div>

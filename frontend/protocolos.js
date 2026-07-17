@@ -1,6 +1,16 @@
 let protocolosAdministrativosList = [];
 let currentProtocoloId = null;
 
+async function apiFetch(url, options = {}, disableJsonContent = false) {
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+    const headers = { ...options.headers };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (!disableJsonContent && !headers['Content-Type'] && !(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+    }
+    return fetch(url, { ...options, headers });
+}
+
 function initProtocolosAdministrativos() {
     const container = document.getElementById('protocolos-administrativos-container');
     if (!container) return;
