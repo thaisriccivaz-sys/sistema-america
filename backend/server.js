@@ -23568,6 +23568,7 @@ db.run(`CREATE TABLE IF NOT EXISTS computadores (
     ram_2                   TEXT,
     ssd                     TEXT,
     expansivel              INTEGER DEFAULT 0,
+    email_vinculado         TEXT,
     created_at              DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at              DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
@@ -23585,6 +23586,10 @@ db.all("PRAGMA table_info(computadores)", (err, rows) => {
             db.run("ALTER TABLE computadores ADD COLUMN ram_2 TEXT");
             db.run("ALTER TABLE computadores ADD COLUMN ssd TEXT");
             db.run("ALTER TABLE computadores ADD COLUMN expansivel INTEGER DEFAULT 0");
+        }
+        const hasEmail = rows.some(r => r.name === 'email_vinculado');
+        if (!hasEmail) {
+            db.run("ALTER TABLE computadores ADD COLUMN email_vinculado TEXT");
         }
     }
 });
@@ -23625,30 +23630,45 @@ app.get('/api/computadores/colaboradores', authenticateToken, (req, res) => {
 
 // ── POST: criar computador ──
 app.post('/api/computadores', authenticateToken, (req, res) => {
-    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel } = req.body;
+    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, email_vinculado } = req.body;
     if (!tipo) return res.status(400).json({ error: 'Tipo é obrigatório.' });
     if (!modelo) return res.status(400).json({ error: 'Modelo é obrigatório.' });
 
     db.run(
-        `INSERT INTO computadores (tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','-3 hours'))`,
-        [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, colaborador_livre || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null, ram_1 || null, ram_2 || null, ssd || null, expansivel ? 1 : 0],
+        `INSERT INTO computadores (tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, email_vinculado, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','-3 hours'))`,
+        [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, colaborador_livre || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null, ram_1 || null, ram_2 || null, ssd || null, expansivel ? 1 : 0, email_vinculado || null],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ id: this.lastID, ok: true });
+            
+            const lastId = this.lastID;
+            if (colaborador_id && email_vinculado && String(email_vinculado).trim() !== '') {
+                db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ?`, [email_vinculado.trim(), colaborador_id], function(updateErr) {
+                    if(updateErr) console.error("Erro ao atualizar e-mail do colaborador: ", updateErr.message);
+                });
+            }
+            
+            res.json({ id: lastId, ok: true });
         }
     );
 });
 
 // ── PUT: atualizar computador ──
 app.put('/api/computadores/:id', authenticateToken, (req, res) => {
-    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel } = req.body;
+    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, email_vinculado } = req.body;
     db.run(
-        `UPDATE computadores SET tipo=?, modelo=?, patrimonio=?, numero_serie=?, colaborador_id=?, colaborador_livre=?, status=?, data_atribuicao=?, senha_windows=?, observacoes=?, ram_1=?, ram_2=?, ssd=?, expansivel=?, updated_at=datetime('now','-3 hours')
+        `UPDATE computadores SET tipo=?, modelo=?, patrimonio=?, numero_serie=?, colaborador_id=?, colaborador_livre=?, status=?, data_atribuicao=?, senha_windows=?, observacoes=?, ram_1=?, ram_2=?, ssd=?, expansivel=?, email_vinculado=?, updated_at=datetime('now','-3 hours')
          WHERE id=?`,
-        [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, colaborador_livre || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null, ram_1 || null, ram_2 || null, ssd || null, expansivel ? 1 : 0, req.params.id],
+        [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, colaborador_livre || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null, ram_1 || null, ram_2 || null, ssd || null, expansivel ? 1 : 0, email_vinculado || null, req.params.id],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
+            
+            if (colaborador_id && email_vinculado && String(email_vinculado).trim() !== '') {
+                db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ?`, [email_vinculado.trim(), colaborador_id], function(updateErr) {
+                    if(updateErr) console.error("Erro ao atualizar e-mail do colaborador: ", updateErr.message);
+                });
+            }
+            
             res.json({ ok: true });
         }
     );

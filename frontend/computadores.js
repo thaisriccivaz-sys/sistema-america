@@ -296,6 +296,11 @@
             '<i class="ph ph-eye"></i>' +
             '</button></div>' +
             '</div>' +
+            // E-mail Vinculado
+            '<div>' +
+            '<label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:4px;"><i class="ph ph-envelope"></i> E-mail Vinculado (Preenche e-mail corporativo do colaborador automaticamente)</label>' +
+            '<input id="comp-email-vinculado" type="email" value="' + (c.email_vinculado || '').replace(/"/g, '&quot;') + '" placeholder="Ex: nome@americarental.com.br" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.7rem;font-size:0.88rem;outline:none;background:#fff;box-sizing:border-box;">' +
+            '</div>' +
             // Especificações (Hardware)
             '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;">' +
             '<h4 style="margin:0 0 1rem 0;font-size:0.9rem;color:#0f172a;"><i class="ph ph-cpu" style="margin-right:5px;color:#6366f1;"></i>Especificações (Hardware)</h4>' +
@@ -393,11 +398,12 @@
         var ram_2 = (document.getElementById('comp-ram2') || {}).value || '';
         var ssd = (document.getElementById('comp-ssd') || {}).value || '';
         var expansivel = parseInt((document.getElementById('comp-expansivel') || {}).value || 0, 10);
+        var email_vinculado = (document.getElementById('comp-email-vinculado') || {}).value || '';
 
         if (!tipo) return alert('Selecione o tipo do computador.');
         if (!modelo.trim()) return alert('Informe o modelo do computador.');
 
-        var payload = { tipo, modelo: modelo.trim(), patrimonio, numero_serie, colaborador_id: colaborador_id || null, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, processador, ram_1, ram_2, ssd, expansivel };
+        var payload = { tipo, modelo: modelo.trim(), patrimonio, numero_serie, colaborador_id: colaborador_id || null, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, processador, ram_1, ram_2, ssd, expansivel, email_vinculado };
 
         var btn = document.getElementById('btn-salvar-computador');
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
