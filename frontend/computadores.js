@@ -41,6 +41,10 @@
         var p = s.split('-');
         return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : s;
     }
+    function obsIcon(obs) {
+        if (!obs || !obs.trim()) return '';
+        return '<i class="ph ph-info" style="color:#3b82f6;cursor:help;margin-left:5px;font-size:1.1rem;" title="'+obs.replace(/"/g, '&quot;')+'"></i>';
+    }
     function iniciais(nome) {
         if (!nome) return '?';
         var parts = nome.trim().split(/\s+/);
@@ -190,7 +194,7 @@
                 eqpInfo = compsDoColab.map(function(cp) {
                     return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:0.5rem;display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">' +
                            '<div style="width:30px;height:30px;border-radius:6px;background:#e0e7ff;display:flex;align-items:center;justify-content:center;color:#4f46e5;"><i class="ph ' + tipoIcon(cp.tipo) + '" style="font-size:1.1rem;"></i></div>' +
-                           '<div style="flex:1;"><div style="font-weight:600;font-size:0.8rem;color:#1e293b;">' + (cp.tipo || 'Computador') + ' ' + (cp.modelo || '') + '</div>' +
+                           '<div style="flex:1;"><div style="font-weight:600;font-size:0.8rem;color:#1e293b;display:flex;align-items:center;">' + (cp.tipo || 'Computador') + ' ' + (cp.modelo || '') + obsIcon(cp.observacoes) + '</div>' +
                            '<div style="font-size:0.7rem;color:#64748b;font-family:monospace;">Patr: ' + (cp.patrimonio || '-') + ' / SN: ' + (cp.numero_serie || '-') + '</div></div>' +
                            '<div>' + statusBadge(cp.status) + '</div>' +
                            '<button onclick="window.computadoresOpenModal(' + cp.id + ')" style="background:none;border:none;color:#6366f1;cursor:pointer;padding:4px;" title="Editar Aparelho"><i class="ph ph-pencil-simple"></i></button>' +
@@ -288,7 +292,7 @@
                         : '<span style="color:#94a3b8;font-size:0.8rem;font-style:italic;">Sem colaborador</span>')) +
                 '</td>' +
                 '<td style="' + td + '">' +
-                '<div><div style="font-weight:700;font-size:0.85rem;color:#0f172a;">' + (c.tipo || '-') + '</div>' +
+                '<div><div style="font-weight:700;font-size:0.85rem;color:#0f172a;display:flex;align-items:center;">' + (c.tipo || '-') + obsIcon(c.observacoes) + '</div>' +
                 '<div style="font-size:0.72rem;color:#64748b;">' + (c.modelo || '-') + '</div>' +
                 '</div></td>' +
                 '<td style="' + td + '">' + (c.processador ? '<span style="font-size:0.82rem;color:#0f172a;font-weight:500;">' + c.processador + '</span>' : '<span style="color:#94a3b8;font-size:0.75rem;font-style:italic;">-</span>') + '</td>' +

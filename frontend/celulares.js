@@ -22,6 +22,10 @@
         if (n.length === 10) return n.substring(0, 2) + ' ' + n.substring(2, 6) + '-' + n.substring(6);
         return s;
     }
+    function obsIcon(obs) {
+        if (!obs || !obs.trim()) return '';
+        return '<i class="ph ph-info" style="color:#3b82f6;cursor:help;margin-left:5px;font-size:1.1rem;" title="'+obs.replace(/"/g, '&quot;')+'"></i>';
+    }
     function iniciais(nome) {
         if (!nome) return '?';
         var parts = nome.trim().split(/\s+/);
@@ -303,7 +307,7 @@
             rows+='<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(a.colab_foto,nome,40,a.colab_foto_base64)+'<div><div style="font-weight:700;font-size:0.85rem;color:'+(isAv?'#7c3aed':'#0f172a')+';">'+nome+'</div>'+(isAv?'<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;">Responsavel Avulso</div>':'')+(a.colab_tel_corp?'<div style="font-size:0.72rem;color:#64748b;">'+a.colab_tel_corp+'</div>':'')+'</div></div></td>';
             rows+='<td style="padding:0.75rem;">'+situacaoBadge(isAv ? '' : colabSt)+'</td>';
-            rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+fotoApThumb+'<div><div style="font-weight:600;">'+(a.modelo||'-')+'</div><div style="font-size:0.72rem;color:#64748b;">Pat.: '+(a.patrimonio||'-')+'</div><div style="font-size:0.72rem;color:#64748b;font-family:monospace;">IMEI: '+a.imei1+'</div></div></div></td>';
+            rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+fotoApThumb+'<div><div style="font-weight:600;display:flex;align-items:center;">'+(a.modelo||'-')+obsIcon(a.observacao)+'</div><div style="font-size:0.72rem;color:#64748b;">Pat.: '+(a.patrimonio||'-')+'</div><div style="font-size:0.72rem;color:#64748b;font-family:monospace;">IMEI: '+a.imei1+'</div></div></div></td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;">'+(a.chip_numero
                 ? '<div style="font-weight:600;color:#2563eb;">'+a.chip_numero+'</div><div style="font-size:0.72rem;color:#64748b;">'+(a.chip_operadora||'')+'</div>'
                   +(a.chip_numero2?'<div style="font-weight:600;color:#2563eb;margin-top:4px;">'+a.chip_numero2+'</div><div style="font-size:0.72rem;color:#64748b;">'+(a.chip_operadora2||'')+'</div>':'')
@@ -325,7 +329,7 @@
             rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(c.colab_foto,nome,40,c.colab_foto_base64)+'<div><div style="font-weight:700;font-size:0.85rem;color:'+(isAv?'#7c3aed':'#0f172a')+';">'+nome+'</div>'+(isAv?'<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;">Responsavel Avulso</div>':'')+'</div></div></td>';
             rows+='<td style="padding:0.75rem;">'+situacaoBadge(isAv ? '' : colabSt)+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;color:#94a3b8;font-style:italic;">Apenas chip</td>';
-            rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="font-weight:600;color:#2563eb;">'+fmtTel(c.numero)+'</div><div style="font-size:0.72rem;color:#64748b;">'+(c.operadora||'')+'</div></td>';
+            rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="font-weight:600;color:#2563eb;display:flex;align-items:center;">'+fmtTel(c.numero)+obsIcon(c.observacao)+'</div><div style="font-size:0.72rem;color:#64748b;">'+(c.operadora||'')+'</div></td>';
             rows+='<td style="padding:0.75rem;font-size:0.8rem;color:#64748b;">'+fmtData(c.atrib_data_inicio)+'</td>';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;gap:6px;">'+
                 '<button onclick="window.celularesToggleHistorico(\''+hk+'\',\'chip\','+c.id+')" style="background:transparent;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#64748b;font-size:0.78rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-clock-counter-clockwise"></i><i class="ph ph-caret-'+(isOpen?'up':'down')+'" style="font-size:0.7rem;"></i></button>'+
@@ -410,7 +414,7 @@
                 :'<div style="width:48px;height:48px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-device-mobile" style="color:#94a3b8;font-size:1.4rem;"></i></div>';
             var colabInfo = isAtrib && a.colab_nome ? '<div style="font-size:0.72rem;color:#6d28d9;margin-top:2px;"><i class="ph ph-user"></i> '+a.colab_nome+'</div>' : '';
             rows+='<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">';
-            rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.65rem;">'+fotoThumb+'<div><div style="font-weight:700;font-size:0.85rem;">'+(a.modelo||'-')+'</div><div style="font-size:0.72rem;color:#64748b;">Pat.: '+(a.patrimonio||'-')+'</div>'+colabInfo+'</div></div></td>';
+            rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.65rem;">'+fotoThumb+'<div><div style="font-weight:700;font-size:0.85rem;display:flex;align-items:center;">'+(a.modelo||'-')+obsIcon(a.observacao)+'</div><div style="font-size:0.72rem;color:#64748b;">Pat.: '+(a.patrimonio||'-')+'</div>'+colabInfo+'</div></div></td>';
             rows+='<td style="padding:0.75rem;font-size:0.82rem;"><div>IMEI1: <strong style="font-family:monospace;">'+a.imei1+'</strong></div>'+(a.imei2?'<div>IMEI2: <strong style="font-family:monospace;">'+a.imei2+'</strong></div>':'')+' </td>';
             rows+='<td style="padding:0.75rem;">'+statusBadge(sBadge)+'</td>';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;gap:6px;flex-wrap:wrap;">'+
@@ -466,7 +470,7 @@
             var sBadge = isAtrib ? 'atribuido' : (c.status||'disponivel');
             var colabInfo = isAtrib && c.colab_nome ? '<div style="font-size:0.72rem;color:#6d28d9;margin-top:2px;"><i class="ph ph-user"></i> '+c.colab_nome+'</div>' : '';
             rows+='<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">';
-            rows+='<td style="padding:0.75rem;font-size:0.85rem;"><div style="font-weight:700;color:#2563eb;">'+fmtTel(c.numero)+'</div>'+(c.operadora?'<div style="font-size:0.72rem;color:#64748b;">'+c.operadora+'</div>':'')+colabInfo+'</td>';
+            rows+='<td style="padding:0.75rem;font-size:0.85rem;"><div style="font-weight:700;color:#2563eb;display:flex;align-items:center;">'+fmtTel(c.numero)+obsIcon(c.observacao)+'</div>'+(c.operadora?'<div style="font-size:0.72rem;color:#64748b;">'+c.operadora+'</div>':'')+colabInfo+'</td>';
             rows+='<td style="padding:0.75rem;">'+statusBadge(sBadge)+'</td>';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;gap:6px;flex-wrap:wrap;">'+
                 '<button onclick="window.celularesToggleHistorico(\''+hk+'\',\'chip\','+c.id+')" style="background:transparent;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#64748b;font-size:0.78rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-clock-counter-clockwise"></i> Historico <i class="ph ph-caret-'+(isOpen?'up':'down')+'" style="font-size:0.7rem;"></i></button>'+
