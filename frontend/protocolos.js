@@ -1,6 +1,11 @@
 let protocolosAdministrativosList = [];
 let currentProtocoloId = null;
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
 async function apiFetch(url, options = {}, disableJsonContent = false) {
     const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
     const headers = { ...options.headers };

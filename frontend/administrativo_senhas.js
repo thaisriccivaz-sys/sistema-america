@@ -439,7 +439,7 @@ function _injetarModalHistoricoSenhas() {
     document.body.appendChild(modal);
 }
 
-let _histSenhasData = [];
+let _histSenhasAdmData = [];
 
 window.abrirHistoricoSenhas = async function() {
     _injetarModalHistoricoSenhas();
@@ -456,7 +456,7 @@ window.abrirHistoricoSenhas = async function() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao carregar histórico');
-        _histSenhasData = data;
+        _histSenhasAdmData = data;
         _renderHistoricoSenhas(data);
     } catch(e) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:#ef4444;">Erro ao carregar: ${e.message}</td></tr>`;
@@ -465,8 +465,8 @@ window.abrirHistoricoSenhas = async function() {
 
 function _filtrarHistoricoSenhas() {
     const q = (document.getElementById('hist-senhas-filtro')?.value || '').toLowerCase().trim();
-    if (!q) { _renderHistoricoSenhas(_histSenhasData); return; }
-    const filtrado = _histSenhasData.filter(r =>
+    if (!q) { _renderHistoricoSenhas(_histSenhasAdmData); return; }
+    const filtrado = _histSenhasAdmData.filter(r =>
         (r.usuario_nome||'').toLowerCase().includes(q) ||
         (r.acao||'').toLowerCase().includes(q) ||
         (r.senha_servico||r.campo_alterado||'').toLowerCase().includes(q) ||
