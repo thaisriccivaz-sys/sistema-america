@@ -21219,7 +21219,16 @@ app.post('/api/assinaturas/templates', authenticateToken, uploadFoto.single('bg_
                 [nome, bg_image_path, is_active, config_json, id],
                 function(err) {
                     if (err) return res.status(500).json({ error: err.message });
-                    res.json({ message: "Template atualizado" });
+                    // Ao editar o template, resetar todas as assinaturas para Pendente
+                    // para que todos os colaboradores precisem baixar novamente
+                    db.run(
+                        `UPDATE assinaturas_pendentes SET status = 'Pendente' WHERE template_id = ?`,
+                        [id],
+                        (resetErr) => {
+                            if (resetErr) console.error('Erro ao resetar assinaturas pendentes:', resetErr.message);
+                        }
+                    );
+                    res.json({ message: "Template atualizado. Todas as assinaturas foram marcadas como pendentes." });
                 });
         } else {
             db.run(`INSERT INTO assinatura_templates (nome, bg_image_path, is_active, config_json) VALUES (?, ?, ?, ?)`,
