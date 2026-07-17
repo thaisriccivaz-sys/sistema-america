@@ -155,7 +155,7 @@ window.assinaturasLoadImagePreview = function(url, config) {
         const placeholder = document.getElementById('assinaturas-preview-placeholder');
         
         if (placeholder) placeholder.style.display = 'none';
-        if (canvasDiv) canvasDiv.style.display = 'inline-block';
+        if (canvasDiv) canvasDiv.style.display = 'block';
         if (imgEl) imgEl.src = img.src;
         
         assinaturasAtualizarPreview();
@@ -166,8 +166,22 @@ window.assinaturasLoadImagePreview = function(url, config) {
 // Event listener added in init
 
 window.assinaturasAtualizarPreview = function() {
+    const wrapper = document.getElementById('assinaturas-preview-wrapper');
+    const canvasDiv = document.getElementById('assinaturas-preview-canvas');
     const imgEl = document.getElementById('assinaturas-preview-img');
-    const scale = (imgEl && imgEl.naturalWidth && imgEl.clientWidth) ? (imgEl.clientWidth / imgEl.naturalWidth) : 1;
+    
+    if (imgEl && imgEl.naturalWidth && canvasDiv && wrapper) {
+        canvasDiv.style.width = `${imgEl.naturalWidth}px`;
+        canvasDiv.style.height = `${imgEl.naturalHeight}px`;
+        
+        const wrapperWidth = Math.max(10, wrapper.clientWidth - 20); 
+        const scale = wrapperWidth < imgEl.naturalWidth ? wrapperWidth / imgEl.naturalWidth : 1;
+        
+        canvasDiv.style.transform = `scale(${scale})`;
+        canvasDiv.style.transformOrigin = 'top left';
+        wrapper.style.height = `${imgEl.naturalHeight * scale + 20}px`;
+        wrapper.style.alignItems = 'flex-start';
+    }
 
     const fields = ['nome', 'dept', 'email'];
     fields.forEach(f => {
@@ -182,7 +196,7 @@ window.assinaturasAtualizarPreview = function() {
         if(iX && iX.value) dragEl.style.left = `${iX.value}%`;
         if(iY && iY.value) dragEl.style.top = `${iY.value}%`;
         if(iSize && iSize.value) {
-            dragEl.style.fontSize = `${iSize.value * scale}px`;
+            dragEl.style.fontSize = `${iSize.value}px`;
             const isBold = document.getElementById(`assinaturas-bold-${f}`)?.checked;
             const isItalic = document.getElementById(`assinaturas-italic-${f}`)?.checked;
             dragEl.style.fontWeight = isBold ? 'bold' : 'normal';
@@ -231,7 +245,7 @@ window.assinaturasRenderCanvas = function(config, exportMode = false, colabData 
         ctx.font = `${style}${weight} ${config[field].size}px "${fontName}", sans-serif`;
         ctx.fillStyle = config[field].color;
         ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
+        ctx.textBaseline = 'top';
         ctx.fillText(text, xPos, yPos);
     };
 
@@ -525,7 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const canvasRect = canvasDiv.getBoundingClientRect();
         
         let newLeft = e.clientX - canvasRect.left - dragOffsetX;
-        let newTop = e.clientY - canvasRect.top - dragOffsetY + (draggedElement.offsetHeight / 2);
+        let newTop = e.clientY - canvasRect.top - dragOffsetY;
         
         let pctX = (newLeft / canvasRect.width) * 100;
         let pctY = (newTop / canvasRect.height) * 100;
