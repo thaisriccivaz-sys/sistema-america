@@ -502,7 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const placeholder = document.getElementById('assinaturas-preview-placeholder');
                     
                     if (placeholder) placeholder.style.display = 'none';
-                    if (canvasDiv) canvasDiv.style.display = 'inline-block';
+                    if (canvasDiv) canvasDiv.style.display = 'block';
                     if (imgEl) imgEl.src = event.target.result;
                     
                     const img = new Image();
