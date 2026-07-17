@@ -277,7 +277,7 @@
             '</div>' +
             // Colaborador
             '<div>' +
-            '<label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:4px;">Colaborador Vinculado</label>' +
+            '<label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:4px;">Colaborador Vinculado <span style="font-size:0.7rem;color:#94a3b8;">(apenas administrativos)</span></label>' +
             '<select id="comp-colaborador" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.7rem;font-size:0.88rem;outline:none;background:#fff;">' +
             colabOptions +
             '</select>' +
