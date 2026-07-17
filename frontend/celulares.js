@@ -15,6 +15,13 @@
         var p = s.split('-');
         return p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : s;
     }
+    function fmtTel(s) {
+        if (!s) return '-';
+        var n = s.replace(/\D/g, '');
+        if (n.length === 11) return n.substring(0, 2) + ' ' + n.substring(2, 7) + '-' + n.substring(7);
+        if (n.length === 10) return n.substring(0, 2) + ' ' + n.substring(2, 6) + '-' + n.substring(6);
+        return s;
+    }
     function iniciais(nome) {
         if (!nome) return '?';
         var parts = nome.trim().split(/\s+/);
@@ -318,7 +325,7 @@
             rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(c.colab_foto,nome,40,c.colab_foto_base64)+'<div><div style="font-weight:700;font-size:0.85rem;color:'+(isAv?'#7c3aed':'#0f172a')+';">'+nome+'</div>'+(isAv?'<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;">Responsavel Avulso</div>':'')+'</div></div></td>';
             rows+='<td style="padding:0.75rem;">'+situacaoBadge(isAv ? '' : colabSt)+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;color:#94a3b8;font-style:italic;">Apenas chip</td>';
-            rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="font-weight:600;color:#2563eb;">'+c.numero+'</div><div style="font-size:0.72rem;color:#64748b;">'+(c.operadora||'')+'</div></td>';
+            rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="font-weight:600;color:#2563eb;">'+fmtTel(c.numero)+'</div><div style="font-size:0.72rem;color:#64748b;">'+(c.operadora||'')+'</div></td>';
             rows+='<td style="padding:0.75rem;font-size:0.8rem;color:#64748b;">'+fmtData(c.atrib_data_inicio)+'</td>';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;gap:6px;">'+
                 '<button onclick="window.celularesToggleHistorico(\''+hk+'\',\'chip\','+c.id+')" style="background:transparent;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#64748b;font-size:0.78rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-clock-counter-clockwise"></i><i class="ph ph-caret-'+(isOpen?'up':'down')+'" style="font-size:0.7rem;"></i></button>'+
@@ -459,7 +466,7 @@
             var sBadge = isAtrib ? 'atribuido' : (c.status||'disponivel');
             var colabInfo = isAtrib && c.colab_nome ? '<div style="font-size:0.72rem;color:#6d28d9;margin-top:2px;"><i class="ph ph-user"></i> '+c.colab_nome+'</div>' : '';
             rows+='<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">';
-            rows+='<td style="padding:0.75rem;font-size:0.85rem;"><div style="font-weight:700;color:#2563eb;">'+c.numero+'</div>'+(c.operadora?'<div style="font-size:0.72rem;color:#64748b;">'+c.operadora+'</div>':'')+colabInfo+'</td>';
+            rows+='<td style="padding:0.75rem;font-size:0.85rem;"><div style="font-weight:700;color:#2563eb;">'+fmtTel(c.numero)+'</div>'+(c.operadora?'<div style="font-size:0.72rem;color:#64748b;">'+c.operadora+'</div>':'')+colabInfo+'</td>';
             rows+='<td style="padding:0.75rem;">'+statusBadge(sBadge)+'</td>';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;gap:6px;flex-wrap:wrap;">'+
                 '<button onclick="window.celularesToggleHistorico(\''+hk+'\',\'chip\','+c.id+')" style="background:transparent;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#64748b;font-size:0.78rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-clock-counter-clockwise"></i> Historico <i class="ph ph-caret-'+(isOpen?'up':'down')+'" style="font-size:0.7rem;"></i></button>'+
@@ -548,7 +555,7 @@
             '<div style="background:#fff;border-radius:16px;width:100%;max-width:400px;margin:1rem;box-shadow:0 20px 60px rgba(0,0,0,0.2);">'+
             '<div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;"><h3 style="margin:0;font-size:1rem;font-weight:700;"><i class="ph ph-sim-card" style="color:#2563eb;"></i> '+(c?'Editar Chip':'Novo Chip')+'</h3><button onclick="document.getElementById(\'modal-celular-chip\').style.display=\'none\'" style="background:none;border:none;cursor:pointer;font-size:1.25rem;color:#64748b;">&#215;</button></div>'+
             '<div style="padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:0.9rem;">'+
-            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Numero *</label><input id="cel-ch-numero" type="text" value="'+(c?c.numero:'(11) ')+'" placeholder="(11) 99999-9999" maxlength="20" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;"></div>'+
+            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Numero *</label><input id="cel-ch-numero" type="text" value="'+(c?fmtTel(c.numero):'11 ')+'" placeholder="11 99999-9999" maxlength="20" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;"></div>'+
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Operadora</label><select id="cel-ch-operadora" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">'+ops+'</select></div>'+ssel+
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Observacao</label><textarea id="cel-ch-obs" rows="2" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;resize:vertical;">'+(c?(c.observacao||''):'')+'</textarea></div>'+
             '</div>'+
@@ -559,7 +566,7 @@
     }
     function renderModalAtribuir() {
         var apOpts=_aparelhos.filter(function(a){return a.status==='disponivel';}).map(function(a){return '<option value="'+a.id+'">'+(a.modelo||'Sem modelo')+' - Pat. '+(a.patrimonio||'-')+' - IMEI: '+a.imei1+'</option>';}).join('');
-        var chOpts=_chips.filter(function(c){return c.status==='disponivel';}).map(function(c){return '<option value="'+c.id+'">'+c.numero+(c.operadora?' ('+c.operadora+')':'')+'</option>';}).join('');
+        var chOpts=_chips.filter(function(c){return c.status==='disponivel';}).map(function(c){return '<option value="'+c.id+'">'+fmtTel(c.numero)+(c.operadora?' ('+c.operadora+')':'')+'</option>';}).join('');
         var colOpts=_colaboradores.map(function(c){return '<option value="'+c.id+'">'+c.nome_completo+'</option>';}).join('');
         var hoje=new Date().toISOString().split('T')[0];
         return '<div id="modal-celular-atribuir" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">'+
@@ -671,9 +678,9 @@
             return;
         }
         drop.innerHTML=matches.map(function(c){
-            var label=c.numero+(c.operadora?' <span style="color:#64748b;font-size:0.78rem;">('+c.operadora+')</span>':'');
+            var label=fmtTel(c.numero)+(c.operadora?' <span style="color:#64748b;font-size:0.78rem;">('+c.operadora+')</span>':'');
             return '<div style="padding:0.6rem 0.75rem;cursor:pointer;font-size:0.85rem;border-bottom:1px solid #f1f5f9;" '+
-                'onmousedown="window.celularesChipSelect('+c.id+',\''+c.numero.replace(/'/g,"\\'")+(c.operadora?' ('+c.operadora+')':'')+'\')" '+
+                'onmousedown="window.celularesChipSelect('+c.id+',\''+fmtTel(c.numero).replace(/'/g,"\\'")+(c.operadora?' ('+c.operadora+')':'')+'\')" '+
                 'onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'\'">'+
                 label+'</div>';
         }).join('');
@@ -790,7 +797,7 @@
             var s2=document.getElementById('cel-atrib-chip');if(s2)s2.value=chId;
             var ch=_chips.find(function(c){return c.id==chId;});
             var sb2=document.getElementById('cel-atrib-chip-busca');
-            if(sb2&&ch)sb2.value=ch.numero+(ch.operadora?' ('+ch.operadora+')':'');
+            if(sb2&&ch)sb2.value=fmtTel(ch.numero)+(ch.operadora?' ('+ch.operadora+')':'');
         } else {
             var sb3=document.getElementById('cel-atrib-chip-busca');if(sb3)sb3.value='';
             var hid3=document.getElementById('cel-atrib-chip');if(hid3)hid3.value='';
