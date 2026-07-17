@@ -231,7 +231,7 @@ window.assinaturasRenderCanvas = function(config, exportMode = false, colabData 
         ctx.font = `${style}${weight} ${config[field].size}px "${fontName}", sans-serif`;
         ctx.fillStyle = config[field].color;
         ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
+        ctx.textBaseline = 'middle';
         ctx.fillText(text, xPos, yPos);
     };
 
@@ -525,7 +525,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const canvasRect = canvasDiv.getBoundingClientRect();
         
         let newLeft = e.clientX - canvasRect.left - dragOffsetX;
-        let newTop = e.clientY - canvasRect.top - dragOffsetY;
+        let newTop = e.clientY - canvasRect.top - dragOffsetY + (draggedElement.offsetHeight / 2);
         
         let pctX = (newLeft / canvasRect.width) * 100;
         let pctY = (newTop / canvasRect.height) * 100;
@@ -557,11 +557,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const iSize = document.getElementById(`assinaturas-size-${f}`);
         const iFont = document.getElementById(`assinaturas-font-${f}`);
         const iColor = document.getElementById(`assinaturas-color-${f}`);
+        const iBold = document.getElementById(`assinaturas-bold-${f}`);
+        const iItalic = document.getElementById(`assinaturas-italic-${f}`);
+        
         if(iX) iX.addEventListener('input', assinaturasAtualizarPreview);
         if(iY) iY.addEventListener('input', assinaturasAtualizarPreview);
         if(iSize) iSize.addEventListener('input', assinaturasAtualizarPreview);
         if(iFont) iFont.addEventListener('input', assinaturasAtualizarPreview);
         if(iColor) iColor.addEventListener('input', assinaturasAtualizarPreview);
+        if(iBold) iBold.addEventListener('change', assinaturasAtualizarPreview);
+        if(iItalic) iItalic.addEventListener('change', assinaturasAtualizarPreview);
     });
 
 
