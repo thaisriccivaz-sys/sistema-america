@@ -115,9 +115,9 @@ function initProtocolosAdministrativos() {
                         <div id="protocolo-comentarios-lista" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1rem; padding-right: 8px; max-height: 350px;">
                             <!-- Comentários renderizados via JS -->
                         </div>
-                        <div style="display: flex; gap: 8px; background: #f8fafc; padding: 12px; border-radius: 8px;">
-                            <input type="text" id="novo-comentario-texto" class="form-control" placeholder="Escreva um comentário..." style="flex: 1;" onkeypress="if(event.key === 'Enter') enviarComentarioProtocolo()">
-                            <button class="btn btn-primary" onclick="enviarComentarioProtocolo()" style="background: #e8590c; border: none; padding: 8px 16px;"><i class="ph ph-paper-plane-right"></i> Enviar</button>
+                        <div style="display: flex; gap: 8px; background: #f8fafc; padding: 12px; border-radius: 8px; align-items: flex-end;">
+                            <textarea id="novo-comentario-texto" class="form-control" placeholder="Escreva um comentário..." style="flex: 1; resize: none; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 10px; font-size: 0.9rem; min-height: 80px;" onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); enviarComentarioProtocolo(); }"></textarea>
+                            <button class="btn btn-primary" onclick="enviarComentarioProtocolo()" style="background: #e8590c; border: none; padding: 8px 16px; margin-bottom: 2px;"><i class="ph ph-paper-plane-right"></i> Enviar</button>
                         </div>
                     </div>
                     
@@ -385,8 +385,8 @@ async function uploadAnexoProtocolo(event) {
         statusText.textContent = 'Enviando...';
         btn.disabled = true;
         
-        // Use standard fetch instead of apiFetch if it defaults to application/json
-        const token = localStorage.getItem('token');
+        // Use standard fetch instead of apiFetch se ele mandar como json por padrão, mas passe o token correto.
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const res = await fetch(`/api/administrativo/protocolos/${currentProtocoloId}/upload`, {
             method: 'POST',
             headers: {

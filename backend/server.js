@@ -5920,7 +5920,7 @@ app.post('/api/administrativo/protocolos/:id/comentarios', authenticateToken, (r
         try { comentarios = JSON.parse(row.comentarios || '[]'); } catch(e) {}
         
         const now = new Date();
-        const dataHora = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().replace('T', ' ').substring(0, 19);
+        const dataHora = new Date(now.getTime() - (3 * 60 * 60 * 1000)).toISOString().replace('T', ' ').substring(0, 19);
         
         comentarios.push({
             usuario: req.user.nome || req.user.username,
@@ -5939,7 +5939,7 @@ app.post('/api/administrativo/protocolos/:id/comentarios', authenticateToken, (r
     });
 });
 
-app.post('/api/administrativo/protocolos/:id/upload', authenticateToken, upload.single('documento'), async (req, res) => {
+app.post('/api/administrativo/protocolos/:id/upload', authenticateToken, uploadFoto.single('documento'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
     
     db.get("SELECT arquivos_json FROM administrativo_protocolos WHERE id = ?", [req.params.id], async (err, row) => {
