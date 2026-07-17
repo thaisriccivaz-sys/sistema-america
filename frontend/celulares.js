@@ -309,8 +309,8 @@
             rows+='<td style="padding:0.75rem;">'+situacaoBadge(isAv ? '' : colabSt)+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+fotoApThumb+'<div><div style="font-weight:600;display:flex;align-items:center;">'+(a.modelo||'-')+obsIcon(a.observacao)+'</div><div style="font-size:0.72rem;color:#64748b;">Pat.: '+(a.patrimonio||'-')+'</div><div style="font-size:0.72rem;color:#64748b;font-family:monospace;">IMEI: '+a.imei1+'</div></div></div></td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;">'+(a.chip_numero
-                ? '<div style="font-weight:600;color:#2563eb;">'+a.chip_numero+'</div><div style="font-size:0.72rem;color:#64748b;">'+(a.chip_operadora||'')+'</div>'
-                  +(a.chip_numero2?'<div style="font-weight:600;color:#2563eb;margin-top:4px;">'+a.chip_numero2+'</div><div style="font-size:0.72rem;color:#64748b;">'+(a.chip_operadora2||'')+'</div>':'')
+                ? '<div style="font-weight:600;color:#2563eb;">'+fmtTel(a.chip_numero)+'</div><div style="font-size:0.72rem;color:#64748b;">'+(a.chip_operadora||'')+'</div>'
+                  +(a.chip_numero2?'<div style="font-weight:600;color:#2563eb;margin-top:4px;">'+fmtTel(a.chip_numero2)+'</div><div style="font-size:0.72rem;color:#64748b;">'+(a.chip_operadora2||'')+'</div>':'')
                 : '<span style="color:#94a3b8;font-size:0.8rem;">Sem chip</span>')+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.8rem;color:#64748b;">'+fmtData(a.atrib_data_inicio)+'</td>';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;gap:6px;flex-wrap:wrap;">'+
@@ -468,7 +468,8 @@
             var hk='chip-'+c.id, isOpen=!!_expandedHistorico[hk];
             var isAtrib = !!c.atrib_id;
             var sBadge = isAtrib ? 'atribuido' : (c.status||'disponivel');
-            var colabInfo = isAtrib && c.colab_nome ? '<div style="font-size:0.72rem;color:#6d28d9;margin-top:2px;"><i class="ph ph-user"></i> '+c.colab_nome+'</div>' : '';
+            var nomeResp = c.colab_nome || c.responsavel_nome;
+            var colabInfo = isAtrib && nomeResp ? '<div style="font-size:0.72rem;color:#6d28d9;margin-top:2px;"><i class="ph ph-user"></i> '+nomeResp+'</div>' : '';
             rows+='<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">';
             rows+='<td style="padding:0.75rem;font-size:0.85rem;"><div style="font-weight:700;color:#2563eb;display:flex;align-items:center;">'+fmtTel(c.numero)+obsIcon(c.observacao)+'</div>'+(c.operadora?'<div style="font-size:0.72rem;color:#64748b;">'+c.operadora+'</div>':'')+colabInfo+'</td>';
             rows+='<td style="padding:0.75rem;">'+statusBadge(sBadge)+'</td>';
