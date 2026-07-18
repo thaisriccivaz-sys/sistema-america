@@ -128,6 +128,11 @@
         renderTela();
     };
 
+    window.computadoresSetStatusFilter = function (status) {
+        _filterStatus = status;
+        renderTela();
+    };
+
     window.computadoresVincular = function (colabId) {
         window.computadoresOpenModal();
         setTimeout(function () {
@@ -254,8 +259,9 @@
         var reserva = _computadores.filter(function (c) { return c.status === 'Reserva'; }).length;
         var manut = _computadores.filter(function (c) { return c.status === 'Manutenção'; }).length;
 
-        function statCard(icon, label, val, color, bg) {
-            return '<div style="background:#fff;border-radius:10px;padding:0.9rem 1rem;border:1px solid #e2e8f0;display:flex;align-items:center;gap:0.6rem;box-shadow:0 1px 3px rgba(0,0,0,0.05);">' +
+        function statCard(icon, label, val, color, bg, statusValue) {
+            var onClick = "window.computadoresSetStatusFilter('" + statusValue + "')";
+            return '<div onclick="' + onClick + '" style="background:#fff;border-radius:10px;padding:0.9rem 1rem;border:1px solid #e2e8f0;display:flex;align-items:center;gap:0.6rem;box-shadow:0 1px 3px rgba(0,0,0,0.05);cursor:pointer;transition:transform 0.1s;" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'">' +
                 '<div style="width:34px;height:34px;border-radius:8px;background:' + bg + ';display:flex;align-items:center;justify-content:center;">' +
                 '<i class="ph ' + icon + '" style="color:' + color + ';font-size:1.1rem;"></i></div>' +
                 '<div><div style="font-size:1.25rem;font-weight:800;color:#0f172a;line-height:1;">' + val + '</div>' +
@@ -263,10 +269,10 @@
         }
 
         return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0.75rem;margin-bottom:1.5rem;">' +
-            statCard('ph-stack', 'Total', total, '#6366f1', '#eef2ff') +
-            statCard('ph-monitor', 'Em Uso', emUso, '#2563eb', '#dbeafe') +
-            statCard('ph-archive-box', 'Reserva', reserva, '#7c3aed', '#f3e8ff') +
-            statCard('ph-wrench', 'Manutenção', manut, '#d97706', '#fef9c3') +
+            statCard('ph-stack', 'Total', total, '#6366f1', '#eef2ff', '') +
+            statCard('ph-monitor', 'Em Uso', emUso, '#2563eb', '#dbeafe', 'Em uso') +
+            statCard('ph-archive-box', 'Reserva', reserva, '#7c3aed', '#f3e8ff', 'Reserva') +
+            statCard('ph-wrench', 'Manutenção', manut, '#d97706', '#fef9c3', 'Manutenção') +
             '</div>' +
             '<div style="background:#f8fafc;padding:0.75rem 1rem;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:1rem;display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">' +
             '<i class="ph ph-funnel" style="color:#94a3b8;font-size:1.1rem;"></i>' +

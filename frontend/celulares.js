@@ -124,6 +124,11 @@
         renderTela();
     };
 
+    window.celularesSetStatusFilter = function(status) {
+        _filterAp.status = status;
+        renderTela();
+    };
+
     function thHead(cols) {
         var th='padding:0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;';
         return '<thead><tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">'+cols.map(function(c){
@@ -372,6 +377,28 @@
         var base=(typeof API_URL!=='undefined')?API_URL.replace('/api',''):'';
         // Todos os aparelhos (com status derivado de atrib_id)
         var all = _aparelhos.slice();
+
+        var total = all.length;
+        var atribuidos = all.filter(function(a) { return !!a.atrib_id; }).length;
+        var disponiveis = all.filter(function(a) { return !a.atrib_id && (a.status||'disponivel') === 'disponivel'; }).length;
+        var manutencao = all.filter(function(a) { return !a.atrib_id && a.status === 'manutencao'; }).length;
+
+        function statCard(icon, label, val, color, bg, statusValue) {
+            var onClick = "window.celularesSetStatusFilter('" + statusValue + "')";
+            return '<div onclick="' + onClick + '" style="background:#fff;border-radius:10px;padding:0.9rem 1rem;border:1px solid #e2e8f0;display:flex;align-items:center;gap:0.6rem;box-shadow:0 1px 3px rgba(0,0,0,0.05);cursor:pointer;transition:transform 0.1s;" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'">' +
+                '<div style="width:34px;height:34px;border-radius:8px;background:' + bg + ';display:flex;align-items:center;justify-content:center;">' +
+                '<i class="ph ' + icon + '" style="color:' + color + ';font-size:1.1rem;"></i></div>' +
+                '<div><div style="font-size:1.25rem;font-weight:800;color:#0f172a;line-height:1;">' + val + '</div>' +
+                '<div style="font-size:0.72rem;color:#64748b;">' + label + '</div></div></div>';
+        }
+
+        var cardsHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0.75rem;margin-bottom:1.5rem;">' +
+            statCard('ph-stack', 'Total', total, '#6366f1', '#eef2ff', '') +
+            statCard('ph-device-mobile', 'Em Uso', atribuidos, '#2563eb', '#dbeafe', 'atribuido') +
+            statCard('ph-archive-box', 'Reserva', disponiveis, '#7c3aed', '#f3e8ff', 'disponivel') +
+            statCard('ph-wrench', 'Manutenção', manutencao, '#d97706', '#fef9c3', 'manutencao') +
+            '</div>';
+
         // Aplicar filtros
         var fM = (_filterAp.modelo||'').trim().toLowerCase();
         var fC = (_filterAp.colab||'').trim().toLowerCase();
@@ -407,7 +434,7 @@
                 '<option value="" '+(_filterAp.ativo===''?'selected':'')+'>Todos (Ativos/Inativos)</option>'+
             '</select>'+
         '</div>';
-        if (!filtered.length) return bar+'<div style="text-align:center;padding:3rem;color:#94a3b8;"><i class="ph ph-device-mobile" style="font-size:3rem;display:block;margin-bottom:0.75rem;"></i>Nenhum aparelho encontrado.<br><small>Ajuste os filtros ou cadastre um novo aparelho.</small></div>';
+        if (!filtered.length) return cardsHtml + bar+'<div style="text-align:center;padding:3rem;color:#94a3b8;"><i class="ph ph-device-mobile" style="font-size:3rem;display:block;margin-bottom:0.75rem;"></i>Nenhum aparelho encontrado.<br><small>Ajuste os filtros ou cadastre um novo aparelho.</small></div>';
         var rows='';
         filtered.forEach(function(a){
             var hk='aparelho-'+a.id, isOpen=!!_expandedHistorico[hk];
@@ -438,7 +465,7 @@
             var el = document.getElementById('tab-label-aparelhos');
             if(el) el.innerHTML = hasFilter ? '('+filtered.length+' de '+all.length+')' : '('+all.length+')';
         }, 0);
-        return bar + totalLabel + tableWrap(thHead(['Modelo','IMEI','Status','A\u00e7\u00f5es']),rows);
+        return cardsHtml + bar + totalLabel + tableWrap(thHead(['Modelo','IMEI','Status','A\u00e7\u00f5es']),rows);
     }
 
     function renderTabChips() {
