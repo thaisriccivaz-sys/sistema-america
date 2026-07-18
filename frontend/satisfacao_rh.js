@@ -20,14 +20,14 @@
 
     function scoreColor(v) {
         if (v === null || v === undefined) return '#94a3b8';
-        if (v >= 8) return '#22c55e';
-        if (v >= 6) return '#f59e0b';
+        if (v >= 4) return '#22c55e';
+        if (v >= 3) return '#f59e0b';
         return '#ef4444';
     }
     function scoreBg(v) {
         if (v === null || v === undefined) return 'rgba(148,163,184,.12)';
-        if (v >= 8) return 'rgba(34,197,94,.13)';
-        if (v >= 6) return 'rgba(245,158,11,.13)';
+        if (v >= 4) return 'rgba(34,197,94,.13)';
+        if (v >= 3) return 'rgba(245,158,11,.13)';
         return 'rgba(239,68,68,.13)';
     }
     function trendIcon(arr, i) {
@@ -287,15 +287,10 @@
         }
 
         let html = `
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1.5rem;margin-bottom:2rem;box-shadow:0 1px 3px rgba(0,0,0,.06);">
-            <h3 style="margin:0 0 1rem;font-size:1.1rem;color:#1e293b;">Evolução Geral da Satisfação</h3>
-            <div style="height:250px;"><canvas id="sat-evolution-chart"></canvas></div>
-        </div>
-        
         <div class="sat-legend">
-            <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#22c55e;"></div>Bom (≥8)</div>
-            <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#f59e0b;"></div>Regular (6–7.9)</div>
-            <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#ef4444;"></div>Crítico (&lt;6)</div>
+            <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#22c55e;"></div>Bom (≥4)</div>
+            <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#f59e0b;"></div>Regular (3–3.9)</div>
+            <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#ef4444;"></div>Crítico (&lt;3)</div>
             <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#e2e8f0;"></div>Sem dados</div>
         </div>`;
 
@@ -360,60 +355,6 @@
         });
 
         area.innerHTML = html;
-        
-        // Render Chart
-        const ctx = document.getElementById('sat-evolution-chart');
-        if (ctx) {
-            const labels = periodos.map(p => periodLabel(p));
-            // Calculate global averages per period based on allData
-            const globalAvgs = periodos.map(p => {
-                let sum = 0, count = 0;
-                allData.forEach(t => {
-                    const v = t[`${p.ano}-T${p.trimestre}`];
-                    if (v !== null && v !== undefined) {
-                        sum += v;
-                        count++;
-                    }
-                });
-                return count > 0 ? parseFloat((sum / count).toFixed(2)) : null;
-            });
-            
-            if (window._satChartInstance) {
-                window._satChartInstance.destroy();
-            }
-            
-            window._satChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Média Geral',
-                        data: globalAvgs,
-                        borderColor: '#7c3aed',
-                        backgroundColor: 'rgba(124,58,237,0.1)',
-                        borderWidth: 3,
-                        pointBackgroundColor: '#fff',
-                        pointBorderColor: '#7c3aed',
-                        pointBorderWidth: 2,
-                        pointRadius: 5,
-                        fill: true,
-                        tension: 0.3
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { min: 0, max: 10, grid: { color: '#f1f5f9' } },
-                        x: { grid: { display: false } }
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: { callbacks: { label: (ctx) => 'Média: ' + ctx.parsed.y } }
-                    }
-                }
-            });
-        }
     }
 
     function calcTotalRespondents(grupo, periodos) {
@@ -481,7 +422,6 @@
                 <th onclick="window._satSortColabs('nome')">Colaborador ${_sortCol==='nome'?(_sortDir>0?'▲':'▼'):''}</th>
                 <th onclick="window._satSortColabs('departamento')">Departamento ${_sortCol==='departamento'?(_sortDir>0?'▲':'▼'):''}</th>
                 ${periodos.map(p => `<th style="text-align:center;">${periodLabel(p)}</th>`).join('')}
-                <th style="text-align:center;">Evolução</th>
                 <th style="text-align:center;width:100px;">Ações</th>
             </tr></thead>
             <tbody>
@@ -517,41 +457,13 @@
                     return `<td style="text-align:center;background:#fef9c3;"><span style="color:#92400e;font-size:.75rem;font-weight:600;">Pendente</span></td>`;
                 }
                 return `<td style="text-align:center;">
-                    <div style="background:#dcfce7;color:#166534;font-size:.75rem;font-weight:600;padding:0.2rem 0.5rem;border-radius:999px;display:inline-flex;align-items:center;gap:0.3rem;">
-                        <i class="ph-fill ph-check-circle"></i> Resp: ${fmtScore(ps.media)}
-                    </div>
+                    <span class="score-pill" style="background:${scoreBg(ps.media)};color:${scoreColor(ps.media)};">${fmtScore(ps.media)}</span>
                 </td>`;
             }).join('')}
-            <td style="text-align:center; vertical-align:middle;">
-                ${renderSparkline(periodos.map(p => c.pesquisas?.[`${p.ano}-T${p.trimestre}`]?.media ?? null))}
-            </td>
             <td style="text-align:center;">
                 <button onclick="window._satOpenForm(${c.id}, '${(c.nome_completo || '').replace(/'/g, "\\'")}', '${c.cargo || ''}', '${c.departamento || ''}')" style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;"><i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}</button>
             </td>
         </tr>`;
-    }
-
-    function renderSparkline(values) {
-        const valid = values.filter(v => v !== null);
-        if (valid.length < 2) return '<span style="color:#cbd5e1;font-size:0.75rem;">N/A</span>';
-        const min = 0; const max = 10;
-        const w = 60; const h = 20;
-        const pts = valid.map((v, i) => {
-            const x = (i / (valid.length - 1)) * w;
-            const y = h - ((v - min) / (max - min)) * h;
-            return `${x},${y}`;
-        }).join(' ');
-        const first = valid[0];
-        const last = valid[valid.length - 1];
-        const color = last >= first ? '#22c55e' : '#ef4444';
-        return `<svg width="${w}" height="${h}" viewBox="0 -2 ${w} ${h+4}" style="overflow:visible; display:inline-block; vertical-align:middle;">
-            <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            ${valid.map((v, i) => {
-                const x = (i / (valid.length - 1)) * w;
-                const y = h - ((v - min) / (max - min)) * h;
-                return `<circle cx="${x}" cy="${y}" r="3" fill="${color}" stroke="#fff" stroke-width="1.5" />`;
-            }).join('')}
-        </svg>`;
     }
 
     /* ── FILTER & SORT ──────────────────────────────────────── */
@@ -620,7 +532,7 @@
                     <style>
                         @keyframes satModalFadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
                     </style>
-                    <form id="sat-modal-form" onsubmit="window._satSubmitForm(event, ${colabId})">`;
+                    <form id="sat-modal-form" onsubmit="window._satSubmitForm(event, ${colabId}, '${grupo}')">`;
 
         let catIdx = 0;
         Object.keys(perguntasGroup).forEach(topico => {
@@ -647,7 +559,7 @@
                     const c = qColors[v]; const bg = bgColors[v];
                     html += `
                     <label style="cursor:pointer; position:relative; margin:0;" title="Nota ${v}">
-                        <input type="radio" name="q_${topico.replace(/\\s+/g, '_')}_${idx}" value="${v}" required style="position:absolute; opacity:0; pointer-events:none;">
+                        <input type="radio" name="av_${catIdx}_${idx}" value="${v}" required style="position:absolute; opacity:0; pointer-events:none;">
                         <div class="radio-nota sat-rbtn" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:700; font-size:0.85rem; border:1px solid #cbd5e1; background:#fff; color:${c}; transition:all 0.15s;" 
                              onclick="this.parentElement.parentElement.querySelectorAll('.sat-rbtn').forEach(el=>{el.style.background='#fff'; el.style.color=el.dataset.color; el.style.borderColor='#cbd5e1'}); this.style.background=this.dataset.bg; this.style.color='#fff'; this.style.borderColor=this.dataset.color;"
                              data-color="${c}" data-bg="${c}">
@@ -658,7 +570,7 @@
                 
                 html += `
                         </div>
-                        <input type="text" name="obs_${topico.replace(/\\s+/g, '_')}_${idx}" placeholder="Observação (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
+                        <input type="text" name="av_obs_${catIdx}_${idx}" placeholder="Observação (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
                     </div>
                 </div>`;
             });
@@ -689,7 +601,7 @@
         if (overlay) overlay.remove();
     };
 
-    window._satSubmitForm = async function(e, colabId) {
+    window._satSubmitForm = async function(e, colabId, grupo) {
         e.preventDefault();
         const form = e.target;
         const submitBtn = document.getElementById('sat-btn-submit');
@@ -698,17 +610,29 @@
         const currentYear = new Date().getFullYear();
         const currentQ = Math.floor(new Date().getMonth() / 3) + 1;
         
-        // build respostas_json
-        const formData = new FormData(form);
-        const respostas = { scores: {}, topicos: {}, info_adicional: formData.get('info_adicional') };
+        // build respostas_json in exact format for backend
+        const respostas = { __obs__: {} };
+        const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
+        const categories = Object.keys(perguntasGroup);
         
-        for (const [key, val] of formData.entries()) {
-            if (key.startsWith('q_') && val) {
-                respostas.scores[key] = parseInt(val, 10);
-            } else if (key.startsWith('obs_') && val.trim()) {
-                respostas.topicos[key] = val.trim();
-            }
-        }
+        categories.forEach((cat, catIdx) => {
+            respostas[cat] = {};
+            respostas.__obs__[cat] = {};
+            perguntasGroup[cat].forEach((q, i) => {
+                const rads = form.elements[`av_${catIdx}_${i}`];
+                if (rads && rads.length) {
+                    const selected = Array.from(rads).find(r => r.checked);
+                    if (selected) respostas[cat][i] = parseInt(selected.value, 10);
+                }
+                const obs = form.elements[`av_obs_${catIdx}_${i}`];
+                if (obs && obs.value.trim().length > 0) {
+                    respostas.__obs__[cat][i] = obs.value.trim();
+                }
+            });
+        });
+        
+        const infoAdicional = form.elements['info_adicional']?.value;
+        if (infoAdicional) respostas.__obs__.info_adicional = infoAdicional.trim();
         
         try {
             submitBtn.innerHTML = '<div class="spinner-sm" style="border-color:#c4b5fd;border-top-color:#fff;"></div> Salvando...';

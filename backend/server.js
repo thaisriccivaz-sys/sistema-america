@@ -9614,6 +9614,7 @@ app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) =>
 
                         // respostas_json: { 'Tópico': [nota1, nota2, ...] } ou { 'Tópico': { media: X } }
                         Object.entries(respostas).forEach(([topico, notas]) => {
+                            if (topico === '__obs__' || topico === '__status__' || topico === 'scores' || topico === 'topicos' || topico === 'info_adicional') return;
                             if (!agregado[grupo][topico]) agregado[grupo][topico] = {};
                             if (!agregado[grupo][topico][periodo]) agregado[grupo][topico][periodo] = [];
                             if (Array.isArray(notas)) {
@@ -9624,6 +9625,12 @@ app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) =>
                                 }
                             } else if (typeof notas === 'object' && notas !== null && typeof notas.media === 'number') {
                                 agregado[grupo][topico][periodo].push(notas.media);
+                            } else if (typeof notas === 'object' && notas !== null) {
+                                const nums = Object.values(notas).filter(n => typeof n === 'number' && !isNaN(n));
+                                if (nums.length > 0) {
+                                    const media = nums.reduce((a, b) => a + b, 0) / nums.length;
+                                    agregado[grupo][topico][periodo].push(media);
+                                }
                             } else if (typeof notas === 'number') {
                                 agregado[grupo][topico][periodo].push(notas);
                             }
@@ -9711,6 +9718,9 @@ app.get('/api/avaliacoes/satisfacao/colaboradores', authenticateToken, (req, res
                                     if (Array.isArray(val)) todas = todas.concat(val.filter(n => typeof n === 'number' && !isNaN(n)));
                                     else if (typeof val === 'number' && !isNaN(val)) todas.push(val);
                                     else if (val && typeof val.media === 'number') todas.push(val.media);
+                                    else if (typeof val === 'object' && val !== null) {
+                                        todas = todas.concat(Object.values(val).filter(n => typeof n === 'number' && !isNaN(n)));
+                                    }
                                 });
                                 const media = todas.length > 0 ? parseFloat((todas.reduce((a, b) => a + b, 0) / todas.length).toFixed(2)) : null;
                                 avalMap[a.colaborador_id][key] = { media, respondido: true, created_at: a.created_at };
