@@ -185,7 +185,9 @@
             renderModal() +
             renderModalEmail() +
             renderModalAtribuirEmail() +
-            renderModalDevolverEmail();
+            renderModalDevolverEmail() +
+            renderModalVincularEquipamentos() +
+            renderModalDevolverMulti();
     }
 
     /* ─── Aba Colaboradores ─── */
@@ -202,7 +204,8 @@
         var rows = filtered.map(function (c) {
             var td = 'padding:0.75rem;vertical-align:middle;';
             // Apenas 1 computador por colaborador
-            var compsDoColab = _computadores.filter(function (cp) { return String(cp.colaborador_id) === String(c.id); });
+            var emailsDoColab = _emails.filter(function (e) { return String(e.colaborador_id) === String(c.id); });
+            var temEmail = emailsDoColab.length > 0;
             var temComp = compsDoColab.length > 0;
 
             var colabInfo = '<div style="display:flex;align-items:center;gap:0.75rem;">' +
@@ -211,34 +214,40 @@
                 '<div style="font-size:0.75rem;color:#64748b;font-weight:600;"><i class="ph ph-buildings" style="margin-right:3px;"></i>' + (c.departamento || '-') + ' &middot; ' + (c.cargo || '-') + '</div>' +
                 '</div></div>';
 
+            var emailsHtml = temEmail ? emailsDoColab.map(function(e){ return '<div style="font-weight:600;font-size:0.85rem;color:#2563eb;margin-bottom:2px;">'+e.endereco+'</div>'; }).join('') : '<span style="color:#94a3b8;font-size:0.85rem;font-style:italic;">Nenhum e-mail</span>';
+
             var eqpInfo = '';
             var acoes = '';
 
-            if (temComp) {
-                var cp = compsDoColab[0];
-                eqpInfo = '<div>' +
-                    '<div style="font-weight:600;font-size:0.95rem;color:#0f172a;">' + (cp.tipo || 'Computador') + ' ' + (cp.modelo || '') + '</div>' +
-                    '<div style="font-size:0.75rem;color:#64748b;font-family:monospace;margin-top:2px;">Patr: ' + (cp.patrimonio || '-') + ' / SN: ' + (cp.numero_serie || '-') + '</div>' +
-                    '</div>';
-                // Colaborador já tem computador → Mostrar botões
-                var btnHist = '<button onclick="window.computadoresToggleHistorico(' + cp.id + ')" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 9px;cursor:pointer;color:#64748b;display:flex;align-items:center;" title="Histórico"><i class="ph ph-clock-counter-clockwise"></i><i class="ph ph-caret-down" style="font-size:0.7rem;margin-left:2px;"></i></button>';
-                var btnDev = '<button onclick="window.computadoresDevolver(' + cp.id + ',\'' + (c.nome_completo.replace(/'/g, "\\'")) + '\')" style="background:#fff;border:1px solid #fca5a5;border-radius:6px;padding:5px 9px;cursor:pointer;color:#dc2626;display:flex;align-items:center;gap:3px;" title="Devolver"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>';
-                var btnEdit = '<button onclick="window.computadoresOpenModal(' + cp.id + ')" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 9px;cursor:pointer;color:#6366f1;display:flex;align-items:center;" title="Editar"><i class="ph ph-pencil-simple"></i></button>';
-                acoes = '<div style="display:flex;gap:5px;flex-wrap:wrap;">' + btnHist + btnDev + btnEdit + '</div>';
+            if (temComp || temEmail) {
+                if (temComp) {
+                    var cp = compsDoColab[0];
+                    eqpInfo = '<div>' +
+                        '<div style="font-weight:600;font-size:0.95rem;color:#0f172a;">' + (cp.tipo || 'Computador') + ' ' + (cp.modelo || '') + '</div>' +
+                        '<div style="font-size:0.75rem;color:#64748b;font-family:monospace;margin-top:2px;">Patr: ' + (cp.patrimonio || '-') + ' / SN: ' + (cp.numero_serie || '-') + '</div>' +
+                        '</div>';
+                } else {
+                    eqpInfo = '<span style="color:#94a3b8;font-size:0.85rem;font-style:italic;">Nenhum equipamento</span>';
+                }
+                
+                var btnHist = temComp ? '<button onclick="window.computadoresToggleHistorico(' + compsDoColab[0].id + ')" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 9px;cursor:pointer;color:#64748b;display:flex;align-items:center;" title="Histórico"><i class="ph ph-clock-counter-clockwise"></i><i class="ph ph-caret-down" style="font-size:0.7rem;margin-left:2px;"></i></button>' : '';
+                var btnDev = '<button onclick="window.computadoresDevolverMulti(' + c.id + ',\'' + (c.nome_completo.replace(/'/g, "\\'")) + '\')" style="background:#fff;border:1px solid #fca5a5;border-radius:6px;padding:5px 9px;cursor:pointer;color:#dc2626;display:flex;align-items:center;gap:3px;" title="Devolver"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>';
+                acoes = '<div style="display:flex;gap:5px;flex-wrap:wrap;">' + btnHist + btnDev + '</div>';
             } else {
                 eqpInfo = '<span style="color:#94a3b8;font-size:0.85rem;font-style:italic;">Nenhum equipamento</span>';
-                acoes = '<button onclick="window.computadoresVincular(' + c.id + ')" style="background:#eef2ff;border:1px solid #c7d2fe;color:#4f46e5;padding:0.4rem 0.75rem;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.3rem;"><i class="ph ph-link"></i> Vincular Computador</button>';
+                acoes = '<button onclick="window.computadoresVincularModal(' + c.id + ')" style="background:#eef2ff;border:1px solid #c7d2fe;color:#4f46e5;padding:0.4rem 0.75rem;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.3rem;"><i class="ph ph-link"></i> Vincular Equipamentos</button>';
             }
 
             return '<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">' +
                 '<td style="' + td + '">' + colabInfo + '</td>' +
                 '<td style="' + td + '">' + eqpInfo + '</td>' +
+                '<td style="' + td + '">' + emailsHtml + '</td>' +
                 '<td style="' + td + '">' + acoes + '</td>' +
                 '</tr>' + 
-                (temComp ? '<tr id="hist-row-comp-' + compsDoColab[0].id + '" style="display:none;"><td colspan="3" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-comp-' + compsDoColab[0].id + '" style="padding:1rem;">Carregando histórico...</div></td></tr>' : '');
+                (temComp ? '<tr id="hist-row-comp-' + compsDoColab[0].id + '" style="display:none;"><td colspan="4" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-comp-' + compsDoColab[0].id + '" style="padding:1rem;">Carregando histórico...</div></td></tr>' : '');
         }).join('');
 
-        if (!filtered.length) rows = '<tr><td colspan="3" style="padding:2rem;text-align:center;color:#64748b;">Nenhum colaborador encontrado.</td></tr>';
+        if (!filtered.length) rows = '<tr><td colspan="4" style="padding:2rem;text-align:center;color:#64748b;">Nenhum colaborador encontrado.</td></tr>';
 
         return '<div style="background:#f8fafc;padding:0.75rem 1rem;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:1rem;display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">' +
             '<i class="ph ph-funnel" style="color:#94a3b8;font-size:1.1rem;"></i>' +
@@ -246,8 +255,9 @@
             '</div>' +
             '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.07);">' +
             '<thead><tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">' +
-            '<th style="' + thStyle + 'width:40%;">Colaborador</th>' +
-            '<th style="' + thStyle + 'width:45%;">Equipamento Atribuído</th>' +
+            '<th style="' + thStyle + 'width:30%;">Colaborador</th>' +
+            '<th style="' + thStyle + 'width:30%;">Equipamento Atribuído</th>' +
+            '<th style="' + thStyle + 'width:25%;">E-mail</th>' +
             '<th style="' + thStyle + 'width:15%;">Ações</th>' +
             '</tr></thead><tbody>' + rows + '</tbody></table></div>';
     }
@@ -946,6 +956,208 @@
             if (m) m.style.display = 'none';
             reloadEmails();
         }).catch(function (e) { alert('Erro: ' + e.message); });
+    };
+
+    // --- Novos Modais: Vincular Equipamentos e Devolver Equipamentos ---
+    var _vincularColabId = null;
+    var _devolverColabId = null;
+
+    window.computadoresVincularModal = function(colabId) {
+        _vincularColabId = colabId;
+        renderTela();
+        setTimeout(function(){
+            var m = document.getElementById('modal-vincular-equipamentos');
+            if(m) m.style.display = 'flex';
+        }, 50);
+    };
+
+    function renderModalVincularEquipamentos() {
+        var c = _colaboradores.find(function(x){ return x.id === _vincularColabId; });
+        if(!c) return '';
+
+        var compOpts = '<option value="">— Selecione um Computador —</option>' +
+            _computadores.filter(function(cp) { return !cp.colaborador_id && (cp.status === 'Disponível' || cp.status === 'Reserva' || cp.status === 'Devolvido'); })
+            .map(function(cp) {
+                return '<option value="'+cp.id+'">'+(cp.tipo||'Computador')+' '+cp.modelo+' (Patr: '+cp.patrimonio+')</option>';
+            }).join('');
+
+        var emailsList = _emails.filter(function(em) { return !em.colaborador_id && !em.caixa_compartilhada; })
+            .map(function(em) {
+                return '<label style="display:flex;align-items:center;gap:5px;padding:4px 8px;font-size:0.85rem;cursor:pointer;" class="email-cb-item">' +
+                       '<input type="checkbox" value="'+em.id+'" class="cb-vincular-email"> ' +
+                       '<span class="email-cb-text">'+em.endereco+'</span></label>';
+            }).join('');
+
+        if (!emailsList) emailsList = '<div style="padding:0.5rem;font-size:0.85rem;color:#94a3b8;font-style:italic;">Nenhum e-mail disponível.</div>';
+
+        return '<div id="modal-vincular-equipamentos" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">' +
+            '<div style="background:#fff;border-radius:12px;width:100%;max-width:500px;box-shadow:0 25px 80px rgba(0,0,0,0.3);display:flex;flex-direction:column;max-height:90vh;">' +
+            '<div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;background:#f8fafc;border-radius:12px 12px 0 0;">' +
+            '<h3 style="margin:0;font-size:1.1rem;color:#0f172a;display:flex;align-items:center;gap:8px;"><i class="ph ph-link" style="color:#4f46e5;font-size:1.4rem;"></i> Vincular a '+(c.nome_completo)+'</h3>' +
+            '<button onclick="document.getElementById(\'modal-vincular-equipamentos\').style.display=\'none\'" style="background:none;border:none;font-size:1.2rem;color:#94a3b8;cursor:pointer;">&times;</button></div>' +
+            '<div style="padding:1.5rem;overflow-y:auto;display:flex;flex-direction:column;gap:1rem;">' +
+            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Computador</label>' +
+            '<select id="vincular-comp-id" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">' + compOpts + '</select></div>' +
+            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">E-mails</label>' +
+            '<div style="border:1.5px solid #e2e8f0;border-radius:8px;overflow:hidden;">' +
+            '<div style="padding:0.4rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;">' +
+            '<input type="text" placeholder="Pesquisar e-mail..." oninput="window.compEmailFilterCb(\'vincular\', this.value)" style="width:100%;border:1px solid #cbd5e1;border-radius:4px;padding:4px 8px;font-size:0.8rem;outline:none;">' +
+            '</div><div id="comp-email-list-vincular" style="max-height:160px;overflow-y:auto;padding:0.25rem;">' + emailsList + '</div></div></div>' +
+            '</div>' +
+            '<div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:0.5rem;">' +
+            '<button onclick="document.getElementById(\'modal-vincular-equipamentos\').style.display=\'none\'" style="background:#f1f5f9;color:#64748b;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;">Cancelar</button>' +
+            '<button onclick="window.computadoresSalvarVincularEquipamentos()" style="background:#4f46e5;color:#fff;border:none;padding:0.5rem 1.25rem;border-radius:8px;cursor:pointer;font-weight:700;">Salvar Vínculos</button>' +
+            '</div></div></div>';
+    }
+
+    window.computadoresSalvarVincularEquipamentos = async function() {
+        var compId = document.getElementById('vincular-comp-id').value;
+        var emCb = document.querySelectorAll('.cb-vincular-email:checked');
+        var emailIds = Array.from(emCb).map(function(cb){ return cb.value; });
+
+        if(!compId && emailIds.length === 0) {
+            alert('Selecione pelo menos um computador ou e-mail para vincular.');
+            return;
+        }
+
+        var promises = [];
+        var dataHoje = new Date().toISOString().split('T')[0];
+
+        if(compId) {
+            var cp = _computadores.find(function(x){ return String(x.id) === compId; });
+            if(cp) {
+                var payload = Object.assign({}, cp, {
+                    colaborador_id: _vincularColabId,
+                    status: 'Em uso',
+                    data_atribuicao: dataHoje,
+                    colaborador_livre: ''
+                });
+                promises.push(
+                    fetch('/api/computadores/' + compId, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _tok() },
+                        body: JSON.stringify(payload)
+                    }).then(function(r){ return r.json(); })
+                );
+            }
+        }
+
+        emailIds.forEach(function(eId) {
+            promises.push(
+                fetch('/api/emails/' + eId + '/atribuir', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _tok() },
+                    body: JSON.stringify({ colaborador_id: _vincularColabId, data_atribuicao: dataHoje })
+                }).then(function(r){ return r.json(); })
+            );
+        });
+
+        document.getElementById('modal-vincular-equipamentos').style.opacity = '0.5';
+        try {
+            await Promise.all(promises);
+            document.getElementById('modal-vincular-equipamentos').style.display='none';
+            document.getElementById('modal-vincular-equipamentos').style.opacity = '1';
+            await loadAll();
+        } catch(e) {
+            alert('Erro ao vincular: ' + e.message);
+            document.getElementById('modal-vincular-equipamentos').style.opacity = '1';
+        }
+    };
+
+    window.computadoresDevolverMulti = function(colabId, nome) {
+        _devolverColabId = colabId;
+        renderTela();
+        setTimeout(function(){
+            var m = document.getElementById('modal-devolver-multi');
+            if(m) m.style.display = 'flex';
+        }, 50);
+    };
+
+    function renderModalDevolverMulti() {
+        var c = _colaboradores.find(function(x){ return x.id === _devolverColabId; });
+        if(!c) return '';
+
+        var comps = _computadores.filter(function(cp) { return String(cp.colaborador_id) === String(_devolverColabId); });
+        var emails = _emails.filter(function(em) { return String(em.colaborador_id) === String(_devolverColabId); });
+
+        var opts = '';
+        if(comps.length > 0) {
+            var cp = comps[0];
+            opts += '<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:8px;cursor:pointer;">' +
+                    '<input type="checkbox" value="'+cp.id+'" class="cb-dev-comp" checked>' +
+                    '<div><div style="font-weight:700;color:#0f172a;font-size:0.9rem;">Computador: '+cp.modelo+'</div><div style="font-size:0.75rem;color:#64748b;">Patrimônio: '+(cp.patrimonio||'-')+'</div></div></label>';
+        }
+
+        emails.forEach(function(em) {
+            opts += '<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:8px;cursor:pointer;">' +
+                    '<input type="checkbox" value="'+em.id+'" class="cb-dev-email" checked>' +
+                    '<div><div style="font-weight:700;color:#0f172a;font-size:0.9rem;">E-mail: '+em.endereco+'</div><div style="font-size:0.75rem;color:#64748b;">' + (em.plataforma||'') + '</div></div></label>';
+        });
+
+        if(!opts) opts = '<div style="color:#64748b;font-size:0.9rem;">Nenhum equipamento para devolver.</div>';
+
+        return '<div id="modal-devolver-multi" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">' +
+            '<div style="background:#fff;border-radius:12px;width:100%;max-width:450px;box-shadow:0 25px 80px rgba(0,0,0,0.3);display:flex;flex-direction:column;">' +
+            '<div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;background:#fef2f2;border-radius:12px 12px 0 0;">' +
+            '<h3 style="margin:0;font-size:1.1rem;color:#991b1b;display:flex;align-items:center;gap:8px;"><i class="ph ph-arrow-u-up-left" style="color:#ef4444;font-size:1.4rem;"></i> Devolver Equipamentos</h3>' +
+            '<button onclick="document.getElementById(\'modal-devolver-multi\').style.display=\'none\'" style="background:none;border:none;font-size:1.2rem;color:#94a3b8;cursor:pointer;">&times;</button></div>' +
+            '<div style="padding:1.5rem;">' +
+            '<p style="margin:0 0 1rem 0;font-size:0.9rem;color:#334155;">O que você deseja devolver de <strong>'+c.nome_completo+'</strong>?</p>' +
+            opts +
+            '</div>' +
+            '<div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:0.5rem;">' +
+            '<button onclick="document.getElementById(\'modal-devolver-multi\').style.display=\'none\'" style="background:#f1f5f9;color:#64748b;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;">Cancelar</button>' +
+            '<button onclick="window.computadoresSalvarDevolverMulti()" style="background:#ef4444;color:#fff;border:none;padding:0.5rem 1.25rem;border-radius:8px;cursor:pointer;font-weight:700;">Confirmar Devolução</button>' +
+            '</div></div></div>';
+    }
+
+    window.computadoresSalvarDevolverMulti = async function() {
+        var compCb = document.querySelectorAll('.cb-dev-comp:checked');
+        var compIds = Array.from(compCb).map(function(cb){ return cb.value; });
+        var emCb = document.querySelectorAll('.cb-dev-email:checked');
+        var emailIds = Array.from(emCb).map(function(cb){ return cb.value; });
+
+        if(compIds.length === 0 && emailIds.length === 0) {
+            alert('Selecione pelo menos um item para devolver.');
+            return;
+        }
+
+        var promises = [];
+        
+        compIds.forEach(function(cId) {
+            var cp = _computadores.find(function(x){ return String(x.id) === cId; });
+            if(cp) {
+                var payload = Object.assign({}, cp, { colaborador_id: null, status: 'Devolvido', colaborador_livre: '' });
+                promises.push(
+                    fetch('/api/computadores/' + cId, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _tok() },
+                        body: JSON.stringify(payload)
+                    }).then(function(r){ return r.json(); })
+                );
+            }
+        });
+
+        emailIds.forEach(function(eId) {
+            promises.push(
+                fetch('/api/emails/' + eId + '/devolver', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _tok() },
+                    body: JSON.stringify({ colaborador_id: _devolverColabId })
+                }).then(function(r){ return r.json(); })
+            );
+        });
+
+        document.getElementById('modal-devolver-multi').style.opacity = '0.5';
+        try {
+            await Promise.all(promises);
+            document.getElementById('modal-devolver-multi').style.display='none';
+            document.getElementById('modal-devolver-multi').style.opacity = '1';
+            await loadAll();
+        } catch(e) {
+            alert('Erro ao devolver: ' + e.message);
+            document.getElementById('modal-devolver-multi').style.opacity = '1';
+        }
     };
 
 })();

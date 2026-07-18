@@ -324,7 +324,6 @@
             rows+='<td style="padding:0.75rem;"><div style="display:flex;gap:6px;flex-wrap:wrap;">'+
                 '<button onclick="window.celularesToggleHistorico(\''+hk+'\',\'aparelho\','+a.id+')" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#64748b;font-size:0.78rem;display:flex;align-items:center;gap:4px;background:'+(isOpen?'#f1f5f9':'transparent')+';" title="Historico"><i class="ph ph-clock-counter-clockwise"></i><i class="ph ph-caret-'+(isOpen?'up':'down')+'" style="font-size:0.7rem;"></i></button>'+
                 '<button onclick="window.celularesOpenModalDevolver('+a.atrib_id+',\''+nome.replace(/'/g,"\\'")+'\')" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>'+
-                '<button onclick="window.celularesOpenModalAparelho('+a.id+')" style="background:transparent;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#2563eb;font-size:0.78rem;"><i class="ph ph-pencil-simple"></i></button>'+
                 '</div></td></tr>';
             if (isOpen) rows+='<tr id="hist-row-'+hk+'"><td colspan="'+COLSPAN+'" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-'+hk+'" style="padding:0.75rem 1rem;"><div style="color:#94a3b8;font-size:0.82rem;text-align:center;">Carregando historico...</div></div></td></tr>';
         });
@@ -656,18 +655,20 @@
         return '<div id="modal-celular-devolver" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">'+
             '<div style="background:#fff;border-radius:16px;width:100%;max-width:400px;margin:1rem;box-shadow:0 20px 60px rgba(0,0,0,0.2);">'+
             '<div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;">'+
-            '<h3 style="margin:0;font-size:1rem;font-weight:700;color:#dc2626;"><i class="ph ph-arrow-u-up-left"></i> Registrar Devolucao</h3>'+
+            '<h3 style="margin:0;font-size:1rem;font-weight:700;color:#dc2626;"><i class="ph ph-arrow-u-up-left"></i> Registrar Devolução</h3>'+
             '<button onclick="document.getElementById(\'modal-celular-devolver\').style.display=\'none\'" style="background:none;border:none;cursor:pointer;font-size:1.25rem;color:#64748b;">&#215;</button></div>'+
             '<div style="padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:0.9rem;">'+
             '<p id="cel-dev-info" style="margin:0;font-size:0.88rem;color:#374151;background:#f8fafc;padding:0.75rem;border-radius:8px;border:1px solid #e2e8f0;"></p>'+
-            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Data da Devolucao</label>'+
+            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Selecione o que deseja devolver:</label>'+
+            '<div id="cel-dev-items"></div></div>'+
+            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Data da Devolução</label>'+
             '<input id="cel-dev-data" type="date" value="'+hoje+'" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"></div>'+
-            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Observacao</label>'+
+            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Observação</label>'+
             '<textarea id="cel-dev-obs" rows="2" placeholder="Ex: Aparelho devolvido em perfeito estado" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;resize:vertical;"></textarea></div>'+
             '<input type="hidden" id="cel-dev-atrib-id"></div>'+
             '<div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:0.5rem;">'+
             '<button onclick="document.getElementById(\'modal-celular-devolver\').style.display=\'none\'" style="background:#f1f5f9;color:#64748b;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;">Cancelar</button>'+
-            '<button onclick="window.celularesConfirmarDevolucao()" style="background:#dc2626;color:#fff;border:none;padding:0.5rem 1.25rem;border-radius:8px;cursor:pointer;font-weight:700;">Confirmar Devolucao</button>'+
+            '<button onclick="window.celularesConfirmarDevolucao()" style="background:#dc2626;color:#fff;border:none;padding:0.5rem 1.25rem;border-radius:8px;cursor:pointer;font-weight:700;">Confirmar Devolução</button>'+
             '</div></div></div>';
     }
     window.celularesSetTab=function(t){_activeTab=t;_expandedHistorico={};renderTela();};
@@ -844,7 +845,27 @@
         var hid4=document.getElementById('cel-atrib-chip2');if(hid4)hid4.value='';
         if(colabId){var s3=document.getElementById('cel-atrib-colab');if(s3)s3.value=colabId;}
     };
-    window.celularesOpenModalDevolver=function(atribId,nome){var el=document.getElementById('modal-celular-devolver');if(el){el.style.display='flex';var i=document.getElementById('cel-dev-info');if(i)i.textContent='Devolver de: '+nome;var aid=document.getElementById('cel-dev-atrib-id');if(aid)aid.value=atribId;var dd=document.getElementById('cel-dev-data');if(dd)dd.value=new Date().toISOString().split('T')[0];}};
+    window.celularesOpenModalDevolver=function(atribId,nome){
+        var el=document.getElementById('modal-celular-devolver');
+        if(el){
+            el.style.display='flex';
+            var i=document.getElementById('cel-dev-info');if(i)i.textContent='Devolver de: '+nome;
+            var aid=document.getElementById('cel-dev-atrib-id');if(aid)aid.value=atribId;
+            var dd=document.getElementById('cel-dev-data');if(dd)dd.value=new Date().toISOString().split('T')[0];
+            
+            var cont = document.getElementById('cel-dev-items');
+            if(cont) {
+                var ap = _aparelhos.find(function(x){return String(x.atrib_id)===String(atribId);});
+                var ch = _chips.filter(function(x){return String(x.atrib_id)===String(atribId);});
+                var html = '';
+                if(ap) html += '<label style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;margin-bottom:6px;"><input type="checkbox" class="cb-cel-dev" data-tipo="aparelho" value="'+ap.id+'" checked> <div style="font-size:0.85rem;"><b>Aparelho:</b> '+ap.modelo+' (IMEI: '+ap.imei1+')</div></label>';
+                ch.forEach(function(c){
+                    html += '<label style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;margin-bottom:6px;"><input type="checkbox" class="cb-cel-dev" data-tipo="chip" value="'+c.id+'" checked> <div style="font-size:0.85rem;"><b>Chip:</b> '+fmtTel(c.numero)+' ('+(c.operadora||'')+')</div></label>';
+                });
+                cont.innerHTML = html;
+            }
+        }
+    };
     window.celularesPreviewFotoAp=function(input){
         if(!input.files||!input.files[0])return;
         var reader=new FileReader();
@@ -914,7 +935,57 @@
             await loadAll();
         }catch(e){se('Erro: '+(e.message||e));}
     };
-    window.celularesConfirmarDevolucao=async function(){var aid=document.getElementById('cel-dev-atrib-id').value,df=document.getElementById('cel-dev-data').value,obs=document.getElementById('cel-dev-obs').value.trim();try{await _apiPut('/celulares/atribuicoes/'+aid+'/devolver',{data_fim:df,observacao:obs});document.getElementById('modal-celular-devolver').style.display='none';_activeTab='atribuidos';await loadAll();}catch(e){alert('Erro: '+(e.message||e));}};
+    window.celularesConfirmarDevolucao=async function(){
+        var aid=document.getElementById('cel-dev-atrib-id').value;
+        var df=document.getElementById('cel-dev-data').value;
+        var obs=document.getElementById('cel-dev-obs').value.trim();
+        
+        var ap = _aparelhos.find(function(x){return String(x.atrib_id)===String(aid);});
+        var chs = _chips.filter(function(x){return String(x.atrib_id)===String(aid);});
+        var baseColabId = ap ? ap.colaborador_id : (chs.length > 0 ? chs[0].colaborador_id : null);
+        var baseResp = ap ? ap.responsavel_nome : (chs.length > 0 ? chs[0].responsavel_nome : null);
+
+        var cbs = document.querySelectorAll('.cb-cel-dev');
+        var dev_aparelho = false, dev_chip1 = false, dev_chip2 = false;
+        var chipIds = chs.map(function(c){ return String(c.id); });
+        
+        cbs.forEach(function(cb){
+            if(!cb.checked) return;
+            if(cb.dataset.tipo==='aparelho') dev_aparelho=true;
+            if(cb.dataset.tipo==='chip'){
+                if(String(cb.value)===chipIds[0]) dev_chip1=true;
+                else if(String(cb.value)===chipIds[1]) dev_chip2=true;
+            }
+        });
+
+        if(!dev_aparelho && !dev_chip1 && !dev_chip2) return alert('Selecione pelo menos um item para devolver.');
+
+        try {
+            await _apiPut('/celulares/atribuicoes/'+aid+'/devolver',{data_fim:df,observacao:obs});
+            
+            var keepAp = (ap && !dev_aparelho) ? ap.id : null;
+            var keepCh1 = (chs.length > 0 && !dev_chip1) ? chs[0].id : null;
+            var keepCh2 = (chs.length > 1 && !dev_chip2) ? chs[1].id : null;
+
+            if (keepAp || keepCh1 || keepCh2) {
+                await _apiPost('/celulares/atribuicoes', {
+                    colaborador_id: baseColabId,
+                    responsavel_nome: baseResp,
+                    aparelho_id: keepAp,
+                    chip_id: keepCh1,
+                    chip_id2: keepCh2,
+                    data_inicio: df,
+                    observacao: 'Continuação de atribuição anterior (Devolução parcial)'
+                });
+            }
+
+            document.getElementById('modal-celular-devolver').style.display='none';
+            _activeTab='atribuidos';
+            await loadAll();
+        } catch(e) {
+            alert('Erro: '+(e.message||e));
+        }
+    };
     window.celularesDeleteAparelho=async function(id){if(!confirm('Excluir este aparelho?'))return;try{await _apiDelete('/celulares/aparelhos/'+id);await loadAll();}catch(e){alert('Erro: '+(e.message||e));}};
     window.celularesDeleteChip=async function(id){if(!confirm('Excluir este chip?'))return;try{await _apiDelete('/celulares/chips/'+id);await loadAll();}catch(e){alert('Erro: '+(e.message||e));}};
     window.initCelularesCorporativos=async function(){_activeTab='atribuidos';_expandedHistorico={};await loadAll();};
