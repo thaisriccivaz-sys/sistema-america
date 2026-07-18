@@ -383,14 +383,24 @@
         var fs = _filterEmailStatus;
 
         var filtered = _emails.filter(function (e) {
-            var isAtrib = !!(e.colaborador_id || e.responsavel_nome);
-            var status = isAtrib ? 'atribuido' : 'disponivel';
+            var atribs = e.atribuicoes || [];
+            var isAtrib = atribs.length > 0;
+            var status;
+            if (e.status === 'Bloqueado') {
+                status = 'bloqueado';
+            } else if (isAtrib) {
+                status = 'atribuido';
+            } else {
+                status = 'disponivel';
+            }
             if (fs && status !== fs) return false;
             if (!fq) return true;
-            return (e.endereco && e.endereco.toLowerCase().includes(fq)) ||
-                (e.plataforma && e.plataforma.toLowerCase().includes(fq)) ||
-                (e.colab_nome && e.colab_nome.toLowerCase().includes(fq)) ||
-                (e.responsavel_nome && e.responsavel_nome.toLowerCase().includes(fq));
+            
+            var searchStr = (e.endereco || '') + ' ' + (e.plataforma || '');
+            if (isAtrib) {
+                searchStr += ' ' + atribs.map(function(a) { return (a.colab_nome || '') + ' ' + (a.responsavel_nome || ''); }).join(' ');
+            }
+            return searchStr.toLowerCase().includes(fq);
         });
 
         if (!filtered.length && !fq && !fs) {
@@ -467,6 +477,7 @@
             '<option value="">Todos</option>' +
             '<option value="disponivel"' + (fs === 'disponivel' ? ' selected' : '') + '>Disponível</option>' +
             '<option value="atribuido"' + (fs === 'atribuido' ? ' selected' : '') + '>Atribuído</option>' +
+            '<option value="bloqueado"' + (fs === 'bloqueado' ? ' selected' : '') + '>Bloqueado</option>' +
             '</select></div>' +
             '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.07);">' +
             '<thead><tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">' +
