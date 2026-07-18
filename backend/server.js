@@ -9693,7 +9693,7 @@ app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) =>
                          FROM avaliacoes a
                          JOIN colaboradores c ON c.id = a.colaborador_id
                          WHERE a.tipo = 'satisfacao'
-                           AND (a.ano, a.trimestre) IN (${placeholders})
+                           AND (${orClauses})
                          GROUP BY c.departamento, c.cargo, a.ano, a.trimestre`,
                         params,
                         (err3, contagens) => {
