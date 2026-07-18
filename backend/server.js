@@ -9599,7 +9599,8 @@ app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) =>
             if (!periodos || periodos.length === 0) return res.json({ periodos: [], departamentos: [], resumo: [] });
 
             // Buscar todas as avaliações de satisfação dos últimos 4 períodos
-            const placeholders = periodos.map(() => '(?,?)').join(',');
+            // NOTA: SQLite não suporta tuplas em IN — usar OR explícito
+            const orClauses = periodos.map(() => '(a.ano = ? AND a.trimestre = ?)').join(' OR ');
             const params = periodos.flatMap(p => [p.ano, p.trimestre]);
 
             db.all(
@@ -9608,7 +9609,7 @@ app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) =>
                  FROM avaliacoes a
                  JOIN colaboradores c ON c.id = a.colaborador_id
                  WHERE a.tipo = 'satisfacao'
-                   AND (a.ano, a.trimestre) IN (${placeholders})`,
+                   AND (${orClauses})`,
                 params,
                 (err2, rows) => {
                     if (err2) return res.status(500).json({ error: err2.message });
@@ -9633,7 +9634,20 @@ app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) =>
 
                         if (!agregado[grupo]) agregado[grupo] = {};
 
-                        // respostas_json: { 'Tópico': [nota1, nota2, ...] } ou { 'Tópico': { media: X } }
+                        // respostas_json: { 'Tópico': [nota1, nota2, ...] } ou { 'Tópico': { media: X } } ou formato legado { scores: {...} }
+                        
+                        // Detectar formato legado: { scores: { 'Topico': avg }, topicos: [...] }
+                        if (respostas.scores && typeof respostas.scores === 'object' && !Array.isArray(respostas.scores)) {
+                            Object.entries(respostas.scores).forEach(([topico, avg]) => {
+                                if (typeof avg === 'number' && !isNaN(avg)) {
+                                    if (!agregado[grupo][topico]) agregado[grupo][topico] = {};
+                                    if (!agregado[grupo][topico][periodo]) agregado[grupo][topico][periodo] = [];
+                                    agregado[grupo][topico][periodo].push(avg);
+                                }
+                            });
+                            return; // formato legado processado, pular o resto
+                        }
+                        
                         Object.entries(respostas).forEach(([topico, notas]) => {
                             if (topico === '__obs__' || topico === '__status__' || topico === 'scores' || topico === 'topicos' || topico === 'info_adicional') return;
                             if (!agregado[grupo][topico]) agregado[grupo][topico] = {};
@@ -9735,21 +9749,26 @@ app.get('/api/avaliacoes/satisfacao/colaboradores', authenticateToken, (req, res
                                 try { respostas = JSON.parse(a.respostas_json || '{}'); } catch(e) {}
                                 // Calcular média geral de todas as notas do JSON
                                 let todas = [];
-                                Object.entries(respostas).forEach(([topico, val]) => {
-                                    if (topico === '__obs__' || topico === '__status__') return; // ignorar observações
-                                    if (Array.isArray(val)) {
-                                        todas = todas.concat(val.filter(n => typeof n === 'number' && !isNaN(n)));
-                                    } else if (typeof val === 'number' && !isNaN(val)) {
-                                        todas.push(val);
-                                    } else if (val && typeof val.media === 'number') {
-                                        todas.push(val.media);
-                                    } else if (typeof val === 'object' && val !== null) {
-                                        // formato { '0': 3, '1': 5, ... }
-                                        Object.values(val).forEach(n => {
-                                            if (typeof n === 'number' && !isNaN(n)) todas.push(n);
-                                        });
-                                    }
-                                });
+                                
+                                // Formato legado: { scores: { 'Topico': avg } }
+                                if (respostas.scores && typeof respostas.scores === 'object') {
+                                    todas = Object.values(respostas.scores).filter(n => typeof n === 'number' && !isNaN(n));
+                                } else {
+                                    Object.entries(respostas).forEach(([topico, val]) => {
+                                        if (topico === '__obs__' || topico === '__status__') return;
+                                        if (Array.isArray(val)) {
+                                            todas = todas.concat(val.filter(n => typeof n === 'number' && !isNaN(n)));
+                                        } else if (typeof val === 'number' && !isNaN(val)) {
+                                            todas.push(val);
+                                        } else if (val && typeof val.media === 'number') {
+                                            todas.push(val.media);
+                                        } else if (typeof val === 'object' && val !== null) {
+                                            Object.values(val).forEach(n => {
+                                                if (typeof n === 'number' && !isNaN(n)) todas.push(n);
+                                            });
+                                        }
+                                    });
+                                }
                                 const media = todas.length > 0 ? parseFloat((todas.reduce((a, b) => a + b, 0) / todas.length).toFixed(2)) : null;
                                 avalMap[a.colaborador_id][key] = { media, respondido: true, created_at: a.created_at, respostas };
                             });

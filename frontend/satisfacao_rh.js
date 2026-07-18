@@ -463,7 +463,7 @@
                     data-colab-nome="${(c.nome_completo || '').replace(/"/g, '&quot;')}"
                     data-colab-cargo="${(c.cargo || '').replace(/"/g, '&quot;')}"
                     data-colab-dept="${(c.departamento || '').replace(/"/g, '&quot;')}"
-                    data-respostas='${lastP && lastP.respostas ? JSON.stringify(lastP.respostas).replace(/'/g, "&#39;") : "{}"}'
+                    data-respostas="${lastP && lastP.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(lastP.respostas)))) : ''}"
                     onclick="window._satOpenFormBtn(this)"
                     style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
                     <i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}
@@ -519,7 +519,13 @@
         const cargo = btn.dataset.colabCargo;
         const dept = btn.dataset.colabDept;
         let saved = {};
-        try { saved = JSON.parse(btn.dataset.respostas || '{}'); } catch(e) {}
+        try { 
+            const raw = btn.dataset.respostas || '';
+            if (raw) {
+                // decodificar base64
+                try { saved = JSON.parse(decodeURIComponent(escape(atob(raw)))); } catch(e) { saved = {}; }
+            }
+        } catch(e) { saved = {}; }
         window._satOpenForm(id, nome, cargo, dept, saved);
     };
 
@@ -531,9 +537,20 @@
         if (typeof saved === 'string') {
             try { saved = JSON.parse(saved); } catch(e) { saved = {}; }
         }
+        // Normalizar formato legado { scores: {...}, topicos: [...] } — ignorar prefill, usar formulário limpo
+        if (saved && saved.scores && typeof saved.scores === 'object') {
+            // formato antigo do prontuário: não conseguimos preencher individualmente
+            saved = {};
+        }
+        // Garantir que saved tem __obs__
+        if (!saved.__obs__) saved.__obs__ = {};
         
         const grupo = grupoFromDeptCargo(dept, cargo);
         const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
+        if (!perguntasGroup) {
+            alert('Erro: Perguntas não encontradas para o grupo "' + grupo + '".');
+            return;
+        }
         
         let html = `<div id="sat-modal-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(3px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;">
             <div style="background:#fff;border-radius:14px;width:100%;max-width:900px;height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation: satModalFadeIn 0.2s ease-out;">
@@ -565,8 +582,12 @@
             `;
             
             perguntasGroup[topico].forEach((pergunta, idx) => {
-                const val = saved[topico] ? saved[topico][idx] : null;
-                const obsStr = (saved.__obs__ && saved.__obs__[topico] && saved.__obs__[topico][idx]) ? saved.__obs__[topico][idx] : '';
+                if (!pergunta || !pergunta.trim()) return; // pular perguntas vazias/undefined
+                // lookup: JSON salva como string key '0','1'... converter
+                const topicoSaved = saved[topico];
+                const val = topicoSaved != null ? (topicoSaved[idx] ?? topicoSaved[String(idx)] ?? null) : null;
+                const obsSaved = saved.__obs__ && saved.__obs__[topico] ? saved.__obs__[topico] : {};
+                const obsStr = (obsSaved[idx] ?? obsSaved[String(idx)]) || '';
                 html += `
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:1.5rem; padding:0.75rem 0; border-bottom:1px dashed #e2e8f0; flex-wrap:wrap;">
                     <div style="width:35%; min-width:280px; font-size:0.95rem; color:#475569; font-weight:500;">${pergunta}</div>
@@ -579,13 +600,17 @@
                 
                 for(let v=1; v<=5; v++) {
                     const c = qColors[v]; const bg = bgColors[v];
-                    const checked = (val == v) ? 'checked' : '';
+                    const isChecked = (val != null && parseInt(val) === v);
+                    const checkedAttr = isChecked ? 'checked' : '';
+                    const btnBg = isChecked ? c : '#fff';
+                    const btnColor = isChecked ? '#fff' : c;
+                    const btnBorder = isChecked ? c : '#cbd5e1';
                     html += `
                     <label style="cursor:pointer; position:relative; margin:0;" title="Nota ${v}">
-                        <input type="radio" name="av_${catIdx}_${idx}" value="${v}" ${checked} required style="position:absolute; opacity:0; pointer-events:none;">
-                        <div class="radio-nota sat-rbtn" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:700; font-size:0.85rem; border:1px solid #cbd5e1; background:${checked?bg:'#fff'}; color:${checked?'#fff':c}; border-color:${checked?c:'#cbd5e1'}; transition:all 0.15s;" 
-                             onclick="this.parentElement.parentElement.querySelectorAll('.sat-rbtn').forEach(el=>{el.style.background='#fff'; el.style.color=el.dataset.color; el.style.borderColor='#cbd5e1'}); this.style.background=this.dataset.bg; this.style.color='#fff'; this.style.borderColor=this.dataset.color;"
-                             data-color="${c}" data-bg="${c}">
+                        <input type="radio" name="av_${catIdx}_${idx}" value="${v}" ${checkedAttr} style="position:absolute; opacity:0; pointer-events:none;">
+                        <div class="sat-rbtn" data-color="${c}" data-bg="${c}" data-group="av_${catIdx}_${idx}"
+                             style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:700; font-size:0.85rem; border:2px solid ${btnBorder}; background:${btnBg}; color:${btnColor}; transition:all 0.15s; cursor:pointer;"
+                             onclick="(function(el){var grp=el.dataset.group; document.querySelectorAll('.sat-rbtn[data-group=\''+grp+'\']').forEach(function(b){b.style.background='#fff';b.style.color=b.dataset.color;b.style.borderColor='#cbd5e1';}); el.style.background=el.dataset.bg; el.style.color='#fff'; el.style.borderColor=el.dataset.color; var inp=el.previousElementSibling; if(inp)inp.checked=true;})(this)">
                             ${v}
                         </div>
                     </label>`;
@@ -593,7 +618,7 @@
                 
                 html += `
                         </div>
-                        <input type="text" name="av_obs_${catIdx}_${idx}" value="${obsStr.replace(/"/g, '&quot;')}" placeholder="Observação (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
+                        <input type="text" name="av_obs_${catIdx}_${idx}" value="${String(obsStr).replace(/"/g, '&quot;')}" placeholder="Observação (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
                     </div>
                 </div>`;
             });
@@ -634,26 +659,36 @@
         const currentYear = new Date().getFullYear();
         const currentQ = Math.floor(new Date().getMonth() / 3) + 1;
         
-        // build respostas_json in exact format for backend
+        // build respostas_json — salva como arrays para compatibilidade com backend
         const respostas = { __obs__: {} };
         const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
         const categories = Object.keys(perguntasGroup);
+        let missingRequired = [];
         
         categories.forEach((cat, catIdx) => {
-            respostas[cat] = {};
-            respostas.__obs__[cat] = {};
+            respostas[cat] = [];
+            respostas.__obs__[cat] = [];
             perguntasGroup[cat].forEach((q, i) => {
+                if (!q || !q.trim()) { respostas[cat].push(null); respostas.__obs__[cat].push(''); return; }
                 const rads = form.elements[`av_${catIdx}_${i}`];
-                if (rads && rads.length) {
-                    const selected = Array.from(rads).find(r => r.checked);
-                    if (selected) respostas[cat][i] = parseInt(selected.value, 10);
+                const selected = rads && rads.length ? Array.from(rads).find(r => r.checked) : null;
+                if (selected) {
+                    respostas[cat].push(parseInt(selected.value, 10));
+                } else {
+                    respostas[cat].push(null);
+                    missingRequired.push(`${cat} — Pergunta ${i+1}`);
                 }
                 const obs = form.elements[`av_obs_${catIdx}_${i}`];
-                if (obs && obs.value.trim().length > 0) {
-                    respostas.__obs__[cat][i] = obs.value.trim();
-                }
+                respostas.__obs__[cat].push((obs && obs.value.trim()) ? obs.value.trim() : '');
             });
+            // limpar array de obs vazio ao final
+            if (respostas.__obs__[cat].every(v => v === '')) delete respostas.__obs__[cat];
         });
+        
+        if (missingRequired.length > 0) {
+            alert('Por favor, responda todas as perguntas antes de salvar.\n\nPendentes:\n' + missingRequired.slice(0,5).join('\n'));
+            return;
+        }
         
         const infoAdicional = form.elements['info_adicional']?.value;
         if (infoAdicional) respostas.__obs__.info_adicional = infoAdicional.trim();
