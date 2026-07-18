@@ -9658,21 +9658,23 @@ app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) =>
                             if (!agregado[grupo][topico]) agregado[grupo][topico] = {};
                             if (!agregado[grupo][topico][periodo]) agregado[grupo][topico][periodo] = [];
                             if (Array.isArray(notas)) {
-                                const nums = notas.filter(n => typeof n === 'number' && !isNaN(n));
+                                const nums = notas.map(n => parseFloat(n)).filter(n => !isNaN(n));
                                 if (nums.length > 0) {
                                     const media = nums.reduce((a, b) => a + b, 0) / nums.length;
                                     agregado[grupo][topico][periodo].push(media);
                                 }
-                            } else if (typeof notas === 'object' && notas !== null && typeof notas.media === 'number') {
-                                agregado[grupo][topico][periodo].push(notas.media);
+                            } else if (typeof notas === 'object' && notas !== null && notas.media !== undefined) {
+                                const m = parseFloat(notas.media);
+                                if (!isNaN(m)) agregado[grupo][topico][periodo].push(m);
                             } else if (typeof notas === 'object' && notas !== null) {
-                                const nums = Object.values(notas).filter(n => typeof n === 'number' && !isNaN(n));
+                                const nums = Object.values(notas).map(n => parseFloat(n)).filter(n => !isNaN(n));
                                 if (nums.length > 0) {
                                     const media = nums.reduce((a, b) => a + b, 0) / nums.length;
                                     agregado[grupo][topico][periodo].push(media);
                                 }
-                            } else if (typeof notas === 'number') {
-                                agregado[grupo][topico][periodo].push(notas);
+                            } else if (notas !== null && notas !== undefined) {
+                                const num = parseFloat(notas);
+                                if (!isNaN(num)) agregado[grupo][topico][periodo].push(num);
                             }
                         });
                     });
