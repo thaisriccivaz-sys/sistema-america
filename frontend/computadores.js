@@ -432,13 +432,17 @@
                 '<button onclick="window.compEmailOpenModalEmail(' + e.id + ')" style="background:transparent;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#2563eb;font-size:0.78rem;" title="Editar"><i class="ph ph-pencil-simple"></i></button>' +
                 '<button onclick="window.compEmailDelete(' + e.id + ')" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;" title="Excluir"><i class="ph ph-trash"></i></button>';
 
-            if (isAtrib && !e.caixa_compartilhada) {
-                var a = atribs[0];
+            var hasAvulso = atribs.some(function(a) { return !!a.responsavel_nome; });
+            
+            if (isAtrib && (!e.caixa_compartilhada || hasAvulso)) {
+                var a = atribs[0]; // Se tiver avulso, consideramos o primeiro (ou o próprio avulso) para o botão de devolver
                 var nomeA = a.colab_nome || a.responsavel_nome;
                 acoes += '<button onclick="window.compEmailOpenModalDevolver(' + e.id + ',\'' + (nomeA || '').replace(/'/g, "\\'") + '\', ' + (typeof a.id === 'number' ? a.id : `'${a.id}'`) + ')" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>';
             }
-            if (!isAtrib || e.caixa_compartilhada) {
-                acoes += '<button onclick="window.compEmailOpenModalAtribuir(' + e.id + ', null)" style="background:#4f46e5;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;"><i class="ph ph-link"></i> Atribuir</button>';
+            if (e.status !== 'Bloqueado') {
+                if (!isAtrib || (e.caixa_compartilhada && !hasAvulso)) {
+                    acoes += '<button onclick="window.compEmailOpenModalAtribuir(' + e.id + ', null)" style="background:#4f46e5;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;"><i class="ph ph-link"></i> Atribuir</button>';
+                }
             }
             acoes += '</div>';
             
