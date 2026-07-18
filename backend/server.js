@@ -24331,6 +24331,35 @@ console.log('[COMPUTADORES] Módulo de computadores corporativos carregado (com 
 // MÓDULO E-MAILS CORPORATIVOS
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Criptografia AES-256-CBC para senhas de e-mail ────────────────────────────
+const crypto = require('crypto');
+const EMAIL_SENHA_KEY = crypto.createHash('sha256').update(process.env.JWT_SECRET || 'america_rental_secret').digest(); // 32 bytes
+
+function encryptEmailSenha(plaintext) {
+    if (!plaintext) return null;
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', EMAIL_SENHA_KEY, iv);
+    const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+    return iv.toString('hex') + ':' + encrypted.toString('hex');
+}
+
+function decryptEmailSenha(stored) {
+    if (!stored) return null;
+    try {
+        // suporte a valores antigos (plaintext sem separador ':')
+        if (!stored.includes(':')) return stored;
+        const [ivHex, encHex] = stored.split(':');
+        const iv = Buffer.from(ivHex, 'hex');
+        const encrypted = Buffer.from(encHex, 'hex');
+        const decipher = crypto.createDecipheriv('aes-256-cbc', EMAIL_SENHA_KEY, iv);
+        return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+    } catch(e) {
+        // valor antigo em plaintext — retorna como está
+        return stored;
+    }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 db.run(`CREATE TABLE IF NOT EXISTS emails_corporativos (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
     endereco          TEXT UNIQUE NOT NULL,
@@ -24431,6 +24460,8 @@ app.get('/api/emails', authenticateToken, (req, res) => {
                              recebe_copia: 0
                          }];
                     }
+                    // Descriptografar senha antes de enviar ao cliente
+                    e.senha = decryptEmailSenha(e.senha);
                 });
                 res.json(emails);
             });
@@ -24459,7 +24490,7 @@ app.post('/api/emails', authenticateToken, (req, res) => {
     db.run(
         `INSERT INTO emails_corporativos (endereco, senha, plataforma, status, observacao, caixa_compartilhada, recebe_copia, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now','-3 hours'))`,
-        [endereco.toLowerCase().trim(), senha || null, plataforma || null, status || 'Ativo', observacao || null, caixa_compartilhada ? 1 : 0, recebe_copia ? 1 : 0],
+        [endereco.toLowerCase().trim(), encryptEmailSenha(senha || null), plataforma || null, status || 'Ativo', observacao || null, caixa_compartilhada ? 1 : 0, recebe_copia ? 1 : 0],
         function(err) {
             if (err) return res.status(500).json({ error: 'Erro ao criar (endereço já existe?)' });
             
@@ -24496,7 +24527,7 @@ app.put('/api/emails/:id', authenticateToken, (req, res) => {
     db.run(
         `UPDATE emails_corporativos SET endereco=?, senha=?, plataforma=?, status=?, observacao=?, caixa_compartilhada=?, recebe_copia=?, updated_at=datetime('now','-3 hours')
          WHERE id=?`,
-        [endereco.toLowerCase().trim(), senha || null, plataforma || null, status || 'Ativo', observacao || null, caixa_compartilhada ? 1 : 0, recebe_copia ? 1 : 0, req.params.id],
+        [endereco.toLowerCase().trim(), encryptEmailSenha(senha || null), plataforma || null, status || 'Ativo', observacao || null, caixa_compartilhada ? 1 : 0, recebe_copia ? 1 : 0, req.params.id],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             
