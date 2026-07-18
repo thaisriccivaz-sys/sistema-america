@@ -8,7 +8,7 @@
 
     /* ── helpers ─────────────────────────────────────────────── */
     function authHeaders() {
-        const tok = localStorage.getItem('authToken') || sessionStorage.getItem('authToken') || '';
+        const tok = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || sessionStorage.getItem('erp_token') || sessionStorage.getItem('token') || '';
         return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tok}` };
     }
 

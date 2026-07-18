@@ -788,7 +788,7 @@ const TAB_META = {
     'assinaturas-adm': { color: '#e67700', icon: 'ph-signature', title: 'Administrativo > Assinaturas' },
     'ficha-epi': { color: '#f503c5', icon: 'ph-shield-check', title: 'Ficha EPI' },
     'gerenciar-avaliacoes': { color: '#d9480f', icon: 'ph-clipboard-text', title: 'Avaliações' },
-    'satisfacao-rh': { color: '#f503c5', icon: 'ph-smiley', title: 'Satisfação dos Colaboradores' },
+    'satisfacao-rh': { color: '#f503c5', icon: 'ph-smiley', title: 'Satisfação' },
     'experiencia-rh': { color: '#7c3aed', icon: 'ph-user-check', title: 'Experiência' },
     'desempenho-rh': { color: '#7c3aed', icon: 'ph-trend-up', title: 'Desempenho' },
     'terapias-rh': { color: '#7c3aed', icon: 'ph-heart', title: 'Terapias' },
@@ -15925,7 +15925,7 @@ window.renderBookmarks = function () {
         if (!obj) return ''; // entrada não mapeada - ignorar com segurança
 
         // Ignorar tabs ou caminhos com setas, a menos que seja exceções
-        if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario' && key !== 'logistica-videos-os' && key !== 'logistica-rota-redonda' && key !== 'logistica-pipeline' && key !== 'logistica-resumo-rota' && key !== 'rh-logistica-sinistros' && key !== 'rh-logistica-multas' && key !== 'assinaturas-adm') || key.startsWith('tab:')) return '';
+        if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario' && key !== 'logistica-videos-os' && key !== 'logistica-rota-redonda' && key !== 'logistica-pipeline' && key !== 'logistica-resumo-rota' && key !== 'rh-logistica-sinistros' && key !== 'rh-logistica-multas' && key !== 'assinaturas-adm' && key !== 'satisfacao-rh') || key.startsWith('tab:')) return '';
 
         // Detecta a cor certa com base no TAB_META
         const tabMeta = TAB_META[key];
