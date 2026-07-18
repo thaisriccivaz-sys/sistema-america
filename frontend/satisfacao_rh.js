@@ -154,14 +154,14 @@
             ${hasData ? renderOverviewCards() : ''}
             ${hasData ? renderGroupTabs() : ''}
             ${hasData ? `<div id="sat-dashboard-area"></div>` : ''}
-            ${hasData ? renderColaboradoresSection() : ''}
+            ${renderColaboradoresSection()}
         </div>
         `;
 
         if (hasData) {
             renderDashboardArea();
-            bindColabsTable();
         }
+        bindColabsTable();
     }
 
     function renderNoData() {
@@ -420,6 +420,7 @@
                 <th onclick="window._satSortColabs('departamento')">Departamento ${_sortCol==='departamento'?(_sortDir>0?'▲':'▼'):''}</th>
                 ${periodos.map(p => `<th style="text-align:center;">${periodLabel(p)}</th>`).join('')}
                 <th onclick="window._satSortColabs('media_geral')" style="text-align:center;">Média ${_sortCol==='media_geral'?(_sortDir>0?'▲':'▼'):''}</th>
+                <th style="text-align:center;width:100px;">Ações</th>
             </tr></thead>
             <tbody>
             ${colabs.map(c => renderColabRow(c, periodos)).join('')}
@@ -459,6 +460,9 @@
             }).join('')}
             <td style="text-align:center;">
                 <span class="score-pill" style="background:${scoreBg(c.media_geral)};color:${scoreColor(c.media_geral)};font-size:.85rem;font-weight:800;">${fmtScore(c.media_geral)}</span>
+            </td>
+            <td style="text-align:center;">
+                <button onclick="window._satOpenForm(${c.id}, '${(c.nome_completo || '').replace(/'/g, "\\'")}', '${c.cargo || ''}', '${c.departamento || ''}')" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;"><i class="ph ph-pencil-simple" style="margin-right:4px;"></i>Responder</button>
             </td>
         </tr>`;
     }
@@ -500,7 +504,127 @@
     window._satSortColabs = function (col) {
         if (_sortCol === col) _sortDir *= -1;
         else { _sortCol = col; _sortDir = 1; }
-        const wrap = document.getElementById('sat-colab-table-wrap');
         if (wrap) wrap.innerHTML = renderColabTable();
+    };
+
+    window._satOpenForm = function(colabId, nome, cargo, dept) {
+        if (!window.AVALIACAO_QUESTIONS || !window.AVALIACAO_QUESTIONS.satisfacao) {
+            alert('Erro: Perguntas de satisfação não carregadas.');
+            return;
+        }
+        
+        const grupo = grupoFromDeptCargo(dept, cargo);
+        const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
+        
+        let html = `<div id="sat-modal-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(3px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;">
+            <div style="background:#fff;border-radius:14px;width:100%;max-width:750px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation: satModalFadeIn 0.2s ease-out;">
+                <div style="padding:1.5rem 2rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;border-radius:14px 14px 0 0;">
+                    <div>
+                        <h2 style="margin:0;font-size:1.25rem;color:#1e293b;"><i class="ph ph-smiley" style="color:#7c3aed;margin-right:.5rem;"></i>Responder Pesquisa de Satisfação</h2>
+                        <div style="color:#64748b;font-size:0.85rem;margin-top:0.3rem;"><strong>${nome}</strong> — ${cargo || dept}</div>
+                    </div>
+                    <button onclick="window._satCloseForm()" style="background:none;border:none;font-size:1.5rem;color:#94a3b8;cursor:pointer;transition:color 0.2s;"><i class="ph ph-x"></i></button>
+                </div>
+                
+                <div style="padding:2rem;overflow-y:auto;flex:1;" id="sat-form-body">
+                    <style>
+                        @keyframes satModalFadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+                        .sat-q-row { display:flex; align-items:center; justify-content:space-between; padding:0.8rem 0; border-bottom:1px solid #f1f5f9; gap:1.5rem; }
+                        .sat-q-row:last-child { border-bottom:none; }
+                        .sat-q-text { font-size:0.9rem; color:#334155; flex:1; }
+                        .sat-q-select { padding:0.4rem 0.8rem; border-radius:6px; border:1.5px solid #cbd5e1; font-weight:600; font-size:0.95rem; width:80px; text-align:center; color:#1e293b; background:#fff; }
+                        .sat-q-select:focus { border-color:#7c3aed; outline:none; box-shadow:0 0 0 3px rgba(124,58,237,0.15); }
+                    </style>
+                    <form id="sat-modal-form" onsubmit="window._satSubmitForm(event, ${colabId})">`;
+
+        Object.keys(perguntasGroup).forEach(topico => {
+            html += `<h4 style="margin:1.5rem 0 0.5rem;color:#7c3aed;font-size:0.95rem;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #f1f5f9;padding-bottom:0.4rem;">${topico}</h4>`;
+            perguntasGroup[topico].forEach((pergunta, idx) => {
+                const inputName = `q_${topico.replace(/\\s+/g, '_')}_${idx}`;
+                html += `
+                <div class="sat-q-row">
+                    <div class="sat-q-text">${pergunta}</div>
+                    <select name="${inputName}" class="sat-q-select" required>
+                        <option value="" disabled selected>-</option>
+                        ${[10,9,8,7,6,5,4,3,2,1].map(n => `<option value="${n}">${n}</option>`).join('')}
+                    </select>
+                </div>`;
+            });
+        });
+
+        html += `
+                        <div style="margin-top:2.5rem;padding:1.5rem;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;">
+                            <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:0.5rem;">Informações Adicionais (Opcional)</label>
+                            <textarea name="info_adicional" rows="2" style="width:100%;padding:0.75rem;border-radius:6px;border:1px solid #cbd5e1;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="Observações, feedback extra..."></textarea>
+                        </div>
+                        
+                        <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:2rem;">
+                            <button type="button" onclick="window._satCloseForm()" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:1px solid #cbd5e1;background:#fff;color:#64748b;cursor:pointer;">Cancelar</button>
+                            <button type="submit" id="sat-btn-submit" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:none;background:#7c3aed;color:#fff;cursor:pointer;display:flex;align-items:center;gap:0.5rem;box-shadow:0 2px 4px rgba(124,58,237,0.3);"><i class="ph ph-check-circle"></i> Salvar Pesquisa</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>`;
+        
+        document.body.insertAdjacentHTML('beforeend', html);
+    };
+
+    window._satCloseForm = function() {
+        const overlay = document.getElementById('sat-modal-overlay');
+        if (overlay) overlay.remove();
+    };
+
+    window._satSubmitForm = async function(e, colabId) {
+        e.preventDefault();
+        const form = e.target;
+        const submitBtn = document.getElementById('sat-btn-submit');
+        
+        // current quarter
+        const currentYear = new Date().getFullYear();
+        const currentQ = Math.floor(new Date().getMonth() / 3) + 1;
+        
+        // build respostas_json
+        const formData = new FormData(form);
+        const respostas = { scores: {}, topicos: {}, info_adicional: formData.get('info_adicional') };
+        
+        for (const [key, val] of formData.entries()) {
+            if (key.startsWith('q_') && val) {
+                respostas.scores[key] = parseInt(val, 10);
+            }
+        }
+        
+        try {
+            submitBtn.innerHTML = '<div class="spinner-sm" style="border-color:#c4b5fd;border-top-color:#fff;"></div> Salvando...';
+            submitBtn.disabled = true;
+            
+            const r = await fetch(API_URL.replace('/api', '') + '/api/avaliacoes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token'))
+                },
+                body: JSON.stringify({
+                    colaborador_id: colabId,
+                    tipo: 'satisfacao',
+                    ano: currentYear,
+                    trimestre: currentQ,
+                    respostas_json: JSON.stringify(respostas)
+                })
+            });
+            
+            if (!r.ok) throw new Error(await r.text());
+            
+            alert('Pesquisa salva com sucesso!');
+            window._satCloseForm();
+            
+            // Recarregar a tela inteira para atualizar os números
+            if (typeof window.initSatisfacaoRH === 'function') window.initSatisfacaoRH();
+            
+        } catch(err) {
+            alert('Erro ao salvar pesquisa: ' + err.message);
+            submitBtn.innerHTML = '<i class="ph ph-check-circle"></i> Salvar Pesquisa';
+            submitBtn.disabled = false;
+        }
     };
 })();

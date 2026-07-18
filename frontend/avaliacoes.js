@@ -1,4 +1,4 @@
-const AVALIACAO_QUESTIONS = {
+window.AVALIACAO_QUESTIONS = {
     satisfacao: {
         motorista: {
             'Ambiente de trabalho': [
