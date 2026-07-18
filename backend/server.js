@@ -9600,7 +9600,7 @@ app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
     const tipoAval = req.params.tipo || 'satisfacao';
     // Buscar as 4 últimas combinações distintas de ano+trimestre para o tipo
     db.all(
-        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = ? ORDER BY ano DESC, trimestre DESC LIMIT 4`,
+        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = ? AND trimestre != 4 ORDER BY ano DESC, trimestre DESC LIMIT 3`,
         [tipoAval],
         (err, periodos) => {
             if (err) return res.status(500).json({ error: err.message });
@@ -9727,7 +9727,7 @@ app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
 app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => {
     const tipoAval = req.params.tipo || 'satisfacao';
     db.all(
-        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = ? ORDER BY ano DESC, trimestre DESC LIMIT 4`,
+        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = ? AND trimestre != 4 ORDER BY ano DESC, trimestre DESC LIMIT 3`,
         [tipoAval],
         (err, periodos) => {
             if (err) return res.status(500).json({ error: err.message });
@@ -14768,12 +14768,78 @@ function ativarColaboradoresPorAdmissao() {
 // Variavel para rastrear a ultima execucao do cron
 let _cronUltimaExecucao = null;
 
+function verificarDesempenhosPendentes() {
+    const hoje = new Date();
+    // Determinando o trimestre esperado baseado na data atual
+    let expectedTrim = 1;
+    let expectedAno = hoje.getFullYear();
+    const mes = hoje.getMonth();
+    
+    if (mes >= 0 && mes <= 2) {
+        expectedTrim = 1;
+    } else if (mes >= 3 && mes <= 5) {
+        expectedTrim = 2;
+    } else {
+        expectedTrim = 3;
+    }
+
+    db.all(`SELECT c.id, c.nome_completo, c.departamento,
+                   d.responsavel_id,
+                   (SELECT COALESCE(NULLIF(email_corporativo, ''), NULLIF(email, '')) FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
+                   (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
+                   (SELECT COUNT(*) FROM avaliacoes WHERE colaborador_id = c.id AND tipo = 'desempenho' AND ano = ? AND trimestre = ?) as has_avaliation
+            FROM colaboradores c
+            LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
+            WHERE c.status = 'Ativo' AND (c.nao_admitido IS NULL OR c.nao_admitido = 0)`, [expectedAno, expectedTrim], async (err, rows) => {
+        if (err) { console.error('[Desempenho CRON]', err.message); return; }
+
+        for (const r of rows) {
+            // Se já tem avaliação para este trimestre, pula
+            if (r.has_avaliation > 0) continue;
+
+            const emailDestino = r.resp_email;
+            if (!emailDestino) {
+                console.log(`[Desempenho CRON] Sem e-mail do responsavel para ${r.nome_completo} (${r.departamento}).`);
+                continue;
+            }
+
+            const link = `https://sistema-america.onrender.com/?colaborador_id=${r.id}&aba=avaliacao&autoOpenDesempenho=1&ano=${expectedAno}&trimestre=${expectedTrim}`;
+            const managerName = (r.resp_nome || 'Gestor').split(' ')[0];
+            const subject = `Pesquisa de Desempenho - ${r.nome_completo}`;
+            
+            const html = `
+                <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #0ea5e9;">Avaliação de Desempenho Pendente</h2>
+                    <p>Olá <strong>${managerName}</strong>,</p>
+                    <p>Lembramos que a <strong>Pesquisa de Desempenho</strong> do colaborador <strong>${r.nome_completo}</strong> referente ao <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong> está pendente de preenchimento.</p>
+                    <p>Por favor, acesse o sistema no botão abaixo para preenchê-la. O formulário abrirá automaticamente.</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="${link}" style="background-color: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                            Preencher Avaliação de Desempenho
+                        </a>
+                    </div>
+                    <p>Atenciosamente,<br>Equipe RH</p>
+                </div>
+            `;
+            
+            try {
+                await sendEmail(emailDestino, subject, html, null);
+                console.log(`[Desempenho CRON] E-mail enviado para ${emailDestino} ref. ${r.nome_completo}`);
+                await new Promise(res => setTimeout(res, 2000));
+            } catch (err) {
+                console.error(`[Desempenho CRON] Erro ao enviar para ${emailDestino}`, err.message);
+            }
+        }
+    });
+}
+
 // Roda todos os dias às 08:00 (horário do servidor)
 cron.schedule('0 8 * * *', () => {
     console.log('[CRON] Iniciando verificações diárias de 08:00...');
     _cronUltimaExecucao = new Date().toISOString();
     ativarColaboradoresPorAdmissao();
     verificarExperienciasVencendo();
+    verificarDesempenhosPendentes();
     verificarAtestadosVencidos();
     verificarCRLVVencidoCron();
     verificarLicencasVencimentoCron();
@@ -14792,6 +14858,15 @@ cron.schedule('1 0 * * *', () => {
 setImmediate(() => ativarColaboradoresPorAdmissao());
 
 // Endpoint para forçar envio em lote (botão "Disparar E-mails")
+app.post('/api/desempenho/cron/forcar', authenticateToken, async (req, res) => {
+    try {
+        verificarDesempenhosPendentes();
+        return res.json({ ok: true, msg: 'Rotina de envio de desempenho iniciada em background.' });
+    } catch (e) {
+        return res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/api/experiencia/cron/forcar', authenticateToken, async (req, res) => {
     console.log('[Disparar] Envio em lote iniciado por:', req.user?.username || 'sistema');
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
@@ -24255,8 +24330,8 @@ app.post('/api/computadores', authenticateToken, (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
             
             const lastId = this.lastID;
-            if (colaborador_id && email_vinculado && String(email_vinculado).trim() !== '') {
-                db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ?`, [email_vinculado.trim(), colaborador_id], function(updateErr) {
+            if (colaborador_id && email_vinculado && String(email_vinculado).trim().toLowerCase().endsWith('@americarental.com.br')) {
+                db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ? AND (email_corporativo IS NULL OR email_corporativo = '' OR email_corporativo NOT LIKE '%@americarental.com.br')`, [email_vinculado.trim(), colaborador_id], function(updateErr) {
                     if(updateErr) console.error("Erro ao atualizar e-mail do colaborador: ", updateErr.message);
                 });
             }
@@ -24300,8 +24375,8 @@ app.put('/api/computadores/:id', authenticateToken, (req, res) => {
                     }
                 }
                 
-                if (colaborador_id && email_vinculado && String(email_vinculado).trim() !== '') {
-                    db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ?`, [email_vinculado.trim(), colaborador_id], function(updateErr) {
+                if (colaborador_id && email_vinculado && String(email_vinculado).trim().toLowerCase().endsWith('@americarental.com.br')) {
+                    db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ? AND (email_corporativo IS NULL OR email_corporativo = '' OR email_corporativo NOT LIKE '%@americarental.com.br')`, [email_vinculado.trim(), colaborador_id], function(updateErr) {
                         if(updateErr) console.error("Erro ao atualizar e-mail do colaborador: ", updateErr.message);
                     });
                 }
@@ -24656,8 +24731,8 @@ app.post('/api/emails/:id/atribuir', authenticateToken, (req, res) => {
             // Sincronizar com cadastro de colaboradores
             if (colaborador_id) {
                 db.get(`SELECT endereco FROM emails_corporativos WHERE id = ?`, [req.params.id], (errE, rowE) => {
-                    if (!errE && rowE) {
-                        db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ?`, [rowE.endereco, colaborador_id]);
+                    if (!errE && rowE && rowE.endereco && rowE.endereco.toLowerCase().endsWith('@americarental.com.br')) {
+                        db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ? AND (email_corporativo IS NULL OR email_corporativo = '' OR email_corporativo NOT LIKE '%@americarental.com.br')`, [rowE.endereco, colaborador_id]);
                     }
                 });
             }

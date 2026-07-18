@@ -477,7 +477,7 @@ window.renderAvaliacaoTab = async function(container) {
         const anoAtual = dateRightNow.getFullYear();
         const mesAtual = dateRightNow.getMonth() + 1; // 1 a 12
 
-        const maxTrim = tipo === 'experiencia' ? 1 : 4;
+        const maxTrim = tipo === 'experiencia' ? 1 : 3;
         for (let t=1; t<=maxTrim; t++) {
             // Todos os trimestres ficam liberados para preenchimento a pedido do usuário
             const hasData = trimestersOverall[t] !== null;
@@ -613,7 +613,7 @@ window.renderAvaliacaoTab = async function(container) {
             ];
             const legendLabelsTrim = { 1: '1º Trimestre', 2: '2º Trimestre', 3: '3º Trimestre', 4: '4º Trimestre' };
 
-            const maxDatasetTrim = tipo === 'experiencia' ? 1 : 4;
+            const maxDatasetTrim = tipo === 'experiencia' ? 1 : 3;
             const trimsArray = Array.from({length: maxDatasetTrim}, (_, i) => i + 1);
 
             trimsArray.forEach(t => {
@@ -672,10 +672,10 @@ window.renderAvaliacaoTab = async function(container) {
                 chartBar = new Chart(ctxBar, {
                     type: 'line',
                     data: {
-                        labels: [trimestreToMonth[1], trimestreToMonth[2], trimestreToMonth[3], trimestreToMonth[4]],
+                        labels: [trimestreToMonth[1], trimestreToMonth[2], trimestreToMonth[3]],
                         datasets: [{ 
                             label: 'Média Geral', 
-                            data: [trimestersOverall[1], trimestersOverall[2], trimestersOverall[3], trimestersOverall[4]], 
+                            data: [trimestersOverall[1], trimestersOverall[2], trimestersOverall[3]], 
                             borderColor: '#10b981', 
                             backgroundColor: 'rgba(16, 185, 129, 0.2)',
                             borderWidth: 3,
@@ -703,6 +703,22 @@ window.renderAvaliacaoTab = async function(container) {
     };
 
     renderDashboard(selectedYear, selectedTipo);
+
+    // Auto-open logic for email links
+    setTimeout(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('autoOpenDesempenho') === '1') {
+            const anoParam = parseInt(params.get('ano'));
+            const triParam = parseInt(params.get('trimestre'));
+            if (anoParam && triParam) {
+                // Ensure we only open it once per session to avoid infinite loops on refresh
+                if (!window.sessionStorage.getItem('desempenhoOpened_' + colabId)) {
+                    window.sessionStorage.setItem('desempenhoOpened_' + colabId, '1');
+                    window.openFormAvaliacao('desempenho', anoParam, triParam, 'default');
+                }
+            }
+        }
+    }, 600);
 };
 
 window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {

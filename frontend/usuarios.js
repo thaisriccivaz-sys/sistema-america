@@ -6,6 +6,8 @@ const TELAS_SISTEMA = [
     // Módulo RH (Ordem exata do menu lateral)
     { modulo: 'RH', pagina_id: 'dashboard',             pagina_nome: 'Dashboard', icone: 'ph-squares-four' },
     { modulo: 'RH', pagina_id: 'colaboradores',          pagina_nome: 'Colaboradores', icone: 'ph-address-book' },
+    { modulo: 'RH', pagina_id: 'satisfacao-rh',          pagina_nome: 'Satisfação', icone: 'ph-smiley' },
+    { modulo: 'RH', pagina_id: 'desempenho-rh',          pagina_nome: 'Desempenho', icone: 'ph-trend-up' },
     { modulo: 'RH', pagina_id: 'assinaturas-digitais',   pagina_nome: 'Assinaturas Digitais', icone: 'ph-signature' },
     { modulo: 'RH', pagina_id: 'ferias',                 pagina_nome: 'Férias', icone: 'ph-airplane-tilt' },
     { modulo: 'RH', pagina_id: 'experiencia',            pagina_nome: 'Experiência do Colaborador', icone: 'ph-user-check' },
