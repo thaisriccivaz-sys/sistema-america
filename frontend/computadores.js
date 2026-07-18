@@ -569,7 +569,7 @@
             '<div style="padding:1.5rem;overflow-y:auto;display:flex;flex-direction:column;gap:1rem;">' +
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Endereço de E-mail *</label>' +
             '<input id="comp-email-cad-endereco" type="email" value="' + (e ? e.endereco : '') + '" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"></div>' +
-            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Senha Temporária/Acesso</label>' +
+            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Senha</label>' +
             '<input id="comp-email-cad-senha" type="text" value="' + (e ? e.senha || '' : '') + '" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"></div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">' +
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Plataforma</label>' +

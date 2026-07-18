@@ -1,5 +1,5 @@
 /* ============================================================
-   satisfacao_rh.js — Dashboard de Desempenho dos Colaboradores
+   desempenho_rh.js — Dashboard de Desempenho dos Colaboradores
    ============================================================ */
 'use strict';
 
@@ -75,8 +75,8 @@
 
         try {
             const [dash, colabs] = await Promise.all([
-                fetchJSON('/avaliacoes/satisfacao/dashboard'),
-                fetchJSON('/avaliacoes/satisfacao/colaboradores'),
+                fetchJSON('/avaliacoes/desempenho/dashboard'),
+                fetchJSON('/avaliacoes/desempenho/colaboradores'),
             ]);
             _dash = dash;
             _colabs = colabs;
@@ -519,7 +519,7 @@
     };
 
     window._desOpenForm = function(colabId, nome, cargo, dept, saved = {}) {
-        if (!window.AVALIACAO_QUESTIONS || !window.AVALIACAO_QUESTIONS.satisfacao) {
+        if (!window.AVALIACAO_QUESTIONS || !window.AVALIACAO_QUESTIONS.desempenho) {
             alert('Erro: Perguntas de desempenho não carregadas.');
             return;
         }
@@ -535,7 +535,7 @@
         if (!saved.__obs__) saved.__obs__ = {};
         
         const grupo = grupoFromDeptCargo(dept, cargo);
-        const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
+        const perguntasGroup = window.AVALIACAO_QUESTIONS.desempenho[grupo];
         if (!perguntasGroup) {
             alert('Erro: Perguntas não encontradas para o grupo "' + grupo + '".');
             return;
@@ -650,7 +650,7 @@
         
         // build respostas_json — salva como arrays para compatibilidade com backend
         const respostas = { __obs__: {} };
-        const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
+        const perguntasGroup = window.AVALIACAO_QUESTIONS.desempenho[grupo];
         const categories = Object.keys(perguntasGroup);
         let missingRequired = [];
         
@@ -694,7 +694,7 @@
                 },
                 body: JSON.stringify({
                     colaborador_id: colabId,
-                    tipo: 'satisfacao',
+                    tipo: 'desempenho',
                     ano: currentYear,
                     trimestre: currentQ,
                     respostas_json: JSON.stringify(respostas)

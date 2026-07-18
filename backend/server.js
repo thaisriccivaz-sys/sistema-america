@@ -9470,6 +9470,13 @@ app.get('/api/colaboradores/:id/avaliacoes', authenticateToken, (req, res) => {
     });
 });
 
+app.get('/api/migrate-avaliacoes', authenticateToken, (req, res) => {
+    db.run("UPDATE avaliacoes SET tipo = 'desempenho' WHERE tipo = 'satisfacao' AND respostas_json LIKE '%Liderança%'", function(err) {
+        if (err) return res.status(500).json({error: err.message});
+        res.json({success: true, changes: this.changes, message: "Migração concluída"});
+    });
+});
+
 app.post('/api/avaliacoes', authenticateToken, (req, res) => {
     const { colaborador_id, tipo, ano, trimestre, respostas_json } = req.body;
     if (!colaborador_id || !tipo || !ano || !trimestre) return res.status(400).json({ error: 'colaborador_id, tipo, ano e trimestre são obrigatórios.' });
