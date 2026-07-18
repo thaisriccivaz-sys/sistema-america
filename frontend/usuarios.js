@@ -576,7 +576,6 @@ const MENU_HIERARQUIA = [
             },
             {
                 titulo: 'Avaliações',
-                expandable: true,
                 telas: [
                     'satisfacao-rh', 'desempenho-rh'
                 ]
