@@ -13618,7 +13618,7 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'nova_ocorrencia') {
                     bg = '#fdf2f8'; color = '#ec4899'; icon = 'ph-warning-octagon'; titulo = 'Ocorrência Registrada'; navTarget = 'dashboard';
                 } else if (notif.tipo === 'pesquisa_satisfacao_treinamento') {
-                    bg = '#ecfeff'; color = '#0e7490'; icon = 'ph-star'; titulo = 'Pesquisa de Satisfação'; navTarget = 'treinamentos';
+                    bg = '#ecfeff'; color = '#0e7490'; icon = 'ph-star'; titulo = 'Pesquisa de Satisfação'; navTarget = 'treinamento-materiais';
                 } else if (notif.tipo === 'nova_multa_prontuario' || notif.tipo === 'nova_multa_monaco') {
                     bg = '#fff5e6'; color = '#e67700'; icon = 'ph-traffic-cone'; titulo = 'Nova Multa'; navTarget = 'logistica';
                 } else if (notif.tipo === 'celular_controle') {
