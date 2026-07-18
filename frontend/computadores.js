@@ -336,18 +336,6 @@
             var shortName = c.nome_colaborador && c.nome_colaborador.length > 20 ? c.nome_colaborador.substring(0, 20) + '…' : (c.nome_colaborador || '-');
             var shortLivre = c.colaborador_livre && c.colaborador_livre.length > 20 ? c.colaborador_livre.substring(0, 20) + '…' : c.colaborador_livre;
             return '<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">' +
-                '<td style="' + td + '" title="' + (c.nome_colaborador || '') + '">' +
-                (c.colaborador_id
-                    ? '<div style="display:flex;align-items:center;gap:0.5rem;">' + avatarHtml(c.foto_path, c.foto_base64, c.nome_colaborador, 36) +
-                      '<div><div style="font-weight:600;font-size:0.83rem;color:#0f172a;">' + shortName + '</div>' +
-                      '<div style="font-size:0.72rem;color:#6366f1;font-weight:600;">' + (c.departamento_colaborador || '') + '</div></div></div>'
-                    : (c.colaborador_livre
-                        ? '<div style="display:flex;align-items:center;gap:0.5rem;">' +
-                          '<div style="width:36px;height:36px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;color:#64748b;font-weight:700;">' + (c.colaborador_livre.charAt(0).toUpperCase()) + '</div>' +
-                          '<div><div style="font-weight:600;font-size:0.83rem;color:#0f172a;">' + shortLivre + '</div>' +
-                          '<div style="font-size:0.72rem;color:#94a3b8;">Sem vínculo</div></div></div>'
-                        : '<span style="color:#94a3b8;font-size:0.8rem;font-style:italic;">Sem colaborador</span>')) +
-                '</td>' +
                 '<td style="' + td + '"><div style="font-weight:700;font-size:0.85rem;color:#0f172a;display:flex;align-items:center;">' + (c.tipo || '-') + obsIcon(c.observacoes) + '</div>' +
                 '<div style="font-size:0.72rem;color:#64748b;">' + (c.modelo || '-') + '</div></td>' +
                 '<td style="' + td + '">' + (c.processador ? '<span style="font-size:0.82rem;">' + c.processador + '</span>' : '<span style="color:#94a3b8;font-size:0.75rem;">-</span>') + '</td>' +
@@ -355,6 +343,15 @@
                 '<td style="' + td + '">' + (c.ssd ? '<span style="font-size:0.82rem;">' + c.ssd + '</span>' : '<span style="color:#94a3b8;font-size:0.75rem;">-</span>') + '</td>' +
                 '<td style="' + td + 'font-size:0.82rem;"><div style="font-weight:600;color:#334155;">' + (c.patrimonio || '-') + '</div>' +
                 '<div style="font-size:0.72rem;color:#94a3b8;font-family:monospace;">' + (c.numero_serie || '') + '</div></td>' +
+                '<td style="' + td + '" title="' + (c.nome_colaborador || '') + '">' +
+                (c.colaborador_id
+                    ? '<div><div style="font-weight:600;font-size:0.83rem;color:#0f172a;">' + shortName + '</div>' +
+                      '<div style="font-size:0.72rem;color:#6366f1;font-weight:600;">' + (c.departamento_colaborador || '') + '</div></div>'
+                    : (c.colaborador_livre
+                        ? '<div><div style="font-weight:600;font-size:0.83rem;color:#0f172a;">' + shortLivre + '</div>' +
+                          '<div style="font-size:0.72rem;color:#94a3b8;">Sem vínculo</div></div>'
+                        : '<span style="color:#94a3b8;font-size:0.8rem;font-style:italic;">Sem colaborador</span>')) +
+                '</td>' +
                 '<td style="' + td + '">' + statusBadge(c.status) + '</td>' +
                 '<td style="' + td + 'font-size:0.8rem;color:#64748b;">' + fmtData(c.data_atribuicao) + '</td>' +
                 '<td style="' + td + '"><div style="display:flex;gap:5px;flex-wrap:wrap;">' +
@@ -368,12 +365,12 @@
 
         return '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.07);">' +
             '<thead><tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">' +
-            thSort('nome_colaborador', 'Colaborador') +
             thSort('tipo', 'Tipo / Modelo') +
             thSort('processador', 'Processador') +
             thSort('ram_1', 'RAM') +
             thSort('ssd', 'SSD/HD') +
             thSort('patrimonio', 'Patrimônio / Série') +
+            thSort('nome_colaborador', 'Colaborador') +
             thSort('status', 'Status') +
             thSort('data_atribuicao', 'Desde') +
             '<th style="' + thStyle.replace('cursor:pointer;user-select:none;', '') + '">Ações</th>' +
