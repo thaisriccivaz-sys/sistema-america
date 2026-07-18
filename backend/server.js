@@ -14875,6 +14875,51 @@ app.post('/api/desempenho/cron/forcar', authenticateToken, async (req, res) => {
     }
 });
 
+app.get('/api/desempenho/test-email', async (req, res) => {
+    try {
+        const hoje = new Date();
+        let expectedTrim = 1;
+        const mes = hoje.getMonth();
+        if (mes >= 3 && mes <= 5) expectedTrim = 2;
+        else if (mes > 5) expectedTrim = 3;
+        const expectedAno = hoje.getFullYear();
+
+        const targets = ['vivian', 'abner'];
+        for (const target of targets) {
+            db.get(`SELECT id, nome_completo, departamento FROM colaboradores WHERE LOWER(nome_completo) LIKE ? AND status = 'Ativo' LIMIT 1`, [`%${target}%`], async (err, r) => {
+                if (err || !r) return;
+                
+                const link = `https://sistema-america.onrender.com/?colaborador_id=${r.id}&aba=avaliacao&autoOpenDesempenho=1&ano=${expectedAno}&trimestre=${expectedTrim}`;
+                const subject = `Pesquisa de Desempenho - ${r.nome_completo}`;
+                
+                const html = `
+                    <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: #0ea5e9;">Avaliação de Desempenho Pendente</h2>
+                        <p>Olá <strong>Thais</strong>,</p>
+                        <p>Lembramos que a <strong>Pesquisa de Desempenho</strong> do colaborador <strong>${r.nome_completo}</strong> referente ao <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong> está pendente de preenchimento.</p>
+                        <p>Por favor, acesse o sistema no botão abaixo para preenchê-la. O formulário abrirá automaticamente.</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${link}" style="background-color: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                                Preencher Avaliação de Desempenho
+                            </a>
+                        </div>
+                        <p>Atenciosamente,<br>Equipe RH</p>
+                    </div>
+                `;
+                try {
+                    await sendEmail('thais.ricci@americarental.com.br', subject, html, null);
+                    console.log('Test email sent for', r.nome_completo);
+                } catch (e) {
+                    console.error('Error sending test email:', e.message);
+                }
+            });
+        }
+        res.json({ ok: true, msg: 'Test emails triggered' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/api/experiencia/cron/forcar', authenticateToken, async (req, res) => {
     console.log('[Disparar] Envio em lote iniciado por:', req.user?.username || 'sistema');
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
