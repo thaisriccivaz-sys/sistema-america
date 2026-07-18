@@ -24332,7 +24332,6 @@ console.log('[COMPUTADORES] Módulo de computadores corporativos carregado (com 
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Criptografia AES-256-CBC para senhas de e-mail ────────────────────────────
-const crypto = require('crypto');
 const EMAIL_SENHA_KEY = crypto.createHash('sha256').update(process.env.JWT_SECRET || 'america_rental_secret').digest(); // 32 bytes
 
 function encryptEmailSenha(plaintext) {
