@@ -564,27 +564,15 @@
             '<label style="font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="comp-email-cad-caixa" ' + (e && e.caixa_compartilhada ? 'checked' : '') + ' onchange="window.compEmailToggleRelacionamentos()"> Caixa Compartilhada</label>' +
             '<label style="font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="comp-email-cad-copia" ' + (e && e.recebe_copia ? 'checked' : '') + ' onchange="window.compEmailToggleRelacionamentos()"> Recebe cópia dos e-mails</label>' +
             '</div>' +
-            '<div id="comp-email-rel-caixa-container" style="display:' + (e && e.caixa_compartilhada ? 'block' : 'none') + ';margin-top:0.5rem;">' +
-            '<label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Compartilhada com quais e-mails?</label>' +
-            '<div style="border:1.5px solid #e2e8f0;border-radius:8px;overflow:hidden;">' +
-            '<div style="padding:0.4rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;">' +
-            '<input type="text" placeholder="Pesquisar e-mail..." oninput="window.compEmailFilterCb(\'compartilhados\', this.value)" style="width:100%;border:1px solid #cbd5e1;border-radius:4px;padding:4px 8px;font-size:0.8rem;outline:none;">' +
-            '</div>' +
-            '<div id="comp-email-list-compartilhados" style="max-height:160px;overflow-y:auto;padding:0.25rem;">' +
-            _emails.filter(function(em) { return !e || em.id !== e.id; }).map(function(em) { 
-                var sel = (e && e.relacionamentos && e.relacionamentos.some(function(r){ return r.tipo === "compartilhada_com" && r.email_destino_id === em.id; })) ? ' checked' : '';
-                return '<label style="display:flex;align-items:center;gap:5px;padding:4px 8px;font-size:0.85rem;cursor:pointer;" class="email-cb-item"><input type="checkbox" value="' + em.id + '" class="cb-compartilhado"' + sel + '> <span class="email-cb-text">' + em.endereco + '</span></label>'; 
-            }).join('') +
-            '</div></div></div>' +
-            '<div id="comp-email-rel-copia-container" style="display:' + (e && e.recebe_copia ? 'block' : 'none') + ';margin-top:0.5rem;">' +
-            '<label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Recebe cópia de quais e-mails?</label>' +
+            '<div id="comp-email-rel-copia-container" style="display:' + (e && (e.recebe_copia || e.caixa_compartilhada) ? 'block' : 'none') + ';margin-top:0.5rem;">' +
+            '<label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Recebe cópia ou é compartilhada com quais e-mails?</label>' +
             '<div style="border:1.5px solid #e2e8f0;border-radius:8px;overflow:hidden;">' +
             '<div style="padding:0.4rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;">' +
             '<input type="text" placeholder="Pesquisar e-mail..." oninput="window.compEmailFilterCb(\'copias\', this.value)" style="width:100%;border:1px solid #cbd5e1;border-radius:4px;padding:4px 8px;font-size:0.8rem;outline:none;">' +
             '</div>' +
             '<div id="comp-email-list-copias" style="max-height:160px;overflow-y:auto;padding:0.25rem;">' +
             _emails.filter(function(em) { return !e || em.id !== e.id; }).map(function(em) { 
-                var sel = (e && e.relacionamentos && e.relacionamentos.some(function(r){ return r.tipo === "recebe_copia_de" && r.email_destino_id === em.id; })) ? ' checked' : '';
+                var sel = (e && e.relacionamentos && e.relacionamentos.some(function(r){ return (r.tipo === "recebe_copia_de" || r.tipo === "compartilhada_com") && r.email_destino_id === em.id; })) ? ' checked' : '';
                 return '<label style="display:flex;align-items:center;gap:5px;padding:4px 8px;font-size:0.85rem;cursor:pointer;" class="email-cb-item"><input type="checkbox" value="' + em.id + '" class="cb-copia"' + sel + '> <span class="email-cb-text">' + em.endereco + '</span></label>'; 
             }).join('') +
             '</div></div></div>' +
@@ -833,10 +821,13 @@
     window.compEmailToggleRelacionamentos = function() {
         var cx = document.getElementById('comp-email-cad-caixa');
         var cp = document.getElementById('comp-email-cad-copia');
-        var cxCont = document.getElementById('comp-email-rel-caixa-container');
+        
+        if (cx && cx.checked && cp) {
+            cp.checked = true;
+        }
+
         var cpCont = document.getElementById('comp-email-rel-copia-container');
-        if (cx && cxCont) cxCont.style.display = cx.checked ? 'block' : 'none';
-        if (cp && cpCont) cpCont.style.display = cp.checked ? 'block' : 'none';
+        if (cpCont) cpCont.style.display = ((cx && cx.checked) || (cp && cp.checked)) ? 'block' : 'none';
     };
 
     window.compEmailOpenModalEmail = function (id) {
@@ -857,13 +848,11 @@
         var cx = (document.getElementById('comp-email-cad-caixa') || {}).checked;
         var cp = (document.getElementById('comp-email-cad-copia') || {}).checked;
 
-        var emComp = [];
-        var cbsCx = document.querySelectorAll('.cb-compartilhado:checked');
-        for (var i = 0; i < cbsCx.length; i++) emComp.push(cbsCx[i].value);
-        
         var emCop = [];
         var cbsCp = document.querySelectorAll('.cb-copia:checked');
         for (var j = 0; j < cbsCp.length; j++) emCop.push(cbsCp[j].value);
+
+        var emComp = cx ? emCop : [];
 
         if (!end) return alert('Endereço de e-mail é obrigatório.');
 
