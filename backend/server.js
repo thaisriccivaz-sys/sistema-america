@@ -1819,12 +1819,13 @@ async function pollAdmissaoAssinaturas() {
     }
 }
 
-// Iniciar polling após o servidor subir (aguarda 30s e depois a cada 30 segundos)
+// Iniciar polling após o servidor subir (aguarda 60s e depois a cada 3 minutos)
+// Intervalo aumentado para reduzir carga na memória do Render (era 30s)
 setTimeout(() => {
     pollAdmissaoAssinaturas();
-    setInterval(pollAdmissaoAssinaturas, 30 * 1000);
-}, 30000);
-console.log('[POLL-ADMISSAO] Job de polling configurado (a cada 30 segundos).');
+    setInterval(pollAdmissaoAssinaturas, 3 * 60 * 1000);
+}, 60000);
+console.log('[POLL-ADMISSAO] Job de polling configurado (a cada 3 minutos).');
 // -----------------------------------------------------------------------------
 
 // Endpoint de alertas realtime: retorna documentos de admissão e prontuário assinados nas últimas 24h
@@ -21726,7 +21727,8 @@ async function syncBase64ToR2() {
     if (!r2 || !r2.isReady()) return;
     
     // 1. Treinamentos (Selfie e Assinatura)
-    db.all(`SELECT id, selfie_base64, assinatura_base64 FROM treinamento_presenca_v2 WHERE (selfie_base64 LIKE 'data:image/%' OR assinatura_base64 LIKE 'data:image/%') LIMIT 15`, async (err, rows) => {
+    // LIMIT 5 por ciclo para não sobrecarregar a memória do Render (era 15)
+    db.all(`SELECT id, selfie_base64, assinatura_base64 FROM treinamento_presenca_v2 WHERE (selfie_base64 LIKE 'data:image/%' OR assinatura_base64 LIKE 'data:image/%') LIMIT 5`, async (err, rows) => {
         if (err || !rows) return;
         for (const row of rows) {
             let updated = false;
@@ -21770,7 +21772,8 @@ async function syncBase64ToR2() {
     });
 
     // 2. EPIs (Selfie)
-    db.all(`SELECT id, selfie_base64 FROM epi_selfies WHERE selfie_base64 LIKE 'data:image/%' LIMIT 15`, async (err, rows) => {
+    // LIMIT 5 por ciclo para não sobrecarregar a memória do Render (era 15)
+    db.all(`SELECT id, selfie_base64 FROM epi_selfies WHERE selfie_base64 LIKE 'data:image/%' LIMIT 5`, async (err, rows) => {
         if (err || !rows) return;
         for (const row of rows) {
             try {
@@ -21793,10 +21796,10 @@ async function syncBase64ToR2() {
     });
 }
 
-// Rodar a cada 5 minutos
-setInterval(syncBase64ToR2, 5 * 60 * 1000);
-// E 10 segundos após a inicialização do servidor
-setTimeout(syncBase64ToR2, 10000);
+// Rodar a cada 15 minutos (era 5min) — reduz carga no Render Starter
+setInterval(syncBase64ToR2, 15 * 60 * 1000);
+// E 2 minutos após a inicialização do servidor (era 10s)
+setTimeout(syncBase64ToR2, 2 * 60 * 1000);
 // ────────────────────────────────────────────────────────────────────────────
 
 // ============================================================================
