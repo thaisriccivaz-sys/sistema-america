@@ -216,7 +216,7 @@
                 '<div style="font-size:0.75rem;color:#64748b;font-weight:600;"><i class="ph ph-buildings" style="margin-right:3px;"></i>' + (c.departamento || '-') + ' &middot; ' + (c.cargo || '-') + '</div>' +
                 '</div></div>';
 
-            var emailsHtml = temEmail ? emailsDoColab.map(function(e){ return '<div style="font-weight:600;font-size:0.85rem;color:#2563eb;margin-bottom:2px;">'+e.endereco+'</div>'; }).join('') : '<span style="color:#94a3b8;font-size:0.85rem;font-style:italic;">Nenhum e-mail</span>';
+            var emailsHtml = temEmail ? emailsDoColab.map(function(e){ return '<div style="font-weight:600;font-size:0.85rem;color:#2563eb;margin-bottom:2px;display:flex;align-items:center;">'+e.endereco+obsIcon(e.observacao)+'</div>'; }).join('') : '<span style="color:#94a3b8;font-size:0.85rem;font-style:italic;">Nenhum e-mail</span>';
 
             var eqpInfo = '';
             var acoes = '';
@@ -225,7 +225,7 @@
                 if (temComp) {
                     var cp = compsDoColab[0];
                     eqpInfo = '<div>' +
-                        '<div style="font-weight:600;font-size:0.95rem;color:#0f172a;">' + (cp.tipo || 'Computador') + ' ' + (cp.modelo || '') + '</div>' +
+                        '<div style="font-weight:600;font-size:0.95rem;color:#0f172a;display:flex;align-items:center;">' + (cp.tipo || 'Computador') + ' ' + (cp.modelo || '') + obsIcon(cp.observacoes) + '</div>' +
                         '<div style="font-size:0.75rem;color:#64748b;font-family:monospace;margin-top:2px;">Patr: ' + (cp.patrimonio || '-') + ' / SN: ' + (cp.numero_serie || '-') + '</div>' +
                         '</div>';
                 } else {
@@ -452,7 +452,7 @@
 
             return '<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">' +
                 '<td style="' + td + '">' +
-                '<div style="font-weight:700;color:#2563eb;font-size:0.9rem;">' + e.endereco + '</div>' +
+                '<div style="font-weight:700;color:#2563eb;font-size:0.9rem;display:flex;align-items:center;">' + e.endereco + obsIcon(e.observacao) + '</div>' +
                 '<div style="font-size:0.72rem;color:#64748b;margin-bottom:4px;">' + (e.plataforma || '-') + '</div>' + tags +
                 '</td>' +
                 '<td style="' + td + '">' + emailStatusBadge(e.status) + '</td>' +
