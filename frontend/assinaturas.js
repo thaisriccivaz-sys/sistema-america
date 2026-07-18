@@ -498,10 +498,10 @@ window.assinaturasBaixarTodas = async function() {
             headers: _assAuthHeader()
         });
         const data = await response.json();
-        // Filtrar apenas pendentes para o download em lote
-        const pendentes = (data || []).filter(p => p.pendencia_status === 'Pendente');
+        // Não filtrar mais por pendente, baixar todas
+        const pendentes = data || [];
         if (!pendentes || pendentes.length === 0) {
-            alert('Nenhuma assinatura pendente para baixar.');
+            alert('Nenhuma assinatura para baixar.');
             return;
         }
 
