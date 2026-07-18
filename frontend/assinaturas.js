@@ -71,7 +71,7 @@ window.renderAssinaturasTemplates = async function() {
 // ─── Render tabela de pendentes/geradas ──────────────────────────────────────
 window.renderAssinaturasPendentes = async function() {
     try {
-        const res = await fetch('/api/assinaturas/pendentes', { headers: _assAuthHeader() });
+        const res = await fetch('/api/assinaturas/pendentes?_t=' + new Date().getTime(), { headers: _assAuthHeader(), cache: 'no-store' });
         const data = await res.json();
         _assPendentesData = data || [];
         _assRenderTabela();
