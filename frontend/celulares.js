@@ -322,10 +322,8 @@
                 : '<span style="color:#94a3b8;font-size:0.8rem;">Sem chip</span>')+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.8rem;color:#64748b;">'+fmtData(a.atrib_data_inicio)+'</td>';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;gap:6px;flex-wrap:wrap;">'+
-                '<button onclick="window.celularesToggleHistorico(\''+hk+'\',\'aparelho\','+a.id+')" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#64748b;font-size:0.78rem;display:flex;align-items:center;gap:4px;background:'+(isOpen?'#f1f5f9':'transparent')+';" title="Historico"><i class="ph ph-clock-counter-clockwise"></i><i class="ph ph-caret-'+(isOpen?'up':'down')+'" style="font-size:0.7rem;"></i></button>'+
                 '<button onclick="window.celularesOpenModalDevolver('+a.atrib_id+',\''+nome.replace(/'/g,"\\'")+'\')" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>'+
                 '</div></td></tr>';
-            if (isOpen) rows+='<tr id="hist-row-'+hk+'"><td colspan="'+COLSPAN+'" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-'+hk+'" style="padding:0.75rem 1rem;"><div style="color:#94a3b8;font-size:0.82rem;text-align:center;">Carregando historico...</div></div></td></tr>';
         });
         chipsAvF.forEach(function(c) {
             var hk='chip-'+c.id, isOpen=!!_expandedHistorico[hk];
@@ -341,10 +339,8 @@
             rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="font-weight:600;color:#2563eb;display:flex;align-items:center;">'+fmtTel(c.numero)+obsIcon(c.observacao)+'</div><div style="font-size:0.72rem;color:#64748b;">'+(c.operadora||'')+'</div></td>';
             rows+='<td style="padding:0.75rem;font-size:0.8rem;color:#64748b;">'+fmtData(c.atrib_data_inicio)+'</td>';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;gap:6px;">'+
-                '<button onclick="window.celularesToggleHistorico(\''+hk+'\',\'chip\','+c.id+')" style="background:transparent;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#64748b;font-size:0.78rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-clock-counter-clockwise"></i><i class="ph ph-caret-'+(isOpen?'up':'down')+'" style="font-size:0.7rem;"></i></button>'+
                 '<button onclick="window.celularesOpenModalDevolver('+c.atrib_id+',\''+nome.replace(/'/g,"\\'")+'\')" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>'+
                 '</div></td></tr>';
-            if (isOpen) rows+='<tr id="hist-row-'+hk+'"><td colspan="'+COLSPAN+'" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-'+hk+'" style="padding:0.75rem 1rem;"><div style="color:#94a3b8;font-size:0.82rem;text-align:center;">Carregando historico...</div></div></td></tr>';
         });
 
         var head = thHead([

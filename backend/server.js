@@ -24127,6 +24127,18 @@ db.run(`CREATE TABLE IF NOT EXISTS emails_atribuicoes (
     FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id)
 )`);
 
+db.run(`CREATE TABLE IF NOT EXISTS emails_historico (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email_id INTEGER NOT NULL,
+    colaborador_id INTEGER,
+    responsavel_nome TEXT,
+    acao TEXT NOT NULL,
+    observacao TEXT,
+    created_at DATETIME DEFAULT (datetime('now','-3 hours')),
+    FOREIGN KEY(email_id) REFERENCES emails_corporativos(id),
+    FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id)
+)`);
+
 // Migrar dados antigos se existirem em emails_corporativos
 db.all(`SELECT id, colaborador_id, responsavel_nome, data_atribuicao FROM emails_corporativos WHERE colaborador_id IS NOT NULL OR responsavel_nome IS NOT NULL`, (err, rows) => {
     if (!err && rows && rows.length > 0) {
@@ -24298,7 +24310,9 @@ app.post('/api/emails/:id/atribuir', authenticateToken, (req, res) => {
                 });
             }
             
-            res.json({ ok: true, id: this.lastID });
+            db.run(`INSERT INTO emails_historico (email_id, colaborador_id, responsavel_nome, acao) VALUES (?, ?, ?, 'Atribuição')`, [req.params.id, colaborador_id || null, isAvulso ? responsavel_nome : null], function() {
+                res.json({ ok: true, id: this.lastID });
+            });
         }
     );
 });
@@ -24336,11 +24350,26 @@ app.post('/api/emails/:id/devolver', authenticateToken, (req, res) => {
             db.run(`UPDATE colaboradores SET email_corporativo = NULL WHERE id IN (SELECT colaborador_id FROM emails_corporativos WHERE id = ?)`, [req.params.id]);
         }
         
-        res.json({ ok: true });
+        db.run(`INSERT INTO emails_historico (email_id, colaborador_id, responsavel_nome, acao) VALUES (?, ?, NULL, 'Devolução')`, [req.params.id, colaborador_id || null], function() {
+            res.json({ ok: true });
+        });
     });
 });
 
 // ─── DELETE: Excluir E-mail ───
+app.get('/api/emails/:id/historico', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT h.*, c.nome_completo as colab_nome
+        FROM emails_historico h
+        LEFT JOIN colaboradores c ON c.id = h.colaborador_id
+        WHERE h.email_id = ?
+        ORDER BY h.created_at DESC
+    `, [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
 app.delete('/api/emails/:id', authenticateToken, (req, res) => {
     db.run(`DELETE FROM emails_corporativos WHERE id=?`, [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });

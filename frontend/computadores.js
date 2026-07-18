@@ -195,6 +195,7 @@
     function renderTabColaboradores() {
         var fq = _filterQ.trim().toLowerCase();
         var filtered = _colaboradores.filter(function (c) {
+            if (c.departamento && c.departamento.toLowerCase() === 'limpeza') return false;
             if (!fq) return true;
             return (c.nome_completo && c.nome_completo.toLowerCase().includes(fq)) ||
                 (c.departamento && c.departamento.toLowerCase().includes(fq));
@@ -232,10 +233,9 @@
                     eqpInfo = '<span style="color:#94a3b8;font-size:0.85rem;font-style:italic;">Nenhum equipamento</span>';
                 }
                 
-                var btnHist = temComp ? '<button onclick="window.computadoresToggleHistorico(' + compsDoColab[0].id + ')" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 9px;cursor:pointer;color:#64748b;display:flex;align-items:center;" title="Histórico"><i class="ph ph-clock-counter-clockwise"></i><i class="ph ph-caret-down" style="font-size:0.7rem;margin-left:2px;"></i></button>' : '';
                 var btnDev = '<button onclick="window.computadoresDevolverMulti(' + c.id + ',\'' + (c.nome_completo.replace(/'/g, "\\'")) + '\')" style="background:#fff;border:1px solid #fca5a5;border-radius:6px;padding:5px 9px;cursor:pointer;color:#dc2626;display:flex;align-items:center;gap:3px;" title="Devolver"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>';
                 var btnVincular = '<button onclick="window.computadoresVincularModal(' + c.id + ')" style="background:#eef2ff;border:1px solid #c7d2fe;color:#4f46e5;padding:5px 9px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.3rem;" title="Atribuir"><i class="ph ph-link"></i> Atribuir</button>';
-                acoes = '<div style="display:flex;gap:5px;flex-wrap:wrap;">' + btnHist + btnVincular + btnDev + '</div>';
+                acoes = '<div style="display:flex;gap:5px;flex-wrap:wrap;">' + btnVincular + btnDev + '</div>';
             } else {
                 eqpInfo = '<span style="color:#94a3b8;font-size:0.85rem;font-style:italic;">Nenhum equipamento</span>';
                 acoes = '<button onclick="window.computadoresVincularModal(' + c.id + ')" style="background:#eef2ff;border:1px solid #c7d2fe;color:#4f46e5;padding:0.4rem 0.75rem;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.3rem;"><i class="ph ph-link"></i> Atribuir</button>';
@@ -437,6 +437,7 @@
             }
 
             var acoes = '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
+                '<button onclick="window.compEmailToggleHistorico(' + e.id + ')" style="background:transparent;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#64748b;font-size:0.78rem;" title="Histórico"><i class="ph ph-clock-counter-clockwise"></i></button>' +
                 '<button onclick="window.compEmailOpenModalEmail(' + e.id + ')" style="background:transparent;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#2563eb;font-size:0.78rem;" title="Editar"><i class="ph ph-pencil-simple"></i></button>' +
                 '<button onclick="window.compEmailDelete(' + e.id + ')" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;" title="Excluir"><i class="ph ph-trash"></i></button>';
 
@@ -466,7 +467,8 @@
                 '<td style="' + td + '">' + emailStatusBadge(e.status) + '</td>' +
                 '<td style="' + td + '">' + respInfo + '</td>' +
                 '<td style="' + td + '">' + acoes + '</td>' +
-                '</tr>';
+                '</tr>' +
+                '<tr id="hist-row-email-' + e.id + '" style="display:none;"><td colspan="4" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-email-' + e.id + '" style="padding:1rem;">Carregando histórico...</div></td></tr>';
         }).join('');
 
         if (!filtered.length) rows = '<tr><td colspan="4" style="padding:2rem;text-align:center;color:#94a3b8;"><i class="ph ph-envelope-simple" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>Nenhum e-mail encontrado.</td></tr>';
@@ -798,6 +800,45 @@
         
         try {
             var data = await _apiGet('/computadores/historico/' + id);
+            if (!data || data.length === 0) {
+                cont.innerHTML = '<div style="text-align:center;color:#64748b;font-size:0.85rem;">Nenhum histórico encontrado.</div>';
+                return;
+            }
+            var html = '<div style="max-height:200px;overflow-y:auto;padding-right:0.5rem;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">' +
+                '<thead><tr style="text-align:left;color:#64748b;border-bottom:1px solid #e2e8f0;">' +
+                '<th style="padding:0.4rem 0;">Data</th><th>Ação</th><th>Responsável</th><th>Observação</th>' +
+                '</tr></thead><tbody>';
+            
+            data.forEach(function(h) {
+                var d = new Date(h.created_at).toLocaleDateString('pt-BR') + ' ' + new Date(h.created_at).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+                var resp = h.colab_nome || h.responsavel_nome || '-';
+                html += '<tr style="border-bottom:1px solid #f1f5f9;">' +
+                    '<td style="padding:0.4rem 0;color:#64748b;">' + d + '</td>' +
+                    '<td><span style="font-weight:600;color:#0f172a;">' + h.acao + '</span></td>' +
+                    '<td>' + resp + '</td>' +
+                    '<td style="color:#64748b;">' + (h.observacao || '-') + '</td>' +
+                    '</tr>';
+            });
+            html += '</tbody></table></div>';
+            cont.innerHTML = html;
+        } catch(e) {
+            cont.innerHTML = '<div style="color:red;font-size:0.85rem;">Erro ao carregar histórico: ' + e.message + '</div>';
+        }
+    };
+
+    window.compEmailToggleHistorico = async function (id) {
+        var row = document.getElementById('hist-row-email-' + id);
+        if (!row) return;
+        if (row.style.display === 'table-row') {
+            row.style.display = 'none';
+            return;
+        }
+        row.style.display = 'table-row';
+        var cont = document.getElementById('hist-content-email-' + id);
+        cont.innerHTML = '<div style="text-align:center;padding:1rem;"><i class="ph ph-spinner ph-spin" style="font-size:1.5rem;color:#6366f1;"></i></div>';
+        
+        try {
+            var data = await _apiGet('/emails/' + id + '/historico');
             if (!data || data.length === 0) {
                 cont.innerHTML = '<div style="text-align:center;color:#64748b;font-size:0.85rem;">Nenhum histórico encontrado.</div>';
                 return;
