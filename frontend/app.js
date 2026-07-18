@@ -525,6 +525,11 @@ const BREADCRUMB_MAP = {
     'assinaturas-adm': { path: 'Administrativo → Assinaturas', code: 'ADMIN01' },
     'avaliacoes': { path: 'Avaliações', code: 'RHAV01' },
     'gerenciar-avaliacoes': { path: 'Diretoria → Gerenciar Avaliações', code: 'DIRAVAL' },
+    'satisfacao-rh': { path: 'RH → Avaliações → Satisfação', code: 'RHSAT01' },
+    'experiencia-rh': { path: 'RH → Avaliações → Experiência', code: 'RHEXP01' },
+    'desempenho-rh': { path: 'RH → Avaliações → Desempenho', code: 'RHDES01' },
+    'terapias-rh': { path: 'RH → Avaliações → Terapias', code: 'RHTER01' },
+    'palestras-rh': { path: 'RH → Avaliações → Palestras', code: 'RHPAL01' },
     'usuarios-permissoes': { path: 'Diretoria → Usuários e Permissões', code: 'DIR001' },
     'cargos': { path: 'Diretoria → Cargos', code: 'DIR004' },
     'form-usuario': { path: 'Diretoria → Usuários e Permissões → Cadastro', code: 'DIR002' },
@@ -783,6 +788,11 @@ const TAB_META = {
     'assinaturas-adm': { color: '#e67700', icon: 'ph-signature', title: 'Administrativo > Assinaturas' },
     'ficha-epi': { color: '#f503c5', icon: 'ph-shield-check', title: 'Ficha EPI' },
     'gerenciar-avaliacoes': { color: '#d9480f', icon: 'ph-clipboard-text', title: 'Avaliações' },
+    'satisfacao-rh': { color: '#7c3aed', icon: 'ph-smiley', title: 'Satisfação dos Colaboradores' },
+    'experiencia-rh': { color: '#7c3aed', icon: 'ph-user-check', title: 'Experiência' },
+    'desempenho-rh': { color: '#7c3aed', icon: 'ph-trend-up', title: 'Desempenho' },
+    'terapias-rh': { color: '#7c3aed', icon: 'ph-heart', title: 'Terapias' },
+    'palestras-rh': { color: '#7c3aed', icon: 'ph-microphone-stage', title: 'Palestras' },
     'rh-agenda': { color: '#f503c5', icon: 'ph-calendar-check', title: 'Agenda RH' },
     'assinaturas-digitais': { color: '#f503c5', icon: 'ph-signature', title: 'Assinaturas' },
     'pagamentos-massa': { color: '#f503c5', icon: 'ph-currency-dollar', title: 'Docs. em Massa' },
@@ -1054,6 +1064,16 @@ function navigateTo(target) {
         loadEscalas();
     } else if (target === 'faculdade') {
         loadFaculdadeCursos();
+    } else if (target === 'satisfacao-rh') {
+        if (typeof window.initSatisfacaoRH === 'function') setTimeout(() => window.initSatisfacaoRH(), 80);
+    } else if (target === 'experiencia-rh') {
+        // placeholder
+    } else if (target === 'desempenho-rh') {
+        // placeholder
+    } else if (target === 'terapias-rh') {
+        // placeholder
+    } else if (target === 'palestras-rh') {
+        // placeholder
     } else if (target === 'rh-logistica-sinistros') {
         if (typeof window.initRhLogisticaSinistros === 'function') window.initRhLogisticaSinistros();
     } else if (target === 'rh-logistica-multas') {

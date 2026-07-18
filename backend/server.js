@@ -9564,6 +9564,187 @@ app.post('/api/avaliacao-templates/dedup', authenticateToken, (req, res) => {
     });
 });
 
+// ─── DASHBOARD DE SATISFAÇÃO ──────────────────────────────────────────────────
+
+// GET /api/avaliacoes/satisfacao/dashboard
+// Retorna médias por departamento/grupo/tópico nas últimas 4 pesquisas (ano+trimestre distintos)
+app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) => {
+    // Buscar as 4 últimas combinações distintas de ano+trimestre para satisfação
+    db.all(
+        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = 'satisfacao' ORDER BY ano DESC, trimestre DESC LIMIT 4`,
+        [],
+        (err, periodos) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!periodos || periodos.length === 0) return res.json({ periodos: [], departamentos: [], resumo: [] });
+
+            // Buscar todas as avaliações de satisfação dos últimos 4 períodos
+            const placeholders = periodos.map(() => '(?,?)').join(',');
+            const params = periodos.flatMap(p => [p.ano, p.trimestre]);
+
+            db.all(
+                `SELECT a.colaborador_id, a.ano, a.trimestre, a.respostas_json,
+                        c.departamento, c.cargo
+                 FROM avaliacoes a
+                 JOIN colaboradores c ON c.id = a.colaborador_id
+                 WHERE a.tipo = 'satisfacao'
+                   AND (a.ano, a.trimestre) IN (${placeholders})`,
+                params,
+                (err2, rows) => {
+                    if (err2) return res.status(500).json({ error: err2.message });
+
+                    // Estrutura: { grupo: { topico: { 'ano-trimestre': [notas] } } }
+                    const agregado = {};
+
+                    (rows || []).forEach(row => {
+                        let respostas = {};
+                        try { respostas = JSON.parse(row.respostas_json || '{}'); } catch(e) {}
+                        const periodo = `${row.ano}-T${row.trimestre}`;
+
+                        // Determinar grupo baseado no departamento/cargo
+                        const dept = (row.departamento || '').toLowerCase();
+                        const cargo = (row.cargo || '').toLowerCase();
+                        let grupo = 'escritorio';
+                        if (cargo.includes('motorista') || dept.includes('motorista') || dept.includes('logística') || dept.includes('logistica')) {
+                            grupo = 'motorista';
+                        } else if (dept.includes('manutencao') || dept.includes('manutenção')) {
+                            grupo = 'manutencao';
+                        }
+
+                        if (!agregado[grupo]) agregado[grupo] = {};
+
+                        // respostas_json: { 'Tópico': [nota1, nota2, ...] } ou { 'Tópico': { media: X } }
+                        Object.entries(respostas).forEach(([topico, notas]) => {
+                            if (!agregado[grupo][topico]) agregado[grupo][topico] = {};
+                            if (!agregado[grupo][topico][periodo]) agregado[grupo][topico][periodo] = [];
+                            if (Array.isArray(notas)) {
+                                const nums = notas.filter(n => typeof n === 'number' && !isNaN(n));
+                                if (nums.length > 0) {
+                                    const media = nums.reduce((a, b) => a + b, 0) / nums.length;
+                                    agregado[grupo][topico][periodo].push(media);
+                                }
+                            } else if (typeof notas === 'object' && notas !== null && typeof notas.media === 'number') {
+                                agregado[grupo][topico][periodo].push(notas.media);
+                            } else if (typeof notas === 'number') {
+                                agregado[grupo][topico][periodo].push(notas);
+                            }
+                        });
+                    });
+
+                    // Calcular médias finais
+                    const resultado = [];
+                    Object.entries(agregado).forEach(([grupo, topicos]) => {
+                        Object.entries(topicos).forEach(([topico, periodoMap]) => {
+                            const entry = { grupo, topico };
+                            periodos.forEach(p => {
+                                const key = `${p.ano}-T${p.trimestre}`;
+                                const arr = periodoMap[key] || [];
+                                entry[key] = arr.length > 0 ? parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2)) : null;
+                            });
+                            resultado.push(entry);
+                        });
+                    });
+
+                    // Buscar totais de respondentes vs esperados por grupo/período
+                    db.all(
+                        `SELECT c.departamento, c.cargo, a.ano, a.trimestre,
+                                COUNT(a.id) as responderam
+                         FROM avaliacoes a
+                         JOIN colaboradores c ON c.id = a.colaborador_id
+                         WHERE a.tipo = 'satisfacao'
+                           AND (a.ano, a.trimestre) IN (${placeholders})
+                         GROUP BY c.departamento, c.cargo, a.ano, a.trimestre`,
+                        params,
+                        (err3, contagens) => {
+                            if (err3) return res.status(500).json({ error: err3.message });
+                            res.json({ periodos: periodos.reverse(), dashboard: resultado, contagens: contagens || [] });
+                        }
+                    );
+                }
+            );
+        }
+    );
+});
+
+// GET /api/avaliacoes/satisfacao/colaboradores
+// Retorna todos os colaboradores ativos com histórico de satisfação (últimas 4 pesquisas)
+app.get('/api/avaliacoes/satisfacao/colaboradores', authenticateToken, (req, res) => {
+    db.all(
+        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = 'satisfacao' ORDER BY ano DESC, trimestre DESC LIMIT 4`,
+        [],
+        (err, periodos) => {
+            if (err) return res.status(500).json({ error: err.message });
+            const periodosOrdenados = (periodos || []).slice().reverse();
+
+            db.all(
+                `SELECT c.id, c.nome_completo, c.departamento, c.cargo,
+                        c.foto_path, c.foto_base64, c.data_admissao, c.status
+                 FROM colaboradores c
+                 WHERE c.status != 'Desligado'
+                 ORDER BY c.nome_completo ASC`,
+                [],
+                (err2, colabs) => {
+                    if (err2) return res.status(500).json({ error: err2.message });
+                    if (!colabs || colabs.length === 0) return res.json({ periodos: periodosOrdenados, colaboradores: [] });
+
+                    const colabIds = colabs.map(c => c.id);
+                    const placeholders2 = colabIds.map(() => '?').join(',');
+
+                    db.all(
+                        `SELECT colaborador_id, ano, trimestre, respostas_json, created_at
+                         FROM avaliacoes
+                         WHERE tipo = 'satisfacao' AND colaborador_id IN (${placeholders2})
+                         ORDER BY ano DESC, trimestre DESC`,
+                        colabIds,
+                        (err3, avaliacoes) => {
+                            if (err3) return res.status(500).json({ error: err3.message });
+
+                            // Mapear avaliações por colaborador
+                            const avalMap = {};
+                            (avaliacoes || []).forEach(a => {
+                                if (!avalMap[a.colaborador_id]) avalMap[a.colaborador_id] = {};
+                                const key = `${a.ano}-T${a.trimestre}`;
+                                let respostas = {};
+                                try { respostas = JSON.parse(a.respostas_json || '{}'); } catch(e) {}
+                                // Calcular média geral de todas as notas do JSON
+                                let todas = [];
+                                Object.values(respostas).forEach(val => {
+                                    if (Array.isArray(val)) todas = todas.concat(val.filter(n => typeof n === 'number' && !isNaN(n)));
+                                    else if (typeof val === 'number' && !isNaN(val)) todas.push(val);
+                                    else if (val && typeof val.media === 'number') todas.push(val.media);
+                                });
+                                const media = todas.length > 0 ? parseFloat((todas.reduce((a, b) => a + b, 0) / todas.length).toFixed(2)) : null;
+                                avalMap[a.colaborador_id][key] = { media, respondido: true, created_at: a.created_at };
+                            });
+
+                            const result = colabs.map(c => {
+                                const pesquisas = {};
+                                periodosOrdenados.forEach(p => {
+                                    const key = `${p.ano}-T${p.trimestre}`;
+                                    // Verificar se o colaborador estava admitido nessa época
+                                    const dataAdmissao = c.data_admissao ? new Date(c.data_admissao) : null;
+                                    // Referência da pesquisa: 1o dia do trimestre
+                                    const mesInicio = (p.trimestre - 1) * 3 + 1;
+                                    const dataPesquisa = new Date(p.ano, mesInicio - 1, 1);
+                                    const naoAdmitido = dataAdmissao && dataAdmissao > dataPesquisa;
+                                    pesquisas[key] = avalMap[c.id]?.[key] || { media: null, respondido: false, nao_admitido: naoAdmitido };
+                                    if (naoAdmitido) pesquisas[key].nao_admitido = true;
+                                });
+                                const todasMedias = Object.values(pesquisas).filter(p2 => p2.respondido && p2.media !== null).map(p2 => p2.media);
+                                const mediaGeral = todasMedias.length > 0 ? parseFloat((todasMedias.reduce((a, b) => a + b, 0) / todasMedias.length).toFixed(2)) : null;
+                                return { ...c, foto_base64: c.foto_base64 || null, pesquisas, media_geral: mediaGeral };
+                            });
+
+                            res.json({ periodos: periodosOrdenados, colaboradores: result });
+                        }
+                    );
+                }
+            );
+        }
+    );
+});
+
+// ─── FIM DASHBOARD DE SATISFAÇÃO ─────────────────────────────────────────────
+
 // --- ROTA DE ENVIO DE E-MAIL ASO ---
 app.post('/api/send-aso-email', authenticateToken, (req, res) => {
     const { colaborador_id, email_to, data_exame, cc, tipo_exame, nova_funcao } = req.body;

@@ -119,7 +119,31 @@
                         Integra&ccedil;&atilde;o</a>
                     <a href="#" class="nav-item" data-target="faculdade"><i class="ph ph-graduation-cap"></i>
                         Faculdade</a>
+                    <!-- ▸ Grupo: Avaliações (acordeão) -->
+                    <div class="nav-group" id="nav-group-avaliacoes-rh">
+                        <button class="nav-group-label nav-group-toggle"
+                                onclick="toggleNavGroup('nav-group-avaliacoes-rh')">
+                            <span style="display:flex;align-items:center;gap:0.55rem;">
+                                <i class="ph ph-chart-bar"></i>
+                                Avaliações
+                            </span>
+                            <i class="ph ph-caret-right nav-group-chevron"></i>
+                        </button>
+                        <div class="nav-group-items" id="nav-group-items-avaliacoes-rh">
+                            <a href="#" class="nav-item nav-item-sub" data-target="satisfacao-rh"
+                               onclick="navigateTo('satisfacao-rh'); return false;"><i class="ph ph-smiley"></i> Satisfação</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="experiencia-rh"
+                               onclick="navigateTo('experiencia-rh'); return false;"><i class="ph ph-user-check"></i> Experiência</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="desempenho-rh"
+                               onclick="navigateTo('desempenho-rh'); return false;"><i class="ph ph-trend-up"></i> Desempenho</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="terapias-rh"
+                               onclick="navigateTo('terapias-rh'); return false;"><i class="ph ph-heart"></i> Terapias</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="palestras-rh"
+                               onclick="navigateTo('palestras-rh'); return false;"><i class="ph ph-microphone-stage"></i> Palestras</a>
+                        </div>
+                    </div>
                     <!-- ▸ Grupo: Pagamentos (acordeão) -->
+
                     <div class="nav-group" id="nav-group-pagamentos">
                         <button class="nav-group-label nav-group-toggle"
                                 onclick="toggleNavGroup('nav-group-pagamentos')">
@@ -3825,6 +3849,47 @@
                     </div>
                 </section>
 
+                <!-- VIEW: SATISFAÇÃO RH -->
+                <section id="view-satisfacao-rh" class="content-view">
+                    <div id="satisfacao-rh-container"></div>
+                </section>
+
+                <!-- VIEW: EXPERIÊNCIA RH -->
+                <section id="view-experiencia-rh" class="content-view">
+                    <div style="padding:3rem;text-align:center;color:#94a3b8;">
+                        <i class="ph ph-user-check" style="font-size:3.5rem;margin-bottom:1rem;display:block;color:#cbd5e1;"></i>
+                        <h2 style="color:#334155;margin:0 0 0.5rem;">Experiência</h2>
+                        <p style="margin:0;">Esta tela está em desenvolvimento. Em breve disponível.</p>
+                    </div>
+                </section>
+
+                <!-- VIEW: DESEMPENHO RH -->
+                <section id="view-desempenho-rh" class="content-view">
+                    <div style="padding:3rem;text-align:center;color:#94a3b8;">
+                        <i class="ph ph-trend-up" style="font-size:3.5rem;margin-bottom:1rem;display:block;color:#cbd5e1;"></i>
+                        <h2 style="color:#334155;margin:0 0 0.5rem;">Desempenho</h2>
+                        <p style="margin:0;">Esta tela está em desenvolvimento. Em breve disponível.</p>
+                    </div>
+                </section>
+
+                <!-- VIEW: TERAPIAS RH -->
+                <section id="view-terapias-rh" class="content-view">
+                    <div style="padding:3rem;text-align:center;color:#94a3b8;">
+                        <i class="ph ph-heart" style="font-size:3.5rem;margin-bottom:1rem;display:block;color:#cbd5e1;"></i>
+                        <h2 style="color:#334155;margin:0 0 0.5rem;">Terapias</h2>
+                        <p style="margin:0;">Esta tela está em desenvolvimento. Em breve disponível.</p>
+                    </div>
+                </section>
+
+                <!-- VIEW: PALESTRAS RH -->
+                <section id="view-palestras-rh" class="content-view">
+                    <div style="padding:3rem;text-align:center;color:#94a3b8;">
+                        <i class="ph ph-microphone-stage" style="font-size:3.5rem;margin-bottom:1rem;display:block;color:#cbd5e1;"></i>
+                        <h2 style="color:#334155;margin:0 0 0.5rem;">Palestras</h2>
+                        <p style="margin:0;">Esta tela está em desenvolvimento. Em breve disponível.</p>
+                    </div>
+                </section>
+
                 <!-- VIEW: ASSINATURAS DIGITAIS (RH) -->
 
                 <section id="view-assinaturas-digitais" class="content-view">
@@ -6103,6 +6168,7 @@
     <script src="treinamento.js?v=20260702v7"></script>
     <script src="treinamento_presenca.js?v=20260702v4"></script>
     <script src="assinaturas.js?v=1"></script>
+    <script src="satisfacao_rh.js?v=1"></script>
 
     
     <!-- MODAL: ASSINATURA DE TREINAMENTO -->
