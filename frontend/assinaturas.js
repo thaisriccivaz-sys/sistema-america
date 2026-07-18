@@ -149,9 +149,9 @@ function _assRenderTabela() {
             <td style="padding:0.75rem;">
                 <div style="font-size:0.85rem;color:#0f172a;">${p.template_nome || '-'}</div>
             </td>
-            <td style="padding:0.75rem;">
+            <!-- <td style="padding:0.75rem;">
                 <div style="font-size:0.82rem;color:#64748b;">${dataCriacao}</div>
-            </td>
+            </td> -->
             <td style="padding:0.75rem;">${statusBadge}</td>
             <td style="padding:0.75rem;">
                 <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">
