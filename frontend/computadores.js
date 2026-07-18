@@ -665,18 +665,24 @@
     window.computadoresInit = function () { loadAll(); };
 
     window.computadoresFilter = function () {
+        var fId = document.activeElement ? document.activeElement.id : null;
+        var sStart = document.activeElement ? document.activeElement.selectionStart : null;
         _filterQ = (document.getElementById('comp-filter-q') || {}).value || '';
         if (_activeTab === 'computadores') _filterStatus = (document.getElementById('comp-filter-status') || {}).value || '';
         var wrap = document.getElementById('comp-tab-content');
         if (!wrap) return;
         if (_activeTab === 'colaboradores') wrap.innerHTML = renderTabColaboradores();
         else if (_activeTab === 'computadores') wrap.innerHTML = renderTabComputadores();
+        if(fId){var el=document.getElementById(fId);if(el){el.focus();try{el.setSelectionRange(sStart,sStart);}catch(e){}}}
     };
 
     window.compEmailFilter = function () {
+        var fId = document.activeElement ? document.activeElement.id : null;
+        var sStart = document.activeElement ? document.activeElement.selectionStart : null;
         _filterEmailQ = (document.getElementById('comp-email-filter-q') || {}).value || '';
         var wrap = document.getElementById('comp-tab-content');
         if (wrap) wrap.innerHTML = renderTabEmails();
+        if(fId){var el=document.getElementById(fId);if(el){el.focus();try{el.setSelectionRange(sStart,sStart);}catch(e){}}}
     };
 
     window.compEmailFilterStatus = function () {
