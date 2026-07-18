@@ -300,7 +300,7 @@
             html += `<div class="sat-table-wrap"><table class="sat-table">
                 <thead><tr>
                     <th>Tópico</th>
-                    ${periodos.map((p, i) => `<th>${periodLabel(p)}${i > 0 ? ' <span style="font-size:.7em;opacity:.5;">tendência</span>' : ''}</th>`).join('')}
+                    ${periodos.map((p, i) => `<th style="text-align:center;">${periodLabel(p)}${i > 0 ? ' <span style="font-size:.7em;opacity:.5;">tendência</span>' : ''}</th>`).join('')}
                 </tr></thead>
                 <tbody>`;
 
@@ -312,7 +312,7 @@
                     <td style="font-weight:600;color:#334155;">${t.topico}</td>
                     ${vals.map((v, i) => `
                         <td>
-                            <div style="display:flex;align-items:center;gap:.45rem;">
+                            <div style="display:flex;align-items:center;justify-content:center;gap:.45rem;">
                                 <span class="score-pill" style="background:${scoreBg(v)};color:${scoreColor(v)};">${fmtScore(v)}</span>
                                 ${trendIcon(vals, i)}
                             </div>
@@ -330,7 +330,7 @@
             html += `<tr style="background:#f8fafc;font-weight:700;">
                 <td style="color:#7c3aed;">Média do grupo</td>
                 ${groupAvgs.map((v, i) => `<td>
-                    <div style="display:flex;align-items:center;gap:.45rem;">
+                    <div style="display:flex;align-items:center;justify-content:center;gap:.45rem;">
                         <span class="score-pill" style="background:${scoreBg(v)};color:${scoreColor(v)};font-weight:800;">${fmtScore(v)}</span>
                         ${trendIcon(groupAvgs, i)}
                     </div>
