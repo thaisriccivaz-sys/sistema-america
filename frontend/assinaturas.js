@@ -82,11 +82,13 @@ window.renderAssinaturasPendentes = async function() {
 
 function _assAvatarHtml(fotoPath, fotoBase64, nome, size) {
     size = size || 36;
+    var base = (typeof API_URL !== 'undefined') ? API_URL.replace('/api', '') : '';
     if (fotoBase64) {
         return `<img src="data:image/jpeg;base64,${fotoBase64}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;flex-shrink:0;">`;
     }
     if (fotoPath) {
-        return `<img src="/uploads/${fotoPath}" onerror="this.style.display='none';this.nextSibling.style.display='flex'" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;flex-shrink:0;"><div style="display:none;width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-weight:700;font-size:${Math.round(size*0.4)}px;align-items:center;justify-content:center;flex-shrink:0;">${(nome||'?')[0].toUpperCase()}</div>`;
+        var fotoSrc = fotoPath.startsWith('http') ? fotoPath : base + '/' + fotoPath;
+        return `<img src="${fotoSrc}" onerror="this.style.display='none';this.nextSibling.style.display='flex'" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;flex-shrink:0;"><div style="display:none;width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-weight:700;font-size:${Math.round(size*0.4)}px;align-items:center;justify-content:center;flex-shrink:0;">${(nome||'?')[0].toUpperCase()}</div>`;
     }
     return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-weight:700;font-size:${Math.round(size*0.4)}px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${(nome||'?')[0].toUpperCase()}</div>`;
 }
@@ -454,7 +456,8 @@ window.assinaturasVerPendente = async function(pendencia) {
 
     const img = new Image();
     img.crossOrigin = "Anonymous";
-    img.onload = async () => {
+    
+    const renderAndShow = () => {
         currentPreviewImg = img;
         const canvas = assinaturasRenderCanvas(config, true, pendencia);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
@@ -465,13 +468,26 @@ window.assinaturasVerPendente = async function(pendencia) {
             imageWidth: '100%',
             imageAlt: 'Preview da Assinatura',
             confirmButtonText: 'Fechar',
-            width: '800px'
+            width: '800px',
+            didOpen: () => {
+                // Ensure Swal doesn't show old cached image by replacing src directly just in case
+                const swalImage = document.querySelector('.swal2-image');
+                if(swalImage) swalImage.src = dataUrl;
+            }
         });
+    };
+
+    img.onload = () => {
+        renderAndShow();
     };
     img.onerror = () => {
         Swal.fire('Erro', 'Não foi possível carregar a imagem de fundo do template. Verifique sua conexão.', 'error');
     };
-    img.src = '/api/proxy-image?url=' + encodeURIComponent(bgUrl);
+    img.src = '/api/proxy-image?url=' + encodeURIComponent(bgUrl) + '&_t=' + new Date().getTime(); // cache buster
+    
+    if (img.complete && img.naturalWidth > 0) {
+        renderAndShow();
+    }
 };
 
 window.assinaturasBaixarTodas = async function() {

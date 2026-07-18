@@ -21577,6 +21577,7 @@ app.get('/api/assinaturas/pendentes', authenticateToken, (req, res) => {
         LEFT JOIN assinatura_templates t ON t.is_active = 1
         LEFT JOIN assinaturas_pendentes p ON c.id = p.colaborador_id AND p.template_id = t.id
         WHERE d.tipo = 'Administrativo'
+          AND LOWER(TRIM(c.departamento)) NOT LIKE '%limpeza%'
           AND c.status != 'Desligado'
         ORDER BY CASE WHEN COALESCE(p.status, 'Pendente') = 'Pendente' THEN 0 ELSE 1 END ASC,
                  c.nome_completo ASC
@@ -24010,23 +24011,48 @@ app.post('/api/computadores', authenticateToken, (req, res) => {
 
 // ── PUT: atualizar computador ──
 app.put('/api/computadores/:id', authenticateToken, (req, res) => {
-    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, email_vinculado } = req.body;
-    db.run(
-        `UPDATE computadores SET tipo=?, modelo=?, patrimonio=?, numero_serie=?, colaborador_id=?, colaborador_livre=?, status=?, data_atribuicao=?, senha_windows=?, observacoes=?, ram_1=?, ram_2=?, ssd=?, expansivel=?, email_vinculado=?, updated_at=datetime('now','-3 hours')
-         WHERE id=?`,
-        [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, colaborador_livre || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null, ram_1 || null, ram_2 || null, ssd || null, expansivel ? 1 : 0, email_vinculado || null, req.params.id],
-        function (err) {
-            if (err) return res.status(500).json({ error: err.message });
-            
-            if (colaborador_id && email_vinculado && String(email_vinculado).trim() !== '') {
-                db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ?`, [email_vinculado.trim(), colaborador_id], function(updateErr) {
-                    if(updateErr) console.error("Erro ao atualizar e-mail do colaborador: ", updateErr.message);
-                });
+    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, email_vinculado, historico_observacao } = req.body;
+    db.get(`SELECT colaborador_id, colaborador_livre, status FROM computadores WHERE id=?`, [req.params.id], (errOld, rowOld) => {
+        db.run(
+            `UPDATE computadores SET tipo=?, modelo=?, patrimonio=?, numero_serie=?, colaborador_id=?, colaborador_livre=?, status=?, data_atribuicao=?, senha_windows=?, observacoes=?, ram_1=?, ram_2=?, ssd=?, expansivel=?, email_vinculado=?, updated_at=datetime('now','-3 hours')
+             WHERE id=?`,
+            [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, colaborador_livre || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null, ram_1 || null, ram_2 || null, ssd || null, expansivel ? 1 : 0, email_vinculado || null, req.params.id],
+            function (err) {
+                if (err) return res.status(500).json({ error: err.message });
+                
+                if (rowOld) {
+                    let changed = false;
+                    let acao = "";
+                    if (String(rowOld.colaborador_id||'') !== String(colaborador_id||'')) changed = true;
+                    if (String(rowOld.colaborador_livre||'') !== String(colaborador_livre||'')) changed = true;
+                    if (String(rowOld.status||'') !== String(status||'')) changed = true;
+                    
+                    if (changed) {
+                        if (status === 'Devolvido' || (!colaborador_id && !colaborador_livre && (rowOld.colaborador_id || rowOld.colaborador_livre))) {
+                            acao = "Devolvido";
+                        } else if (colaborador_id || colaborador_livre) {
+                            acao = "Atribuído";
+                        } else {
+                            acao = "Atualizado";
+                        }
+                        let obsHist = historico_observacao || (acao === "Devolvido" ? "Equipamento devolvido" : "Alteração de status/atribuição");
+                        let colabIdHist = colaborador_id || rowOld.colaborador_id;
+                        let colabLivreHist = colaborador_livre || rowOld.colaborador_livre;
+                        db.run(`INSERT INTO computadores_historico (computador_id, colaborador_id, responsavel_nome, acao, observacao) VALUES (?, ?, ?, ?, ?)`,
+                            [req.params.id, colabIdHist, colabLivreHist, acao, obsHist]);
+                    }
+                }
+                
+                if (colaborador_id && email_vinculado && String(email_vinculado).trim() !== '') {
+                    db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ?`, [email_vinculado.trim(), colaborador_id], function(updateErr) {
+                        if(updateErr) console.error("Erro ao atualizar e-mail do colaborador: ", updateErr.message);
+                    });
+                }
+                
+                res.json({ ok: true });
             }
-            
-            res.json({ ok: true });
-        }
-    );
+        );
+    });
 });
 
 // ── DELETE: remover computador ──

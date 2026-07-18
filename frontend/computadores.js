@@ -1156,6 +1156,8 @@
 
         if(!opts) opts = '<div style="color:#64748b;font-size:0.9rem;">Nenhum equipamento para devolver.</div>';
 
+        var obsHtml = opts ? '<div style="margin-top:1rem;"><label style="font-size:0.85rem;font-weight:600;color:#334155;display:block;margin-bottom:6px;">Observação</label><textarea id="comp-dev-obs" rows="2" placeholder="Ex: Equipamento devolvido em perfeito estado" style="width:100%;padding:0.6rem 0.75rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;resize:vertical;"></textarea></div>' : '';
+
         return '<div id="modal-devolver-multi" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">' +
             '<div style="background:#fff;border-radius:12px;width:100%;max-width:450px;box-shadow:0 25px 80px rgba(0,0,0,0.3);display:flex;flex-direction:column;">' +
             '<div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;background:#fef2f2;border-radius:12px 12px 0 0;">' +
@@ -1164,6 +1166,7 @@
             '<div style="padding:1.5rem;">' +
             '<p style="margin:0 0 1rem 0;font-size:0.9rem;color:#334155;">O que você deseja devolver de <strong>'+c.nome_completo+'</strong>?</p>' +
             opts +
+            obsHtml +
             '</div>' +
             '<div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:0.5rem;">' +
             '<button onclick="document.getElementById(\'modal-devolver-multi\').style.display=\'none\'" style="background:#f1f5f9;color:#64748b;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;">Cancelar</button>' +
@@ -1182,12 +1185,15 @@
             return;
         }
 
+        var obs = (document.getElementById('comp-dev-obs')||{}).value || '';
+        obs = obs.trim() || 'Equipamento devolvido';
+
         var promises = [];
         
         compIds.forEach(function(cId) {
             var cp = _computadores.find(function(x){ return String(x.id) === cId; });
             if(cp) {
-                var payload = Object.assign({}, cp, { colaborador_id: null, status: 'Devolvido', colaborador_livre: '' });
+                var payload = Object.assign({}, cp, { colaborador_id: null, status: 'Devolvido', colaborador_livre: '', historico_observacao: obs });
                 promises.push(
                     fetch('/api/computadores/' + cId, {
                         method: 'PUT',

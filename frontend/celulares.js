@@ -229,6 +229,21 @@
             if(el) el.innerHTML = hasFilter ? '('+(semAtribF.length+Object.keys(colabsAtribUnicosF).length)+' de '+totalColabUnico+')' : '('+totalColabUnico+')';
         }, 0);
 
+        var chipsCount = {};
+        atrib.forEach(function(a) {
+            if (a.colaborador_id) {
+                var c = 0;
+                if (a.atrib_chip_id) c++;
+                if (a.atrib_chip_id2) c++;
+                chipsCount[a.colaborador_id] = (chipsCount[a.colaborador_id] || 0) + c;
+            }
+        });
+        chipsAv.forEach(function(c) {
+            if (c.colaborador_id) {
+                chipsCount[c.colaborador_id] = (chipsCount[c.colaborador_id] || 0) + 1;
+            }
+        });
+
         var hasAny = atribF.length || chipsAvF.length || semAtribF.length;
         if (!hasAny) {
             var msgEmpty = fq ? 'Nenhum resultado encontrado para a busca.' : 'Nenhum colaborador com Celular Corporativo ativo.<br><small>Verifique o cadastro dos colaboradores.</small>';
@@ -321,8 +336,11 @@
                   +(a.chip_numero2?'<div style="font-weight:600;color:#2563eb;margin-top:4px;">'+fmtTel(a.chip_numero2)+'</div>':'')
                 : '<span style="color:#94a3b8;font-size:0.8rem;">Sem chip</span>')+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.8rem;color:#64748b;">'+fmtData(a.atrib_data_inicio)+'</td>';
+            var cCount = !isAv ? (chipsCount[a.colaborador_id] || 0) : 0;
+            var btnAtribuir = (!isAv && cCount < 2) ? '<button onclick="window.celularesOpenModalAtribuir(null,null,'+a.colaborador_id+')" style="background:#e67700;color:#fff;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:0.78rem;font-weight:700;"><i class="ph ph-link"></i> Atribuir</button>' : '';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;gap:6px;flex-wrap:wrap;">'+
                 '<button onclick="window.celularesOpenModalDevolver('+a.atrib_id+',\''+nome.replace(/'/g,"\\'")+'\')" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>'+
+                btnAtribuir +
                 '</div></td></tr>';
         });
         chipsAvF.forEach(function(c) {
@@ -338,8 +356,11 @@
             rows+='<td style="padding:0.75rem;font-size:0.83rem;color:#94a3b8;font-style:italic;">Apenas chip</td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="font-weight:600;color:#2563eb;display:flex;align-items:center;">'+fmtTel(c.numero)+obsIcon(c.observacao)+'</div><div style="font-size:0.72rem;color:#64748b;">'+(c.operadora||'')+'</div></td>';
             rows+='<td style="padding:0.75rem;font-size:0.8rem;color:#64748b;">'+fmtData(c.atrib_data_inicio)+'</td>';
+            var cCount = !isAv ? (chipsCount[c.colaborador_id] || 0) : 0;
+            var btnAtribuir = (!isAv && cCount < 2) ? '<button onclick="window.celularesOpenModalAtribuir(null,null,'+c.colaborador_id+')" style="background:#e67700;color:#fff;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:0.78rem;font-weight:700;"><i class="ph ph-link"></i> Atribuir</button>' : '';
             rows+='<td style="padding:0.75rem;"><div style="display:flex;gap:6px;">'+
                 '<button onclick="window.celularesOpenModalDevolver('+c.atrib_id+',\''+nome.replace(/'/g,"\\'")+'\')" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>'+
+                btnAtribuir +
                 '</div></td></tr>';
         });
 
@@ -956,8 +977,15 @@
 
         if(!dev_aparelho && !dev_chip1 && !dev_chip2) return alert('Selecione pelo menos um item para devolver.');
 
+        var devsList = [];
+        if(dev_aparelho) devsList.push('Aparelho');
+        if(dev_chip1) devsList.push('Chip ' + fmtTel(chs[0].numero));
+        if(dev_chip2) devsList.push('Chip ' + fmtTel(chs[1].numero));
+        var prefix = 'Devolvido ' + devsList.join(' e ') + ': ';
+        var obsFinal = obs ? prefix + obs : prefix.slice(0, -2);
+
         try {
-            await _apiPut('/celulares/atribuicoes/'+aid+'/devolver',{data_fim:df,observacao:obs});
+            await _apiPut('/celulares/atribuicoes/'+aid+'/devolver',{data_fim:df,observacao:obsFinal});
             
             var keepAp = (ap && !dev_aparelho) ? ap.id : null;
             var keepCh1 = (chs.length > 0 && !dev_chip1) ? chs[0].id : null;
