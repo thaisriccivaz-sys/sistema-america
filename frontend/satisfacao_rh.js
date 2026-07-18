@@ -181,10 +181,10 @@
         const ultimoPeriodo = periodos[periodos.length - 1];
         const periodoKey = ultimoPeriodo ? `${ultimoPeriodo.ano}-T${ultimoPeriodo.trimestre}` : null;
 
-        const responderam = colabs.filter(c => periodoKey && c.pesquisas?.[periodoKey]?.respondido).length;
-        const total = colabs.length;
+        const responderam = _dash.contagens?.respondidosLastP || 0;
+        const total = _dash.contagens?.contagemTotal || colabs.length;
         const faltam = total - responderam;
-        const pct = total > 0 ? Math.round((responderam / total) * 100) : 0;
+        const pct = total > 0 ? ((responderam / total) * 100).toFixed(1).replace('.0', '') : 0;
 
         // Média geral última pesquisa
         let mediasUlt = [];
@@ -236,7 +236,7 @@
                 <div class="sc-sub">${trendHTML}</div>
             </div>
             <div class="sat-card">
-                <div class="sc-label">Pesquisas disponíveis</div>
+                <div class="sc-label">Ciclos avaliados</div>
                 <div class="sc-val" style="color:#0ea5e9;">${periodos.length}</div>
                 <div class="sc-sub">${periodos.map(periodLabel).join(' · ')}</div>
             </div>
@@ -276,6 +276,7 @@
         // Group by grupo
         const grupos = {};
         data.forEach(d => {
+            if (d.topico === '_obs_') return; // Ocultar linha _obs_
             if (!grupos[d.grupo]) grupos[d.grupo] = [];
             grupos[d.grupo].push(d);
         });
@@ -499,7 +500,7 @@
                 <div class="sat-avatar-cell">
                     ${avatarHTML(c)}
                     <div>
-                        <div style="font-weight:600;color:#1e293b;font-size:.83rem;">${c.nome_completo}</div>
+                        <div style="font-weight:600;color:#1e293b;font-size:.83rem;" title="${c.nome_completo}">${c.nome_completo.length > 15 ? c.nome_completo.substring(0, 15) + '...' : c.nome_completo}</div>
                         <div style="color:#94a3b8;font-size:.72rem;">${c.cargo || '—'}</div>
                     </div>
                 </div>
@@ -603,50 +604,77 @@
         const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
         
         let html = `<div id="sat-modal-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(3px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;">
-            <div style="background:#fff;border-radius:14px;width:100%;max-width:750px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation: satModalFadeIn 0.2s ease-out;">
-                <div style="padding:1.5rem 2rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;border-radius:14px 14px 0 0;">
+            <div style="background:#fff;border-radius:14px;width:100%;max-width:900px;height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation: satModalFadeIn 0.2s ease-out;">
+                <div style="padding:1.5rem 2rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#0f4c81;color:#fff;border-radius:14px 14px 0 0;">
                     <div>
-                        <h2 style="margin:0;font-size:1.25rem;color:#1e293b;"><i class="ph ph-smiley" style="color:#7c3aed;margin-right:.5rem;"></i>Responder Pesquisa de Satisfação</h2>
-                        <div style="color:#64748b;font-size:0.85rem;margin-top:0.3rem;"><strong>${nome}</strong> — ${cargo || dept}</div>
+                        <h2 style="margin:0;font-size:1.25rem;color:#fff;"><i class="ph ph-smiley" style="color:#cffafe;margin-right:.5rem;"></i>Avaliação de Satisfação</h2>
+                        <div style="color:#e0f2fe;font-size:0.85rem;margin-top:0.3rem;"><strong>${nome}</strong> — ${cargo || dept}</div>
                     </div>
-                    <button onclick="window._satCloseForm()" style="background:none;border:none;font-size:1.5rem;color:#94a3b8;cursor:pointer;transition:color 0.2s;"><i class="ph ph-x"></i></button>
+                    <button onclick="window._satCloseForm()" style="background:none;border:none;font-size:1.5rem;color:#fff;cursor:pointer;transition:color 0.2s;"><i class="ph ph-x"></i></button>
                 </div>
                 
-                <div style="padding:2rem;overflow-y:auto;flex:1;" id="sat-form-body">
+                <div style="padding:2rem;overflow-y:auto;flex:1;background:#f8fafc;" id="sat-form-body">
+                    <p style="margin-top:0; margin-bottom:1.5rem; color:#0f4c81; font-size:1.05rem; font-weight:700; background:#e0f2fe; padding:12px 16px; border-radius:8px; border-left:5px solid #0ea5e9; box-shadow:0 2px 4px rgba(14,165,233,0.15);">
+                        Avalie cada critério (1 Muito ruim - 2 Ruim - 3 Médio - 4 Bom - 5 Muito bom) e adicione uma observação caso aplicável.
+                    </p>
                     <style>
                         @keyframes satModalFadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-                        .sat-q-row { display:flex; align-items:center; justify-content:space-between; padding:0.8rem 0; border-bottom:1px solid #f1f5f9; gap:1.5rem; }
-                        .sat-q-row:last-child { border-bottom:none; }
-                        .sat-q-text { font-size:0.9rem; color:#334155; flex:1; }
-                        .sat-q-select { padding:0.4rem 0.8rem; border-radius:6px; border:1.5px solid #cbd5e1; font-weight:600; font-size:0.95rem; width:80px; text-align:center; color:#1e293b; background:#fff; }
-                        .sat-q-select:focus { border-color:#7c3aed; outline:none; box-shadow:0 0 0 3px rgba(124,58,237,0.15); }
                     </style>
                     <form id="sat-modal-form" onsubmit="window._satSubmitForm(event, ${colabId})">`;
 
+        let catIdx = 0;
         Object.keys(perguntasGroup).forEach(topico => {
-            html += `<h4 style="margin:1.5rem 0 0.5rem;color:#7c3aed;font-size:0.95rem;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #f1f5f9;padding-bottom:0.4rem;">${topico}</h4>`;
+            html += `
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:1.5rem; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="background:#f1f5f9; padding:0.75rem 1rem; border-bottom:1px solid #e2e8f0;">
+                    <span style="font-weight:700; color:#334155;">${catIdx+1}. ${topico}</span>
+                </div>
+                <div style="padding:1rem;">
+            `;
+            
             perguntasGroup[topico].forEach((pergunta, idx) => {
-                const inputName = `q_${topico.replace(/\\s+/g, '_')}_${idx}`;
                 html += `
-                <div class="sat-q-row">
-                    <div class="sat-q-text">${pergunta}</div>
-                    <select name="${inputName}" class="sat-q-select" required>
-                        <option value="" disabled selected>-</option>
-                        ${[10,9,8,7,6,5,4,3,2,1].map(n => `<option value="${n}">${n}</option>`).join('')}
-                    </select>
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:1.5rem; padding:0.75rem 0; border-bottom:1px dashed #e2e8f0; flex-wrap:wrap;">
+                    <div style="width:35%; min-width:280px; font-size:0.95rem; color:#475569; font-weight:500;">${pergunta}</div>
+                    <div style="flex:1; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+                        <div style="display:flex; gap:0.35rem; flex-shrink:0;">
+                `;
+                
+                const qColors = { 1:'#ef4444', 2:'#f97316', 3:'#eab308', 4:'#84cc16', 5:'#22c55e' };
+                const bgColors = { 1:'#fee2e2', 2:'#ffedd5', 3:'#fef3c7', 4:'#ecfccb', 5:'#dcfce7' };
+                
+                for(let v=1; v<=5; v++) {
+                    const c = qColors[v]; const bg = bgColors[v];
+                    html += `
+                    <label style="cursor:pointer; position:relative; margin:0;" title="Nota ${v}">
+                        <input type="radio" name="q_${topico.replace(/\\s+/g, '_')}_${idx}" value="${v}" required style="position:absolute; opacity:0; pointer-events:none;">
+                        <div class="radio-nota sat-rbtn" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:700; font-size:0.85rem; border:1px solid #cbd5e1; background:#fff; color:${c}; transition:all 0.15s;" 
+                             onclick="this.parentElement.parentElement.querySelectorAll('.sat-rbtn').forEach(el=>{el.style.background='#fff'; el.style.color=el.dataset.color; el.style.borderColor='#cbd5e1'}); this.style.background=this.dataset.bg; this.style.color='#fff'; this.style.borderColor=this.dataset.color;"
+                             data-color="${c}" data-bg="${c}">
+                            ${v}
+                        </div>
+                    </label>`;
+                }
+                
+                html += `
+                        </div>
+                        <input type="text" name="obs_${topico.replace(/\\s+/g, '_')}_${idx}" placeholder="Observação (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
+                    </div>
                 </div>`;
             });
+            html += `</div></div>`;
+            catIdx++;
         });
 
         html += `
-                        <div style="margin-top:2.5rem;padding:1.5rem;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;">
-                            <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:0.5rem;">Informações Adicionais (Opcional)</label>
+                        <div style="margin-top:2.5rem;padding:1.5rem;background:#fff;border:1px dashed #cbd5e1;border-radius:8px;">
+                            <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:0.5rem;">Informações Adicionais / Observação Geral (Opcional)</label>
                             <textarea name="info_adicional" rows="2" style="width:100%;padding:0.75rem;border-radius:6px;border:1px solid #cbd5e1;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="Observações, feedback extra..."></textarea>
                         </div>
                         
                         <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:2rem;">
                             <button type="button" onclick="window._satCloseForm()" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:1px solid #cbd5e1;background:#fff;color:#64748b;cursor:pointer;">Cancelar</button>
-                            <button type="submit" id="sat-btn-submit" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:none;background:#7c3aed;color:#fff;cursor:pointer;display:flex;align-items:center;gap:0.5rem;box-shadow:0 2px 4px rgba(124,58,237,0.3);"><i class="ph ph-check-circle"></i> Salvar Pesquisa</button>
+                            <button type="submit" id="sat-btn-submit" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:none;background:#0f4c81;color:#fff;cursor:pointer;display:flex;align-items:center;gap:0.5rem;box-shadow:0 2px 4px rgba(15,76,129,0.3);"><i class="ph ph-check-circle"></i> Salvar Respostas</button>
                         </div>
                     </form>
                 </div>
@@ -677,6 +705,8 @@
         for (const [key, val] of formData.entries()) {
             if (key.startsWith('q_') && val) {
                 respostas.scores[key] = parseInt(val, 10);
+            } else if (key.startsWith('obs_') && val.trim()) {
+                respostas.topicos[key] = val.trim();
             }
         }
         

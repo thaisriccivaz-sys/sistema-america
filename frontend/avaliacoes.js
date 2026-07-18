@@ -782,13 +782,19 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
                     <div style="flex:1; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
                         <div style="display:flex; gap:0.35rem; flex-shrink:0;">
             `;
+            
+            const qColors = { 1:'#ef4444', 2:'#f97316', 3:'#eab308', 4:'#84cc16', 5:'#22c55e' };
+            const bgColors = { 1:'#fee2e2', 2:'#ffedd5', 3:'#fef3c7', 4:'#ecfccb', 5:'#dcfce7' };
+            
             for(let v=1; v<=5; v++) {
                 const checked = (val == v) ? 'checked' : '';
+                const c = qColors[v]; const bg = bgColors[v];
                 html += `
                     <label style="cursor:pointer; position:relative; margin:0;" title="Nota ${v}">
                         <input type="radio" name="av_${catIdx}_${i}" value="${v}" ${checked} style="position:absolute; opacity:0; pointer-events:none;" onchange="updateAvaliacaoProgress(${catIdx}, ${totalQ})">
-                        <div class="radio-nota" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:700; font-size:0.85rem; border:1px solid #cbd5e1; background: ${checked?'#0f4c81':'#fff'}; color: ${checked?'#fff':'#64748b'}; transition:all 0.15s;" 
-                             onclick="this.parentElement.parentElement.querySelectorAll('.radio-nota').forEach(el=>{el.style.background='#fff'; el.style.color='#64748b'; el.style.borderColor='#cbd5e1'}); this.style.background='#0f4c81'; this.style.color='#fff'; this.style.borderColor='#0f4c81';">
+                        <div class="radio-nota" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:700; font-size:0.85rem; border:1px solid #cbd5e1; background: ${checked?bg:'#fff'}; color: ${checked?'#fff':c}; border-color:${checked?c:'#cbd5e1'}; transition:all 0.15s;" 
+                             onclick="this.parentElement.parentElement.querySelectorAll('.radio-nota').forEach(el=>{el.style.background='#fff'; el.style.color=el.dataset.color; el.style.borderColor='#cbd5e1'}); this.style.background=this.dataset.bg; this.style.color='#fff'; this.style.borderColor=this.dataset.color;"
+                             data-color="${c}" data-bg="${c}">
                             ${v}
                         </div>
                     </label>
