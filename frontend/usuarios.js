@@ -575,6 +575,13 @@ const MENU_HIERARQUIA = [
                 ]
             },
             {
+                titulo: 'Avaliações',
+                expandable: true,
+                telas: [
+                    'satisfacao-rh', 'desempenho-rh'
+                ]
+            },
+            {
                 titulo: 'Prontuário Digital (Abas)',
                 expandable: true,
                 telas: [
