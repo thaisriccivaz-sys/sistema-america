@@ -9617,10 +9617,15 @@ app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) =>
                     // Estrutura: { grupo: { topico: { 'ano-trimestre': [notas] } } }
                     const agregado = {};
 
-                    (rows || []).forEach(row => {
+                    console.log(`[DASHBOARD] rows encontrados: ${(rows||[]).length}`);
+
+                    (rows || []).forEach((row, ri) => {
                         let respostas = {};
                         try { respostas = JSON.parse(row.respostas_json || '{}'); } catch(e) {}
                         const periodo = `${row.ano}-T${row.trimestre}`;
+                        const topKeys = Object.keys(respostas).slice(0, 5);
+                        console.log(`[ROW ${ri}] colab=${row.colaborador_id} dept=${row.departamento} cargo=${row.cargo} periodo=${periodo} keys=${JSON.stringify(topKeys)} formato=${respostas.scores?'LEGADO_SCORES': respostas['Ambiente de trabalho']?'NOVO_ARRAY':'DESCONHECIDO'}`);
+                        if (ri === 0) console.log(`[ROW 0 AMOSTRA] ${JSON.stringify(respostas).substring(0, 300)}`);
 
                         // Determinar grupo baseado no departamento/cargo
                         const dept = (row.departamento || '').toLowerCase();
