@@ -3022,24 +3022,31 @@ app.get('/api/colaboradores', authenticateToken, (req, res) => {
 
     const query = `
         SELECT c.*,
-            (SELECT COUNT(*) FROM faltas f 
-             WHERE f.colaborador_id = c.id 
-               AND strftime('%Y', f.data_falta) = strftime('%Y', 'now') 
-               AND NOT EXISTS (
-                   SELECT 1 FROM documentos d 
-                   WHERE d.colaborador_id = c.id 
-                     AND (d.tab_name LIKE '%ATESTADO%' OR d.document_type LIKE '%Atestado%')
-                     AND f.data_falta >= d.atestado_inicio 
-                     AND f.data_falta <= d.atestado_fim
-               )
-            ) as faltas_ano,
-            (SELECT COUNT(*) FROM documentos d 
-             WHERE d.colaborador_id = c.id 
-               AND (d.document_type LIKE '%Advertência%' OR d.document_type LIKE '%Suspensão%' OR d.tab_name LIKE '%Advertência%' OR d.tab_name LIKE '%Suspensão%')
-            ) as punicoes,
+            COALESCE(fa.faltas_ano, 0) as faltas_ano,
+            COALESCE(pu.punicoes, 0) as punicoes,
             d.tipo as departamento_tipo
         FROM colaboradores c
         LEFT JOIN departamentos d ON c.departamento = d.nome
+        LEFT JOIN (
+            SELECT f.colaborador_id, COUNT(*) as faltas_ano
+            FROM faltas f
+            WHERE strftime('%Y', f.data_falta) = strftime('%Y', 'now')
+              AND NOT EXISTS (
+                  SELECT 1 FROM documentos d2
+                  WHERE d2.colaborador_id = f.colaborador_id
+                    AND (d2.tab_name LIKE '%ATESTADO%' OR d2.document_type LIKE '%Atestado%')
+                    AND f.data_falta >= d2.atestado_inicio
+                    AND f.data_falta <= d2.atestado_fim
+              )
+            GROUP BY f.colaborador_id
+        ) fa ON fa.colaborador_id = c.id
+        LEFT JOIN (
+            SELECT colaborador_id, COUNT(*) as punicoes
+            FROM documentos
+            WHERE (document_type LIKE '%Advertência%' OR document_type LIKE '%Suspensão%'
+                OR tab_name LIKE '%Advertência%' OR tab_name LIKE '%Suspensão%')
+            GROUP BY colaborador_id
+        ) pu ON pu.colaborador_id = c.id
     `;
     db.all(query, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });

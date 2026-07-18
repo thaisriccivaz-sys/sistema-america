@@ -49,6 +49,20 @@ const db = new sqlite3.Database(dbPath, (err) => {
         console.log(`Caminho Real: ${dbPath}`);
         console.log('--------------------------------------------------');
         
+        // ─── OTIMIZAÇÕES DE PERFORMANCE SQLite ─────────────────────────────
+        // WAL mode: permite leituras simultâneas sem bloquear escritas (melhora drasticamente a velocidade)
+        db.run('PRAGMA journal_mode = WAL;');
+        // Cache de 32MB em memória para reduzir leituras de disco
+        db.run('PRAGMA cache_size = -32000;');
+        // Sincronização normal (mais rápido que FULL, ainda seguro)
+        db.run('PRAGMA synchronous = NORMAL;');
+        // Armazena tabelas temporárias em memória
+        db.run('PRAGMA temp_store = MEMORY;');
+        // Mmap de 256MB para acesso mais rápido ao banco
+        db.run('PRAGMA mmap_size = 268435456;');
+        console.log('[DB] PRAGMAs de performance aplicados (WAL + cache).');
+        // ────────────────────────────────────────────────────────────────────
+        
         db.serialize(() => {
             // [MIGRAÇÃO] Excluir departamento 1378 (Recursos Humanos) permanentemente a pedido do usuário
             db.run(`DELETE FROM departamentos WHERE id = 1378`);
